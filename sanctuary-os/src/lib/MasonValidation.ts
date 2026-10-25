@@ -58,6 +58,7 @@ export function deepCompare(base: any, target: any, isLexicon: boolean): { missi
          for (const k in t) {
             if (k.startsWith('_meta')) continue;
             if (k === 'schema_version') continue;
+            if (isLexicon && k.startsWith('icon_')) continue;
             
             const nextPath = currentPath ? `${currentPath}.${k}` : k;
 
@@ -72,7 +73,9 @@ export function deepCompare(base: any, target: any, isLexicon: boolean): { missi
       }
    };
 
-   compare(base, target);
+   if (!isLexicon) {
+      compare(base, target);
+   }
    findDeprecated(base, target);
 
    return { missing, completelyMissing, deprecated };
@@ -151,6 +154,13 @@ export function deepPurgeDeprecated(base: any, target: any, isLexicon: boolean, 
          continue;
       }
       if (k === 'schema_version') {
+         result[k] = target[k];
+         continue;
+      }
+      if (isLexicon && (target[k] === "" || target[k] === null || target[k] === undefined)) {
+         continue;
+      }
+      if (isLexicon && k.startsWith('icon_')) {
          result[k] = target[k];
          continue;
       }

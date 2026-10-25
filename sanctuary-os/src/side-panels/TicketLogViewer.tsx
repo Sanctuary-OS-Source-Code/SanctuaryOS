@@ -10,6 +10,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { scrubLogUserData } from "../utils/logScrubber";
@@ -38,12 +39,12 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
     if (!blueprintJson) return;
     const copySets = [...store.playSets];
     let newName =
-      blueprintJson.name || t("support_imported_blueprint", "Imported Blueprint");
+      blueprintJson.name || t("support_imported_blueprint", "Imported {Blueprint}");
     let counter = 1;
     while (
       copySets.some((s: any) => s.name.toLowerCase() === newName.toLowerCase())
     ) {
-      newName = `${blueprintJson.name || t("support_imported_blueprint", "Imported Blueprint")} (${counter})`;
+      newName = `${blueprintJson.name || t("support_imported_blueprint", "Imported {Blueprint}")} (${counter})`;
       counter++;
     }
     copySets.push({ name: newName, mods: [...(blueprintJson.mods || [])] });
@@ -204,27 +205,35 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
             if (match) {
               const [, timestamp, type, msg] = match;
               const date = new Date(timestamp);
-              let typeColor = "text-[var(--text)]";
-              let borderTypeColor =
-                "border-[color-mix(in_srgb,var(--text)_25%,transparent)]";
               const tLower = type.toLowerCase();
-              if (tLower === "error") {
-                typeColor = "text-[var(--danger)]";
-                borderTypeColor =
-                  "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]";
-              } else if (tLower === "success") {
-                typeColor = "text-[var(--success)]";
-                borderTypeColor =
-                  "border-[color-mix(in_srgb,var(--success)_40%,transparent)]";
-              } else if (tLower === "warning") {
-                typeColor = "text-[var(--warning)]";
-                borderTypeColor =
-                  "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]";
-              } else if (tLower === "info") {
-                typeColor = "text-[var(--accent)]";
-                borderTypeColor =
-                  "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]";
-              }
+              const typeColorVar =
+                tLower === "error"
+                  ? "var(--danger)"
+                  : tLower === "success"
+                    ? "var(--success)"
+                    : tLower === "warning"
+                      ? "var(--warning)"
+                      : tLower === "info"
+                        ? "var(--accent)"
+                        : "var(--subtext)";
+              const typeBadgeIcon =
+                tLower === "error"
+                  ? t("icon_error", "error")
+                  : tLower === "success"
+                    ? t("icon_check_circle", "check_circle")
+                    : tLower === "warning"
+                      ? t("icon_warning", "warning")
+                      : t("icon_info", "info");
+              const typeColor =
+                tLower === "error"
+                  ? "text-[var(--danger)]"
+                  : tLower === "success"
+                    ? "text-[var(--success)]"
+                    : tLower === "warning"
+                      ? "text-[var(--warning)]"
+                      : tLower === "info"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--text)]";
 
               const knownIcons = [
                 "check_circle",
@@ -275,16 +284,23 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                     </span>
                   </div>
                   <div
-                    className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 mt-0.5 bg-transparent ${typeColor} ${borderTypeColor} border flex items-center justify-center`}
+                    className={`${VAULT_CHIP_CLASS} mt-0.5`}
+                    style={{
+                      color: typeColorVar,
+                      borderColor: `color-mix(in srgb, ${typeColorVar} 35%, var(--border))`,
+                    }}
                   >
-                    {type}
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      {typeBadgeIcon}
+                    </span>
+                    <span>{type}</span>
                   </div>
                   <span className="text-xs font-bold text-[var(--text)] opacity-90 break-words pt-0.5 flex-1 leading-relaxed flex items-start gap-2">
                     {logIcon && (
                       <span
-                        className={`material-symbols-outlined !text-[14px] ${typeColor}`}
+                        className={`material-symbols-rounded !text-[14px] ${typeColor}`}
                       >
-                        {logIcon}
+                        {t(`icon_${logIcon}`, logIcon)}
                       </span>
                     )}
                     <span>{displayMessage}</span>
@@ -379,8 +395,13 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
               onClick={() => handleCardClick(idx)}
               className="glass-surface group relative border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-xl cursor-pointer flex items-center gap-3.5 px-4 py-3.5"
             >
-              <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                <span className="material-symbols-outlined !text-[20px]">
+              <div
+                className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[20px]">
                   {icon}
                 </span>
               </div>
@@ -390,7 +411,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                   {label}
                 </span>
                 <span className="text-[9px] font-bold opacity-70 uppercase tracking-wider mt-0.5 text-[var(--subtext)]">
-                  {t("btn_view_details", "View Details")}
+                  {t("view_details", "View Details")}
                 </span>
               </div>
             </div>
@@ -414,7 +435,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
               overline={t("dossier_attached_logs", "Attached Telemetry")}
               title={sections[activeSectionIndex].title}
               description={t(
-                "btn_view_details",
+                "view_details",
                 "Scrubbed system telemetry and diagnostic log records."
               )}
               variant="accent"
@@ -433,7 +454,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
         <SidePanel
           isOpen={!!blueprintJson}
           onClose={() => setBlueprintJson(null)}
-          title={t("support_attached_blueprint", "Attached Blueprint")}
+          title={t("support_attached_blueprint", "Attached {Blueprint}")}
           subtitle={
             blueprintJson.name ||
             t("support_import_load_order", "Import Load Order")
@@ -445,7 +466,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon={t("icon_download", "download")}
-                tooltip={t("playsets_btn_import", "Import Blueprint")}
+                tooltip={t("playsets_btn_import", "IMPORT {Blueprint}")}
                 variant="success"
                 onClick={handleImportBlueprint}
               />
@@ -455,15 +476,12 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard
               icon={t("icon_map", "map")}
-              overline={t("support_attached_blueprint", "Attached Blueprint")}
+              overline={t("support_attached_blueprint", "Attached {Blueprint}")}
               title={
                 blueprintJson.name ||
                 t("support_import_load_order", "Blueprint Snapshot")
               }
-              description={t(
-                "support_mods_list",
-                "Inspect or import the attached load order snapshot."
-              )}
+              description={t("support_mods_list", "{Mods} List")}
               badge={`${blueprintJson.mods?.length || 0}`}
               badgeIcon={t("icon_extension", "extension")}
               variant="accent"
@@ -477,7 +495,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
             />
 
             <UniversalGroup
-              title={`${t("support_mods_list", "Included Mods")} (${blueprintJson.mods?.length || 0})`}
+              title={`${t("support_mods_list", "{Mods} List")} (${blueprintJson.mods?.length || 0})`}
               icon={t("icon_format_list_bulleted", "format_list_bulleted")}
             >
               <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3.5">
@@ -497,8 +515,13 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                         key={i}
                         className="glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-colors p-3.5 rounded-xl flex flex-col items-center justify-center text-center gap-2.5 group"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                          <span className="material-symbols-outlined !text-[20px]">
+                        <div
+                          className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                          style={{
+                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[20px]">
                             {t("icon_extension", "extension")}
                           </span>
                         </div>
@@ -513,14 +536,6 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                   })}
               </div>
             </UniversalGroup>
-
-            <ActionButton
-              variant="glass"
-              icon={t("icon_download", "download")}
-              label={t("playsets_btn_import", "Import Blueprint")}
-              onClick={handleImportBlueprint}
-              className="w-full"
-            />
           </div>
         </SidePanel>
       )}

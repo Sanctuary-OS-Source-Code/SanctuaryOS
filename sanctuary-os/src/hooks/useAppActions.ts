@@ -34,7 +34,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     } else {
       const newId = "local_" + Date.now();
       localSts.push({ id: newId, name: folderName, items: hashes, isCollection: localFolderType === "CC_SET" });
-      setStatus(`${t("status_virtual_folder_created")}${folderName}`);
+      setStatus(`${t("status_virtual_folder_created", "Virtual Folder Created:")}${folderName}`);
     }
     
     localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSts));
@@ -45,18 +45,18 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
   function executeBulkDraft() {
     const setName = bulkName.trim();
     if (!setName) { setBulkModal(false); return; }
-    if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists")); return; }
+    if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists", "A {Blueprint} with that name already exists!")); return; }
     const updatedSets =[...playSets, { name: setName, mods: selectedMods }];
     setPlaySets(updatedSets);
     setActivePlaySetIndex(updatedSets.length - 1); 
-    setStatus(`${t("status_blueprint_created_prefix")}${setName}${t("status_blueprint_created_mid")}${selectedMods.length}${t("backend_deployed_suffix")}`);
+    setStatus(`${t("status_blueprint_created_prefix", "{Blueprint}[")}${setName}${t("status_blueprint_created_mid", "] created with")}${selectedMods.length}${t("backend_deployed_suffix", "{mods}.")}`);
     setIsBulkMode(false); setSelectedMods([]); setBulkModal(false); setBulkName("");
   }
 
   function executeSnapshot() {
     const setName = snapshotName.trim();
     if (!setName) { setSnapshotModal(false); return; }
-    if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists")); return; }
+    if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists", "A {Blueprint} with that name already exists!")); return; }
     const activeSet = playSets[activePlaySetIndex];
     const currentMods = activeSet && activeSet.mods ? [...activeSet.mods] : [];
     const newSet = {
@@ -72,7 +72,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     setPlaySets(updatedSets); 
  
     setSnapshotModal(false); setSnapshotName("");
-    setStatus(`${t("icon_check_circle")} ${t("status_profile_cloned")}`);
+    setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_profile_cloned", "Profile Cloned Successfully!")}`);
   }
 
   async function exportPlaySet(setName: string) {
@@ -120,18 +120,18 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       const path = await save({ defaultPath, filters:[{ name: 'Sanctuary Profile', extensions: ['json'] }] });
       if (path) {
         await invoke("save_blueprint", { path: path, content: JSON.stringify(exportData, null, 2) });
-        setStatus(`${t("icon_check_circle")} ${t("status_profile_exported")}${setName}`);
+        setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_profile_exported", "Profile Exported")}${setName}`);
       }
-    } catch (err) { setStatus(`${t("icon_block")} ${t("alert_export_failed")}${err}`); }
+    } catch (err) { setStatus(`${t("icon_block", "block")} ${t("alert_export_failed", "Export Failed:")}${err}`); }
   }
 
   async function executeRename() {
     if (!renameModal) return; const { oldName, newName, cleanName, prefix } = renameModal;
     if (!newName || newName === cleanName) { setRenameModal(null); return; }
     const finalName = newName.toUpperCase().startsWith(prefix) ? newName : `${prefix}${newName.replace(/\s+/g, "_")}`;
-    setStatus(t("status_relabeling"));
-    try { const msg = await invoke<string>("rename_backup", { oldName, newName: finalName }); setStatus(`${t("icon_check_circle")} ${msg}`); fetchBackups(); } 
-    catch (err) { setStatus(`${t("status_relabel_failed")}${err}`); } setRenameModal(null);
+    setStatus(t("status_relabeling", "RENAMING: Updating archive designation..."));
+    try { const msg = await invoke<string>("rename_backup", { oldName, newName: finalName }); setStatus(`${t("icon_check_circle", "check_circle")} ${msg}`); fetchBackups(); } 
+    catch (err) { setStatus(`${t("alert_rename_failed", "Rename Failed:")}${err}`); } setRenameModal(null);
   }
 
   async function confirmRename() {
@@ -140,7 +140,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       await invoke("rename_backup", { oldName: renameTarget, newName: nameInput });
       setRenameTarget(null);
       fetchBackups();
-    } catch (err) { useStore.getState().pushStatus(`${t("alert_rename_failed")}${err}`); }
+    } catch (err) { useStore.getState().pushStatus(`${t("alert_rename_failed", "Rename Failed:")}${err}`); }
   }
 
   return {

@@ -20,7 +20,7 @@ export interface DispatchPollData {
 }
 
 export function formatDispatchCategory(cat: string | undefined, t?: (key: string, fallback?: string) => string): string {
-  if (!cat) return t ? t("comms_btn_update", "Update") : "Update";
+  if (!cat) return t ? t("category_update", "Update") : "Update";
   const trimmed = cat.trim();
   if (trimmed.toLowerCase() === "info" || trimmed.toLowerCase() === "information") {
     return t ? t("category_info", "Information") : "Information";
@@ -194,8 +194,8 @@ export function DispatchMetadataHeader({
       return combined.length > 0 ? combined : [t("dispatch_all_communities", "All Communities")];
     }
     return [
-      t("role_citizens", "Citizens"),
-      t("role_masons", "Masons"),
+      t("role_citizens", "{Citizens}"),
+      t("role_masons", "{Masons}"),
       t("role_architects", "Architects"),
       t("role_oversight", "Oversight"),
       t("role_wayfinders", "Wayfinders")
@@ -220,7 +220,7 @@ export function DispatchMetadataHeader({
     if (hasAllToken) {
       const allLabel = isHubBroadcast
         ? t("dispatch_all_communities", "All Communities")
-        : t("dispatch_all_citizens", "All Citizens");
+        : t("dispatch_all_citizens", "All {Citizens}");
       const hoverItems = allContextTargets.length > 0 ? allContextTargets : [allLabel];
       return {
         audienceDisplay: allLabel,
@@ -242,9 +242,9 @@ export function DispatchMetadataHeader({
   }, [rawAudienceStr, allContextTargets, isHubBroadcast, t]);
 
   const severityLabel = isUrgent
-    ? t("dispatch_severity_urgent", "Urgent")
+    ? t("urgent", "Urgent")
     : isAlert
-      ? t("dispatch_severity_standard_alert", "Standard Alert")
+      ? t("standard_alert", "Standard Alert")
       : t("dispatch_severity_advisory", "Advisory");
 
   const severityTooltipDesc = isUrgent
@@ -271,7 +271,7 @@ export function DispatchMetadataHeader({
   const typeLabel = isAlert
     ? t("dispatch_lbl_alert_type", "Alert Type")
     : t("dispatch_lbl_dispatch_type", "Dispatch Type");
-  const typeValue = category || t("comms_btn_update", "Update");
+  const typeValue = category || t("category_update", "Update");
 
   const typeTooltipDesc = useMemo(() => {
     const lower = typeValue.toLowerCase();
@@ -325,7 +325,7 @@ export function DispatchMetadataHeader({
       <StatBox
         icon={t("icon_bolt", "bolt")}
         iconColorClass={!isNoAction ? (isUrgent ? "text-[var(--danger)]" : "text-[var(--warning)]") : "text-[var(--accent)]"}
-        label={t("dispatch_lbl_action_required", "Action Required")}
+        label={t("action_required", "Action Required")}
         value={actionRequired}
         tooltipTitle={t("dispatch_tt_action_title", "Recommended Recipient Action")}
         tooltipSubtitle={actionTooltipDesc}
@@ -498,7 +498,7 @@ export function DispatchPollBuilder({
             className="self-start mt-1 ml-6 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all flex items-center gap-1.5"
           >
             <span className="material-symbols-outlined !text-[14px]">{t("icon_add_circle", "add_circle")}</span>
-            {t("poll_btn_add_option", "Add Option")}
+            {t("support_add_option", "Add Option")}
           </button>
         )}
       </div>

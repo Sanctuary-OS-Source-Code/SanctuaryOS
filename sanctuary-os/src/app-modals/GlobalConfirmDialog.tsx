@@ -47,7 +47,7 @@ export function GlobalConfirmDialog() {
   const titleText =
     confirmDialog.title ||
     (isDefcon
-      ? t("defcon_alert_title", "Global Alert")
+      ? t("tile_global_alert", "Global Alert")
       : t("status", "Confirmation"));
   const statsList: Array<{
     label: string;
@@ -226,7 +226,7 @@ export function GlobalConfirmDialog() {
             <ActionButton
               variant="glass"
               icon={t("icon_close", "close")}
-              label={confirmDialog.cancelText || t("nav_cancel")}
+              label={confirmDialog.cancelText || t("cancel", "Cancel")}
               onClick={handleCancel}
               className="w-full !py-3.5"
             />
@@ -251,7 +251,7 @@ export function GlobalConfirmDialog() {
             }
             label={
               confirmDialog.confirmText ||
-              (isSingleAction ? t("btn_ok") : t("btn_proceed"))
+              (isSingleAction ? t("btn_ok", "OK") : t("btn_proceed", "Proceed"))
             }
             onClick={handleConfirm}
             className="w-full !py-3.5"

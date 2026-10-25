@@ -29,6 +29,7 @@ import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
 import { UpdatesSidePanel } from "./side-panels/CommandCenterSidePanels";
 import CommandConflictsPanel from "./side-panels/CommandConflictsPanel";
 import CommandIncompatiblePanel from "./side-panels/CommandIncompatiblePanel";
+import { ScreenshotTourSidePanel } from "./side-panels/ScreenshotTourSidePanel";
 import { getExtensionRegex, handleOpenUrl } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { isDesktop } from "./utils/envUtils";
@@ -37,6 +38,23 @@ import { isRootDomain } from "./utils/routingUtils";
 export const AppModals = React.memo(function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
   const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
+  const [isScreenshotTourOpen, setIsScreenshotTourOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleOpenTour = () => setIsScreenshotTourOpen(true);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        setIsScreenshotTourOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("sanctuary-open-screenshot-tour", handleOpenTour);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("sanctuary-open-screenshot-tour", handleOpenTour);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
   const {
     snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet,
     bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName,
@@ -276,6 +294,11 @@ export const AppModals = React.memo(function AppModals(props: any) {
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}
         audience="Citizens"
+      />
+
+      <ScreenshotTourSidePanel
+        isOpen={isScreenshotTourOpen}
+        onClose={() => setIsScreenshotTourOpen(false)}
       />
     </>
   );

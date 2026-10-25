@@ -104,7 +104,7 @@ export default function FlagContentSidePanel({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <StatBox
               label={t("target_asset", "Target ID")}
-              value={targetId ? targetId.substring(0, 8) : t("status_unknown", "Unknown")}
+              value={targetId ? targetId.substring(0, 8) : t("unknown", "Unknown")}
               icon={t("icon_target", "target")}
               iconColorClass="text-[var(--accent)]"
             />
@@ -132,19 +132,6 @@ export default function FlagContentSidePanel({
             required
           />
         </UniversalGroup>
-
-        <ActionButton
-          type="submit"
-          variant="glass"
-          icon={t("icon_flag", "flag")}
-          label={
-            isSubmitting
-              ? t("btn_submitting", "Submitting...")
-              : t("flag_submit", "Submit Flag")
-          }
-          disabled={!reason.trim() || isSubmitting}
-          className="w-full"
-        />
       </form>
     </SidePanel>
   );

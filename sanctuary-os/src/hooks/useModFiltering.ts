@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useDeferredValue } from 'react';
 import { isSupportedExtension } from '../shared';
 
 export function useModFiltering(displayModList: any[], playSets: any[], activeSetName: string, activeGameSchema: any, t: any) {
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [equipFilter, setEquipFilter] = useState("OVERVIEW");
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -12,7 +13,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
   const lookupMaps = useMemo(() => {
     const modMap = new Map();
     const fallbackMap = new Map<string, string>();
-    const extRegex = activeGameSchema?.extensions?.game_file ? new RegExp(`\\.(${activeGameSchema.extensions.game_file.join('|')})$`, 'i') : /\\.package$/i;
+    const extRegex = activeGameSchema?.extensions?.game_file ? new RegExp(`\\.(${activeGameSchema.extensions.game_file.join('|')})$`, 'i') : /\.package$/i;
     
     displayModList.forEach((m: any) => {
       if (m.isVirtual) {
@@ -68,14 +69,13 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
   }, [playSets, activeSetName, lookupMaps]);
 
   const filteredMods = useMemo(() => {
-    const mfStart = performance.now();
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = deferredSearchQuery.toLowerCase();
     const activeCatUpper = activeCategory.toUpperCase();
     const activeSubUpper = activeSubType.toUpperCase();
-    const strStable = (t("status_dd_stable")).toLowerCase();
-    const strReview = (t("status_dd_review")).toLowerCase();
-    const strUnverified = (t("unverified")).toLowerCase();
-    const strLocal = (t("unlinked_badge")).toLowerCase();
+    const strStable = (t("status_stable", "STABLE")).toLowerCase();
+    const strReview = (t("status_dd_review", "Under Review")).toLowerCase();
+    const strUnverified = (t("unverified", "Unverified")).toLowerCase();
+    const strLocal = (t("badge_local", "Local")).toLowerCase();
 
     const res = displayModList.reduce((acc: any[], mod: any) => {
       if (!mod) return acc;
@@ -94,6 +94,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
         const name = (m.displayName || m.name || "").toLowerCase();
         const author = (m.author || "").toLowerCase();
         const matchesSearch =
+          !searchLower ||
           name.includes(searchLower) ||
           author.includes(searchLower);
         const isActuallyEquipped = activeSetMods.has(m.name);
@@ -145,7 +146,7 @@ export function useModFiltering(displayModList: any[], playSets: any[], activeSe
       return acc;
     }, []);
     return res;
-  }, [displayModList, searchQuery, filterStatus, equipFilter, activeCategory, activeSubType, activeSetMods, activeGameSchema, t]);
+  }, [displayModList, deferredSearchQuery, filterStatus, equipFilter, activeCategory, activeSubType, activeSetMods, activeGameSchema, t]);
 
   return {
     searchQuery, setSearchQuery,

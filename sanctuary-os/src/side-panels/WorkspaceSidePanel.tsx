@@ -11,6 +11,9 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   HoverTooltip,
+  SidePanelHeroCard,
+  UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { isDesktop } from "../utils/envUtils";
 
@@ -206,7 +209,8 @@ export function WorkspaceSidePanel({
       title={t("workspace_sidebar", "Workspaces")}
       subtitle={t("workspace_select_subtitle", "Select Your Workspace")}
       icon={t("icon_view_quilt", "view_quilt")}
-      widthClass="w-full md:w-[680px]"
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[100000]"
       panelZ="z-[100001]"
       headerActions={
@@ -226,28 +230,18 @@ export function WorkspaceSidePanel({
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-4 mt-2 pb-12 relative z-10 w-full">
-        {/* Top Info Card */}
-        <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 p-1.5">
-            <img
-              src="/icon.png"
-              alt={t("sidebar_app_title", "Sanctuary OS")}
-              className="w-full h-full object-contain drop-shadow-sm"
-            />
-          </div>
-          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-              {t("workspace_info_title", "Workspace Directory")}
-            </span>
-            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-              {t(
-                "workspace_info_desc",
-                "Switch between active game environments, manage pinned workspaces, or return to the central Sanctuary hub."
-              )}
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-4 mt-2 pb-8 relative z-10 w-full">
+        <SidePanelHeroCard
+          icon={t("icon_view_quilt", "view_quilt")}
+          overline={t("workspace_info_title", "Workspace Directory")}
+          title={t("workspace_select_subtitle", "Select Your Workspace")}
+          description={t(
+            "workspace_info_desc",
+            "Switch between active game environments, manage pinned workspaces, or return to the central Sanctuary hub."
+          )}
+          badge={`${cards.length}`}
+          variant="accent"
+        />
 
         {/* 2-Column Filter Tiles */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -279,7 +273,25 @@ export function WorkspaceSidePanel({
         />
 
         {/* Workspace Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <UniversalGroup
+          title={t("workspace_sidebar", "Workspaces")}
+          icon={t("icon_sports_esports", "sports_esports")}
+          headerAction={
+            <span
+              className={VAULT_CHIP_CLASS}
+              style={{
+                color: "var(--subtext)",
+                borderColor: "color-mix(in srgb, var(--text) 18%, var(--border))",
+              }}
+            >
+              <span className="material-symbols-rounded !text-[12px] shrink-0">
+                {t("icon_view_quilt", "view_quilt")}
+              </span>
+              <span>{filteredCards.length}</span>
+            </span>
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           {filteredCards.map((card: any, idx: number) => {
             const ws = card.workspace;
             const game = card.game;
@@ -310,11 +322,16 @@ export function WorkspaceSidePanel({
                 {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
                 <div className="flex justify-between items-start gap-3 relative z-10">
                   <div
-                    className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                    className={`w-10 h-10 rounded-xl border glass-surface flex items-center justify-center shrink-0 transition-colors duration-300 ${
                       isActive
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:text-[var(--accent)]"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
                     }`}
+                    style={{
+                      borderColor: isActive
+                        ? "color-mix(in srgb, var(--accent) 40%, var(--border))"
+                        : "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                    }}
                   >
                     {game.icon ? (
                       <img
@@ -331,20 +348,34 @@ export function WorkspaceSidePanel({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     {isActive ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span
+                        className={VAULT_CHIP_CLASS}
+                        style={{
+                          color: "var(--accent)",
+                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                        }}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
                           {t("icon_check_circle", "check_circle")}
                         </span>
-                        {t("workspace_badge_active", "Active")}
+                        <span>{t("active", "Active")}</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span
+                        className={VAULT_CHIP_CLASS}
+                        style={{
+                          color: "var(--success)",
+                          borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                        }}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
                           {t("icon_check_circle", "check_circle")}
                         </span>
-                        {isWorkspaceConfigured
-                          ? t("workspace_badge_configured", "Configured")
-                          : t("workspace_badge_ready", "Ready")}
+                        <span>
+                          {isWorkspaceConfigured
+                            ? t("workspace_badge_configured", "Configured")
+                            : t("workspace_badge_ready", "Ready")}
+                        </span>
                       </span>
                     )}
 
@@ -394,14 +425,8 @@ export function WorkspaceSidePanel({
                   </h3>
                   <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
                     {isActive
-                      ? t(
-                          "workspace_card_desc_active",
-                          "Currently active environment for mod deployment, diagnostics, and backups."
-                        )
-                      : t(
-                          "workspace_card_desc_available",
-                          "Select to mount this game workspace and load its library, blueprints, and tools."
-                        )}
+                      ? t("workspace_card_desc_active", "Currently active environment for {mod} deployment, diagnostics, and backups.")
+                      : t("workspace_card_desc_available", "Select to mount this game workspace and load its {vault}, {blueprints}, and tools.")}
                   </p>
                 </div>
 
@@ -419,7 +444,7 @@ export function WorkspaceSidePanel({
                   >
                     <span>
                       {isActive && view !== "landing"
-                        ? t("workspace_badge_active", "Active")
+                        ? t("active", "Active")
                         : isActive
                           ? t("workspace_btn_enter", "Enter Workspace")
                           : t("workspace_btn_switch", "Switch Workspace")}
@@ -450,7 +475,8 @@ export function WorkspaceSidePanel({
               className="col-span-full py-12"
             />
           )}
-        </div>
+          </div>
+        </UniversalGroup>
       </div>
     </SidePanel>
   );

@@ -1,3 +1,8 @@
+import { isDesktop } from "../utils/envUtils";
+import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, writeFile, readTextFile, readFile, exists } from "@tauri-apps/plugin-fs";
+
 export const getLuminance = (hex: string) => {
   const cleanHex = (hex || '#000000').replace('#', '').padEnd(6, '0').slice(0, 6);
   const r = parseInt(cleanHex.slice(0, 2), 16) || 0;
@@ -92,6 +97,8 @@ export interface GlassMaterialPreset {
     glassOpacity: string;
     glassBlur: string;
     glassSaturation: string;
+    glassRefraction: string;
+    glassBezel: string;
     glassBorderOpacity: string;
     glassSpecular: string;
     glassShadow: string;
@@ -111,6 +118,8 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.10',
       glassBlur: '36px',
       glassSaturation: '185%',
+      glassRefraction: '100%',
+      glassBezel: '100%',
       glassBorderOpacity: '0.14',
       glassSpecular: '0.24',
       glassShadow: '0.42',
@@ -128,6 +137,8 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.06',
       glassBlur: '40px',
       glassSaturation: '200%',
+      glassRefraction: '135%',
+      glassBezel: '115%',
       glassBorderOpacity: '0.20',
       glassSpecular: '0.32',
       glassShadow: '0.38',
@@ -145,8 +156,10 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.12',
       glassBlur: '32px',
       glassSaturation: '215%',
+      glassRefraction: '150%',
+      glassBezel: '125%',
       glassBorderOpacity: '0.22',
-      glassSpecular: '0.34',
+      glassSpecular: '0.36',
       glassShadow: '0.48',
     },
   },
@@ -162,6 +175,8 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.18',
       glassBlur: '48px',
       glassSaturation: '185%',
+      glassRefraction: '75%',
+      glassBezel: '90%',
       glassBorderOpacity: '0.24',
       glassSpecular: '0.36',
       glassShadow: '0.38',
@@ -179,6 +194,8 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.24',
       glassBlur: '32px',
       glassSaturation: '175%',
+      glassRefraction: '115%',
+      glassBezel: '105%',
       glassBorderOpacity: '0.20',
       glassSpecular: '0.30',
       glassShadow: '0.58',
@@ -196,6 +213,8 @@ export const GLASS_MATERIAL_PRESETS: GlassMaterialPreset[] = [
       glassOpacity: '0.36',
       glassBlur: '22px',
       glassSaturation: '140%',
+      glassRefraction: '40%',
+      glassBezel: '65%',
       glassBorderOpacity: '0.16',
       glassSpecular: '0.16',
       glassShadow: '0.64',
@@ -397,3 +416,492 @@ export const FONT_OPTIONS = [
   { labelKey: "font_playfair_label", fallbackLabel: "Playfair Display", value: "'Playfair Display', serif", descKey: "font_playfair_desc", fallbackDesc: "High-contrast editorial serif" },
   { labelKey: "font_system_label", fallbackLabel: "System Native", value: "system-ui, sans-serif", descKey: "font_system_desc", fallbackDesc: "OS native UI font stack" }
 ];
+
+export function isCustomThemeImage(src?: string | null): boolean {
+  if (!src || typeof src !== "string") return false;
+  const trimmed = src.trim();
+  if (!trimmed || trimmed === "none") return false;
+  if (BUILTIN_WALLPAPERS.some((w) => w.path === trimmed)) return false;
+  if (trimmed.startsWith("/themes/")) return false;
+  return true;
+}
+
+export async function extractImageBytes(
+  src: string
+): Promise<{ bytes: Uint8Array; ext: string; mime: string } | null> {
+  try {
+    if (src.startsWith("data:image/")) {
+      const match = src.match(/^data:(image\/([a-zA-Z0-9+.-]+));base64,(.+)$/);
+      if (!match) return null;
+      const mime = match[1];
+      let ext = match[2].toLowerCase();
+      if (ext === "jpeg") ext = "jpg";
+      else if (ext === "svg+xml") ext = "svg";
+      else if (!["webp", "png", "jpg", "gif"].includes(ext)) ext = "webp";
+
+      const binaryStr = atob(match[3]);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return { bytes, ext, mime };
+    }
+
+    const res = await fetch(src);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const mime = blob.type || "image/webp";
+    let ext = "webp";
+    if (mime.includes("png") || /\.png($|\?)/i.test(src)) ext = "png";
+    else if (mime.includes("jpeg") || mime.includes("jpg") || /\.jpe?g($|\?)/i.test(src)) ext = "jpg";
+    return { bytes, ext, mime };
+  } catch {
+    return null;
+  }
+}
+
+export function compressImageBytesToDataUrl(
+  bytes: Uint8Array,
+  mime: string,
+  maxW = 1920,
+  maxH = 1080
+): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const blob = new Blob([bytes as unknown as BlobPart], { type: mime || "image/webp" });
+      const objUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          let width = img.width || maxW;
+          let height = img.height || maxH;
+          if (width > height) {
+            if (width > maxW) {
+              height = Math.round(height * (maxW / width));
+              width = maxW;
+            }
+          } else {
+            if (height > maxH) {
+              width = Math.round(width * (maxH / height));
+              height = maxH;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL("image/webp", 0.82);
+            URL.revokeObjectURL(objUrl);
+            resolve(dataUrl);
+            return;
+          }
+        } catch {
+          // fallback below
+        }
+        URL.revokeObjectURL(objUrl);
+        resolve(bytesToBase64DataUrl(bytes, mime));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        resolve(bytesToBase64DataUrl(bytes, mime));
+      };
+      img.src = objUrl;
+    } catch {
+      resolve(bytesToBase64DataUrl(bytes, mime));
+    }
+  });
+}
+
+function bytesToBase64DataUrl(bytes: Uint8Array, mime = "image/webp"): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function guessImageMime(filename: string): string {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".gif")) return "image/gif";
+  return "image/webp";
+}
+
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+export async function exportThemeWithAssets(
+  themeObj: any,
+  opts?: {
+    vaultPath?: string;
+    t?: (key: string, fallback: string) => string;
+    pushStatus?: (msg: string, type?: any) => void;
+  }
+): Promise<boolean> {
+  const t = opts?.t || ((_k: string, fb: string) => fb);
+  try {
+    const rawName = String(themeObj?.name || "theme").trim();
+    const safeName = rawName.replace(/[<>:"/\\|?*]+/g, "_").trim() || "theme";
+    const hasCustomBg = isCustomThemeImage(themeObj?.bgImage);
+    const hasCustomPreview = isCustomThemeImage(themeObj?.previewImage);
+
+    if (isDesktop()) {
+      let resolvedVaultPath = opts?.vaultPath;
+      if (!resolvedVaultPath) {
+        try {
+          const coords: any = await invoke("get_saved_coordinates");
+          resolvedVaultPath = coords?.vault_path;
+        } catch {}
+      }
+      const defaultPath = resolvedVaultPath
+        ? `${resolvedVaultPath}\\Data\\Themes\\${safeName}.json`
+        : `${safeName}.json`;
+      const savePath = await save({
+        defaultPath,
+        filters: [{ name: "Sanctuary Theme (.json)", extensions: ["json"] }],
+      });
+      if (!savePath) return false;
+
+      const normalized = String(savePath);
+      const sep = normalized.includes("\\") ? "\\" : "/";
+      const lastSepIdx = Math.max(normalized.lastIndexOf("\\"), normalized.lastIndexOf("/"));
+      const dirPath = lastSepIdx >= 0 ? normalized.slice(0, lastSepIdx) : "";
+      const fileName = lastSepIdx >= 0 ? normalized.slice(lastSepIdx + 1) : normalized;
+      const baseName = fileName.replace(/\.json$/i, "") || safeName;
+
+      const jsonPayload: any = { ...themeObj };
+      let exportedImages = 0;
+
+      if (hasCustomBg) {
+        const extracted = await extractImageBytes(themeObj.bgImage);
+        if (extracted) {
+          const imgFileName = `${baseName}.${extracted.ext}`;
+          const imgFullPath = dirPath ? `${dirPath}${sep}${imgFileName}` : imgFileName;
+          await writeFile(imgFullPath, extracted.bytes);
+          jsonPayload.bgImageFile = imgFileName;
+          jsonPayload.bgImage = imgFileName;
+          exportedImages++;
+        }
+      }
+
+      if (hasCustomPreview) {
+        const extracted = await extractImageBytes(themeObj.previewImage);
+        if (extracted) {
+          const prevFileName = `${baseName}_preview.${extracted.ext}`;
+          const prevFullPath = dirPath ? `${dirPath}${sep}${prevFileName}` : prevFileName;
+          await writeFile(prevFullPath, extracted.bytes);
+          jsonPayload.previewImageFile = prevFileName;
+          jsonPayload.previewImage = prevFileName;
+          exportedImages++;
+        }
+      }
+
+      await writeTextFile(normalized, JSON.stringify(jsonPayload, null, 2));
+      opts?.pushStatus?.(
+        exportedImages > 0
+          ? t("forge_status_exported_with_image", "{Chameleon} JSON & image exported.")
+          : t("forge_status_exported_json", "{Chameleon} JSON exported."),
+        "success"
+      );
+      return true;
+    } else {
+      const jsonPayload: any = { ...themeObj };
+      let exportedImages = 0;
+
+      if (hasCustomBg) {
+        const extracted = await extractImageBytes(themeObj.bgImage);
+        if (extracted) {
+          const imgFileName = `${safeName}.${extracted.ext}`;
+          triggerBrowserDownload(
+            new Blob([extracted.bytes as unknown as BlobPart], { type: extracted.mime }),
+            imgFileName
+          );
+          jsonPayload.bgImageFile = imgFileName;
+          jsonPayload.bgImage = imgFileName;
+          exportedImages++;
+        }
+      }
+
+      if (hasCustomPreview) {
+        const extracted = await extractImageBytes(themeObj.previewImage);
+        if (extracted) {
+          const prevFileName = `${safeName}_preview.${extracted.ext}`;
+          triggerBrowserDownload(
+            new Blob([extracted.bytes as unknown as BlobPart], { type: extracted.mime }),
+            prevFileName
+          );
+          jsonPayload.previewImageFile = prevFileName;
+          jsonPayload.previewImage = prevFileName;
+          exportedImages++;
+        }
+      }
+
+      triggerBrowserDownload(
+        new Blob([JSON.stringify(jsonPayload, null, 2)], { type: "application/json" }),
+        `${safeName}.json`
+      );
+      opts?.pushStatus?.(
+        exportedImages > 0
+          ? t("forge_status_exported_with_image", "{Chameleon} JSON & image exported.")
+          : t("forge_status_exported_json", "{Chameleon} JSON exported."),
+        "success"
+      );
+      return true;
+    }
+  } catch (err) {
+    opts?.pushStatus?.(`${t("alert_export_failed", "Export failed: ")}${err}`, "error");
+    return false;
+  }
+}
+
+function isRelativeImageFilename(val: any): val is string {
+  if (!val || typeof val !== "string") return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === "none") return false;
+  if (trimmed.startsWith("data:") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:") || trimmed.startsWith("/")) {
+    return false;
+  }
+  return /\.(webp|png|jpe?g|gif)$/i.test(trimmed);
+}
+
+export async function importThemeWithAssets(opts?: {
+  t?: (key: string, fallback: string) => string;
+  pushStatus?: (msg: string, type?: any) => void;
+}): Promise<{ theme?: any; imageOnlyDataUrl?: string; loadedCompanionImage?: boolean } | null> {
+  const t = opts?.t || ((_k: string, fb: string) => fb);
+  try {
+    if (isDesktop()) {
+      const selected = await open({
+        multiple: true,
+        filters: [
+          {
+            name: "Sanctuary Theme & Image (.json, .webp, .png, .jpg)",
+            extensions: ["json", "webp", "png", "jpg", "jpeg"],
+          },
+        ],
+      });
+      if (!selected) return null;
+
+      const paths = Array.isArray(selected) ? selected.map(String) : [String(selected)];
+      const jsonPath = paths.find((p) => /\.json$/i.test(p));
+      const imagePaths = paths.filter((p) => /\.(webp|png|jpe?g|gif)$/i.test(p));
+
+      if (!jsonPath && imagePaths.length > 0) {
+        const bytes = await readFile(imagePaths[0]);
+        const dataUrl = await compressImageBytesToDataUrl(bytes, guessImageMime(imagePaths[0]), 1920, 1080);
+        opts?.pushStatus?.(
+          t("forge_status_imported_image", "{Chameleon} wallpaper image imported."),
+          "success"
+        );
+        return { imageOnlyDataUrl: dataUrl };
+      }
+
+      if (!jsonPath) return null;
+
+      const content = await readTextFile(jsonPath);
+      const parsed = JSON.parse(content);
+
+      const sep = jsonPath.includes("\\") ? "\\" : "/";
+      const lastSepIdx = Math.max(jsonPath.lastIndexOf("\\"), jsonPath.lastIndexOf("/"));
+      const dirPath = lastSepIdx >= 0 ? jsonPath.slice(0, lastSepIdx) : "";
+      const fileName = lastSepIdx >= 0 ? jsonPath.slice(lastSepIdx + 1) : jsonPath;
+      const baseName = fileName.replace(/\.json$/i, "");
+
+      let loadedCompanionImage = false;
+
+      // 1. Resolve Wallpaper (bgImage) from co-selected image OR companion image in the same folder
+      const explicitBgPath = imagePaths.find((p) => !/_preview\.(webp|png|jpe?g|gif)$/i.test(p));
+      const explicitPreviewPath = imagePaths.find((p) => /_preview\.(webp|png|jpe?g|gif)$/i.test(p));
+
+      if (explicitBgPath) {
+        const bytes = await readFile(explicitBgPath);
+        parsed.bgImage = await compressImageBytesToDataUrl(bytes, guessImageMime(explicitBgPath), 1920, 1080);
+        loadedCompanionImage = true;
+      } else if (dirPath && (!parsed.bgImage || isRelativeImageFilename(parsed.bgImage) || parsed.bgImageFile)) {
+        const bgCandidates = Array.from(
+          new Set(
+            [
+              isRelativeImageFilename(parsed.bgImageFile) ? parsed.bgImageFile : null,
+              isRelativeImageFilename(parsed.bgImage) ? parsed.bgImage : null,
+              `${baseName}.webp`,
+              `${baseName}.png`,
+              `${baseName}.jpg`,
+              `${baseName}.jpeg`,
+              `${baseName}_wallpaper.webp`,
+              `${baseName}_wallpaper.png`,
+            ].filter(Boolean) as string[]
+          )
+        );
+
+        for (const cand of bgCandidates) {
+          const candPath = `${dirPath}${sep}${cand}`;
+          try {
+            if (await exists(candPath)) {
+              const bytes = await readFile(candPath);
+              parsed.bgImage = await compressImageBytesToDataUrl(bytes, guessImageMime(cand), 1920, 1080);
+              loadedCompanionImage = true;
+              break;
+            }
+          } catch {
+            // ignore and try next candidate
+          }
+        }
+      }
+
+      if (isRelativeImageFilename(parsed.bgImage)) {
+        parsed.bgImage = null;
+      }
+      delete parsed.bgImageFile;
+
+      // 2. Resolve Preview Banner (previewImage) from co-selected image OR companion file in the same folder
+      if (explicitPreviewPath) {
+        const bytes = await readFile(explicitPreviewPath);
+        parsed.previewImage = await compressImageBytesToDataUrl(bytes, guessImageMime(explicitPreviewPath), 1280, 720);
+        loadedCompanionImage = true;
+      } else if (dirPath && (!parsed.previewImage || isRelativeImageFilename(parsed.previewImage) || parsed.previewImageFile)) {
+        const previewCandidates = Array.from(
+          new Set(
+            [
+              isRelativeImageFilename(parsed.previewImageFile) ? parsed.previewImageFile : null,
+              isRelativeImageFilename(parsed.previewImage) ? parsed.previewImage : null,
+              `${baseName}_preview.webp`,
+              `${baseName}_preview.png`,
+              `${baseName}_preview.jpg`,
+              `${baseName}_preview.jpeg`,
+            ].filter(Boolean) as string[]
+          )
+        );
+
+        for (const cand of previewCandidates) {
+          const candPath = `${dirPath}${sep}${cand}`;
+          try {
+            if (await exists(candPath)) {
+              const bytes = await readFile(candPath);
+              parsed.previewImage = await compressImageBytesToDataUrl(bytes, guessImageMime(cand), 1280, 720);
+              loadedCompanionImage = true;
+              break;
+            }
+          } catch {
+            // ignore and try next candidate
+          }
+        }
+      }
+
+      if (isRelativeImageFilename(parsed.previewImage)) {
+        delete parsed.previewImage;
+      }
+      delete parsed.previewImageFile;
+
+      opts?.pushStatus?.(
+        loadedCompanionImage
+          ? t("forge_status_imported_with_image", "{Chameleon} JSON & image imported.")
+          : t("forge_status_imported_json", "{Chameleon} JSON imported."),
+        "success"
+      );
+
+      return { theme: parsed, loadedCompanionImage };
+    } else {
+      // Browser fallback with multi-file input (.json + optional image)
+      return await new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.multiple = true;
+        input.accept = ".json,image/webp,image/png,image/jpeg";
+        input.onchange = async () => {
+          try {
+            const files = Array.from(input.files || []);
+            if (files.length === 0) {
+              resolve(null);
+              return;
+            }
+            const jsonFile = files.find((f) => /\.json$/i.test(f.name));
+            const imageFiles = files.filter((f) => /\.(webp|png|jpe?g|gif)$/i.test(f.name));
+
+            if (!jsonFile && imageFiles.length > 0) {
+              const buf = await imageFiles[0].arrayBuffer();
+              const dataUrl = await compressImageBytesToDataUrl(
+                new Uint8Array(buf),
+                imageFiles[0].type || guessImageMime(imageFiles[0].name),
+                1920,
+                1080
+              );
+              opts?.pushStatus?.(
+                t("forge_status_imported_image", "{Chameleon} wallpaper image imported."),
+                "success"
+              );
+              resolve({ imageOnlyDataUrl: dataUrl });
+              return;
+            }
+
+            if (!jsonFile) {
+              resolve(null);
+              return;
+            }
+
+            const text = await jsonFile.text();
+            const parsed = JSON.parse(text);
+            let loadedCompanionImage = false;
+
+            const bgFile = imageFiles.find((f) => !/_preview\.(webp|png|jpe?g|gif)$/i.test(f.name));
+            const previewFile = imageFiles.find((f) => /_preview\.(webp|png|jpe?g|gif)$/i.test(f.name));
+
+            if (bgFile) {
+              const buf = await bgFile.arrayBuffer();
+              parsed.bgImage = await compressImageBytesToDataUrl(
+                new Uint8Array(buf),
+                bgFile.type || guessImageMime(bgFile.name),
+                1920,
+                1080
+              );
+              loadedCompanionImage = true;
+            }
+            if (previewFile) {
+              const buf = await previewFile.arrayBuffer();
+              parsed.previewImage = await compressImageBytesToDataUrl(
+                new Uint8Array(buf),
+                previewFile.type || guessImageMime(previewFile.name),
+                1280,
+                720
+              );
+              loadedCompanionImage = true;
+            }
+
+            if (isRelativeImageFilename(parsed.bgImage)) parsed.bgImage = null;
+            if (isRelativeImageFilename(parsed.previewImage)) delete parsed.previewImage;
+            delete parsed.bgImageFile;
+            delete parsed.previewImageFile;
+
+            opts?.pushStatus?.(
+              loadedCompanionImage
+                ? t("forge_status_imported_with_image", "{Chameleon} JSON & image imported.")
+                : t("forge_status_imported_json", "{Chameleon} JSON imported."),
+              "success"
+            );
+            resolve({ theme: parsed, loadedCompanionImage });
+          } catch (err) {
+            opts?.pushStatus?.(`${t("alert_import_failed", "Import failed: ")}${err}`, "error");
+            resolve(null);
+          }
+        };
+        input.click();
+      });
+    }
+  } catch (err) {
+    opts?.pushStatus?.(`${t("alert_import_failed", "Import failed: ")}${err}`, "error");
+    return null;
+  }
+}

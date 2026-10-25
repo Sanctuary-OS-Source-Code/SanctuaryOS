@@ -9,6 +9,7 @@ import {
   renderTextWithIcons,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
+import { VAULT_CHIP_CLASS } from "../Cards";
 
 export default function MasonRecentRepliesSidePanel({ 
   isOpen, 
@@ -152,7 +153,7 @@ export default function MasonRecentRepliesSidePanel({
                 {t("icon_sync", "sync")}
               </span>
               <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t("loading_transmissions", "Loading Interactions...")}
+                {t("loading_transmissions", "Loading {dispatches}...")}
               </span>
             </div>
           ) : interactions.length === 0 ? (
@@ -182,20 +183,26 @@ export default function MasonRecentRepliesSidePanel({
                   {/* Card Header Bar */}
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                      <div
+                        className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                        style={{
+                          color: "var(--accent)",
+                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                        }}
+                      >
                         {interaction.type === 'like' ? (
                           <span className="material-symbols-outlined !text-[18px]">
                             {t("icon_favorite", "favorite")}
                           </span>
                         ) : (
                           <span className="text-xs font-black uppercase">
-                            {(interaction.profiles?.username || t("a_citizen", "Citizen")).charAt(0)}
+                            {(interaction.profiles?.username || t("a_citizen", "A {Citizen}")).charAt(0)}
                           </span>
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
-                          {interaction.profiles?.username || t("a_citizen", "Citizen")}
+                          {interaction.profiles?.username || t("a_citizen", "A {Citizen}")}
                         </span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
                           {new Date(interaction.created_at).toLocaleString()}
@@ -203,8 +210,14 @@ export default function MasonRecentRepliesSidePanel({
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined !text-[12px]">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
                         {interaction.type === 'like'
                           ? t("icon_favorite", "favorite")
                           : t("icon_forum", "forum")}
@@ -225,19 +238,29 @@ export default function MasonRecentRepliesSidePanel({
                       </div>
                     )}
 
-                    <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 mt-auto">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
-                          {interaction.type === 'like'
-                            ? t("icon_newspaper", "newspaper")
-                            : t("icon_reply", "reply")}
-                        </span>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] shrink-0">
-                          {t("original_post", "Original Post")}:
-                        </span>
-                        <span className="text-xs font-bold text-[var(--text)] truncate">
-                          {interaction.mason_posts?.title || t("unknown_post", "Unknown Post")}
-                        </span>
+                    <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2.5 mt-auto">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                          style={{
+                            color: "var(--accent)",
+                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {interaction.type === 'like'
+                              ? t("icon_newspaper", "newspaper")
+                              : t("icon_reply", "reply")}
+                          </span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] shrink-0">
+                            {t("original_post", "Original Post")}
+                          </span>
+                          <span className="text-xs font-bold text-[var(--text)] truncate">
+                            {interaction.mason_posts?.title || t("unknown_post", "Unknown {Dispatch}")}
+                          </span>
+                        </div>
                       </div>
                       {interaction.type === 'comment' && (
                         <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">

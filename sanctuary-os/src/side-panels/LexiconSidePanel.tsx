@@ -12,7 +12,10 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
+  VAULT_CHIP_CLASS,
 } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
+import { DynamicLexiconPreviewBanner } from "../chameleon-components/ThemeCard";
 
 export default function LexiconSidePanel({
   isOpen,
@@ -183,7 +186,7 @@ export default function LexiconSidePanel({
     } catch (err) {
       useStore
         .getState()
-        .pushStatus(`${t("alert_lexicon_failed", "Lexicon import failed: ")}${err}`);
+        .pushStatus(`${t("alert_lexicon_failed", "{Lexicon} Import Failed:")}${err}`);
     }
   };
 
@@ -191,48 +194,73 @@ export default function LexiconSidePanel({
     const meta = getLexiconMetadata(code);
     const isActive = activeLang === code;
     const isFav = favoriteLexicons.includes(code);
+    const canDelete =
+      lexiconMeta &&
+      lexiconMeta.find((m: any) => m.id === code) === undefined &&
+      !["en-sanctuary", "en-default", "en-sims", "Simlish"].includes(code);
 
     return (
-      <div
+      <UniversalCard
         key={code}
+        layout="vertical"
+        isActive={isActive}
         onClick={() => setActiveLang(code)}
-        className={`flex flex-col p-4 rounded-xl glass-surface transition-all border cursor-pointer group relative ${
-          isActive
-            ? "border-[var(--accent)]"
-            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-        }`}
-      >
-        <div className="flex justify-between items-start mb-3 relative z-10">
-          <div className="w-9 h-9 rounded-xl border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-transparent shrink-0 flex items-center justify-center text-[var(--accent)]">
-            <span className="material-symbols-outlined !text-[18px]">
-              {t("icon_translate", "translate")}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavoriteLexicon(code, e);
-              }}
-              className={`relative w-7 h-7 rounded-lg transition-all bg-transparent border ${
-                isFav
-                  ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                  : "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:text-[var(--text)]"
-              }`}
+        title={
+          <span className={isActive ? "text-[var(--accent)]" : ""}>
+            {meta.name}
+          </span>
+        }
+        subtitle={`${meta.community} • ${meta.language}`}
+        customIcon={
+          <DynamicLexiconPreviewBanner
+            data={{
+              id: code,
+              name: meta.name,
+              language: meta.language,
+              badge: meta.community,
+              json_data: registry?.[code],
+            }}
+            heightClass="h-full"
+          />
+        }
+        imageOverlay={
+          <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between gap-2 z-20">
+            <div className="flex items-center gap-1.5">
+              {isActive && (
+                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]`}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_check_circle", "check_circle")}
+                  </span>
+                  <span>{t("selected", "Selected")}</span>
+                </span>
+              )}
+            </div>
+            <div
+              className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
             >
-              <span
-                className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0",
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavoriteLexicon(code, e);
                 }}
+                className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] cursor-pointer shadow-sm ${
+                  isFav
+                    ? "text-[var(--accent)] border-[var(--accent)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)]"
+                }`}
               >
-                {t("icon_star", "star")}
-              </span>
-            </button>
+                <span
+                  className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                  style={{
+                    fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0",
+                  }}
+                >
+                  {t("icon_star", "star")}
+                </span>
+              </button>
 
-            {lexiconMeta &&
-              lexiconMeta.find((m: any) => m.id === code) === undefined && (
+              {canDelete && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -244,10 +272,10 @@ export default function LexiconSidePanel({
                     }
                   }}
                   onMouseLeave={() => setConfirmDelete(false)}
-                  className={`relative w-7 h-7 rounded-lg transition-all bg-transparent border cursor-pointer ${
+                  className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] cursor-pointer shadow-sm ${
                     confirmDelete === code
-                      ? "border-[var(--danger)] text-[var(--danger)]"
-                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
+                      ? "border-[var(--danger)] text-[var(--danger)] scale-105"
+                      : "hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger"
                   }`}
                 >
                   <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -257,23 +285,37 @@ export default function LexiconSidePanel({
                   </span>
                 </button>
               )}
+            </div>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5 relative z-10">
-          <span className="text-xs font-black tracking-wide truncate text-[var(--text)]">
-            {meta.name}
-          </span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="px-2 py-0.5 rounded-md bg-transparent text-[9px] font-black uppercase tracking-wider text-[var(--accent)] truncate border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
-              {meta.community}
-            </span>
-            <span className="text-[10px] font-bold capitalize tracking-wider text-[var(--subtext)] truncate">
-              {meta.language}
-            </span>
-          </div>
-        </div>
-      </div>
+        }
+        badges={
+          <>
+            {isActive && (
+              <div className="px-2.5 py-1 rounded-lg bg-transparent border border-[var(--accent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 shrink-0">
+                <span
+                  className="material-symbols-outlined !text-[12px] text-[var(--accent)]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  {t("icon_check_circle", "check_circle")}
+                </span>
+                <span>{t("selected", "Selected")}</span>
+              </div>
+            )}
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_public", "public")}
+              </span>
+              <span>{meta.community}</span>
+            </div>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_language", "language")}
+              </span>
+              <span>{meta.language}</span>
+            </div>
+          </>
+        }
+      />
     );
   };
 
@@ -283,7 +325,7 @@ export default function LexiconSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("lexicon_title", "Language & Lexicon")}
+      title={t("lexicon_title", "{Lexicon} Library")}
       subtitle={t(
         "lexicon_desc",
         "Select your interface language and thematic terminology."
@@ -295,7 +337,7 @@ export default function LexiconSidePanel({
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon={t("icon_explore", "explore")}
-            tooltip={t("tab_nexus", "Marketplace")}
+            tooltip={t("tab_nexus", "{Nexus}")}
             onClick={() => {
               setMarketTab("LEXICONS");
               setView("nexus");
@@ -313,7 +355,7 @@ export default function LexiconSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_language", "language")}
-          overline={t("lexicon_title", "Active Lexicon")}
+          overline={t("lexicon_title", "{Lexicon} Library")}
           title={activeMeta.name}
           description={t(
             "lexicon_desc",
@@ -327,7 +369,7 @@ export default function LexiconSidePanel({
         <ActionPill
           searchQuery={lexiconSearch}
           setSearchQuery={setLexiconSearch}
-          searchPlaceholder={t("ui_search_lexicons", "Search Lexicons...")}
+          searchPlaceholder={t("ui_search_lexicons", "Search {Lexicons}...")}
           primaryPopover={{
             icon: t("icon_tune", "tune"),
             label: t("filters", "Filters"),
@@ -349,10 +391,7 @@ export default function LexiconSidePanel({
                             "scope_global_desc",
                             "Search all connected communities"
                           )
-                        : t(
-                            "scope_workspace_desc_lexicon",
-                            "Bound to the active workspace"
-                          )}
+                        : t("scope_workspace_desc_lexicon", "This {lexicon} is bound only to the active environment.")}
                     </span>
                   </div>
                   <div
@@ -430,7 +469,7 @@ export default function LexiconSidePanel({
         )}
 
         <UniversalGroup
-          title={t("library_label", "Library")}
+          title={t("tab_vault", "{Vault}")}
           icon={t("icon_grid_view", "grid_view")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">

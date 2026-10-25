@@ -5,6 +5,7 @@ import { useStore } from "./store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import defaultCover from "./assets/default-cover.jpg";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { DynamicArtifactPreviewBanner } from "./chameleon-components/ThemeCard";
 
 interface ModCardProps {
   mod: any;
@@ -38,12 +39,20 @@ interface ModCardProps {
   isSelfGhosted?: boolean;
   isSelfSwapped?: boolean;
   isSelfBetaSwap?: boolean;
+  _callbacksRef?: React.MutableRefObject<any>;
 }
 
-function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, ownedDLC = [],
-  maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand = () => { },
-  isBulkMode = false, isSelected = false, onToggleSelect = () => { }, onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
-  onInspectItem, onContextMenu, id, compact = false, layout = "standard", isGhostPlaceholder = false, hideHitBox = false, flavorGhostReason, isSelfGhosted, isSelfSwapped, isSelfBetaSwap }: ModCardProps) {
+function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, onToggleSet: _onToggleSet, ownedDLC = [],
+  maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand: _onExpand = () => { },
+  isBulkMode = false, isSelected = false, onToggleSelect: _onToggleSelect = () => { }, onResolveConflict: _onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
+  onInspectItem: _onInspectItem, onContextMenu: _onContextMenu, id, compact = false, layout = "standard", isGhostPlaceholder = false, hideHitBox = false, flavorGhostReason, isSelfGhosted, isSelfSwapped, isSelfBetaSwap, _callbacksRef }: ModCardProps) {
+  const onSelect = (e: any) => (_callbacksRef?.current?.onSelect || _onSelect)?.(e);
+  const onToggleSet = (e: any, force?: boolean) => (_callbacksRef?.current?.onToggleSet || _onToggleSet)?.(e, force);
+  const onExpand = (e?: any) => (_callbacksRef?.current?.onExpand || _onExpand)?.(e);
+  const onToggleSelect = () => (_callbacksRef?.current?.onToggleSelect || _onToggleSelect)?.();
+  const onResolveConflict = (e: any, t3: any, m: any, winner?: string) => (_callbacksRef?.current?.onResolveConflict || _onResolveConflict)?.(e, t3, m, winner);
+  const onInspectItem = (_callbacksRef?.current?.onInspectItem || _onInspectItem) ? (target: any) => (_callbacksRef?.current?.onInspectItem || _onInspectItem)?.(target) : undefined;
+  const onContextMenu = (_callbacksRef?.current?.onContextMenu || _onContextMenu) ? (e: any) => (_callbacksRef?.current?.onContextMenu || _onContextMenu)?.(e) : undefined;
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -183,15 +192,15 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
   const roleBadgeLabel = mod.isCollection
     ? t("tab_cc", "Collection")
     : roleType === "core" && compact
-      ? t("studio_badge_core", "Core Mod")
+      ? t("core_artifact", "Core {Mod}")
       : roleType === "twin"
-        ? t("studio_badge_twin", "Twin")
+        ? t("editor_twin", "Twin")
         : roleType === "flavor"
           ? t("studio_badge_flavor", "Flavor")
           : roleType === "beta"
-            ? t("studio_badge_beta", "Beta")
+            ? t("badge_beta", "Beta")
             : roleType === "addon"
-              ? t("studio_badge_addon", "Addon")
+              ? t("editor_addon", "Addon")
               : null;
 
   const modulesCount = Array.isArray(mod.flavors) && mod.flavors.length > 1
@@ -205,9 +214,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
   const rawFileName = String(mod.file_extension || mod.name || "").toLowerCase();
   const isScript = rawFileName.includes("ts4script") || String(mod.type || "").toLowerCase().includes("script");
   const extLabel = isScript
-    ? t("card_file_script", "Script")
+    ? t("type_script", "Script")
     : !mod.isCollection
-      ? t("card_file_package", "Package")
+      ? t("type_package", "Package")
       : null;
 
   const statusBadgeNode = (
@@ -218,15 +227,15 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
         </span>
         <span>
           {(() => {
-            if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("unlinked_badge", "Unlinked");
+            if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("badge_local", "Unlinked");
             const raw = (mod.status || "");
             let cleaned = raw.replace(/[[]"]/g, "");
             if (cleaned === 'bunker') cleaned = 'vault';
             if (mod.hash?.startsWith('dev_vault_')) return 'DEV';
             if (cleaned.toUpperCase().includes('SANDBOX')) return t("studio_badge_sandbox", "Sandbox");
-            if (isSelfBroken) return t("status_broken", "Broken");
-            if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("badge_stable", "Stable");
-            if (cleaned.toLowerCase() === 'stable') return t("status_dd_stable", "Stable");
+            if (isSelfBroken) return t("status_corrupted", "Broken");
+            if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("status_stable", "Stable");
+            if (cleaned.toLowerCase() === 'stable') return t("status_stable", "Stable");
             if (cleaned.toLowerCase() === 'unverified') return t("unverified", "Unverified");
             if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node", "Local Node");
             if (cleaned.toLowerCase() === 'unstable') return t("label_unstable", "Unstable");
@@ -248,34 +257,34 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
           >
             <div className="relative z-10 flex flex-col gap-2 w-full">
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_history")}</span>{t("revision")}</span>
+                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_history", "history")}</span>{t("revision", "Revision")}</span>
                 <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize truncate">{(() => {
                   let v = mod.latest_version || mod.version;
                   if (!v && mod.isVirtual && mod.flavors) {
                     const flavorV = mod.flavors.find((f: any) => f.latest_version || f.version);
                     if (flavorV) v = flavorV.latest_version || flavorV.version;
                   }
-                  return v || t("vlocal");
+                  return v || t("unknown", "Unknown");
                 })()}</span>
               </div>
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_sports_esports")}</span>{t("label_game_version")}</span>
-                <span className="text-[9px] font-black text-[var(--text)] capitalize truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("ql_all")}</span>
+                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_sports_esports", "sports_esports")}</span>{t("label_game_version", "Game Version")}</span>
+                <span className="text-[9px] font-black text-[var(--text)] capitalize truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("filter_all", "All")}</span>
               </div>
               <div className="bg-[color-mix(in_srgb,var(--text)_2%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_calendar_today")}</span>{t("updated_date")}</span>
+                <span className="text-[7px] font-black capitalize text-[var(--subtext)] opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_calendar_today", "calendar_today")}</span>{t("updated_date", "Last Updated")}</span>
                 <span className="text-[9px] font-black text-[var(--text)] capitalize truncate">{(() => {
                   let dt = mod.updated_at;
                   if (!dt && mod.isVirtual && mod.flavors) {
                     const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
                     if (dates.length > 0) dt = dates[0];
                   }
-                  return dt ? new Date(dt).toLocaleDateString() : t("vlocal");
+                  return dt ? new Date(dt).toLocaleDateString() : t("unknown", "Unknown");
                 })()}</span>
               </div>
               {mod.status_reason && (
                 <div className="glass-surface bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] px-3 py-2 rounded-[max(0px,calc(var(--radius)-4px))] overflow-hidden flex flex-col gap-0.5 border shadow-sm mt-1">
-                  <span className="text-[7px] font-black capitalize theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_error")}</span>{t("directive_note")}</span>
+                  <span className="text-[7px] font-black capitalize theme-text-danger opacity-80 tracking-[0.2em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_error", "error")}</span>{t("directive_note", "Rule Note")}</span>
                   <span className="text-[9px] font-black theme-text-danger capitalize whitespace-normal leading-tight">{mod.status_reason}</span>
                 </div>
               )}
@@ -301,6 +310,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
             isGhosted={isShadowed}
             image={(showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "") ? (mod.image_url || mod.imageUrl) : undefined}
             icon={!((showImages && (mod.image_url || mod.imageUrl) && String(mod.image_url || mod.imageUrl) !== "null" && String(mod.image_url || mod.imageUrl).trim() !== "")) ? getModIcon(mod, activeGameSchema, t) : undefined}
+            customIcon={
+              <DynamicArtifactPreviewBanner
+                data={mod}
+                icon={getModIcon(mod, activeGameSchema, t)}
+                compact={layout === "compact" || compact}
+                heightClass="h-full"
+              />
+            }
             imageOverlay={
               <div className="absolute top-3 left-3 z-30 pointer-events-auto">
                 {statusBadgeNode}
@@ -309,11 +326,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
             title={formatDisplayName(mod.displayName || mod.name)}
             subtitle={
               <div className="flex items-center gap-1.5 opacity-80 mt-0.5">
-                <span>{mod.author || t("unknown_mason")}</span>
+                <span>{mod.author || t("unknown_mason", "Unknown {Mason}")}</span>
                 {reqCount > 0 && (
                   <>
                     <span className="opacity-50">|</span>
-                    <span className="theme-text-accent">{reqCount} {t("req_short")}</span>
+                    <span className="theme-text-accent">{reqCount} {t("req_short", "REQ")}</span>
                   </>
                 )}
               </div>
@@ -417,30 +434,30 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   >
                     {isShadowed ? (
                       <span className="material-symbols-outlined !text-[16px]">
-                        {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert"))
+                        {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert", "crisis_alert"))
                           : isGameVersionMismatch ? "sports_esports"
                             : hasMissingDeps ? "extension"
                               : isGhosted ? "currency_exchange"
                                 : "broken_image"}
                       </span>
                     ) : hasTier3 && !isInActiveSet ? (
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_tune")}</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_tune", "tune")}</span>
                     ) : (
-                      <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add")}</span>
+                      <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add", "add")}</span>
                     )}
 
                     {(isShadowed || hasTier3 || isSwappedState) && !confirmMode && !delayedConfirmMode && (
                       <HoverTooltip
                         className="z-[100] !right-0 !translate-x-0 !left-auto"
                         variant={isShadowed && !isSwappedState ? 'danger' : isSwappedState ? 'accent' : 'warning'}
-                        title={isNemesisEquipped ? t("fatal_conflict") : isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : isGhosted ? t("missing_dlc") : isSwappedState ? (isBetaSwap ? t("badge_beta") : (t("flavor_swap"))) : t("tier3_conflict")}
+                        title={isNemesisEquipped ? t("fatal_conflict", "Severity 4 Collision") : isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : isGhosted ? t("missing_dlc", "Missing DLC") : isSwappedState ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : t("tier3_conflict", "Severity 3 Collision")}
                         subtitle={isNemesisEquipped
                           ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList[0]?.note ? ` - ${casualtyList[0].note}` : "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
                           : isGameVersionMismatch
                             ? (
                               <>
-                                <div className="w-full truncate">{t("tooltip_required")} {getHighestVersion(requiredVersions || [])}</div>
-                                <div className="w-full truncate">{t("tooltip_current")} {gameVersion || t("unknown")}</div>
+                                <div className="w-full truncate">{t("tooltip_required", "Required:")} {getHighestVersion(requiredVersions || [])}</div>
+                                <div className="w-full truncate">{t("tooltip_current", "Current:")} {gameVersion || t("unknown", "Unknown")}</div>
                               </>
                             )
                             : hasMissingDeps
@@ -516,11 +533,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                       'bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'
                     }`}>
                     <span className={`material-symbols-outlined !text-[16px] ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
-                      {delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? 'sports_esports' : hasMissingDeps ? 'extension' : 'currency_exchange') : delayedConfirmMode === 'broken' ? 'warning' : delayedConfirmMode === 'casualty' ? (!isInActiveSet ? (t("icon_crisis_alert")) : 'delete') : delayedConfirmMode === 'tier3' ? (t("icon_tune")) : 'delete'}
+                      {delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? 'sports_esports' : hasMissingDeps ? 'extension' : 'currency_exchange') : delayedConfirmMode === 'broken' ? 'warning' : delayedConfirmMode === 'casualty' ? (!isInActiveSet ? (t("icon_crisis_alert", "crisis_alert")) : 'delete') : delayedConfirmMode === 'tier3' ? (t("icon_tune", "tune")) : 'delete'}
                     </span>
                   </div>
                   <span className={`text-[12px] font-black capitalize tracking-widest text-left leading-normal truncate ${delayedConfirmMode === 'tier3' ? 'text-orange-500' : delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent' : 'text-[var(--danger)]'}`}>
-                    {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version") : hasMissingDeps ? t("missing_artifacts") : t("missing_dlc")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("beta_swap") : (t("flavor_swap"))) : (!isInActiveSet ? t("fatal_conflict") : t("yeet_cascade"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts") : t("tier3_conflict")).replace(/:$/, '')}
+                    {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : t("missing_dlc", "Missing DLC")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : (!isInActiveSet ? t("fatal_conflict", "Severity 4 Collision") : t("yeet_cascade", "Delete Cascade:"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts", "Corrupted {Mods}") : t("tier3_conflict", "Severity 3 Collision")).replace(/:$/, '')}
                   </span>
                 </div>
 
@@ -532,7 +549,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                         <div className="flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                           <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">sports_esports</span>
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("required_version")}</span>
+                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("required_version", "Required Game Version")}</span>
                             <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{getHighestVersion(requiredVersions || [])}</span>
                           </div>
                         </div>
@@ -541,7 +558,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                         <div key={p} className="flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
                           <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">currency_exchange</span>
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("missing_dlc")}</span>
+                            <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("missing_dlc", "Missing DLC")}</span>
                             <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{mapDlcCode(p)}</span>
                           </div>
                         </div>
@@ -554,7 +571,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                             className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                             <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">extension</span>
                             <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("missing_dependency")}</span>
+                              <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("badge_missing_dep", "Missing Dependency")}</span>
                               <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
                             </div>
                             {onInspectItem && (
@@ -569,9 +586,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                       <div key={i}
                         onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
                         className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl ${delayedConfirmMode === 'flavor_swap' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]'} ${onInspectItem ? `cursor-pointer group/inspect hover:border-[color-mix(in_srgb,${delayedConfirmMode === 'flavor_swap' ? 'var(--accent)' : 'var(--danger)'}_30%,transparent)] hover:bg-[color-mix(in_srgb,${delayedConfirmMode === 'flavor_swap' ? 'var(--accent)' : 'var(--danger)'}_15%,transparent)]` : ''}`}>
-                        <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert")) : 'delete')}</span>
+                        <span className={`material-symbols-outlined !text-[16px] shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? 'swap_horiz' : (!isInActiveSet ? (t("icon_crisis_alert", "crisis_alert")) : 'delete')}</span>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className={`text-[8px] font-black capitalize tracking-widest opacity-90 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced")) : (t("artifact_removed"))}</span>
+                          <span className={`text-[8px] font-black capitalize tracking-widest opacity-90 ${delayedConfirmMode === 'flavor_swap' ? 'text-cyan-400' : 'text-red-400'}`}>{delayedConfirmMode === 'flavor_swap' ? (t("flavor_replaced", "Will Replace")) : (t("artifact_removed", "Will {Remove}"))}</span>
                           <span className={`text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md`}>{formatDisplayName(c.name || c)}</span>
                         </div>
                         {onInspectItem && (
@@ -586,7 +603,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                         className={`flex items-center gap-3 backdrop-blur-md border shadow-sm p-3 rounded-2xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] ${onInspectItem ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group/inspect' : ''}`}>
                         <span className="material-symbols-outlined !text-[16px] text-red-400 shrink-0">broken_image</span>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("status_broken")}</span>
+                          <span className="text-[8px] font-black text-red-400 opacity-90 capitalize tracking-widest">{t("status_corrupted", "Corrupted")}</span>
                           <span className="text-[10px] font-mono font-black text-[var(--text)] capitalize tracking-widest truncate mt-1 drop-shadow-md">{formatDisplayName(b.displayName || b.name)}</span>
                         </div>
                         {onInspectItem && (
@@ -596,23 +613,23 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                     ))
                   ) : delayedConfirmMode === 'tier3' ? (
                     <div className="flex flex-col relative gap-2">
-                      <div className="text-[9px] font-black capitalize tracking-widest text-orange-500 mb-1 opacity-70 px-1">{t("select_winner")}</div>
+                      <div className="text-[9px] font-black capitalize tracking-widest text-orange-500 mb-1 opacity-70 px-1">{t("select_winner", "Select Winner")}</div>
                       <div className="relative flex flex-col gap-8">
                         <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="flex items-center justify-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity capitalize tracking-widest">{t("equip_artifact")}</span>
+                            <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity capitalize tracking-widest">{t("enemy_a", "{Mod} A")}</span>
                             <span className="text-[10px] font-mono font-black text-[var(--text)] opacity-90 capitalize tracking-widest truncate">{formatDisplayName(mod.displayName || mod.name)}</span>
                           </div>
                           <span className="material-symbols-outlined !text-[16px] text-orange-500 opacity-30 group-hover/btn:opacity-100 group-hover/btn:scale-110 group-hover/btn:drop-shadow-[0_0_8px_orange] transition-all">add_circle</span>
                         </button>
                         <div className="absolute top-1/2 left-[calc(50%-12px)] -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
                           <div className="glass-panel shadow-sm px-2.5 h-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-orange-500 rounded-full flex items-center justify-center">
-                            <span className="text-[9px] font-black leading-none tracking-[0.1em] mt-[1px]">{t("vs")}</span>
+                            <span className="text-[9px] font-black leading-none tracking-[0.1em] mt-[1px]">{t("vs", "VS")}</span>
                           </div>
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="flex items-center justify-start gap-3 glass-panel backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,orange_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] active:scale-95  duration-300 p-3 rounded-2xl w-full text-left group/btn shadow-md hover:shadow-lg">
                           <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity capitalize tracking-widest">{t("keep_artifact")}</span>
+                            <span className="text-[8px] font-black text-orange-500 opacity-50 group-hover/btn:opacity-100 transition-opacity capitalize tracking-widest">{t("enemy_b", "{Mod} B")}</span>
                             <span className="text-[10px] font-mono font-black text-[var(--text)] opacity-90 capitalize tracking-widest truncate">{formatDisplayName(tier3List[0]?.name || tier3List[0] || "")}</span>
                           </div>
                           <span className="material-symbols-outlined !text-[16px] text-orange-500 opacity-30 group-hover/btn:opacity-100 group-hover/btn:scale-110 group-hover/btn:drop-shadow-[0_0_8px_orange] transition-all">add_circle</span>
@@ -628,27 +645,27 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect, onToggleSet, 
                   <>
 
                     <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-[16px] text-[var(--danger)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                      {t("btn_ignore_conflict")}
+                      {t("btn_ignore_conflict", "Ignore Conflict")}
                     </button>
                   </>
                 ) : delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc' ? (
                   <>
                     <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-[16px] text-[var(--danger)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                      {t("btn_equip_anyway")}
+                      {t("btn_equip_anyway", "Proceed Anyway")}
                     </button>
                     {mod.isParent && delayedConfirmMode === 'broken' && (
                       <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-[16px] text-[var(--text)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                        {t("btn_add_not_broken")}
+                        {t("btn_add_not_broken", "Add Not Corrupted")}
                       </button>
                     )}
                   </>
                 ) : (
                   <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className={`flex-1 glass-surface min-w-0 py-2 rounded-[16px] font-black text-[10px] capitalize tracking-widest px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${delayedConfirmMode === 'flavor_swap' ? 'theme-text-accent hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`}>
-                    {delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm") : t("btn_purge_confirm")}
+                    {delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm", "Swap Files") : t("btn_purge_confirm", "{Remove} {Mods}")}
                   </button>
                 )}
                 <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-[16px] text-[var(--safe)] font-black text-[10px] capitalize tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words hover:bg-[color-mix(in_srgb,var(--safe)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--safe)_30%,transparent)]">
-                  {t("btn_safety")}
+                  {t("btn_safety", "Back to Safety")}
                 </button>
                 </div>
 
@@ -686,11 +703,33 @@ const arePropsEqual = (prev: any, next: any) => {
     prev.isSelfBetaSwap === next.isSelfBetaSwap &&
     prev.isSelfGhosted === next.isSelfGhosted &&
     prev.flavorGhostReason === next.flavorGhostReason &&
-    prev.onExpand === next.onExpand &&
-    prev.onSelect === next.onSelect &&
-    prev.onToggleSet === next.onToggleSet
+    Boolean(prev._callbacksRef?.current?.onInspectItem ?? prev.onInspectItem) === Boolean(next._callbacksRef?.current?.onInspectItem ?? next.onInspectItem) &&
+    Boolean(prev._callbacksRef?.current?.onContextMenu ?? prev.onContextMenu) === Boolean(next._callbacksRef?.current?.onContextMenu ?? next.onContextMenu) &&
+    true
   );
 };
 
-export const ModCard = React.memo(ModCardInner, arePropsEqual);
+const MemoizedModCardInner = React.memo(ModCardInner, arePropsEqual);
+
+export function ModCard(props: ModCardProps) {
+  const callbacksRef = React.useRef({
+    onSelect: props.onSelect,
+    onToggleSet: props.onToggleSet,
+    onExpand: props.onExpand,
+    onToggleSelect: props.onToggleSelect,
+    onResolveConflict: props.onResolveConflict,
+    onInspectItem: props.onInspectItem,
+    onContextMenu: props.onContextMenu,
+  });
+  callbacksRef.current = {
+    onSelect: props.onSelect,
+    onToggleSet: props.onToggleSet,
+    onExpand: props.onExpand,
+    onToggleSelect: props.onToggleSelect,
+    onResolveConflict: props.onResolveConflict,
+    onInspectItem: props.onInspectItem,
+    onContextMenu: props.onContextMenu,
+  };
+  return <MemoizedModCardInner {...props} _callbacksRef={callbacksRef} />;
+}
 

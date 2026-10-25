@@ -9,6 +9,7 @@ import {
   StatBox,
   DashboardStatTile,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -45,7 +46,7 @@ export function DnaMatchQueueSidePanel({
         setIsSuccess(true);
         const finalMsg =
           resolveStats.kept > 0
-            ? t("status_ingest_success", "Ingest Complete")
+            ? t("status_ingest_success", "{Mods} Imported Successfully!")
             : t("status_conflicts_resolved", "Conflicts Resolved");
         if (setStatus) setStatus(finalMsg);
         timer = setTimeout(() => {
@@ -364,12 +365,28 @@ export function DnaMatchQueueSidePanel({
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <div
+                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_network_wifi", "network_wifi")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {t("icon_network_wifi", "network_wifi")}
+                      </span>
                       {t("title_edge_override_detected", "Edge Override")}
                     </span>
                   </div>
@@ -377,7 +394,7 @@ export function DnaMatchQueueSidePanel({
                   <span className="text-sm font-black text-[var(--text)] truncate">
                     {match.matched_mod_name ||
                       data.artifact_id ||
-                      t("label_unknown_mod", "Unknown Mod")}
+                      t("label_unknown_mod", "Unknown {Mod}")}
                   </span>
                   <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
                     {data.mason_id || t("label_unknown_author", "Unknown Author")}
@@ -503,15 +520,33 @@ export function DnaMatchQueueSidePanel({
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <div
+                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_difference", "difference")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {overrideData
+                          ? t("icon_network_wifi", "network_wifi")
+                          : t("icon_difference", "difference")}
+                      </span>
                       {overrideData
                         ? t("title_edge_override_detected", "Edge Override")
-                        : t("overlay_dna_incoming", "Incoming")}
+                        : t("overlay_dna_incoming", "Incoming {Mod}")}
                     </span>
                   </div>
 
@@ -525,7 +560,7 @@ export function DnaMatchQueueSidePanel({
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate">
-                      {t("overlay_dna_existing", "Existing")}: {oldName}
+                      {t("overlay_dna_existing", "Existing {Mod}")}: {oldName}
                     </span>
                   )}
                 </div>
@@ -605,14 +640,14 @@ export function DnaMatchQueueSidePanel({
           title={
             isSuccess
               ? resolveStats.kept > 0
-                ? t("status_ingest_success", "Ingest Complete")
+                ? t("status_ingest_success", "{Mods} Imported Successfully!")
                 : t("status_conflicts_resolved", "Conflicts Resolved")
               : t(
                   "overlay_dna_match_desc",
                   "Resolve duplicate artifacts, settings collisions, and Edge overrides."
                 )
           }
-          badge={`${totalCount} ${t("items", "Items")}`}
+          badge={`${totalCount} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_difference", "difference")}
           variant={isSuccess ? "success" : "accent"}
         >

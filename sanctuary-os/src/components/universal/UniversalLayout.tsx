@@ -12,7 +12,7 @@ export interface HubOverviewLandingProps {
 
 export function HubOverviewLanding({ children, className = "" }: HubOverviewLandingProps) {
   return (
-    <div className={`grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
+    <div className={`grid grid-cols-1 xl:grid-cols-2 gap-10 xl:gap-12 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
       {children}
     </div>
   );
@@ -22,6 +22,7 @@ export interface HubOverviewSectionProps {
   title: React.ReactNode;
   icon?: string;
   iconColorClass?: string;
+  badgeCount?: number;
   headerAction?: React.ReactNode;
   isEmpty?: boolean;
   emptyIcon?: string;
@@ -43,17 +44,25 @@ export function HubOverviewSection({
   emptyTitle,
   emptySubtitle,
   emptyState,
-  gridClassName = "grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6",
+  gridClassName = "grid grid-cols-1 md:grid-cols-2 gap-6",
   className = "",
   children
 }: HubOverviewSectionProps) {
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
-      <div className="flex items-center gap-2">
-        {icon && <span className={`material-symbols-outlined ${iconColorClass}`}>{icon}</span>}
-        <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{title}</h3>
-        <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-        {headerAction && <div className="ml-auto shrink-0">{headerAction}</div>}
+      <div className="flex items-center justify-between gap-4 w-full min-w-0">
+        <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
+          {icon && (
+            <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0">
+              <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{icon}</span>
+            </div>
+          )}
+          <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight min-w-0 m-0 truncate">
+            {title}
+          </h2>
+        </div>
+        <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
+        {headerAction && <div className="shrink-0">{headerAction}</div>}
       </div>
       {isEmpty ? (
         emptyState ? <>{emptyState}</> : <EmptyState icon={emptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
@@ -102,14 +111,23 @@ export function HubListGrid({
 // SIDEPANEL GOLD STANDARD PRIMITIVES
 // (Modeled after Login, Malware, Metadata & Defcon)
 // ==========================================
+export interface SidePanelHeroCardBadge {
+  icon?: string;
+  label: React.ReactNode;
+  colorClass?: string;
+}
+
 export interface SidePanelHeroCardProps {
   icon: string;
   overline?: React.ReactNode;
+  label?: React.ReactNode;
   title?: React.ReactNode;
   description?: React.ReactNode;
+  subtitle?: React.ReactNode;
   badge?: React.ReactNode;
   badgeIcon?: string;
-  variant?: "accent" | "danger" | "warning" | "success";
+  badges?: SidePanelHeroCardBadge[];
+  variant?: "accent" | "danger" | "warning" | "success" | "default";
   children?: React.ReactNode;
   className?: string;
 }
@@ -117,14 +135,19 @@ export interface SidePanelHeroCardProps {
 export function SidePanelHeroCard({
   icon,
   overline,
+  label,
   title,
   description,
+  subtitle,
   badge,
   badgeIcon,
+  badges,
   variant = "accent",
   children,
   className = "",
 }: SidePanelHeroCardProps) {
+  const resolvedOverline = overline ?? label;
+  const resolvedDescription = description ?? subtitle;
   const colorVar =
     variant === "danger"
       ? "--danger"
@@ -141,7 +164,7 @@ export function SidePanelHeroCard({
       <div className="flex items-start justify-between gap-3.5">
         <div className="flex items-start gap-3.5 min-w-0 flex-1">
           <div
-            className="w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0"
+            className="w-11 h-11 rounded-xl glass-surface border flex items-center justify-center shrink-0"
             style={{
               borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
               color: `var(${colorVar})`,
@@ -150,12 +173,12 @@ export function SidePanelHeroCard({
             <span className="material-symbols-outlined !text-[22px]">{icon}</span>
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            {overline && (
+            {resolvedOverline && (
               <span
                 className="text-[10px] font-black uppercase tracking-[0.18em]"
                 style={{ color: `var(${colorVar})` }}
               >
-                {overline}
+                {resolvedOverline}
               </span>
             )}
             {title && (
@@ -163,29 +186,52 @@ export function SidePanelHeroCard({
                 {title}
               </h3>
             )}
-            {description && (
+            {resolvedDescription && (
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                {description}
+                {resolvedDescription}
               </p>
             )}
           </div>
         </div>
 
-        {badge && (
-          <span
-            className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border bg-transparent flex items-center gap-1 shrink-0"
-            style={{
-              borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
-              color: `var(${colorVar})`,
-            }}
-          >
-            {badgeIcon && (
-              <span className="material-symbols-outlined !text-[12px]">
-                {badgeIcon}
+        {(badge || (badges && badges.length > 0)) && (
+          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+            {badge && (
+              <span
+                className="px-2.5 py-1 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 shrink-0"
+                style={{
+                  borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
+                  color: `var(${colorVar})`,
+                }}
+              >
+                <span className="material-symbols-outlined !text-[12px]">
+                  {badgeIcon || icon}
+                </span>
+                {badge}
               </span>
             )}
-            {badge}
-          </span>
+            {badges?.map((b, idx) => (
+              <span
+                key={idx}
+                className={`px-2.5 py-1 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 shrink-0 ${
+                  b.colorClass || ""
+                }`}
+                style={
+                  b.colorClass
+                    ? undefined
+                    : {
+                        borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
+                        color: `var(${colorVar})`,
+                      }
+                }
+              >
+                <span className="material-symbols-outlined !text-[12px]">
+                  {b.icon || icon}
+                </span>
+                {b.label}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
@@ -224,10 +270,12 @@ export function SidePanelTitleInput({
     >
       {headerLabel && (
         <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
-              {icon || (readOnly || !onChange ? "label" : "edit_note")}
-            </span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[15px]">
+                {icon || (readOnly || !onChange ? "label" : "edit_note")}
+              </span>
+            </div>
             <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] truncate">
               {headerLabel}
             </span>
@@ -257,6 +305,7 @@ export interface SidePanelPillToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: React.ReactNode;
+  description?: React.ReactNode;
   icon?: string;
   variant?: "accent" | "warning" | "success" | "danger";
   activeColor?: string;
@@ -268,6 +317,7 @@ export function SidePanelPillToggle({
   checked,
   onChange,
   label,
+  description,
   icon,
   variant = "accent",
   activeColor,
@@ -282,20 +332,41 @@ export function SidePanelPillToggle({
 
   return (
     <label
-      className={`w-full glass-surface rounded-xl px-4 h-12 flex items-center justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
+      className={`w-full glass-surface rounded-xl px-4 ${description ? "py-3" : "h-12"} flex items-center justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
         checked
           ? `!border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)]`
           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >
-      <span
-        className={`text-xs font-bold tracking-wide transition-colors flex items-center gap-2 min-w-0 truncate ${
-          checked ? `text-[var(${colorVar})]` : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-        }`}
-      >
-        {icon && <span className="material-symbols-outlined !text-[16px] shrink-0">{icon}</span>}
-        <span className="truncate">{label}</span>
-      </span>
+      <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
+        {icon && (
+          <div
+            className={`w-8 h-8 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors ${
+              checked
+                ? `border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)] text-[var(${colorVar})]`
+                : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]"
+            }`}
+          >
+            <span className="material-symbols-outlined !text-[16px]">{icon}</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span
+            className={`text-xs font-bold tracking-wide transition-colors truncate ${
+              checked
+                ? `text-[var(${colorVar})]`
+                : "text-[var(--subtext)] group-hover:text-[var(--text)]"
+            }`}
+          >
+            {label}
+          </span>
+          {description && (
+            <span className="text-[10px] font-medium text-[var(--subtext)] opacity-75 truncate">
+              {description}
+            </span>
+          )}
+        </div>
+      </div>
       <div
         className={`w-11 h-6 rounded-full transition-all relative shrink-0 border bg-transparent ${
           checked
@@ -328,8 +399,11 @@ export interface UniversalGroupProps {
   title?: string | React.ReactNode;
   label?: string | React.ReactNode;
   icon?: string;
+  count?: React.ReactNode;
   headerColorClass?: string;
   headerAction?: React.ReactNode;
+  headerActions?: React.ReactNode;
+  actions?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
   innerClassName?: string;
@@ -342,33 +416,44 @@ export function UniversalGroup({
   title,
   label,
   icon,
+  count,
   headerColorClass = "text-[var(--text)]",
   headerAction,
+  headerActions,
+  actions,
   children,
   className = "",
   innerClassName = "flex flex-col gap-3.5",
   delayClass = ""
 }: UniversalGroupProps) {
   const heading = title || label;
+  const resolvedHeaderAction = headerAction || headerActions || actions;
   return (
     <div
       className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${delayClass} ${className}`}
     >
       {heading && (
         <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
-              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                {icon}
-              </span>
+              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[15px]">
+                  {icon}
+                </span>
+              </div>
             )}
             <h4
               className={`text-[11px] font-black uppercase tracking-wider m-0 truncate flex items-center gap-2 ${headerColorClass}`}
             >
               {heading}
             </h4>
+            {count !== undefined && count !== null && (
+              <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black text-[var(--subtext)] shrink-0">
+                {count}
+              </span>
+            )}
           </div>
-          {headerAction && <div className="ml-auto shrink-0">{headerAction}</div>}
+          {resolvedHeaderAction && <div className="ml-auto shrink-0">{resolvedHeaderAction}</div>}
         </div>
       )}
       <div className={`p-4 ${innerClassName}`}>{children}</div>
@@ -565,8 +650,9 @@ export function UniversalToggle({
 export interface StatBoxProps {
   label: string;
   value: React.ReactNode;
-  icon: string;
+  icon?: string;
   iconColorClass?: string;
+  colorClass?: string;
   tooltipTitle?: string;
   tooltipSubtitle?: string;
   tooltipVariant?: string;
@@ -577,14 +663,16 @@ export interface StatBoxProps {
 export function StatBox({
   label,
   value,
-  icon,
-  iconColorClass = "text-[var(--accent)]",
+  icon = "analytics",
+  iconColorClass,
+  colorClass,
   tooltipTitle,
   tooltipSubtitle,
   tooltipVariant = "default",
   onClick,
   className = "",
 }: StatBoxProps) {
+  const resolvedIconColorClass = iconColorClass || colorClass || "text-[var(--accent)]";
   const extractNodeText = (node: React.ReactNode): string => {
     if (node === null || node === undefined || typeof node === "boolean") {
       return "";
@@ -602,11 +690,11 @@ export function StatBox({
   };
   const rawText = extractNodeText(value).trim();
   const valueSizeClass =
-    rawText.length > 28
-      ? "text-xs md:text-sm"
-      : rawText.length > 18
-        ? "text-sm md:text-[15px]"
-        : "text-base md:text-lg";
+    rawText.length > 26
+      ? "text-xs sm:text-[13px]"
+      : rawText.length > 16
+        ? "text-[13px] sm:text-sm md:text-[15px]"
+        : "text-sm sm:text-base md:text-lg";
 
   return (
     <div
@@ -616,19 +704,19 @@ export function StatBox({
         "--glass-nested-shadow": "0 0 #0000",
         boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
       } as React.CSSProperties}
-      className={`glass-panel shadow-none rounded-2xl py-2.5 px-3 sm:py-3.5 sm:px-4 md:py-4 md:px-5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-2.5 sm:gap-3 md:gap-3.5 relative overflow-hidden transition-all duration-300 group ${
+      className={`glass-panel shadow-none rounded-2xl py-3 px-3.5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-3 relative overflow-hidden transition-all duration-300 group ${
         onClick ? "cursor-pointer active:scale-[0.99]" : "cursor-default"
       } ${className}`}
     >
-      <div className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center shrink-0 relative z-10 ${iconColorClass}`}>
-        <span className="material-symbols-outlined !text-[18px] sm:!text-[20px] md:!text-[22px]">{icon}</span>
+      <div className={`w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,currentColor_35%,transparent)] flex items-center justify-center shrink-0 relative z-10 ${resolvedIconColorClass}`}>
+        <span className="material-symbols-outlined !text-[18px]">{icon}</span>
       </div>
 
       <div className="flex flex-col min-w-0 flex-1 relative z-10">
-        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 mb-0.5 sm:mb-1 truncate">
+        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 mb-0.5 truncate">
           {label}
         </span>
-        <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] truncate`}>
+        <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] break-words line-clamp-2`}>
           {value}
         </div>
       </div>

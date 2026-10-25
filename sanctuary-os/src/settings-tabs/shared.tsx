@@ -14,24 +14,27 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 }
 
 export const TabContainer = ({ title, icon, actions, children }: any) => (
-  <div className="flex flex-col gap-10 animate-in fade-in duration-500 w-full relative">
-    <div className="flex justify-start items-center border-b border-[color-mix(in_srgb,var(--text)_12%,transparent)] pb-4 relative z-10">
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_22%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
-      <h2 className="text-2xl font-semibold text-[var(--text)] tracking-tight flex items-center gap-3.5 drop-shadow-sm">
+  <div className="flex flex-col gap-5 animate-in fade-in duration-500 w-full relative">
+    <div className="flex items-center justify-between w-full gap-4 relative z-10 min-w-0">
+      <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
         {icon && (
-          <span className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 text-[var(--text)] opacity-85 shadow-sm">
-            <span className="material-symbols-outlined !text-[22px]">{icon}</span>
+          <span className="w-8 h-8 md:w-9 md:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0 text-[var(--accent)]">
+            <span className="material-symbols-outlined !text-[17px] md:!text-[19px]">{icon}</span>
           </span>
         )}
-        {title}
-      </h2>
-      {actions && <div className="absolute right-0 bottom-4 flex gap-3 z-10">{actions}</div>}
+        <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight m-0 truncate">
+          {title}
+        </h2>
+      </div>
+      <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
+      {actions && <div className="flex items-center gap-2.5 shrink-0 z-10">{actions}</div>}
     </div>
     <div className="flex flex-col gap-8 w-full relative z-10">
       {children}
     </div>
   </div>
 );
+
 export function SettingsGrid({ children }: any) {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full relative z-10">
@@ -39,8 +42,6 @@ export function SettingsGrid({ children }: any) {
     </div>
   );
 }
-
-
 
 export function SettingsToggle({ checked, danger }: any) {
   const containerBase = "w-12 h-6 rounded-full transition-all duration-300 flex items-center p-1 shrink-0 border backdrop-blur-md box-border";
@@ -56,5 +57,3 @@ export function SettingsToggle({ checked, danger }: any) {
     </div>
   );
 }
-
-

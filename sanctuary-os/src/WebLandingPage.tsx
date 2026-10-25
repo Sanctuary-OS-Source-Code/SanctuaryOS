@@ -96,10 +96,10 @@ export default function WebLandingPage() {
         <header className="w-full flex flex-col gap-5 md:gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700 mt-1 md:mt-0">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none text-[var(--text)] drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] break-words">
-              {t("landing_welcome")}
+              {t("landing_welcome", "Welcome to Sanctuary OS")}
             </h1>
             <p className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider sm:tracking-widest opacity-80 max-w-3xl leading-relaxed text-[var(--subtext)] drop-shadow-md mt-1.5 md:mt-2">
-              {t("landing_subtitle")}
+              {t("landing_subtitle", "Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter.")}
             </p>
           </div>
         </header>
@@ -112,7 +112,7 @@ export default function WebLandingPage() {
                 <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
                   <span className="material-symbols-outlined text-[var(--accent)]">public</span>
                 </div>
-                {t("landing_workspaces")}
+                {t("landing_workspaces", "Active Workspaces")}
               </h2>
             </div>
 
@@ -124,7 +124,7 @@ export default function WebLandingPage() {
                   </div>
                 ) : games.length === 0 ? (
                   <div className="col-span-full py-12 flex items-center justify-center opacity-50 font-bold uppercase tracking-widest glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                    {t("landing_no_workspaces")}
+                    {t("landing_no_workspaces", "No Active Workspaces")}
                   </div>
                 ) : (
                   <>
@@ -186,7 +186,7 @@ export default function WebLandingPage() {
                                   <span className="material-symbols-outlined !text-[12px]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
-                                  {t("workspace_badge_active", "Active")}
+                                  {t("active", "Active")}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
@@ -217,14 +217,8 @@ export default function WebLandingPage() {
                             </h3>
                             <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
                               {isActive
-                                ? t(
-                                    "workspace_card_desc_active",
-                                    "Currently active environment for mod deployment, diagnostics, and backups."
-                                  )
-                                : t(
-                                    "workspace_card_desc_available",
-                                    "Select to mount this game workspace and load its library, blueprints, and tools."
-                                  )}
+                                ? t("workspace_card_desc_active", "Currently active environment for {mod} deployment, diagnostics, and backups.")
+                                : t("workspace_card_desc_available", "Select to mount this game workspace and load its {vault}, {blueprints}, and tools.")}
                             </p>
                           </div>
 
@@ -266,7 +260,7 @@ export default function WebLandingPage() {
                 <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
                   <span className="material-symbols-outlined text-[var(--accent)]">campaign</span>
                 </div>
-                {t("landing_news") || "Sanctuary Foundry News"}
+                {t("landing_news", "Sanctuary Foundry News") || "Sanctuary Foundry News"}
               </h2>
             </div>
             <div className="w-full">
@@ -296,7 +290,7 @@ export default function WebLandingPage() {
               <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
                 <span className="material-symbols-outlined text-[var(--accent)]">folder_special</span>
               </div>
-              {t("landing_system_directives")}
+              {t("landing_system_directives", "Public Documents")}
             </h2>
           </div>
           <div className="w-full">
@@ -321,7 +315,7 @@ export default function WebLandingPage() {
                   {t("landing_install_pwa", "Install the PWA")}
                 </span>
                 <span className="hidden md:inline">
-                  {t("landing_download") || "DOWNLOAD DESKTOP CLIENT"}
+                  {t("landing_download", "Download the Desktop Client") || "DOWNLOAD DESKTOP CLIENT"}
                 </span>
               </h2>
             </div>
@@ -372,18 +366,18 @@ export default function WebLandingPage() {
                 <UniversalCard
                   layout="vertical"
                   icon="rocket_launch"
-                  title={<span className="group-hover:text-[var(--accent)] transition-colors">{t("landing_download_native_title") || "Sanctuary OS Native"}</span>}
-                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_native_subtitle") || "Windows (.exe)"}</span>}
+                  title={<span className="group-hover:text-[var(--accent)] transition-colors">{t("landing_download_native_title", "Sanctuary OS Native") || "Sanctuary OS Native"}</span>}
+                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_win_exe", "Windows (.exe)") || "Windows (.exe)"}</span>}
                   className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in srgb, var(--accent) 10%, transparent)] transition-all duration-500 hover:-translate-y-1"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest">
                       <span>v{stableVersion}</span>
-                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">download</span> {t("landing_download_native_footer") || "STANDARD INSTALL"}</span>
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">download</span> {t("landing_download_native_footer", "STANDARD INSTALL") || "STANDARD INSTALL"}</span>
                     </div>
                   }
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t("landing_download_desc")}
+                    {t("landing_download_desc", "Install the Native Client to access full hardware integration, heuristic threat scanning, and deep OS-level modifications.")}
                   </p>
                 </UniversalCard>
               </a>
@@ -392,18 +386,18 @@ export default function WebLandingPage() {
                 <UniversalCard
                   layout="vertical"
                   icon="api"
-                  title={<span className="group-hover:text-[var(--text)] transition-colors">{t("landing_download_enterprise_title") || "Enterprise Deploy"}</span>}
-                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_enterprise_subtitle") || "Windows (.msi)"}</span>}
+                  title={<span className="group-hover:text-[var(--text)] transition-colors">{t("landing_download_enterprise_title", "Enterprise Deploy") || "Enterprise Deploy"}</span>}
+                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_win_msi", "Windows (.msi)") || "Windows (.msi)"}</span>}
                   className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] transition-all duration-500 hover:-translate-y-1"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 uppercase tracking-widest">
                       <span>v{stableVersion}</span>
-                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">business</span> {t("landing_download_enterprise_footer") || "SILENT DEPLOY"}</span>
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">business</span> {t("landing_download_enterprise_footer", "SILENT DEPLOY") || "SILENT DEPLOY"}</span>
                     </div>
                   }
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t("landing_download_enterprise_desc") || "Designed for automated environments and mass deployment. Includes silent installation flags and registry provisioning."}
+                    {t("landing_download_enterprise_desc", "Designed for automated environments and mass deployment. Includes silent installation flags and registry provisioning.") || "Designed for automated environments and mass deployment. Includes silent installation flags and registry provisioning."}
                   </p>
                 </UniversalCard>
               </a>
@@ -551,19 +545,19 @@ export default function WebLandingPage() {
             <span className="material-symbols-outlined text-[20px] text-[var(--text)] opacity-80">shield</span>
           </div>
           <div className="text-xs font-black uppercase tracking-widest opacity-60 text-[var(--text)]">
-            {t("landing_copyright") || "Sanctuary OS \u00A9 2026 Sanctuary Foundry"}
+            {t("landing_copyright", "Sanctuary OS © 2026 Sanctuary Foundry") || "Sanctuary OS \u00A9 2026 Sanctuary Foundry"}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-8 text-[10px] font-black uppercase tracking-widest opacity-60 text-[var(--text)]">
           <a href="#eula" className="hover:text-[var(--accent)] hover:opacity-100 transition-colors duration-300">
-            {t("landing_eula") || "End User License Agreement"}
+            {t("landing_eula", "System EULA") || "End User License Agreement"}
           </a>
           <a href="#terms" className="hover:text-[var(--accent)] hover:opacity-100 transition-colors duration-300">
-            {t("landing_terms") || "Terms of Service"}
+            {t("landing_terms", "Terms of Service") || "Terms of Service"}
           </a>
           <a href="#privacy" className="hover:text-[var(--accent)] hover:opacity-100 transition-colors duration-300">
-            {t("landing_privacy") || "Privacy Policy"}
+            {t("landing_privacy", "Privacy Protocol") || "Privacy Policy"}
           </a>
         </div>
       </footer>

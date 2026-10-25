@@ -218,12 +218,32 @@ export default function CommandCenter({
     );
   }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
+  const [radarCacheTick, setRadarCacheTick] = React.useState(0);
+  React.useEffect(() => {
+    const handleRadarCacheUpdate = () => setRadarCacheTick((c) => c + 1);
+    window.addEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
+    return () => window.removeEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
+  }, []);
+
   const activeConflictCount = React.useMemo(() => {
     let tier3Count = 0;
     let tier4Count = 0;
     let total = 0;
 
     try {
+      const scopeKey = activeSetName || activePlaySet?.name || "";
+      const cachedRaw = scopeKey ? localStorage.getItem(`sanctuary_radar_cache_${scopeKey}`) : null;
+      if (cachedRaw) {
+        const parsedCache = JSON.parse(cachedRaw);
+        const fatalList = Array.isArray(parsedCache?.fatal) ? parsedCache.fatal : [];
+        const tuningList = Array.isArray(parsedCache?.tuning) ? parsedCache.tuning : [];
+        const cloneList = Array.isArray(parsedCache?.clone) ? parsedCache.clone : [];
+        tier4Count = fatalList.filter((c: any) => !ignoredGlobal.includes(c.mod_pair)).length;
+        tier3Count =
+          tuningList.filter((c: any) => !ignoredGlobal.includes(c.mod_pair)).length +
+          cloneList.filter((c: any) => !ignoredGlobal.includes(c.mod_pair)).length;
+        total = tier4Count + tier3Count;
+      }
       const stored = null;
       if (stored) {
         const localConflicts = JSON.parse(stored);
@@ -256,7 +276,7 @@ export default function CommandCenter({
     } catch (e) { }
 
     return { total, tier3: tier3Count, tier4: tier4Count };
-  }, [activeBlueprintMods, ignoredGlobal]);
+  }, [activeBlueprintMods, ignoredGlobal, activeSetName, radarCacheTick]);
 
   React.useEffect(() => {
     useStore.getState().setActiveConflictCount(activeConflictCount);
@@ -304,7 +324,7 @@ export default function CommandCenter({
 
   return (
     <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <ViewHeader title={t("center_title")} subtitle={t("center_subtitle")} icon={t("icon_desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+      <ViewHeader title={t("center_title", "Dashboard")} subtitle={t("center_subtitle", "System status & active deployment overview")} icon={t("icon_desktop_windows", "desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
       
 
 
@@ -324,15 +344,15 @@ export default function CommandCenter({
             <div key="updates" className="relative group/updates flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="accent"
-                title={t("updates_avail") || "Updates Available"}
-                subtitle={t("updates_det") || "Artifact updates detected."}
+                title={t("updates_avail", "Updates Available") || "Updates Available"}
+                subtitle={t("updates_det", "{mod} updates detected") || "Artifact updates detected."}
                 className="group-hover/updates:flex z-[1000] w-full"
                 vAlign="bottom"
               />
               <DashboardStatTile
-                icon={<span className="material-symbols-outlined ">{t("icon_update")}</span>}
+                icon={<span className="material-symbols-outlined ">{t("icon_update", "update")}</span>}
                 number={radarUpdatesCount}
-                label={t("updates_avail") || "Updates Available"}
+                label={t("updates_avail", "Updates Available") || "Updates Available"}
                 disableBgStrip={true}
                 colorClass="!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] w-full"
                 onClick={() => setShowUpdatesModal(true)}
@@ -344,9 +364,9 @@ export default function CommandCenter({
           updatesOrStableElements.push(
             <DashboardStatTile
               key="stable"
-              icon={<span className="material-symbols-outlined ">{t("icon_check_circle")}</span>}
+              icon={<span className="material-symbols-outlined ">{t("icon_check_circle", "check_circle")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : "0"}
-              label={activeGameSchema?.features?.has_cc === false ? t("radar_title") : t("sys_stable")}
+              label={activeGameSchema?.features?.has_cc === false ? t("radar_title", "Conflict Scanner") : t("sys_stable", "System Stable")}
               disableBgStrip={true}
               colorClass="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[color-mix(in_srgb,var(--success)_20%,transparent)] !text-[var(--success)]"
               onClick={() => setIsConflictRadarOpen(true)}
@@ -358,27 +378,27 @@ export default function CommandCenter({
           isDesktop() && (
             <DashboardStatTile
               key="vault"
-              icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
+              icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
-              label={t("vault_title")}
+              label={t("vault_title", "Your {Vault}")}
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
             />
           ),
           <DashboardStatTile
             key="nexus"
-            icon={<span className="material-symbols-outlined ">{t("icon_hub")}</span>}
+            icon={<span className="material-symbols-outlined ">{t("icon_hub", "hub")}</span>}
             number={nexusCount}
-            label={t("market_title")}
+            label={t("market_title", "The {Nexus}")}
             colorClass="text-[var(--text)]"
             onClick={() => { if (setView) setView("nexus"); }}
           />,
           isDesktop() && (
             <DashboardStatTile
               key="blueprints"
-              icon={<span className="material-symbols-outlined ">{t("icon_map")}</span>}
+              icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
-              label={t("stat_blueprints")}
+              label={t("stat_blueprints", "Active {Blueprint}")}
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
             />
@@ -387,16 +407,16 @@ export default function CommandCenter({
             {!session && (
               <HoverTooltip
                 variant="danger"
-                title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
-                subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned", "Communications Restricted") : t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled.")}
+                subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc", "Your account has been restricted from posting or submitting content.") : t("alert_guest_mode_desc", "Guest mode is active. Login or register to access full features.")}
                 className="group-hover/ticket:flex z-[1000] w-full"
                 vAlign="bottom"
               />
             )}
             <DashboardStatTile
-              icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>}
+              icon={<span className="material-symbols-outlined ">{t("icon_local_activity", "local_activity")}</span>}
               number={ticketCount}
-              label={t("sidebar_support")}
+              label={t("sidebar_support", "Sanctuary Support")}
               colorClass="text-[var(--text)]"
               onClick={() => { if (setIsCitizenTicketsOpen) setIsCitizenTicketsOpen(true); }}
               disabled={!session}
@@ -413,15 +433,15 @@ export default function CommandCenter({
                     <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip
                         variant="warning"
-                        title={t("perm_restricted")}
-                        subtitle={t("perm_hover_desc") || t("perm_desc")}
+                        title={t("perm_restricted", "Permissions Restricted")}
+                        subtitle={t("perm_hover_desc", "Application lacks sufficient permissions to manage your {Vault}. Enable Windows Developer Mode or run as Administrator.") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
                         className="group-hover/perms:flex z-[1000] w-full"
                         vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">warning</span>}
                         number="!"
-                        label={t("perm_restricted")}
+                        label={t("perm_restricted", "Permissions Restricted")}
                         disableBgStrip={true}
                         colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] animate-pulse w-full"
                         onClick={() => invoke("open_developer_settings")}
@@ -454,7 +474,7 @@ export default function CommandCenter({
                           localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
                           setDismissedBroadcastId(String(urgentBroadcast.id));
                         }}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] backdrop-blur-md cursor-pointer shadow-md"
+                        className="absolute top-4 right-4 w-8 h-8 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] cursor-pointer shadow-md"
                       >
                         <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>
@@ -466,15 +486,15 @@ export default function CommandCenter({
                     <div key="critical" className="relative group/critical flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip
                         variant="danger"
-                        title={t("critical_failures_detected") || "Critical Failures"}
-                        subtitle={t("radar_fatal_desc") || "Severe conflict detected. Click to view full diagnostic sweep."}
+                        title={t("crit_fail", "critical failures") || "Critical Failures"}
+                        subtitle={t("radar_fatal_desc", "These {mods} overwrite the same core game files and cannot be used together. One must be removed.") || "Severe conflict detected. Click to view full diagnostic sweep."}
                         className="group-hover/critical:flex z-[1000] w-full"
                         vAlign="bottom"
                       />
                       <DashboardStatTile
                         icon={<span className="material-symbols-outlined ">gpp_bad</span>}
                         number={radarTier4Count + radarBrokenCount}
-                        label={t("critical_failures_detected") || "Critical Failures"}
+                        label={t("crit_fail", "critical failures") || "Critical Failures"}
                         disableBgStrip={true}
                         colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)] animate-pulse w-full"
                         onClick={() => setAlertsPanelMode('critical')}
@@ -485,15 +505,15 @@ export default function CommandCenter({
                     <div key="alerts" className="relative group/alerts flex-1 flex min-w-0 w-full h-full">
                       <HoverTooltip
                         variant="warning"
-                        title={t("system_alerts_title") || "System Alerts"}
-                        subtitle={t("radar_tuning_desc") || "Potential issues detected. Click to view full diagnostic sweep."}
+                        title={t("system_alerts_title", "System Alerts") || "System Alerts"}
+                        subtitle={t("radar_tuning_desc", "These {mods} edit the same features. One {mod} will override the changes of the other based on load order.") || "Potential issues detected. Click to view full diagnostic sweep."}
                         className="group-hover/alerts:flex z-[1000] w-full"
                         vAlign="bottom"
                       />
                       <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{t("icon_warning_amber")}</span>}
+                        icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>}
                         number={radarTier3Count + radarUnstableCount}
-                        label={t("system_alerts_title") || "System Alerts"}
+                        label={t("system_alerts_title", "System Alerts") || "System Alerts"}
                         disableBgStrip={true}
                         colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)] w-full"
                         onClick={() => setAlertsPanelMode('alert')}
@@ -519,27 +539,27 @@ export default function CommandCenter({
       })()}
 
       {/* Main Content Area: Feed and Quick Actions */}
-      <div className="flex flex-col xl:flex-row gap-6 mt-8 relative z-20">
+      <div className="flex flex-col xl:flex-row gap-8 xl:gap-10 mt-10 md:mt-12 relative z-20">
 
         {/* Left Column: Feed & Alerts */}
-        <div className="flex-1 min-w-0 flex flex-col gap-6">
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
 
 
 
-          <CommandScreenSectionHeading title={t("feed_title") || "Comm-Link Feed"} icon="satellite_alt" />
+          <CommandScreenSectionHeading title={t("feed_title", "Community Feed") || "Comm-Link Feed"} icon="satellite_alt" />
           <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
         </div>
 
         {/* Right Column: Quick Actions */}
-        <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-6">
-          <CommandScreenSectionHeading title={t("quick_actions")} icon={t("icon_bolt")} />
+        <div className="w-full lg:w-[420px] shrink-0 flex flex-col gap-4">
+          <CommandScreenSectionHeading title={t("quick_actions", "Quick Actions")} icon={t("icon_bolt", "bolt")} />
 
           <div className="flex flex-col gap-4">
             {!!urgentBroadcast && (
               <CommandScreenQuickLink
                 icon="priority_high"
-                title={t("title_sanctuary_alerts") || "Sanctuary Alerts"}
-                subtitle={t("urgent_alert_active") || "URGENT SYSTEM BROADCAST"}
+                title={t("title_sanctuary_alerts", "Sanctuary Alerts") || "Sanctuary Alerts"}
+                subtitle={t("urgent_alert_active", "Urgent Alert Active") || "URGENT SYSTEM BROADCAST"}
                 onClick={() => setIsAlertsOpen(true)}
                 textColorClass="text-[var(--danger)]"
                 hoverTextColorClass="group-hover:text-red-400"
@@ -551,9 +571,9 @@ export default function CommandCenter({
 
             {activeGameSchema?.features?.has_cc !== false && isDesktop() && (
               <CommandScreenQuickLink
-                icon={t("icon_radar")}
-                title={(t("btn_radar")).replace(/^[^\w]*/, '').trim()}
-                subtitle={t("btn_radar_desc")}
+                icon={t("icon_radar", "radar")}
+                title={(t("btn_radar", "Conflict Scan")).replace(/^[^\w]*/, '').trim()}
+                subtitle={t("btn_radar_desc", "Scan And Sync Your {Vault} ")}
                 onClick={() => runRadarSweep(false)}
                 textColorClass="text-[color-mix(in_srgb,var(--success)_80%,transparent)]"
                 hoverTextColorClass="group-hover:text-emerald-400"
@@ -564,9 +584,9 @@ export default function CommandCenter({
 
             {activeGameSchema?.features?.has_cc !== false && isDesktop() && (
               <CommandScreenQuickLink
-                icon={shelterActive ? t("icon_lock") : t("icon_lock_open")}
-                title={shelterActive ? ((t("btn_reclaim")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown")).replace(/^[^\w]*/, '').trim())}
-                subtitle={shelterActive ? t("btn_bunker_unlock_desc") : t("btn_bunker_lock_desc")}
+                icon={shelterActive ? t("icon_lock", "lock") : t("icon_lock_open", "lock_open")}
+                title={shelterActive ? ((t("btn_reclaim", "Reclaim {Vault}")).replace(/^[^\w]*/, '').trim()) : ((t("btn_lockdown", "Lockdown {Vault}")).replace(/^[^\w]*/, '').trim())}
+                subtitle={shelterActive ? t("btn_bunker_unlock_desc", "Disable Defensive Process") : t("btn_bunker_lock_desc", "Execute Defensive Process")}
                 onClick={() => triggerShelter(!shelterActive)}
                 textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
                 hoverTextColorClass="group-hover:text-cyan-400"
@@ -579,16 +599,16 @@ export default function CommandCenter({
               {!session && (
                 <HoverTooltip
                   variant="danger"
-                  title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned") : t("alert_guest_mode_uploads")}
-                  subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc") : t("alert_guest_mode_desc")}
+                  title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned", "Communications Restricted") : t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled.")}
+                  subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc", "Your account has been restricted from posting or submitting content.") : t("alert_guest_mode_desc", "Guest mode is active. Login or register to access full features.")}
                   className="group-hover/supportdesk:flex z-[1000]"
                 />
               )}
               <div className={!session ? 'opacity-50 cursor-not-allowed' : ''}>
                 <CommandScreenQuickLink
-                  icon={t("icon_local_activity")}
-                  title={t("support_title")}
-                  subtitle={t("btn_submit_ticket_desc")}
+                  icon={t("icon_local_activity", "local_activity")}
+                  title={t("support_title", "Submit A Ticket")}
+                  subtitle={t("btn_submit_ticket_desc", "Open Sanctuary Support System")}
                   onClick={() => { if (setIsSupportDeskOpen && session) setIsSupportDeskOpen(true); }}
                   textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
                   hoverTextColorClass="group-hover:text-purple-400"
@@ -600,8 +620,8 @@ export default function CommandCenter({
 
             <CommandScreenQuickLink
               icon="history"
-              title={t("audit_title")}
-              subtitle={t("audit_logs_desc")}
+              title={t("audit_logs", "Audit Logs")}
+              subtitle={t("audit_logs_desc", "System modification history")}
               onClick={() => setIsAuditLogsOpen(true)}
               textColorClass="text-[color-mix(in_srgb,var(--accent)_80%,transparent)]"
               hoverTextColorClass="group-hover:text-blue-400"

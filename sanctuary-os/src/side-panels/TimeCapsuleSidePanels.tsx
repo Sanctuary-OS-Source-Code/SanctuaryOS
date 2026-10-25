@@ -10,6 +10,9 @@ import {
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  SidePanelHeroCard,
+  UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useStore } from "../store";
 
@@ -38,7 +41,7 @@ export function parseBackupSignatureFallback(
   const alias =
     versionIndex > 0 ? parts.slice(0, versionIndex).join(" ") : parts[0];
   return {
-    alias: alias || t("vlocal", "Local"),
+    alias: alias || t("unknown", "Local"),
     version:
       versionPart === "LEGACY"
         ? isEngine
@@ -428,6 +431,7 @@ export function TimeCapsuleSnapshotDossier({
         return {
           icon: t("icon_terminal", "terminal"),
           label: t("tc_engine_cat_bin", "Binaries"),
+          colorVar: "var(--accent)",
           colorClass:
             "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
         };
@@ -436,6 +440,7 @@ export function TimeCapsuleSnapshotDossier({
         return {
           icon: t("icon_difference", "difference"),
           label: t("tc_engine_cat_delta", "Delta"),
+          colorVar: "var(--warning)",
           colorClass:
             "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
         };
@@ -444,6 +449,7 @@ export function TimeCapsuleSnapshotDossier({
         return {
           icon: t("icon_inventory_2", "inventory_2"),
           label: t("tc_engine_cat_data", "Base Game"),
+          colorVar: "var(--success)",
           colorClass:
             "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
         };
@@ -451,6 +457,7 @@ export function TimeCapsuleSnapshotDossier({
       return {
         icon: t("icon_extension", "extension"),
         label: t("tc_engine_cat_packs", "Packs"),
+        colorVar: "var(--subtext)",
         colorClass:
           "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
       };
@@ -458,16 +465,18 @@ export function TimeCapsuleSnapshotDossier({
 
     if (isSaveFile(filePath)) {
       return {
-        icon: t("icon_saves", "save"),
+        icon: t("icon_save", "save"),
         label: t("label_saves", "Saves"),
+        colorVar: "var(--accent)",
         colorClass:
           "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
       };
     }
     if (isTrayFile(filePath)) {
       return {
-        icon: t("icon_tray_files", "Holiday_Village"),
+        icon: t("icon_group", "Holiday_Village"),
         label: t("label_tray_files", "Tray Files"),
+        colorVar: "var(--success)",
         colorClass:
           "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
       };
@@ -475,6 +484,7 @@ export function TimeCapsuleSnapshotDossier({
     return {
       icon: t("icon_tune", "tune"),
       label: t("tc_panel_filter_configs", "Configs & Data"),
+      colorVar: "var(--subtext)",
       colorClass:
         "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
     };
@@ -649,6 +659,7 @@ export function TimeCapsuleSnapshotDossier({
           id: "BIN",
           label: t("tc_engine_cat_bin", "Binaries"),
           icon: t("icon_terminal", "terminal"),
+          colorVar: "var(--accent)",
           colorClass:
             "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
           files: bin,
@@ -658,6 +669,7 @@ export function TimeCapsuleSnapshotDossier({
           id: "DATA",
           label: t("tc_engine_cat_data", "Base Game"),
           icon: t("icon_inventory_2", "inventory_2"),
+          colorVar: "var(--success)",
           colorClass:
             "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
           files: data,
@@ -667,6 +679,7 @@ export function TimeCapsuleSnapshotDossier({
           id: "DELTA",
           label: t("tc_engine_cat_delta", "Delta"),
           icon: t("icon_difference", "difference"),
+          colorVar: "var(--warning)",
           colorClass:
             "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
           files: delta,
@@ -676,6 +689,7 @@ export function TimeCapsuleSnapshotDossier({
           id: "PACKS",
           label: t("tc_engine_cat_packs", "Packs"),
           icon: t("icon_extension", "extension"),
+          colorVar: "var(--subtext)",
           colorClass:
             "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
           files: packs,
@@ -694,7 +708,8 @@ export function TimeCapsuleSnapshotDossier({
       {
         id: "SAVES",
         label: t("label_saves", "Saves"),
-        icon: t("icon_saves", "save"),
+        icon: t("icon_save", "save"),
+        colorVar: "var(--accent)",
         colorClass:
           "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
         files: savesList,
@@ -705,6 +720,7 @@ export function TimeCapsuleSnapshotDossier({
         id: "CONFIGS",
         label: t("tc_panel_filter_configs", "Configs & Data"),
         icon: t("icon_tune", "tune"),
+        colorVar: "var(--subtext)",
         colorClass:
           "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
         files: configsList,
@@ -713,7 +729,8 @@ export function TimeCapsuleSnapshotDossier({
       {
         id: "TRAY",
         label: t("label_tray_files", "Tray Files"),
-        icon: t("icon_tray_files", "Holiday_Village"),
+        icon: t("icon_group", "Holiday_Village"),
+        colorVar: "var(--success)",
         colorClass:
           "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
         files: trayList,
@@ -798,94 +815,49 @@ export function TimeCapsuleSnapshotDossier({
   return (
     <div className="flex flex-col gap-4 w-full pb-6">
       {/* 1. Unified Snapshot Overview & Restore Card */}
-      <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div
-              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                isEngine
-                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_38%,transparent)]"
-                  : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[22px]">
-                {icon}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className={`text-[10px] font-black uppercase tracking-[0.18em] ${
-                    isEngine ? "text-[var(--danger)]" : "text-[var(--accent)]"
-                  }`}
-                >
-                  {isEngine
-                    ? t("engine_full", "Engine Core")
-                    : t("world_state", "World State")}
-                </span>
-                {isPostBackupSummary && (
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[11px]">
-                      {t("icon_check_circle", "check_circle")}
-                    </span>
-                    {t("tc_complete_title", "Snapshot Complete")}
-                  </span>
-                )}
-              </div>
-
-              <span className="text-xs font-semibold text-[var(--text)] truncate">
-                {isBaseline
-                  ? t(
-                      "tc_delta_baseline_note",
-                      "Initial Baseline Snapshot (100% Newly Written)"
-                    )
-                  : previousBackupName
-                    ? (
-                        t("tc_delta_compared_to", "Compared to {PREV}") ||
-                        "Compared to {PREV}"
-                      ).replace(
-                        "{PREV}",
-                        `${prevSig?.version || previousBackupName}${
-                          prevDateDisplay ? ` (${prevDateDisplay})` : ""
-                        }`
-                      )
-                    : t(
-                        "tc_complete_subtitle",
-                        "Point-in-time backup verified and indexed"
-                      )}
-              </span>
-
-              {location && (
-                <span className="text-[11px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                  {location}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1.5 ${
-                diffCounts.changes > 0
-                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
-                  : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[13px]">
-                {diffCounts.changes > 0
-                  ? t("icon_difference", "difference")
-                  : t("icon_check_circle", "check_circle")}
-              </span>
-              {diffCounts.changes > 0
-                ? `${diffCounts.changes} ${t("tab_diff", "Differences")}`
-                : t("tc_badge_in_sync", "In Sync")}
-            </span>
-          </div>
-        </div>
-
+      <SidePanelHeroCard
+        icon={icon}
+        overline={
+          isEngine
+            ? t("engine_full", "Engine Core")
+            : t("world_state", "World State")
+        }
+        title={
+          isBaseline
+            ? t(
+                "tc_delta_baseline_note",
+                "Initial Baseline Snapshot (100% Newly Written)"
+              )
+            : previousBackupName
+              ? (
+                  t("tc_delta_compared_to", "Compared to {PREV}") ||
+                  "Compared to {PREV}"
+                ).replace(
+                  "{PREV}",
+                  `${prevSig?.version || previousBackupName}${
+                    prevDateDisplay ? ` (${prevDateDisplay})` : ""
+                  }`
+                )
+              : t(
+                  "tc_complete_subtitle",
+                  "Point-in-time backup verified and indexed"
+                )
+        }
+        description={location || undefined}
+        badge={
+          diffCounts.changes > 0
+            ? `${diffCounts.changes} ${t("tab_diff", "Differences")}`
+            : t("diff_in_sync", "In Sync")
+        }
+        badgeIcon={
+          diffCounts.changes > 0
+            ? t("icon_difference", "difference")
+            : t("icon_check_circle", "check_circle")
+        }
+        variant={isEngine ? "danger" : "accent"}
+      >
         {/* 2x2 Spacious StatBox Grid — Wide columns so labels and values are never cut off */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <StatBox
             icon={t("icon_hard_drive", "hard_drive")}
             iconColorClass="text-[var(--accent)]"
@@ -987,7 +959,7 @@ export function TimeCapsuleSnapshotDossier({
                   <ActionButton
                     variant="accent"
                     icon={t("icon_done_all", "done_all")}
-                    label={`${t("btn_confirm", "Confirm")} (${changedDiffPaths.length})`}
+                    label={`${t("confirm", "Confirm")} (${changedDiffPaths.length})`}
                     disabled={isBatchExtracting}
                     onClick={() => handleBatchExtract(changedDiffPaths, true)}
                     className="!px-4 !py-2"
@@ -1027,7 +999,7 @@ export function TimeCapsuleSnapshotDossier({
             </div>
           </div>
         )}
-      </div>
+      </SidePanelHeroCard>
 
       {/* 2. 3-Column DashboardStatTile View Switcher */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
@@ -1074,7 +1046,7 @@ export function TimeCapsuleSnapshotDossier({
           icon={t("icon_unarchive", "unarchive")}
           label={t("tab_extract", "Extract")}
           number={`${visibleBackupFiles.length.toLocaleString()} ${t(
-            "label_files",
+            "modal_files",
             "Files"
           )}`}
           isActive={activeView === "EXTRACT"}
@@ -1128,7 +1100,7 @@ export function TimeCapsuleSnapshotDossier({
                     }
                     className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[var(--accent)] text-[var(--accent)] cursor-pointer"
                   >
-                    {t("btn_confirm", "Confirm")} ({selectedPaths.size})
+                    {t("confirm", "Confirm")} ({selectedPaths.size})
                   </button>
                   <button
                     type="button"
@@ -1165,7 +1137,7 @@ export function TimeCapsuleSnapshotDossier({
           <span>{t("tc_col_file", "File")}</span>
           <span className="text-right">{t("tc_col_size", "Size")}</span>
           <span className="text-center">{t("tc_col_status", "Status")}</span>
-          <span className="text-right">{t("tc_col_action", "Action")}</span>
+          <span className="text-right">{t("action", "Action")}</span>
         </div>
 
         {/* Table Body */}
@@ -1187,7 +1159,7 @@ export function TimeCapsuleSnapshotDossier({
                           "tc_delta_zero_changes_title",
                           "Zero Changed Files Since Previous Snapshot (100% Deduplicated)"
                         )
-                      : t("no_files_found", "No matching files")
+                      : t("no_files_found", "No editable {mods} located.")
                   }
                 />
               </div>
@@ -1199,13 +1171,13 @@ export function TimeCapsuleSnapshotDossier({
                   const isUpdated = st === "Updated";
                   const isRemoved = st === "Removed";
 
-                  const badgeClass = isUpdated
-                    ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_42%,transparent)]"
+                  const badgeColorVar = isUpdated
+                    ? "var(--warning)"
                     : isAdded
-                      ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_42%,transparent)]"
+                      ? "var(--success)"
                       : isRemoved
-                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_42%,transparent)]"
-                        : "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]";
+                        ? "var(--danger)"
+                        : "var(--subtext)";
 
                   const badgeIcon = isUpdated
                     ? t("icon_edit", "edit")
@@ -1223,7 +1195,7 @@ export function TimeCapsuleSnapshotDossier({
                         : isAdded
                           ? t("tc_delta_filter_added", "New Files")
                           : isRemoved
-                            ? t("tc_delta_filter_removed", "Removed")
+                            ? t("diff_status_removed", "Removed")
                             : t("tc_delta_filter_dedup", "Hardlinked");
 
                   const catInfo = getFileCategoryInfo(item.path);
@@ -1241,9 +1213,13 @@ export function TimeCapsuleSnapshotDossier({
                       {/* Col 1: File & Folder */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 ${catInfo.colorClass}`}
+                          className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0"
+                          style={{
+                            color: catInfo.colorVar,
+                            borderColor: `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
+                          }}
                         >
-                          <span className="material-symbols-outlined !text-[16px]">
+                          <span className="material-symbols-rounded !text-[16px]">
                             {catInfo.icon}
                           </span>
                         </div>
@@ -1265,12 +1241,16 @@ export function TimeCapsuleSnapshotDossier({
                       {/* Col 3: Status Badge */}
                       <div className="flex justify-center">
                         <span
-                          className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${badgeClass}`}
+                          className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}
+                          style={{
+                            color: badgeColorVar,
+                            borderColor: `color-mix(in srgb, ${badgeColorVar} 35%, var(--border))`,
+                          }}
                         >
-                          <span className="material-symbols-outlined !text-[12px]">
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
                             {badgeIcon}
                           </span>
-                          {badgeLabel}
+                          <span>{badgeLabel}</span>
                         </span>
                       </div>
 
@@ -1287,7 +1267,7 @@ export function TimeCapsuleSnapshotDossier({
                                 }
                                 className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
                               >
-                                {t("btn_confirm", "Confirm")}
+                                {t("confirm", "Confirm")}
                               </button>
                               <button
                                 type="button"
@@ -1324,7 +1304,7 @@ export function TimeCapsuleSnapshotDossier({
                               <span>
                                 {isDone
                                   ? t("tc_panel_extracted_badge", "Extracted")
-                                  : t("btn_extract", "Extract")}
+                                  : t("tab_extract", "Extract")}
                               </span>
                             </button>
                           ))}
@@ -1358,7 +1338,7 @@ export function TimeCapsuleSnapshotDossier({
               <div className="p-8">
                 <EmptyState
                   icon={t("icon_folder", "folder")}
-                  title={t("no_files_found", "No matching files")}
+                  title={t("no_files_found", "No editable {mods} located.")}
                 />
               </div>
             ) : (
@@ -1379,16 +1359,20 @@ export function TimeCapsuleSnapshotDossier({
                               : t("icon_expand_more", "expand_more")}
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border bg-transparent inline-flex items-center gap-1.5 ${group.colorClass}`}
+                            className={VAULT_CHIP_CLASS}
+                            style={{
+                              color: group.colorVar,
+                              borderColor: `color-mix(in srgb, ${group.colorVar} 35%, var(--border))`,
+                            }}
                           >
-                            <span className="material-symbols-outlined !text-[12px]">
+                            <span className="material-symbols-rounded !text-[12px] shrink-0">
                               {group.icon}
                             </span>
-                            {group.label}
+                            <span>{group.label}</span>
                           </span>
                           <span className="text-[11px] font-mono text-[var(--subtext)]">
                             {group.files.length.toLocaleString()}{" "}
-                            {t("label_files", "Files")} &bull;{" "}
+                            {t("modal_files", "Files")} &bull;{" "}
                             {formatFileSizeMb(group.sizeMb)}
                           </span>
                         </div>
@@ -1439,13 +1423,15 @@ export function TimeCapsuleSnapshotDossier({
                               {/* Col 1: File & Folder */}
                               <div className="flex items-center gap-3 min-w-0">
                                 <div
-                                  className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 transition-colors ${
-                                    isSelected
-                                      ? "border-[var(--accent)] text-[var(--accent)]"
-                                      : catInfo.colorClass
-                                  }`}
+                                  className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0 transition-colors"
+                                  style={{
+                                    color: isSelected ? "var(--accent)" : catInfo.colorVar,
+                                    borderColor: isSelected
+                                      ? "var(--accent)"
+                                      : `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
+                                  }}
                                 >
-                                  <span className="material-symbols-outlined !text-[16px]">
+                                  <span className="material-symbols-rounded !text-[16px]">
                                     {isSelected
                                       ? t("icon_check", "check")
                                       : catInfo.icon}
@@ -1470,12 +1456,16 @@ export function TimeCapsuleSnapshotDossier({
                               {/* Col 3: Category Badge */}
                               <div className="flex justify-center">
                                 <span
-                                  className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${catInfo.colorClass}`}
+                                  className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}
+                                  style={{
+                                    color: catInfo.colorVar,
+                                    borderColor: `color-mix(in srgb, ${catInfo.colorVar} 35%, var(--border))`,
+                                  }}
                                 >
-                                  <span className="material-symbols-outlined !text-[12px]">
+                                  <span className="material-symbols-rounded !text-[12px] shrink-0">
                                     {catInfo.icon}
                                   </span>
-                                  {catInfo.label}
+                                  <span>{catInfo.label}</span>
                                 </span>
                               </div>
 
@@ -1494,7 +1484,7 @@ export function TimeCapsuleSnapshotDossier({
                                       }
                                       className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
                                     >
-                                      {t("btn_confirm", "Confirm")}
+                                      {t("confirm", "Confirm")}
                                     </button>
                                     <button
                                       type="button"
@@ -1538,7 +1528,7 @@ export function TimeCapsuleSnapshotDossier({
                                             "tc_panel_extracted_badge",
                                             "Extracted"
                                           )
-                                        : t("btn_extract", "Extract")}
+                                        : t("tab_extract", "Extract")}
                                     </span>
                                   </button>
                                 )}
@@ -1584,13 +1574,13 @@ export function TimeCapsuleSnapshotDossier({
                 const isMiss = diff.status === "Missing in Current";
                 const isNewActive = diff.status === "Added in Current";
 
-                const badgeClass = isMod
-                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_42%,transparent)]"
+                const badgeColorVar = isMod
+                  ? "var(--warning)"
                   : isMiss
-                    ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_42%,transparent)]"
+                    ? "var(--danger)"
                     : isNewActive
-                      ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_42%,transparent)]"
-                      : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_42%,transparent)]";
+                      ? "var(--accent)"
+                      : "var(--success)";
 
                 const badgeIcon = isMod
                   ? t("icon_edit", "edit")
@@ -1627,7 +1617,11 @@ export function TimeCapsuleSnapshotDossier({
                     {/* Col 1: File & Folder */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-8 h-8 rounded-lg border bg-transparent flex items-center justify-center shrink-0 ${catInfo.colorClass}`}
+                        className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0"
+                        style={{
+                          color: catInfo.colorVar,
+                          borderColor: `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
+                        }}
                       >
                         <span className="material-symbols-outlined !text-[16px]">
                           {catInfo.icon}
@@ -1651,21 +1645,27 @@ export function TimeCapsuleSnapshotDossier({
                     {/* Col 3: Status Badge */}
                     <div className="flex justify-center">
                       <span
-                        className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border bg-transparent inline-flex items-center gap-1 whitespace-nowrap ${badgeClass}`}
+                        className={VAULT_CHIP_CLASS}
+                        style={{
+                          color: badgeColorVar,
+                          borderColor: `color-mix(in srgb, ${badgeColorVar} 35%, var(--border))`,
+                        }}
                       >
-                        <span className="material-symbols-outlined !text-[12px]">
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
                           {badgeIcon}
                         </span>
-                        {isMod
-                          ? t("tc_diff_filter_modified", "Modified")
-                          : isMiss
-                            ? t("tc_diff_filter_missing", "Missing in Active")
-                            : isNewActive
-                              ? t(
-                                  "tc_diff_filter_new_in_active",
-                                  "New in Active"
-                                )
-                              : t("tc_diff_filter_identical", "Unchanged")}
+                        <span>
+                          {isMod
+                            ? t("modified", "Modified")
+                            : isMiss
+                              ? t("tc_diff_filter_missing", "Missing in Active")
+                              : isNewActive
+                                ? t(
+                                    "tc_diff_filter_new_in_active",
+                                    "New in Active"
+                                  )
+                                : t("tc_diff_filter_identical", "Unchanged")}
+                        </span>
                       </span>
                     </div>
 
@@ -1682,7 +1682,7 @@ export function TimeCapsuleSnapshotDossier({
                               }
                               className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
                             >
-                              {t("btn_confirm", "Confirm")}
+                              {t("confirm", "Confirm")}
                             </button>
                             <button
                               type="button"
@@ -1851,7 +1851,7 @@ export function TimeCapsuleSidePanel({
         ) : undefined
       }
     >
-      <div className="mt-2">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <TimeCapsuleSnapshotDossier
           selectedBackup={normalizedBackup}
           config={config}

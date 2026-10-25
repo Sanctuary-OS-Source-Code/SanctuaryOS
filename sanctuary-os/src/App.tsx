@@ -33,7 +33,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import ArchitectHub from "./ArchitectHub";
 import GlobalFeed from "./GlobalFeed";
 import Settings from "./SettingsTab";
-import { ModData, ViewHeader, deriveHumanReadableVersion, isVersionMatch, loadDLCMap, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, PixelSnapper } from "./shared";
+import { ModData, ViewHeader, SidePanel, deriveHumanReadableVersion, isVersionMatch, loadDLCMap, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, PixelSnapper } from "./shared";
 import { ModCard } from "./ModCard";
 import ModDossier from "./ModDossier";
 import BlueprintArchitect from "./BlueprintArchitect";
@@ -71,8 +71,10 @@ import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
 import { NexusUpdatesSidePanel } from './side-panels/NexusUpdatesSidePanel';
 import { SupporterCelebrationSidePanel } from './side-panels/SupporterCelebrationSidePanel';
 import CitizensWorkbench from "./CitizensWorkbench";
+import { createPortal } from "react-dom";
 import { ContextMenu } from "./ContextMenu";
 import { GlobalTooltip } from "./GlobalTooltip";
+import { useTooltipStore } from "./store/tooltipStore";
 import { useTheme } from "./ThemeContext";
 import { SystemBackground } from "./SystemBackground";
 import {
@@ -209,7 +211,7 @@ function App() {
     const alias =
       versionIndex > 0 ? parts.slice(0, versionIndex).join(" ") : parts[0];
     return {
-      alias: alias || t("vlocal"),
+      alias: alias || t("unknown", "Unknown"),
       version:
         versionPart === "LEGACY"
           ? isEngine
@@ -744,7 +746,7 @@ function App() {
 
   const saveLocalMetadata = async (extraOverrides?: any) => {
     if (!activeDossier) return;
-    setStatus(t("status_syncing_metadata"));
+    setStatus(t("status_syncing_metadata", "Syncing metadata to the Network..."));
     try {
       const localOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
       const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
@@ -870,7 +872,7 @@ function App() {
         }));
       }
 
-      setStatus(`${t("icon_check_circle")} ${t("status_overrides_saved")}`);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_overrides_saved", "Local overrides saved successfully.")}`);
       setIsEditingMeta(false);
       setEditMode(false);
       runRadarSweep(true);
@@ -911,7 +913,7 @@ function App() {
         }
       }
 
-      setStatus(`${t("icon_check_circle")} ${t("status_overrides_reset")}`);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_overrides_reset", "Local overrides reset to database defaults.")}`);
       setIsEditingMeta(false);
       setEditMode(false);
       setIsCorrectingMeta(false);
@@ -1122,23 +1124,12 @@ function App() {
 
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
           try {
-            const { data: existing } = await supabase.from('malware_reports')
-              .select('id')
-              .eq('detected_hash', event.payload.hash)
-              .limit(1)
-              .maybeSingle();
-
-            if (!existing) {
-              const { error } = await supabase.from('malware_reports').insert({
-                artifact_name: event.payload.displayName || event.payload.name || event.payload.filename || 'Unknown',
-                detected_hash: event.payload.hash || 'unknown-hash',
-                signature: event.payload.matched_signature || 'Malware DNA Match',
-                status: 'pending',
-                original_exists: event.payload.original_exists,
-                original_shredded: event.payload.original_shredded
-              });
-              if (error) console.error("Malware Report Insert Error (listen):", error);
-            }
+            const { submitThreatManifestToSpoke } = await import("./supabase");
+            const { error } = await submitThreatManifestToSpoke(event.payload, {
+              isAuto: true,
+              defaultSignature: "Malware DNA Match",
+            });
+            if (error) console.error("Malware Report Insert Error (listen):", error);
           } catch (e) {
             console.error("Malware Report Insert Exception (listen):", e);
           }
@@ -1200,12 +1191,12 @@ function App() {
   }, [anarchyRules]);
   const handleOpenMasonProfile = async (masonId: string, postId?: string) => {
     if (!masonId) {
-      alert(t("alert_error_mason_profile_missing"));
+      alert(t("alert_error_mason_profile_missing", "Error: {Mason} Profile ID is missing."));
       return;
     }
     const { data: mVer } = await supabase.from("masons").select("is_verified").eq("id", masonId).maybeSingle();
     if (!mVer || !mVer.is_verified) {
-      useStore.getState().pushStatus(t("mason_profile_verified_only_desc", "Public Mason Profiles are exclusively available for Verified Masons."), "info");
+      useStore.getState().pushStatus(t("mason_profile_verified_only_desc", "Public {Mason} Profiles are exclusively available for Verified {Masons}."), "info");
       return;
     }
     setActiveMasonProfileId(masonId);
@@ -1223,8 +1214,8 @@ function App() {
     didInitDLC.current = true;
     const bootDLCProtocol = async () => {
       try {
-        await loadDLCMap();
         if (!isDesktop()) {
+          loadDLCMap().catch(console.warn);
           const webSubdomain = getSubdomain() || (isStandaloneFork ? RESOLVED_SANCTUARY_CONFIG.standaloneWorkspace.id : null);
 
           if (webSubdomain) {
@@ -1252,10 +1243,12 @@ function App() {
           }
           return;
         }
-        const config: any = await invoke("get_saved_coordinates");
-        const globalConfig: any = await invoke("get_global_config");
-        const activeWorkspace = (globalConfig.workspaces || []).find((w: any) => w.id === globalConfig.active_workspace_id);
-        const schemaId = activeWorkspace?.schema_id || globalConfig.active_workspace_id || 'default_schema';
+        const [config, globalConfig]: [any, any] = await Promise.all([
+          invoke("get_saved_coordinates").catch(() => ({})),
+          invoke("get_global_config").catch(() => ({})),
+        ]);
+        const activeWorkspace = (globalConfig?.workspaces || []).find((w: any) => w.id === globalConfig?.active_workspace_id);
+        const schemaId = activeWorkspace?.schema_id || globalConfig?.active_workspace_id || 'default_schema';
 
         // Load cached schema instantly so UI can render
         const cachedSchema = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
@@ -1263,36 +1256,45 @@ function App() {
           useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cachedSchema), schemaId));
         }
 
-        // Fetch the live database nodes from Core OS to get the correct Game Database URLs!
-        // We MUST await this before mounting the UI or syncing spoke schemas, otherwise the Game Spokes will fallback to unconfigured-spoke.
-        await syncGameDatabases().catch(console.warn);
+        const cachePromise = (globalConfig?.active_workspace_id && config?.vault_path)
+          ? invoke<string>("load_master_cache", { vaultPath: config.vault_path }).catch((e) => {
+              console.error("Failed to load master cache during boot:", e);
+              return null;
+            })
+          : Promise.resolve(null);
 
-        // Sync master schemas after spoke database URLs are ready
+        // Hydrate Game Database URLs (instant from cache when available) in parallel with local master cache read
+        const [, cacheStr] = await Promise.all([
+          syncGameDatabases(globalConfig?.workspaces).catch(console.warn),
+          cachePromise,
+        ]);
+
+        // Sync master schemas and DLC registry in the background after spoke database URLs are ready
         syncMasterSchemas(schemaId).catch(console.warn);
+        loadDLCMap().catch(console.warn);
 
         // Do not blindly overwrite sanctuary_last_active_workspace with globalConfig here!
         // globalConfig might have 'default_workspace' if the rust config is empty, which destroys the user's selection.
 
         let initialModList = useStore.getState().modList;
 
-        try {
-          if (globalConfig.active_workspace_id) {
-            const cacheStr = await invoke<string>("load_master_cache", { vaultPath: config.vault_path });
+        if (cacheStr) {
+          try {
             const parsedCache = JSON.parse(cacheStr);
             if (Array.isArray(parsedCache) && parsedCache.length > 0) {
               initialModList = parsedCache;
-              setStatus(`${t("status_offline_cache_prefix")} ${parsedCache.length} ${t("status_offline_cache_suffix")}`);
+              setStatus(`${t("status_offline_cache_prefix", "Offline Cache Loaded:")} ${parsedCache.length} ${t("status_offline_cache_suffix", "{Mods} In Your {Vault}.")}`);
             }
+          } catch (e) {
+            console.error("Failed to parse master cache during boot:", e);
           }
-        } catch (e) {
-          console.error("Failed to load master cache during boot:", e);
         }
 
-        if (config.live_path && config.mods_path && config.vault_path) {
+        if (config?.live_path && config?.mods_path && config?.vault_path) {
           setIsConfigured(true);
         }
 
-        let resolvedWorkspaceId = globalConfig.active_workspace_id;
+        let resolvedWorkspaceId = globalConfig?.active_workspace_id;
         if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {
           resolvedWorkspaceId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace");
         }
@@ -1307,7 +1309,7 @@ function App() {
 
         useStore.setState((state) => ({
           // Only fallback to local workspaces if syncGameDatabases failed to populate them
-          workspaces: state.workspaces?.length > 0 ? state.workspaces : (globalConfig.workspaces || []),
+          workspaces: state.workspaces?.length > 0 ? state.workspaces : (globalConfig?.workspaces || []),
           activeWorkspaceId: resolvedWorkspaceId,
           modList: initialModList,
           isGlobalConfigLoaded: true
@@ -1318,11 +1320,12 @@ function App() {
           localStorage.setItem('sanctuary_last_active_workspace', resolvedWorkspaceId);
         }
 
-        if (resolvedWorkspaceId) {
-          const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
+        if (resolvedWorkspaceId && config?.live_path) {
+          invoke<string[]>("scan_installed_dlc", {
             livePath: config.live_path,
-          });
-          setOwnedDLC(physicalDLC);
+          })
+            .then((physicalDLC) => setOwnedDLC(physicalDLC))
+            .catch(console.warn);
           if (config.launch_args) {
             const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
             if (maskMatch?.[1]) {
@@ -1335,6 +1338,7 @@ function App() {
         }
       } catch (err) {
         console.error("DLC Protocol Sync Failed:", err);
+        useStore.setState({ isGlobalConfigLoaded: true });
       }
     };
     bootDLCProtocol();
@@ -1513,7 +1517,7 @@ function App() {
         const cloudQueue = data.map((dbMod: any) => ({
           name: dbMod.mods.name,
           hash: dbMod.dna_hash,
-          status: t("status_dd_review"),
+          status: t("status_dd_review", "Under Review"),
           color: "var(--warning)",
           displayName: dbMod.mods.name,
           isSynced: true,
@@ -1622,12 +1626,15 @@ function App() {
 
           const currentSchema = useStore.getState().activeGameSchema;
           if (currentSchema) {
-            await invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
+            invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
           }
 
-          fetchVault();
-          runRadarSweep(false);
-          fetchCloudLabQueue();
+          // Defer heavy Vault / Conflict Radar disk scans briefly so workspace preparation & master cache hydration finish with zero I/O contention
+          setTimeout(() => {
+            fetchVault();
+            runRadarSweep(false);
+            fetchCloudLabQueue();
+          }, 60);
           invoke("initialize_vault_watch").catch(console.warn);
           const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
           invoke("initialize_airgap_watch", {
@@ -1641,7 +1648,7 @@ function App() {
           }).catch(console.warn);
         }
       } catch (e) {
-        setStatus(t("status_boot_failure"));
+        setStatus(t("status_boot_failure", "BOOT FAILURE: Check coordinates."));
       }
     }
 
@@ -1945,14 +1952,14 @@ function App() {
     modBId: string,
     severity: number = 3,
   ) {
-    setStatus(t("status_conflict_resolving"));
+    setStatus(t("status_conflict_resolving", "Resolving conflict identities..."));
     try {
       const { data: verData, error: verErr } = await supabase
         .from("mod_versions")
         .select("mod_id")
         .eq("dna_hash", modAHash)
         .single();
-      if (verErr || !verData) throw new Error(t("status_error_primary_sync"));
+      if (verErr || !verData) throw new Error(t("status_error_primary_sync", "ERROR: Primary {Mod} must be synced to Cloud first."));
       const { error } = await supabase
         .from("logical_conflicts")
         .insert([
@@ -1960,19 +1967,19 @@ function App() {
             mod_a_id: verData.mod_id,
             mod_b_id: modBId,
             severity_rank: severity,
-            resolution_note: t("status_architect_flagged"),
+            resolution_note: t("status_architect_flagged", "Moderator flagged via Network Hub"),
           },
         ]);
       if (error) throw error;
-      setStatus(t("status_conflict_registered"));
-      alert(t("alert_conflict_success"));
+      setStatus(t("status_conflict_registered", "Conflict Registered Globally."));
+      alert(t("alert_conflict_success", "Conflict successfully locked into the network!"));
     } catch (err: any) {
-      setStatus(`${t("status_conflict_failed")}${err.message}`);
-      alert(`${t("alert_conflict_failed")}${err.message}`);
+      setStatus(`${t("status_conflict_failed", "Conflict Registration Failed:")}${err.message}`);
+      alert(`${t("alert_conflict_failed", "Failed to register conflict:")}${err.message}`);
     }
   }
   async function designateTwin(primaryHash: string, twinHash: string) {
-    setStatus(t("status_twins_linking"));
+    setStatus(t("status_twins_linking", "LINKING TWINS: Forcing permanent connection..."));
     try {
       const { data: verA } = await supabase
         .from("mod_versions")
@@ -1992,7 +1999,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localA?.name || t("vlocal"),
+              name: localA?.name || t("unknown", "Unknown"),
               status: "unverified",
             },
           ])
@@ -2019,7 +2026,7 @@ function App() {
           .from("mods")
           .insert([
             {
-              name: localB?.name || t("vlocal"),
+              name: localB?.name || t("unknown", "Unknown"),
               status: "unverified",
             },
           ])
@@ -2048,10 +2055,10 @@ function App() {
         { onConflict: "parent_id, child_id" },
       );
       if (error) throw error;
-      setStatus(t("status_twins_synced"));
+      setStatus(t("status_twins_synced", "Twins Synchronized."));
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_twins_failed")}${err.message}`);
+      setStatus(`${t("status_twins_failed", "Twin Link Failed:")}${err.message}`);
     }
   }
 
@@ -2063,7 +2070,7 @@ function App() {
       .select("*")
       .ilike("name", `%${globalSearchQuery}%`)
       .limit(20);
-    if (error) setStatus(`${t("status_network_error")}${error.message}`);
+    if (error) setStatus(`${t("status_network_error", "Network Error:")}${error.message}`);
     else if (data) setCloudSearchResults(data);
     setIsSearchingCloud(false);
   }
@@ -2076,7 +2083,7 @@ function App() {
   ) {
     if (!activeDossier) return;
     try {
-      setStatus(t("status_sync_bond"));
+      setStatus(t("status_sync_bond", "Syncing Network Bond..."));
       let { data: childVer } = await supabase
         .from("mod_versions")
         .select("mod_id")
@@ -2086,7 +2093,7 @@ function App() {
       if (parentId !== null && !childModId) {
         const { data: newC } = await supabase
           .from("mods")
-          .insert([{ name: t("status_new_mod"), status: "unverified" }])
+          .insert([{ name: t("status_new_mod", "New {Mod}"), status: "unverified" }])
           .select()
           .single();
         childModId = newC.id;
@@ -2154,21 +2161,21 @@ function App() {
       setModList((prev) =>
         prev.map((m) => (m.hash === childHash ? updatedMod : m)),
       );
-      setStatus(t("status_link_updated"));
+      setStatus(t("status_link_updated", "Link Updated."));
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_link_failed")}${err.message}`);
+      setStatus(`${t("status_link_failed", "Link Failed:")}${err.message}`);
     }
   }
   async function establishFlavors(primaryHash: string, targets: any[]) {
     if (!activeDossier || !targets || targets.length === 0) return;
     setStatus(
-      `${t("status_resolving_dna_prefix")}${targets.length}${t("status_resolving_dna_suffix")}`,
+      `${t("status_resolving_dna_prefix", "Resolving Hash For")}${targets.length}${t("status_resolving_dna_suffix", "{Mods}...")}`,
     );
     try {
       let pId = activeDossier.dbId;
       if (!pId) {
-        setStatus(t("status_error_primary_sync"));
+        setStatus(t("status_error_primary_sync", "ERROR: Primary {Mod} must be synced to Cloud first."));
         return;
       }
       let resolvedHashes: string[] = [];
@@ -2189,13 +2196,13 @@ function App() {
         ...new Set([primaryHash, ...alreadyHasHash, ...resolvedHashes]),
       ];
       if (finalHashSquad.length <= 1) {
-        setStatus(t("status_error_dna_resolve"));
+        setStatus(t("status_error_dna_resolve", "ERROR: Could not resolve Hash for selected flavors."));
         return;
       }
       let groupId = activeDossier.flavorGroupId;
       let groupName =
         activeDossier.flavorGroupName ||
-        `${activeDossier.displayName} ${t("status_exclusives")}`;
+        `${activeDossier.displayName} ${t("status_exclusives", "Exclusives")}`;
       if (!groupId) {
         const { data: newG, error: gErr } = await supabase
           .from("flavor_groups")
@@ -2233,15 +2240,15 @@ function App() {
         }),
       );
       setStatus(
-        `${t("status_success_members_prefix")}${result?.length}${t("status_success_members_suffix")}`,
+        `${t("status_success_members_prefix", "Success:")}${result?.length}${t("status_success_members_suffix", "Members Secured In Group.")}`,
       );
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_link_failed")}${err.message}`);
+      setStatus(`${t("status_link_failed", "Link Failed:")}${err.message}`);
     }
   }
   async function severFlavor(modHash: string) {
-    setStatus(t("status_severing"));
+    setStatus(t("status_severing", "Severing Exclusivity Link..."));
     try {
       await supabase
         .from("flavor_group_members")
@@ -2260,14 +2267,14 @@ function App() {
             : m,
         ),
       );
-      setStatus(t("status_severed"));
+      setStatus(t("status_severed", "SEVERED: {Mod} is independent again."));
       runRadarSweep(true);
     } catch (err: any) {
-      setStatus(`${t("status_unlink_failed")}${err.message}`);
+      setStatus(`${t("status_unlink_failed", "Unlink Failed:")}${err.message}`);
     }
   }
   async function sendToLabQueue(mod: ModData) {
-    setStatus(`${t("status_uploading_dna")}${mod.displayName || mod.name}...`);
+    setStatus(`${t("status_uploading_dna", "Uploading Hash:")}${mod.displayName || mod.name}...`);
     try {
       const { data: existingVer, error: searchError } = await supabase
         .from("mod_versions")
@@ -2321,11 +2328,11 @@ function App() {
           .eq("id", targetModId);
       }
       setStatus(
-        `${t("status_dna_secured_prefix")}${mod.displayName || mod.name}${t("status_dna_secured_suffix")}`,
+        `${t("status_dna_secured_prefix", "Hash Secured:")}${mod.displayName || mod.name}${t("status_dna_secured_suffix", "is now in the Lab.")}`,
       );
       const labMod = {
         ...mod,
-        status: t("status_dd_review"),
+        status: t("status_dd_review", "Under Review"),
         color: "var(--warning)",
         isSynced: true,
       };
@@ -2337,7 +2344,7 @@ function App() {
       setActiveDossier(null);
     } catch (err: any) {
       setStatus(
-        `${t("status_cloud_rejection")}${err.message || t("status_unknown_db_failure")}`,
+        `${t("status_cloud_rejection", "Cloud Rejection:")}${err.message || t("status_unknown_db_failure", "Unknown Database Failure")}`,
       );
     }
   }
@@ -2348,7 +2355,7 @@ function App() {
       return;
     }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) {
-      setStatus(t("status_blueprint_exists"));
+      setStatus(t("status_blueprint_exists", "A {Blueprint} with that name already exists!"));
       return;
     }
     const updatedSets = [...playSets, { name: setName, mods: [], modHashes: {}, ignoredGhosts: [] }];
@@ -2356,7 +2363,7 @@ function App() {
 
     setActivePlaySetIndex(updatedSets.length - 1);
     setStatus(
-      `${t("status_blueprint_created_prefix")}${setName}${t("status_blueprint_drafted_suffix")}`,
+      `${t("status_blueprint_created_prefix", "{Blueprint}[")}${setName}${t("status_blueprint_drafted_suffix", "] created.")}`,
     );
     setIsDraftingSet(false);
     setDraftSetName("");
@@ -2374,16 +2381,16 @@ function App() {
     if (!activeLabMod) return;
     try {
       if (!shelterActive) {
-        setStatus(t("status_auto_isolate"));
+        setStatus(t("status_auto_isolate", "Auto-isolate..."));
         await invoke("evacuate_to_shelter");
         setShelterActive(true);
         fetchVault();
       }
-      setStatus(t("status_injecting"));
+      setStatus(t("status_injecting", "Injecting..."));
       await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
       const config: any = await invoke("get_saved_coordinates");
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
-      setStatus(t("status_purging_logs"));
+      setStatus(t("status_purging_logs", "Deleting Logs..."));
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
       try {
@@ -2392,7 +2399,7 @@ function App() {
           schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
         });
       } catch {}
-      setStatus(t("status_igniting"));
+      setStatus(t("status_igniting", "Starting Engines..."));
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       setTestErrorFound(false);
       setTestLogSnippet("");
@@ -2401,14 +2408,14 @@ function App() {
         if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
           setTestErrorFound(true);
           setTestLogSnippet(res);
-          setStatus(`${t("status_fatal_error")} ${res.substring(0, 50)}...`);
+          setStatus(`${t("status_fatal_error", "Fatal:")} ${res.substring(0, 50)}...`);
           clearInterval(interval);
           setLogWatcher(null);
         }
       }, 5000);
       setLogWatcher(interval);
     } catch (err) {
-      setStatus(`${t("status_lab_error")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   }
   async function openWorkbench(modPath: string) {
@@ -2419,12 +2426,12 @@ function App() {
       setConfigContent(content);
       setEditMode(true);
     } catch (err) {
-      setStatus(t("status_no_editable"));
+      setStatus(t("status_no_editable", "No editable config."));
     }
   }
   async function saveWorkbenchChanges() {
     if (!activeDossier) return;
-    setStatus(t("status_committing"));
+    setStatus(t("status_committing", "Committing Changes..."));
     try {
       const configPath = activeDossier.name.replace(/\.[^/.]+$/, ".cfg");
       const config: any = await invoke("get_saved_coordinates");
@@ -2433,10 +2440,10 @@ function App() {
         path: fullPath,
         content: configContent,
       });
-      setStatus(`${t("icon_check_circle")} ${msg}`);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${msg}`);
       setEditMode(false);
     } catch (err) {
-      setStatus(`${t("status_save_failure")}${err}`);
+      setStatus(`${t("status_save_failure", "Save Failure:")}${err}`);
     }
   }
   async function ensureSpokeModVersion(targetMod: any, desiredStatus = "under_review"): Promise<{ modId: string; versionId: string }> {
@@ -2499,7 +2506,7 @@ function App() {
 
   async function submitLabReport(reportOverride?: any): Promise<boolean> {
     if (!session) {
-      alert(t("alert_guest_mode_uploads"));
+      alert(t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled."));
       return false;
     }
     const targetMod = reportOverride?.mod || activeLabMod;
@@ -2507,11 +2514,11 @@ function App() {
     const targetSnippet = scrubLogUserData(rawSnippet);
     if (!targetMod) return false;
     if (targetMod.compliance_tier === 1 || targetMod.compliance_tier === 2) {
-      alert(t("alert_nsfw_no_lab_reports"));
+      alert(t("alert_nsfw_no_lab_reports", "NSFW/Explicit {mods} cannot be submitted to the global Testing database."));
       return false;
     }
     setIsSubmittingReport(true);
-    setStatus(t("status_submitting_report"));
+    setStatus(t("status_submitting_report", "Uploading Lab Intel..."));
     let ok = false;
     try {
       const { modId, versionId } = await ensureSpokeModVersion(targetMod, "under_review");
@@ -2535,7 +2542,7 @@ function App() {
             dependencies: stagedDepsList,
             conflictExtras: conflictExtrasList,
           })
-        : t("status_report_automated");
+        : t("status_report_automated", "Automated System Report");
 
       const currentExceptionRules = useStore.getState().exceptionRules || [];
       const matchedRules = matchExceptionRules(targetSnippet, currentExceptionRules);
@@ -2571,11 +2578,11 @@ function App() {
         },
       ]);
       if (error) throw error;
-      setStatus(t("status_report_secured"));
-      useStore.getState().pushStatus(t("status_report_secured"), "success");
+      setStatus(t("status_report_secured", "Intel Secured"));
+      useStore.getState().pushStatus(t("status_report_secured", "Intel Secured"), "success");
       ok = true;
     } catch (err: any) {
-      const errMsg = `${t("status_report_failed")}${err?.message || String(err)}`;
+      const errMsg = `${t("status_report_failed", "Intel Upload Failed:")}${err?.message || String(err)}`;
       setStatus(errMsg);
       useStore.getState().pushStatus(errMsg, "error");
     }
@@ -2590,7 +2597,7 @@ function App() {
     const targetMod = targetModOverride || activeLabMod;
     if (!targetMod) return false;
     const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
-    setStatus(t("status_evaluating"));
+    setStatus(t("status_evaluating", "Evaluating Test Results..."));
     if (logWatcher) {
       clearInterval(logWatcher);
       setLogWatcher(null);
@@ -2605,8 +2612,8 @@ function App() {
       const finalStatus = isError ? "broken" : "verified";
       const spokeModStatus = isError ? "under_review" : "verified";
       const uiStatus = isError
-        ? t("status_broken")
-        : t("verified");
+        ? t("status_corrupted", "Corrupted")
+        : t("verified", "Verified");
       const uiColor = isError ? "var(--danger)" : "var(--success)";
       try {
         const { modId } = await ensureSpokeModVersion(targetMod, spokeModStatus);
@@ -2623,7 +2630,7 @@ function App() {
         } catch (e) { }
       }
       if (shelterActive) {
-        setStatus(t("status_restoring_bunker_full"));
+        setStatus(t("status_restoring_bunker_full", "Restoring Loadout..."));
         const lastSet = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
         if (lastSet) {
           await equipPlaySet(lastSet);
@@ -2645,11 +2652,11 @@ function App() {
       setTestErrorFound(false);
       setTestLogSnippet("");
       setStatus(
-        `${t("status_artifact_secured_prefix")}${finalStatus.toUpperCase()}`,
+        `${t("status_artifact_secured_prefix", "{MOD} SECURED: Marked as")}${finalStatus.toUpperCase()}`,
       );
       return true;
     } catch (err: any) {
-      setStatus(`${t("status_teardown_error")}${err.message}`);
+      setStatus(`${t("status_teardown_error", "Teardown Error:")}${err.message}`);
       return false;
     }
   }
@@ -2764,7 +2771,7 @@ function App() {
   const runProvingRun = async (extraDeployNames: string[] = [], customToolPath?: string) => {
     if (!activeLabMod) return;
     try {
-      setStatus(t("status_diagnostic_run"));
+      setStatus(t("status_diagnostic_run", "Initiating proving run: staging simulation..."));
 
       let depPaths: string[] = [];
       let modAId = activeLabMod.dbId;
@@ -2854,7 +2861,7 @@ function App() {
       fetchVault();
 
       const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
-      setStatus(t("status_purging_logs"));
+      setStatus(t("status_purging_logs", "Deleting Logs..."));
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
 
@@ -2869,14 +2876,14 @@ function App() {
       } catch (e) {}
 
       if (customToolPath && customToolPath.trim()) {
-        setStatus(t("status_external_tool_launched"));
+        setStatus(t("status_external_tool_launched", "Saves Airgapped & External Program Launched."));
         await invoke("launch_external_tool", {
           toolPath: customToolPath.trim(),
           docsPath: dPath,
           enforceAirgap: true,
         });
       } else {
-        setStatus(t("status_igniting"));
+        setStatus(t("status_igniting", "Starting Engines..."));
         await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       }
 
@@ -2888,7 +2895,7 @@ function App() {
           const scrubbedRes = scrubLogUserData(res);
           setTestErrorFound(true);
           setTestLogSnippet(scrubbedRes);
-          setStatus(`${t("status_fatal_error")} ${scrubbedRes.substring(0, 50)}...`);
+          setStatus(`${t("status_fatal_error", "Fatal:")} ${scrubbedRes.substring(0, 50)}...`);
           clearInterval(interval);
           setLogWatcher(null);
           // Do NOT disable save airgap while the game/tool is still running!
@@ -2897,7 +2904,7 @@ function App() {
       }, 5000);
       setLogWatcher(interval as any);
     } catch (err) {
-      setStatus(`${t("status_lab_error")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   };
 
@@ -2912,6 +2919,51 @@ function App() {
   } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t);
   const visibleMods = filteredMods;
   const isGlobalConfigLoaded = useStore((state) => state.isGlobalConfigLoaded);
+
+  // Apply Malware-style OS lockdown while Preparing Workspace SidePanel is active
+  useEffect(() => {
+    const isPreparingLocked = !isGlobalConfigLoaded;
+    if (!isPreparingLocked || typeof document === "undefined") {
+      const otherLockdown = document.querySelector('[data-sa-malware-active="true"]');
+      if (!otherLockdown) {
+        document.body.classList.remove("sa-malware-lockdown");
+        const osShell = document.getElementById("sanctuary-os-shell");
+        if (osShell) osShell.removeAttribute("inert");
+      }
+      useTooltipStore.getState().clearTooltip();
+      return;
+    }
+
+    document.body.classList.add("sa-malware-lockdown");
+    const osShell = document.getElementById("sanctuary-os-shell");
+    if (osShell) {
+      osShell.setAttribute("inert", "");
+    }
+
+    const blockKeys = (e: KeyboardEvent) => {
+      if (
+        e.key === "Escape" ||
+        e.key === "F5" ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener("keydown", blockKeys, true);
+    return () => {
+      window.removeEventListener("keydown", blockKeys, true);
+      const otherLockdown = document.querySelector('[data-sa-malware-active="true"]');
+      if (!otherLockdown) {
+        document.body.classList.remove("sa-malware-lockdown");
+        if (osShell) {
+          osShell.removeAttribute("inert");
+        }
+      }
+      useTooltipStore.getState().clearTooltip();
+    };
+  }, [isGlobalConfigLoaded]);
 
   return (
     <div
@@ -2991,9 +3043,7 @@ function App() {
                       {view === "vault" && (
                         <ErrorBoundary moduleName="Vault">
                           <Vault
-                            view={view}
                             setView={setView}
-                            statusLog={statusLog}
                             isScanning={isScanning}
                             isBulkMode={isBulkMode} setIsBulkMode={setIsBulkMode}
                             selectedMods={selectedMods} setSelectedMods={setSelectedMods}
@@ -3296,7 +3346,7 @@ function App() {
                     await invoke("purge_quarantined_file", {
                       filename: filename.split("/").pop() || filename,
                     });
-                    setStatus(`${t("icon_check_circle")} ${t("status_file_shredded")}`);
+                    setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_file_shredded", "File deleted securely.")}`);
                     runRadarSweep();
                   } catch (err: any) {
                     setStatus(` Error: ${err}`);
@@ -3450,45 +3500,128 @@ function App() {
 
       {!isDesktop() && <MobileBottomNav view={view} setView={setView} />}
 
-      {!isGlobalConfigLoaded && (
-        <div className="fixed inset-0 z-[9999999] flex flex-col items-center justify-center backdrop-blur-md animate-in fade-in duration-500 p-8" style={{ backgroundColor: `color-mix(in srgb, var(--bg) 50%, transparent)` }}>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[120px] pointer-events-none mix-blend-screen"
-            style={{ backgroundColor: `color-mix(in srgb, var(--accent) 10%, transparent)` }} />
+      {!isGlobalConfigLoaded && (() => {
+        const portalRoot =
+          (typeof document !== "undefined" && document.getElementById("sa-portals")) ||
+          (typeof document !== "undefined" ? document.body : null);
+        const lockShieldOverlay = (
+          <div
+            data-sa-malware-active="true"
+            className="fixed inset-0 z-[59998] pointer-events-auto select-none cursor-passkey-locked"
+            onMouseMove={(e) => {
+              useTooltipStore.getState().setTooltip({
+                title: t("status_syncing", "Loading Workspace"),
+                subtitle: t(
+                  "status_establishing_connection",
+                  "Please standby while Sanctuary OS prepares your Workspace."
+                ),
+                variant: "default",
+                icon: t("icon_block", "block"),
+                x: e.clientX,
+                y: e.clientY - 14,
+                align: "center",
+                vAlign: "top",
+              });
+            }}
+            onMouseLeave={() => {
+              useTooltipStore.getState().clearTooltip();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          />
+        );
+        return (
+          <>
+            {portalRoot ? createPortal(lockShieldOverlay, portalRoot) : lockShieldOverlay}
+            <SidePanel
+              isOpen={true}
+              onClose={() => {}}
+              hideCloseButton={true}
+              passthroughBackdrop={true}
+              noBackdropDim={true}
+              backdropZ="z-[60000]"
+              panelZ="z-[60001]"
+              panelClass="sa-malware-lockdown-panel"
+              title={t("status_syncing", "Loading Workspace")}
+              subtitle={t(
+                "status_establishing_connection",
+                "Please standby while Sanctuary OS prepares your Workspace."
+              )}
+              icon={t("icon_sync", "sync")}
+              iconColorClass="text-[var(--accent)]"
+            >
+              <div
+                className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
+                onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
+              >
+                <div
+                  className="glass-panel rounded-2xl p-5 border flex flex-col gap-5"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--accent) 32%, transparent)",
+                  }}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-outlined !text-[22px] animate-spin">
+                        {t("icon_sync", "sync")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        {t("tab_workspace", "Workspace")}
+                      </span>
+                      <h3 className="text-lg font-black tracking-tight text-[var(--text)] leading-tight m-0 truncate">
+                        {t("status_syncing", "Loading Workspace")}
+                      </h3>
+                    </div>
+                  </div>
 
-          <div className="relative w-full max-w-lg glass-panel backdrop-blur-2xl border rounded-2xl p-12 flex flex-col gap-8 items-center justify-center shadow-2xl"
-            style={{
-              borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)`,
-              boxShadow: `0 40px 100px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 1px color-mix(in srgb, var(--text) 5%, transparent)`
-            }}>
-            <div className="absolute inset-0 rounded-[inherit] animate-pulse pointer-events-none" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)` }} />
-            <div className="absolute top-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent)` }} />
-            <div className="absolute bottom-0 left-0 w-full h-1 opacity-80" style={{ background: `linear-gradient(to right, transparent, color-mix(in srgb, var(--accent) 20%, transparent), transparent)` }} />
+                  <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                    {t(
+                      "status_establishing_connection",
+                      "Please standby while Sanctuary OS prepares your Workspace."
+                    )}
+                  </p>
 
-            <div className="flex flex-col items-center gap-6 relative z-10 text-center">
-              <div className="relative w-24 h-24 rounded-full flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: `color-mix(in srgb, var(--accent) 5%, transparent)`,
-                  borderColor: `color-mix(in srgb, var(--accent) 30%, transparent)`,
-                  borderWidth: '1px',
-                  boxShadow: `0 0 30px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent) 5%, transparent)`
-                }}>
-                <div className="absolute inset-0 rounded-[inherit]  border animate-ping opacity-30" style={{ borderColor: `color-mix(in srgb, var(--accent) 20%, transparent)` }} />
-                <span className="material-symbols-outlined animate-spin"
-                  style={{ color: 'var(--accent)', filter: `drop-shadow(0 0 15px var(--accent))` }}>sync</span>
+                  <div className="w-full rounded-2xl p-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+                    <div className="w-full h-2 rounded-full bg-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                      <div
+                        className="h-full w-2/3 rounded-full animate-pulse"
+                        style={{
+                          background: "linear-gradient(90deg, transparent, var(--accent), transparent)",
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[var(--subtext)]">
+                      <span className="truncate">
+                        {status || t("workspace_loading", "Loading Workspaces...")}
+                      </span>
+                      <span className="text-[var(--accent)] font-bold shrink-0">
+                        {t("active", "Active")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-
-              <div>
-                <h2 className="text-xl font-black capitalize tracking-widest text-[var(--text)] mb-2">
-                  {t("status_syncing")}
-                </h2>
-                <p className="text-sm font-medium text-[var(--subtext)] tracking-wider">
-                  {t("status_establishing_connection")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </SidePanel>
+          </>
+        );
+      })()}
       {/* 
         Global SVG Noise Texture (Top Level)
         Moved here to sit on top of the entire DOM. This prevents it from being blurred by glass panels

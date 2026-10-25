@@ -64,7 +64,7 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_close", "close")}
-              tooltip={renameModal ? t("nav_cancel") : t("btn_abort")}
+              tooltip={renameModal ? t("cancel", "Cancel") : t("btn_abort", "Abort")}
               variant="danger"
               onClick={onCancel}
             />
@@ -94,10 +94,10 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
 
         <div className="flex flex-col items-center gap-2 relative z-10 w-full">
           <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none text-[var(--text)] drop-shadow-md m-0">
-            {t("rename_title")}
+            {t("rename_title", "Rename Backup")}
           </h2>
           <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[var(--accent)] opacity-85">
-            {renameModal ? t("rename_desc") : t("redesignate_label")}
+            {renameModal ? t("rename_desc", "Update the name for this backup. Type prefix will be preserved automatically.") : t("redesignate_label", "New Name")}
           </span>
 
           <div
@@ -122,14 +122,14 @@ export function RenameModal({ renameModal, setRenameModal, executeRename, rename
           <ActionButton
             variant="glass"
             icon={t("icon_close", "close")}
-            label={renameModal ? t("nav_cancel") : t("btn_abort")}
+            label={renameModal ? t("cancel", "Cancel") : t("btn_abort", "Abort")}
             onClick={onCancel}
             className="w-full !py-3.5"
           />
           <ActionButton
             variant="accent"
             icon={t("icon_check", "check")}
-            label={renameModal ? t("btn_rename") : t("btn_confirm")}
+            label={renameModal ? t("btn_rename", "Rename") : t("confirm", "Confirm")}
             onClick={onConfirm}
             className="w-full !py-3.5"
           />

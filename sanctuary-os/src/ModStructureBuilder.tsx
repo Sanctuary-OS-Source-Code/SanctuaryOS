@@ -509,14 +509,14 @@ export default function ModStructureBuilder({
       file.role === "core"
         ? t("studio_file_role_core", "Core")
         : file.role === "twin"
-          ? t("studio_badge_twin", "Twin")
+          ? t("editor_twin", "Twin")
           : file.role === "flavor"
             ? t("studio_badge_flavor", "Flavor")
             : file.role === "beta"
-              ? t("studio_badge_beta", "Beta")
+              ? t("badge_beta", "Beta")
               : file.role === "config"
                 ? t("studio_file_role_config", "Config")
-                : t("studio_badge_addon", "Add-on");
+                : t("editor_addon", "Add-on");
 
     return (
       <div
@@ -759,7 +759,7 @@ export default function ModStructureBuilder({
                     onClick={() => handleAddFolder(folder.id)}
                     className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
                   >
-                    {t("cc_btn_add", "Add")}
+                    {t("ql_add", "Add")}
                   </button>
                   <button
                     type="button"
@@ -805,7 +805,7 @@ export default function ModStructureBuilder({
             Mods/
           </span>
           <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-75">
-            ({modFiles.length} {t("label_files", "Files")} • {allFolders.length - 1}{" "}
+            ({modFiles.length} {t("modal_files", "Files")} • {allFolders.length - 1}{" "}
             {t("studio_folders_label", "Folders")})
           </span>
         </div>
@@ -829,7 +829,7 @@ export default function ModStructureBuilder({
                 onClick={() => handleAddFolder(ROOT_MODS_ID)}
                 className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
               >
-                {t("cc_btn_add", "Add")}
+                {t("ql_add", "Add")}
               </button>
               <button
                 type="button"
@@ -853,7 +853,7 @@ export default function ModStructureBuilder({
               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                 create_new_folder
               </span>
-              {t("structure_new_folder", "New Folder")}
+              {t("context_new_folder", "New Folder")}
             </button>
           )}
         </div>

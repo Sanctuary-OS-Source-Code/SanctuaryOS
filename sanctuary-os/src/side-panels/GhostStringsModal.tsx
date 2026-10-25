@@ -12,6 +12,7 @@ import {
   getModFallbackAuthor,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { VAULT_CHIP_CLASS } from "../Cards";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
 
@@ -121,6 +122,7 @@ export function GhostStringsModal({
           <UniversalCard
             key={idx}
             layout="vertical-compact"
+            icon={t("icon_extension", "extension")}
             title={cleanSearchName(mod, activeSchema)}
             subtitle={
               customAuthor ? `${customAuthor}` : mod.split("/").pop() || mod
@@ -129,24 +131,32 @@ export function GhostStringsModal({
               (meta.is_paid || meta.is_early_access) && (
                 <>
                   {meta.is_early_access && (
-                    <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] rounded-md flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
                         {t("icon_science", "science")}
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        {t("badge_early_access", "Early Access")}
-                      </span>
-                    </div>
+                      {t("badge_early_access", "Early Access")}
+                    </span>
                   )}
                   {meta.is_paid && (
-                    <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-md flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--warning)",
+                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
                         {t("icon_monetization_on", "monetization_on")}
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--warning)]">
-                        {t("badge_paid", "Paid")}
-                      </span>
-                    </div>
+                      {t("badge_paid", "Paid")}
+                    </span>
                   )}
                 </>
               )
@@ -155,7 +165,7 @@ export function GhostStringsModal({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleOpenUrl(targetUrl)}
-                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">
                     {t("icon_search", "search")}
@@ -168,7 +178,7 @@ export function GhostStringsModal({
                 </button>
                 <button
                   onClick={() => onIgnore(mod)}
-                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--warning)] hover:text-[var(--warning)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--warning)] hover:text-[var(--warning)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">
                     {t("icon_visibility_off", "visibility_off")}
@@ -181,13 +191,13 @@ export function GhostStringsModal({
                 </button>
                 <button
                   onClick={() => onPurge(mod)}
-                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] transition-all group/btn relative cursor-pointer"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] transition-all group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">
                     {t("icon_delete", "delete")}
                   </span>
                   <HoverTooltip
-                    title={t("btn_purge_string", "Remove Reference")}
+                    title={t("btn_purge_string", "{Delete} String")}
                     variant="danger"
                     className="group-hover/btn:flex z-[200]"
                   />
@@ -204,8 +214,8 @@ export function GhostStringsModal({
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={t("title_missing_artifacts", "Missing Artifacts")}
-      subtitle={`${ghosts.length} ${t("vault_missing_artifacts", "Missing")} • ${setName}`}
+      title={t("missing_artifacts", "Missing {Mods}")}
+      subtitle={`${ghosts.length} ${t("vault_missing_artifacts", "Missing {Mods}:")} • ${setName}`}
       icon={t("icon_cleaning_services", "cleaning_services")}
       iconColorClass="text-[var(--danger)]"
       widthClass="w-[580px] max-w-[100vw]"
@@ -213,12 +223,9 @@ export function GhostStringsModal({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_cleaning_services", "cleaning_services")}
-          overline={t("title_missing_artifacts", "Missing Artifacts")}
+          overline={t("missing_artifacts", "Missing {Mods}")}
           title={setName}
-          description={`${ghosts.length} ${t(
-            "vault_missing_artifacts",
-            "Missing Artifacts"
-          )}`}
+          description={`${ghosts.length} ${t("vault_missing_artifacts", "Missing {Mods}:")}`}
           badge={String(ghosts.length)}
           badgeIcon={t("icon_warning", "warning")}
           variant="danger"
@@ -226,14 +233,14 @@ export function GhostStringsModal({
 
         {premiumGhosts.length > 0 && (
           <UniversalGroup
-            title={`${t("premium_detected", "Premium / Early Access")} (${premiumGhosts.length})`}
+            title={`${t("premium_detected", "Premium {Mods} Detected")} (${premiumGhosts.length})`}
             icon={t("icon_auto_fix_high", "auto_fix_high")}
             headerAction={
               <div className="flex items-center gap-2">
                 <ActionButton
                   variant="glass"
                   icon={t("icon_visibility_off", "visibility_off")}
-                  label={t("btn_ignore_issue", "Ignore All")}
+                  label={t("btn_ignore", "Ignore All")}
                   onClick={() =>
                     premiumGhosts.forEach((mod: string) => onIgnore(mod))
                   }
@@ -241,7 +248,7 @@ export function GhostStringsModal({
                 <ActionButton
                   variant="glass"
                   icon={t("icon_delete", "delete")}
-                  label={t("btn_purge_issue", "Purge All")}
+                  label={t("purge", "Purge All")}
                   onClick={() =>
                     premiumGhosts.forEach((mod: string) => onPurge(mod))
                   }
@@ -256,7 +263,7 @@ export function GhostStringsModal({
 
         {standardGhosts.length > 0 && (
           <UniversalGroup
-            title={`${t("standard_artifacts", "Standard Artifacts")} (${standardGhosts.length})`}
+            title={`${t("standard_artifacts", "Standard {Mods}")} (${standardGhosts.length})`}
             icon={t("icon_inventory_2", "inventory_2")}
           >
             {renderGhostList(standardGhosts)}

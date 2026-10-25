@@ -160,7 +160,7 @@ export function ArtifactRulesTab({
                 <input
                   value={dlcAssignedFilter}
                   onChange={(e) => setDlcAssignedFilter(e.target.value)}
-                  placeholder={t("hub_filters", "Filter...")}
+                  placeholder={t("filters", "Filter...")}
                   className="h-6 px-2 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] w-24 outline-none"
                 />
               )}
@@ -170,7 +170,7 @@ export function ArtifactRulesTab({
                   onClick={onClearAllDlc}
                   className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
                 >
-                  {t("studio_dlc_clear_all", "Clear All")}
+                  {t("nav_clear_all", "Clear All")}
                 </button>
               )}
             </div>
@@ -203,7 +203,7 @@ export function ArtifactRulesTab({
                   />
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="!fixed pointer-events-auto rounded-2xl glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] shadow-2xl p-3 flex flex-col gap-2.5 text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
+                    className="!fixed pointer-events-auto rounded-2xl glass-panel portal-glass-fix sa-dropdown-popover p-3 flex flex-col gap-2.5 text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
                     style={{
                       zIndex: 100000001,
                       top: dlcCoords.isDropUp ? "auto" : dlcCoords.top,
@@ -222,7 +222,7 @@ export function ArtifactRulesTab({
                         autoFocus
                         value={dlcSearchQuery}
                         onChange={(e) => setDlcSearchQuery(e.target.value)}
-                        placeholder={t("search_ph", "Search packs...")}
+                        placeholder={t("search_ph", "Search {mods}...")}
                         className="bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] w-full placeholder:text-[var(--subtext)]/60"
                       />
                       {dlcSearchQuery && (
@@ -340,14 +340,14 @@ export function ArtifactRulesTab({
                 {t("icon_extension", "extension")}
               </span>
               <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
-                {t("studio_rules_deps_title", "Required Mods (Dependencies)")} ({dependencies.length})
+                {t("studio_rules_deps_title", "Required {Mods} (Dependencies)")} ({dependencies.length})
               </h4>
             </div>
             {dependencies.length > 4 && (
               <input
                 value={depsSearchFilter}
                 onChange={(e) => setDepsSearchFilter(e.target.value)}
-                placeholder={t("hub_filters", "Filter...")}
+                placeholder={t("filters", "Filter...")}
                 className="h-6 px-2 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] w-24 outline-none shrink-0"
               />
             )}
@@ -363,13 +363,13 @@ export function ArtifactRulesTab({
               }}
               selectedItem={null}
               onClear={() => {}}
-              placeholder={t("studio_rules_deps_search_ph", "Search catalog to add a required mod...")}
+              placeholder={t("studio_rules_deps_search_ph", "Search catalog to add a required {mod}...")}
             />
           </div>
 
           {dependencies.length === 0 ? (
             <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
-              {t("studio_deps_empty", "No required mods assigned")}
+              {t("studio_deps_empty", "No required {mods} assigned")}
             </div>
           ) : (
             <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
@@ -410,14 +410,14 @@ export function ArtifactRulesTab({
                 {t("icon_security", "security")}
               </span>
               <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
-                {t("studio_rules_conflicts_title", "Incompatible Mods (Conflicts)")} ({conflicts.length})
+                {t("studio_rules_conflicts_title", "Incompatible {Mods} (Conflicts)")} ({conflicts.length})
               </h4>
             </div>
             {conflicts.length > 4 && (
               <input
                 value={conflictsSearchFilter}
                 onChange={(e) => setConflictsSearchFilter(e.target.value)}
-                placeholder={t("hub_filters", "Filter...")}
+                placeholder={t("filters", "Filter...")}
                 className="h-6 px-2 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] w-24 outline-none shrink-0"
               />
             )}
@@ -437,14 +437,14 @@ export function ArtifactRulesTab({
                 }}
                 selectedItem={null}
                 onClear={() => {}}
-                placeholder={t("studio_rules_conflicts_search_ph", "Search catalog to flag a conflicting mod...")}
+                placeholder={t("studio_rules_conflicts_search_ph", "Search catalog to flag a conflicting {mod}...")}
               />
             </div>
           </div>
 
           {conflicts.length === 0 ? (
             <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
-              {t("studio_conflicts_empty", "No conflicting mods flagged")}
+              {t("studio_conflicts_empty", "No conflicting {mods} flagged")}
             </div>
           ) : (
             <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
@@ -498,7 +498,7 @@ export function ArtifactRulesTab({
               {t("icon_collections_bookmark", "collections_bookmark")}
             </span>
             <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-              {t("studio_rules_collections_title", "Collections")} (
+              {t("studio_rules_collections_title", "Collections & {Mod} Sets")} (
               {isCloudMod ? assignedCloudCollections.length : localCollectionNames.length})
             </h4>
           </div>
@@ -536,7 +536,7 @@ export function ArtifactRulesTab({
                 <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                   {t("icon_add", "add")}
                 </span>
-                {t("cc_btn_add", "Add")}
+                {t("ql_add", "Add")}
               </button>
             </div>
           </div>
@@ -590,7 +590,7 @@ export function ArtifactRulesTab({
         <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
-              {t("label_static_manifest_url", "Static Polling Manifest URL (manifest.json)")}
+              {t("edge_manifest_url_label", "Static Polling Manifest URL (manifest.json)")}
             </label>
             <input
               value={mod.static_manifest_url || ""}

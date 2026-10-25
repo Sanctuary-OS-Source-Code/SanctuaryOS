@@ -14,7 +14,7 @@ import {
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "../shared";
 import { UniversalTextArea } from "../components/universal/UniversalLayout";
-import { ArtifactCard, VaultCard } from "../Cards";
+import { ArtifactCard, VaultCard, VAULT_CHIP_CLASS } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
@@ -46,7 +46,7 @@ export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOp
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon="add"
+            icon={t("icon_add", "add")}
             tooltip={isCreating ? t("btn_saving", "Saving...") : t("ql_add", "Create Mason")}
             variant="accent"
             disabled={isCreating || !newMasonName.trim()}
@@ -208,7 +208,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       color: "var(--subtext)",
       variant: "accent" as const,
       icon: t("icon_hourglass_empty", "hourglass_empty"),
-      title: t("verify_status_awaiting", "Awaiting Artifact"),
+      title: t("verify_status_awaiting", "Awaiting {Mod}"),
       desc: t("verify_status_awaiting_desc", "Select a local file to compute its SHA-256 DNA hash and verify against the global registry.")
     },
     SCANNING: {
@@ -222,37 +222,37 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     VERIFIED: {
       color: "var(--success)",
       variant: "success" as const,
-      icon: "verified_user",
+      icon: t("icon_verified_user", "verified_user"),
       title: t("verify_status_verified", "Verified Artifact"),
-      desc: t("verify_status_verified_desc", "This file matches a known, verified artifact in the Sanctuary registry.")
+      desc: t("verify_status_verified_desc", "Hash perfectly matches a registered {mod} in the database.")
     },
     MISMATCH: {
       color: "var(--warning)",
       variant: "warning" as const,
-      icon: "warning",
+      icon: t("icon_warning", "warning"),
       title: t("verify_status_mismatch", "Unrecognized Hash"),
       desc: t("verify_status_mismatch_desc", "No matching DNA hash was found in the registry for this file.")
     },
     MALWARE: {
       color: "var(--danger)",
       variant: "danger" as const,
-      icon: "skull",
+      icon: t("icon_skull", "skull"),
       title: t("malware_alert_title", "Malware Detected"),
-      desc: t("verify_status_malware_desc", "CRITICAL: This file matches a known malicious artifact signature.")
+      desc: t("verify_status_malware_desc", "This {mod} hash matches a known malicious signature. Immediate deletion required.")
     },
     EXPLICIT: {
       color: "var(--warning)",
       variant: "warning" as const,
-      icon: "warning",
+      icon: t("icon_warning", "warning"),
       title: t("verify_status_explicit", "Explicit Content"),
-      desc: t("verify_status_explicit_desc", "This file matches an adult/explicit compliance tier artifact.")
+      desc: t("verify_status_explicit_desc", "This {mod} hash is flagged for explicit or adult content.")
     },
     FLAGGED: {
       color: "var(--danger)",
       variant: "danger" as const,
-      icon: "gavel",
+      icon: t("icon_gavel", "gavel"),
       title: t("verify_status_flagged", "Flagged for Review"),
-      desc: t("verify_status_flagged_desc", "This artifact is being flagged for oversight investigation.")
+      desc: t("verify_status_flagged_desc", "{Mod} has been flagged for manual review by Admin.")
     }
   }[statusState] as any;
 
@@ -261,7 +261,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       isOpen={isOpen}
       onClose={onClose}
       title={t("verify_panel_title", "Verify File DNA")}
-      subtitle={t("verify_panel_subtitle", "Cryptographic SHA-256 Registry Verification")}
+      subtitle={t("verify_panel_subtitle", "Import a {mod} to verify its hash")}
       icon={t("icon_verified", "verified")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
@@ -269,10 +269,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={statusConfig.icon}
-          overline={t("verify_panel_subtitle", "DNA Verification")}
+          overline={t("verify_panel_subtitle", "Import a {mod} to verify its hash")}
           title={statusConfig.title}
           description={statusConfig.desc}
           badge={statusState}
+          badgeIcon={statusConfig.icon}
           variant={statusConfig.variant}
         >
           <ActionButton
@@ -282,7 +283,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             onClick={handleImport}
             className="w-full justify-center !py-3.5"
           >
-            {isHashing ? t("scanning", "Scanning...") : t("verify_panel_import_btn", "Select File to Verify")}
+            {isHashing ? t("scanning", "Scanning...") : t("verify_panel_import_btn", "Import {Mod}")}
           </ActionButton>
         </SidePanelHeroCard>
 
@@ -320,7 +321,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   onClick={() => setShowFlagForm(true)}
                   className="w-full justify-center !py-3 mt-1"
                 >
-                  {t("verify_panel_flag_btn", "Flag Artifact")}
+                  {t("verify_panel_flag_btn", "Flag {Mod} For Admin Review")}
                 </ActionButton>
               )}
 
@@ -347,20 +348,50 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         {matchedMod && (
           <UniversalGroup
             title={t("registry_label_name", "Matched Registry Artifact")}
-            icon={statusState === 'MALWARE' ? 'skull' : statusState === 'EXPLICIT' ? 'warning' : 'check_circle'}
+            icon={statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
             headerColorClass={statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}
           >
             <div className="flex flex-col gap-3 w-full">
               <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
-                <div className="flex flex-col min-w-0">
-                  <span className={`text-sm font-black capitalize tracking-widest truncate ${statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
-                    {matchedMod.name}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 capitalize tracking-widest">
-                    {t("update_version", "Version")}: {matchedMod.version_label || matchedMod.version_number || "UNKNOWN"}
-                  </span>
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  <div
+                    className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                    style={{
+                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
+                      borderColor: statusState === 'MALWARE'
+                        ? 'color-mix(in srgb, var(--danger) 25%, var(--border))'
+                        : statusState === 'EXPLICIT'
+                          ? 'color-mix(in srgb, var(--warning) 25%, var(--border))'
+                          : 'color-mix(in srgb, var(--success) 25%, var(--border))',
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[20px]">
+                      {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_verified_user", "verified_user")}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className={`text-sm font-black capitalize tracking-widest truncate ${statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
+                      {matchedMod.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 capitalize tracking-widest">
+                      {t("label_version", "Version")}: {matchedMod.version_label || matchedMod.version_number || t("unknown", "Unknown")}
+                    </span>
+                  </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-lg bg-transparent border text-[9px] font-black uppercase tracking-widest shrink-0 ${statusState === 'MALWARE' ? 'border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)]' : 'border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]'}`}>
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
+                    borderColor: statusState === 'MALWARE'
+                      ? 'color-mix(in srgb, var(--danger) 35%, var(--border))'
+                      : statusState === 'EXPLICIT'
+                        ? 'color-mix(in srgb, var(--warning) 35%, var(--border))'
+                        : 'color-mix(in srgb, var(--success) 35%, var(--border))',
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_verified", "verified")}
+                  </span>
                   {statusState}
                 </span>
               </div>
@@ -392,7 +423,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
         {showFlagForm && (
           <UniversalGroup
-            title={t("verify_panel_flag_btn", "Flag Artifact")}
+            title={t("verify_panel_flag_btn", "Flag {Mod} For Admin Review")}
             icon={t("icon_flag", "flag")}
             headerColorClass="text-[var(--danger)]"
           >
@@ -416,7 +447,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   }}
                   className="w-full justify-center !py-3"
                 >
-                  {t("nav_cancel", "Cancel")}
+                  {t("cancel", "Cancel")}
                 </ActionButton>
                 <ActionButton
                   variant="danger"
@@ -445,38 +476,81 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             icon={t("icon_history", "history")}
           >
             <div className="flex flex-col gap-2.5 w-full">
-              {sessionHistory.map((item, i) => (
-                <div
-                  key={i}
-                  className="glass-surface rounded-xl p-3.5 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors"
-                  onClick={() => {
-                    setFilePath(item.path);
-                    setFileHash(item.hash);
-                    setMatchedMod(item.matchedMod || null);
-                    setSuccessMsg("");
-                    setShowFlagForm(false);
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[var(--text)] truncate" title={item.path}>{item.path.split(/[/\\]/).pop()}</span>
-                    <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 shrink-0">{new Date(item.timestamp).toLocaleTimeString()}</span>
+              {sessionHistory.map((item, i) => {
+                const isMalware = item.matchedMod?.compliance_tier === 5;
+                const isExplicit = item.matchedMod?.compliance_tier === 2;
+                const isVerified = Boolean(item.matchedMod && !isMalware && !isExplicit);
+                const itemColor = isMalware
+                  ? "var(--danger)"
+                  : isExplicit || !item.matchedMod
+                    ? "var(--warning)"
+                    : "var(--success)";
+                const itemIcon = isMalware
+                  ? t("icon_skull", "skull")
+                  : isVerified
+                    ? t("icon_verified", "verified")
+                    : t("icon_warning", "warning");
+                const itemLabel = isMalware
+                  ? t("rating_malware", "Malware")
+                  : isExplicit
+                    ? t("rating_explicit", "Explicit")
+                    : isVerified
+                      ? t("verified", "Verified")
+                      : t("auto_mismatch", "Mismatch");
+
+                return (
+                  <div
+                    key={i}
+                    className="glass-surface rounded-xl p-3.5 flex items-center justify-between gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors"
+                    onClick={() => {
+                      setFilePath(item.path);
+                      setFileHash(item.hash);
+                      setMatchedMod(item.matchedMod || null);
+                      setSuccessMsg("");
+                      setShowFlagForm(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                        style={{
+                          color: itemColor,
+                          borderColor: `color-mix(in srgb, ${itemColor} 25%, var(--border))`,
+                        }}
+                      >
+                        <span className="material-symbols-rounded !text-[18px]">
+                          {itemIcon}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs font-bold text-[var(--text)] truncate" title={item.path}>
+                            {item.path.split(/[/\\]/).pop()}
+                          </span>
+                          <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 shrink-0">
+                            {new Date(item.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] truncate max-w-[240px]" title={item.hash}>
+                          {item.hash}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: itemColor,
+                        borderColor: `color-mix(in srgb, ${itemColor} 35%, var(--border))`,
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {itemIcon}
+                      </span>
+                      {itemLabel}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono text-[var(--subtext)] truncate max-w-[240px]" title={item.hash}>{item.hash}</span>
-                    {item.matchedMod ? (
-                      item.matchedMod.compliance_tier === 5 ? (
-                        <span className="px-2 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[8px] font-black text-[var(--danger)] uppercase tracking-widest shrink-0">{t("rating_malware", "Malware")}</span>
-                      ) : item.matchedMod.compliance_tier === 2 ? (
-                        <span className="px-2 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[8px] font-black text-[var(--warning)] uppercase tracking-widest shrink-0">{t("rating_explicit", "Explicit")}</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8px] font-black text-[var(--success)] uppercase tracking-widest shrink-0">{t("verified", "Verified")}</span>
-                      )
-                    ) : (
-                      <span className="px-2 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[8px] font-black text-[var(--warning)] uppercase tracking-widest shrink-0">{t("auto_mismatch", "Mismatch")}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </UniversalGroup>
         )}

@@ -1,9 +1,5 @@
 # Sanctuary OS — Master Protocol List & 6-Tier Clearance Matrix
 
-**Document Version:** V0.5.8-Dev.3  
-**Last Updated:** October 24, 2026  
-**Sync Pipeline:** Synced bidirectionally between `Master Protocol List.md` and **Keepers Core -> System Directives (`public.system_directives`)**.
-
 ---
 
 ## 1. The 6-Tier Clearance & Role Inheritance Matrix

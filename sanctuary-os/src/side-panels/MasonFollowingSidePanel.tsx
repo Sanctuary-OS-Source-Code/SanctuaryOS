@@ -104,7 +104,7 @@ export default function MasonFollowingSidePanel({
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
                     <span className="text-sm font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
-                      {mason.name || mason.username || t("status_unknown", "Unknown")}
+                      {mason.name || mason.username || t("unknown", "Unknown")}
                     </span>
                     {mason.tagline && (
                       <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">

@@ -72,7 +72,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   let hubNavIcon = "";
 
   if (isLandingContext) {
-    tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("landing_workspaces_short", "Workspaces") });
+    tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("workspace_sidebar", "Workspaces") });
     tabs.push({ id: 'news', icon: t("icon_newspaper", "newspaper"), label: t("landing_news_short", "News") });
     tabs.push({ id: 'system_directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
     if (!isDesktop()) {
@@ -87,12 +87,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   } else {
     tabs.push({ id: 'dashboard', icon: t("icon_desktop_windows", "desktop_windows"), label: t("center_title", "Dashboard") });
     if (localStorage.getItem("sanctuary_blacklisted") !== "true") {
-      tabs.push({ id: 'nexus', icon: t("icon_hub", "hub"), label: t("market_title", "Nexus") });
+      tabs.push({ id: 'nexus', icon: t("icon_hub", "hub"), label: t("market_title", "The {Nexus}") });
       if (schemaFeatures.has_cc) {
         tabs.push({
           id: 'playsets',
           icon: t("icon_map", "map"),
-          label: t("playsets_title", "Blueprints"),
+          label: t("playsets_title", "{Blueprints}"),
           badge: (stagingDraftItems || []).length,
         });
       }
@@ -227,7 +227,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               }
             }} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
               <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">public</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("return_to_hub") || "Workspaces"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("return_to_hub", "Return to the Hub") || "Workspaces"}</span>
             </button>
           )}
 
@@ -244,44 +244,44 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
           )}
 
           <button onClick={() => { setIsMenuOpen(false); handleTabClick('settings'); }} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-            <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">{t("icon_settings") || "settings"}</span>
-            <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("btn_settings") || "Settings"}</span>
+            <span className="material-symbols-outlined text-[var(--accent)] text-[20px]">{t("icon_settings", "settings") || "settings"}</span>
+            <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("term_settings", "Settings") || "Settings"}</span>
           </button>
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-1" />
 
           {!isLandingContext && (
             <button onClick={() => handleTabClick('MasonHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-orange-400 text-[20px]">{t("icon_construction") || "construction"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("mason_hub_title") || "Mason Workshop"}</span>
+              <span className="material-symbols-outlined text-orange-400 text-[20px]">{t("icon_construction", "construction") || "construction"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("mason_hub_title", "{Mason} Workshop") || "Mason Workshop"}</span>
             </button>
           )}
 
           {["architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
             <button onClick={() => handleTabClick('ArchitectHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-purple-400 text-[20px]">{t("icon_analytics") || "analytics"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("hub_title") || "Architect Hub"}</span>
+              <span className="material-symbols-outlined text-purple-400 text-[20px]">{t("icon_analytics", "analytics") || "analytics"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("hub_title", "Moderator Console") || "Architect Hub"}</span>
             </button>
           )}
 
           {["oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
             <button onClick={() => handleTabClick('Oversight')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-red-400 text-[20px]">{t("icon_security") || "security"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sa_title") || "Oversight"}</span>
+              <span className="material-symbols-outlined text-red-400 text-[20px]">{t("icon_security", "security") || "security"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sa_title", "Admin Command") || "Oversight"}</span>
             </button>
           )}
 
           {(userRole === "wayfinder" || userRole === "admin") && !isLandingContext && (
             <button onClick={() => handleTabClick('WayfinderHub')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-blue-400 text-[20px]">{t("icon_terminal") || "terminal"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("wf_hub_title") || "Wayfinder Tools"}</span>
+              <span className="material-symbols-outlined text-blue-400 text-[20px]">{t("icon_terminal", "terminal") || "terminal"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("wf_hub_title", "Wayfinder Operations") || "Wayfinder Operations"}</span>
             </button>
           )}
 
           {["core_dev", "admin", "keeper"].includes(osRole) && (
             <button onClick={() => handleTabClick('KeepersCore')} className="p-4 rounded-xl flex items-center gap-4 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all">
-              <span className="material-symbols-outlined text-green-400 text-[20px]">{t("icon_terminal") || "terminal"}</span>
-              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_keepers_core") || "Keepers Core"}</span>
+              <span className="material-symbols-outlined text-green-400 text-[20px]">{t("icon_terminal", "terminal") || "terminal"}</span>
+              <span className="font-black tracking-widest text-[12px] uppercase text-[var(--text)]">{t("sidebar_keepers_core", "Keepers Core") || "Keepers Core"}</span>
             </button>
           )}
         </div>
@@ -301,15 +301,15 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
           <div className="flex flex-col gap-1 w-full pb-8">
             {view === "MasonHub" && [
-              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-              { id: "registry", icon: t("icon_deployed_code") || "deployed_code", label: (t("items") || "Registry").replace(/^[^\w]*/, '').trim() },
-              { id: "nexus", icon: t("icon_hub") || "hub", label: (t("tab_nexus") || "Nexus").replace(/^[^\w]*/, '').trim() },
-              { id: "collections", icon: t("icon_collections_bookmark") || "collections_bookmark", label: (t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim() },
-              { id: "protocols", icon: t("icon_link") || "link", label: (t("tab_protocols") || "Protocols").replace(/^[^\w]*/, '').trim() },
-              { id: "structure", icon: t("icon_architecture") || "architecture", label: (t("tab_structure") || "Structure").replace(/^[^\w]*/, '').trim() },
-              { id: "conflicts", icon: t("icon_security") || "security", label: (t("tab_matrix") || "Conflicts").replace(/^[^\w]*/, '').trim() },
-              { id: "posts", icon: t("icon_edit_document") || "edit_document", label: (t("tab_posts") || "Posts").replace(/^[^\w]*/, '').trim() },
-              { id: "bug_reports", icon: t("icon_bug_report") || "bug_report", label: (t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
+              { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "registry", icon: t("icon_deployed_code", "deployed_code") || "deployed_code", label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
+              { id: "nexus", icon: t("icon_hub", "hub") || "hub", label: (t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, '').trim() },
+              { id: "collections", icon: t("icon_collections_bookmark", "collections_bookmark") || "collections_bookmark", label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
+              { id: "protocols", icon: t("icon_link", "link") || "link", label: (t("tab_protocols", "Processes") || "Protocols").replace(/^[^\w]*/, '').trim() },
+              { id: "structure", icon: t("icon_architecture", "structure") || "architecture", label: (t("tab_structure", "Structure") || "Structure").replace(/^[^\w]*/, '').trim() },
+              { id: "conflicts", icon: t("icon_security", "security") || "security", label: (t("tab_matrix", "Conflicts") || "Conflicts").replace(/^[^\w]*/, '').trim() },
+              { id: "posts", icon: t("icon_edit_document", "edit_document") || "edit_document", label: (t("tab_posts", "{Dispatches}") || "Posts").replace(/^[^\w]*/, '').trim() },
+              { id: "bug_reports", icon: t("icon_bug_report", "bug_report") || "bug_report", label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -338,18 +338,18 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             ))}
 
             {view === "ArchitectHub" && [
-              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-              { id: "registry", icon: t("icon_inventory_2") || "inventory_2", label: (t("items") || "Registry").replace(/^[^\w]*/, '').trim() },
-              { id: "queue", icon: t("icon_search") || "search", label: (t("tab_queue") || "Queue").replace(/^[^\w]*/, '').trim() },
-              { id: "lab", icon: t("icon_monitor_heart") || "monitor_heart", label: (t("tab_diagnostics") || "Diagnostics").replace(/^[^\w]*/, '').trim() },
-              { id: "collections", icon: t("icon_collections_bookmark") || "collections_bookmark", label: (t("tab_cc") || "Collections").replace(/^[^\w]*/, '').trim() },
-              { id: "protocols", icon: t("icon_link") || "link", label: (t("tab_protocols") || "Protocols").replace(/^[^\w]*/, '').trim() },
-              { id: "structure", icon: t("icon_architecture") || "architecture", label: (t("tab_structure") || "Structure").replace(/^[^\w]*/, '').trim() },
-              { id: "matrix", icon: t("icon_security") || "security", label: (t("tab_matrix") || "Matrix").replace(/^[^\w]*/, '').trim() },
-              { id: "mason_queue", icon: t("icon_construction") || "construction", label: (t("mason") || "Mason").replace(/^[^\w]*/, '').trim() },
-              { id: "template_oversight", icon: t("icon_data_object") || "data_object", label: (t("ql_templates") || "Templates").replace(/^[^\w]*/, '').trim() },
-              { id: "nexus_reports", icon: t("icon_flag") || "flag", label: (t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
-              { id: "support_tickets", icon: t("icon_local_activity") || "local_activity", label: (t("wf_tab_tickets") || "Tickets").replace(/^[^\w]*/, '').trim() },
+              { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "registry", icon: t("icon_inventory_2", "inventory_2") || "inventory_2", label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
+              { id: "queue", icon: t("icon_search", "search") || "search", label: (t("tab_queue", "Scanner") || "Queue").replace(/^[^\w]*/, '').trim() },
+              { id: "lab", icon: t("icon_monitor_heart", "monitor_heart") || "monitor_heart", label: (t("tab_diagnostics", "Diagnostics") || "Diagnostics").replace(/^[^\w]*/, '').trim() },
+              { id: "collections", icon: t("icon_collections_bookmark", "collections_bookmark") || "collections_bookmark", label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
+              { id: "protocols", icon: t("icon_link", "link") || "link", label: (t("tab_protocols", "Processes") || "Protocols").replace(/^[^\w]*/, '').trim() },
+              { id: "structure", icon: t("icon_architecture", "structure") || "architecture", label: (t("tab_structure", "Structure") || "Structure").replace(/^[^\w]*/, '').trim() },
+              { id: "matrix", icon: t("icon_security", "security") || "security", label: (t("tab_matrix", "Conflicts") || "Matrix").replace(/^[^\w]*/, '').trim() },
+              { id: "mason_queue", icon: t("icon_construction", "construction") || "construction", label: (t("mason", "{Mason}") || "Mason").replace(/^[^\w]*/, '').trim() },
+              { id: "template_oversight", icon: t("icon_data_object", "data_object") || "data_object", label: (t("ql_templates", "Templates") || "Templates").replace(/^[^\w]*/, '').trim() },
+              { id: "nexus_reports", icon: t("icon_flag", "flag") || "flag", label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
+              { id: "support_tickets", icon: t("icon_local_activity", "local_activity") || "local_activity", label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -378,18 +378,16 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             ))}
 
             {view === "Oversight" && [
-              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-              { id: "oversight_comms", icon: t("icon_satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-              { id: "identities", icon: t("icon_group") || "group", label: (t("tab_identities") || "Identities").replace(/^[^\w]*/, '').trim() },
-              { id: "compliance", icon: t("icon_policy") || "policy", label: (t("tab_compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
-              { id: "linker", icon: t("icon_link") || "link", label: (t("tab_linker") || "Linker").replace(/^[^\w]*/, '').trim() },
-              { id: "malware_oversight", icon: t("icon_coronavirus") || "coronavirus", label: (t("rating_malware") || "Malware").replace(/^[^\w]*/, '').trim() },
-              { id: "oversight_reports", icon: t("icon_threat_intelligence") || "threat_intelligence", label: (t("tab_malware_logs") || "Threats").replace(/^[^\w]*/, '').trim() },
-              { id: "sanctuary_tickets", icon: t("icon_local_activity") || "local_activity", label: (t("wf_tab_tickets") || "Tickets").replace(/^[^\w]*/, '').trim() },
-              { id: "mass_update", icon: t("icon_dynamic_feed") || "dynamic_feed", label: (t("tab_mass_update") || "Mass Update").replace(/^[^\w]*/, '').trim() },
-              { id: "game_versions", icon: t("icon_settings") || "settings", label: (t("tab_game_versions") || "Game Versions").replace(/^[^\w]*/, '').trim() },
-              { id: "support_settings", icon: t("icon_support_agent") || "support_agent", label: (t("wf_tab_support") || "Support").replace(/^[^\w]*/, '').trim() },
-              { id: "audit_logs", icon: t("icon_history") || "history", label: (t("tab_audit") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
+              { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "oversight_comms", icon: t("icon_satellite_alt", "satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+              { id: "identities", icon: t("icon_group", "group") || "group", label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
+              { id: "compliance", icon: t("icon_policy", "policy") || "policy", label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
+              { id: "malware_oversight", icon: t("icon_coronavirus", "coronavirus") || "coronavirus", label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
+              { id: "sanctuary_tickets", icon: t("icon_local_activity", "local_activity") || "local_activity", label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
+              { id: "mass_update", icon: t("icon_dynamic_feed", "dynamic_feed") || "dynamic_feed", label: (t("tab_mass_update", "Mass Update") || "Mass Update").replace(/^[^\w]*/, '').trim() },
+              { id: "game_versions", icon: t("icon_settings", "settings") || "settings", label: (t("tab_game_versions", "Management") || "Game Versions").replace(/^[^\w]*/, '').trim() },
+              { id: "support_settings", icon: t("icon_support_agent", "support_agent") || "support_agent", label: (t("term_settings", "Settings") || "Support").replace(/^[^\w]*/, '').trim() },
+              { id: "audit_logs", icon: t("icon_history", "history") || "history", label: (t("tab_audit", "Logs") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -418,19 +416,17 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             ))}
 
             {view === "WayfinderHub" && [
-              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-              { id: "wf_comms_title", icon: t("icon_satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-              { id: "sanctuary_tickets", icon: t("icon_local_activity") || "local_activity", label: (t("wf_tab_tickets") || "Tickets").replace(/^[^\w]*/, '').trim() },
-              { id: "identities", icon: t("icon_group") || "group", label: (t("tab_identities") || "Identities").replace(/^[^\w]*/, '').trim() },
-              { id: "linker", icon: t("icon_link") || "link", label: (t("tab_linker") || "Linker").replace(/^[^\w]*/, '').trim() },
-              { id: "compliance", icon: t("icon_policy") || "policy", label: (t("tab_compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
-              { id: "malware_oversight", icon: t("icon_coronavirus") || "coronavirus", label: (t("rating_malware") || "Malware").replace(/^[^\w]*/, '').trim() },
-              { id: "oversight_reports", icon: t("icon_threat_intelligence") || "threat_intelligence", label: (t("tab_malware_logs") || "Threats").replace(/^[^\w]*/, '').trim() },
-              { id: "reports", icon: t("icon_flag") || "flag", label: (t("stat_bugs") || "Reports").replace(/^[^\w]*/, '').trim() },
-              { id: "audit_logs", icon: t("icon_history") || "history", label: (t("tab_audit") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
-              { id: "support_settings", icon: t("icon_support_agent") || "support_agent", label: (t("wf_tab_support") || "Support Settings").replace(/^[^\w]*/, '').trim() },
-              { id: "ide", icon: "code", label: "WAYFINDER IDE" },
-              { id: "chameleons", icon: "palette", label: (t("wf_master_themes") || "Themes").replace(/^[^\w]*/, '').trim() },
+              { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "wf_comms_title", icon: t("icon_satellite_alt", "satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+              { id: "sanctuary_tickets", icon: t("icon_local_activity", "local_activity") || "local_activity", label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
+              { id: "identities", icon: t("icon_group", "group") || "group", label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
+              { id: "compliance", icon: t("icon_policy", "policy") || "policy", label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
+              { id: "malware_oversight", icon: t("icon_coronavirus", "coronavirus") || "coronavirus", label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
+              { id: "reports", icon: t("icon_flag", "flag") || "flag", label: (t("stat_bugs", "Reports") || "Reports").replace(/^[^\w]*/, '').trim() },
+              { id: "audit_logs", icon: t("icon_history", "history") || "history", label: (t("tab_audit", "Logs") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
+              { id: "support_settings", icon: t("icon_support_agent", "support_agent") || "support_agent", label: (t("term_settings", "Settings") || "Support Settings").replace(/^[^\w]*/, '').trim() },
+              { id: "ide", icon: t("icon_data_object", "data_object") || "data_object", label: (t("wf_tab_spoke_control", "Spoke Control") || "Spoke Control").replace(/^[^\w]*/, '').trim() },
+              { id: "chameleons", icon: t("icon_palette", "palette") || "palette", label: (t("wf_tab_spoke_aesthetics", "Spoke Aesthetics") || "Spoke Aesthetics").replace(/^[^\w]*/, '').trim() },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -459,19 +455,15 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             ))}
 
             {view === "KeepersCore" && [
-              { id: "command_center", icon: t("icon_desktop_windows") || "desktop_windows", label: (t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-              { id: "keepers_comms", icon: t("icon_satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-              { id: "web_directives", icon: "folder_special", label: "System Directives" },
-              { id: "web_news", icon: "public", label: "Website News" },
-              { id: "web_legal", icon: "gavel", label: "Legal Documents" },
-              { id: "active_games", icon: "dns", label: "Active Workspaces" },
-              { id: "identities", icon: "group", label: "Citizen Oversight" },
-              { id: "heuristics", icon: t("icon_shield_lock") || "shield_lock", label: t("core_heuristics_tab") || "Core Heuristics" },
-              { id: "support", icon: t("icon_support_agent") || "support_agent", label: "Support Center" },
-              { id: "support_settings", icon: t("icon_support_agent") || "support_agent", label: (t("wf_tab_support") || "Support Settings").replace(/^[^\w]*/, '').trim() },
-              { id: "audit_logs", icon: t("icon_history") || "history", label: (t("audit_title") || "Audit").replace(/^[^\w]*/, '').trim() },
-              { id: "ide", icon: "code", label: "Keepers IDE" },
-              { id: "chameleons", icon: "palette", label: (t("wf_master_themes") || "Themes").replace(/^[^\w]*/, '').trim() },
+              { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+              { id: "keepers_comms", icon: t("icon_satellite_alt", "satellite_alt") || "satellite_alt", label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+              { id: "web_directives", icon: t("icon_public", "public"), label: t("keepers_tab_web_landing", "Web Landing") },
+              { id: "active_games", icon: t("icon_dns", "dns") || "dns", label: t("keepers_tab_partner_spokes", "Partner Spokes") || "Partner Spokes" },
+              { id: "identities", icon: "group", label: t("citizen_oversight", "{Citizen} Management") || "Citizen Oversight" },
+              { id: "heuristics", icon: t("icon_shield_lock", "shield_lock") || "shield_lock", label: t("core_heuristics_tab", "Core Heuristics") || "Core Heuristics" },
+              { id: "support", icon: t("icon_support_agent", "support_agent") || "support_agent", label: t("support_tickets", "Support Center") || "Support Center" },
+              { id: "support_settings", icon: t("icon_support_agent", "support_agent") || "support_agent", label: (t("term_settings", "Settings") || "Support Settings").replace(/^[^\w]*/, '').trim() },
+              { id: "chameleons", icon: t("icon_palette", "palette") || "palette", label: (t("keepers_tab_core_aesthetics", "Core Aesthetics") || "Core Aesthetics").replace(/^[^\w]*/, '').trim() },
             ].map(tab => (
               <button
                 key={tab.id}

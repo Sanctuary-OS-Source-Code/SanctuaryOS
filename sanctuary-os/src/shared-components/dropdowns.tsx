@@ -73,10 +73,10 @@ export function CustomDropdown({
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
-        const menuWidth = Math.min(Math.max(rect.width, 220), window.innerWidth - 24);
+        const menuWidth = Math.min(Math.max(rect.width, 160), window.innerWidth - 24);
         const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
         setCoords({
-          top: shouldDropUp ? rect.top - 4 : rect.bottom + 4,
+          top: shouldDropUp ? rect.top - 6 : rect.bottom + 6,
           left: clampedLeft,
           width: menuWidth,
           isRight: false,
@@ -95,13 +95,12 @@ export function CustomDropdown({
 
   const getSelectedLabel = () => {
     if (multiSelect) {
-      if (selectedValues.length === 0) return placeholder || "Select...";
-      if (selectedValues.length === 1)
-        return (
-          options.find((o: any) => String(o.id) === String(selectedValues[0]))
-            ?.label || selectedValues[0]
-        );
-      return `${selectedValues.length} ${t("shared_selected") || "Selected"}`;
+      if (selectedValues.length === 0) return placeholder || t("select", "Select...");
+      const labels = selectedValues.map(
+        (val: any) =>
+          options?.find((o: any) => String(o.id) === String(val))?.label || val,
+      );
+      return labels.join(", ");
     }
     const selected =
       options.find(
@@ -116,7 +115,7 @@ export function CustomDropdown({
       effectiveValue !== ""
     )
       return effectiveValue;
-    return selected?.label || placeholder || "Select...";
+    return selected?.label || placeholder || t("select", "Select...");
   };
 
   const handleSelect = (id: any) => {
@@ -133,8 +132,6 @@ export function CustomDropdown({
   };
 
   const isInsideSidePanel = React.useContext(SidePanelContext);
-  const effectiveVariant =
-    variant === "panel" ? "panel" : isInsideSidePanel ? "panel" : variant;
 
   const isActive =
     !disableTint &&
@@ -149,6 +146,16 @@ export function CustomDropdown({
         String(effectiveValue).toLowerCase() !== "any" &&
         String(effectiveValue).toLowerCase() !== "vlocal");
 
+  const hasSelection = multiSelect
+    ? selectedValues.length > 0
+    : effectiveValue !== undefined &&
+      effectiveValue !== null &&
+      String(effectiveValue).trim() !== "";
+
+  const showSearch = Boolean(
+    searchable && (allowCustom || (options && options.length > 6)),
+  );
+
   const dropdownMenu = isOpen
     ? createPortal(
         <>
@@ -162,7 +169,7 @@ export function CustomDropdown({
           />
           <div
             onClick={(e) => e.stopPropagation()}
-            className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 max-h-64 overflow-hidden flex flex-col text-[var(--text)]"
+            className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-hidden flex flex-col text-[var(--text)]"
             style={{
               zIndex: 100000001,
               top: (coords as any).isDropUp ? "auto" : coords.top,
@@ -171,59 +178,79 @@ export function CustomDropdown({
                 : "auto",
               left: coords.left,
               transition: "none",
-              width: coords.width || 240,
+              width: coords.width || 200,
               maxWidth: "calc(100vw - 24px)",
-            }}
+              "--glass-x": `${Math.round(coords.left)}px`,
+              "--glass-y": `${Math.round(coords.top)}px`,
+            } as React.CSSProperties}
           >
-            {searchable && (
-              <div className="border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] z-10 shrink-0 flex items-center px-3.5">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 mr-2">
-                  {t("icon_search") || "search"}
-                </span>
-                <input
-                  type="text"
-                  data-1p-ignore="true"
-                  autoFocus
-                  placeholder={t("shared_search") || "Search..."}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="w-full bg-transparent border-none py-2.5 text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
-                />
+            {(showSearch || (multiSelect && options && options.length > 1)) && (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 z-10">
+                {showSearch ? (
+                  <div className="sa-dropdown-search px-2.5 h-7 flex items-center gap-1.5 flex-1 min-w-0 transition-colors">
+                    <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] opacity-85 shrink-0">
+                      {t("icon_search", "search")}
+                    </span>
+                    <input
+                      type="text"
+                      data-1p-ignore="true"
+                      autoFocus
+                      placeholder={t("search", "Search...")}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="w-full bg-transparent border-none text-[11px] font-medium focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-60"
+                    />
+                    {query && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuery("");
+                        }}
+                        className="text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {t("icon_close", "close")}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 tracking-wider uppercase pl-1">
+                    {selectedValues.length} {t("selected", "Selected")}
+                  </span>
+                )}
+
+                {multiSelect && options && options.length > 1 && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChange(options.map((o: any) => String(o.id)));
+                      }}
+                      className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                    >
+                      {t("all", "All")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChange([]);
+                      }}
+                      className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                    >
+                      {t("clear", "Clear")}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-            {multiSelect && options && options.length > 0 && (
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] z-[5]">
-                <span className="text-[10px] font-bold text-[var(--subtext)] tracking-wider uppercase">
-                  {selectedValues.length} {t("shared_selected") || "Selected"}
-                </span>
-                <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(options.map((o: any) => String(o.id)));
-                    }}
-                    className="text-[10px] font-bold text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-wider"
-                  >
-                    {t("shared_select_all") || "Select All"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange([]);
-                    }}
-                    className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-wider"
-                  >
-                    {t("shared_clear") || "Clear"}
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5">
+            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-1">
               {(options || [])
                 .filter((opt: any) => {
-                  if (!searchable || !query) return true;
+                  if (!showSearch || !query) return true;
                   const searchTarget =
                     opt.searchText !== undefined
                       ? opt.searchText
@@ -250,28 +277,41 @@ export function CustomDropdown({
                         e.stopPropagation();
                         handleSelect(opt.id);
                       }}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide capitalize flex items-center gap-2.5 group transition-colors ${isSelected ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] font-bold" : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"}`}
+                      className={`sa-dropdown-item w-full text-left px-2.5 py-2 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer ${
+                        isSelected ? "is-selected font-bold" : "font-medium"
+                      }`}
                     >
                       {multiSelect && (
                         <div
-                          className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${isSelected ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]" : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"}`}
+                          style={{ borderRadius: "5px" }}
+                          className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${
+                            isSelected
+                              ? "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
+                              : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
+                          }`}
                         >
                           {isSelected && (
-                            <span className="material-symbols-outlined !text-[12px] font-bold">
-                              {t("icon_check") || "check"}
+                            <span className="material-symbols-outlined !text-[12px] font-black">
+                              {t("icon_check", "check")}
                             </span>
                           )}
                         </div>
                       )}
                       {opt.icon && (
-                        <span className="material-symbols-outlined !text-[16px] opacity-75 shrink-0">
+                        <span
+                          className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                            isSelected
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--text)]"
+                          }`}
+                        >
                           {opt.icon}
                         </span>
                       )}
                       <span className="flex-1 truncate">{opt.label}</span>
                       {isSelected && !multiSelect && (
-                        <span className="material-symbols-outlined !text-[16px] shrink-0 text-[var(--accent)]">
-                          {t("icon_check") || "check"}
+                        <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
+                          {t("icon_check", "check")}
                         </span>
                       )}
                     </button>
@@ -291,8 +331,8 @@ export function CustomDropdown({
                     .includes(query.toLowerCase());
                 }).length === 0 &&
                 !allowCustom && (
-                  <div className="p-4 text-center text-xs font-semibold text-[var(--subtext)] opacity-70">
-                    {t("shared_no_options") || "No options found"}
+                  <div className="p-4 text-center text-xs font-medium text-[var(--subtext)] opacity-70">
+                    {t("shared_no_options", "No options found")}
                   </div>
                 )}
               {searchable &&
@@ -310,13 +350,13 @@ export function CustomDropdown({
                       e.stopPropagation();
                       handleSelect(query);
                     }}
-                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--accent)] flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center gap-2 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[16px]">
-                      {t("icon_add") || "add"}
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_add", "add")}
                     </span>
                     <span className="truncate w-full">
-                      {t("cc_btn_add") || "Create"} "{query}"
+                      {t("ql_add", "Add")} &ldquo;{query}&rdquo;
                     </span>
                   </button>
                 )}
@@ -341,20 +381,57 @@ export function CustomDropdown({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : isPill ? `h-10 px-5 rounded-full text-[10px] font-black uppercase tracking-widest ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]" : "glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"}` : `${className?.includes("h-") ? "h-full px-4" : "h-12 px-5"} rounded-[var(--radius)] text-sm font-bold ${isActive ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-md" : "glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-inner hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)]"}`} ${buttonClassName || ""}`}
+        className={`w-full flex justify-between items-center gap-2 focus:outline-none relative z-[10] transition-all cursor-pointer ${
+          flat
+            ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100"
+            : isPill
+              ? `h-10 px-4 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                  isActive
+                    ? "bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                    : "glass-surface text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                }`
+              : `${
+                  className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
+                } rounded-xl text-xs font-bold ${
+                  isOpen
+                    ? "glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]"
+                    : isActive
+                      ? "bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
+                      : "glass-surface text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                }`
+        } ${buttonClassName || ""}`}
       >
-        <span className="pr-4 flex-1 text-left flex items-center h-full capitalize overflow-hidden whitespace-nowrap text-ellipsis min-w-0">
+        <span
+          className={`flex-1 text-left truncate min-w-0 ${
+            !hasSelection ? "text-[var(--subtext)] opacity-60 font-medium" : ""
+          }`}
+        >
           {getSelectedLabel()}
         </span>
-        <span
-          className={`transition-colors shrink-0 flex items-center justify-center ${isActive ? "text-[var(--accent)]" : "text-[var(--subtext)] opacity-60 hover:text-[var(--text)]"}`}
-        >
+        <div className="flex items-center gap-1.5 shrink-0">
+          {multiSelect && selectedValues.length > 1 && (
+            <span className="px-1.5 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black leading-none">
+              {selectedValues.length}
+            </span>
+          )}
           <span
-            className={`material-symbols-outlined ${flat ? "!text-[16px]" : "!text-[20px]"}`}
+            className={`transition-colors shrink-0 flex items-center justify-center ${
+              isOpen || isActive
+                ? "text-[var(--accent)]"
+                : "text-[var(--subtext)] opacity-60"
+            }`}
           >
-            {isOpen ? (t("icon_expand_less") || "expand_less") : (t("icon_expand_more") || "expand_more")}
+            <span
+              className={`material-symbols-outlined ${
+                flat ? "!text-[16px]" : "!text-[18px]"
+              }`}
+            >
+              {isOpen
+                ? t("icon_expand_less", "expand_less")
+                : t("icon_expand_more", "expand_more")}
+            </span>
           </span>
-        </span>
+        </div>
       </button>
       {dropdownMenu}
     </div>
@@ -458,7 +535,7 @@ export function GameVersionMultiSelect({
     selectedVersions.length === 0
       ? t("shared_search_versions", "Select game versions...")
       : selectedVersions.includes("ALL")
-        ? t("ver_btn_all", "All Versions")
+        ? t("filter_all_versions", "All Versions")
         : selectedVersions.join(", ");
 
   return (
@@ -472,11 +549,11 @@ export function GameVersionMultiSelect({
         className={
           variant === "pill"
             ? "flex items-center justify-between gap-2 bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none min-w-[160px] px-2 h-full cursor-pointer"
-            : `w-full h-12 px-5 rounded-[var(--radius)] glass-surface border ${
+            : `w-full h-11 px-4 rounded-xl glass-surface ${
                 isOpen
-                  ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
-              } shadow-inner text-sm font-bold text-[var(--text)] flex items-center justify-between gap-2 transition-all cursor-pointer`
+                  ? "border border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                  : "hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+              } text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2 transition-all cursor-pointer`
         }
       >
         <span
@@ -485,7 +562,7 @@ export function GameVersionMultiSelect({
           }`}
         >
           {variant === "pill" && selectedVersions.length > 0
-            ? `VERSIONS (${selectedVersions.length})`
+            ? `${t("versions", "Versions")} (${selectedVersions.length})`
             : summaryLabel}
         </span>
 
@@ -498,12 +575,12 @@ export function GameVersionMultiSelect({
                 setRangeTo("");
                 onChange([]);
               }}
-              className="material-symbols-outlined !text-[16px] text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+              className="material-symbols-outlined !text-[15px] text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
             >
               {t("icon_close", "close")}
             </span>
           )}
-          <span className="material-symbols-outlined !text-[20px] text-[var(--subtext)] opacity-60">
+          <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-60">
             {isOpen ? t("icon_expand_less", "expand_less") : t("icon_expand_more", "expand_more")}
           </span>
         </div>
@@ -519,7 +596,7 @@ export function GameVersionMultiSelect({
             />
             <div
               onClick={(e) => e.stopPropagation()}
-              className="!fixed pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] shadow-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)] overflow-hidden"
+              className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)] overflow-hidden"
               style={{
                 zIndex: 100000001,
                 top: shouldDropUp ? "auto" : (rect ? rect.bottom + 6 : 0),
@@ -527,12 +604,14 @@ export function GameVersionMultiSelect({
                 left: clampedLeft,
                 width: popWidth,
                 maxWidth: "calc(100vw - 24px)",
-              }}
+                "--glass-x": `${Math.round(clampedLeft)}px`,
+                "--glass-y": `${Math.round(rect ? rect.bottom + 6 : 0)}px`,
+              } as React.CSSProperties}
             >
               {/* Search & Quick Actions Row */}
-              <div className="flex items-center justify-between gap-3 px-3.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] shrink-0">
-                <div className="flex items-center flex-1 min-w-0">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 mr-2 shrink-0">
+              <div className="flex items-center justify-between gap-2 p-2 pb-1.5 shrink-0">
+                <div className="sa-dropdown-search flex items-center flex-1 min-w-0 px-3 h-8">
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-85 mr-2 shrink-0">
                     {t("icon_search", "search")}
                   </span>
                   <input
@@ -540,11 +619,11 @@ export function GameVersionMultiSelect({
                     placeholder={t("shared_search_versions", "Search game versions...")}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="w-full bg-transparent border-none py-1 text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
+                    className="w-full bg-transparent border-none text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-55"
                   />
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {latestPatch && (
                     <button
                       type="button"
@@ -553,7 +632,7 @@ export function GameVersionMultiSelect({
                           onChange([...selectedVersions.filter((ver) => ver !== "ALL"), latestPatch]);
                         }
                       }}
-                      className="text-[10px] font-bold text-[var(--accent)] hover:text-[var(--text)] transition-colors uppercase tracking-wider cursor-pointer"
+                      className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
                     >
                       {t("ver_btn_latest", "Latest")}
                     </button>
@@ -561,9 +640,9 @@ export function GameVersionMultiSelect({
                   <button
                     type="button"
                     onClick={() => onChange(["ALL"])}
-                    className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] transition-colors uppercase tracking-wider cursor-pointer"
+                    className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
                   >
-                    {t("ver_btn_all", "All")}
+                    {t("filter_all_versions", "All")}
                   </button>
                   {selectedVersions.length > 0 && (
                     <button
@@ -573,9 +652,9 @@ export function GameVersionMultiSelect({
                         setRangeTo("");
                         onChange([]);
                       }}
-                      className="text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--danger)] transition-colors uppercase tracking-wider cursor-pointer"
+                      className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
                     >
-                      {t("ver_clear_all", "Clear")}
+                      {t("clear", "Clear")}
                     </button>
                   )}
                 </div>
@@ -583,7 +662,7 @@ export function GameVersionMultiSelect({
 
               {/* Inline Patch Range Row (always visible above list, auto-applies) */}
               {versions.length > 1 && (
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3.5 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] shrink-0">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 py-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                   <CustomDropdown
                     disableTint={true}
                     className="h-9"
@@ -596,7 +675,9 @@ export function GameVersionMultiSelect({
                       ...versions.map((v) => ({ id: v.version, label: v.version })),
                     ]}
                   />
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 px-1">→</span>
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 px-0.5">
+                    {t("icon_arrow_forward", "arrow_forward")}
+                  </span>
                   <CustomDropdown
                     disableTint={true}
                     className="h-9"
@@ -613,7 +694,7 @@ export function GameVersionMultiSelect({
               )}
 
               {/* Always-Visible Checkable Version List */}
-              <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-0.5 p-1.5">
+              <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 p-2 pt-1">
                 {filtered.map((v) => {
                   const isSelected = selectedVersions.includes(v.version);
                   return (
@@ -624,17 +705,16 @@ export function GameVersionMultiSelect({
                         e.preventDefault();
                         toggleVersion(v.version);
                       }}
-                      className={`w-full text-left px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide flex items-center gap-2.5 group transition-colors cursor-pointer ${
-                        isSelected
-                          ? "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] font-bold"
-                          : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                      className={`sa-dropdown-item w-full text-left px-3 py-2 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer ${
+                        isSelected ? "is-selected font-bold" : "font-semibold"
                       }`}
                     >
                       <div
-                        className={`w-4 h-4 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors shrink-0 ${
+                        style={{ borderRadius: "5px" }}
+                        className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${
                           isSelected
-                            ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]"
-                            : "border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:border-[var(--text)]"
+                            ? "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
+                            : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
                         }`}
                       >
                         {isSelected && (
@@ -643,24 +723,24 @@ export function GameVersionMultiSelect({
                           </span>
                         )}
                       </div>
-                          <span className="flex-1 truncate">{v.version}</span>
-                        </button>
-                      );
-                    })}
-                    {query && !versions.some((v) => v.version === query) && (
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          toggleVersion(query);
-                          setQuery("");
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold text-[var(--accent)] cursor-pointer transition-colors"
-                      >
-                        + {t("cc_btn_add", "Add")} "{query}"
-                      </button>
-                    )}
-                  </div>
+                      <span className="flex-1 truncate">{v.version}</span>
+                    </button>
+                  );
+                })}
+                {query && !versions.some((v) => v.version === query) && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      toggleVersion(query);
+                      setQuery("");
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold text-[var(--accent)] cursor-pointer transition-colors"
+                  >
+                    + {t("ql_add", "Add")} "{query}"
+                  </button>
+                )}
+              </div>
             </div>
           </>,
           document.getElementById("sa-portals") || document.body
@@ -676,7 +756,7 @@ export function CustomDatePicker({
   flat = false,
 }: {
   value: string | null;
-  onChange: (date: string | null) => void;
+  onChange: (date: any) => void;
   placeholder?: string;
   className?: string;
   flat?: boolean;
@@ -767,14 +847,14 @@ export function CustomDatePicker({
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : "h-12 px-5 rounded-[var(--radius)] glass-surface shadow-inner text-sm font-bold text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : "h-11 px-4 rounded-xl glass-surface text-xs font-bold text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
       >
         <span
           className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"} ${!value ? "text-[var(--subtext)] opacity-75" : "text-[var(--text)]"}`}
         >
           {value
             ? new Date(value).toLocaleDateString()
-            : placeholder || t("shared_select_date") || "Select Date..."}
+            : placeholder || t("shared_select_date", "Select Date...") || "Select Date..."}
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
           {value && (
@@ -785,14 +865,14 @@ export function CustomDatePicker({
               }}
               className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-70 hover:opacity-100 transition-all cursor-pointer rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] p-0.5"
             >
-              {t("icon_close") || "close"}
+              {t("icon_close", "close") || "close"}
             </span>
           )}
           <span className="text-[var(--subtext)] opacity-60 group-hover:text-[var(--text)] transition-colors flex items-center justify-center">
             <span className="material-symbols-outlined !text-[18px]">
               {isOpen
-                ? t("icon_expand_less") || "expand_less"
-                : t("icon_calendar_month") || "calendar_month"}
+                ? t("icon_expand_less", "expand_less") || "expand_less"
+                : t("icon_calendar_month", "calendar_month") || "calendar_month"}
             </span>
           </span>
         </div>
@@ -821,7 +901,11 @@ export function CustomDatePicker({
               }}
             >
               <div
-                className={`!absolute ${coords.isDropUp ? "bottom-0 mb-2" : "top-0 mt-2"} ${coords.isRight ? "right-0" : "left-0"} pointer-events-auto glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 p-4 w-72 text-[var(--text)]`}
+                className={`!absolute ${coords.isDropUp ? "bottom-0 mb-2" : "top-0 mt-2"} ${coords.isRight ? "right-0" : "left-0"} pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 p-4 w-72 text-[var(--text)]`}
+                style={{
+                  "--glass-x": `${Math.round(coords.left)}px`,
+                  "--glass-y": `${Math.round(coords.top)}px`,
+                } as React.CSSProperties}
               >
                 <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <button
@@ -830,7 +914,7 @@ export function CustomDatePicker({
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
                   >
                     <span className="material-symbols-outlined !text-[18px]">
-                      {t("icon_chevron_left") || "chevron_left"}
+                      {t("icon_chevron_left", "chevron_left") || "chevron_left"}
                     </span>
                   </button>
                   <div className="text-xs font-extrabold capitalize tracking-wide text-[var(--text)]">
@@ -842,7 +926,7 @@ export function CustomDatePicker({
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors"
                   >
                     <span className="material-symbols-outlined !text-[18px]">
-                      {t("icon_chevron_right") || "chevron_right"}
+                      {t("icon_chevron_right", "chevron_right") || "chevron_right"}
                     </span>
                   </button>
                 </div>
@@ -877,10 +961,10 @@ export function CustomDatePicker({
                         onClick={() => handleSelect(d)}
                         className={`h-8 w-8 mx-auto flex items-center justify-center text-xs rounded-lg transition-all ${
                           isSelected
-                            ? "bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] font-extrabold shadow-sm"
+                            ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] font-extrabold"
                             : isToday
-                              ? "border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-bold bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]"
-                              : "border border-transparent text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] font-semibold"
+                              ? "border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] font-bold bg-transparent"
+                              : "border border-transparent text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] font-semibold"
                         }`}
                       >
                         {d}
@@ -1002,7 +1086,7 @@ export function ModSearchDropdown({
           readOnly={!!selectedItem}
           className={
             className ||
-            "w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-[var(--radius)] px-5 text-[var(--text)] text-xs font-bold capitalize tracking-wide focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"
+            "w-full h-11 glass-surface hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 text-[var(--text)] text-xs font-bold capitalize tracking-wide focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"
           }
         />
         {selectedItem ? (
@@ -1012,7 +1096,7 @@ export function ModSearchDropdown({
             onClick={onClear}
           >
             <span className="material-symbols-outlined !text-[18px]">
-              {t("icon_close") || "close"}
+              {t("icon_close", "close") || "close"}
             </span>
           </button>
         ) : (
@@ -1021,10 +1105,10 @@ export function ModSearchDropdown({
             className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 flex items-center justify-center"
             onClick={() => setIsOpen(!isOpen)}
           >
-            <span className="material-symbols-outlined !text-[20px]">
+            <span className="material-symbols-outlined !text-[18px]">
               {isOpen
-                ? t("icon_expand_less") || "expand_less"
-                : t("icon_expand_more") || "expand_more"}
+                ? t("icon_expand_less", "expand_less") || "expand_less"
+                : t("icon_expand_more", "expand_more") || "expand_more"}
             </span>
           </button>
         )}
@@ -1042,52 +1126,56 @@ export function ModSearchDropdown({
                 onClick={() => setIsOpen(false)}
               />
               <div
-                className="!fixed glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] pointer-events-auto max-h-60 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-0.5 text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
+                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl pointer-events-auto max-h-60 overflow-hidden flex flex-col text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
                 style={{
                   zIndex: 100000001,
                   top: coords.isDropUp ? undefined : coords.top,
                   bottom: coords.isDropUp ? coords.top : undefined,
                   left: coords.left,
                   width: coords.width,
-                }}
+                  "--glass-x": `${Math.round(coords.left)}px`,
+                  "--glass-y": `${Math.round(coords.top)}px`,
+                } as React.CSSProperties}
               >
-                {results.map((m: any, idx: number) => (
-                  <button
-                    key={`${m.hash || m.name}-${idx}`}
-                    type="button"
-                    onClick={() => {
-                      onSelect(m);
-                      setQuery("");
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-colors flex flex-col gap-0.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[var(--text)] capitalize">
-                        {m.displayName || m.name.split("/").pop()}
-                      </span>
-                      {m.file_extension && (
-                        <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                          {m.file_extension}
+                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1">
+                  {results.map((m: any, idx: number) => (
+                    <button
+                      key={`${m.hash || m.name}-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        onSelect(m);
+                        setQuery("");
+                        setIsOpen(false);
+                      }}
+                      className="sa-dropdown-item w-full text-left px-3 py-2 flex flex-col gap-0.5 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[var(--text)] capitalize">
+                          {m.displayName || m.name.split("/").pop()}
                         </span>
-                      )}
+                        {m.file_extension && (
+                          <span className="px-1.5 py-0.5 rounded bg-transparent text-[9px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
+                            {m.file_extension}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70">
+                        {m.version_label
+                          ? `${t("shared_versions_prefix", "Version(s):") || "Version(s):"} ${m.version_label}`
+                          : m.master_author ||
+                            m.author ||
+                            (m.created_at
+                              ? `${t("shared_created_prefix", "Created:") || "Created:"} ${new Date(m.created_at).toLocaleDateString()}`
+                              : `${t("landing_id_prefix", "ID: ") || "ID:"} ${m.id?.substring(0, 8).toUpperCase()}`)}
+                      </span>
+                    </button>
+                  ))}
+                  {results.length === 0 && (
+                    <div className="p-4 text-center text-xs text-[var(--subtext)] font-semibold capitalize opacity-70">
+                      {t("shared_no_signatures", "No Signatures Found") || "No matching mods found"}
                     </div>
-                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70">
-                      {m.version_label
-                        ? `${t("shared_versions_prefix") || "Version(s):"} ${m.version_label}`
-                        : m.master_author ||
-                          m.author ||
-                          (m.created_at
-                            ? `${t("shared_created_prefix") || "Created:"} ${new Date(m.created_at).toLocaleDateString()}`
-                            : `${t("auto_id") || "ID:"} ${m.id?.substring(0, 8).toUpperCase()}`)}
-                    </span>
-                  </button>
-                ))}
-                {results.length === 0 && (
-                  <div className="p-4 text-center text-xs text-[var(--subtext)] font-semibold capitalize opacity-70">
-                    {t("shared_no_signatures") || "No matching mods found"}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </>,
             portalRoot,
@@ -1107,12 +1195,12 @@ export function CustomComplianceDropdown({
 }) {
   const { t } = useLexicon();
   const allOptions = [
-    { id: 0, label: t("tier_0_label") || "Clean / Safe (Tier 0)" },
-    { id: 1, label: t("tier_1_label") || "Explicit Content (Tier 1)" },
-    { id: 2, label: t("tier_2_label") || "Illicit / Substance (Tier 2)" },
-    { id: 3, label: t("tier_3_label") || "Extreme Violence (Tier 3)" },
-    { id: 4, label: t("tier_4_label") || "Taboo / Sensitive (Tier 4)" },
-    { id: 5, label: t("tier_5_label") || "Malware (Tier 5)" },
+    { id: 0, label: t("tier_0_label", "Clean / Safe (T0)") || "Clean / Safe (Tier 0)" },
+    { id: 1, label: t("tier_1_label", "Explicit Content (T1)") || "Explicit Content (Tier 1)" },
+    { id: 2, label: t("tier_2_label", "Illicit / Substance (T2)") || "Illicit / Substance (Tier 2)" },
+    { id: 3, label: t("tier_3_label", "Extreme Violence (T3)") || "Extreme Violence (Tier 3)" },
+    { id: 4, label: t("tier_4_label", "Taboo / Sensitive (T4)") || "Taboo / Sensitive (Tier 4)" },
+    { id: 5, label: t("tier_5_label", "Malware (T5)") || "Malware (Tier 5)" },
   ];
 
   const options = allOptions.filter((opt) => opt.id <= maxTier);
@@ -1123,7 +1211,7 @@ export function CustomComplianceDropdown({
         value={value}
         options={options}
         onChange={(v: number[]) => onChange(v[0])}
-        placeholder={t("shared_select_compliance") || "Select Compliance Tier"}
+        placeholder={t("shared_select_compliance", "Select Compliance Tier") || "Select Compliance Tier"}
         disableTint={true}
       />
     </div>
@@ -1145,7 +1233,7 @@ export function CustomClassificationDropdown({
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const options = [
-    { id: "Unknown", label: t("ui_icon_unknown") || "Unknown" },
+    { id: "Unknown", label: t("unknown", "Unknown") || "Unknown" },
     ...(activeGameSchema?.mod_categories || []).map((c: any) => ({
       id: c.id,
       label: t(c.lexicon_key) || c.id,
@@ -1158,7 +1246,7 @@ export function CustomClassificationDropdown({
         value={value}
         options={options}
         onChange={(v: string[]) => onChange(v[0])}
-        placeholder={t("shared_select_classification") || "Select Classification"}
+        placeholder={t("shared_select_classification", "Select Classification") || "Select Classification"}
         disableTint={true}
         className={className}
         buttonClassName={buttonClassName}
@@ -1223,19 +1311,19 @@ export function CustomTierDropdown({ value, onChange }: any) {
   const options = [
     {
       id: 4,
-      label: t("tier4") || "Severity 4: Fatal Collision",
-      icon: t("icon_error") || "error",
+      label: t("tier4", "Severity 4: Fatal Collision") || "Severity 4: Fatal Collision",
+      icon: t("icon_error", "error") || "error",
       color: "theme-text-danger",
       activeBg:
-        "bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]",
+        "bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border border-[color-mix(in_srgb,var(--danger)_38%,transparent)]",
     },
     {
       id: 3,
-      label: t("tier3") || "Severity 3: Tuning Overlap",
-      icon: t("icon_warning") || "warning",
+      label: t("tier3", "Severity 3: Tuning Overlap") || "Severity 3: Tuning Overlap",
+      icon: t("icon_warning", "warning") || "warning",
       color: "theme-text-warning",
       activeBg:
-        "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]",
+        "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
     },
   ];
 
@@ -1249,7 +1337,7 @@ export function CustomTierDropdown({ value, onChange }: any) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-12 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-[var(--radius)] px-4 text-xs font-bold capitalize tracking-wide focus:outline-none flex justify-start items-center gap-2 transition-all ${selected.color}`}
+        className={`w-full h-11 glass-surface hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-4 text-xs font-bold capitalize tracking-wide focus:outline-none flex justify-start items-center gap-2 transition-all ${selected.color}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="material-symbols-outlined !text-[16px] shrink-0">
@@ -1260,10 +1348,10 @@ export function CustomTierDropdown({ value, onChange }: any) {
           </span>
         </div>
         <span className="transition-colors shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-60 ml-auto">
-          <span className="material-symbols-outlined !text-[20px]">
+          <span className="material-symbols-outlined !text-[18px]">
             {isOpen
-              ? t("icon_expand_less") || "expand_less"
-              : t("icon_expand_more") || "expand_more"}
+              ? t("icon_expand_less", "expand_less") || "expand_less"
+              : t("icon_expand_more", "expand_more") || "expand_more"}
           </span>
         </span>
       </button>
@@ -1288,9 +1376,13 @@ export function CustomTierDropdown({ value, onChange }: any) {
               }}
             >
               <div
-                className="absolute top-0 left-0 w-full pointer-events-auto mt-2 glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] rounded-[var(--radius)] animate-in fade-in zoom-in-95 duration-150 flex flex-col p-1.5 gap-0.5"
+                className="absolute top-0 left-0 w-full pointer-events-auto mt-1.5 glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col p-1.5 gap-1"
+                style={{
+                  "--glass-x": `${Math.round(coords.left)}px`,
+                  "--glass-y": `${Math.round(coords.top)}px`,
+                } as React.CSSProperties}
               >
-                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
+                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1">
                   {options.map((opt) => (
                     <button
                       key={opt.id}
@@ -1299,7 +1391,7 @@ export function CustomTierDropdown({ value, onChange }: any) {
                         onChange(opt.id);
                         setIsOpen(false);
                       }}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? opt.activeBg + " " + opt.color : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? opt.activeBg + " " + opt.color : "border border-transparent text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
                     >
                       <span className={`material-symbols-outlined !text-[16px] shrink-0 ${opt.color}`}>
                         {opt.icon}
@@ -1324,7 +1416,6 @@ export function HubTabDropdown({
   options,
   activeTab,
   setTab,
-  variant = "default",
 }: any) {
   const { t } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
@@ -1355,7 +1446,7 @@ export function HubTabDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full h-full px-4 py-3 flex items-center justify-center gap-2 font-black text-xs capitalize tracking-widest transition-all whitespace-nowrap ${
           isActiveGroup || isOpen
-            ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] shadow-md"
+            ? "glass-surface text-[var(--accent)]"
             : "text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)] opacity-60 hover:opacity-100"
         }`}
       >
@@ -1367,8 +1458,8 @@ export function HubTabDropdown({
         {displayLabel}
         <span className="material-symbols-outlined !text-md ml-1 opacity-50">
           {isOpen
-            ? t("icon_expand_less") || "expand_less"
-            : t("icon_expand_more") || "expand_more"}
+            ? t("icon_expand_less", "expand_less") || "expand_less"
+            : t("icon_expand_more", "expand_more") || "expand_more"}
         </span>
       </button>
 
@@ -1381,7 +1472,7 @@ export function HubTabDropdown({
           />
           <div
             ref={menuRef}
-            className={`absolute mt-2 min-w-[200px] glass-panel portal-glass-fix border ${variant === "panel" ? "border-[rgba(var(--text-rgb,255,255,255),0.12)]" : "border-[color-mix(in_srgb,var(--accent)_25%,transparent)]"} rounded-[var(--radius)] pointer-events-auto flex flex-col p-1.5 gap-0.5 animate-in fade-in zoom-in-95 duration-150`}
+            className="absolute mt-1.5 min-w-[200px] glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl pointer-events-auto flex flex-col p-1.5 gap-1 animate-in fade-in zoom-in-95 duration-150"
             style={{
               zIndex: 200001,
               top: "calc(100% + 4px)",
@@ -1401,7 +1492,7 @@ export function HubTabDropdown({
               ),
             }}
           >
-            <div className="px-3.5 py-2 text-[11px] font-bold capitalize tracking-wider text-[var(--subtext)] opacity-60 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] mb-0.5">
+            <div className="px-3 py-1.5 text-[11px] font-bold capitalize tracking-wider text-[var(--subtext)] opacity-60 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] mb-0.5">
               {label}
             </div>
             {options.map((opt: any) => (
@@ -1411,21 +1502,19 @@ export function HubTabDropdown({
                   setTab(opt.id);
                   setIsOpen(false);
                 }}
-                className={`px-3.5 py-2.5 w-full flex items-center gap-3 rounded-xl text-xs font-semibold capitalize tracking-wide transition-all text-left group relative overflow-hidden ${
-                  activeTab === opt.id
-                    ? "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)] font-bold"
-                    : "text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                className={`sa-dropdown-item px-3 py-2 w-full flex items-center gap-2.5 text-xs capitalize tracking-wide text-left group relative overflow-hidden cursor-pointer ${
+                  activeTab === opt.id ? "is-selected font-bold" : "font-semibold"
                 }`}
               >
                 {opt.icon && (
-                  <span className="material-symbols-outlined !text-[16px] opacity-80">
+                  <span className={`material-symbols-outlined !text-[16px] ${activeTab === opt.id ? "text-[var(--accent)]" : "opacity-80"}`}>
                     {opt.icon}
                   </span>
                 )}
                 <span className="flex-1 truncate">{opt.label}</span>
                 {activeTab === opt.id && (
                   <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
-                    {t("icon_check") || "check"}
+                    {t("icon_check", "check") || "check"}
                   </span>
                 )}
               </button>

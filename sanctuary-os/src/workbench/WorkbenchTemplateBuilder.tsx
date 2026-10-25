@@ -173,7 +173,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
       { id: "number", label: t("workbench_add_number", "Number"), icon: t("icon_numbers", "123") },
       { id: "tuple", label: t("workbench_add_tuple", "Range"), icon: t("icon_swap_horiz", "swap_horiz") },
       { id: "string", label: t("workbench_add_string", "Text"), icon: t("icon_title", "title") },
-      { id: "dropdown", label: t("workbench_add_dropdown", "Dropdown"), icon: t("icon_dropdown", "arrow_drop_down_circle") },
+      { id: "dropdown", label: t("support_type_dropdown", "Dropdown"), icon: t("icon_dropdown", "arrow_drop_down_circle") },
       { id: "keybinding", label: t("workbench_add_keybinding", "Keybind"), icon: t("icon_keyboard", "keyboard") },
       { id: "group", label: t("workbench_add_group", "Group"), icon: t("icon_account_tree", "account_tree") }
    ];
@@ -478,7 +478,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      {!isChild ? (
                         <div className="flex flex-col gap-1">
                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("workbench_field_category", "Category")}
+                              {t("category", "Category")}
                            </label>
                            <CustomDropdown
                               disableTint={true}
@@ -496,8 +496,8 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               disableTint={true}
                               value={setting.risk || "normal"}
                               options={[
-                                 { id: "normal", label: t("workbench_risk_normal", "Standard") },
-                                 { id: "advanced", label: t("workbench_risk_advanced", "Advanced") }
+                                 { id: "normal", label: t("badge_standard", "Standard") },
+                                 { id: "advanced", label: t("advanced_badge", "Advanced") }
                               ]}
                               onChange={(val: string[]) => updateThisSetting((target) => {
                                  if (val[0] === "normal") delete target.risk;
@@ -510,13 +510,13 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      {/* Description */}
                      <div className={`flex flex-col gap-1 ${!isChild ? '' : 'sm:col-span-2'}`}>
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                           {t("workbench_field_desc", "Description")}
+                           {t("upload_desc", "Description")}
                         </label>
                         <input
                            type="text"
                            value={setting.desc_key || ""}
                            onChange={(e) => updateThisSetting((target) => { target.desc_key = e.target.value; })}
-                           placeholder={t("workbench_field_desc", "Description")}
+                           placeholder={t("upload_desc", "Description")}
                            className="h-9 glass-surface rounded-xl px-3 text-[11px] font-medium text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none"
                         />
                      </div>
@@ -530,8 +530,8 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               disableTint={true}
                               value={setting.risk || "normal"}
                               options={[
-                                 { id: "normal", label: t("workbench_risk_normal", "Standard") },
-                                 { id: "advanced", label: t("workbench_risk_advanced", "Advanced") }
+                                 { id: "normal", label: t("badge_standard", "Standard") },
+                                 { id: "advanced", label: t("advanced_badge", "Advanced") }
                               ]}
                               onChange={(val: string[]) => updateThisSetting((target) => {
                                  if (val[0] === "normal") delete target.risk;
@@ -546,7 +546,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   {setting.type === "boolean" && (
                      <div className="flex items-center justify-between glass-surface rounded-xl px-3.5 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                           {t("workbench_default_label", "Default")}
+                           {t("type_default", "Default")}
                         </span>
                         <button
                            type="button"
@@ -566,7 +566,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 items-end glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                         <div className="flex flex-col gap-1">
                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("workbench_default_label", "Default")}
+                              {t("type_default", "Default")}
                            </label>
                            <input
                               type={setting.type === "tuple" ? "text" : "number"}
@@ -633,7 +633,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   {setting.type === "string" && (
                      <div className="flex flex-col gap-1">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                           {t("workbench_default_label", "Default")}
+                           {t("type_default", "Default")}
                         </label>
                         <input
                            type="text"
@@ -660,7 +660,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] flex items-center gap-1 text-[10px] font-black tracking-wider transition-all cursor-pointer"
                            >
                               <span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>
-                              {t("workbench_add_option", "Add Option")}
+                              {t("support_add_option", "Add Option")}
                            </button>
                         </div>
 
@@ -679,7 +679,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                                  <input
                                     type="text"
                                     value={opt.label_key ?? ""}
-                                    placeholder={t("workbench_option_label", "Display Label")}
+                                    placeholder={t("workbench_field_label", "Display Label")}
                                     onChange={(e) => updateThisSetting((target) => {
                                        if (target.options?.[optIdx]) target.options[optIdx].label_key = e.target.value;
                                     })}
@@ -696,7 +696,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                                           : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
                                     }`}
                                  >
-                                    {t("workbench_default_label", "Default")}
+                                    {t("type_default", "Default")}
                                  </button>
                                  <button
                                     type="button"
@@ -731,7 +731,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                         </div>
                         <div className="flex flex-col gap-1">
                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("workbench_default_label", "Default")}
+                              {t("type_default", "Default")}
                            </label>
                            <input
                               type="text"
@@ -839,7 +839,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   }`}
                >
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_folder", "folder")}</span>
-                  <span>{t("workbench_categories_title", "Categories")} ({categories.length})</span>
+                  <span>{t("categories", "Categories")} ({categories.length})</span>
                </button>
 
                <button
@@ -860,7 +860,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("workbench_categories_title", "Categories")}
+                        {t("categories", "Categories")}
                      </span>
                      <button
                         type="button"
@@ -879,7 +879,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                         className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_68%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                      >
                         <span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>
-                        {t("workbench_add_category", "Add Category")}
+                        {t("support_add_cat", "Add Category")}
                      </button>
                   </div>
 
@@ -966,7 +966,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                         </div>
                         <div className="flex flex-col gap-1">
                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("workbench_category_label", "Display Name")}
+                              {t("registry_label_name", "Display Name")}
                            </label>
                            <input
                               type="text"
@@ -1070,7 +1070,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   </div>
                   <div className="flex flex-col gap-1">
                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("auto_mod_author", "Mod Author")}
+                        {t("auto_mod_author", "{Mod} Author")}
                      </label>
                      <input
                         type="text"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, standardButtonClass, standardAccentGlassButtonClass , getExtensionRegex, ActionButton, HoverTooltip, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, ActionButton, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -101,15 +101,15 @@ export default function WayfinderSupportSidePanel({
   const activeCategory = categories.find(c => c.category_code === type);
 
   const submitTicket = async () => {
-    if (String(activeCategory?.show_title_box) !== "false" && !title) return setError(t("support_error_fields"));
-    if (String(activeCategory?.show_description_box) !== "false" && !description) return setError(t("support_error_fields"));
+    if (String(activeCategory?.show_title_box) !== "false" && !title) return setError(t("support_error_fields", "Please fill out all required fields."));
+    if (String(activeCategory?.show_description_box) !== "false" && !description) return setError(t("support_error_fields", "Please fill out all required fields."));
 
     if (activeCategory?.custom_fields) {
       for (const field of activeCategory.custom_fields) {
         if (field.required) {
           const val = customFieldsData[field.id];
           if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0)) {
-            return setError(t("support_error_fields"));
+            return setError(t("support_error_fields", "Please fill out all required fields."));
           }
         }
       }
@@ -211,7 +211,7 @@ export default function WayfinderSupportSidePanel({
                        if (dirtyTraces.length > 0) {
                            const uniqueTraces = [...new Set(dirtyTraces)];
                            const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                           const errStr = (t("support_err_dirty_logs") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
+                           const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
                            throw new Error(errStr);
                        }
                    }
@@ -225,7 +225,7 @@ export default function WayfinderSupportSidePanel({
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error(t("auto_guest_mode_active_45"));
+        throw new Error(t("auto_guest_mode_active_45", "Guest Mode Active"));
       }
 
       const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
@@ -255,7 +255,7 @@ export default function WayfinderSupportSidePanel({
 
       if (error) throw error;
       
-      useStore.getState().pushStatus(t("ss_support_success"), "success");
+      useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
       onClose();
     } catch (e: any) {
       setError(e.message);
@@ -287,7 +287,7 @@ export default function WayfinderSupportSidePanel({
             if (dirtyTraces.length > 0) {
                 const uniqueTraces = [...new Set(dirtyTraces)];
                 const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                const errStr = (t("support_err_dirty_logs") || `Dirty log detected. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before attaching.`).replace("{0}", traceStr);
+                const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before attaching.`).replace("{0}", traceStr);
                 throw new Error(errStr);
             }
         }
@@ -296,7 +296,7 @@ export default function WayfinderSupportSidePanel({
       }
     } catch (err: any) {
       console.error(err);
-      useStore.getState().pushStatus(t("support_err_read_log"), "error");
+      useStore.getState().pushStatus(t("support_err_read_log", "Failed to read log"), "error");
     }
   };
 
@@ -305,19 +305,22 @@ export default function WayfinderSupportSidePanel({
       <SidePanel
         isOpen={isOpen}
         onClose={onClose}
-        title={t("wf_keeper_support_title")}
-        subtitle={t("wf_keeper_support_subtitle")}
-        icon={t("icon_admin_panel_settings")}
-        widthClass="w-[600px]"
+        title={t("wf_keeper_support_title", "Keeper Escalation Support")}
+        subtitle={t("wf_keeper_support_subtitle", "Direct escalation channel to Sanctuary Foundry Keepers")}
+        icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+        iconColorClass="text-[var(--danger)]"
+        widthClass="w-[90vw] md:w-[680px]"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
       >
-        <div className="flex flex-col gap-8 items-center justify-center py-20 text-center animate-in fade-in duration-500">
-          <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
-          </div>
-          <h2 className="text-2xl font-black capitalize tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
-          <p className="text-xs font-black text-[var(--subtext)] capitalize tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}</p>
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_lock", "lock")}
+            overline={t("wf_keeper_support_title", "Keeper Escalation Support")}
+            title={t("access_denied", "Access Denied")}
+            description={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Please sign in to submit support tickets.")}
+            variant="danger"
+          />
         </div>
       </SidePanel>
     );
@@ -327,27 +330,23 @@ export default function WayfinderSupportSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("wf_keeper_support_title")}
-      subtitle={t("wf_keeper_support_subtitle")}
-      icon={t("icon_admin_panel_settings")}
-widthClass="w-[600px]"
+      title={t("wf_keeper_support_title", "Keeper Escalation Support")}
+      subtitle={t("wf_keeper_support_subtitle", "Direct escalation channel to Sanctuary Foundry Keepers")}
+      icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon="close"
-            tooltip={t("nav_cancel")}
-            onClick={onClose}
-          />
-          <PanelHeaderButton
-            icon="send"
+            icon={t("icon_send", "send")}
             tooltip={
               vaultExtremeMods.length > 0
-                ? (t("support_err_vault_lock") || "Total Vault Lock: Severe Artifacts Detected")
+                ? (t("support_err_vault_lock", "Total {Vault} Lock: Severe {Mods} Detected"))
                 : activeCategory?.requires_target_mod && activeAdultMods.length > 0
-                ? t("support_err_adult_mods_blocked")
-                : (isSubmitting ? t("scanning") : t("support_submit"))
+                ? t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")
+                : (isSubmitting ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket"))
             }
             variant={
               vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)
@@ -360,34 +359,54 @@ widthClass="w-[600px]"
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-6 relative">
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+          overline={t("wf_keeper_support_title", "Wayfinder → Keeper Escalation")}
+          title={activeCategory?.category_name || t("wf_keeper_support_title", "Keeper Support Dossier")}
+          description={activeCategory?.description || t("wf_keeper_support_subtitle", "Submit a direct escalation ticket to Sanctuary Foundry Keepers.")}
+          badge={type}
+          variant="accent"
+        />
         {error && (
             <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-rose-400">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--danger)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                      }}
+                    >
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-rose-400 tracking-wide">{t("support_err_failed")}</span>
+                        <span className="text-sm font-black text-rose-400 tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
                         <span className="text-xs font-bold text-rose-200/80 leading-relaxed pr-4">{error}</span>
                     </div>
                     <button 
                       onClick={() => { setError(""); setPolicyViolations([]); }} 
                       className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-rose-400 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
                     >
-                      <span className="material-symbols-outlined !text-[18px]">{t("icon_close")}</span>
+                      <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
                     </button>
                 </div>
                 {policyViolations.length > 0 && (
                     <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                        <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34")}</span>
-                        <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
+                        <div className="flex flex-wrap gap-2">
                             {policyViolations.map((mod, i) => (
-                                <div key={i} className="flex items-center gap-2 text-rose-200/90 text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                                    <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension")}</span>
+                                <span
+                                  key={i}
+                                  className={VAULT_CHIP_CLASS}
+                                  style={{
+                                    color: "var(--danger)",
+                                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                                  }}
+                                >
+                                    <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
                                     <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
-                                </div>
+                                </span>
                             ))}
                         </div>
                     </div>
@@ -399,24 +418,35 @@ widthClass="w-[600px]"
             <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)] group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_block")}</span>
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--danger)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                      }}
+                    >
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title") || "Vault Lock Engaged"}</span>
+                        <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged") || "Vault Lock Engaged"}</span>
                         <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_vault_lock_desc") || `Your vault contains ${vaultExtremeMods.length} severe artifact(s) (Tier 3-5). Support submissions are completely disabled until these artifacts are purged from the system.`}
+                            {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.") || `Your vault contains ${vaultExtremeMods.length} severe artifact(s) (Tier 3-5). Support submissions are completely disabled until these artifacts are purged from the system.`}
                         </span>
                     </div>
                 </div>
                 <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {vaultExtremeMods.map((mod: any, i: number) => (
-                            <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension")}</span>
-                                <span className="px-1.5 py-0.5 rounded text-[8px] border border-current bg-black/20">T{mod.tier}</span>
-                                <span className="truncate">{mod.name}</span>
-                            </div>
+                            <span
+                              key={i}
+                              className={VAULT_CHIP_CLASS}
+                              style={{
+                                color: "var(--danger)",
+                                borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                              }}
+                            >
+                                <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
+                                <span>T{mod.tier} • {mod.name}</span>
+                            </span>
                         ))}
                     </div>
                 </div>
@@ -427,24 +457,35 @@ widthClass="w-[600px]"
             <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning")}</span>
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--warning)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--warning) 25%, var(--border))",
+                      }}
+                    >
+                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title")}</span>
+                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
                         <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_adult_mods_desc") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
+                            {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
                         </span>
                     </div>
                 </div>
                 <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {activeAdultMods.map((mod: any, i: number) => (
-                            <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--warning)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--warning)_20%,transparent)]">
-                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_extension")}</span>
-                                <span className="px-1.5 py-0.5 rounded text-[8px] border border-current bg-black/20">T{mod.tier}</span>
-                                <span className="truncate">{mod.name}</span>
-                            </div>
+                            <span
+                              key={i}
+                              className={VAULT_CHIP_CLASS}
+                              style={{
+                                color: "var(--warning)",
+                                borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                              }}
+                            >
+                                <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
+                                <span>T{mod.tier} • {mod.name}</span>
+                            </span>
                         ))}
                     </div>
                 </div>
@@ -452,7 +493,7 @@ widthClass="w-[600px]"
         )}
 
           <div className="flex flex-col gap-2 relative z-[70]">
-            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_category")}</label>
+            <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_category", "Ticket Category")}</label>
             <CustomDropdown disableTint={true}  
               value={type}
               options={categories.map(c => ({ id: c.category_code, label: c.category_name }))}
@@ -462,23 +503,23 @@ widthClass="w-[600px]"
 
           {String(activeCategory?.show_title_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ql_support")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ql_support", "Support Queue")}</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                placeholder={t("support_placeholder_title")}
+                placeholder={t("support_placeholder_title", "Enter a concise title...")}
               />
             </div>
           )}
 
           {activeCategory?.requires_target_mod && (
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("target_artifact")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("target_artifact", "Target {Mod}")}</label>
               <ModSearchDropdown
                 modList={modList}
-                placeholder={t("support_placeholder_mod_uuid")}
+                placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...")}
                 selectedItem={modList.find((m: any) => m.id === targetModId || m.hash === targetModId) || (targetModId ? { displayName: targetModId } : null)}
                 onSelect={(m: any) => setTargetModId(m.id || m.hash)}
                 onClear={() => setTargetModId("")}
@@ -488,13 +529,13 @@ widthClass="w-[600px]"
 
           {activeCategory?.requires_target_user && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_target_user_label")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_target_user_label", "Target User ID")}</label>
               <input
                 type="text"
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                placeholder={t("support_placeholder_user_uuid")}
+                placeholder={t("support_placeholder_user_uuid", "User UUID...")}
               />
             </div>
           )}
@@ -502,13 +543,13 @@ widthClass="w-[600px]"
           {String(activeCategory?.show_description_box) !== "false" && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex justify-start">
-                <span>{t("support_desc")}</span>
+                <span>{t("support_desc", "Ticket Description")}</span>
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm focus:outline-none focus:theme-border-accent transition-all h-32 resize-none custom-scrollbar"
-                placeholder={t("support_placeholder_desc")}
+                placeholder={t("support_placeholder_desc", "Describe your issue in detail...")}
               />
             </div>
           )}
@@ -567,7 +608,7 @@ widthClass="w-[600px]"
                     return (
            <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl relative ${isChecked ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                          <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
-                           {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
+                           {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check")}</span>}
                          </div>
                          <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{opt}</span>
                          <input
@@ -599,7 +640,7 @@ widthClass="w-[600px]"
 
           {activeCategory?.telemetry_config?.sources && activeCategory.telemetry_config.sources.length > 0 && (
              <div className="flex flex-col gap-2 relative z-[50]">
-               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_telemetry_opt")}</label>
+               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("support_telemetry_opt", "Automatic Diagnostics")}</label>
                <div className="flex flex-col gap-2">
                  {activeCategory.telemetry_config.sources.map((sourceId: string) => {
                    const source = telemetrySources.find(s => s.id === sourceId);
@@ -608,7 +649,7 @@ widthClass="w-[600px]"
                    return (
            <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl relative ${!isOptedOut ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
                          <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
-                           {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check")}</span>}
+                           {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check")}</span>}
                          </div>
                          <div className="flex flex-col">
                            <span className={`text-sm font-bold transition-colors ${!isOptedOut ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{source.label}</span>
@@ -636,16 +677,16 @@ widthClass="w-[600px]"
           {String(activeCategory?.show_logs_box) !== "false" && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex justify-start items-center">
-                <span>{t("support_logs")}</span>
+                <span>{t("support_logs", "Attach Additional Logs")}</span>
                 <button onClick={attachLog} className="text-[var(--accent)] hover:opacity-80 transition-opacity flex items-center gap-1">
-                  <span>+ {t("support_attach_log")}</span>
+                  <span>+ {t("support_attach_log", "Attach Log")}</span>
                 </button>
               </label>
               <textarea
                 value={logs}
                 onChange={(e) => setLogs(e.target.value)}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-[10px] font-mono focus:outline-none focus:theme-border-accent transition-all h-24 resize-none custom-scrollbar whitespace-pre-wrap"
-                placeholder={t("support_placeholder_logs")}
+                placeholder={t("support_placeholder_logs", "No logs attached.")}
               />
             </div>
           )}

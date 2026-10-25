@@ -172,7 +172,7 @@ export function ArtifactVersionHistorySection({
           </span>
           {showAddVersionModal
             ? t("btn_cancel", "Cancel")
-            : t("studio_version_btn_add_manual", "Add Version")}
+            : t("lineage_add_version", "Add Version")}
         </button>
       </div>
 
@@ -188,7 +188,7 @@ export function ArtifactVersionHistorySection({
                 value={selectedSandboxVersionHash}
                 onChange={(val: string[]) => setSelectedSandboxVersionHash(val[0] || "")}
                 options={[
-                  { id: "", label: t("shared_clear", "None") },
+                  { id: "", label: t("clear", "None") },
                   ...unlinkedSandboxVersionOptions,
                 ]}
               />
@@ -220,7 +220,7 @@ export function ArtifactVersionHistorySection({
               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                 {t("icon_add", "add")}
               </span>
-              {t("cc_btn_add", "Add")}
+              {t("ql_add", "Add")}
             </button>
           </div>
         </div>

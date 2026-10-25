@@ -9,6 +9,7 @@ import {
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { VAULT_CHIP_CLASS } from "../Cards";
 
 interface BlueprintSwapSidePanelProps {
   isOpen: boolean;
@@ -56,8 +57,8 @@ export default function BlueprintSwapSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("playsets_title", "Blueprints")}
-      subtitle={t("bp_available_blueprints", "Available Blueprints")}
+      title={t("playsets_title", "{Blueprints}")}
+      subtitle={t("bp_available_blueprints", "Available {Blueprints}")}
       widthClass="w-[90vw] md:w-[760px]"
       icon={t("icon_map", "map")}
       iconColorClass="theme-text-accent"
@@ -65,13 +66,10 @@ export default function BlueprintSwapSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_map", "map")}
-          overline={t("playsets_title", "Blueprints")}
+          overline={t("playsets_title", "{Blueprints}")}
           title={activeSetName}
-          description={t(
-            "bp_available_blueprints",
-            "Switch active mod loadouts and synchronize your Vault deployment."
-          )}
-          badge={`${(playSets || []).length} ${t("items", "Items")}`}
+          description={t("bp_available_blueprints", "Available {Blueprints}")}
+          badge={`${(playSets || []).length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_layers", "layers")}
           variant="accent"
         />
@@ -80,7 +78,7 @@ export default function BlueprintSwapSidePanel({
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search", "Search...")}
+            searchPlaceholder={t("nav_search", "Search...")}
           />
         )}
 
@@ -88,12 +86,12 @@ export default function BlueprintSwapSidePanel({
           <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_scan_delete", "scan_delete")}
-              title={t("bp_no_blueprints_found", "No Blueprints Found")}
+              title={t("bp_no_blueprints_found", "No {Blueprints} Found")}
             />
           </div>
         ) : (
           <UniversalGroup
-            title={`${t("bp_available_blueprints", "Available Blueprints")} (${indexedPlaySets.length})`}
+            title={`${t("bp_available_blueprints", "Available {Blueprints}")} (${indexedPlaySets.length})`}
             icon={t("icon_map", "map")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
@@ -115,11 +113,13 @@ export default function BlueprintSwapSidePanel({
                     }`}
                   >
                     <div
-                      className={`w-10 h-10 rounded-xl bg-transparent border flex items-center justify-center shrink-0 ${
-                        isActive
-                          ? "border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]"
-                          : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
-                      }`}
+                      className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                      style={{
+                        color: isActive ? "var(--success)" : "var(--accent)",
+                        borderColor: isActive
+                          ? "color-mix(in srgb, var(--success) 25%, var(--border))"
+                          : "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
                     >
                       <span className="material-symbols-outlined !text-[20px]">
                         {isActive
@@ -128,21 +128,36 @@ export default function BlueprintSwapSidePanel({
                       </span>
                     </div>
 
-                    <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex flex-col min-w-0 flex-1 gap-1.5">
                       <span className="text-sm font-bold text-[var(--text)] tracking-tight truncate leading-snug">
                         {cleanName}
                       </span>
-                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] mt-0.5">
-                        <span>
-                          {itemCount} {t("items", "Items")}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={VAULT_CHIP_CLASS}
+                          style={{
+                            color: "var(--subtext)",
+                            borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {t("icon_inventory_2", "inventory_2")}
+                          </span>
+                          {itemCount} {t("term_mods", "Items")}
                         </span>
                         {isActive && (
-                          <>
-                            <span className="opacity-40">•</span>
-                            <span className="text-[var(--success)] font-bold">
-                              {t("active", "Active")}
+                          <span
+                            className={VAULT_CHIP_CLASS}
+                            style={{
+                              color: "var(--success)",
+                              borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                            }}
+                          >
+                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                              {t("icon_check_circle", "check_circle")}
                             </span>
-                          </>
+                            {t("active", "Active")}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -153,7 +168,7 @@ export default function BlueprintSwapSidePanel({
                         e.stopPropagation();
                         handleSelect(index);
                       }}
-                      className={`relative group/actionbtn w-8 h-8 rounded-lg bg-transparent border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                      className={`relative group/actionbtn w-9 h-9 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isActive
                           ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                           : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
@@ -169,7 +184,7 @@ export default function BlueprintSwapSidePanel({
                         title={
                           isActive
                             ? t("active", "Active")
-                            : t("action_equip", "Equip Blueprint")
+                            : t("action_equip", "Equip {Blueprint}")
                         }
                         icon={
                           isActive

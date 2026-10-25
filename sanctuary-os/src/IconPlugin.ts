@@ -34,16 +34,16 @@ export const IconPlugin = Extension.create({
             const textAfter = parent.textBetween($pos.parentOffset, Math.min(parent.nodeSize - 2, $pos.parentOffset + 50), null, '\ufffc');
             
             if (event.key === 'Backspace') {
-              const match = textBefore.match(/\[ICON:[a-zA-Z0-9_]+\]$/);
+              const match = textBefore.match(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]$/);
               if (match) {
                 const tr = state.tr;
                 tr.delete(pos - match[0].length, pos);
                 view.dispatch(tr);
                 return true;
               }
-              const insideMatch = textBefore.match(/\[ICON:[a-zA-Z0-9_]+$/);
+              const insideMatch = textBefore.match(/\\?\[ICON:[a-zA-Z0-9_-]+$/);
               if (insideMatch) {
-                const restMatch = textAfter.match(/^.*?\]/);
+                const restMatch = textAfter.match(/^.*?\\?\]/);
                 if (restMatch) {
                   const tr = state.tr;
                   tr.delete(pos - insideMatch[0].length, pos + restMatch[0].length);
@@ -53,7 +53,7 @@ export const IconPlugin = Extension.create({
               }
             }
             if (event.key === 'Delete') {
-              const match = textAfter.match(/^\[ICON:[a-zA-Z0-9_]+\]/);
+              const match = textAfter.match(/^\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/);
               if (match) {
                 const tr = state.tr;
                 tr.delete(pos, pos + match[0].length);
@@ -62,16 +62,16 @@ export const IconPlugin = Extension.create({
               }
             }
             if (event.key === 'ArrowLeft') {
-              const match = textBefore.match(/\[ICON:[a-zA-Z0-9_]+\]$/);
+              const match = textBefore.match(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]$/);
               if (match) {
                 const tr = state.tr;
                 tr.setSelection(TextSelection.create(doc, pos - match[0].length));
                 view.dispatch(tr);
                 return true;
               }
-              const insideMatch = textBefore.match(/\[ICON:[a-zA-Z0-9_]+$/);
+              const insideMatch = textBefore.match(/\\?\[ICON:[a-zA-Z0-9_-]+$/);
               if (insideMatch) {
-                const restMatch = textAfter.match(/^.*?\]/);
+                const restMatch = textAfter.match(/^.*?\\?\]/);
                 if (restMatch) {
                   const tr = state.tr;
                   tr.setSelection(TextSelection.create(doc, pos - insideMatch[0].length));
@@ -81,16 +81,16 @@ export const IconPlugin = Extension.create({
               }
             }
             if (event.key === 'ArrowRight') {
-              const match = textAfter.match(/^\[ICON:[a-zA-Z0-9_]+\]/);
+              const match = textAfter.match(/^\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/);
               if (match) {
                 const tr = state.tr;
                 tr.setSelection(TextSelection.create(doc, pos + match[0].length));
                 view.dispatch(tr);
                 return true;
               }
-              const insideMatch = textBefore.match(/\[ICON:[a-zA-Z0-9_]+$/);
+              const insideMatch = textBefore.match(/\\?\[ICON:[a-zA-Z0-9_-]+$/);
               if (insideMatch) {
-                const restMatch = textAfter.match(/^.*?\]/);
+                const restMatch = textAfter.match(/^.*?\\?\]/);
                 if (restMatch) {
                   const tr = state.tr;
                   tr.setSelection(TextSelection.create(doc, pos + restMatch[0].length));
@@ -109,7 +109,7 @@ export const IconPlugin = Extension.create({
 
 function getDecorations(doc: any) {
   const decorations: Decoration[] = [];
-  const regex = /\[ICON:([a-zA-Z0-9_]+)\]/g;
+  const regex = /\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi;
 
   doc.descendants((node: any, pos: number) => {
     if (!node.isText) {

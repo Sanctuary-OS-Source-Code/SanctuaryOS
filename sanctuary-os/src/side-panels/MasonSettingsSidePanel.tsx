@@ -10,6 +10,7 @@ import {
   PanelHeaderButton,
 } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/layouts/ElevatedHubLayout";
+import { VAULT_CHIP_CLASS } from "../Cards";
 
 export function MasonSettingsSidePanel({
   isOpen,
@@ -95,7 +96,7 @@ export function MasonSettingsSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("masonhub_settings_title", "Mason Settings")}
+      title={t("masonhub_settings_title", "{Mason} Settings")}
       subtitle={t("creator_identity", "Creator Identity")}
       icon={t("icon_settings", "settings")}
       iconColorClass="text-[var(--accent)]"
@@ -121,11 +122,8 @@ export function MasonSettingsSidePanel({
         <SidePanelHeroCard
           icon={t("icon_badge", "badge")}
           overline={t("creator_identity", "Creator Identity")}
-          title={formData.name || t("masonhub_settings_title", "Mason Settings")}
-          description={t(
-            "supporter_liability_notice",
-            "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks."
-          )}
+          title={formData.name || t("masonhub_settings_title", "{Mason} Settings")}
+          description={t("supporter_liability_notice", "Non-Custodial Notice: Partner Communities and {Masons} run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks.")}
           badge={t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
           badgeIcon={t("icon_verified", "verified")}
           variant="accent"
@@ -183,18 +181,21 @@ export function MasonSettingsSidePanel({
         >
           <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit">
-                <span className="material-symbols-outlined !text-[12px]">
+              <span
+                className={`${VAULT_CHIP_CLASS} w-fit`}
+                style={{
+                  color: "var(--accent)",
+                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_verified", "verified")}
                 </span>
                 {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}
               </span>
             </div>
             <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0">
-              {t(
-                "supporter_liability_notice",
-                "Non-Custodial Notice: Partner Communities and Creators run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks."
-              )}
+              {t("supporter_liability_notice", "Non-Custodial Notice: Partner Communities and {Masons} run their own payment processors and receive 100% of your contribution. Sanctuary OS takes a 0% cut, never touches the funds, and does not process refunds or chargebacks.")}
             </p>
           </div>
           <UniversalInput
@@ -221,19 +222,6 @@ export function MasonSettingsSidePanel({
             }
           />
         </UniversalGroup>
-
-        <ActionButton
-          variant="glass"
-          icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
-          label={
-            isSaving
-              ? t("saving_settings", "Saving...")
-              : t("save_configuration", "Save Configuration")
-          }
-          disabled={isSaving}
-          onClick={handleSave}
-          className="w-full"
-        />
       </div>
     </SidePanel>
   );

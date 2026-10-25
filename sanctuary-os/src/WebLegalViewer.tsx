@@ -7,13 +7,17 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  PanelHeaderGroup,
+  PanelHeaderButton,
 } from "./shared";
+import { StructuredReleaseNotesView } from "./components/ReleaseNotesShowcase";
 
 export default function WebLegalViewer() {
   const { t } = useLexicon();
   const [activeLegal, setActiveLegal] = useState<string | null>(null);
   const [legalContent, setLegalContent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"ui" | "normal">("ui");
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -82,8 +86,60 @@ export default function WebLegalViewer() {
       }
       subtitle={t("legal_subtitle", "Sanctuary Foundry OS")}
       widthClass="w-[90vw] md:w-[760px]"
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_dashboard", "dashboard")}
+            tooltip={t("tab_visual", "Visual")}
+            onClick={() => setViewMode("ui")}
+            variant={viewMode === "ui" ? "accent" : "default"}
+          />
+          <PanelHeaderButton
+            icon={t("icon_menu_book", "menu_book")}
+            tooltip={t("btn_post", "Post")}
+            onClick={() => setViewMode("normal")}
+            variant={viewMode === "normal" ? "accent" : "default"}
+          />
+        </PanelHeaderGroup>
+      }
     >
-      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+      <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
+        <div className="grid grid-cols-3 gap-3">
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_gavel", "gavel")}
+            label={t("btn_view", "View")}
+            number={t("landing_eula", "EULA")}
+            isActive={activeLegal === "eula"}
+            onClick={() => {
+              window.location.hash = "eula";
+            }}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_shield", "shield")}
+            label={t("btn_view", "View")}
+            number={t("landing_privacy", "Privacy")}
+            isActive={activeLegal === "privacy"}
+            onClick={() => {
+              window.location.hash = "privacy";
+            }}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_description", "description")}
+            label={t("btn_view", "View")}
+            number={t("landing_terms", "Terms")}
+            isActive={activeLegal === "terms"}
+            onClick={() => {
+              window.location.hash = "terms";
+            }}
+          />
+        </div>
+
         <SidePanelHeroCard
           icon={t("icon_gavel", "gavel")}
           overline={t("legal_subtitle", "Sanctuary Foundry OS")}
@@ -101,39 +157,6 @@ export default function WebLegalViewer() {
           variant="accent"
         />
 
-        <div className="grid grid-cols-3 gap-3">
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_gavel", "gavel")}
-            label={t("landing_eula", "EULA")}
-            isActive={activeLegal === "eula"}
-            onClick={() => {
-              window.location.hash = "eula";
-            }}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_shield", "shield")}
-            label={t("landing_privacy", "Privacy")}
-            isActive={activeLegal === "privacy"}
-            onClick={() => {
-              window.location.hash = "privacy";
-            }}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_description", "description")}
-            label={t("landing_terms", "Terms")}
-            isActive={activeLegal === "terms"}
-            onClick={() => {
-              window.location.hash = "terms";
-            }}
-          />
-        </div>
-
         <UniversalGroup
           title={
             legalContent?.title ||
@@ -148,8 +171,12 @@ export default function WebLegalViewer() {
                 {t("icon_autorenew", "autorenew")}
               </span>
             </div>
+          ) : viewMode === "ui" ? (
+            <StructuredReleaseNotesView
+              content={legalContent?.message || legalContent?.content || ""}
+            />
           ) : (
-            <div className="glass-surface rounded-xl p-4 sm:p-6 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] prose prose-invert max-w-none text-[var(--text)]">
+            <div className="glass-panel rounded-3xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)]">
               <MarkdownRenderer
                 content={legalContent?.message || legalContent?.content || ""}
               />

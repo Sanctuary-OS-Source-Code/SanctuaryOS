@@ -423,3 +423,268 @@ pub fn write_local_directive(slug: String, content: String) -> Result<u64, Strin
         .unwrap_or(0);
     Ok(modified_epoch_ms)
 }
+
+
+fn sanitize_screenshot_segment(raw: &str) -> String {
+    let cleaned: String = raw
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let trimmed = cleaned.trim().replace(' ', "_");
+    if trimmed.is_empty() {
+        "Sanctuary".to_string()
+    } else {
+        trimmed
+    }
+}
+
+pub fn resolve_screenshots_base_dir() -> PathBuf {
+    let coords = crate::commands::state_ops::get_saved_coordinates();
+    if !coords.vault_path.trim().is_empty() {
+        return PathBuf::from(coords.vault_path.trim()).join("Screenshots");
+    }
+    dirs::desktop_dir()
+        .or_else(dirs::picture_dir)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("Sanctuary_Screenshots")
+}
+
+#[tauri::command]
+pub fn get_screenshots_root_dir() -> Result<String, String> {
+    let base = resolve_screenshots_base_dir();
+    let _ = std::fs::create_dir_all(&base);
+    Ok(base.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn open_screenshots_dir() -> Result<String, String> {
+    let base = resolve_screenshots_base_dir();
+    let _ = std::fs::create_dir_all(&base);
+    let path_str = base.to_string_lossy().to_string();
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(path_str)
+}
+
+fn crc32_ieee(bytes: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &b in bytes {
+        crc ^= b as u32;
+        for _ in 0..8 {
+            if (crc & 1) != 0 {
+                crc = (crc >> 1) ^ 0xEDB8_8320;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    !crc
+}
+
+fn write_png_chunk(out: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
+    out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    out.extend_from_slice(chunk_type);
+    out.extend_from_slice(data);
+    let mut crc_input = Vec::with_capacity(4 + data.len());
+    crc_input.extend_from_slice(chunk_type);
+    crc_input.extend_from_slice(data);
+    let crc = crc32_ieee(&crc_input);
+    out.extend_from_slice(&crc.to_be_bytes());
+}
+
+fn encode_bgra_to_png(width: u32, height: u32, bgra: &[u8]) -> Result<Vec<u8>, String> {
+    use flate2::write::ZlibEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    let row_bytes = (width as usize) * 4;
+    let mut raw_scanlines = Vec::with_capacity((row_bytes + 1) * (height as usize));
+
+    for y in 0..(height as usize) {
+        raw_scanlines.push(0u8);
+        let row_start = y * row_bytes;
+        let row = &bgra[row_start..row_start + row_bytes];
+        for px in row.chunks_exact(4) {
+            raw_scanlines.push(px[2]);
+            raw_scanlines.push(px[1]);
+            raw_scanlines.push(px[0]);
+            raw_scanlines.push(255u8);
+        }
+    }
+
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
+    encoder
+        .write_all(&raw_scanlines)
+        .map_err(|e| format!("PNG compression failed: {}", e))?;
+    let compressed = encoder
+        .finish()
+        .map_err(|e| format!("PNG stream finish failed: {}", e))?;
+
+    let mut png = Vec::with_capacity(64 + compressed.len());
+    png.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&width.to_be_bytes());
+    ihdr.extend_from_slice(&height.to_be_bytes());
+    ihdr.push(8);
+    ihdr.push(6);
+    ihdr.push(0);
+    ihdr.push(0);
+    ihdr.push(0);
+    write_png_chunk(&mut png, b"IHDR", &ihdr);
+    write_png_chunk(&mut png, b"IDAT", &compressed);
+    write_png_chunk(&mut png, b"IEND", &[]);
+
+    Ok(png)
+}
+
+#[tauri::command]
+pub fn capture_window_screenshot(
+    app_handle: tauri::AppHandle,
+    theme_folder: String,
+    file_name: String,
+) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        #[repr(C)]
+        struct WinRect {
+            left: i32,
+            top: i32,
+            right: i32,
+            bottom: i32,
+        }
+
+        #[repr(C)]
+        struct BitmapInfoHeader {
+            bi_size: u32,
+            bi_width: i32,
+            bi_height: i32,
+            bi_planes: u16,
+            bi_bit_count: u16,
+            bi_compression: u32,
+            bi_size_image: u32,
+            bi_x_pels_per_meter: i32,
+            bi_y_pels_per_meter: i32,
+            bi_clr_used: u32,
+            bi_clr_important: u32,
+        }
+
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetClientRect(hwnd: isize, lprect: *mut WinRect) -> i32;
+            fn GetDC(hwnd: isize) -> isize;
+            fn ReleaseDC(hwnd: isize, hdc: isize) -> i32;
+            fn PrintWindow(hwnd: isize, hdc_blt: isize, n_flags: u32) -> i32;
+        }
+
+        #[link(name = "gdi32")]
+        extern "system" {
+            fn CreateCompatibleDC(hdc: isize) -> isize;
+            fn DeleteDC(hdc: isize) -> i32;
+            fn CreateDIBSection(
+                hdc: isize,
+                pbmi: *const BitmapInfoHeader,
+                usage: u32,
+                ppv_bits: *mut *mut u8,
+                h_section: isize,
+                offset: u32,
+            ) -> isize;
+            fn SelectObject(hdc: isize, h: isize) -> isize;
+            fn DeleteObject(ho: isize) -> i32;
+        }
+
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "Main application window not found.".to_string())?;
+        let hwnd_raw = window.hwnd().map_err(|e| e.to_string())?;
+        let hwnd = hwnd_raw.0 as isize;
+
+        unsafe {
+            let mut rect = WinRect {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            if GetClientRect(hwnd, &mut rect) == 0 {
+                return Err("GetClientRect failed for main window.".into());
+            }
+            let width = (rect.right - rect.left).max(1);
+            let height = (rect.bottom - rect.top).max(1);
+
+            let hdc_win = GetDC(hwnd);
+            if hdc_win == 0 {
+                return Err("GetDC failed for main window.".into());
+            }
+
+            let hdc_mem = CreateCompatibleDC(hdc_win);
+            if hdc_mem == 0 {
+                ReleaseDC(hwnd, hdc_win);
+                return Err("CreateCompatibleDC failed.".into());
+            }
+
+            let bmi = BitmapInfoHeader {
+                bi_size: std::mem::size_of::<BitmapInfoHeader>() as u32,
+                bi_width: width,
+                bi_height: -height,
+                bi_planes: 1,
+                bi_bit_count: 32,
+                bi_compression: 0,
+                bi_size_image: (width * height * 4) as u32,
+                bi_x_pels_per_meter: 0,
+                bi_y_pels_per_meter: 0,
+                bi_clr_used: 0,
+                bi_clr_important: 0,
+            };
+
+            let mut bits_ptr: *mut u8 = std::ptr::null_mut();
+            let hbitmap = CreateDIBSection(hdc_mem, &bmi, 0, &mut bits_ptr, 0, 0);
+            if hbitmap == 0 || bits_ptr.is_null() {
+                DeleteDC(hdc_mem);
+                ReleaseDC(hwnd, hdc_win);
+                return Err("CreateDIBSection failed.".into());
+            }
+
+            let old_obj = SelectObject(hdc_mem, hbitmap);
+            let rendered = PrintWindow(hwnd, hdc_mem, 2);
+            if rendered == 0 {
+                let _ = PrintWindow(hwnd, hdc_mem, 0);
+            }
+
+            let byte_len = (width as usize) * (height as usize) * 4;
+            let pixel_slice = std::slice::from_raw_parts(bits_ptr, byte_len);
+            let png_bytes = encode_bgra_to_png(width as u32, height as u32, pixel_slice);
+
+            SelectObject(hdc_mem, old_obj);
+            DeleteObject(hbitmap);
+            DeleteDC(hdc_mem);
+            ReleaseDC(hwnd, hdc_win);
+
+            let png_data = png_bytes?;
+            let safe_theme = sanitize_screenshot_segment(&theme_folder);
+            let safe_file = sanitize_screenshot_segment(&file_name);
+            let out_dir = resolve_screenshots_base_dir().join(&safe_theme);
+            std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+            let out_file = out_dir.join(format!("{}.png", safe_file));
+            std::fs::write(&out_file, png_data).map_err(|e| e.to_string())?;
+
+            Ok(out_file.to_string_lossy().to_string())
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app_handle, theme_folder, file_name);
+        Err("Native window capture is only supported on Windows.".into())
+    }
+}

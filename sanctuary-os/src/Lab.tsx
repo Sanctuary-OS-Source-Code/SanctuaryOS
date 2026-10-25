@@ -26,6 +26,10 @@ import {
   StatTileCarousel
 } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { SidePanelHeroCard, UniversalGroup } from "./components/layouts/ElevatedHubLayout";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { useStore } from "./store";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { save, open } from "@tauri-apps/plugin-dialog";
@@ -1148,7 +1152,7 @@ export default function Lab({
     totalRan: totalRanCount,
     passed: passedCount,
     failed: failedCount,
-    lastTest: testHistory.length > 0 ? t("time_just_now") : "--",
+    lastTest: testHistory.length > 0 ? t("time_just_now", "Just Now") : "--",
   };
 
   let reportsToList = [...testHistory];
@@ -1257,7 +1261,7 @@ export default function Lab({
 
   headerPillActions.push({
     id: "lab_test_save_config",
-    icon: t("icon_saves", "save"),
+    icon: t("icon_save", "save"),
     label: testSaveStatus?.active_test_save
       ? `${t("lab_test_save_title", "Dedicated Lab Test Save")}: ${testSaveStatus.active_test_save.file_name}`
       : (t("lab_test_save_btn_setup", "Set Up Test Save") as string),
@@ -1272,7 +1276,7 @@ export default function Lab({
       headerPillActions.push({
         id: "initiate_swap",
         icon: "bolt",
-        label: t("btn_initiate_swap") as string,
+        label: t("btn_initiate_swap", "Conduct Experiment") as string,
         onClick: () => runCombinedHotSwap(),
         activeClassName: "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]",
       });
@@ -1288,7 +1292,7 @@ export default function Lab({
       headerPillActions.push({
         id: "view_active_test",
         icon: "science",
-        label: t("btn_view_test") as string,
+        label: t("btn_view_test", "View Active Test") as string,
         onClick: () => setShowTestPanel(true),
         activeClassName: "text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)]",
       });
@@ -1301,12 +1305,12 @@ export default function Lab({
     activeTab === "REPORTS" ? (
       <div className="flex flex-col w-[360px] p-4 max-w-[calc(100vw-40px)] text-left">
         <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-          {t("filter_status") || "Status"}
+          {t("filter_status", "Filter Status") || "Status"}
           <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
         </div>
         <div className="flex flex-wrap gap-2">
           {[
-            { id: "all", label: `${t("ql_all", "All")} (${reportsToList.length})` },
+            { id: "all", label: `${t("filter_all", "All")} (${reportsToList.length})` },
             { id: "pass", label: `${t("verified", "Stable")} (${realStats.passed})` },
             { id: "fail", label: `${t("fatal", "Fatal")} (${realStats.failed})` },
           ].map((opt) => {
@@ -1331,14 +1335,14 @@ export default function Lab({
     ) : activeTab === "KNOWN_ERRORS" ? (
       <div className="flex flex-col w-[420px] p-4 max-w-[calc(100vw-40px)] text-left">
         <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-          {t("filter_status") || "Status"}
+          {t("filter_status", "Filter Status") || "Status"}
           <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
         </div>
         <div className="flex flex-wrap gap-2">
           {[
             { id: "all", label: `${t("filter_all", "All")} (${spokeExceptionRulesCount})` },
-            { id: "corrupted", label: `${t("exc_rules_filter_corrupted", "Corrupted")} (${knownErrorCounts.corrupted})` },
-            { id: "unstable", label: `${t("exc_rules_filter_unstable", "Unstable")} (${knownErrorCounts.unstable})` },
+            { id: "corrupted", label: `${t("status_corrupted", "Corrupted")} (${knownErrorCounts.corrupted})` },
+            { id: "unstable", label: `${t("label_unstable", "Unstable")} (${knownErrorCounts.unstable})` },
             { id: "unrelated", label: `${t("exc_rules_filter_unrelated", "Unrelated")} (${knownErrorCounts.unrelated})` },
           ].map((opt) => {
             const active = knownErrorFilter === opt.id;
@@ -1364,9 +1368,9 @@ export default function Lab({
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 w-full relative z-10 pr-4">
       <ViewHeader
-        title={t("lab_title")}
-        subtitle={t("lab_subtitle")}
-        icon={t("icon_science")}
+        title={t("term_lab", "Testing Lab")}
+        subtitle={t("lab_subtitle", "Diagnostics, calibration, and local system health")}
+        icon={t("icon_science", "science")}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         breadcrumb={
           activeTab === "KNOWN_ERRORS"
@@ -1381,14 +1385,14 @@ export default function Lab({
           {activeTab === "BUILDER" && activeLabMod && (
             <div className="hidden xl:flex flex-col items-end gap-0.5 px-3 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
               <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">
-                {t("payload")}
+                {t("payload", "Payload")}
               </span>
               <span className="text-xs font-black text-[var(--text)] tracking-widest capitalize">
-                {t("core_plus")}
+                {t("core_plus", "1 Core + ")}
                 {stagedExtras.length +
                   (conflictTarget ? 1 : 0) +
                   conflictExtras.length}
-                {t("injected")}
+                {t("injected", " Injected")}
               </span>
             </div>
           )}
@@ -1401,7 +1405,7 @@ export default function Lab({
               searchPlaceholder={
                 activeTab === "KNOWN_ERRORS"
                   ? (t("exc_rules_search_placeholder", "Search exception patterns, error codes, or fixes...") as string)
-                  : (t("search_logs") as string)
+                  : (t("search_logs", "Search Logs...") as string)
               }
               primaryPopover={
                 labFilterPopoverContent
@@ -1418,12 +1422,12 @@ export default function Lab({
         </div>
       </ViewHeader>
 
-      <div className="flex flex-col w-full gap-3 mb-6">
+      <div className="flex flex-col w-full gap-3 mb-8 md:mb-10">
         <StatTileCarousel>
           <DashboardStatTile
             variant="tab"
             icon="dashboard"
-            label={t("overview")}
+            label={t("overview", "Overview")}
             number=""
             onClick={() => setActiveTab("DASHBOARD")}
             isActive={activeTab === "DASHBOARD"}
@@ -1431,7 +1435,7 @@ export default function Lab({
           <DashboardStatTile
             variant="tab"
             icon="science"
-            label={t("tab_lab_builder")}
+            label={t("tab_lab_builder", "Environment Builder")}
             number={modList?.length || 0}
             onClick={() => setActiveTab("BUILDER")}
             isActive={activeTab === "BUILDER"}
@@ -1439,7 +1443,7 @@ export default function Lab({
           <DashboardStatTile
             variant="tab"
             icon="terminal"
-            label={t("tab_lab_reports")}
+            label={t("tab_lab_reports", "Lab Reports")}
             number={reportsToList.length}
             onClick={() => { setActiveTab("REPORTS"); setLogFilter("all"); }}
             isActive={activeTab === "REPORTS"}
@@ -1462,7 +1466,7 @@ export default function Lab({
               <div className="flex items-center gap-4 min-w-0 flex-1">
                 <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[22px]">
-                    {t("icon_saves", "save")}
+                    {t("icon_save", "save")}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
@@ -1470,11 +1474,13 @@ export default function Lab({
                     <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                       {t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] bg-transparent flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[11px]">
+                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] bg-transparent flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                         {t("icon_science", "science")}
                       </span>
-                      {t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")}
+                      <span>
+                        {t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")}
+                      </span>
                     </span>
                   </div>
                   <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
@@ -1491,7 +1497,7 @@ export default function Lab({
                 className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-2 cursor-pointer shrink-0"
               >
                 <span className="material-symbols-outlined !text-[15px]">
-                  {t("icon_saves", "save")}
+                  {t("icon_save", "save")}
                 </span>
                 {t("lab_test_save_btn_setup", "Set Up Test Save")}
               </button>
@@ -1501,12 +1507,12 @@ export default function Lab({
           <div className="flex flex-col gap-10 w-full">
             <CommandScreenBody>
               <CommandScreenMain>
-                <div className="flex flex-col gap-6 w-full">
+                <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
-                    title={t("recent_tests_title")}
+                    title={t("recent_tests_title", "Recent Tests")}
                     icon="history"
                   />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                     {testHistory.length > 0 ? (
                       testHistory
                         .slice(0, 10)
@@ -1530,78 +1536,98 @@ export default function Lab({
                               )
                             : null;
                           return (
-                            <div
+                            <UniversalCard
                               key={test.id || index}
+                              layout="vertical"
                               onClick={() => setSelectedReport(test)}
-                              className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div
-                                  className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                                    isError
-                                      ? "text-rose-400 border-rose-500/35"
-                                      : "text-emerald-400 border-emerald-500/35"
-                                  }`}
-                                >
-                                  <span className="material-symbols-outlined !text-[20px]">
-                                    {isError ? "warning" : "check_circle"}
+                              icon={isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
+                              title={
+                                test.mod
+                                  ? getCleanModBaseName(resolvedTestMod)
+                                  : t("ecosystem_forge", "Ecosystem Forge")
+                              }
+                              subtitle={
+                                test.conflictTarget
+                                  ? `${t("vs", "vs")} ${getCleanModBaseName(test.conflictTarget)}`
+                                  : t("target_engine_core", "Target: Engine Core Only")
+                              }
+                              imageOverlay={
+                                <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-20 pointer-events-none">
+                                  <span className={VAULT_CHIP_CLASS}>
+                                    <span
+                                      className={`material-symbols-outlined !text-[12px] ${
+                                        isError ? "text-rose-400" : "text-emerald-400"
+                                      }`}
+                                    >
+                                      {isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
+                                    </span>
+                                    <span className={isError ? "text-rose-400" : "text-emerald-400"}>
+                                      {isError
+                                        ? t("fatal_collision", "Fatal Collision")
+                                        : t("successful_injection", "Successful Injection")}
+                                    </span>
                                   </span>
                                 </div>
-                                <span
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
-                                    isError
-                                      ? "text-rose-400 border-rose-500/45"
-                                      : "text-emerald-400 border-emerald-500/45"
-                                  }`}
-                                >
-                                  {isError ? t("fatal_collision") : t("successful_injection")}
-                                </span>
-                              </div>
-
-                              <div className="flex flex-col gap-1 min-w-0">
-                                <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
-                                  {`Lab_Report_${cardReportNum}`}
-                                </span>
-                                <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug truncate">
-                                  {test.mod
-                                    ? getCleanModBaseName(resolvedTestMod)
-                                    : t("ecosystem_forge")}
-                                </h3>
-                                <p className="text-xs font-semibold text-[var(--subtext)] truncate">
-                                  {test.conflictTarget
-                                    ? `vs ${getCleanModBaseName(test.conflictTarget)}`
-                                    : t("target_engine_core")}
-                                </p>
-                              </div>
-
-                              <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
-                                <span className="font-mono truncate">
-                                  {modExt ? `${modExt} • ` : ""}
-                                  {modVer ? `v${modVer} • ` : ""}
-                                  {selectedVersion || t("vlocal")}
-                                </span>
-                                <span className="shrink-0">
-                                  {new Date(test.time).toLocaleDateString([], {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}{" "}
-                                  &bull;{" "}
-                                  {new Date(test.time).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                            </div>
+                              }
+                              badges={
+                                <>
+                                  <span className={VAULT_CHIP_CLASS}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                      {t("icon_terminal", "terminal")}
+                                    </span>
+                                    <span className="font-mono text-[var(--accent)]">
+                                      {`Lab_Report_${cardReportNum}`}
+                                    </span>
+                                  </span>
+                                  {modExt && (
+                                    <span className={VAULT_CHIP_CLASS}>
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                        {t("icon_deployed_code", "deployed_code")}
+                                      </span>
+                                      <span className="text-[var(--subtext)]">{modExt}</span>
+                                    </span>
+                                  )}
+                                  <span className={VAULT_CHIP_CLASS}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                      {t("icon_sell", "sell")}
+                                    </span>
+                                    <span className="text-[var(--subtext)]">
+                                      {modVer ? `v${modVer}` : selectedVersion || t("unknown", "Unknown")}
+                                    </span>
+                                  </span>
+                                </>
+                              }
+                              footer={
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
+                                    {new Date(test.time).toLocaleDateString([], {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}{" "}
+                                    &bull;{" "}
+                                    {new Date(test.time).toLocaleTimeString([], {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                                    {t("view_details", "View Details")}
+                                    <span className="material-symbols-outlined !text-[14px]">
+                                      {t("icon_arrow_forward", "arrow_forward")}
+                                    </span>
+                                  </span>
+                                </div>
+                              }
+                            />
                           );
                         })
                     ) : (
                       <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
                         <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">
-                          history
+                          {t("icon_history", "history")}
                         </span>
                         <div className="text-sm font-black capitalize tracking-widest text-[var(--text)]">
-                          {t("no_recent_telemetry")}
+                          {t("no_recent_telemetry", "No Recent Telemetry")}
                         </div>
                       </div>
                     )}
@@ -1609,27 +1635,27 @@ export default function Lab({
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("wf_quick_links")} icon="bolt">
+              <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_bolt", "bolt")}>
                 <div className="flex flex-col gap-4 w-full">
                   <CommandScreenQuickLink
-                    icon="science"
-                    title="Launch Blueprints"
-                    subtitle="Initialize Test Runs"
+                    icon={t("icon_science", "science")}
+                    title={t("launch_blueprints", "Launch {Blueprints}")}
+                    subtitle={t("initialize_test_runs", "Initialize Test Runs")}
                     onClick={() => setActiveTab("BUILDER")}
                   />
                   <CommandScreenQuickLink
-                    icon="terminal"
-                    title={t("tab_lab_reports")}
-                    subtitle="All Telemetry Logs"
+                    icon={t("icon_terminal", "terminal")}
+                    title={t("tab_lab_reports", "Lab Reports")}
+                    subtitle={t("all_telemetry_logs", "All Telemetry Logs")}
                     onClick={() => {
                       setActiveTab("REPORTS");
                       setLogFilter("all");
                     }}
                   />
                   <CommandScreenQuickLink
-                    icon="check_circle"
-                    title="Recent Pass Tests"
-                    subtitle="Filter by Stable"
+                    icon={t("icon_check_circle", "check_circle")}
+                    title={t("recent_pass_tests", "Recent Pass Tests")}
+                    subtitle={t("filter_by_stable", "Filter by Stable")}
                     onClick={() => {
                       setActiveTab("REPORTS");
                       setLogFilter("pass");
@@ -1639,9 +1665,9 @@ export default function Lab({
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon="warning"
-                    title="Recent Failed Tests"
-                    subtitle="Filter by Fatal"
+                    icon={t("icon_warning", "warning")}
+                    title={t("recent_failed_tests", "Recent Failed Tests")}
+                    subtitle={t("filter_by_fatal", "Filter by Fatal")}
                     onClick={() => {
                       setActiveTab("REPORTS");
                       setLogFilter("fail");
@@ -1670,7 +1696,7 @@ export default function Lab({
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[26px]">
-                          {t("icon_saves", "save")}
+                          {t("icon_save", "save")}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
@@ -1814,7 +1840,7 @@ export default function Lab({
                           <button
                             type="button"
                             onClick={handleUnlinkExternalTool}
-                            title={t("lab_btn_unlink_tool", "Unlink")}
+                            title={t("nav_unlink", "Unlink")}
                             className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[14px]">
@@ -1843,14 +1869,14 @@ export default function Lab({
                 <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                   <div className="w-20 h-20 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0 mb-4 shadow-md">
                     <span className="material-symbols-outlined text-[var(--accent)] !text-[40px] animate-pulse">
-                      {t("icon_science")}
+                      {t("icon_science", "science")}
                     </span>
                   </div>
                   <h3 className="text-2xl font-black text-[var(--text)] capitalize tracking-[0.2em]">
-                    {t("mount_subject")}
+                    {t("mount_subject", "Mount Hash Subject")}
                   </h3>
                   <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 mt-2">
-                    {t("mount_desc")}
+                    {t("mount_desc", "Select a primary File Hash signature to begin the simulation sequence.")}
                   </p>
                 </div>
 
@@ -1864,7 +1890,7 @@ export default function Lab({
                         setActiveLabMod(m);
                       }}
                       onClear={() => { }}
-                      placeholder={t("filter_dna")}
+                      placeholder={t("filter_dna", "Filter File Hash signatures...")}
                     />
                   ) : (
                     <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
@@ -1876,8 +1902,13 @@ export default function Lab({
                       </span>
 
                       <div className="flex flex-col gap-2 relative z-10 w-full px-4">
-                        <span className="text-[10px] font-black text-[var(--accent)] capitalize tracking-[0.3em] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] py-1 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-max mx-auto px-4">
-                          {t("subject_isolation")}
+                        <span className={`${VAULT_CHIP_CLASS} mx-auto`}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_science", "science")}
+                          </span>
+                          <span className="text-[var(--accent)]">
+                            {t("subject_isolation", "Subject Isolation")}
+                          </span>
                         </span>
                         <span className="text-2xl font-black text-[var(--text)] break-words mt-4">
                           {getModName(activeLabMod)}
@@ -1887,7 +1918,7 @@ export default function Lab({
                       <div className="mt-8 relative z-10">
                         <ActionButton
                           icon="close"
-                          label={t("lab_btn_abort")}
+                          label={t("lab_btn_abort", "Abort / Dismount Subject")}
                           onClick={abortLab}
                           className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
                         />
@@ -1906,8 +1937,8 @@ export default function Lab({
               >
                 <CommandScreenSectionHeading
                   shape="circle"
-                  title={t("symbiotic_deps")}
-                  subtitle={t("symbiotic_desc")}
+                  title={t("symbiotic_deps", "Symbiotic Dependencies")}
+                  subtitle={t("symbiotic_desc", "These {mods} will be injected into the simulation alongside the primary subject.")}
                   icon="folder"
                   colorClass=""
                   iconColorClass="text-[var(--text)] opacity-80"
@@ -1921,10 +1952,10 @@ export default function Lab({
                         <span className="material-symbols-outlined !text-[16px]">
                           warning
                         </span>
-                        {t("missing_symbiotic_deps")}
+                        {t("missing_deps", "Missing Dependencies")}
                       </div>
                       <div className="text-[10px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize font-bold">
-                        {t("missing_deps_warning_desc")}
+                        {t("missing_deps_warning_desc", "The test will likely fail because the following dependencies were not found in your vault:")}
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {missingDeps.map((depObj, idx) => {
@@ -1999,7 +2030,7 @@ export default function Lab({
                         setStagedExtras([...stagedExtras, m]);
                     }}
                     onClear={() => { }}
-                    placeholder={t("add_extra")}
+                    placeholder={t("add_extra", "Add extra dependency...")}
                   />
                 </div>
 
@@ -2022,7 +2053,7 @@ export default function Lab({
                           className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"
                         >
                           <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_close")}
+                            {t("icon_close", "close")}
                           </span>
                         </button>
                       </div>
@@ -2042,8 +2073,8 @@ export default function Lab({
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent opacity-50  pointer-events-none" />
                 <CommandScreenSectionHeading
                   shape="circle"
-                  title={t("adversarial_entities")}
-                  subtitle={t("adversarial_desc")}
+                  title={t("adversarial_entities", "Adversarial Entities")}
+                  subtitle={t("adversarial_desc", "These {mods} will be pitted against the primary subject to monitor structural clashes.")}
                   icon="warning"
                   colorClass=""
                   iconColorClass="theme-text-warning opacity-90 animate-pulse"
@@ -2057,7 +2088,7 @@ export default function Lab({
                       selectedItem={conflictTarget}
                       onSelect={setConflictTarget}
                       onClear={() => setConflictTarget(null)}
-                      placeholder={t("select_adversary")}
+                      placeholder={t("select_adversary", "Select Adversary...")}
                     />
                   ) : (
                     <ModSearchDropdown
@@ -2068,7 +2099,7 @@ export default function Lab({
                           setConflictExtras([...conflictExtras, m]);
                       }}
                       onClear={() => { }}
-                      placeholder={t("add_extra")}
+                      placeholder={t("add_extra", "Add extra dependency...")}
                     />
                   )}
                 </div>
@@ -2080,7 +2111,7 @@ export default function Lab({
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
                         <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
                           <span className="text-[9px] font-black theme-text-warning capitalize tracking-[0.3em]">
-                            {t("primary_adversary")}
+                            {t("primary_adversary", "Primary Adversary")}
                           </span>
                           <span className="text-sm font-black text-[var(--text)] truncate">
                             {getModName(conflictTarget)}
@@ -2094,7 +2125,7 @@ export default function Lab({
                           className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--danger)] text-[var(--text)] hover:text-white transition-all shadow-md relative z-10"
                         >
                           <span className="material-symbols-outlined !text-[20px]">
-                            {t("icon_close")}
+                            {t("icon_close", "close")}
                           </span>
                         </button>
                       </div>
@@ -2116,7 +2147,7 @@ export default function Lab({
                             className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"
                           >
                             <span className="material-symbols-outlined !text-[16px]">
-                              {t("icon_close")}
+                              {t("icon_close", "close")}
                             </span>
                           </button>
                         </div>
@@ -2137,11 +2168,11 @@ export default function Lab({
       {activeTab === "REPORTS" && (
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
           <CommandScreenSectionHeading
-            title={t("tab_lab_reports")}
+            title={t("tab_lab_reports", "Lab Reports")}
             icon="terminal"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-32">
             {filteredReports.map((report: any) => {
               const isError = Boolean(report.errorFound);
               const cardReportNum = resolveLabReportNumber(report, reportsToList);
@@ -2162,73 +2193,91 @@ export default function Lab({
                 report.stagedExtras
               );
               return (
-                <div
+                <UniversalCard
                   key={report.id}
+                  layout="vertical"
                   onClick={() => setSelectedReport(report)}
-                  className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                        isError
-                          ? "text-rose-400 border-rose-500/35"
-                          : "text-emerald-400 border-emerald-500/35"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {isError ? "warning" : "check_circle"}
+                  icon={isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
+                  title={getCleanModBaseName(resolvedCardMod)}
+                  subtitle={
+                    report.conflictTarget
+                      ? `${t("vs", "vs")} ${getCleanModBaseName(report.conflictTarget)}`
+                      : t("target_engine_core", "Target: Engine Core Only")
+                  }
+                  imageOverlay={
+                    <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-20 pointer-events-none">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            isError ? "text-rose-400" : "text-emerald-400"
+                          }`}
+                        >
+                          {isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
+                        </span>
+                        <span className={isError ? "text-rose-400" : "text-emerald-400"}>
+                          {isError
+                            ? t("fatal_collision", "Fatal Collision")
+                            : t("successful_injection", "Successful Injection")}
+                        </span>
                       </span>
                     </div>
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
-                        isError
-                          ? "text-rose-400 border-rose-500/45"
-                          : "text-emerald-400 border-emerald-500/45"
-                      }`}
-                    >
-                      {isError ? t("fatal_collision") : t("successful_injection")}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
-                      {`Lab_Report_${cardReportNum}`}
-                    </span>
-                    <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug truncate">
-                      {getCleanModBaseName(resolvedCardMod)}
-                    </h3>
-                    <p className="text-xs font-semibold text-[var(--subtext)] truncate">
-                      {report.conflictTarget
-                        ? `vs ${getCleanModBaseName(report.conflictTarget)}`
-                        : t("target_engine_core")}
-                    </p>
-                  </div>
-
-                  <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
-                    <span className="font-mono truncate">
-                      {modExt ? `${modExt} • ` : ""}
-                      {modVer ? `v${modVer} • ` : ""}
-                      {selectedVersion || t("vlocal")}
-                    </span>
-                    {report.isConcluding ? (
-                      <span className="shrink-0 text-[10px] font-black text-amber-400 animate-pulse">
-                        {t("status_pending_review")}
+                  }
+                  badges={
+                    <>
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_terminal", "terminal")}
+                        </span>
+                        <span className="font-mono text-[var(--accent)]">
+                          {`Lab_Report_${cardReportNum}`}
+                        </span>
                       </span>
-                    ) : (
-                      <span className="shrink-0">
-                        {new Date(report.time).toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        &bull;{" "}
-                        {new Date(report.time).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                      {modExt && (
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                            {t("icon_deployed_code", "deployed_code")}
+                          </span>
+                          <span className="text-[var(--subtext)]">{modExt}</span>
+                        </span>
+                      )}
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                          {t("icon_sell", "sell")}
+                        </span>
+                        <span className="text-[var(--subtext)]">
+                          {modVer ? `v${modVer}` : selectedVersion || t("unknown", "Unknown")}
+                        </span>
                       </span>
-                    )}
-                  </div>
-                </div>
+                    </>
+                  }
+                  footer={
+                    <div className="flex items-center justify-between w-full">
+                      {report.isConcluding ? (
+                        <span className="text-[10px] font-black text-amber-400 animate-pulse truncate">
+                          {t("status_pending_review", "Pending Review")}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
+                          {new Date(report.time).toLocaleDateString([], {
+                            month: "short",
+                            day: "numeric",
+                          })}{" "}
+                          &bull;{" "}
+                          {new Date(report.time).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                        {t("view_details", "View Details")}
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
+                      </span>
+                    </div>
+                  }
+                />
               );
             })}
 
@@ -2240,10 +2289,10 @@ export default function Lab({
                   </span>
                   <div className="space-y-2 text-center">
                     <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">
-                      {t("lab_reports_empty")}
+                      {t("lab_reports_empty", "No Reports Generated Yet")}
                     </h2>
                     <p className="text-sm font-medium text-[var(--subtext)]">
-                      {t("lab_reports_empty_desc")}
+                      {t("lab_reports_empty_desc", "Run a test in the Environment Builder to generate a report.")}
                     </p>
                   </div>
                 </div>
@@ -2350,7 +2399,7 @@ export default function Lab({
               isOpen={true}
               onClose={() => setSelectedReport(null)}
               title={<span className="normal-case font-mono">{`Lab_Report_${reportNum}`}</span>}
-              subtitle={`${isError ? t("fatal_collision") : t("successful_injection")} • ${t("tab_lab_reports")}`}
+              subtitle={`${isError ? t("fatal_collision", "Fatal Collision") : t("successful_injection", "Successful Injection")} • ${t("tab_lab_reports", "Lab Reports")}`}
               icon={isError ? "warning" : "science"}
               iconColorClass={
                 isError ? "text-[var(--danger)]" : "text-[var(--success)]"
@@ -2409,50 +2458,62 @@ export default function Lab({
               }
             >
               <div className="flex flex-col gap-4 mt-2 w-full pb-8">
-                {/* Tested Mod Banner on Panel Body */}
-                <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                        isError
-                          ? "text-rose-400 border-rose-500/35"
-                          : "text-emerald-400 border-emerald-500/35"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[22px]">
-                        {isError ? "warning" : "check_circle"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                        {t("subject_isolation")}
-                      </span>
-                      <h3 className="text-base md:text-lg font-black text-[var(--text)] tracking-tight truncate">
-                        {getCleanModBaseName(resolvedTargetMod)}
-                      </h3>
-                    </div>
+                <SidePanelHeroCard
+                  title={getCleanModBaseName(resolvedTargetMod)}
+                  subtitle={`${getModExtensionLabel(
+                    resolvedTargetMod,
+                    activeGameSchema,
+                    modList,
+                    reportStagedDeps
+                  )} • v${getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}`}
+                  label={t("subject_isolation", "Subject Isolation")}
+                  icon={isError ? "warning" : "check_circle"}
+                  variant={isError ? "danger" : "success"}
+                  badges={[
+                    {
+                      icon: isError ? "warning" : "check_circle",
+                      label: isError ? t("fatal_collision", "Fatal Collision") : t("successful_injection", "Successful Injection"),
+                      colorClass: isError
+                        ? "text-rose-400 border-rose-500/45"
+                        : "text-emerald-400 border-emerald-500/45",
+                    },
+                  ]}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+                    <StatBox
+                      icon={t("icon_sell", "sell")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("game_version", "Game Version")}
+                      value={selectedVersion || t("unknown", "Unknown")}
+                    />
+                    <StatBox
+                      icon={t("icon_memory", "memory")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("mod_version", "{Mod} Version")}
+                      value={getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
+                    />
+                    <StatBox
+                      icon={t("icon_schedule", "schedule")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("date_created", "Time")}
+                      tooltipSubtitle={new Date(selectedReport.time).toLocaleString()}
+                      value={
+                        <span className="text-xs md:text-sm font-black tracking-tight">
+                          {new Date(selectedReport.time).toLocaleDateString([], {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}{" "}
+                          &bull;{" "}
+                          {new Date(selectedReport.time).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      }
+                    />
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
-                        isError
-                          ? "text-rose-400 border-rose-500/45"
-                          : "text-emerald-400 border-emerald-500/45"
-                      }`}
-                    >
-                      {isError ? t("fatal_collision") : t("successful_injection")}
-                    </span>
-                    <span className="text-[11px] font-mono font-bold text-[var(--subtext)]">
-                      {getModExtensionLabel(
-                        resolvedTargetMod,
-                        activeGameSchema,
-                        modList,
-                        reportStagedDeps
-                      )}{" "}
-                      &bull; v{getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
-                    </span>
-                  </div>
-                </div>
+                </SidePanelHeroCard>
                 {canSecureReport && (
                   <button
                     type="button"
@@ -2502,8 +2563,8 @@ export default function Lab({
                         >
                           {secureCardState === "done"
                             ? isError
-                              ? t("lab_action_secure_broken_done_title", "Removed From Blueprint")
-                              : t("lab_action_secure_verified_done_title", "Artifact Verified & Restored")
+                              ? t("lab_action_secure_broken_done_title", "Removed From {Blueprint} & Secured")
+                              : t("lab_action_secure_verified_done_title", "{Mod} Verified & Secured")
                             : secureCardState === "working"
                               ? t("lab_action_securing_title", "Securing Sandbox...")
                               : isError
@@ -2527,63 +2588,18 @@ export default function Lab({
                       <p className="text-[11px] text-[var(--subtext)] leading-snug">
                         {secureCardState === "done"
                           ? isError
-                            ? t(
-                                "lab_action_secure_broken_done_desc",
-                                "Sandbox closed, live saves restored, and mod unequipped from active Blueprint."
-                              )
+                            ? t("lab_action_secure_broken_done_desc", "Live saves restored and corrupted {mod} unequipped from active {Blueprint}.")
                             : t(
                                 "lab_action_secure_verified_done_desc",
                                 "Sandbox closed, live saves restored, and mod signed off as verified."
                               )
                           : isError
-                            ? t(
-                                "lab_action_secure_broken_desc",
-                                "End sandbox session, restore live saves, and quarantine or flag this mod."
-                              )
-                            : t(
-                                "lab_action_secure_verified_desc",
-                                "End sandbox session, restore live saves, and sign off on this mod as verified."
-                              )}
+                            ? t("lab_action_secure_broken_desc", "Conclude test, mark {mod} as broken, and restore your live {blueprint} & saves")
+                            : t("lab_action_secure_verified_desc", "Conclude test, mark {mod} as verified, and restore your live {blueprint} & saves")}
                       </p>
                     </div>
                   </button>
                 )}
-
-                {/* Session Telemetry StatBoxes (No Table Grid) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <StatBox
-                    icon={t("icon_sell", "sell")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("game_version") || "Game Version"}
-                    value={selectedVersion || t("vlocal")}
-                  />
-                  <StatBox
-                    icon={t("icon_memory", "memory")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("mod_version") || "Mod Version"}
-                    value={getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}
-                  />
-                  <StatBox
-                    icon={t("icon_schedule", "schedule")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("date_created") || "Time"}
-                    tooltipSubtitle={new Date(selectedReport.time).toLocaleString()}
-                    value={
-                      <span className="text-xs md:text-sm font-black tracking-tight">
-                        {new Date(selectedReport.time).toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}{" "}
-                        &bull;{" "}
-                        {new Date(selectedReport.time).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    }
-                  />
-                </div>
 
                 {/* Dependencies & Conflicts Loaded for Test (Side-by-Side Cards with Full-Width Rows) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2776,7 +2792,7 @@ export default function Lab({
                             : t("icon_content_copy", "content_copy")}
                         </span>
                         {copiedLogState
-                          ? t("lab_report_copied_btn", "Copied")
+                          ? t("copied", "Copied")
                           : t("lab_report_copy_btn", "Copy Log")}
                       </button>
                     </div>
@@ -2784,8 +2800,8 @@ export default function Lab({
 
                   <pre className="p-5 font-mono text-[12px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed flex-1 overflow-y-auto custom-scrollbar opacity-90">
                     {reportLogViewTab === "REAL_LOG"
-                      ? realLogDisplayContent || t("no_logs")
-                      : formattedLabReportText || formatHumanReadableLogText(rawLogData) || t("no_logs")}
+                      ? realLogDisplayContent || t("no_logs", "No logs available for this session. System reports standard exit code.")
+                      : formattedLabReportText || formatHumanReadableLogText(rawLogData) || t("no_logs", "No logs available for this session. System reports standard exit code.")}
                   </pre>
                 </div>
               </div>
@@ -2797,15 +2813,15 @@ export default function Lab({
         <SidePanel
           isOpen={showTestPanel}
           onClose={() => setShowTestPanel(false)}
-          title={t("test_underway_title")}
-          subtitle={t("test_underway_desc")}
+          title={t("test_underway_title", "Experiment Underway")}
+          subtitle={t("test_underway_desc", "Monitoring simulation for anomalies...")}
           icon="science"
           iconColorClass="text-[var(--accent)]"
           headerActions={
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon="science"
-                tooltip={t("btn_conclude_experiment")}
+                tooltip={t("btn_conclude_experiment", "Conclude Experiment")}
                 onClick={() => {
                   handleConcludeTest();
                   setShowTestPanel(false);
@@ -2816,46 +2832,33 @@ export default function Lab({
           }
         >
           <div className="flex flex-col items-center justify-start gap-4 opacity-95 p-2 w-full">
-            <div className="glass-surface w-full rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-4">
-              <div className="relative flex items-center justify-center shrink-0">
-                <div className="w-14 h-14 rounded-full bg-transparent flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] shadow-md relative z-10">
-                  <span className="material-symbols-outlined !text-[28px] text-[var(--accent)] animate-pulse drop-shadow-lg">
-                    {t("icon_radar", "radar")}
+            <SidePanelHeroCard
+              title={getModName(activeLabMod)}
+              subtitle={t("test_running_wait", "Sandbox monitoring is active...")}
+              label={t("monitoring_subject", "Monitoring Subject")}
+              icon={t("icon_radar", "radar")}
+              variant="accent"
+              badges={[
+                {
+                  icon: t("icon_shield_lock", "shield_lock"),
+                  label: t("lab_badge_saves_airgapped", "SAVES AIRGAPPED (SANDBOX ACTIVE)"),
+                  colorClass: "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]",
+                },
+              ]}
+            >
+              {linkedTool && (
+                <button
+                  type="button"
+                  onClick={handleLaunchExternalToolStandalone}
+                  className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all inline-flex items-center gap-1.5 cursor-pointer w-fit"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_launch", "launch")}
                   </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                <div className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">
-                  {t("monitoring_subject")}
-                </div>
-                <div className="text-sm font-black tracking-wider text-[var(--accent)] truncate">
-                  {getModName(activeLabMod)}
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent text-[var(--success)] text-[9px] font-black tracking-widest uppercase">
-                    <span className="material-symbols-outlined !text-[12px]">
-                      {t("icon_shield_lock", "shield_lock")}
-                    </span>
-                    <span>
-                      {t("lab_badge_saves_airgapped", "SAVES AIRGAPPED (SANDBOX ACTIVE)")}
-                    </span>
-                  </div>
-                  {linkedTool && (
-                    <button
-                      type="button"
-                      onClick={handleLaunchExternalToolStandalone}
-                      className="px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {t("icon_launch", "launch")}
-                      </span>
-                      {`${t("lab_btn_launch_tool", "Launch Tool (Isolated)")} (${linkedTool.name})`}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+                  {`${t("lab_btn_launch_tool", "Launch Tool (Isolated)")} (${linkedTool.name})`}
+                </button>
+              )}
+            </SidePanelHeroCard>
 
             <div className="w-full text-left">
               <LabVerificationGate
@@ -2866,10 +2869,6 @@ export default function Lab({
                 isGateRequired={true}
                 externalStatus={labSessionStatus}
               />
-            </div>
-
-            <div className="text-[10px] capitalize font-bold text-[var(--subtext)] tracking-widest text-center">
-              {t("test_running_wait")}
             </div>
           </div>
         </SidePanel>
@@ -2888,90 +2887,46 @@ export default function Lab({
             "lab_test_save_modal_subtitle",
             "Manage the isolated save file that is only active when the Homestead Lab is running"
           )}
-          icon={t("icon_saves", "save")}
+          icon={t("icon_save", "save")}
           iconColorClass="text-[var(--accent)]"
           widthClass="w-[92vw] md:w-[640px]"
         >
           <div className="flex flex-col gap-5 mt-3 w-full pb-12">
             {/* Current Status Banner */}
-            <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border bg-transparent ${
-                    testSaveStatus?.has_test_save
-                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                      : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[20px]">
-                    {testSaveStatus?.has_test_save
-                      ? "verified_user"
-                      : t("icon_saves", "save")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                    {t("lab_test_save_current_label", "Active Lab Test Save")}
-                  </span>
-                  <span className="text-sm font-black text-[var(--text)] truncate">
-                    {testSaveStatus?.active_test_save
-                      ? testSaveStatus.active_test_save.file_name
-                      : t(
-                          "lab_test_save_none_badge",
-                          "CLEAN SANDBOX (CREATE SAVE IN-GAME)"
-                        )}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
-                    {t(
-                      "lab_test_save_active_sub",
-                      "Only active while Lab is running"
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              <span
-                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-transparent flex items-center gap-1 ${
-                  testSaveStatus?.has_test_save
+            <SidePanelHeroCard
+              title={
+                testSaveStatus?.active_test_save
+                  ? testSaveStatus.active_test_save.file_name
+                  : t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")
+              }
+              subtitle={t("lab_test_save_active_sub", "Only active while Lab is running")}
+              label={t("lab_test_save_current_label", "Active Lab Test Save")}
+              icon={testSaveStatus?.has_test_save ? "verified_user" : t("icon_save", "save")}
+              variant={testSaveStatus?.has_test_save ? "success" : "warning"}
+              badges={[
+                {
+                  icon: testSaveStatus?.has_test_save ? "check_circle" : "science",
+                  label: testSaveStatus?.has_test_save
+                    ? t("lab_test_save_active_badge", "ISOLATED TEST SAVE READY")
+                    : t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)"),
+                  colorClass: testSaveStatus?.has_test_save
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[12px]">
-                  {testSaveStatus?.has_test_save ? "check_circle" : "science"}
-                </span>
-                {testSaveStatus?.has_test_save
-                  ? t("lab_test_save_active_badge", "ISOLATED TEST SAVE READY")
-                  : t(
-                      "lab_test_save_none_badge",
-                      "CLEAN SANDBOX (CREATE SAVE IN-GAME)"
-                    )}
-              </span>
-            </div>
+                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
+                },
+              ]}
+            />
 
             {/* Option 1: Create a Fresh Test Save In-Game */}
-            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-3">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[20px]">
-                    {t("icon_add_circle", "add_circle")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-                    {t(
-                      "lab_test_save_option_fresh_title",
-                      "Create New Test Save In-Game"
-                    )}
-                  </span>
-                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
-                    {t(
-                      "lab_test_save_option_fresh_desc",
-                      "Starts the Lab with an empty saves folder so you can start a new game and save it as your dedicated testing world. Your normal saves remain untouched."
-                    )}
-                  </p>
-                </div>
-              </div>
+            <UniversalGroup
+              title={t("lab_test_save_option_fresh_title", "Create New Test Save In-Game")}
+              icon={t("icon_add_circle", "add_circle")}
+            >
+              <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                {t(
+                  "lab_test_save_option_fresh_desc",
+                  "Starts the Lab with an empty saves folder so you can start a new game and save it as your dedicated testing world. Your normal saves remain untouched."
+                )}
+              </p>
 
               <div className="flex items-center gap-2.5 flex-wrap pt-1">
                 <button
@@ -2981,7 +2936,7 @@ export default function Lab({
                   className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_saves", "save")}
+                    {t("icon_save", "save")}
                   </span>
                   {t(
                     "lab_test_save_btn_use_fresh",
@@ -3004,31 +2959,19 @@ export default function Lab({
                   )}
                 </button>
               </div>
-            </div>
+            </UniversalGroup>
 
             {/* Option 2: Pick / Copy From Existing Live Save Files */}
-            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_25%,transparent)] bg-transparent text-[var(--text)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[20px]">
-                    {t("icon_swap_horiz", "swap_horiz")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-                    {t(
-                      "lab_test_save_option_copy_title",
-                      "Select or Change From Existing Saves"
-                    )}
-                  </span>
-                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
-                    {t(
-                      "lab_test_save_option_copy_desc",
-                      "Copy one of your existing save files into the isolated Lab sandbox. Any changes made during testing stay in the Lab and never overwrite your original save."
-                    )}
-                  </p>
-                </div>
-              </div>
+            <UniversalGroup
+              title={t("lab_test_save_option_copy_title", "Select or Change From Existing Saves")}
+              icon={t("icon_swap_horiz", "swap_horiz")}
+            >
+              <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                {t(
+                  "lab_test_save_option_copy_desc",
+                  "Copy one of your existing save files into the isolated Lab sandbox. Any changes made during testing stay in the Lab and never overwrite your original save."
+                )}
+              </p>
 
               {testSaveStatus?.available_live_saves &&
               testSaveStatus.available_live_saves.length > 0 ? (
@@ -3040,7 +2983,7 @@ export default function Lab({
                     return (
                       <div
                         key={saveItem.file_name}
-                        className={`rounded-xl p-3 border flex items-center justify-between gap-3 transition-all ${
+                        className={`glass-surface rounded-xl p-3 border flex items-center justify-between gap-3 transition-all ${
                           isCurrentActive
                             ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
                             : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
@@ -3054,7 +2997,7 @@ export default function Lab({
                                 : "text-[var(--subtext)]"
                             }`}
                           >
-                            {t("icon_saves", "save")}
+                            {t("icon_save", "save")}
                           </span>
                           <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-xs font-black font-mono text-[var(--text)] truncate">
@@ -3094,14 +3037,14 @@ export default function Lab({
                   })}
                 </div>
               ) : (
-                <div className="rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--subtext)] text-center">
+                <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--subtext)] text-center">
                   {t(
                     "lab_test_save_no_live_saves",
                     "No existing .save files found in your game saves folder. Use the option above to create a new test save in-game."
                   )}
                 </div>
               )}
-            </div>
+            </UniversalGroup>
           </div>
         </SidePanel>
       )}

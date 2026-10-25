@@ -192,11 +192,11 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                   )}
                   {isUnsavedEdit ? (
                      <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-bold shrink-0">
-                        {t("workbench_unsaved_edit_badge", "Unsaved")}
+                        {t("unsaved", "Unsaved")}
                      </span>
                   ) : isModified ? (
                      <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)] text-[9px] font-bold shrink-0">
-                        {t("workbench_modified_badge", "Modified")}
+                        {t("modified", "Modified")}
                      </span>
                   ) : null}
                </div>
@@ -218,7 +218,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      >
                         <span className="material-symbols-outlined !text-[14px]">{t("icon_undo", "undo")}</span>
                      </button>
-                     <HoverTooltip title={`${t("workbench_undo_to_saved", "Undo to Saved")}: ${String(savedVal)}`} />
+                     <HoverTooltip title={`${t("diff_undo_value", "Undo to Saved")}: ${String(savedVal)}`} />
                   </div>
                )}
 
@@ -325,7 +325,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      <div className="grid grid-cols-2 gap-2 w-full flex-1">
                         <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
                            <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
-                              {t("workbench_tuple_min", "Min")}
+                              {t("workbench_field_min", "Min")}
                            </span>
                            <div className="flex items-center">
                               <button
@@ -356,7 +356,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
 
                         <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
                            <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
-                              {t("workbench_tuple_max", "Max")}
+                              {t("workbench_field_max", "Max")}
                            </span>
                            <div className="flex items-center">
                               <button
@@ -596,12 +596,12 @@ const GroupNode = ({
                      <span className="text-[12px] font-black capitalize tracking-wider text-[var(--text)]">{label}</span>
                      {unsavedCount > 0 && (
                         <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[10px] font-bold text-[var(--warning)]">
-                           {unsavedCount} {t("workbench_unsaved_edit_badge", "Unsaved")}
+                           {unsavedCount} {t("unsaved", "Unsaved")}
                         </span>
                      )}
                      {modifiedCount > 0 && (
                         <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[10px] font-bold text-[var(--accent)]">
-                           {modifiedCount} {t("workbench_modified_badge", "Modified")}
+                           {modifiedCount} {t("modified", "Modified")}
                         </span>
                      )}
                   </div>

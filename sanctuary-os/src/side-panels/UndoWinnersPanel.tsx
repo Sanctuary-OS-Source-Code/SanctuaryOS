@@ -12,6 +12,7 @@ import {
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useStore } from "../store";
 
@@ -122,13 +123,13 @@ export default function UndoWinnersPanel({
           overline={t("undo_title", "Undo Overrides")}
           title={scanScope || t("active", "Active")}
           description={t("undo_subtitle", "Restore Default Load Order")}
-          badge={`${overrides.length} ${t("items", "Items")}`}
+          badge={`${overrides.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_history", "history")}
           variant={overrides.length > 0 ? "danger" : "success"}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <StatBox
-              label={t("bp_winning_artifact", "Winning Overrides")}
+              label={t("winner", "WINNING {MOD}")}
               value={overrides.length}
               icon={t("icon_history", "history")}
               iconColorClass={
@@ -136,7 +137,7 @@ export default function UndoWinnersPanel({
               }
             />
             <StatBox
-              label={t("stat_blueprints", "Blueprint")}
+              label={t("stat_blueprints", "Active {Blueprint}")}
               value={scanScope || t("active", "Active")}
               icon={t("icon_map", "map")}
               iconColorClass="text-[var(--accent)]"
@@ -169,19 +170,27 @@ export default function UndoWinnersPanel({
           </div>
         ) : (
           <UniversalGroup
-            title={`${t("bp_winning_artifact", "Winning Overrides")} (${overrides.length})`}
+            title={`${t("winner", "WINNING {MOD}")} (${overrides.length})`}
             icon={t("icon_history", "history")}
           >
             <div className="flex flex-col gap-3">
-              {overrides.map((file) => (
+              {overrides.map((file) => {
+                const fileLabel = getFileLabel(file, activeGameSchema);
+                const isScript = String(fileLabel).toUpperCase().includes("SCRIPT") || file.toLowerCase().endsWith(".ts4script");
+                return (
                 <div
                   key={file}
                   className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all"
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
                       <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_extension", "extension")}
+                        {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
                       </span>
                     </div>
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -190,8 +199,17 @@ export default function UndoWinnersPanel({
                           file.replace(getExtensionRegex(activeGameSchema), "")
                         )}
                       </span>
-                      <span className="self-start px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                        {getFileLabel(file, activeGameSchema)}
+                      <span
+                        className={`${VAULT_CHIP_CLASS} self-start`}
+                        style={{
+                          color: "var(--accent)",
+                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                        }}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
+                        </span>
+                        <span>{fileLabel}</span>
                       </span>
                     </div>
                   </div>
@@ -202,7 +220,8 @@ export default function UndoWinnersPanel({
                     onClick={() => undoOverride(file)}
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
           </UniversalGroup>
         )}

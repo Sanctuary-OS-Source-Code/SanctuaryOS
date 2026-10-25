@@ -3,8 +3,10 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { CommandScreenLayout, UrgentBroadcastBanner, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -27,7 +29,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
         .limit(3);
 
       if (data) {
-        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Sanctuary";
+        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || t("sanctuary_default_name", "Sanctuary");
         setBroadcasts(data.map((p: any) => ({
           ...p,
           masons: { name: `${gameName} Team` }
@@ -115,7 +117,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
               const esciArc = lastEscalation.architect;
               if (esciArc === 'Wayfinder') {
                 dest = 'wayfinder';
-              } else if (esciArc === 'Oversight' || esciArc === 'Oversight') {
+              } else if (esciArc === 'Oversight') {
                 dest = 'wayfinder';
               } else if (esciArc === 'Architect') {
                 dest = 'oversight';
@@ -196,159 +198,188 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
         {stats.urgentBroadcast && (
           <AlertStatTile className="col-span-2" broadcast={stats.urgentBroadcast} number={stats.urgentBroadcast ? 1 : 0} active={!!stats.urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
         )}
-        <DashboardStatTile className={stats.urgentBroadcast ? "col-span-2" : ""} icon={<span className="material-symbols-outlined ">{t("icon_warning_amber")}</span>} number={defconLevel} label={t("defcon_global")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
+        <DashboardStatTile className={stats.urgentBroadcast ? "col-span-2" : ""} icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>} number={defconLevel} label={t("defcon_global", "Global Lockdown")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating", "18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={t("stat_compliance_flags", "Compliance Flags")} colorClass="text-orange-500" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity")}</span>} number={stats.tickets} label={t("stat_support_tickets")} colorClass="text-purple-500" onClick={() => setTab("sanctuary_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_coronavirus")}</span>} number={stats.malware} label={t("wf_stat_quarantined")} colorClass="text-red-500" onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("stat_malware_logs")} colorClass="text-red-500" onClick={() => setTab("oversight_reports")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity", "local_activity")}</span>} number={stats.tickets} label={t("support_tickets", "Support Tickets")} colorClass="text-purple-500" onClick={() => setTab("sanctuary_tickets")} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_coronavirus", "coronavirus")}</span>} number={stats.malware} label={t("wf_stat_quarantined", "Quarantined")} colorClass="text-red-500" onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_threat_intelligence", "threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("stat_malware_logs", "Malware Manifests")} colorClass="text-red-500" onClick={() => setTab("oversight_reports")} />
       </CommandScreenStats>
 
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <CommandScreenSectionHeading title={t("wf_comms_title")} icon="history" />
-          <div className="w-full mb-8">
-            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          <div className="flex flex-col gap-4 w-full">
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon="history" />
+            <div className="w-full">
+              <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+            </div>
           </div>
 
           {recentSupport.length > 0 && (
-            <>
-              <CommandScreenSectionHeading title={t("wf_tab_tickets")} icon="local_activity" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon="local_activity" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentSupport.map((item: any) => (
                       <UniversalCard 
                           key={`support-${item.id}`} 
                           layout="vertical" 
-                          title={item.ticket_type || "Support Ticket"} 
-                          icon="local_activity" 
+                          title={item.ticket_type || t("support_tickets", "Support Tickets")} 
+                          icon={t("icon_local_activity", "local_activity")} 
                           onClick={() => setTab("sanctuary_tickets")}
                           className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                                  <div className={VAULT_CHIP_CLASS}>
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
+                                      <span>{t("status_open", "Open")}</span>
+                                  </div>
+                              </div>
+                          }
                           badges={
-                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <div className={VAULT_CHIP_CLASS}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
-                                  <span>{t("wf_tab_tickets")}</span>
+                                  <span>{t("wf_tab_tickets", "Support")}</span>
                               </div>
                           }
                           footer={
                               <div className="flex items-center justify-start w-full mt-2">
                                   <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
                                   </span>
                               </div>
                           }
                       >
                           <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.metadata?.description || "Open ticket."}
+                              {item.metadata?.description || t("status_open", "Open")}
                           </p>
                       </UniversalCard>
                   ))}
               </div>
-            </>
+            </div>
           )}
 
           {recentMalware.length > 0 && (
-            <>
-              <CommandScreenSectionHeading title={t("rating_malware")} icon="coronavirus" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon="coronavirus" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentMalware.map((item: any) => (
                       <UniversalCard 
                           key={`malware-${item.id}`} 
                           layout="vertical" 
-                          title={"Malware Report"} 
-                          icon="coronavirus" 
+                          title={t("rating_malware", "Malware")} 
+                          icon={t("icon_coronavirus", "coronavirus")} 
                           onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }}
                           className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                                  <div className={VAULT_CHIP_CLASS}>
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
+                                      <span>{t("status_pending", "Pending")}</span>
+                                  </div>
+                              </div>
+                          }
                           badges={
-                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <div className={VAULT_CHIP_CLASS}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_coronavirus", "coronavirus")}</span>
-                                  <span>{t("rating_malware")}</span>
+                                  <span>{t("rating_malware", "Malware")}</span>
                               </div>
                           }
                           footer={
                               <div className="flex items-center justify-start w-full mt-2">
                                   <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
                                   </span>
                               </div>
                           }
                       >
                           <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.reason || "Pending oversight review."}
+                              {item.reason || t("status_pending", "Pending")}
                           </p>
                       </UniversalCard>
                   ))}
               </div>
-            </>
+            </div>
           )}
 
           {recentCompliance.length > 0 && (
-            <>
-              <CommandScreenSectionHeading title={t("tab_compliance")} icon="policy" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon="policy" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentCompliance.map((item: any) => (
                       <UniversalCard 
                           key={`compliance-${item.id}`} 
                           layout="vertical" 
-                          title={item.name || "Artifact"} 
-                          icon="policy" 
+                          title={item.name || t("term_mod", "{Mod}")} 
+                          icon={t("icon_policy", "policy")} 
                           onClick={() => setTab("compliance")}
                           className="w-full"
+                          imageOverlay={
+                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                                  <div className={VAULT_CHIP_CLASS}>
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_flag", "flag")}</span>
+                                      <span>{t("wf_stat_flagged", "Flagged")}</span>
+                                  </div>
+                              </div>
+                          }
                           badges={
-                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <div className={VAULT_CHIP_CLASS}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_policy", "policy")}</span>
-                                  <span>{t("tab_compliance")}</span>
+                                  <span>{t("tab_compliance", "Compliance")}</span>
                               </div>
                           }
                           footer={
                               <div className="flex items-center justify-start w-full mt-2">
                                   <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
+                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
                                   </span>
                               </div>
                           }
                       >
                           <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.description || "Compliance flagged artifact."}
+                              {item.description || t("tab_compliance", "Compliance")}
                           </p>
                       </UniversalCard>
                   ))}
               </div>
-            </>
+            </div>
           )}
 
-          <CommandScreenSectionHeading title={t("metrics")} icon="monitoring" />
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <CommandScreenMetricTile value={stats.citizens + stats.masons} label={t("stat_users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-            <CommandScreenMetricTile value={stats.masons} label={t("tab_linker")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-            <CommandScreenMetricTile value={stats.architects} label={t("stat_architects")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-            <CommandScreenMetricTile value={stats.blacklists} label={t("stat_blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
-            <CommandScreenMetricTile value={stats.oversightQueue} label={t("tab_malware_logs")} valueColorClass="text-red-700" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-          </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links")} icon="rocket_launch">
+        <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_rocket_launch", "rocket_launch")}>
           {stats.urgentBroadcast && (
             <CommandScreenQuickLink 
-              icon="priority_high"
-              title={t("title_sanctuary_alerts")}
-              subtitle={t("urgent_alert_active")}
+              icon={t("icon_priority_high", "priority_high")}
+              title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
+              subtitle={t("urgent_alert_active", "Urgent Alert Active")}
               onClick={() => setIsAlertsOpen(true)}
               isAlert={true}
             />
           )}
-          <CommandScreenQuickLink onClick={() => setTab("oversight_reports")} icon={t("icon_threat_intelligence")} title={t("stat_malware_logs")} subtitle={t("ql_sys_reports")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-red-500" hoverTextColorClass="group-hover:text-red-500" dotColorClass="bg-red-500 shadow-md" />
+          <CommandScreenQuickLink onClick={() => setTab("oversight_reports")} icon={t("icon_threat_intelligence", "threat_intelligence")} title={t("stat_malware_logs", "Malware Manifests")} subtitle={t("ql_sys_reports", "View Shared Manifests")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-red-500" hoverTextColorClass="group-hover:text-red-500" dotColorClass="bg-red-500 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => setTab("mass_update")} icon={t("icon_dynamic_feed")} title={t("ql_mass_update")} subtitle={t("ql_bulk_actions")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => setTab("mass_update")} icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("ql_mass_update", "Mass Update Utility")} subtitle={t("ql_bulk_actions", "Bulk Actions")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => setTab("game_versions")} icon={t("icon_settings")} title={t("ql_game_versions")} subtitle={t("ql_registry_config")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => setTab("game_versions")} icon={t("icon_settings", "settings")} title={t("ql_game_versions", "Game Management")} subtitle={t("ql_registry_config", "Registry Config")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
 
-          <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history")} title={t("audit_title")} subtitle={t("ql_system_history")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history", "history")} title={t("audit_logs", "Audit Logs")} subtitle={t("ql_system_history", "System History")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
 
           {!stats.urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts")} subtitle={t("alert_empty")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
+            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon={t("icon_warning_off", "warning_off")} title={t("title_sanctuary_alerts", "Sanctuary Alerts")} subtitle={t("alert_empty", "No Active Alerts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
           )}
         </CommandScreenSidebar>
       </CommandScreenBody>
+
+      <div className="flex flex-col gap-4 w-full">
+        <CommandScreenSectionHeading title={t("metrics", "Hub Metrics")} icon={t("icon_monitoring", "monitoring")} />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 w-full">
+          <CommandScreenMetricTile icon={t("icon_group", "group")} value={stats.citizens + stats.masons} label={t("stat_users", "Users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_architecture", "architecture")} value={stats.masons} label={t("tab_linker", "{Masons}")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_engineering", "engineering")} value={stats.architects} label={t("stat_architects", "Moderators")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_gavel", "gavel")} value={stats.blacklists} label={t("stat_blacklists", "Blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_threat_intelligence", "threat_intelligence")} value={stats.oversightQueue} label={t("tab_malware_logs", "Manifests")} valueColorClass="text-red-700" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+        </div>
+      </div>
 
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}

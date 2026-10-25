@@ -1,9 +1,5 @@
 # Sanctuary OS — Master Architecture & Feature Document
 
-**Document Version:** V0.5.8-Dev.3  
-**Last Updated:** October 24, 2026  
-**Sync Pipeline:** Synced bidirectionally between `Master Architecture & Feature Document.md` and **Keepers Core -> System Directives (`public.system_directives`)**.
-
 Sanctuary OS is a local-first mod operations layer, desktop middleware, and decentralized Hub-and-Spoke ecosystem built on a strict **"no asset hosting / metadata-only / offline-first / 0% platform tax"** architecture.
 
 ---

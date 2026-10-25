@@ -15,6 +15,7 @@ import {
   HoverTooltip,
   getNormalizedArtifactName,
   ActionPill,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -46,10 +47,10 @@ export function MarketUploadPanel({
         iconColorClass="text-[var(--accent)]"
         title={
           marketTab === "LEXICONS"
-            ? t("upload_lexicon_title", "Upload Lexicon")
+            ? t("upload_lexicon_title", "Upload {Lexicon}")
             : marketTab === "TEMPLATES"
               ? t("upload_template_title", "Upload Template")
-              : t("upload_chameleon_title", "Upload Chameleon")
+              : t("upload_chameleon_title", "Upload {Chameleon}")
         }
         subtitle={t("auto_upload_new_asset", "Upload your custom creation")}
         headerActions={
@@ -81,10 +82,10 @@ export function MarketUploadPanel({
             overline={marketTab}
             title={
               marketTab === "LEXICONS"
-                ? t("upload_lexicon_title", "Upload Lexicon")
+                ? t("upload_lexicon_title", "Upload {Lexicon}")
                 : marketTab === "TEMPLATES"
                   ? t("upload_template_title", "Upload Template")
-                  : t("upload_chameleon_title", "Upload Chameleon")
+                  : t("upload_chameleon_title", "Upload {Chameleon}")
             }
             description={t("auto_upload_new_asset", "Upload your custom creation")}
             badge={`v${uploadState.version || "1.0.0"}`}
@@ -97,17 +98,17 @@ export function MarketUploadPanel({
             onChange={(val) => setUploadState((s: any) => ({ ...s, name: val }))}
             label={
               marketTab === "LEXICONS"
-                ? t("upload_lexicon_name", "Lexicon Name")
+                ? t("upload_lexicon_name", "{Lexicon} Name")
                 : marketTab === "TEMPLATES"
                   ? t("upload_template_name", "Template Name")
-                  : t("upload_chameleon_name", "Chameleon Name")
+                  : t("upload_chameleon_name", "{Chameleon} Name")
             }
             placeholder={
               marketTab === "LEXICONS"
-                ? t("upload_lexicon_name", "Lexicon Name")
+                ? t("upload_lexicon_name", "{Lexicon} Name")
                 : marketTab === "TEMPLATES"
                   ? t("upload_template_name", "Template Name")
-                  : t("upload_chameleon_name", "Chameleon Name")
+                  : t("upload_chameleon_name", "{Chameleon} Name")
             }
           />
 
@@ -192,10 +193,10 @@ export function MarketUploadPanel({
               <div className="flex flex-col gap-1.5 flex-1">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
                   {marketTab === "LEXICONS"
-                    ? t("upload_lexicon_name", "Lexicon Name")
+                    ? t("upload_lexicon_name", "{Lexicon} Name")
                     : marketTab === "TEMPLATES"
                       ? t("upload_template_name", "Template Name")
-                      : t("upload_chameleon_name", "Chameleon Name")}
+                      : t("upload_chameleon_name", "{Chameleon} Name")}
                 </label>
                 <input
                   type="text"
@@ -286,7 +287,7 @@ export function MarketUploadPanel({
                       })),
                       {
                         id: "add_new",
-                        label: t("upload_add_language", "Add Language"),
+                        label: t("upload_add_language", "Add New {Lexicon}..."),
                       },
                     ]}
                   />
@@ -294,7 +295,7 @@ export function MarketUploadPanel({
                 {uploadState.language === "add_new" && (
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                      {t("upload_new_language", "New Language")}
+                      {t("upload_new_language", "New {Lexicon} Name")}
                     </label>
                     <input
                       type="text"
@@ -324,7 +325,7 @@ export function MarketUploadPanel({
                       }))
                     }
                     options={[
-                      { id: "Theme", label: t("type_theme", "Theme") },
+                      { id: "Theme", label: t("chameleon", "Theme") },
                       { id: "Default", label: t("type_default", "Default") },
                     ]}
                   />
@@ -425,26 +426,6 @@ export function MarketUploadPanel({
               </>
             )}
           </UniversalGroup>
-
-          <ActionButton
-            variant="glass"
-            icon={
-              uploadState.editId
-                ? t("icon_save", "save")
-                : t("icon_cloud_upload", "cloud_upload")
-            }
-            label={
-              uploadState.editId
-                ? t("upload_btn_update", "Update")
-                : t("upload_submit", "Submit")
-            }
-            disabled={
-              !uploadState.name ||
-              (uploadState.language === "add_new" && !uploadState.newLanguage)
-            }
-            onClick={submitUpload}
-            className="w-full"
-          />
         </div>
       </SidePanel>
     </>
@@ -476,7 +457,7 @@ export function MarketReportPanel({
         icon={t("icon_flag", "flag")}
         iconColorClass="text-[var(--danger)]"
         title={t("report_title", "Report Content")}
-        subtitle={t("report_desc", "Please describe the issue")}
+        subtitle={t("report_desc", "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination.")}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -495,21 +476,21 @@ export function MarketReportPanel({
             icon={t("icon_flag", "flag")}
             overline={t("action_required", "Action Required")}
             title={t("report_content", "Report Content")}
-            description={t("report_desc", "Please describe the issue")}
-            badge={reportState.assetType || t("status_unknown", "Unknown")}
+            description={t("report_desc", "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination.")}
+            badge={reportState.assetType || t("unknown", "Unknown")}
             badgeIcon={t("icon_warning", "warning")}
             variant="danger"
           >
             <div className="grid grid-cols-2 gap-3 pt-1">
               <StatBox
                 label={t("target_asset", "Target Asset")}
-                value={reportState.assetId || t("status_unknown", "Unknown")}
+                value={reportState.assetId || t("unknown", "Unknown")}
                 icon={t("icon_target", "target")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("asset_type", "Asset Type")}
-                value={reportState.assetType || t("status_unknown", "Unknown")}
+                value={reportState.assetType || t("unknown", "Unknown")}
                 icon={t("icon_category", "category")}
                 iconColorClass="text-[var(--accent)]"
               />
@@ -531,17 +512,6 @@ export function MarketReportPanel({
               className="w-full h-44 glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] resize-none focus:outline-none focus:border-[var(--accent)] transition-all"
             />
           </UniversalGroup>
-
-          <ActionButton
-            variant="glass"
-            icon={t("icon_flag", "flag")}
-            label={t("report_submit", "Submit Report")}
-            disabled={!reportState.reason?.trim()}
-            onClick={() =>
-              handleReportSubmit({ preventDefault: () => {} } as any)
-            }
-            className="w-full"
-          />
         </div>
       </SidePanel>
     </>
@@ -767,8 +737,13 @@ export function MarketBlueprintPanel({
       >
         <HoverTooltip title={mod.name} />
         <div className="flex justify-between items-start gap-2 relative z-10">
-          <div className="w-8 h-8 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-            <span className="material-symbols-outlined !text-[16px]">
+          <div
+            className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+            style={{
+              borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+            }}
+          >
+            <span className="material-symbols-rounded !text-[16px]">
               {cleaned.ext === "PACKAGE"
                 ? t("icon_inventory_2", "inventory_2")
                 : cleaned.ext === "TS4SCRIPT"
@@ -778,24 +753,34 @@ export function MarketBlueprintPanel({
           </div>
           <div className="flex gap-1.5 flex-wrap justify-end">
             {mod.is_early_access && (
-              <div
-                className="w-6 h-6 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center text-[var(--accent)]"
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--accent)",
+                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                }}
                 title={t("badge_early_access", "Early Access")}
               >
-                <span className="material-symbols-outlined !text-[12px]">
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_science", "science")}
                 </span>
-              </div>
+                <span>{t("badge_early_access", "Early Access")}</span>
+              </span>
             )}
             {mod.is_paid && (
-              <div
-                className="w-6 h-6 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] flex items-center justify-center text-[var(--warning)]"
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--warning)",
+                  borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                }}
                 title={t("badge_paid", "Paid")}
               >
-                <span className="material-symbols-outlined !text-[12px]">
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_monetization_on", "monetization_on")}
                 </span>
-              </div>
+                <span>{t("badge_paid", "Paid")}</span>
+              </span>
             )}
           </div>
         </div>
@@ -830,32 +815,31 @@ export function MarketBlueprintPanel({
         icon={t("icon_map", "map")}
         iconColorClass="text-[var(--accent)]"
         title={t("blueprint_inspector", "Blueprint Inspector")}
-        subtitle={t("blueprint_desc", "Inspect included artifacts")}
+        subtitle={t("blueprint_desc", "{Mod} metadata and Asset repository")}
         headerActions={
           <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_phonelink", "phonelink")}
-              tooltip={t(
-                "staging_btn_stage_blueprint",
-                "Stage Blueprint to Desktop"
-              )}
-              onClick={() => {
-                useModalStore
-                  .getState()
-                  .stageBlueprintToDraft(enrichedBlueprint);
-                useStore
-                  .getState()
-                  .pushStatus(
-                    t(
-                      "status_staging_blueprint_loaded",
-                      "Blueprint loaded into Payload Editor."
-                    )
-                  );
-                setSelectedBlueprint(null);
-                useStore.getState().setView("playsets");
-              }}
-              variant="default"
-            />
+            {!isDesktop() && (
+              <PanelHeaderButton
+                icon={t("icon_phonelink", "phonelink")}
+                tooltip={t("staging_btn_stage_blueprint", "Stage {Blueprint} to PC")}
+                onClick={() => {
+                  useModalStore
+                    .getState()
+                    .stageBlueprintToDraft(enrichedBlueprint);
+                  useStore
+                    .getState()
+                    .pushStatus(
+                      t(
+                        "status_staging_blueprint_loaded",
+                        "Blueprint loaded into Payload Editor."
+                      )
+                    );
+                  setSelectedBlueprint(null);
+                  useStore.getState().setView("playsets");
+                }}
+                variant="default"
+              />
+            )}
             {isDesktop() && (
               <PanelHeaderButton
                 icon={
@@ -904,10 +888,10 @@ export function MarketBlueprintPanel({
               enrichedBlueprint.creator_name ||
               enrichedBlueprint.master_author ||
               enrichedBlueprint.author ||
-              t("role_citizen", "Citizen")
+              t("role_citizen", "{Citizen}")
             }
             title={enrichedBlueprint.name}
-            description={t("blueprint_desc", "Inspect included artifacts")}
+            description={t("blueprint_desc", "{Mod} metadata and Asset repository")}
             badge={
               enrichedBlueprint.is_paid
                 ? t("badge_premium", "Premium")
@@ -926,13 +910,13 @@ export function MarketBlueprintPanel({
                 value={
                   enrichedBlueprint.game_version ||
                   enrichedBlueprint.json_data?.game_version ||
-                  t("status_unknown", "UNKNOWN")
+                  t("unknown", "UNKNOWN")
                 }
                 icon={t("icon_sell", "sell")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("downloads_count", "Downloads")}
+                label={t("sort_downloads", "Downloads")}
                 value={enrichedBlueprint.downloads || 0}
                 icon={t("icon_download", "download")}
                 iconColorClass="text-[var(--accent)]"
@@ -971,12 +955,12 @@ export function MarketBlueprintPanel({
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
+            searchPlaceholder={t("search_ph", "Search {mods}...")}
           />
 
           {premiumMods.length > 0 && (
             <UniversalGroup
-              title={`${t("premium_artifacts", "Premium Artifacts")} (${premiumMods.length})`}
+              title={`${t("premium_artifacts", "Premium {Mods}")} (${premiumMods.length})`}
               icon={t("icon_workspace_premium", "workspace_premium")}
               headerColorClass="text-[var(--warning)]"
             >
@@ -988,7 +972,7 @@ export function MarketBlueprintPanel({
 
           {standardMods.length > 0 && (
             <UniversalGroup
-              title={`${t("standard_artifacts", "Standard Artifacts")} (${standardMods.length})`}
+              title={`${t("standard_artifacts", "Standard {Mods}")} (${standardMods.length})`}
               icon={t("icon_inventory_2", "inventory_2")}
             >
               <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3.5">

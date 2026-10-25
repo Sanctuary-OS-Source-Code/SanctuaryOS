@@ -28,7 +28,7 @@ export const UniversalInjectableSearch = ({
           <ActionPill
             searchQuery={search}
             setSearchQuery={setSearch}
-            searchPlaceholder={searchPlaceholder || t("btn_search")}
+            searchPlaceholder={searchPlaceholder || t("btn_search", "Search")}
             rightContent={targets.length > 1 && (
               <CustomDropdown
                 flat={true} variant="pill"
@@ -93,9 +93,9 @@ export const UniversalBucketEditor = ({
   
   const flatItems: { hash: string, type: string, label: string, colorVar: string }[] = [];
   
-  if (items.core) flatItems.push({ hash: items.core, type: 'core', label: t('editor_core'), colorVar: '--subtext' });
-  (items.twins || []).forEach((h: string) => flatItems.push({ hash: h, type: 'twins', label: t('editor_twin'), colorVar: '--success' }));
-  (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon'), colorVar: '--warning' }));
+  if (items.core) flatItems.push({ hash: items.core, type: 'core', label: t('tab_core', "Core"), colorVar: '--subtext' });
+  (items.twins || []).forEach((h: string) => flatItems.push({ hash: h, type: 'twins', label: t('editor_twin', "Twin"), colorVar: '--success' }));
+  (items.addons || []).forEach((h: string) => flatItems.push({ hash: h, type: 'addons', label: t('editor_addon', "Addon"), colorVar: '--warning' }));
 
   return (
   <div className="glass-panel rounded-2xl overflow-hidden flex flex-col w-full shadow-lg border border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
@@ -133,10 +133,10 @@ export const UniversalBucketEditor = ({
             {/* Badge */}
             <div className="shrink-0 flex items-center">
               <span 
-                className="text-[9px] font-black capitalize px-2.5 py-1 rounded-full border tracking-widest"
-                style={{ color: `var(${item.colorVar})`, backgroundColor: `color-mix(in srgb, var(${item.colorVar}) 10%, transparent)`, borderColor: `color-mix(in srgb, var(${item.colorVar}) 20%, transparent)` }}
+                className="px-2.5 py-1 rounded-lg bg-transparent border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0"
+                style={{ color: `var(${item.colorVar})`, borderColor: `color-mix(in srgb, var(${item.colorVar}) 40%, transparent)` }}
               >
-                {item.label}
+                <span className="material-symbols-outlined !text-[12px]">{item.type === 'core' ? t("icon_account_tree", "account_tree") : t("icon_extension", "extension")}</span><span>{item.label}</span>
               </span>
             </div>
 
@@ -218,7 +218,7 @@ export const UniversalListPicker = ({
     return (
       <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl glass-panel">
         <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty")}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty", "Sandbox Empty")}</span>
       </div>
     );
   }
@@ -246,8 +246,8 @@ export const UniversalListPicker = ({
                 {item.title}
               </span>
               {item.topRightBadge && (
-                <span className="text-[9px] font-black text-[var(--accent)] capitalize px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] truncate max-w-[120px]">
-                  {item.topRightBadge}
+                <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 shrink-0 truncate max-w-[120px]">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_verified", "verified")}</span><span className="truncate">{item.topRightBadge}</span>
                 </span>
               )}
             </div>
@@ -288,7 +288,7 @@ export const UniversalGridPicker = ({
     return (
       <div className="w-full h-32 flex flex-col items-center justify-center text-[var(--subtext)] opacity-50 border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl glass-panel col-span-full">
         <span className="material-symbols-outlined mb-2 opacity-50">{emptyStateIcon || 'inventory_2'}</span>
-        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty")}</span>
+        <span className="text-[10px] font-black capitalize tracking-widest">{emptyStateTitle || t("empty", "Sandbox Empty")}</span>
       </div>
     );
   }

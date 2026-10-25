@@ -7,6 +7,7 @@ import {
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
@@ -90,8 +91,13 @@ export function NexusUpdatesSidePanel() {
                   className="cursor-pointer glass-surface rounded-xl px-4 py-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-11 h-11 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                      <span className="material-symbols-outlined !text-[22px]">
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[20px]">
                         {update.type === "chameleon"
                           ? t("icon_palette", "palette")
                           : update.type === "lexicon"
@@ -105,20 +111,51 @@ export function NexusUpdatesSidePanel() {
                         <h3 className="font-black text-sm tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate m-0">
                           {update.name}
                         </h3>
-                        <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] uppercase tracking-wider font-black shrink-0">
-                          {update.type}
+                        <span
+                          className={VAULT_CHIP_CLASS}
+                          style={{
+                            color: "var(--accent)",
+                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {update.type === "chameleon"
+                              ? t("icon_palette", "palette")
+                              : update.type === "lexicon"
+                                ? t("icon_translate", "translate")
+                                : t("icon_extension", "extension")}
+                          </span>
+                          <span>{update.type}</span>
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase tracking-wider font-black text-[var(--danger)] bg-transparent px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] line-through">
-                          v{update.oldVersion}
+                        <span
+                          className={`${VAULT_CHIP_CLASS} line-through`}
+                          style={{
+                            color: "var(--danger)",
+                            borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {t("icon_history", "history")}
+                          </span>
+                          <span>v{update.oldVersion}</span>
                         </span>
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)] opacity-60">
+                        <span className="material-symbols-rounded !text-[12px] text-[var(--subtext)] opacity-60">
                           {t("icon_arrow_forward", "arrow_forward")}
                         </span>
-                        <span className="text-[10px] uppercase tracking-wider font-black text-[var(--success)] bg-transparent px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--success)_40%,transparent)]">
-                          v{update.newVersion}
+                        <span
+                          className={VAULT_CHIP_CLASS}
+                          style={{
+                            color: "var(--success)",
+                            borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {t("icon_new_releases", "new_releases")}
+                          </span>
+                          <span>v{update.newVersion}</span>
                         </span>
                       </div>
                     </div>

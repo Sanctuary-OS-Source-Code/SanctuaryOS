@@ -2,12 +2,13 @@ import { isDesktop } from "../utils/envUtils";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
-import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
 import { isVersionMatch, getExtensionRegex } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState } from "react";
 import { useModalStore } from "../store/modalStore";
 import { notifyOS } from "../utils/notificationHelper";
+import { precomputeBlueprintConflicts } from "./usePlaySetLogic";
 
 const recentlyShreddedSet = new Set<string>();
 
@@ -100,23 +101,12 @@ async function fetchVault() {
 
         if (newItems.length > 0) {
           if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
-            supabase.from('malware_reports').select('detected_hash').then(({ data: existingReports }) => {
-              const insertPayloads = newItems
-                .filter((m: any) => !existingReports?.some((r: any) => r.detected_hash === m.hash))
-                .map((m: any) => ({
-                  artifact_name: m.displayName || m.name || 'Unknown',
-                  detected_hash: m.hash || 'unknown-hash',
-                  signature: m.matched_signature || 'Persistent Quarantine Artifact',
-                  status: 'pending',
-                  original_exists: Boolean(m.original_exists),
-                  original_shredded: Boolean(m.original_shredded)
-                }));
-              if (insertPayloads.length > 0) {
-                supabase.from('malware_reports').insert(insertPayloads).then(({ error }) => {
-                  if (error) console.error("Malware Report Insert Error (fetchVault):", error);
-                });
-              }
-            }).then(undefined, (e: any) => console.error("Malware Report Insert Exception (fetchVault):", e));
+            newItems.forEach((m: any) => {
+              submitThreatManifestToSpoke(m, {
+                isAuto: true,
+                defaultSignature: "Persistent Quarantine Artifact",
+              }).catch((e: any) => console.error("Malware Report Insert Exception (fetchVault):", e));
+            });
           }
           notifyOS("Quarantine Lockdown", `Sanctuary OS has quarantined ${newItems.length} persistent dangerous artifacts on boot.`, 'MALWARE_ALERT');
           return [...updatedExisting, ...newItems];
@@ -150,7 +140,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       setScanProgress({
         current: 1,
         total: 100,
-        message: t("scan_interrogating_dna"),
+        message: t("scan_interrogating_dna", "Interrogating Loadout Hash..."),
       });
     }
     try {
@@ -236,7 +226,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       }
 
       const allLocalMods = [...rawLocalMods, ...sandboxMods];
-      updateProgress(52, t("scan_identifying"));
+      updateProgress(52, t("scan_identifying", "IDENTIFYING FILES..."));
       await yieldToMain();
 
       const evasionDetected = allLocalMods.some(m => m.status === "☣️ EVASION DETECTED");
@@ -278,7 +268,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const initialList = localMods.map((m) => ({
         name: m.name,
         hash: m.hash,
-        status: t("status_identifying"),
+        status: t("status_identifying", "Identifying..."),
         color: "var(--text-secondary)",
         displayName: m.name,
         isSynced: false,
@@ -300,7 +290,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 ...existing,
                 ...m,
                 displayName: existing.displayName || m.displayName,
-                status: isSameHash && existing.status && existing.status !== t("status_identifying") ? existing.status : m.status,
+                status: isSameHash && existing.status && existing.status !== t("status_identifying", "Identifying...") ? existing.status : m.status,
                 color: isSameHash && existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
               };
             }
@@ -340,10 +330,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             }
             allCloudData.push(...((data as any[]) || []));
             completedChunks++;
-            updateProgress(55 + Math.floor((completedChunks / totalChunks) * 20), t("scan_identifying"));
+            updateProgress(55 + Math.floor((completedChunks / totalChunks) * 20), t("scan_identifying", "IDENTIFYING FILES..."));
           });
         }
-        updateProgress(75, t("scan_identifying"));
+        updateProgress(75, t("scan_identifying", "IDENTIFYING FILES..."));
       
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
@@ -379,7 +369,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         globalConflicts: any[] = [];
       try {
         if (!isOfflineMode) {
-          updateProgress(78, t("scan_fetching"));
+          updateProgress(78, t("scan_fetching", "FETCHING METADATA..."));
           const { data: members } = await supabase
           .from("collection_members")
           .select("set_id, mod_id");
@@ -445,7 +435,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         console.error("Bridge Error:", err);
       }
       if (identifiedIds.length > 0 && !isOfflineMode) {
-        updateProgress(85, t("scan_relationships"));
+        updateProgress(85, t("scan_relationships", "ANALYZING RELATIONSHIPS..."));
         const totalRelChunks = Math.ceil(identifiedIds.length / 200);
         let completedRelChunks = 0;
         await runInBatches(identifiedIds, 200, 0, async (chunk) => {
@@ -460,7 +450,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           allDeps.push(...((dC.data as any[]) || []), ...((dP.data as any[]) || []));
 
           completedRelChunks++;
-          updateProgress(85 + Math.floor((completedRelChunks / totalRelChunks) * 10), t("scan_relationships"));
+          updateProgress(85 + Math.floor((completedRelChunks / totalRelChunks) * 10), t("scan_relationships", "ANALYZING RELATIONSHIPS..."));
         });
         const pIds = [
           ...new Set([
@@ -488,7 +478,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           });
         }
       }
-      updateProgress(95, t("scan_relationships"));
+      updateProgress(95, t("scan_relationships", "ANALYZING RELATIONSHIPS..."));
       await yieldToMain();
       const cloudMap = new Map();
       allCloudData.forEach(c => cloudMap.set(String(c.dna_hash), c));
@@ -1044,11 +1034,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           mason_id: dbMod?.mason_id || null,
           status: dbMod
             ? dbMod.status === "stable"
-              ? t("status_dd_stable")
+              ? t("status_stable", "STABLE")
               : dbMod.status === "unverified"
-                ? t("unverified")
+                ? t("unverified", "Unverified")
                 : dbMod.status
-            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("unlinked_badge"),
+            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("badge_local", "Local"),
           isSynced: !!dbMod,
           isVirtual: false,
           isGhosted: isDlcMissing || isVersionMismatch,
@@ -1094,21 +1084,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (setMembers.length > 0) {
           const brokenCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
           const unstableCount = setMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-          const stableCount = setMembers.filter((m) => m.status === (t("status_dd_stable"))).length;
+          const stableCount = setMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
           const isAllStable = stableCount === setMembers.length;
           const isNoneStable = stableCount === 0;
           
           let folderStatus = "";
           if (brokenCount > 0) {
-            folderStatus = t("status_broken");
+            folderStatus = t("status_corrupted", "Corrupted");
           } else if (unstableCount > 0) {
-            folderStatus = t("label_unstable");
+            folderStatus = t("label_unstable", "Unstable");
           } else if (isAllStable) {
-            folderStatus = t("status_dd_stable");
+            folderStatus = t("status_stable", "STABLE");
           } else if (isNoneStable) {
-            folderStatus = t("unverified");
+            folderStatus = t("unverified", "Unverified");
           } else {
-            folderStatus = t("status_mixed");
+            folderStatus = t("status_mixed", "Mixed Status");
           }
 
           virtualCards.push({
@@ -1154,24 +1144,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
-          const safeName = pData.name || t("status_unknown_folder");
+          const safeName = pData.name || t("status_unknown_folder", "Unknown Folder");
           const brokenCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
           const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-          const stableCount = familyMembers.filter((m) => m.status === (t("status_dd_stable"))).length;
+          const stableCount = familyMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
           const isAllStable = stableCount === familyMembers.length;
           const isNoneStable = stableCount === 0;
           
           let folderStatus = "";
           if (brokenCount > 0) {
-            folderStatus = t("status_broken");
+            folderStatus = t("status_corrupted", "Corrupted");
           } else if (unstableCount > 0) {
-            folderStatus = t("label_unstable");
+            folderStatus = t("label_unstable", "Unstable");
           } else if (isAllStable) {
-            folderStatus = t("status_dd_stable");
+            folderStatus = t("status_stable", "STABLE");
           } else if (isNoneStable) {
-            folderStatus = t("unverified");
+            folderStatus = t("unverified", "Unverified");
           } else {
-            folderStatus = t("status_mixed");
+            folderStatus = t("status_mixed", "Mixed Status");
           }
 
           const baseFIdKey = String(baseFId);
@@ -1255,18 +1245,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const isSet = !!set.isCollection;
         const brokenCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
         const unstableCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-        const stableCount = setMembers.filter((m) => m.status === (t("status_dd_stable"))).length;
+        const stableCount = setMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
         const isAllStable = setMembers.length > 0 && stableCount === setMembers.length;
         
         let folderStatus = "";
         if (brokenCount > 0) {
-          folderStatus = t("status_broken");
+          folderStatus = t("status_corrupted", "Corrupted");
         } else if (unstableCount > 0) {
-          folderStatus = t("label_unstable");
+          folderStatus = t("label_unstable", "Unstable");
         } else if (isAllStable) {
-          folderStatus = t("status_dd_stable");
+          folderStatus = t("status_stable", "STABLE");
         } else {
-          folderStatus = t("local_node");
+          folderStatus = t("local_node", "Local Folder");
         }
 
         localVirtualCards.push({
@@ -1348,26 +1338,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
-          try {
-            const { data: existingReports } = await supabase.from('malware_reports').select('detected_hash');
-
-            const insertPayloads = detectedMalware
-              .filter((m: any) => !existingReports?.some((r: any) => r.detected_hash === m.hash))
-              .map((m: any) => ({
-                artifact_name: m.displayName || m.name || 'Unknown',
-                detected_hash: m.hash || 'unknown-hash',
-                signature: 'Radar Sweep Detection',
-                status: 'pending',
-                original_exists: m.original_exists,
-                original_shredded: m.original_shredded
-              }));
-
-            if (insertPayloads.length > 0) {
-              const { error } = await supabase.from('malware_reports').insert(insertPayloads);
-              if (error) console.error("Malware Report Insert Error (sweep):", error);
-            }
-          } catch(e) {
-            console.error("Malware Report Insert Exception (sweep):", e);
+          for (const m of detectedMalware) {
+            await submitThreatManifestToSpoke(m, {
+              isAuto: true,
+              defaultSignature: "Radar Sweep Detection",
+            });
           }
         }
 
@@ -1403,7 +1378,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
              newVersion: isStillOutdated ? existing.newVersion : undefined,
              newGameVersion: isStillOutdated ? existing.newGameVersion : undefined,
              download_url: isSameHash ? existing.download_url : m.download_url,
-             status: m.status !== t("status_identifying") ? m.status : (existing.status || m.status),
+             status: m.status !== t("status_identifying", "Identifying...") ? m.status : (existing.status || m.status),
              isSynced: m.isSynced !== undefined ? m.isSynced : existing.isSynced,
              color: m.color !== "var(--text-secondary)" ? m.color : (existing.color || m.color),
            };
@@ -1415,9 +1390,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       setModList(finalMasterList);
       useStore.setState({ isGlobalConfigLoaded: true });
       if (!isSilent) {
-        setScanProgress({ current: 100, total: 100, message: t("status_done") });
+        setScanProgress({ current: 100, total: 100, message: t("status_done", "Done.") });
         setTimeout(() => setScanProgress({ current: 0, total: 100, message: "" }), 2000);
-        setStatus(t("status_radar_done"));
+        setStatus(t("status_radar_done", "SCANNER: Loadout Reorganized."));
       }
       setTimeout(() => {
         try {
@@ -1431,6 +1406,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           console.warn("Cache save failed:", cacheErr);
         }
         checkNetworkUpdates(finalMasterList);
+        const stateSnap = useStore.getState();
+        const activeBpName = stateSnap.activeSetName || stateSnap.playSets?.[stateSnap.activePlaySetIndex]?.name || stateSnap.playSets?.[0]?.name;
+        if (activeBpName) {
+          precomputeBlueprintConflicts(activeBpName, undefined, config?.vault_path).catch(() => {});
+        }
       }, 50);
     } catch (err) {
       console.error("RADAR CRASH:", err);

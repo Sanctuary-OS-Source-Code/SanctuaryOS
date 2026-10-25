@@ -6,6 +6,7 @@ import {
   PanelHeaderButton,
   SidePanelHeroCard,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 
 export function YeetConfirmAlert({
@@ -59,7 +60,7 @@ export function YeetConfirmAlert({
             "yeet_removing_following",
             "These dependent artifacts require the target module and will also be unequipped."
           )}
-          badge={`${casualties.length} ${t("items", "Items")}`}
+          badge={`${casualties.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_delete", "delete")}
           variant="danger"
         />
@@ -76,7 +77,12 @@ export function YeetConfirmAlert({
                 className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                  <div
+                    className="w-9 h-9 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
+                    style={{
+                      borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                    }}
+                  >
                     <span className="material-symbols-outlined !text-[16px]">
                       {t("icon_delete", "delete")}
                     </span>
@@ -85,30 +91,22 @@ export function YeetConfirmAlert({
                     {String(c).replace(/_/g, " ")}
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] shrink-0">
-                  {t("protocol_override", "Dependent")}
+                <span
+                  className={`${VAULT_CHIP_CLASS} shrink-0`}
+                  style={{
+                    color: "var(--danger)",
+                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_link_off", "link_off")}
+                  </span>
+                  <span>{t("protocol_override", "Dependent")}</span>
                 </span>
               </div>
             ))}
           </div>
         </UniversalGroup>
-
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <ActionButton
-            variant="glass"
-            icon={t("icon_close", "close")}
-            label={t("yeet_btn_abort", "Cancel")}
-            onClick={() => setYeetConfirmPending(null)}
-            className="w-full"
-          />
-          <ActionButton
-            variant="glass"
-            icon={t("icon_delete", "delete")}
-            label={t("yeet_btn_confirm", "Confirm Removal")}
-            onClick={handleConfirm}
-            className="w-full !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
-          />
-        </div>
       </div>
     </SidePanel>
   );

@@ -13,6 +13,7 @@ import {
   renderTextWithIcons,
   PanelHeaderGroup,
   PanelHeaderButton,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import TicketLogViewer from "./TicketLogViewer";
@@ -222,7 +223,7 @@ export default function TicketDossierSidePanel({
       subtitle={`${t("oversight_report_id", "ID")}: ${ticket.id.substring(0, 8)}`}
       icon={t("icon_support_agent", "support_agent")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[680px]"
+      widthClass="w-[90vw] md:w-[760px]"
       headerActions={
         <PanelHeaderGroup>
           {onClaim && !ticket.metadata?.claimed_by && (
@@ -264,13 +265,13 @@ export default function TicketDossierSidePanel({
             "dossier_ticket_details",
             "Ticket details, diagnostic telemetry, and agent correspondence."
           )}
-          badge={isNew ? t("ui_tab_new", "NEW") : ticket.status}
+          badge={isNew ? t("badge_new", "NEW") : ticket.status}
           badgeIcon={t("icon_info", "info")}
           variant={heroVariant}
         >
           <div className="grid grid-cols-2 gap-3 pt-1">
             <StatBox
-              label={t("dossier_author", "Author")
+              label={t("author", "Author")
                 .replace(/^[^\w]*/, "")
                 .trim()}
               value={ticket.author_username || authorName}
@@ -281,7 +282,7 @@ export default function TicketDossierSidePanel({
               label={t("status", "Status")
                 .replace(/^[^\w]*/, "")
                 .trim()}
-              value={isNew ? t("ui_tab_new", "NEW") : ticket.status}
+              value={isNew ? t("badge_new", "NEW") : ticket.status}
               icon={t("icon_info", "info")}
               iconColorClass="text-[var(--accent)]"
             />
@@ -318,8 +319,8 @@ export default function TicketDossierSidePanel({
           ticket.metadata.restricted_violations.length > 0 && (
             <SidePanelHeroCard
               icon={t("icon_warning", "warning")}
-              overline={t("dossier_restricted_detected", "Policy Violation Detected")}
-              title={t("dossier_restricted_detected", "Restricted Items Flagged")}
+              overline={t("dossier_restricted_detected", "Restricted {mods} detected in {blueprint}")}
+              title={t("dossier_restricted_detected", "Restricted {mods} detected in {blueprint}")}
               variant="danger"
             >
               <div className="flex flex-wrap gap-2">
@@ -327,10 +328,14 @@ export default function TicketDossierSidePanel({
                   (v: string, i: number) => (
                     <span
                       key={i}
-                      className="flex items-center gap-1.5 text-[var(--danger)] text-[10px] font-mono bg-transparent py-1 px-2.5 rounded-lg border border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                      className={`${VAULT_CHIP_CLASS} font-mono`}
+                      style={{
+                        color: "var(--danger)",
+                        borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                      }}
                     >
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {t("auto_extension", "extension")}
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {t("icon_extension", "extension")}
                       </span>
                       <span>{v.replace(/[-_]/g, " ")}</span>
                     </span>
@@ -350,17 +355,35 @@ export default function TicketDossierSidePanel({
             {ticket.metadata?.claimed_by && (
               <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-                    {t("icon_back_hand", "back_hand")}
-                  </span>
+                  <div
+                    className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                    style={{
+                      borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[18px]">
+                      {t("icon_back_hand", "back_hand")}
+                    </span>
+                  </div>
                   <span className="text-xs font-bold text-[var(--subtext)]">
                     {t("ticket_claimed_by", "Claimed By")}
                   </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider">
-                  {ticket.metadata.claimed_by === currentUserId
-                    ? t("you", "You")
-                    : t("another_agent", "Another Agent")}
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_person", "person")}
+                  </span>
+                  <span>
+                    {ticket.metadata.claimed_by === currentUserId
+                      ? t("you", "You")
+                      : t("another_agent", "Another Agent")}
+                  </span>
                 </span>
               </div>
             )}
@@ -368,14 +391,19 @@ export default function TicketDossierSidePanel({
             {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
               <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                    <span className="material-symbols-outlined !text-[18px]">
+                  <div
+                    className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                    style={{
+                      borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[18px]">
                       {t("icon_extension", "extension")}
                     </span>
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                      {t("target_artifact", "Target Artifact")}
+                      {t("target_artifact", "Target {Mod}")}
                     </span>
                     <span className="text-xs font-mono font-bold text-[var(--text)] truncate">
                       {ticket.target_mod_name ||
@@ -424,7 +452,7 @@ export default function TicketDossierSidePanel({
 
         {replies.length > 0 && (
           <UniversalGroup
-            title={t("dossier_transmissions", "Transmissions")}
+            title={t("tab_posts", "{Dispatches}")}
             icon={t("icon_forum", "forum")}
           >
             <div className="flex flex-col gap-3">
@@ -435,7 +463,12 @@ export default function TicketDossierSidePanel({
                 >
                   <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                      <div
+                        className="w-9 h-9 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--accent)]"
+                        style={{
+                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                        }}
+                      >
                         <span className="text-xs font-black">
                           {(r.author || "U").charAt(0).toUpperCase()}
                         </span>
@@ -486,7 +519,7 @@ export default function TicketDossierSidePanel({
                 label={
                   isSubmitting
                     ? t("btn_submitting", "Submitting...")
-                    : t("dossier_btn_send_transmission", "Send Transmission")
+                    : t("dossier_btn_send_transmission", "Send {Dispatch}")
                 }
               />
             </UniversalGroup>
@@ -531,15 +564,6 @@ export default function TicketDossierSidePanel({
                   />
                 </div>
               </div>
-
-              <ActionButton
-                variant="glass"
-                icon={t("icon_save", "save")}
-                label={t("dossier_btn_save", "Save Action")}
-                disabled={!selectedAction || !reason.trim() || isSubmitting}
-                onClick={() => onTakeAction(selectedAction as any, reason)}
-                className="w-full"
-              />
             </UniversalGroup>
           )}
       </div>

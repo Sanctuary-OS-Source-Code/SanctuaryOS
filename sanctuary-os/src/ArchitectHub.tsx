@@ -44,9 +44,9 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   return (
     <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
       <ViewHeader
-        title={t("hub_title") || "Architect Hub"}
-        subtitle={t("hub_subtitle") || "Catalog & Metadata Architecture"}
-        icon={t("icon_analytics") || "analytics"}
+        title={t("hub_title", "Moderator Console") || "Architect Hub"}
+        subtitle={t("hub_subtitle", "Registry review, metadata governance, and conflict triage") || "Catalog & Metadata Architecture"}
+        icon={t("icon_analytics", "analytics") || "analytics"}
         iconColorClass="text-[var(--accent)]"
         breadcrumb={
           activeTab !== "command_center"
@@ -60,8 +60,8 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         hubActions={[
           {
             id: "hub_verify_hash",
-            icon: t("icon_verified_user") || "verified_user",
-            label: t("wf_hub_verify") || "Check Hash",
+            icon: t("icon_verified_user", "verified_user") || "verified_user",
+            label: t("wf_hub_verify", "Verify Hash") || "Check Hash",
             onClick: () => setIsVerifyPanelOpen(true),
           },
         ]}
@@ -69,14 +69,14 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
 
       <div className="md:hidden">
         <HoverTabDrawer
-          title={t("hub_title") || "Architect Navigation"}
+          title={t("hub_title", "Moderator Console") || "Architect Navigation"}
           activeTab={activeTab}
           setTab={setActiveTab}
           hideMobilePills={true}
           footer={
             <ActionButton
-              icon={t("icon_verified_user")}
-              label={t("wf_hub_verify")}
+              icon={t("icon_verified_user", "verified_user")}
+              label={t("wf_hub_verify", "Verify Hash")}
               variant="glass"
               className="w-full"
               onClick={() => setIsVerifyPanelOpen(true)}
@@ -85,64 +85,64 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         >
           <VerticalTabButton
             id="command_center"
-            icon={t("icon_desktop_windows")}
-            label={t("wf_tab_command")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_desktop_windows", "desktop_windows")}
+            label={t("wf_tab_command", "Command")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="registry"
-            icon={t("icon_inventory_2")}
-            label={t("items")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_inventory_2", "inventory_2")}
+            label={t("term_mods", "Mods")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="queue"
-            icon={t("icon_search")}
-            label={t("tab_queue")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_search", "search")}
+            label={t("tab_queue", "Scanner")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="lab"
-            icon={t("icon_monitor_heart")}
-            label={t("tab_diagnostics")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_monitor_heart", "monitor_heart")}
+            label={t("tab_diagnostics", "Diagnostics")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="collections"
-            icon={t("icon_collections_bookmark")}
-            label={t("tab_cc")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_collections_bookmark", "collections_bookmark")}
+            label={t("tab_cc", "Collections")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="mason_queue"
-            icon={t("icon_construction")}
-            label={t("mason")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_construction", "construction")}
+            label={t("mason", "{Mason}")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="template_oversight"
-            icon={t("icon_data_object")}
-            label={t("ql_templates")}
+            icon={t("icon_data_object", "data_object")}
+            label={t("ql_templates", "Templates")}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="nexus_reports"
-            icon={t("icon_flag")}
-            label={t("stat_bugs")?.replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_flag", "flag")}
+            label={t("stat_bugs", "Reports")?.replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
           <VerticalTabButton
             id="support_tickets"
-            icon={t("icon_local_activity")}
-            label={t("wf_tab_tickets").replace(/^[^\w]*/, "").trim()}
+            icon={t("icon_local_activity", "local_activity")}
+            label={t("wf_tab_tickets", "Support").replace(/^[^\w]*/, "").trim()}
             activeTab={activeTab}
             setTab={setActiveTab}
           />
@@ -211,12 +211,12 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
 export function CustomStatusDropdown({ value, onChange }: { value: string; onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: "stable", label: t("status_tag_stable") || "Stable" },
-    { id: "unstable", label: t("status_tag_unstable") || "Unstable" },
-    { id: "corrupted", label: t("status_tag_corrupted") || "Corrupted" },
-    { id: "under_review", label: t("status_tag_under_review") || "Under Review" },
-    { id: "pending", label: t("status_tag_pending") || "Pending" },
-    { id: "unknown", label: t("status_tag_unknown") || "Unknown" },
+    { id: "stable", label: t("status_stable", "STABLE") || "Stable" },
+    { id: "unstable", label: t("label_unstable", "Unstable") || "Unstable" },
+    { id: "corrupted", label: t("status_corrupted", "Corrupted") || "Corrupted" },
+    { id: "under_review", label: t("status_dd_review", "Under Review") || "Under Review" },
+    { id: "pending", label: t("pending", "Pending") || "Pending" },
+    { id: "unknown", label: t("unknown", "Unknown") || "Unknown" },
   ];
   return (
     <CustomDropdown
@@ -224,7 +224,7 @@ export function CustomStatusDropdown({ value, onChange }: { value: string; onCha
       value={value}
       options={options}
       onChange={(v: string[]) => onChange(v[0])}
-      placeholder={t("auto_select_status")}
+      placeholder={t("auto_select_status", "Select Status")}
     />
   );
 }
@@ -247,7 +247,7 @@ export function CustomMasonDropdown({
       value={value}
       options={dropdownOptions}
       onChange={(v: string[]) => onChange(v[0])}
-      placeholder={t("mason")}
+      placeholder={t("mason", "{Mason}")}
     />
   );
 }

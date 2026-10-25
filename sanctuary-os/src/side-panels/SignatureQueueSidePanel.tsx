@@ -26,6 +26,7 @@ import {
   StatBox,
   standardAccentGlassButtonClass,
   standardDangerButtonClass,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { unpackBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 import {
@@ -503,10 +504,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         useStore
           .getState()
           .pushStatus(
-            t(
-              "status_sig_queue_deployed",
-              "Citizen Signature verified: Play Set deployed & cloud staging record shredded!"
-            ),
+            t("status_sig_queue_deployed", "{Citizen} Signature verified: {Blueprint} deployed & cloud staging record shredded!"),
             "success"
           );
       } else {
@@ -523,10 +521,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                   "sig_queue_assets_installed_toast",
                   "Installed staged Nexus Assets into Sanctuary OS!"
                 )
-              : t(
-                  "status_sig_queue_browser_launched",
-                  "Citizen Signature verified: Launching creator download pages & shredding cloud record!"
-                ),
+              : t("status_sig_queue_browser_launched", "{Citizen} Signature verified: Launching creator download pages & shredding cloud record!"),
             "success"
           );
       }
@@ -613,8 +608,17 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           </button>
 
           {isBpMode && (
-            <span className="px-2 py-1 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[9px] font-mono font-black text-[var(--subtext)] shrink-0">
-              #{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}
+            <span
+              className={`${VAULT_CHIP_CLASS} font-mono`}
+              style={{
+                color: "var(--subtext)",
+                borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
+              }}
+            >
+              <span className="material-symbols-rounded !text-[12px] shrink-0">
+                {t("icon_tag", "tag")}
+              </span>
+              <span>#{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}</span>
             </span>
           )}
 
@@ -625,44 +629,68 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
               </span>
 
               {isNexusAsset ? (
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-emerald-500/35 text-[8px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
-                  <span className="material-symbols-outlined !text-[10px]">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--success)",
+                    borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
                     {t("icon_bolt", "bolt")}
                   </span>
-                  {t("sig_queue_badge_direct_install", "Direct OS Install")}
+                  <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
                 </span>
               ) : mod.isOwned ? (
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8px] font-black text-[var(--success)] uppercase tracking-widest flex items-center gap-1 shrink-0">
-                  <span className="material-symbols-outlined !text-[10px]">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--success)",
+                    borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
                     {t("icon_check_circle", "check_circle")}
                   </span>
-                  {t("sig_queue_badge_owned", "IN VAULT")}
+                  <span>{t("status_in_vault", "In {Vault}")}</span>
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[8px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
-                  <span className="material-symbols-outlined !text-[10px]">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
                     {t("icon_download", "download")}
                   </span>
-                  {t("sig_queue_badge_missing", "ACQUIRE")}
+                  <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
                 </span>
               )}
 
               {mod.isDependency && (
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-cyan-500/35 text-[8px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 shrink-0">
-                  <span className="material-symbols-outlined !text-[10px]">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
                     {t("icon_account_tree", "account_tree")}
                   </span>
-                  {t("staging_badge_dependency", "Dependency")}
+                  <span>{t("staging_badge_dependency", "Dependency")}</span>
                 </span>
               )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                {customAuthor || t("unknown_mason", "Unknown Creator")}
+                {customAuthor || t("unknown_mason", "Unknown {Mason}")}
               </span>
               {mod.dependencyOf && (
-                <span className="text-[8px] font-bold text-cyan-400/80 capitalize tracking-wider">
+                <span className="text-[8px] font-bold text-[var(--accent)] opacity-80 capitalize tracking-wider">
                   • {t("staging_dep_of_prefix", "Required by")} {mod.dependencyOf}
                 </span>
               )}
@@ -671,23 +699,31 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
             {(mod.is_paid || mod.is_early_access) && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {mod.is_early_access && (
-                  <div className="px-2 py-1 bg-transparent border border-purple-500/35 rounded-lg flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[10px] text-purple-400">
+                  <div
+                    className={VAULT_CHIP_CLASS}
+                    style={{
+                      color: "var(--accent)",
+                      borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
                       {t("icon_science", "science")}
                     </span>
-                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-purple-400">
-                      {t("badge_early_access", "Early Access")}
-                    </span>
+                    <span>{t("badge_early_access", "Early Access")}</span>
                   </div>
                 )}
                 {mod.is_paid && (
-                  <div className="px-2 py-1 bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] rounded-lg flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">
+                  <div
+                    className={VAULT_CHIP_CLASS}
+                    style={{
+                      color: "var(--warning)",
+                      borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
                       {t("icon_monetization_on", "monetization_on")}
                     </span>
-                    <span className="text-[8px] font-black capitalize tracking-[0.1em] text-[var(--warning)]">
-                      {t("badge_paid", "Paid")}
-                    </span>
+                    <span>{t("badge_paid", "Paid")}</span>
                   </div>
                 )}
               </div>
@@ -742,7 +778,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
       isOpen={true}
       onClose={() => setIsSignatureQueueOpen(false)}
       title={t("sig_queue_title", "Signature Queue")}
-      subtitle={t("sig_queue_subtitle", "Volatile In-Memory Resolution • Awaiting Citizen's Signature")}
+      subtitle={t("sig_queue_subtitle", "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature")}
       icon={t("icon_draw", "draw")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[760px]"
@@ -761,7 +797,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
             icon={isBpMode ? t("icon_rocket_launch", "rocket_launch") : t("icon_open_in_new", "open_in_new")}
             tooltip={
               isBpMode
-                ? t("sig_queue_btn_deploy_blueprint", "Sign & Deploy Play Set")
+                ? t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
                 : t("sig_queue_btn_continue_browser", "Continue to Creator Pages")
             }
             variant="success"
@@ -777,50 +813,63 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           overline={queue.payload.sourceDevice || "PWA / Web"}
           title={
             isBpMode
-              ? t("staging_mode_blueprint", "Curated Blueprint")
-              : t("staging_mode_mod_queue", "Mod Download Queue")
+              ? t("staging_mode_blueprint", "Curated {Blueprint}")
+              : t("staging_mode_mod_queue", "{Mod} Download Queue")
           }
           description={
             queue.payload.notes ||
-            t(
-              "sig_queue_step_blueprint_desc",
-              "Saves this Play Set on your PC and automatically links any mods already in your Library."
-            )
+            t("sig_queue_step_blueprint_desc", "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}.")
           }
           badge={t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}
+          badgeIcon={t("icon_encrypted", "encrypted")}
           variant="accent"
         >
           <div className="flex flex-col gap-3 w-full">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-black text-[var(--success)] tracking-widest uppercase flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[13px]">
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--success)",
+                  borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_memory", "memory")}
                 </span>
-                {t("sig_queue_volatile_badge", "VOLATILE RAM ONLY • 0 BYTES ON DISK")}
+                <span>{t("sig_queue_volatile_badge", "VOLATILE RAM ONLY • 0 BYTES ON DISK")}</span>
               </span>
-              <span className="px-3 py-1 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black text-[var(--accent)] tracking-widest uppercase flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[13px]">
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--accent)",
+                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_encrypted", "encrypted")}
                 </span>
-                {t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}
+                <span>{t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}</span>
               </span>
             </div>
 
             <div className="grid grid-cols-3 gap-3 w-full">
               <StatBox
-                label={t("sig_queue_stat_owned", "Owned in Vault")}
+                label={t("sig_queue_stat_owned", "Owned in {Vault}")}
                 value={ownedSelected.length}
+                icon={t("icon_check_circle", "check_circle")}
                 colorClass="text-[var(--success)]"
               />
               <StatBox
                 label={t("sig_queue_stat_missing", "Missing Artifacts")}
                 value={missingSelected.length}
+                icon={t("icon_download", "download")}
                 colorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("sig_queue_stat_deps", "Child Dependencies")}
                 value={depsCount}
-                colorClass="text-cyan-400"
+                icon={t("icon_account_tree", "account_tree")}
+                colorClass="text-[var(--accent)]"
               />
             </div>
           </div>
@@ -836,8 +885,8 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
           subtitle={
             isBpMode
-              ? t("staging_mode_blueprint", "Curated Blueprint")
-              : t("staging_mode_mod_queue", "Mod Download Queue")
+              ? t("staging_mode_blueprint", "Curated {Blueprint}")
+              : t("staging_mode_mod_queue", "{Mod} Download Queue")
           }
         />
 
@@ -853,10 +902,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                   {t("icon_check_circle", "check_circle")}
                 </span>
                 <span>
-                  {t(
-                    "sig_queue_step_blueprint_desc",
-                    "Saves this Play Set on your PC and automatically links any mods already in your Library."
-                  )}
+                  {t("sig_queue_step_blueprint_desc", "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}.")}
                 </span>
               </div>
             )}
@@ -866,10 +912,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                   {t("icon_bolt", "bolt")}
                 </span>
                 <span>
-                  {t(
-                    "sig_queue_step_assets_desc",
-                    "Automatically installs selected Themes, Lexicons, and Templates directly into Sanctuary OS."
-                  )}
+                  {t("sig_queue_step_assets_desc", "Automatically installs selected {Chameleons}, Lexicons, and Templates directly into Sanctuary OS.")}
                 </span>
               </div>
             )}
@@ -879,10 +922,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                   {t("icon_open_in_new", "open_in_new")}
                 </span>
                 <span>
-                  {t(
-                    "sig_queue_step_browser_desc",
-                    "Opens missing mods in the Side Panel Browser to their creators' official download pages."
-                  )}
+                  {t("sig_queue_step_browser_desc", "Opens missing {mods} in the Side Panel Browser to their {masons}' official download pages.")}
                 </span>
               </div>
             )}
@@ -894,14 +934,14 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
+            searchPlaceholder={t("search_ph", "Search {mods}...")}
           />
           <div className="grid grid-cols-3 gap-3 w-full">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
               icon={t("icon_list", "list")}
-              label={t("sig_queue_filter_all", "All")}
+              label={t("filter_all", "All")}
               number={resolvedItems.length.toString()}
               isActive={filterTab === "ALL"}
               onClick={() => setFilterTab("ALL")}
@@ -930,7 +970,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         {/* Premium / Early Access Notice Banner */}
         {premiumItems.some((m) => m.selected) && (
           <UniversalGroup
-            title={t("premium_detected", "Premium Artifacts Detected")}
+            title={t("premium_detected", "Premium {Mods} Detected")}
             icon={t("icon_auto_fix_high", "auto_fix_high")}
             headerColorClass="text-[var(--warning)]"
             headerActions={
@@ -955,7 +995,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         {/* Item-by-Item Diff Queue */}
         {premiumItems.length > 0 && (
           <UniversalGroup
-            title={t("premium_detected", "Premium Artifacts")}
+            title={t("premium_detected", "Premium {Mods} Detected")}
             icon={t("icon_monetization_on", "monetization_on")}
             headerColorClass="text-[var(--warning)]"
           >
@@ -967,7 +1007,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
 
         {standardItems.length > 0 && (
           <UniversalGroup
-            title={t("standard_artifacts", "Standard Artifacts")}
+            title={t("standard_artifacts", "Standard {Mods}")}
             icon={t("icon_extension", "extension")}
           >
             <div className="flex flex-col gap-2.5">
@@ -991,10 +1031,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
               </div>
               {missingSelected.length > 0 && (
                 <p className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
-                  {t(
-                    "sig_queue_no_asset_hosting_note",
-                    "Zero Asset Hosting: Approved missing artifacts launch the integrated Side Panel Browser directly to the creators' official pages."
-                  )}
+                  {t("sig_queue_no_asset_hosting_note", "No Silent Downloads: Approved missing {mods} open directly on the creators' original download pages in the Side Panel Browser.")}
                 </p>
               )}
             </div>
@@ -1011,11 +1048,8 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                     {t("icon_rocket_launch", "rocket_launch")}
                   </span>
                   {missingSelected.length > 0
-                    ? t(
-                        "sig_queue_btn_deploy_and_download",
-                        "Deploy Play Set & Open Missing Downloads"
-                      )
-                    : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy Blueprint")}
+                    ? t("sig_queue_btn_deploy_and_download", "Deploy {Blueprint} & Open Missing Downloads")
+                    : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")}
                 </button>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
@@ -1026,7 +1060,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
                     onClick={() => handleSignAndExecute(false)}
                     className="w-full justify-center !py-3"
                   >
-                    {t("sig_queue_btn_save_blueprint_only", "Save Play Set Only")}
+                    {t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
                   </ActionButton>
 
                   <ActionButton

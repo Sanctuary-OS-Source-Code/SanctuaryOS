@@ -6,6 +6,7 @@ import {
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -34,10 +35,7 @@ export function ScoutQueueSidePanel({
       backdropZ="z-[99998]"
       panelZ="z-[99999]"
       title={t("queue_title", "Scout Verification Queue")}
-      subtitle={t(
-        "queue_desc",
-        "Contribute unverified artifact telemetry to the Sanctuary Registry."
-      )}
+      subtitle={t("queue_desc", "Unidentified {mods} detected.")}
       icon={t("icon_biotech", "biotech")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
@@ -46,17 +44,14 @@ export function ScoutQueueSidePanel({
         <SidePanelHeroCard
           icon={t("icon_biotech", "biotech")}
           overline={t("queue_title", "Scout Verification Queue")}
-          title={t(
-            "queue_desc",
-            "Contribute unverified artifact telemetry to the Sanctuary Registry."
-          )}
-          badge={`${queueItems.length} ${t("items", "Items")}`}
+          title={t("queue_desc", "Unidentified {mods} detected.")}
+          badge={`${queueItems.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_biotech", "biotech")}
           variant={!session || isBanned ? "danger" : "accent"}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <StatBox
-              label={t("queue_target", "Queued Artifacts")}
+              label={t("queue_target", "{Mod} Target")}
               value={queueItems.length}
               icon={t("icon_biotech", "biotech")}
               iconColorClass="text-[var(--accent)]"
@@ -65,8 +60,8 @@ export function ScoutQueueSidePanel({
               label={t("status", "Lab Verification")}
               value={
                 requireScoutLabTest
-                  ? t("citizen_action_required", "Required")
-                  : t("status_dd_stable", "Optional")
+                  ? t("action_required", "Required")
+                  : t("status_stable", "Optional")
               }
               icon={t("icon_verified_user", "verified_user")}
               iconColorClass="text-[var(--success)]"
@@ -116,14 +111,30 @@ export function ScoutQueueSidePanel({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <div
+                        className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                        style={{
+                          borderColor:
+                            "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                        }}
+                      >
                         <span className="material-symbols-outlined !text-[20px]">
                           {t("icon_biotech", "biotech")}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1 min-w-0 flex-1">
-                        <span className="self-start px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
-                          {t("queue_target", "Scout Target")}
+                        <span
+                          className={`self-start ${VAULT_CHIP_CLASS}`}
+                          style={{
+                            color: "var(--accent)",
+                            borderColor:
+                              "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {t("icon_biotech", "biotech")}
+                          </span>
+                          {t("queue_target", "{Mod} Target")}
                         </span>
                         <span className="text-sm font-black text-[var(--text)] truncate">
                           {mod.displayName || mod.name}

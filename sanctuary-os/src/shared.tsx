@@ -15,6 +15,7 @@ export {
   SidePanelTitleInput,
   SidePanelPillToggle,
 } from "./components/universal/UniversalLayout";
+export { VAULT_CHIP_CLASS, REGISTRY_CHIP_CLASS } from "./Cards";
 
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";

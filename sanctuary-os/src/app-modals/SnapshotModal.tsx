@@ -49,7 +49,7 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_close", "close")}
-              tooltip={t("nav_cancel")}
+              tooltip={t("cancel", "Cancel")}
               variant="danger"
               onClick={() => setSnapshotModal(false)}
             />
@@ -79,10 +79,10 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
 
         <div className="flex flex-col items-center gap-2 relative z-10 w-full">
           <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none text-[var(--text)] drop-shadow-md m-0">
-            {t("snapshot_title")}
+            {t("snapshot_title", "Snapshot Active Loadout")}
           </h2>
           <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[var(--accent)] opacity-85">
-            {t("snapshot_desc1")} {playSets[activePlaySetIndex]?.mods?.length || 0} {t("snapshot_desc2")}
+            {t("snapshot_desc1", "Enter a name to capture all")} {playSets[activePlaySetIndex]?.mods?.length || 0} {t("snapshot_desc2", "currently active {mods}.")}
           </span>
 
           <div
@@ -99,7 +99,7 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
             value={snapshotName}
             onChange={(e) => setSnapshotName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && executeSnapshot()}
-            placeholder={t("snapshot_placeholder")}
+            placeholder={t("snapshot_placeholder", "e.g., Decades Challenge...")}
             className="w-full glass-surface px-5 py-4 rounded-2xl text-sm font-bold text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all mt-1"
           />
         </div>
@@ -108,14 +108,14 @@ export function SnapshotModal({ snapshotModal, setSnapshotModal, snapshotName, s
           <ActionButton
             variant="glass"
             icon={t("icon_close", "close")}
-            label={t("nav_cancel")}
+            label={t("cancel", "Cancel")}
             onClick={() => setSnapshotModal(false)}
             className="w-full !py-3.5"
           />
           <ActionButton
             variant="accent"
             icon={t("icon_save", "save")}
-            label={t("auto_save")}
+            label={t("hub_save", "Save")}
             onClick={executeSnapshot}
             className="w-full !py-3.5"
           />

@@ -270,7 +270,7 @@ export function MasonSandbox({
 
   const handleImportToSandbox = async () => {
     if (!vaultPath) {
-      useStore.getState().pushStatus(t("auto_vault_path_not_30", "Vault path not set"), "error");
+      useStore.getState().pushStatus(t("auto_vault_path_not_30", "{Vault} path not set"), "error");
       return;
     }
 
@@ -320,7 +320,7 @@ export function MasonSandbox({
 
   const handleExportRelease = async () => {
     if (!activeMod) {
-      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45", "No valid sandbox mod"), "error");
+      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45", "No valid sandbox {mod}"), "error");
       return;
     }
     setIsCommitting(true);
@@ -479,7 +479,7 @@ export function MasonSandbox({
         .eq("id", activeMod.id);
       if (error) throw error;
       await fetchExistingMods();
-      useStore.getState().pushStatus(t("saved_success", "Saved!"), "success");
+      useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
     } catch (err: any) {
       useStore.getState().pushStatus(`${t("alert_error", "Error: ")}${err.message}`, "error");
     }
@@ -490,16 +490,13 @@ export function MasonSandbox({
   const handleSyncToNetwork = async () => {
     if (!isVerifiedMason) {
       useStore.getState().pushStatus(
-        t(
-          "sandbox_verified_upload_only_err",
-          "Nexus Artifact uploads are exclusively available to Verified Masons. Use Export Release to generate local manifest.json and override.json files."
-        ),
+        t("sandbox_verified_upload_only_err", "Nexus {Mod} Queue uploads are restricted to Verified {Masons}. Use Export Release to generate your local manifest.json, override.json, and release archive."),
         "error"
       );
       return;
     }
     if (!activeMod || !activeMod.hash) {
-      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45", "No valid sandbox mod"), "error");
+      useStore.getState().pushStatus(t("auto_no_valid_sandbox_45", "No valid sandbox {mod}"), "error");
       return;
     }
     const verCheck = await checkDnaHashVerification(activeMod.hash);
@@ -627,7 +624,7 @@ export function MasonSandbox({
         await recordVerifiedCertificate(verCheck.cert);
       }
 
-      useStore.getState().pushStatus(t("auto_mod_synced_to_39", "Mod synced to network!"), "success");
+      useStore.getState().pushStatus(t("auto_mod_synced_to_39", "{Mod} synced to network!"), "success");
       setIsEditorOpen(false);
       await fetchExistingMods();
       if (onClear) onClear();
@@ -925,7 +922,7 @@ export function MasonSandbox({
   const tabs = [
     {
       id: "overview",
-      label: t("mason_mods_tab_overview", "Overview"),
+      label: t("overview", "Overview"),
       icon: "dashboard",
       number: String(filteredSandboxMods.length + (isVerifiedMason ? filteredNexusMods.length : 0)),
     },
@@ -996,58 +993,50 @@ export function MasonSandbox({
   };
 
   const renderLanding = () => {
+    const recentSandboxSlice = filteredSandboxMods.slice(0, isVerifiedMason ? 2 : 4);
+    const recentNexusSlice = isVerifiedMason ? filteredNexusMods.slice(0, 2) : [];
+    const hasRecent = recentSandboxSlice.length > 0 || recentNexusSlice.length > 0;
+
     return (
       <HubOverviewLanding>
-        {isVerifiedMason && (
-          <HubOverviewSection
-            icon="warning"
-            iconColorClass="text-[var(--danger)]"
-            title={t("mason_mods_flagged_section_title", "Flagged & Needs Attention")}
-            isEmpty={flaggedMods.length === 0}
-            emptyIcon="check_circle"
-            emptyTitle={t("no_issues", "No issues detected")}
-          >
-            {flaggedMods.slice(0, 4).map((mod: any) => (
-              <ArtifactCard
-                key={mod.id}
-                mod={mod}
-                activeModId={activeMod?.id}
-                onClick={() => openCloudMod(mod)}
-              />
-            ))}
-          </HubOverviewSection>
-        )}
-
         <HubOverviewSection
-          icon="science"
-          iconColorClass="text-[var(--warning)]"
-          title={t("mason_mods_tab_sandbox", "Sandbox (Local)")}
-          isEmpty={filteredSandboxMods.length === 0}
-          emptyIcon={t("icon_folder_off", "folder_off")}
-          emptyTitle={t("empty", "Empty")}
+          icon={t("icon_schedule", "schedule")}
+          iconColorClass="text-[var(--accent)]"
+          title={t("chameleons_overview_recent", "Recent")}
+          isEmpty={!hasRecent}
+          emptyIcon={t("icon_deployed_code", "deployed_code")}
+          emptyTitle={t("registry_no_mods", "No {Mods} Found")}
+          gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {filteredSandboxMods.slice(0, 4).map((mod) => renderSandboxCard(mod))}
+          {recentSandboxSlice.map((mod) => renderSandboxCard(mod))}
+          {recentNexusSlice.map((mod: any) => (
+            <ArtifactCard
+              key={mod.id}
+              mod={mod}
+              activeModId={activeMod?.id}
+              onClick={() => openCloudMod(mod)}
+            />
+          ))}
         </HubOverviewSection>
 
-        {isVerifiedMason && (
-          <HubOverviewSection
-            icon="cloud_done"
-            iconColorClass="text-[var(--accent)]"
-            title={t("mason_mods_tab_nexus", "Nexus Uploads")}
-            isEmpty={filteredNexusMods.length === 0}
-            emptyIcon={t("icon_deployed_code", "deployed_code")}
-            emptyTitle={t("registry_no_mods", "No Mods Found")}
-          >
-            {filteredNexusMods.slice(0, 4).map((mod: any) => (
-              <ArtifactCard
-                key={mod.id}
-                mod={mod}
-                activeModId={activeMod?.id}
-                onClick={() => openCloudMod(mod)}
-              />
-            ))}
-          </HubOverviewSection>
-        )}
+        <HubOverviewSection
+          icon={t("icon_warning", "warning")}
+          iconColorClass="text-[var(--warning)]"
+          title={t("chameleons_overview_anomalies", "Anomalies")}
+          isEmpty={flaggedMods.length === 0}
+          emptyIcon={t("icon_check_circle", "check_circle")}
+          emptyTitle={t("no_issues", "No issues detected")}
+          gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          {flaggedMods.slice(0, 4).map((mod: any) => (
+            <ArtifactCard
+              key={mod.id}
+              mod={mod}
+              activeModId={activeMod?.id}
+              onClick={() => openCloudMod(mod)}
+            />
+          ))}
+        </HubOverviewSection>
       </HubOverviewLanding>
     );
   };
@@ -1058,7 +1047,7 @@ export function MasonSandbox({
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <EmptyState
             icon={t("icon_deployed_code", "deployed_code")}
-            title={t("registry_no_mods", "No Mods Found")}
+            title={t("registry_no_mods", "No {Mods} Found")}
             className="py-12"
           />
         </div>
@@ -1081,11 +1070,11 @@ export function MasonSandbox({
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("items", "Mods & Artifacts")}
+      headerTitle={t("term_mods", "Mods & Artifacts")}
       headerIcon="deployed_code"
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("search_ph", "Search...") as string}
+      searchPlaceholder={t("search_ph", "Search {mods}...") as string}
       tabs={tabs}
       activeTab={hubTab}
       onTabChange={(id) => setHubTab(id as any)}
@@ -1095,7 +1084,7 @@ export function MasonSandbox({
           id: "toggle_group_families",
           icon: groupFamilies ? "account_tree" : "view_module",
           label: groupFamilies
-            ? t("studio_group_families", "Group Mod Families")
+            ? t("studio_group_families", "Group {Mod} Families")
             : t("studio_flat_list", "Flat List"),
           onClick: () => setGroupFamilies(!groupFamilies),
         },
@@ -1141,7 +1130,7 @@ export function MasonSandbox({
                         setActiveSubType("ALL");
                       }}
                       options={[
-                        { id: "ALL", label: t("ql_all", "All") },
+                        { id: "ALL", label: t("filter_all", "All") },
                         ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
                           id: c.id,
                           label: t(c.lexicon_key) || c.id,
@@ -1151,7 +1140,7 @@ export function MasonSandbox({
                   </div>
                   <div className="flex flex-col gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("status_tag", "Status")}
+                      {t("status", "Status")}
                     </span>
                     <CustomDropdown
                       flat={true}
@@ -1160,12 +1149,12 @@ export function MasonSandbox({
                       value={statusFilter}
                       onChange={(val: string[]) => setStatusFilter(val[0])}
                       options={[
-                        { id: "ALL", label: t("ql_all", "All") },
-                        { id: "stable", label: t("status_tag_stable", "Stable") },
-                        { id: "under_review", label: t("status_tag_under_review", "Under Review") },
-                        { id: "pending", label: t("status_tag_pending", "Pending") },
-                        { id: "unstable", label: t("status_tag_unstable", "Unstable") },
-                        { id: "corrupted", label: t("status_tag_corrupted", "Corrupted") },
+                        { id: "ALL", label: t("filter_all", "All") },
+                        { id: "stable", label: t("status_stable", "Stable") },
+                        { id: "under_review", label: t("status_dd_review", "Under Review") },
+                        { id: "pending", label: t("pending", "Pending") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
                       ]}
                     />
                   </div>
@@ -1208,7 +1197,7 @@ export function MasonSandbox({
           title={
             editorMode === "registry"
               ? t("ui_edit_metadata", "Edit Metadata")
-              : t("artifact_config", "Artifact Configuration")
+              : t("artifact_config", "{Mod} Config")
           }
           subtitle={
             editorMode === "registry"
@@ -1302,7 +1291,7 @@ export function MasonSandbox({
                     name: val,
                   })
                 }
-                placeholder={t("label_modname", "Artifact Name")}
+                placeholder={t("label_modname", "{Mod} Name")}
               />
 
               {editorMode === "sandbox" && (
@@ -1344,7 +1333,7 @@ export function MasonSandbox({
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("label_mason_version", "Version")}
+                    {t("label_mason_version", "{Mason} Version")}
                   </label>
                   <input
                     value={activeMod.latest_version || ""}
@@ -1378,7 +1367,7 @@ export function MasonSandbox({
 
                 <div className="flex flex-col gap-2">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("registry_label_url", "URL")}
+                    {t("ui_url", "URL")}
                   </label>
                   <input
                     value={activeMod.url || ""}
@@ -1434,14 +1423,14 @@ export function MasonSandbox({
                   <SidePanelPillToggle
                     checked={activeMod.is_paid || false}
                     onChange={(checked) => setActiveMod({ ...activeMod, is_paid: checked })}
-                    label={t("label_is_paid", "Paid")}
+                    label={t("label_is_paid", "Paid {Mod}")}
                     icon="monetization_on"
                     variant="warning"
                   />
                   <SidePanelPillToggle
                     checked={activeMod.is_early_access || false}
                     onChange={(checked) => setActiveMod({ ...activeMod, is_early_access: checked })}
-                    label={t("label_is_early_access", "Early Access")}
+                    label={t("badge_early_access", "Early Access")}
                     icon="science"
                     variant="accent"
                   />

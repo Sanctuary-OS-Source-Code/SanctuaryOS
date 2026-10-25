@@ -1,8 +1,17 @@
 import { getModIcon, stripMarkdown } from './shared';
 import MasonPostCard from './MasonPostCard';
 import { UniversalCard } from './components/universal/UniversalCard';
+import {
+  DynamicThemePreviewBanner,
+  DynamicLexiconPreviewBanner,
+  DynamicBlueprintPreviewBanner,
+  DynamicTemplatePreviewBanner,
+  DynamicArtifactPreviewBanner,
+} from './chameleon-components/ThemeCard';
+import { useStore } from './store';
 
 export default function MasonProfileOverview({ posts, mods, marketAssets, mason, setActiveAsset, setSelectedBlueprint, onModClick, activeGameSchema, handlePostClick, handleToggleLike, isOwner, onEditShowcase, t }: any) {
+  const showImages = useStore((state: any) => state.showImages);
   const blueprintAssets = (marketAssets || []).filter((a: any) => a.asset_type === 'blueprint');
   const nonBlueprintAssets = (marketAssets || []).filter((a: any) => a.asset_type !== 'blueprint');
 
@@ -38,111 +47,90 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
               <div className="flex flex-col gap-5">
                 <h3 className="text-sm font-black text-[color-mix(in_srgb,var(--text)_60%,transparent)] uppercase tracking-[0.3em] pl-2 flex items-center gap-3">
                   <span className="material-symbols-outlined !text-lg text-[var(--text)] opacity-50">{t("icon_auto_awesome", "auto_awesome")}</span>
-                  <span>{t("latest_artifact", "Artifact Showcase")}</span>
+                  <span>{t("latest_artifact", "{Mod} Showcase")}</span>
                 </h3>
                 {(() => {
                   const showcaseMod = mods.find((m: any) => m.id === mason?.pinned_mod_id || m.id === mason?.pinned_ccset_id) || mods[0];
                   const otherMods = mods.filter((m: any) => m.id !== showcaseMod.id).slice(0, 2);
+                  const displayMods = [showcaseMod, ...otherMods];
                   return (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                      <div className={`w-full min-h-[220px] h-full ${otherMods.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'}`}>
-                        <div 
-                          onClick={() => onModClick({ ...showcaseMod, author: mason.name, isNexusView: true })}
-                          className="relative w-full h-full rounded-2xl glass-panel group/feat overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:shadow-[0_12px_36px_rgba(0,0,0,0.25)] transition-all duration-500 cursor-pointer flex flex-col justify-end p-5"
-                        >
-                          {showcaseMod.image_url ? (
-                            <>
-                              <img src={showcaseMod.image_url} alt={showcaseMod.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/feat:opacity-100 group-hover/feat:scale-105 transition-all duration-700" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[color-mix(in_srgb,var(--bg)_55%,transparent)] to-transparent opacity-90 z-10" />
-                            </>
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent overflow-hidden">
-                              <span className="material-symbols-outlined absolute -bottom-10 -right-10 !text-[200px] opacity-[0.03] text-[var(--text)] group-hover/feat:text-[var(--accent)] group-hover/feat:scale-110 group-hover/feat:-rotate-12 transition-all duration-700 pointer-events-none">{getModIcon(showcaseMod, activeGameSchema, t)}</span>
-                            </div>
-                          )}
-
-                          <div className="relative z-20 flex flex-col gap-2 w-full mt-auto">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              {showcaseMod.status === 'verified' && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--success)] glass-surface bg-[color-mix(in_srgb,var(--success)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] flex items-center gap-1.5 backdrop-blur-md">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_verified", "verified")}</span>
-                                  <span>{t("verified", "Verified")}</span>
-                                </span>
-                              )}
-                              <span className={`text-[10px] font-black px-3 py-1 rounded-full capitalize tracking-widest ${glassBadgeBase}`}>
-                                {showcaseMod.category_override || t("label_artifact", "Artifact")}
-                              </span>
-                              {showcaseMod.is_early_access && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-purple-300 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_early_access", "Early Access")}
-                                </span>
-                              )}
-                              {showcaseMod.is_paid && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-amber-300 glass-surface bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--warning)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_paid", "Paid")}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="flex items-center gap-1.5 opacity-60">
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_person", "person")}</span>
-                                <span className="text-[10px] font-black tracking-widest uppercase">{mason.name}</span>
-                              </div>
-                            </div>
-                            <h4 className="text-2xl lg:text-3xl font-black text-[var(--text)] line-clamp-1 group-hover/feat:theme-text-accent transition-colors drop-shadow-md">
-                              {showcaseMod.name}
-                            </h4>
-                            
-                            {showcaseMod.description && <p className="text-sm text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed drop-shadow-md">{stripMarkdown(showcaseMod.description)}</p>}
-
-                            <div className="flex items-center justify-between w-full mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                              <div className="flex items-center gap-3">
-                                {(mason?.pinned_mod_id === showcaseMod.id || mason?.pinned_ccset_id === showcaseMod.id) ? (
-                                  <div className="px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-full flex items-center gap-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] shrink-0 backdrop-blur-md">
-                                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
-                                    <span className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--accent)]">{t("pinned", "Pinned")}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayMods.map((mod: any) => {
+                        const isPinned = mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id;
+                        return (
+                          <UniversalCard
+                            key={mod.id}
+                            layout="vertical"
+                            isActive={isPinned}
+                            image={showImages !== false && mod.image_url ? mod.image_url : undefined}
+                            icon={!mod.image_url ? getModIcon(mod, activeGameSchema, t) : undefined}
+                            customIcon={
+                              <DynamicArtifactPreviewBanner
+                                data={mod}
+                                icon={getModIcon(mod, activeGameSchema, t)}
+                                heightClass="h-full"
+                              />
+                            }
+                            title={mod.name}
+                            subtitle={`${mason.name || t("unknown_mason", "Unknown {Mason}")}${mod.latest_version ? ` • ${mod.latest_version}` : ""}`}
+                            onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })}
+                            imageOverlay={
+                              <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 pointer-events-none">
+                                {isPinned && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
+                                    <span>{t("pinned", "Pinned")}</span>
                                   </div>
-                                ) : <div />}
-                                <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-[0.2em]">{new Date(showcaseMod.created_at).toLocaleDateString()}</span>
+                                )}
+                                {mod.status === 'verified' && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_verified", "verified")}</span>
+                                    <span>{t("verified", "Verified")}</span>
+                                  </div>
+                                )}
                               </div>
-                              <span className="text-[11px] font-black theme-text-accent capitalize tracking-widest opacity-0 group-hover/feat:opacity-100 transition-all translate-x-4 group-hover/feat:translate-x-0 duration-500 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 rounded-xl flex items-center gap-1.5">
-                                <span>{t("btn_view", "View")}</span>
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {otherMods.length > 0 && (
-                        <div className="lg:col-span-2 flex flex-col justify-center gap-5">
-                          {otherMods.map((mod: any) => (
-                            <UniversalCard
-                              key={mod.id}
-                              layout="compact"
-                              image={mod.image_url ? mod.image_url : undefined}
-                              icon={!mod.image_url ? getModIcon(mod, activeGameSchema, t) : undefined}
-                              title={mod.name}
-                              subtitle={<span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 tracking-[0.2em] uppercase">{new Date(mod.created_at).toLocaleDateString()}</span>}
-                              onClick={() => onModClick({ ...mod, author: mason.name, isNexusView: true })}
-                              className="w-full hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
-                              badges={
-                                <>
-                                  {mod.status === 'verified' && (
-                                    <span className="text-[8px] font-black capitalize tracking-widest text-[var(--success)] glass-surface bg-[color-mix(in_srgb,var(--success)_8%,transparent)] px-2 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_22%,transparent)] flex items-center gap-0.5 backdrop-blur-md">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_verified", "verified")}</span>
-                                    </span>
-                                  )}
-                                  <span className={`text-[8px] font-black capitalize tracking-widest truncate px-2.5 py-0.5 rounded-full ${glassBadgeBase}`}>
-                                    {mod.category_override || t("label_artifact", "Artifact")}
+                            }
+                            badges={
+                              <>
+                                <div className={glassBadgeBase}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {String(mod.category_override || mod.name || "").toLowerCase().includes("script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                   </span>
-                                </>
-                              }
-                            />
-                          ))}
-                        </div>
-                      )}
+                                  <span className="text-[var(--subtext)]">{mod.category_override || t("label_artifact", "{Mod}")}</span>
+                                </div>
+                                {mod.is_early_access && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-purple-400">{t("icon_science", "science")}</span>
+                                    <span>{t("badge_early_access", "Early Access")}</span>
+                                  </div>
+                                )}
+                                {mod.is_paid && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-amber-400">{t("icon_monetization_on", "monetization_on")}</span>
+                                    <span>{t("badge_paid", "Paid")}</span>
+                                  </div>
+                                )}
+                              </>
+                            }
+                            footer={
+                              <div className="flex items-center justify-between w-full pt-1 gap-2">
+                                <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
+                                  {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : ""}
+                                </span>
+                                <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+                                  {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+                                </span>
+                              </div>
+                            }
+                          >
+                            {mod.description && (
+                              <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">
+                                {stripMarkdown(mod.description)}
+                              </p>
+                            )}
+                          </UniversalCard>
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -154,105 +142,84 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
               <div className="flex flex-col gap-5">
                 <h3 className="text-sm font-black text-[color-mix(in_srgb,var(--text)_60%,transparent)] uppercase tracking-[0.3em] pl-2 flex items-center gap-3">
                   <span className="material-symbols-outlined !text-lg text-[var(--text)] opacity-50">{t("icon_map", "map")}</span>
-                  <span>{t("latest_blueprint", "Blueprint Showcase")}</span>
+                  <span>{t("latest_blueprint", "{Blueprint} Showcase")}</span>
                 </h3>
                 {(() => {
                   const showcaseBlueprint = blueprintAssets.find((a: any) => a.id === mason?.pinned_blueprint_id) || blueprintAssets[0];
                   const otherBlueprints = blueprintAssets.filter((a: any) => a.id !== showcaseBlueprint.id).slice(0, 2);
+                  const displayBlueprints = [showcaseBlueprint, ...otherBlueprints];
                   const bpIcon = t("icon_map", "map");
 
                   return (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                      <div className={`w-full min-h-[220px] h-full ${otherBlueprints.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'}`}>
-                        <div 
-                          onClick={() => setSelectedBlueprint(showcaseBlueprint)}
-                          className="relative w-full h-full rounded-2xl glass-panel group/feat overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:shadow-[0_12px_36px_rgba(0,0,0,0.25)] transition-all duration-500 cursor-pointer flex flex-col justify-end p-5"
-                        >
-                          {showcaseBlueprint.image_url ? (
-                            <>
-                              <img src={showcaseBlueprint.image_url} alt={showcaseBlueprint.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/feat:opacity-100 group-hover/feat:scale-105 transition-all duration-700" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[color-mix(in_srgb,var(--bg)_55%,transparent)] to-transparent opacity-90 z-10" />
-                            </>
-                          ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent overflow-hidden">
-                              <span className="material-symbols-outlined absolute -bottom-10 -right-10 !text-[200px] opacity-[0.03] text-[var(--text)] group-hover/feat:text-[var(--accent)] group-hover/feat:scale-110 group-hover/feat:-rotate-12 transition-all duration-700 pointer-events-none">{bpIcon}</span>
-                            </div>
-                          )}
-
-                          <div className="relative z-20 flex flex-col gap-2 w-full mt-auto">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className={`text-[10px] font-black px-3 py-1 rounded-full capitalize tracking-widest ${glassBadgeBase}`}>
-                                {t("type_blueprint", "Blueprint")}
-                              </span>
-                              {(showcaseBlueprint.json_data?.artifacts?.length || 0) > 0 && (
-                                <span className={`text-[10px] font-black px-3 py-1 rounded-full capitalize tracking-widest ${glassBadgeBase}`}>
-                                  {showcaseBlueprint.json_data.artifacts.length} {t("items", "Artifacts")}
-                                </span>
-                              )}
-                              {showcaseBlueprint.is_early_access && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-purple-300 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_early_access", "Early Access")}
-                                </span>
-                              )}
-                              {showcaseBlueprint.is_paid && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-amber-300 glass-surface bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--warning)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_paid", "Paid")}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="flex items-center gap-1.5 opacity-60">
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_person", "person")}</span>
-                                <span className="text-[10px] font-black tracking-widest uppercase">{mason.name}</span>
-                              </div>
-                            </div>
-                            <h4 className="text-2xl lg:text-3xl font-black text-[var(--text)] line-clamp-1 group-hover/feat:theme-text-accent transition-colors drop-shadow-md">
-                              {showcaseBlueprint.name}
-                            </h4>
-                            
-                            {showcaseBlueprint.description && <p className="text-sm text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed drop-shadow-md">{stripMarkdown(showcaseBlueprint.description)}</p>}
-
-                            <div className="flex items-center justify-between w-full mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                              <div className="flex items-center gap-3">
-                                {mason?.pinned_blueprint_id === showcaseBlueprint.id ? (
-                                  <div className="px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-full flex items-center gap-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] shrink-0 backdrop-blur-md">
-                                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
-                                    <span className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--accent)]">{t("pinned", "Pinned")}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayBlueprints.map((bp: any) => {
+                        const isPinned = mason?.pinned_blueprint_id === bp.id;
+                        return (
+                          <UniversalCard
+                            key={bp.id}
+                            layout="vertical"
+                            isActive={isPinned}
+                            image={showImages !== false && bp.image_url ? bp.image_url : undefined}
+                            icon={!bp.image_url ? bpIcon : undefined}
+                            customIcon={<DynamicBlueprintPreviewBanner data={bp} heightClass="h-full" />}
+                            title={bp.name}
+                            subtitle={mason.name || t("unknown_mason", "Unknown {Mason}")}
+                            onClick={() => setSelectedBlueprint(bp)}
+                            imageOverlay={
+                              isPinned ? (
+                                <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 pointer-events-none">
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
+                                    <span>{t("pinned", "Pinned")}</span>
                                   </div>
-                                ) : <div />}
-                                <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-[0.2em]">{new Date(showcaseBlueprint.created_at).toLocaleDateString()}</span>
-                              </div>
-                              <span className="text-[11px] font-black theme-text-accent capitalize tracking-widest opacity-0 group-hover/feat:opacity-100 transition-all translate-x-4 group-hover/feat:translate-x-0 duration-500 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 rounded-xl flex items-center gap-1.5">
-                                <span>{t("btn_view", "View")}</span>
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {otherBlueprints.length > 0 && (
-                        <div className="lg:col-span-2 flex flex-col justify-center gap-5">
-                          {otherBlueprints.map((bp: any) => (
-                            <UniversalCard
-                              key={bp.id}
-                              layout="compact"
-                              image={bp.image_url ? bp.image_url : undefined}
-                              icon={!bp.image_url ? bpIcon : undefined}
-                              title={bp.name}
-                              subtitle={<span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 tracking-[0.2em] uppercase">{new Date(bp.created_at).toLocaleDateString()}</span>}
-                              onClick={() => setSelectedBlueprint(bp)}
-                              className="w-full hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
-                              badges={
-                                <span className={`text-[8px] font-black capitalize tracking-widest truncate px-2.5 py-0.5 rounded-full ${glassBadgeBase}`}>
-                                  {t("type_blueprint", "Blueprint")}
+                                </div>
+                              ) : undefined
+                            }
+                            badges={
+                              <>
+                                <div className={glassBadgeBase}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{bpIcon}</span>
+                                  <span>{t("blueprint", "{Blueprint}")}</span>
+                                </div>
+                                {(bp.json_data?.artifacts?.length || 0) > 0 && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
+                                    <span>+{bp.json_data.artifacts.length} {t("badge_modules_count", "Modules")}</span>
+                                  </div>
+                                )}
+                                {bp.is_early_access && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-purple-400">{t("icon_science", "science")}</span>
+                                    <span>{t("badge_early_access", "Early Access")}</span>
+                                  </div>
+                                )}
+                                {bp.is_paid && (
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-amber-400">{t("icon_monetization_on", "monetization_on")}</span>
+                                    <span>{t("badge_paid", "Paid")}</span>
+                                  </div>
+                                )}
+                              </>
+                            }
+                            footer={
+                              <div className="flex items-center justify-between w-full pt-1 gap-2">
+                                <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
+                                  {bp.created_at ? new Date(bp.created_at).toLocaleDateString() : ""}
                                 </span>
-                              }
-                            />
-                          ))}
-                        </div>
-                      )}
+                                <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+                                  {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+                                </span>
+                              </div>
+                            }
+                          >
+                            {bp.description && (
+                              <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">
+                                {stripMarkdown(bp.description)}
+                              </p>
+                            )}
+                          </UniversalCard>
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -269,98 +236,76 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                 {(() => {
                   const showcaseAsset = nonBlueprintAssets.find((a: any) => a.id === mason?.pinned_asset_id) || nonBlueprintAssets[0];
                   const otherAssets = nonBlueprintAssets.filter((a: any) => a.id !== showcaseAsset.id).slice(0, 2);
-                  const icon = showcaseAsset.asset_type === 'lexicon' ? t("icon_translate", "translate") : showcaseAsset.asset_type === 'chameleon' ? t("icon_palette", "palette") : t("icon_draw", "draw");
+                  const displayAssets = [showcaseAsset, ...otherAssets];
 
                   return (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                      <div className={`w-full min-h-[220px] h-full ${otherAssets.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'}`}>
-                        <div 
-                          onClick={() => setActiveAsset({ type: showcaseAsset.asset_type, id: showcaseAsset.id })}
-                          className="relative w-full h-full rounded-2xl glass-panel group/feat overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:shadow-[0_12px_36px_rgba(0,0,0,0.25)] transition-all duration-500 cursor-pointer flex flex-col justify-end p-5"
-                        >
-                          {showcaseAsset.image_url ? (
-                            <>
-                              <img src={showcaseAsset.image_url} alt={showcaseAsset.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/feat:opacity-100 group-hover/feat:scale-105 transition-all duration-700" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[color-mix(in_srgb,var(--bg)_55%,transparent)] to-transparent opacity-90 z-10" />
-                            </>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayAssets.map((asset: any) => {
+                        const isPinned = mason?.pinned_asset_id === asset.id;
+                        const smIcon = asset.asset_type === 'lexicon' ? t("icon_translate", "translate") : asset.asset_type === 'chameleon' ? t("icon_palette", "palette") : t("icon_draw", "draw");
+                        const previewNode =
+                          asset.asset_type === 'chameleon' ? (
+                            <DynamicThemePreviewBanner
+                              data={{
+                                ...asset,
+                                ...(typeof asset.json_data === 'object' ? asset.json_data : {}),
+                                name: asset.name,
+                                previewImage: showImages !== false ? (asset.image_url || asset.json_data?.previewImage) : undefined,
+                              }}
+                              heightClass="h-full"
+                            />
+                          ) : asset.asset_type === 'lexicon' ? (
+                            <DynamicLexiconPreviewBanner data={asset} heightClass="h-full" />
                           ) : (
-                            <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent overflow-hidden">
-                              <span className="material-symbols-outlined absolute -bottom-10 -right-10 !text-[200px] opacity-[0.03] text-[var(--text)] group-hover/feat:text-[var(--accent)] group-hover/feat:scale-110 group-hover/feat:-rotate-12 transition-all duration-700 pointer-events-none">{icon}</span>
-                            </div>
-                          )}
+                            <DynamicTemplatePreviewBanner data={asset} heightClass="h-full" />
+                          );
 
-                          <div className="relative z-20 flex flex-col gap-2 w-full mt-auto">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className={`text-[10px] font-black px-3 py-1 rounded-full capitalize tracking-widest ${glassBadgeBase}`}>
-                                {t(showcaseAsset.asset_type, showcaseAsset.asset_type) || showcaseAsset.asset_type}
-                              </span>
-                              {showcaseAsset.is_early_access && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-purple-300 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_early_access", "Early Access")}
-                                </span>
-                              )}
-                              {showcaseAsset.is_paid && (
-                                <span className="text-[10px] font-black capitalize tracking-widest text-amber-300 glass-surface bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--warning)_22%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] backdrop-blur-md">
-                                  {t("badge_paid", "Paid")}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="flex items-center gap-1.5 opacity-60">
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_person", "person")}</span>
-                                <span className="text-[10px] font-black tracking-widest uppercase">{mason.name}</span>
-                              </div>
-                            </div>
-                            <h4 className="text-2xl lg:text-3xl font-black text-[var(--text)] line-clamp-1 group-hover/feat:theme-text-accent transition-colors drop-shadow-md">
-                              {showcaseAsset.name}
-                            </h4>
-                            
-                            {showcaseAsset.description && <p className="text-sm text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed drop-shadow-md">{stripMarkdown(showcaseAsset.description)}</p>}
-
-                            <div className="flex items-center justify-between w-full mt-4 pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                              <div className="flex items-center gap-3">
-                                {mason?.pinned_asset_id === showcaseAsset.id ? (
-                                  <div className="px-3 py-1 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] rounded-full flex items-center gap-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] shrink-0 backdrop-blur-md">
-                                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
-                                    <span className="text-[10px] font-black capitalize tracking-[0.2em] text-[var(--accent)]">{t("pinned", "Pinned")}</span>
+                        return (
+                          <UniversalCard
+                            key={asset.id}
+                            layout="vertical"
+                            isActive={isPinned}
+                            image={showImages !== false && asset.image_url ? asset.image_url : undefined}
+                            icon={!asset.image_url ? smIcon : undefined}
+                            customIcon={previewNode}
+                            title={asset.name}
+                            subtitle={mason.name || t("unknown_mason", "Unknown {Mason}")}
+                            onClick={() => setActiveAsset({ type: asset.asset_type, id: asset.id })}
+                            imageOverlay={
+                              isPinned ? (
+                                <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 pointer-events-none">
+                                  <div className={glassBadgeBase}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
+                                    <span>{t("pinned", "Pinned")}</span>
                                   </div>
-                                ) : <div />}
-                                <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-[0.2em]">{new Date(showcaseAsset.created_at).toLocaleDateString()}</span>
+                                </div>
+                              ) : undefined
+                            }
+                            badges={
+                              <div className={glassBadgeBase}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{smIcon}</span>
+                                <span>{t(asset.asset_type, asset.asset_type) || asset.asset_type}</span>
                               </div>
-                              <span className="text-[11px] font-black theme-text-accent capitalize tracking-widest opacity-0 group-hover/feat:opacity-100 transition-all translate-x-4 group-hover/feat:translate-x-0 duration-500 glass-surface bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 rounded-xl flex items-center gap-1.5">
-                                <span>{t("btn_view", "View")}</span>
-                                <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {otherAssets.length > 0 && (
-                        <div className="lg:col-span-2 flex flex-col justify-center gap-5">
-                          {otherAssets.map((asset: any) => {
-                            const smIcon = asset.asset_type === 'lexicon' ? t("icon_translate", "translate") : asset.asset_type === 'chameleon' ? t("icon_palette", "palette") : t("icon_draw", "draw");
-                            return (
-                              <UniversalCard
-                                key={asset.id}
-                                layout="compact"
-                                image={asset.image_url ? asset.image_url : undefined}
-                                icon={!asset.image_url ? smIcon : undefined}
-                                title={asset.name}
-                                subtitle={<span className="text-[9px] font-mono text-[var(--subtext)] opacity-60 tracking-[0.2em] uppercase">{new Date(asset.created_at).toLocaleDateString()}</span>}
-                                onClick={() => setActiveAsset({ type: asset.asset_type, id: asset.id })}
-                                className="w-full hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
-                                badges={
-                                  <span className={`text-[8px] font-black capitalize tracking-widest truncate px-2.5 py-0.5 rounded-full ${glassBadgeBase}`}>
-                                    {t(asset.asset_type, asset.asset_type) || asset.asset_type}
-                                  </span>
-                                }
-                              />
-                            );
-                          })}
-                        </div>
-                      )}
+                            }
+                            footer={
+                              <div className="flex items-center justify-between w-full pt-1 gap-2">
+                                <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">
+                                  {asset.created_at ? new Date(asset.created_at).toLocaleDateString() : ""}
+                                </span>
+                                <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+                                  {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+                                </span>
+                              </div>
+                            }
+                          >
+                            {asset.description && (
+                              <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">
+                                {stripMarkdown(asset.description)}
+                              </p>
+                            )}
+                          </UniversalCard>
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -379,7 +324,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
           </h2>
           <div className="w-full">
             {posts.length === 0 ? (
-              <div className="text-center py-16 opacity-50 text-xs font-black capitalize tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-3xl">{t("profile_no_posts", "No transmissions found.")}</div>
+              <div className="text-center py-16 opacity-50 text-xs font-black capitalize tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-3xl">{t("profile_no_posts", "No {dispatches} found.")}</div>
             ) : (
               <div className="flex flex-col gap-6">
                 {posts.map((p: any, index: number) => (

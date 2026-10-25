@@ -764,7 +764,7 @@ export function LabVerificationGate({
           <div className="flex flex-col gap-2">
             <div className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[10px] font-black tracking-wide flex items-center gap-2">
               <span className="material-symbols-outlined !text-[15px] shrink-0">
-                {t("icon_saves", "save")}
+                {t("icon_save", "save")}
               </span>
               <span className="leading-snug">
                 {activeSession.seeded_save_present
@@ -779,7 +779,7 @@ export function LabVerificationGate({
                   {t("icon_link", "link")}
                 </span>
                 <span className="leading-snug break-words">
-                  {t("lab_linked_files_badge", "Symlinked to Live Mods Folder")}:{" "}
+                  {t("lab_linked_files_badge", "Symlinked to Live {Mods} Folder")}:{" "}
                   {activeSession.linked_files.join(", ")}
                 </span>
               </div>
@@ -914,7 +914,7 @@ export function LabVerificationGate({
             <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] flex flex-col gap-1">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                  {t("icon_saves", "save")}
+                  {t("icon_save", "save")}
                 </span>
                 {t("lab_metric_save_cycle", "Save Checkpoint")}
               </span>
@@ -1026,7 +1026,7 @@ export function LabInGameOverlay() {
               {isVerified
                 ? t("icon_verified", "verified")
                 : isTimerUp
-                ? t("icon_saves", "save")
+                ? t("icon_save", "save")
                 : isPaused
                 ? t("icon_pause_circle", "pause_circle")
                 : t("icon_timer", "timer")}

@@ -278,17 +278,17 @@ export function ArchitectRegistry({
 
       if (!error) {
         logArchitectAction(`Updated Mod Metadata`, `mods`, activeMod.name);
-        if (setStatus) setStatus(`${t("icon_check_circle")} [${activeMod.name}] ${t("alert_saved")}`);
-        useStore.getState().pushStatus(t("saved_success", "Saved"), "success");
+        if (setStatus) setStatus(`${t("icon_check_circle", "check_circle")} [${activeMod.name}] ${t("alert_saved", "Saved successfully!")}`);
+        useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
         setPage(0);
         fetchData(true);
         fetchRelationships();
       } else {
-        if (setStatus) setStatus(`${t("icon_block")} ${t("alert_error")} ${t(error.message)}`);
+        if (setStatus) setStatus(`${t("icon_block", "block")} ${t("alert_error", "Error saving:")} ${t(error.message, error.message)}`);
         useStore.getState().pushStatus(error.message, "error");
       }
     } catch (err: any) {
-      if (setStatus) setStatus(`${t("icon_block")} ${t("alert_error")} ${t(err.message)}`);
+      if (setStatus) setStatus(`${t("icon_block", "block")} ${t("alert_error", "Error saving:")} ${t(err.message, err.message)}`);
       useStore.getState().pushStatus(err.message, "error");
     }
     setIsCommitting(false);
@@ -306,12 +306,12 @@ export function ArchitectRegistry({
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          icon="schedule"
+          icon={t("icon_schedule", "schedule")}
           iconColorClass="text-[var(--accent)]"
-          title={t("title_recent_artifacts") || "Recent Artifacts"}
+          title={t("title_recent_artifacts", "Recent {Mods}")}
           isEmpty={displayCloudMods.length === 0}
-          emptyIcon={t("icon_deployed_code")}
-          emptyTitle={t("no_artifacts")}
+          emptyIcon={t("icon_deployed_code", "deployed_code")}
+          emptyTitle={t("no_artifacts", "Creator No {Mods}")}
         >
           {displayCloudMods.slice(0, 4).map((mod: any) => (
             <ArtifactCard
@@ -325,12 +325,12 @@ export function ArchitectRegistry({
         </HubOverviewSection>
 
         <HubOverviewSection
-          icon="warning"
+          icon={t("icon_warning", "warning")}
           iconColorClass="text-[var(--warning)]"
-          title={t("title_issues") || "Flags & Issues"}
+          title={t("title_issues", "Issues")}
           isEmpty={issuesList.length === 0}
-          emptyIcon="check_circle"
-          emptyTitle={t("no_issues") || "No issues detected"}
+          emptyIcon={t("icon_check_circle", "check_circle")}
+          emptyTitle={t("no_issues", "No Issues")}
         >
           {issuesList.slice(0, 4).map((mod: any) => (
             <ArtifactCard
@@ -348,11 +348,11 @@ export function ArchitectRegistry({
 
   const renderList = () => (
     <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pr-2">
         {visibleCloudMods.length === 0 ? (
           <EmptyState
-            icon={searchTerm ? "search_off" : t("icon_inventory_2")}
-            title={searchTerm ? t("no_matches") : t("no_artifacts")}
+            icon={searchTerm ? t("icon_search_off", "search_off") : t("icon_inventory_2", "inventory_2")}
+            title={searchTerm ? t("no_matches", "No matches found") : t("no_artifacts", "Creator No {Mods}")}
             className="col-span-full py-16"
           />
         ) : (
@@ -377,13 +377,13 @@ export function ArchitectRegistry({
           >
             {isLoading ? (
               <>
-                <span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync")}</span>{" "}
-                {t("ui_loading")}
+                <span className="material-symbols-outlined animate-spin !text-[16px]">{t("icon_sync", "sync")}</span>{" "}
+                {t("ui_loading", "Loading...")}
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined !text-[16px]">{t("icon_expand_more")}</span>{" "}
-                {t("ui_btn_load_more")}
+                <span className="material-symbols-outlined !text-[16px]">{t("icon_expand_more", "expand_more")}</span>{" "}
+                {t("load_more", "Load More")}
               </>
             )}
           </button>
@@ -397,48 +397,48 @@ export function ArchitectRegistry({
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("items") || "Artifact Registry"}
-        headerIcon="inventory_2"
+        headerTitle={t("term_mods", "Mods")}
+        headerIcon={t("icon_inventory_2", "inventory_2")}
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_queue") as string}
+        searchPlaceholder={t("search_queue", "Search Queue...") as string}
         tabs={[
           {
             id: "overview",
-            label: t("landing_overview") || "Overview",
-            icon: "dashboard",
+            label: t("overview", "Overview"),
+            icon: t("icon_dashboard", "dashboard"),
             number: baseGroupedMods.length.toString(),
           },
           {
             id: "stable",
-            label: t("status_tag_stable") || "Stable",
-            icon: "verified",
+            label: t("status_stable", "STABLE"),
+            icon: t("icon_verified", "verified"),
             number: baseGroupedMods.filter((m) => m.status === "stable").length.toString(),
           },
           {
             id: "under_review",
-            label: t("status_tag_under_review") || "Under Review",
-            icon: "policy",
+            label: t("status_dd_review", "Under Review"),
+            icon: t("icon_policy", "policy"),
             number: baseGroupedMods.filter((m) => m.status === "under_review").length.toString(),
           },
           {
             id: "pending",
-            label: t("status_tag_pending") || "Pending",
-            icon: "schedule",
+            label: t("pending", "Pending"),
+            icon: t("icon_schedule", "schedule"),
             number: baseGroupedMods.filter((m) => m.status === "pending").length.toString(),
           },
           {
             id: "unknown",
-            label: t("status_tag_unknown") || "Unknown",
-            icon: "help",
+            label: t("unknown", "Unknown"),
+            icon: t("icon_help", "help"),
             number: baseGroupedMods
               .filter((m) => m.status === "unknown" || !m.status || m.status === "unverified")
               .length.toString(),
           },
           {
             id: "unstable_corrupted",
-            label: t("status_tag_unstable") || "Unstable & Corrupted",
-            icon: "warning",
+            label: t("label_unstable", "Unstable"),
+            icon: t("icon_warning", "warning"),
             number: baseGroupedMods
               .filter((m) => m.status === "unstable" || m.status === "corrupted")
               .length.toString(),
@@ -450,9 +450,9 @@ export function ArchitectRegistry({
         actions={[
           {
             id: "toggle_group_families",
-            icon: groupFamilies ? "account_tree" : "view_module",
+            icon: groupFamilies ? t("icon_account_tree", "account_tree") : t("icon_view_module", "view_module"),
             label: groupFamilies
-              ? t("studio_group_families", "Group Mod Families")
+              ? t("studio_group_families", "Group {Mod} Families")
               : t("studio_flat_list", "Flat List"),
             onClick: () => setGroupFamilies(!groupFamilies),
           },
@@ -460,13 +460,13 @@ export function ArchitectRegistry({
         primaryPopover={
           activeTab !== "overview"
             ? {
-                icon: "tune",
-                label: t("filters") || "Filters",
+                icon: t("icon_tune", "tune"),
+                label: t("filters", "Filters"),
                 content: (
                   <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
                     <div className="flex flex-col gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("category") || "Category"}
+                        {t("category", "Category")}
                       </span>
                       <CustomDropdown
                         flat={true}
@@ -478,10 +478,10 @@ export function ArchitectRegistry({
                           setActiveSubType("ALL");
                         }}
                         options={[
-                          { id: "ALL", label: t("ql_all") || "All" },
+                          { id: "ALL", label: t("filter_all", "All") },
                           ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
                             id: c.id,
-                            label: t(c.lexicon_key) || c.id,
+                            label: t(c.lexicon_key, c.id),
                           })),
                         ]}
                       />
@@ -499,7 +499,7 @@ export function ArchitectRegistry({
                           <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
                           <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("registry_col_subcat") || "Subcategory"}
+                              {t("registry_col_subcat", "Sub-category")}
                             </span>
                             <CustomDropdown
                               flat={true}
@@ -508,10 +508,10 @@ export function ArchitectRegistry({
                               value={activeSubType}
                               onChange={(val: string[]) => setActiveSubType(val[0])}
                               options={[
-                                { id: "ALL", label: t("ql_all") || "All" },
+                                { id: "ALL", label: t("filter_all", "All") },
                                 ...subcats.map((sub: any) => ({
                                   id: sub.id,
-                                  label: t(sub.lexicon_key) || sub.id,
+                                  label: t(sub.lexicon_key, sub.id),
                                 })),
                               ]}
                             />
@@ -523,7 +523,7 @@ export function ArchitectRegistry({
                     <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
                     <div className="flex flex-col gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("registry_label_status") || "Status"}
+                        {t("registry_label_status", "Global Status")}
                       </span>
                       <CustomDropdown
                         flat={true}
@@ -532,23 +532,23 @@ export function ArchitectRegistry({
                         value={statusFilter}
                         onChange={(v: string[]) => setStatusFilter(v[0])}
                         options={[
-                          { id: "ALL", label: t("status_dd_all") || "All" },
-                          { id: "stable", label: t("status_dd_stable") || "Stable" },
-                          { id: "unstable", label: t("label_unstable") || "Unstable" },
-                          { id: "corrupted", label: t("status_corrupted") || "Corrupted" },
-                          { id: "under_review", label: t("status_dd_review") || "Under Review" },
-                          { id: "pending", label: t("pending") || "Pending" },
-                          { id: "unverified", label: t("unverified") || "Unverified" },
-                          { id: "paid", label: t("label_is_paid") || "Paid" },
-                          { id: "early_access", label: t("label_is_early_access") || "Early Access" },
+                          { id: "ALL", label: t("status_dd_all", "All Statuses") },
+                          { id: "stable", label: t("status_stable", "STABLE") },
+                          { id: "unstable", label: t("label_unstable", "Unstable") },
+                          { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                          { id: "under_review", label: t("status_dd_review", "Under Review") },
+                          { id: "pending", label: t("pending", "Pending") },
+                          { id: "unverified", label: t("unverified", "Unverified") },
+                          { id: "paid", label: t("label_is_paid", "Paid {Mod}") },
+                          { id: "early_access", label: t("badge_early_access", "Early Access") },
                         ]}
                       />
                     </div>
 
                     {(activeCategory !== "ALL" || activeSubType !== "ALL" || statusFilter !== "ALL") && (
                       <ActionButton
-                        icon="close"
-                        label={t("btn_clear") || "Clear Filters"}
+                        icon={t("icon_close", "close")}
+                        label={t("btn_clear", "Clear Filters")}
                         onClick={() => {
                           setActiveCategory("ALL");
                           setActiveSubType("ALL");
@@ -576,14 +576,14 @@ export function ArchitectRegistry({
         panelZ="z-[50001]"
         noScroll
         noPadding
-        title={t("ui_edit_metadata")}
+        title={t("ui_edit_metadata", "Edit Metadata")}
         subtitle={`UUID: ${activeMod?.id}`}
-        icon={t("icon_inventory_2")}
+        icon={t("icon_inventory_2", "inventory_2")}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="save"
-              tooltip={isCommitting ? t("dossier_btn_saving") : t("ui_btn_commit")}
+              icon={t("icon_save", "save")}
+              tooltip={isCommitting ? t("dossier_btn_saving", "Committing...") : t("ui_btn_commit", "Commit Changes")}
               onClick={handleCommitChanges}
               disabled={isCommitting}
               variant="accent"
@@ -617,7 +617,7 @@ export function ArchitectRegistry({
                 <input
                   value={activeMod?.name || ""}
                   onChange={(e) => setActiveMod({ ...activeMod, name: e.target.value })}
-                  placeholder={t("registry_label_name")}
+                  placeholder={t("registry_label_name", "Display Name")}
                   className="bg-transparent text-2xl font-black text-[var(--text)] capitalize tracking-wider leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
                 />
               </div>
@@ -625,7 +625,7 @@ export function ArchitectRegistry({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("mason")}
+                    {t("mason", "{Mason}")}
                   </label>
                   <div className="flex gap-2 relative">
                     <div className="flex-1 min-w-0">
@@ -647,7 +647,7 @@ export function ArchitectRegistry({
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("category")}
+                    {t("category", "Category")}
                   </label>
                   <CustomClassificationDropdown
                     value={activeMod.category_override || "Script"}
@@ -659,36 +659,36 @@ export function ArchitectRegistry({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("label_file_ext")}
+                    {t("label_file_ext", "File Extension")}
                   </label>
                   <input
                     value={activeMod.file_extension || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, file_extension: e.target.value })}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("ph_file_ext")}
+                    placeholder={t("ph_file_ext", "e.g. .package, .ts4script")}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("registry_col_subcat")}
+                    {t("registry_col_subcat", "Sub-category")}
                   </label>
                   <input
                     value={activeMod.sub_type || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, sub_type: e.target.value })}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("auto_e_g_tuning_26")}
+                    placeholder={t("auto_e_g_tuning_26", "e.g. Tuning, 2D, etc.")}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("registry_label_version")}
+                    {t("registry_label_version", "Master Version (Latest)")}
                   </label>
                   <input
                     value={activeMod.latest_version || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, latest_version: e.target.value })}
-                    placeholder={t("ph_mod_version")}
+                    placeholder={t("ph_mod_version", "e.g. 1.0, 1.1, 1.2")}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
@@ -696,7 +696,7 @@ export function ArchitectRegistry({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                  {t("upload_desc")}
+                  {t("upload_desc", "Description")}
                 </label>
                 <textarea
                   value={activeMod.description || ""}
@@ -708,25 +708,25 @@ export function ArchitectRegistry({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("cc_cover_url")}
+                    {t("cc_cover_url", "Cover Image URL")}
                   </label>
                   <input
                     value={activeMod.image_url || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, image_url: e.target.value })}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("auto_https")}
+                    placeholder={t("auto_https", "https://...")}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("registry_label_url")}
+                    {t("ui_url", "URL")}
                   </label>
                   <input
                     value={activeMod.url || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, url: e.target.value })}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--accent)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("auto_https")}
+                    placeholder={t("auto_https", "https://...")}
                   />
                 </div>
               </div>
@@ -735,15 +735,15 @@ export function ArchitectRegistry({
                 <SidePanelPillToggle
                   checked={activeMod.is_paid || false}
                   onChange={(checked) => setActiveMod({ ...activeMod, is_paid: checked })}
-                  label={t("label_is_paid")}
-                  icon="monetization_on"
+                  label={t("label_is_paid", "Paid {Mod}")}
+                  icon={t("icon_monetization_on", "monetization_on")}
                   variant="warning"
                 />
                 <SidePanelPillToggle
                   checked={activeMod.is_early_access || false}
                   onChange={(checked) => setActiveMod({ ...activeMod, is_early_access: checked })}
-                  label={t("label_is_early_access")}
-                  icon={t("icon_science")}
+                  label={t("badge_early_access", "Early Access")}
+                  icon={t("icon_science", "science")}
                   variant="accent"
                 />
               </div>
@@ -751,7 +751,7 @@ export function ArchitectRegistry({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("registry_label_status")}
+                    {t("registry_label_status", "Global Status")}
                   </label>
                   <CustomStatusDropdown
                     value={activeMod.status || "unverified"}
@@ -761,7 +761,7 @@ export function ArchitectRegistry({
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("registry_col_safety")}
+                    {t("registry_col_safety", "Safety Rating")}
                   </label>
                   <CustomComplianceDropdown
                     value={activeMod.compliance_tier || 0}
@@ -774,7 +774,7 @@ export function ArchitectRegistry({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("uploaded_date")}
+                    {t("uploaded_date", "Uploaded Date")}
                   </label>
                   <div className="w-full">
                     <CustomDatePicker
@@ -786,7 +786,7 @@ export function ArchitectRegistry({
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                    {t("updated_date")}
+                    {t("updated_date", "Last Updated")}
                   </label>
                   <div className="w-full">
                     <CustomDatePicker
@@ -799,7 +799,7 @@ export function ArchitectRegistry({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">
-                  {t("game_versions")}
+                  {t("game_versions", "Game Versions")}
                 </label>
                 <GameVersionMultiSelect
                   selectedVersions={activeMod.compatible_versions || []}
@@ -814,14 +814,14 @@ export function ArchitectRegistry({
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("create_title")}
-        icon="person_add"
+        title={t("create_title", "New {Mason}")}
+        icon={t("icon_person_add", "person_add")}
         widthClass="w-[450px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="person_add"
-              tooltip={t("create_btn_create")}
+              icon={t("icon_person_add", "person_add")}
+              tooltip={t("create_btn_create", "Create User Id")}
               onClick={handleCreateMason}
               disabled={isCreatingMason}
               variant="accent"
@@ -831,12 +831,12 @@ export function ArchitectRegistry({
       >
         <div className="flex flex-col gap-2 mt-2">
           <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-            {t("mason_name")}
+            {t("mason_name", "{Mason} Name")}
           </label>
           <input
             value={newMasonName}
             onChange={(e) => setNewMasonName(e.target.value)}
-            placeholder={t("create_ph_name")}
+            placeholder={t("create_ph_name", "Enter {mason} name...")}
             className="bg-transparent text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-tight truncate focus:outline-none focus:theme-text-accent transition-colors placeholder:opacity-30 border-b border-transparent focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1 w-full"
           />
         </div>
@@ -849,10 +849,10 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const options = [
-    { id: "Unknown", label: t("ui_icon_unknown") },
+    { id: "Unknown", label: t("unknown", "Unknown") },
     ...(activeGameSchema?.mod_categories || []).map((c: any) => ({
       id: c.id,
-      label: t(c.lexicon_key) || c.id,
+      label: t(c.lexicon_key, c.id),
     })),
   ];
   return (
@@ -861,7 +861,7 @@ export function CustomClassificationDropdown({ value, onChange }: any) {
       value={value}
       options={options}
       onChange={(v: string[]) => onChange(v[0])}
-      placeholder={t("category")}
+      placeholder={t("category", "Category")}
     />
   );
 }

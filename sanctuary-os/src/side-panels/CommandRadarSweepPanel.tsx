@@ -46,7 +46,7 @@ export default function CommandRadarSweepPanel({
     () =>
       relevantMods.filter(
         (m: any) =>
-          m.status === t("status_dd_stable", "Stable") ||
+          m.status === t("status_stable", "Stable") ||
           String(m.status).toLowerCase() === "stable"
       ).length,
     [relevantMods, t]
@@ -134,7 +134,7 @@ export default function CommandRadarSweepPanel({
   } else if (radarState === "warning") {
     subtext = t("sys_comp", "System Compromised");
   } else if (radarState === "update") {
-    subtext = t("updates_det", "Updates Detected");
+    subtext = t("updates_det", "{mod} updates detected");
   }
 
   const breakdownText = `${updatesCount} ${t("updates_modal_title", "Updates")} • ${
@@ -245,7 +245,7 @@ export default function CommandRadarSweepPanel({
         </SidePanelHeroCard>
 
         <UniversalGroup
-          title={t("citizen_action_required", "Action Required")}
+          title={t("action_required", "Action Required")}
           icon={t("icon_gpp_maybe", "gpp_maybe")}
         >
           <div className="grid grid-cols-2 gap-3">
@@ -279,9 +279,9 @@ export default function CommandRadarSweepPanel({
               }
               subtitle={
                 brokenCount > 0 && unstableCount > 0
-                  ? `${t("status_broken", "Corrupted")} / ${t("label_unstable", "Unstable")}`
+                  ? `${t("status_corrupted", "Corrupted")} / ${t("label_unstable", "Unstable")}`
                   : brokenCount > 0
-                    ? t("status_broken", "Corrupted")
+                    ? t("status_corrupted", "Corrupted")
                     : unstableCount > 0
                       ? t("label_unstable", "Unstable")
                       : t("citizen_action_incompatible", "Incompatible")
@@ -351,21 +351,21 @@ export default function CommandRadarSweepPanel({
                         hour: "2-digit",
                         minute: "2-digit",
                       })
-                    : t("status_unknown", "Unknown")
+                    : t("unknown", "Unknown")
               }
             />
             <UniversalCard
               layout="stat"
               onClick={onOpenHotSwap}
               icon={t("icon_map", "map")}
-              subtitle={t("stat_blueprints", "Blueprints")}
+              subtitle={t("stat_blueprints", "Active {Blueprint}")}
               title={playSets?.length || 0}
             />
           </div>
         </UniversalGroup>
 
         <UniversalGroup
-          title={t("domain_vault", "Blueprint Integrity")}
+          title={t("domain_vault", "{Blueprint} Integrity")}
           icon={t("icon_inventory_2", "inventory_2")}
         >
           <div className="grid grid-cols-2 gap-3">
@@ -380,7 +380,7 @@ export default function CommandRadarSweepPanel({
                 );
               }}
               icon={t("icon_inventory_2", "inventory_2")}
-              subtitle={t("vault_title", "Your Vault")}
+              subtitle={t("vault_title", "Your {Vault}")}
               title={relevantMods.length}
             />
             <UniversalCard
@@ -397,7 +397,7 @@ export default function CommandRadarSweepPanel({
                   {t("icon_verified_user", "verified_user")}
                 </span>
               }
-              subtitle={t("status_dd_stable", "Stable")}
+              subtitle={t("status_stable", "Stable")}
               title={stableCount}
             />
             <UniversalCard
@@ -450,7 +450,7 @@ export default function CommandRadarSweepPanel({
                 );
               }}
               icon={t("icon_palette", "palette")}
-              subtitle={t("type_theme", "Themes")}
+              subtitle={t("chameleon", "Themes")}
               title={chameleonCount}
             />
           </div>

@@ -115,7 +115,7 @@ export function ArtifactFilesTab({
                 <input
                   value={familySearchFilter}
                   onChange={(e) => setFamilySearchFilter(e.target.value)}
-                  placeholder={t("hub_filters", "Filter...")}
+                  placeholder={t("filters", "Filter...")}
                   className="bg-transparent border-none outline-none text-[11px] font-bold text-[var(--text)] w-28 placeholder:text-[var(--subtext)]/60"
                 />
               </div>
@@ -126,12 +126,12 @@ export function ArtifactFilesTab({
                 { id: "ALL", label: t("radar_tab_all", "All"), count: childRels.length },
                 {
                   id: "twin",
-                  label: t("studio_badge_twin", "Twin"),
+                  label: t("editor_twin", "Twin"),
                   count: childRels.filter((r) => r.relationship_type === "twin").length,
                 },
                 {
                   id: "addon",
-                  label: t("studio_badge_addon", "Add-on"),
+                  label: t("editor_addon", "Add-on"),
                   count: childRels.filter((r) => r.relationship_type === "addon").length,
                 },
                 {
@@ -141,7 +141,7 @@ export function ArtifactFilesTab({
                 },
                 {
                   id: "beta",
-                  label: t("studio_badge_beta", "Beta"),
+                  label: t("badge_beta", "Beta"),
                   count: childRels.filter((r) => r.relationship_type === "beta").length,
                 },
               ] as const
@@ -173,7 +173,7 @@ export function ArtifactFilesTab({
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                   {t("icon_link", "link")}
                 </span>
-                <span>{t("studio_parent_mod_title", "Parent / Main Mod")}</span>
+                <span>{t("studio_parent_mod_title", "Parent / Main {Mod}")}</span>
               </button>
             )}
           </div>
@@ -184,7 +184,7 @@ export function ArtifactFilesTab({
           <div className="px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
-                {t("studio_parent_mod_title", "Parent / Main Mod")}
+                {t("studio_parent_mod_title", "Parent / Main {Mod}")}
               </span>
               <button
                 type="button"
@@ -214,10 +214,10 @@ export function ArtifactFilesTab({
                     if (val[0]) onChangeParentRole(val[0] as any);
                   }}
                   options={[
-                    { id: "twin", label: t("studio_badge_twin", "Twin") },
-                    { id: "addon", label: t("studio_badge_addon", "Add-on") },
+                    { id: "twin", label: t("editor_twin", "Twin") },
+                    { id: "addon", label: t("editor_addon", "Add-on") },
                     { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-                    { id: "beta", label: t("studio_badge_beta", "Beta") },
+                    { id: "beta", label: t("badge_beta", "Beta") },
                   ]}
                 />
               </div>
@@ -227,7 +227,7 @@ export function ArtifactFilesTab({
                 className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
               >
                 <span className="material-symbols-outlined !text-[15px]">{t("icon_link_off", "link_off")}</span>
-                <HoverTooltip title={t("studio_btn_unlink", "Unlink")} variant="danger" />
+                <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
               </button>
             </div>
           </div>
@@ -242,10 +242,10 @@ export function ArtifactFilesTab({
                 if (val[0]) setNewFamilyRole(val[0] as any);
               }}
               options={[
-                { id: "twin", label: t("studio_badge_twin", "Script Twin") },
-                { id: "addon", label: t("studio_badge_addon", "Add-on") },
+                { id: "twin", label: t("editor_twin", "Script Twin") },
+                { id: "addon", label: t("editor_addon", "Add-on") },
                 { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-                { id: "beta", label: t("studio_badge_beta", "Beta") },
+                { id: "beta", label: t("badge_beta", "Beta") },
               ]}
             />
             <div className="md:col-span-2 relative z-40">
@@ -256,7 +256,7 @@ export function ArtifactFilesTab({
                 }}
                 selectedItem={null}
                 onClear={() => {}}
-                placeholder={t("studio_select_parent_ph", "Select Parent / Main Mod...")}
+                placeholder={t("studio_select_parent_ph", "Select Parent / Main {Mod}...")}
               />
             </div>
           </div>
@@ -271,10 +271,10 @@ export function ArtifactFilesTab({
               if (val[0]) setNewFamilyRole(val[0] as any);
             }}
             options={[
-              { id: "twin", label: t("studio_badge_twin", "Script Twin") },
-              { id: "addon", label: t("studio_badge_addon", "Add-on") },
+              { id: "twin", label: t("editor_twin", "Script Twin") },
+              { id: "addon", label: t("editor_addon", "Add-on") },
               { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-              { id: "beta", label: t("studio_badge_beta", "Beta") },
+              { id: "beta", label: t("badge_beta", "Beta") },
             ]}
           />
           <div className="md:col-span-2">
@@ -289,7 +289,7 @@ export function ArtifactFilesTab({
               }}
               selectedItem={null}
               onClear={() => {}}
-              placeholder={t("studio_family_search_ph", "Search your mods to link to this family...")}
+              placeholder={t("studio_family_search_ph", "Search your {mods} to link to this family...")}
             />
           </div>
         </div>
@@ -297,10 +297,7 @@ export function ArtifactFilesTab({
         {/* Bounded 2-Column Family List (4 full rows fit cleanly without slicing items) */}
         {filteredFamily.length === 0 ? (
           <div className="h-11 px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
-            {t(
-              "studio_standalone_section_desc",
-              "No linked Add-ons, Script Twins, Flavors, or Beta variants."
-            )}
+            {t("studio_standalone_section_desc", "{Mods} without linked addons, twins, or flavors.")}
           </div>
         ) : (
           <div className="max-h-[204px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
@@ -339,10 +336,10 @@ export function ArtifactFilesTab({
                         if (val[0]) onChangeChildRole(rel, val[0] as any);
                       }}
                       options={[
-                        { id: "twin", label: t("studio_badge_twin", "Twin") },
-                        { id: "addon", label: t("studio_badge_addon", "Add-on") },
+                        { id: "twin", label: t("editor_twin", "Twin") },
+                        { id: "addon", label: t("editor_addon", "Add-on") },
                         { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-                        { id: "beta", label: t("studio_badge_beta", "Beta") },
+                        { id: "beta", label: t("badge_beta", "Beta") },
                       ]}
                     />
                   </div>
@@ -354,7 +351,7 @@ export function ArtifactFilesTab({
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_link_off", "link_off")}
                     </span>
-                    <HoverTooltip title={t("studio_btn_unlink", "Unlink")} variant="danger" />
+                    <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
                   </button>
                 </div>
               </div>
@@ -373,7 +370,7 @@ export function ArtifactFilesTab({
             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
               {t("icon_folder_open", "folder_open")}
             </span>
-            <span>{t("studio_structure_section_title", "Install Folder Layout (Mods/)")}</span>
+            <span>{t("studio_structure_section_title", "Install Folder Layout ({Mods}/)")}</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

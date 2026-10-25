@@ -167,18 +167,18 @@ export function ElevatedPasskeyGate({
     const oRole = (osRole || "").toLowerCase();
     const uRole = (userRole || "").toLowerCase();
     if (["keeper", "core_dev", "admin"].includes(oRole)) {
-      return t("passkey_gate_role_keeper", "Keeper");
+      return t("dir_proto_r6_role", "Keeper");
     }
     if (["wayfinder", "admin"].includes(uRole)) {
-      return t("passkey_gate_role_wayfinder", "Wayfinder");
+      return t("role_wayfinder", "Wayfinder");
     }
     if (uRole === "oversight") {
-      return t("passkey_gate_role_oversight", "Oversight");
+      return t("role_oversight", "Oversight");
     }
     if (["architect", "senior_architect"].includes(uRole)) {
-      return t("passkey_gate_role_architect", "Architect");
+      return t("architect", "Architect");
     }
-    return t("passkey_gate_role_verified_mason", "Verified Mason");
+    return t("dir_proto_r2_role", "Verified {Mason}");
   };
 
   const formatPasskeyError = (rawMessage: string): string => {
@@ -197,7 +197,7 @@ export function ElevatedPasskeyGate({
     setBusy(true);
     setErrorMsg("");
     const defaultLabel =
-      passkeyName.trim() || t("auth_passkey_default_name", "FIDO2 Passkey");
+      passkeyName.trim() || t("auth_passkey_badge_fido", "FIDO2 Passkey");
 
     const { error } = await registerFidoPasskey(defaultLabel);
     if (error) {
@@ -241,7 +241,7 @@ export function ElevatedPasskeyGate({
         }
       }
 
-      const baseLabel = t("auth_2fa_authenticator_app", "Authenticator App");
+      const baseLabel = t("auth_passkey_badge_totp", "Authenticator App");
       const verifiedTotpCount =
         existingData?.all?.filter((f: any) => f.status === "verified" && f.factor_type === "totp")
           .length || 0;
@@ -414,10 +414,7 @@ export function ElevatedPasskeyGate({
                 {roleTitle}
               </span>
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                {t(
-                  "auth_passkey_policy_elevated_desc",
-                  "Verified Masons, Architects, Oversight, Wayfinders, and Keepers must maintain at least one active FIDO2 Passkey to access elevated hubs."
-                )}
+                {t("auth_passkey_policy_elevated_desc", "Verified {Masons}, Architects, Oversight, Wayfinders, and Keepers must maintain at least one active FIDO2 Passkey to access elevated hubs.")}
               </p>
             </div>
           </div>
@@ -426,7 +423,7 @@ export function ElevatedPasskeyGate({
             <DashboardStatTile
               variant="filter"
               icon={t("icon_passkey", "passkey")}
-              label={t("passkey_tile_fido_title", "FIDO2 Passkey")}
+              label={t("auth_passkey_badge_fido", "FIDO2 Passkey")}
               value={t("passkey_stat_enrolled_count", "{0} Enrolled").replace(
                 "{0}",
                 String(passkeys.length)
@@ -695,7 +692,7 @@ export function ElevatedPasskeyGate({
                   </span>
                   <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
                     {mfaEnrollTab === "passkey"
-                      ? t("passkey_tile_fido_title", "FIDO2 Passkey")
+                      ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
                       : t("passkey_tile_totp_title", "Authenticator App")}
                   </span>
                 </div>
@@ -712,8 +709,8 @@ export function ElevatedPasskeyGate({
                   const displayLabel = sanitizeFactorFriendlyName(
                     f.friendly_name,
                     isPasskey
-                      ? t("auth_passkey_default_name", "FIDO2 Passkey")
-                      : t("auth_2fa_authenticator_app", "Authenticator App")
+                      ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                      : t("auth_passkey_badge_totp", "Authenticator App")
                   );
 
                   return (
@@ -822,7 +819,7 @@ export function ElevatedPasskeyGate({
                                 disabled={removingFactor || !currentPasswordInput}
                                 variant="glass"
                                 icon={t("icon_check", "check")}
-                                label={t("btn_confirm", "Confirm")}
+                                label={t("confirm", "Confirm")}
                                 className="!px-4 !py-2.5"
                               />
                             </div>

@@ -30,7 +30,7 @@ export const WorkbenchEmptyVisualState: React.FC<WorkbenchEmptyVisualStateProps>
             className="h-11 px-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] font-black capitalize tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cursor-pointer"
          >
             <span className="material-symbols-outlined !text-[18px]">{t("icon_travel_explore", "travel_explore")}</span>
-            {t("search_nexus", "Search Nexus")}
+            {t("search_nexus", "Search The {Nexus}")}
          </button>
       </div>
    </div>

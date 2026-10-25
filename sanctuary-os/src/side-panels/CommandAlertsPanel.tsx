@@ -19,6 +19,7 @@ import {
   StatBox,
   DashboardStatTile,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -323,10 +324,10 @@ export default function CommandAlertsPanel({
       onClose={onClose}
       title={
         isCriticalMode
-          ? t("citizen_action_required", "Critical Action Required")
+          ? t("action_required", "Critical Action Required")
           : t("system_alerts_title", "System Alerts")
       }
-      subtitle={`${totalIssues} ${t("items", "Items")} • ${activeMods.length} ${t("active", "Active")}`}
+      subtitle={`${totalIssues} ${t("term_mods", "Items")} • ${activeMods.length} ${t("active", "Active")}`}
       icon={heroIcon}
       iconColorClass={isCriticalMode ? "text-[var(--danger)]" : "text-[var(--warning)]"}
       widthClass="w-[90vw] md:w-[760px]"
@@ -372,16 +373,16 @@ export default function CommandAlertsPanel({
           icon={heroIcon}
           overline={
             isCriticalMode
-              ? t("citizen_action_required", "Critical Action Required")
+              ? t("action_required", "Critical Action Required")
               : t("system_alerts_title", "System Alerts")
           }
           title={playSet?.name || t("active", "Active")}
           description={
             isCriticalMode
-              ? t("incompatible_broken", "Corrupted, Outdated & Unstable Mods")
+              ? t("incompatible_broken", "Incompatible {Mods}")
               : t("bp_load_order_conflicts", "Load Order & Tuning Conflicts")
           }
-          badge={`${totalIssues} ${t("items", "Items")}`}
+          badge={`${totalIssues} ${t("term_mods", "Items")}`}
           badgeIcon={heroIcon}
           variant={isCriticalMode ? "danger" : "warning"}
         >
@@ -407,65 +408,11 @@ export default function CommandAlertsPanel({
           </div>
         </SidePanelHeroCard>
 
-        {groupedBrokenMods.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "all"}
-              icon={t("icon_tune", "tune")}
-              label={t("filter_all", "All")}
-              value={groupedBrokenMods.length}
-              onClick={() => setCategoryFilter("all")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "corrupted"}
-              icon={t("icon_broken_image", "broken_image")}
-              label={t("bp_pill_corrupted", "Corrupted")}
-              value={corruptedCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("corrupted")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "version_mismatch"}
-              icon={t("icon_sports_esports", "sports_esports")}
-              label={t("badge_version_mismatch", "Version Mismatch")}
-              value={mismatchCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("version_mismatch")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "missing_reqs"}
-              icon={t("icon_extension", "extension")}
-              label={t("badge_missing_dep", "Missing Dependency")}
-              value={missingReqsCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("missing_reqs")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "unstable"}
-              icon={t("icon_warning_amber", "warning_amber")}
-              label={t("bp_pill_unstable", "Unstable")}
-              value={unstableCount}
-              colorClass="text-[var(--warning)]"
-              onClick={() => setCategoryFilter("unstable")}
-            />
-          </div>
-        )}
-
         {totalIssues > 0 && (
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search", "Search...")}
+            searchPlaceholder={t("nav_search", "Search...")}
             primaryPopover={{
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
@@ -480,10 +427,10 @@ export default function CommandAlertsPanel({
                       onChange={(v: string) => setCategoryFilter(v)}
                       options={[
                         { id: "all", label: t("filter_all", "All") },
-                        { id: "corrupted", label: t("bp_pill_corrupted", "Corrupted") },
-                        { id: "version_mismatch", label: t("badge_version_mismatch", "Version Mismatch") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                        { id: "version_mismatch", label: t("modal_version_mismatch", "Version Mismatch") },
                         { id: "missing_reqs", label: t("badge_missing_dep", "Missing Dependency") },
-                        { id: "unstable", label: t("bp_pill_unstable", "Unstable") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
                       ]}
                     />
                   </div>
@@ -537,14 +484,12 @@ export default function CommandAlertsPanel({
                     : t("conflict_sev3_desc", "Tuning Overlap — Load order override or minor feature overlap"));
 
                 const severityBadgeClass = isTier4
-                  ? "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center gap-1.5 shrink-0"
-                  : "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--warning)] flex items-center gap-1.5 shrink-0";
+                  ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`
+                  : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]`;
 
-                const winnerBadgeClass =
-                  "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] flex items-center gap-1.5 shrink-0";
+                const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]`;
 
-                const loserBadgeClass =
-                  "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5 shrink-0";
+                const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
 
                 return (
                   <UniversalCard
@@ -644,7 +589,7 @@ export default function CommandAlertsPanel({
                                       </span>
                                       <HoverTooltip
                                         className="z-[100] !right-0 !translate-x-0 !left-auto"
-                                        title={t("btn_remove", "Remove")}
+                                        title={t("btn_remove", "{Remove}")}
                                         icon={t("icon_delete", "delete")}
                                         variant="danger"
                                       />
@@ -657,11 +602,14 @@ export default function CommandAlertsPanel({
                                         {t("icon_check_circle", "check_circle")}
                                       </span>
                                       <span>
-                                        {t("bp_winning_artifact", "Winning Override")}
+                                        {t("winner", "WINNING {MOD}")}
                                       </span>
                                     </div>
                                   ) : slot.isLoser ? (
                                     <div className={loserBadgeClass}>
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                        {t("icon_block", "block")}
+                                      </span>
                                       <span>
                                         {t("bp_overridden_by_winner", "Overridden")}
                                       </span>
@@ -715,7 +663,7 @@ export default function CommandAlertsPanel({
           <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_check_circle", "check_circle")}
-              title={t("bp_no_broken_mods_detected", "No Compromised Mods Detected")}
+              title={t("bp_no_broken_mods_detected", "All active {mods} passed compliance checks.")}
             />
           </div>
         ) : filteredGroupedBrokenMods.length > 0 ? (

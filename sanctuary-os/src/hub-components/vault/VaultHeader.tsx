@@ -23,41 +23,41 @@ export function VaultHeader({
     <>
       <CommandScreenStats>
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
           number={modList.length}
-          label={t("vault_title")}
+          label={t("vault_title", "Your {Vault}")}
           colorClass="text-[var(--text)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_account_balance")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
           number={equippedDisplayMods.length}
-          label={t("filter_equipped")}
+          label={t("filter_equipped", "In {Blueprint}")}
           colorClass="text-[var(--success)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("EQUIPPED"); setFilterStatus("ALL"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_help_outline")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_help_outline", "help_outline")}</span>}
           number={unverifiedCount}
-          label={t("status_unverified")}
+          label={t("unverified", "Unverified")}
           colorClass="text-[var(--warning)] cursor-pointer"
           onClick={() => { setViewMode("grid"); setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); }}
         />
         <DashboardStatTile
-          icon={<span className="material-symbols-outlined ">{t("icon_account_tree")}</span>}
+          icon={<span className="material-symbols-outlined ">{t("icon_account_tree", "account_tree")}</span>}
           number={localFolderCount}
-          label={t("local_folders")}
+          label={t("local_folders", "Local Folders")}
           colorClass="text-purple-500 cursor-pointer"
           onClick={() => setLocalFolderModal(true)}
         />
       </CommandScreenStats>
 
-      <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
+      <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="bolt">
         <div className="flex flex-col gap-4">
           <CommandScreenQuickLink
-            icon={t("icon_checklist")}
-            title={t("ql_bulk_actions")}
-            subtitle={t("ui_btn_bulk_desc")}
+            icon={t("icon_checklist", "checklist")}
+            title={t("ql_bulk_actions", "Bulk Actions")}
+            subtitle={t("ui_btn_bulk_desc", "Mass Selection and Management")}
             onClick={() => { setViewMode("grid"); setIsBulkMode(true); }}
             textColorClass="text-emerald-500"
             hoverTextColorClass="group-hover:text-emerald-400"
@@ -65,9 +65,9 @@ export function VaultHeader({
             iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_account_tree")}
-            title={t("local_folders")}
-            subtitle={t("ui_btn_edit_folder_desc")}
+            icon={t("icon_account_tree", "account_tree")}
+            title={t("local_folders", "Local Folders")}
+            subtitle={t("ui_btn_edit_folder_desc", "Manage Virtual Directories")}
             onClick={() => setLocalFolderModal(true)}
             textColorClass="text-purple-500"
             hoverTextColorClass="group-hover:text-purple-400"
@@ -75,9 +75,9 @@ export function VaultHeader({
             iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_delete_sweep")}
-            title={t("purge_archives")}
-            subtitle={t("purge_archives_desc")}
+            icon={t("icon_delete_sweep", "delete_sweep")}
+            title={t("purge_archives", "Purge Archives")}
+            subtitle={t("purge_archives_desc", "Are you sure you want to permanently {delete} the following archive(s)? This action cannot be undone.")}
             onClick={() => {
               const allFilesToPurge = new Map<string, string>();
 
@@ -123,9 +123,9 @@ export function VaultHeader({
             iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
           />
           <CommandScreenQuickLink
-            icon={t("icon_auto_awesome")}
-            title={t("tab_nexus")}
-            subtitle={t("nexus_core")}
+            icon={t("icon_auto_awesome", "auto_awesome")}
+            title={t("tab_nexus", "{Nexus}")}
+            subtitle={t("nexus_core", "Nexus Integration")}
             onClick={() => useStore.getState().setView("nexus")}
             textColorClass="text-amber-500"
             hoverTextColorClass="group-hover:text-amber-400"

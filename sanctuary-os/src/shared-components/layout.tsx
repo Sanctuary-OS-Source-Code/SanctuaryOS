@@ -336,7 +336,7 @@ export function SidePanel({
                   <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
                     <PanelHeaderButton
                       icon="close"
-                      tooltip={t("btn_close") || "Close"}
+                      tooltip={t("btn_close", "Close") || "Close"}
                       variant="danger"
                       onClick={onClose}
                     />
@@ -359,30 +359,28 @@ export function SidePanel({
                   </div>
                 )}
 
-                <div className="flex flex-col justify-center gap-3 relative z-10 flex-1 min-w-0">
-                  <h2 className="text-base sm:text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-widest flex items-center gap-3 md:gap-4 min-w-0 w-full">
-                    {icon && (
-                      <div
-                        className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-2xl glass-surface flex items-center justify-center shrink-0 relative group/iconbox"
+                <div className="glass-surface rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-3 md:gap-3.5 relative z-10 flex-1 min-w-0">
+                  {icon && (
+                    <div
+                      className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative group/iconbox"
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[18px] sm:!text-[20px] md:!text-[22px] opacity-90 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${(iconColorClass || "theme-text-accent").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
                       >
-                        <span
-                          className={`material-symbols-outlined !text-[20px] sm:!text-[22px] md:!text-[24px] opacity-90 group-hover/iconbox:opacity-100 group-hover/iconbox:scale-110 transition-all duration-300 ${(iconColorClass || "theme-text-accent").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
-                        >
-                          {icon}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex flex-col min-w-0 w-full justify-center">
-                      <span className="leading-tight text-lg sm:text-xl md:text-2xl tracking-tight truncate w-full">
-                        {title}
+                        {icon}
                       </span>
-                      {subtitle && (
-                        <span className="text-[9px] md:text-[10px] font-black text-[var(--subtext)] opacity-70 mt-0.5 capitalize tracking-[0.18em] md:tracking-[0.22em] line-clamp-1 sm:line-clamp-2 break-words">
-                          {subtitle}
-                        </span>
-                      )}
                     </div>
-                  </h2>
+                  )}
+                  <div className="flex flex-col min-w-0 flex-1 justify-center">
+                    <h2 className="leading-tight text-base sm:text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-tight truncate w-full m-0">
+                      {title}
+                    </h2>
+                    {subtitle && (
+                      <span className="text-[9px] md:text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-0.5 capitalize tracking-[0.14em] md:tracking-[0.18em] leading-snug break-words">
+                        {subtitle}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {(headerActions || !hideCloseButton) && (
@@ -395,7 +393,7 @@ export function SidePanel({
                       <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
                         <PanelHeaderButton
                           icon="close"
-                          tooltip={t("btn_close") || "Close"}
+                          tooltip={t("btn_close", "Close") || "Close"}
                           variant="danger"
                           onClick={onClose}
                         />
@@ -461,15 +459,15 @@ export function ViewHeader({
   const shapeClass =
     shape === "square" ? "rounded-lg" : "rounded-xl";
   return (
-    <header className="flex flex-col md:flex-row w-full justify-start items-start md:items-center mb-4 md:mb-6 shrink-0 gap-4 md:gap-6">
-      <div className="flex items-start gap-3 md:gap-4 shrink-0 min-w-0 md:max-w-[50%]">
-        {icon && (
+    <header className="flex flex-col md:flex-row w-full justify-between items-stretch md:items-center mb-6 md:mb-8 shrink-0 gap-3 md:gap-5">
+      <div className="glass-panel rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full relative group/header">
+        {icon && (typeof icon !== "string" || icon.trim().length > 0) && (
           <div
-            className={`w-8 h-8 md:w-10 md:h-10 ${shapeClass} flex items-center justify-center shrink-0 glass-panel relative group`}
+            className={`w-9 h-9 md:w-11 md:h-11 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group [&_.material-symbols-outlined]:!text-[18px] md:[&_.material-symbols-outlined]:!text-[22px]`}
           >
             {typeof icon === "string" ? (
               <span
-                className={`material-symbols-outlined !text-[16px] md:!text-[20px] relative z-10 ${(iconColorClass || "text-[var(--accent)]").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
+                className={`material-symbols-outlined !text-[18px] md:!text-[22px] relative z-10 ${(iconColorClass || "text-[var(--accent)]").split(" ").filter((c: string) => !c.startsWith("border-") && !c.startsWith("bg-")).join(" ")}`}
               >
                 {icon}
               </span>
@@ -478,20 +476,17 @@ export function ViewHeader({
             )}
           </div>
         )}
-        <div className="flex flex-col gap-0.5 md:gap-1 items-start text-left flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 w-full">
+        <div className="flex flex-col gap-0.5 items-start justify-center text-left flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
             <h1
-              className={`text-lg md:text-2xl font-semibold tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onTitleClick ? "hover:theme-text-accent cursor-pointer" : ""}`}
+              className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onTitleClick ? "hover:theme-text-accent cursor-pointer" : ""}`}
               onClick={onTitleClick}
             >
               {title}
             </h1>
             {breadcrumb && (
-              <div className="flex items-center gap-x-1.5 md:gap-x-2 truncate">
-                <span className="text-[var(--subtext)] opacity-40 font-semibold text-base md:text-2xl leading-none">
-                  /
-                </span>
-                <span className="text-base md:text-2xl font-medium tracking-tight text-[var(--subtext)] animate-in fade-in slide-in-from-left-2 duration-300 leading-tight truncate">
+              <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+                <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--accent)] leading-tight">
                   {breadcrumb}
                 </span>
               </div>
@@ -499,7 +494,7 @@ export function ViewHeader({
           </div>
           {subtitle && (
             <h2
-              className={`hidden md:block text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug line-clamp-2 max-w-2xl ${onSubtitleClick ? "hover:theme-text-accent cursor-pointer transition-colors" : ""}`}
+              className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug break-words max-w-2xl ${onSubtitleClick ? "hover:theme-text-accent cursor-pointer transition-colors" : ""}`}
               onClick={onSubtitleClick}
             >
               {subtitle}
@@ -654,12 +649,17 @@ export function DashboardStatTile({
       textColor;
   }
 
+  const hasPulse =
+    typeof colorClass === "string" &&
+    colorClass.split(" ").includes("animate-pulse");
+
   const cleanColorClass =
     typeof colorClass === "string"
       ? colorClass
           .split(" ")
           .filter(
             (c: string) =>
+              c !== "animate-pulse" &&
               !c.startsWith("bg-") &&
               !c.startsWith("!bg-") &&
               !c.startsWith("hover:bg-") &&
@@ -732,6 +732,8 @@ export function DashboardStatTile({
           : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
 
   const mergedStyle = {
+    "--glass-outer-shadow": "0 0 #0000",
+    "--glass-nested-shadow": "0 0 #0000",
     ...(isModal ? { "--glassBeforeDisplay": "none" } : {}),
     ...style,
   } as React.CSSProperties;
@@ -759,7 +761,7 @@ export function DashboardStatTile({
           className={`${iconSizeClass} rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative transition-all duration-500`}
         >
           <span
-            className={`material-symbols-outlined ${iconTextClass} transition-opacity`}
+            className={`material-symbols-outlined ${iconTextClass} ${hasPulse ? "animate-pulse" : ""} transition-opacity`}
           >
             {icon}
           </span>

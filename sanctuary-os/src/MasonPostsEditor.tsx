@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import IconPicker from "./IconPicker";
 import MarkdownRenderer from "./MarkdownRenderer";
@@ -6,15 +5,16 @@ import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, LinkAssetSidePanel } from "./shared";
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import {
+  SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, LinkAssetSidePanel,
   DashboardStatTile, ViewHeader, CustomComplianceDropdown,
   HubTabButton, HubTabs,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
+  SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle, UniversalGroup, StatBox
 } from "./shared";
+import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { ArtifactCard, VaultCard } from "./Cards";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
@@ -23,6 +23,7 @@ import { logArchitectAction } from "./lib/audit";
 
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
+import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "./components/universal/UnifiedPostEditor";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
@@ -52,6 +53,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<PostEditorMode>("wysiwyg");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -155,9 +157,6 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
     const { data: masonData } = await supabase.from('masons').select("name").eq('id', masonId).single();
     if (masonData?.name) setMasonName(masonData.name);
-    const mName = masonData?.name || '';
-
-
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
@@ -172,8 +171,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     const linkStr = `asset://${asset.type}/${asset.id}`;
 
     const typeKey = `masonhub_asset_type_${asset.type}`;
-    const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : asset.type === 'workbench_template' ? 'Template' : 'Lexicon');
-    const translatedView = t("btn_view");
+    const defaultTypeLabel = asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : asset.type === 'workbench_template' ? 'Template' : 'Lexicon';
+    const translatedType = t(typeKey, defaultTypeLabel) !== typeKey ? t(typeKey, defaultTypeLabel) : defaultTypeLabel;
 
     const text = `${translatedType}: ${asset.name}`;
 
@@ -279,7 +278,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     e.preventDefault();
 
     let finalContent = content;
-    if (editor) {
+    if (editor && editorMode === "wysiwyg") {
       finalContent = (editor.storage as any).markdown.getMarkdown();
       setContent(finalContent);
     }
@@ -298,7 +297,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     if (isPinned) {
       const existingPinned = posts.find(p => p.is_pinned && p.id !== editingPostId);
       if (existingPinned) {
-        if (!window.confirm(t("confirm_pin_replace"))) {
+        if (!window.confirm(t("confirm_pin_replace", "Another {dispatch} is already pinned. Are you sure you want to replace it?"))) {
           return;
         }
         await supabase.rpc('secure_upsert_cloud_file', {
@@ -386,7 +385,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       });
       closeEditor();
       fetchPostsAndAssets();
-      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("post_success"), 'success');
+      useStore.getState().pushStatus(editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_success", "{Dispatch} published successfully."), 'success');
     } else {
       useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
     }
@@ -439,12 +438,12 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">history</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_posts") || "Recent Posts"}</h3>
+            <span className="material-symbols-outlined text-[var(--accent)]">{t("icon_history", "history")}</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_posts", "Recent {Dispatches}")}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
           {recentPosts.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent posts</div>
+            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("no_transmissions", "No {Dispatches} Found")}</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {recentPosts.map((post, index) => (
@@ -464,11 +463,11 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">forum</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_replies") || "Recent Replies"}</h3>
+            <span className="material-symbols-outlined text-[var(--accent)]">{t("icon_forum", "forum")}</span>
+            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_replies", "Recent Replies")}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
-          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">No recent replies</div>
+          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("no_replies", "No recent replies")}</div>
         </div>
       </div>
     );
@@ -477,31 +476,31 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard"
+      label: t("overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard")
     },
     {
       id: "active",
-      label: t("tab_active") || "Active",
-      icon: "check_circle",
+      label: t("tab_active", "Active"),
+      icon: t("icon_check_circle", "check_circle"),
       number: posts.filter(p => p.is_active !== false).length.toString()
     },
     {
       id: "inactive",
-      label: t("tab_inactive") || "Inactive",
-      icon: "cancel",
+      label: t("tab_inactive", "Inactive"),
+      icon: t("icon_cancel", "cancel"),
       number: posts.filter(p => p.is_active === false).length.toString()
     }
   ];
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("mason_hub_title")}
-      headerBreadcrumb={t("tab_posts") || "Posts"}
-      headerIcon="edit_document"
+      headerTitle={t("mason_hub_title", "{Mason} Workshop")}
+      headerBreadcrumb={t("tab_posts", "{Dispatches}")}
+      headerIcon={t("icon_edit_document", "edit_document")}
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("mason_search_placeholder")}
+      searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...")}
       hideSearch={activeTab === 'overview'}
       tabs={tabs}
       activeTab={activeTab}
@@ -510,8 +509,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         activeTab !== 'overview' ? [
           {
             id: "post",
-            icon: t("icon_cell_tower") || "cell_tower",
-            label: t("post_broadcast") || "Post Broadcast",
+            icon: t("icon_cell_tower", "cell_tower"),
+            label: t("post_broadcast", "New {Dispatch}"),
             onClick: () => openEditor()
           }
         ] : undefined
@@ -524,7 +523,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
             {postCards}
             {filteredPosts.length === 0 && (
-              <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
+              <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="col-span-full py-16" />
             )}
           </div>
         )}
@@ -535,41 +534,35 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
           <SidePanel
             isOpen={isEditorOpen}
             onClose={closeEditor}
-            icon="cell_tower"
-            widthClass="w-[800px]"
-            title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
-            subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
+            icon={t("icon_cell_tower", "cell_tower")}
+            iconColorClass="text-[var(--accent)]"
+            widthClass="w-[90vw] md:w-[800px]"
+            title={editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_broadcast", "New {Dispatch}")}
+            subtitle={editingPostId ? t("editing_record", "Editing Record") : t("composing_broadcast", "Composing Broadcast")}
             headerActions={
               <PanelHeaderGroup>
-                {((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? (
+                {Boolean((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
                   <PanelHeaderButton
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
-                    tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
-                    icon={confirmDiscard ? "warning" : "delete"}
+                    tooltip={confirmDiscard ? t("ui_confirm_discard", "Confirm Discard") : t("ui_btn_discard_edits", "Discard Edits")}
+                    icon={confirmDiscard ? t("icon_warning", "warning") : t("icon_delete", "delete")}
                     variant="danger"
                     className={confirmDiscard ? "animate-pulse" : ""}
-                  />
-                ) : (
-                  <PanelHeaderButton
-                    onClick={closeEditor}
-                    disabled={isSubmitting}
-                    tooltip={t("nav_cancel")}
-                    icon="close"
                   />
                 )}
                 <PanelHeaderButton
                   onClick={() => setIsPinned(!isPinned)}
                   disabled={isSubmitting}
-                  tooltip={t("pin_transmission")}
-                  icon="push_pin"
+                  tooltip={t("pin_transmission", "Pin {Dispatch}")}
+                  icon={t("icon_push_pin", "push_pin")}
                   isActive={isPinned}
                 />
                 <PanelHeaderButton
                   onClick={() => setIsActive(!isActive)}
                   disabled={isSubmitting}
-                  tooltip={isActive ? (t("mark_inactive") || "Mark Inactive") : (t("mark_active") || "Mark Active")}
-                  icon={isActive ? "visibility" : "visibility_off"}
+                  tooltip={isActive ? t("mark_inactive", "Mark Inactive") : t("mark_active", "Mark Active")}
+                  icon={isActive ? t("icon_visibility", "visibility") : t("icon_visibility_off", "visibility_off")}
                   isActive={!isActive}
                   variant={isActive ? "default" : "warning"}
                 />
@@ -578,8 +571,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                     <PanelHeaderButton
                       onClick={(e: any) => { e.stopPropagation(); handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
                       disabled={isSubmitting}
-                      tooltip={t("btn_confirm")}
-                      icon="delete_forever"
+                      tooltip={t("confirm", "Confirm")}
+                      icon={t("icon_delete_forever", "delete_forever")}
                       variant="danger"
                       className="animate-pulse"
                     />
@@ -587,8 +580,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                     <PanelHeaderButton
                       onClick={(e: any) => { e.stopPropagation(); setConfirmDelete(editingPostId); }}
                       disabled={isSubmitting}
-                      tooltip={t("purge")}
-                      icon="delete"
+                      tooltip={t("purge", "Purge")}
+                      icon={t("icon_delete", "delete")}
                       variant="danger"
                     />
                   )
@@ -596,136 +589,75 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
                 <PanelHeaderButton
                   onClick={closeEditor}
                   disabled={isSubmitting}
-                  tooltip={t("local_save")}
-                  icon="save"
+                  tooltip={t("local_save", "Save Draft Locally")}
+                  icon={t("icon_save", "save")}
                 />
                 <PanelHeaderButton
                   onClick={handleSubmit}
                   disabled={isSubmitting || !title || !content}
-                  tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                  icon={isSubmitting ? "sync" : "send"}
+                  tooltip={isSubmitting ? t("btn_saving", "Saving...") : (editingPostId ? t("update_transmission", "Update {Dispatch}") : t("btn_post", "Post Broadcast"))}
+                  icon={isSubmitting ? t("icon_sync", "sync") : t("icon_send", "send")}
                   variant={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "warning" : "accent"}
                   className={isSubmitting ? "animate-pulse" : ""}
                 />
               </PanelHeaderGroup>
             }
           >
-            <div className="flex flex-col gap-6">
-
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("post_title")}</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-start items-center ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
-                    <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
+            <div className="flex flex-col gap-4 mt-1 relative z-10 w-full pb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <UniversalGroup title={t("metadata", "Transmission Metadata")} icon={t("icon_tune", "tune")}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("post_title", "Post Title")}</label>
+                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title", "Post Title")} className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all" />
                   </div>
-                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl px-5 h-14 text-[var(--text)] text-sm font-bold focus:outline-none focus:border-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all" />
-                </div>
-
-                <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                  <div className="flex items-center justify-start ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_content")}</label>
-                  </div>
-                  <div className="flex flex-col flex-1 glass-surface !overflow-visible bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
-                    <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                      <div className="relative flex flex-col items-center pointer-events-auto w-fit">
-                        <div className="glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-wrap items-center gap-1 p-1.5 !rounded-[1.25rem] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_14px_34px_rgba(0,0,0,0.45)]">
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button><HoverTooltip title={t("editor_tt_image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button><HoverTooltip title={t("editor_tt_code")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button><HoverTooltip title={t("editor_tt_icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                        </div>
-                        {showIconPicker && (
-                          <IconPicker
-                            onSelect={(icon) => {
-                              editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
-                              setShowIconPicker(false);
-                            }}
-                            onClose={() => setShowIconPicker(false)}
-                          />
-                        )}
-                      </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <div className="flex justify-between items-center mx-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_description", "Short Summary")}</label>
+                      <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length}/250</span>
                     </div>
-
-                    {showImageInput && (
-                      <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
-                        <input
-                          value={inlineImageUrl}
-                          onChange={e => setInlineImageUrl(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && inlineImageUrl) {
-                              e.preventDefault();
-                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                              setInlineImageUrl('');
-                              setShowImageInput(false);
-                            }
-                          }}
-                          placeholder={t("image_url_placeholder")}
-                          className="flex-1 glass-surface rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] transition-all shadow-inner"
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (inlineImageUrl) {
-                              editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                              setInlineImageUrl('');
-                              setShowImageInput(false);
-                            }
-                          }}
-                          className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                        >
-                          {t("ui_btn_insert")}
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="w-full flex-1 relative min-h-[350px]">
-                      <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
-                    </div>
-
-                    {showCodeInput && (
-                      <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-bottom-2 duration-300">
-                        <textarea
-                          value={codeSnippet}
-                          onChange={(e) => setCodeSnippet(e.target.value)}
-                          placeholder={t("code_snippet_placeholder")}
-                          className="w-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-xl text-[var(--text)] p-4 text-xs font-mono placeholder-[var(--subtext)] outline-none h-48 custom-scrollbar focus:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all border border-[color-mix(in_srgb,var(--text)_5%,transparent)] focus:border-[var(--accent)]"
-                          spellCheck={false}
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-start p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}
-                        </button>
-                        <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("link_asset")}
-                        </button>
-                      </div>
-                      <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown")}</span> {t("icon_markdown")}</div>
-                    </div>
-
+                    <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph", "Brief summary shown on cards...")} className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all" />
                   </div>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                  <SidePanelPillToggle
+                    label={t("pin_transmission", "Pin {Dispatch}")}
+                    icon={t("icon_push_pin", "push_pin")}
+                    checked={isPinned}
+                    onChange={setIsPinned}
+                    variant="accent"
+                  />
+                  <SidePanelPillToggle
+                    label={t("status_active", "Active Transmission")}
+                    icon={t("icon_visibility", "visibility")}
+                    checked={isActive}
+                    onChange={setIsActive}
+                    variant="success"
+                  />
+                </div>
+              </UniversalGroup>
+
+              <UnifiedPostBodyEditor
+                mode={editorMode}
+                onModeChange={setEditorMode}
+                content={content}
+                onContentChange={setContent}
+                editor={editor}
+                placeholder={t("post_content", "{Dispatch} Body...")}
+              />
+
+              <PostAttachmentsManager
+                content={content}
+                onContentChange={setContent}
+                editor={editor}
+                onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
+                imageUrl={imageUrl}
+                onImageUrlChange={setImageUrl}
+                showCodeInput={showCodeInput}
+                onToggleCodeInput={setShowCodeInput}
+                codeSnippet={codeSnippet}
+                onCodeSnippetChange={setCodeSnippet}
+              />
             </div>
           </SidePanel>
         </>
@@ -753,4 +685,3 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     </ElevatedHubLayout>
   );
 }
-

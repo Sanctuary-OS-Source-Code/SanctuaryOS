@@ -17,13 +17,24 @@ import {
   HubOverviewSection,
   SidePanelTitleInput,
 } from "./components/layouts/ElevatedHubLayout";
-import { ThemeCard } from "./chameleon-components/ThemeCard";
+import {
+  ThemeCard,
+  DynamicLexiconPreviewBanner,
+} from "./chameleon-components/ThemeCard";
 import { ChameleonControlDashboard } from "./chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "./chameleon-components/ChameleonSandboxPreview";
+import {
+  autoHarmonizeThemeColors,
+  exportThemeWithAssets,
+  importThemeWithAssets,
+} from "./chameleon-components/ChameleonShared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import MasonFileBrowser from "./hub-components/MasonFileBrowser";
 import MasonEditorPanel from "./hub-components/MasonEditorPanel";
-import { useMasonFiles } from "./hooks/useMasonFiles";
+import {
+  useMasonFiles,
+  clearIdeCachedDraft,
+} from "./hooks/useMasonFiles";
 import enDefault from "./lexicons/en-default.json";
 import {
   deepCountKeys,
@@ -41,8 +52,8 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
       widthClass="w-[800px] max-w-[95vw]"
       backdropZ="z-[15000]"
       panelZ="z-[15001]"
-      title={t("theme_select_base", "Select Base Theme")}
-      subtitle={t("theme_choose_blueprint", "Choose a starting theme")}
+      title={t("theme_select_base", "Select Base {Chameleon}")}
+      subtitle={t("theme_choose_blueprint", "Choose a {blueprint} to start your new signature")}
       icon="palette"
     >
       <div className="flex flex-col gap-8">
@@ -90,7 +101,7 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
 
         <div>
           <h4 className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest mb-4 ml-2">
-            {t("theme_personal", "Personal Themes")}
+            {t("theme_personal", "Your Personal {Chameleons}")}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(customThemes).map(([id, theme]: any) => (
@@ -144,6 +155,7 @@ export function MasonChameleons({
     renameTheme,
     createNewDevTheme,
     exportDevThemeToCustom,
+    importTheme,
     deleteTheme,
   } = useTheme();
 
@@ -205,23 +217,51 @@ export function MasonChameleons({
     "overview" | "themes_local" | "themes_synced" | "lexicons_local" | "lexicons_synced"
   >("overview");
   const [syncedThemes, setSyncedThemes] = useState<any[]>([]);
+  const [syncedThemeEdits, setSyncedThemeEdits] = useState<Record<string, any>>({});
   const [syncedLexicons, setSyncedLexicons] = useState<any[]>([]);
   const [flags, setFlags] = useState<any[]>([]);
+
+  const parseSyncedThemeData = (pt: any) => {
+    const raw =
+      typeof pt?.json_data === "string"
+        ? (() => {
+            try {
+              return JSON.parse(pt.json_data);
+            } catch {
+              return {};
+            }
+          })()
+        : pt?.json_data || pt?.theme_data || {};
+    return {
+      ...raw,
+      id: pt?.id,
+      name: raw?.name || pt?.name || t("market_untitled", "Untitled"),
+    };
+  };
 
   const fetchPublished = async () => {
     if (!masonProfile?.id) return;
     const { supabase } = await import("./supabase");
+    const uid = session?.user?.id || masonProfile?.profile_id || masonProfile?.id;
+    const orParts = [`author_id.eq.${masonProfile.id}`];
+    if (uid && uid !== masonProfile.id) orParts.push(`author_id.eq.${uid}`);
+    if (masonProfile.name) {
+      const safeName = String(masonProfile.name).replace(/"/g, "");
+      orParts.push(`author.ilike."${safeName}"`);
+    }
+    const orFilter = orParts.join(",");
+
     const [themesRes, lexRes, flagsRes] = await Promise.all([
       supabase
         .from("nexus_assets")
         .select("*")
         .eq("asset_type", "chameleon")
-        .or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`),
+        .or(orFilter),
       supabase
         .from("nexus_assets")
         .select("*")
         .eq("asset_type", "lexicon")
-        .or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`),
+        .or(orFilter),
       supabase.from("nexus_reports").select("*").order("created_at", { ascending: false }),
     ]);
 
@@ -238,15 +278,40 @@ export function MasonChameleons({
 
   useEffect(() => {
     fetchPublished();
-  }, [masonProfile?.id]);
+  }, [masonProfile?.id, session?.user?.id]);
 
-  const allThemes = { ...customThemes, ...devThemes, ...CORE_THEMES };
+  const syncedThemesMap = syncedThemes.reduce((acc: Record<string, any>, pt: any) => {
+    acc[pt.id] = syncedThemeEdits[pt.id] || parseSyncedThemeData(pt);
+    return acc;
+  }, {});
+
+  const allThemes: Record<string, any> = {
+    ...CORE_THEMES,
+    ...syncedThemesMap,
+    ...customThemes,
+    ...devThemes,
+  };
   const currentTheme = editingThemeId && allThemes[editingThemeId] ? allThemes[editingThemeId] : osTheme;
 
   const handleUpdateTheme = (updates: any) => {
-    if (editingThemeId) {
+    if (!editingThemeId) return;
+    if (syncedThemes.some((st) => st.id === editingThemeId) && !customThemes[editingThemeId] && !devThemes[editingThemeId]) {
+      setSyncedThemeEdits((prev) => ({
+        ...prev,
+        [editingThemeId]: { ...(prev[editingThemeId] || syncedThemesMap[editingThemeId] || {}), ...updates },
+      }));
+    } else {
       updateTheme(editingThemeId, updates);
     }
+  };
+
+  const handleExportThemeCard = (e: React.MouseEvent, themeObj: any) => {
+    e.stopPropagation();
+    exportThemeWithAssets(themeObj, {
+      vaultPath,
+      t,
+      pushStatus: useStore.getState().pushStatus,
+    });
   };
 
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
@@ -371,7 +436,6 @@ export function MasonChameleons({
           language: finalLanguage,
           lexicon_type: uploadState.lexiconType,
           author: masonProfile.name,
-          mason_id: masonProfile.id,
           author_id: session?.user?.id || masonProfile.id,
         };
 
@@ -423,7 +487,6 @@ export function MasonChameleons({
         is_public: true,
         theme_mode: uploadState.themeMode,
         author: masonProfile.name,
-        mason_id: masonProfile.id,
         author_id: session?.user?.id || masonProfile.id,
       };
 
@@ -454,10 +517,22 @@ export function MasonChameleons({
     try {
       const normalizedPath = file.path.replace(/\//g, "\\");
       await invoke("save_file_with_history", { path: normalizedPath, content: file.content });
+      clearIdeCachedDraft(file.path);
       const newFiles = [...openFiles];
       newFiles[activeFileIndex].originalContent = file.content;
       setOpenFiles(newFiles);
       setActiveVersionTimestamp(null);
+      try {
+        const parsedLocal = JSON.parse(file.content);
+        if (parsedLocal && (parsedLocal._meta_lang || parsedLocal.term_mod)) {
+          const localId = file.name.replace(/\.json$/i, "");
+          window.dispatchEvent(
+            new CustomEvent("sanctuary-lexicon-updated", {
+              detail: { id: localId, lexiconData: parsedLocal },
+            })
+          );
+        }
+      } catch {}
       pushStatus(t("alert_saved", "Saved"), "success");
     } catch {
       pushStatus(t("alert_error", "Error"), "error");
@@ -492,18 +567,20 @@ export function MasonChameleons({
   }
 
   const addMissingStrings = () => {
-    if (!editorRef || !activeFile) return;
+    if (!activeFile) return;
     try {
       const parsed = JSON.parse(activeFile.content);
       const reference =
         referenceData && Object.keys(referenceData).length > 0 ? referenceData : enDefault;
       const newObj = deepAddMissing(reference, parsed, true);
       const newContent = JSON.stringify(newObj, null, 2);
-      const model = editorRef.getModel();
-      if (model) {
+      if (editorRef && editorRef.getModel()) {
+        const model = editorRef.getModel();
         editorRef.executeEdits("add-missing", [
           { range: model.getFullModelRange(), text: newContent, forceMoveMarkers: true },
         ]);
+      } else {
+        handleEditorChange(newContent);
       }
     } catch {
       pushStatus(t("alert_error", "Error"), "error");
@@ -511,18 +588,20 @@ export function MasonChameleons({
   };
 
   const purgeDeprecatedStrings = () => {
-    if (!editorRef || !activeFile) return;
+    if (!activeFile) return;
     try {
       const parsed = JSON.parse(activeFile.content);
       const reference =
         referenceData && Object.keys(referenceData).length > 0 ? referenceData : enDefault;
       const newObj = deepPurgeDeprecated(reference, parsed, true);
       const newContent = JSON.stringify(newObj, null, 2);
-      const model = editorRef.getModel();
-      if (model) {
+      if (editorRef && editorRef.getModel()) {
+        const model = editorRef.getModel();
         editorRef.executeEdits("purge-deprecated", [
           { range: model.getFullModelRange(), text: newContent, forceMoveMarkers: true },
         ]);
+      } else {
+        handleEditorChange(newContent);
       }
     } catch {
       pushStatus(t("alert_error", "Error"), "error");
@@ -558,21 +637,20 @@ export function MasonChameleons({
     if (livePreview) setActiveThemeId(id);
   };
 
-  const unpublishedCustomThemes = Object.entries(customThemes).filter(
-    ([, theme]: any) => !syncedThemes.some((pt) => pt.name === theme.name)
-  );
-  const localLexiconFiles = (files || []).filter((f: any) =>
-    f.name.match(/^[a-z]{2}-.+\.json$/i)
+  const localCustomThemes = Object.entries(customThemes);
+  const localDevThemes = Object.entries(devThemes);
+  const localLexiconFiles = (files || []).filter(
+    (f: any) => f.name.match(/^[a-z]{2}-.+\.json$/i) || f.name.toLowerCase() === "simlish.json"
   );
 
   const tabs = [
     {
       id: "overview",
-      label: t("chameleons_tab_overview", "Overview"),
+      label: t("overview", "Overview"),
       icon: "dashboard",
       number: String(
-        unpublishedCustomThemes.length +
-          Object.keys(devThemes).length +
+        localCustomThemes.length +
+          localDevThemes.length +
           syncedThemes.length +
           localLexiconFiles.length +
           syncedLexicons.length
@@ -582,7 +660,7 @@ export function MasonChameleons({
       id: "themes_local",
       label: t("chameleons_tab_themes_local", "Local Themes"),
       icon: "palette",
-      number: String(unpublishedCustomThemes.length + Object.keys(devThemes).length),
+      number: String(localCustomThemes.length + localDevThemes.length),
     },
     {
       id: "themes_synced",
@@ -605,106 +683,240 @@ export function MasonChameleons({
   ];
 
   const renderLanding = () => {
-    const recentSynced = [...syncedThemes]
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 4);
-    const flaggedThemes = syncedThemes
-      .filter((st) => flags.some((f) => f.asset_id === st.id))
-      .slice(0, 4);
+    const recentThemeItems = [
+      ...localDevThemes.map(([id, th]: any) => ({
+        id,
+        themeData: th,
+        isDev: true,
+        isCloud: false,
+      })),
+      ...localCustomThemes.map(([id, th]: any) => ({
+        id,
+        themeData: th,
+        isDev: false,
+        isCloud: false,
+      })),
+      ...[...syncedThemes]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((pt: any) => ({
+          id: pt.id,
+          themeData: syncedThemesMap[pt.id] || parseSyncedThemeData(pt),
+          isDev: false,
+          isCloud: true,
+        })),
+    ].slice(0, 2);
+
+    const recentLexiconItems = [
+      ...localLexiconFiles.map((file: any) => ({
+        kind: "local" as const,
+        id: file.path,
+        title: file.name.replace(/\.json$/i, ""),
+        subtitle: t("auto_lexicon_pack", "Lexicon Pack"),
+        badge: t("local", "Local"),
+        onClick: () => openFile(file),
+      })),
+      ...syncedLexicons.map((lx: any) => ({
+        kind: "synced" as const,
+        id: lx.id,
+        title: lx.name,
+        subtitle: `${lx.language || "English"} • v${lx.version || "1.0.0"}`,
+        badge: t("synced_badge", "Synced"),
+        onClick: () => {
+          const parsed =
+            typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+          setUploadState({
+            isOpen: true,
+            editId: lx.id,
+            assetType: "lexicon",
+            isHidden: false,
+            fileContent: parsed,
+            fileName: `${lx.name}.json`,
+            name: lx.name,
+            version: lx.version || "1.0.0",
+            description: lx.description || "",
+            releaseNotes: lx.release_notes || "",
+            language: lx.language || "English",
+            newLanguage: "",
+            lexiconType: lx.lexicon_type || "Theme",
+            themeMode: "Dark",
+          });
+        },
+      })),
+    ].slice(0, 2);
+
+    const unsavedLexicons = openFiles.filter((f: any) => f.content !== f.originalContent);
+    const flaggedThemes = syncedThemes.filter((st) => flags.some((f) => f.asset_id === st.id));
+    const flaggedLexicons = syncedLexicons.filter((lx) => flags.some((f) => f.asset_id === lx.id));
+    const hasRecent = recentThemeItems.length > 0 || recentLexiconItems.length > 0;
+    const hasAnomalies =
+      unsavedLexicons.length > 0 || flaggedThemes.length > 0 || flaggedLexicons.length > 0;
 
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          icon="palette"
+          icon={t("icon_schedule", "schedule")}
           iconColorClass="text-[var(--accent)]"
-          title={t("theme_recent", "Recent Themes")}
+          title={t("chameleons_overview_recent", "Recent")}
+          isEmpty={!hasRecent}
+          emptyIcon={t("icon_palette", "palette")}
+          emptyTitle={t("registry_no_mods", "No {Mods} Found")}
+          gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {recentSynced.length === 0 ? (
-            <EmptyState icon="palette" title={t("registry_no_mods", "No Items Found")} className="py-8" />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {recentSynced.map((pt: any) => {
-                const themeData =
-                  typeof pt.json_data === "string" ? JSON.parse(pt.json_data) : pt.json_data;
-                return (
-                  <ThemeCard
-                    key={pt.id}
-                    id={pt.id}
-                    theme={themeData}
-                    isDev={false}
-                    onClick={() => openEditor(pt.id)}
-                    onDelete={() => {}}
-                    confirmDelete={confirmDelete}
-                    setConfirmDelete={setConfirmDelete}
-                    isCloud={true}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </HubOverviewSection>
-
-        <HubOverviewSection
-          icon="translate"
-          iconColorClass="text-[var(--accent)]"
-          title={t("chameleons_recent_lexicons", "Recent Lexicons")}
-        >
-          {localLexiconFiles.length === 0 && syncedLexicons.length === 0 ? (
-            <EmptyState icon="translate" title={t("registry_no_mods", "No Lexicons Found")} className="py-8" />
-          ) : (
-            <MasonFileBrowser
-              t={t}
-              isCloudMode={false}
-              internalCloudTarget="sanctuary_lexicons"
-              files={localLexiconFiles.slice(0, 6)}
-              searchQuery={searchQuery}
-              fileTypeFilter="lexicon"
-              openFile={openFile}
-              renamingFile={renamingFile}
-              setRenamingFile={setRenamingFile}
-              renameInput={renameInput}
-              setRenameInput={setRenameInput}
-              renameExt={renameExt}
-              setRenameExt={setRenameExt}
-              handleRenameSubmit={handleRenameSubmit}
-              deleteConfirmPath={deleteConfirmPath}
-              setDeleteConfirmPath={setDeleteConfirmPath}
-              handleDeleteFile={handleDeleteFile}
-              openFiles={openFiles}
-              handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
-              layout="list"
+          {recentThemeItems.map((item) => (
+            <ThemeCard
+              key={item.id}
+              id={item.id}
+              data={item.themeData}
+              theme={item.themeData}
+              isDev={item.isDev}
+              activeThemeId={activeThemeId}
+              onClick={() => openEditor(item.id)}
+              handleExportTheme={handleExportThemeCard}
+              deleteTheme={item.isCloud ? undefined : deleteTheme}
+              confirmDelete={confirmDelete}
+              setConfirmDelete={setConfirmDelete}
+              isCloud={item.isCloud}
             />
-          )}
+          ))}
+          {recentLexiconItems.map((lx) => (
+            <UniversalCard
+              key={lx.id}
+              layout="vertical"
+              icon={t("icon_translate", "translate")}
+              customIcon={<DynamicLexiconPreviewBanner data={{ name: lx.title, ...lx }} heightClass="h-full" />}
+              title={lx.title}
+              subtitle={lx.subtitle}
+              onClick={lx.onClick}
+              imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {lx.kind === "synced"
+                        ? t("icon_cloud_done", "cloud_done")
+                        : t("icon_science", "science")}
+                    </span>
+                    <span>{lx.badge}</span>
+                  </div>
+                </div>
+              }
+              badges={
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_translate", "translate")}
+                    </span>
+                    <span>{t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                  </div>
+                </div>
+              }
+            />
+          ))}
         </HubOverviewSection>
 
         <HubOverviewSection
-          icon="warning"
+          icon={t("icon_warning", "warning")}
           iconColorClass="text-[var(--warning)]"
-          title={t("title_issues", "Flags & Issues")}
+          title={t("chameleons_overview_anomalies", "Anomalies")}
+          isEmpty={!hasAnomalies}
+          emptyIcon={t("icon_check_circle", "check_circle")}
+          emptyTitle={t("no_issues", "No issues detected")}
+          gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {flaggedThemes.length === 0 ? (
-            <EmptyState icon="check_circle" title={t("no_issues", "No issues detected")} className="py-8" />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {flaggedThemes.map((pt: any) => {
-                const themeData =
-                  typeof pt.json_data === "string" ? JSON.parse(pt.json_data) : pt.json_data;
-                return (
-                  <ThemeCard
-                    key={pt.id}
-                    id={pt.id}
-                    theme={themeData}
-                    isDev={false}
-                    onClick={() => openEditor(pt.id)}
-                    onDelete={() => {}}
-                    confirmDelete={confirmDelete}
-                    setConfirmDelete={setConfirmDelete}
-                    isCloud={true}
-                  />
-                );
-              })}
-            </div>
-          )}
+          {unsavedLexicons.map((file: any) => (
+            <UniversalCard
+              key={`unsaved_${file.path}`}
+              layout="vertical"
+              icon={t("icon_translate", "translate")}
+              customIcon={<DynamicLexiconPreviewBanner data={file} heightClass="h-full" />}
+              title={file.name.replace(/\.json$/i, "")}
+              subtitle={t("ide_unsaved_files", "Unsaved Changes")}
+              onClick={() => openFile(file)}
+              className="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+              imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_warning", "warning")}
+                    </span>
+                    <span>{t("unsaved_changes", "Unsaved")}</span>
+                  </div>
+                </div>
+              }
+              badges={
+                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_translate", "translate")}
+                  </span>
+                  <span>{t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                </div>
+              }
+            />
+          ))}
+          {flaggedThemes.map((pt: any) => {
+            const themeData = syncedThemesMap[pt.id] || parseSyncedThemeData(pt);
+            return (
+              <ThemeCard
+                key={`flag_theme_${pt.id}`}
+                id={pt.id}
+                data={themeData}
+                theme={themeData}
+                isDev={false}
+                activeThemeId={activeThemeId}
+                onClick={() => openEditor(pt.id)}
+                confirmDelete={confirmDelete}
+                setConfirmDelete={setConfirmDelete}
+                isCloud={true}
+              />
+            );
+          })}
+          {flaggedLexicons.map((lx: any) => (
+            <UniversalCard
+              key={`flag_lex_${lx.id}`}
+              layout="vertical"
+              icon={t("icon_translate", "translate")}
+              customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
+              title={lx.name}
+              subtitle={t("flagged", "Flagged")}
+              onClick={() => {
+                const parsed =
+                  typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+                setUploadState({
+                  isOpen: true,
+                  editId: lx.id,
+                  assetType: "lexicon",
+                  isHidden: false,
+                  fileContent: parsed,
+                  fileName: `${lx.name}.json`,
+                  name: lx.name,
+                  version: lx.version || "1.0.0",
+                  description: lx.description || "",
+                  releaseNotes: lx.release_notes || "",
+                  language: lx.language || "English",
+                  newLanguage: "",
+                  lexiconType: lx.lexicon_type || "Theme",
+                  themeMode: "Dark",
+                });
+              }}
+              imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                      {t("icon_flag", "flag")}
+                    </span>
+                    <span>{t("flagged", "Flagged")}</span>
+                  </div>
+                </div>
+              }
+              badges={
+                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_translate", "translate")}
+                  </span>
+                  <span>{t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                </div>
+              }
+            />
+          ))}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -714,72 +926,96 @@ export function MasonChameleons({
     if (activeTab === "overview") return renderLanding();
 
     if (activeTab === "themes_synced") {
+      const filteredSynced = syncedThemes.filter(
+        (pt) => !searchQuery || (pt.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
       return (
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
-            {syncedThemes
-              .filter((pt) => !searchQuery || pt.name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((pt: any) => {
-                const themeData =
-                  typeof pt.json_data === "string" ? JSON.parse(pt.json_data) : pt.json_data;
+          {filteredSynced.length === 0 ? (
+            <EmptyState
+              icon={t("icon_cloud_done", "cloud_done")}
+              title={t("no_themes", "No Synced {Chameleons}")}
+              className="py-12"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+              {filteredSynced.map((pt: any) => {
+                const themeData = syncedThemesMap[pt.id] || parseSyncedThemeData(pt);
                 return (
                   <ThemeCard
                     key={pt.id}
                     id={pt.id}
+                    data={themeData}
                     theme={themeData}
                     isDev={false}
+                    activeThemeId={activeThemeId}
                     onClick={() => openEditor(pt.id)}
-                    onDelete={() => {}}
+                    handleExportTheme={handleExportThemeCard}
                     confirmDelete={confirmDelete}
                     setConfirmDelete={setConfirmDelete}
                     isCloud={true}
                   />
                 );
               })}
-          </div>
+            </div>
+          )}
         </div>
       );
     }
 
     if (activeTab === "themes_local") {
+      const filteredCustom = localCustomThemes.filter(
+        ([, theme]: any) =>
+          !searchQuery || (theme?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      const filteredDev = localDevThemes.filter(
+        ([, theme]: any) =>
+          !searchQuery || (theme?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
       return (
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
-            {unpublishedCustomThemes
-              .filter(
-                ([, theme]: any) =>
-                  !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())
-              )
-              .map(([id, theme]: any) => (
+          {filteredCustom.length === 0 && filteredDev.length === 0 ? (
+            <EmptyState
+              icon={t("icon_palette", "palette")}
+              title={t("no_themes", "No Local {Chameleons}")}
+              className="py-12"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+              {filteredCustom.map(([id, theme]: any) => (
                 <ThemeCard
                   key={id}
                   id={id}
+                  data={theme}
                   theme={theme}
                   isDev={false}
+                  activeThemeId={activeThemeId}
                   onClick={() => openEditor(id)}
+                  handleExportTheme={handleExportThemeCard}
+                  deleteTheme={deleteTheme}
                   onDelete={deleteTheme}
                   confirmDelete={confirmDelete}
                   setConfirmDelete={setConfirmDelete}
                 />
               ))}
-            {Object.entries(devThemes)
-              .filter(
-                ([, theme]: any) =>
-                  !searchQuery || theme.name.toLowerCase().includes(searchQuery.toLowerCase())
-              )
-              .map(([id, theme]: any) => (
+              {filteredDev.map(([id, theme]: any) => (
                 <ThemeCard
                   key={id}
                   id={id}
+                  data={theme}
                   theme={theme}
                   isDev={true}
+                  activeThemeId={activeThemeId}
                   onClick={() => openEditor(id)}
+                  handleExportTheme={handleExportThemeCard}
+                  deleteTheme={deleteTheme}
                   onDelete={deleteTheme}
                   confirmDelete={confirmDelete}
                   setConfirmDelete={setConfirmDelete}
                 />
               ))}
-          </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -815,7 +1051,7 @@ export function MasonChameleons({
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {syncedLexicons.length === 0 ? (
-          <EmptyState icon="public" title={t("registry_no_mods", "No Published Lexicons")} className="py-12" />
+          <EmptyState icon="public" title={t("registry_no_mods", "No {Mods} Found")} className="py-12" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
             {syncedLexicons
@@ -825,8 +1061,7 @@ export function MasonChameleons({
               .map((lx: any) => (
                 <UniversalCard
                   key={lx.id}
-                  layout="horizontal"
-                  icon="translate"
+                  layout="vertical"
                   title={lx.name}
                   subtitle={`${lx.language || "Language"} • v${lx.version || "1.0.0"}`}
                   onClick={() => {
@@ -849,14 +1084,27 @@ export function MasonChameleons({
                       themeMode: "Dark",
                     });
                   }}
-                  badges={[
-                    <span
-                      key="sync"
-                      className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
-                    >
-                      {t("synced_badge", "Synced")}
-                    </span>,
-                  ]}
+                  customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
+                  imageOverlay={
+                    <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_cloud_done", "cloud_done")}
+                        </span>
+                        <span>{t("synced", "Synced")}</span>
+                      </div>
+                    </div>
+                  }
+                  badges={
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_language", "language")}
+                        </span>
+                        <span>{lx.language || t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                      </div>
+                    </div>
+                  }
                 />
               ))}
           </div>
@@ -871,7 +1119,7 @@ export function MasonChameleons({
       headerIcon="palette"
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={t("ui_search_chameleons", "Search Themes & Lexicons...") as string}
+      searchPlaceholder={t("ui_search_chameleons", "Search {Chameleons}...") as string}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
@@ -896,7 +1144,19 @@ export function MasonChameleons({
           id: "import_lexicon",
           icon: <span className="material-symbols-outlined !text-[20px]">{t("icon_upload", "upload")}</span>,
           label: t("chameleons_btn_import_lexicon", "Import JSON") as string,
-          onClick: handleImport,
+          onClick: async () => {
+            if (activeTab === "themes_local" || activeTab === "themes_synced") {
+              const res = await importThemeWithAssets({
+                t,
+                pushStatus: useStore.getState().pushStatus,
+              });
+              if (res?.theme) {
+                importTheme(res.theme);
+              }
+            } else {
+              handleImport();
+            }
+          },
         },
       ]}
     >
@@ -925,7 +1185,45 @@ export function MasonChameleons({
           typeof editingThemeId === "string" ? (
             <PanelHeaderGroup>
               <PanelHeaderButton
-                icon={livePreview ? "visibility" : "visibility_off"}
+                icon={t("icon_contrast", "contrast")}
+                tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
+                onClick={() => {
+                  const harmonized = autoHarmonizeThemeColors(currentTheme);
+                  handleUpdateTheme(harmonized);
+                  useStore.getState().pushStatus(
+                    t("forge_status_harmonized", "Text & surface contrast automatically harmonized."),
+                    "success"
+                  );
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_download", "download")}
+                tooltip={t("btn_import", "Import")}
+                onClick={async () => {
+                  const res = await importThemeWithAssets({
+                    t,
+                    pushStatus: useStore.getState().pushStatus,
+                  });
+                  if (res?.theme) {
+                    handleUpdateTheme(res.theme);
+                  } else if (res?.imageOnlyDataUrl) {
+                    handleUpdateTheme({ bgImage: res.imageOnlyDataUrl });
+                  }
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_upload", "upload")}
+                tooltip={t("btn_export", "Export")}
+                onClick={() => {
+                  exportThemeWithAssets(currentTheme, {
+                    vaultPath,
+                    t,
+                    pushStatus: useStore.getState().pushStatus,
+                  });
+                }}
+              />
+              <PanelHeaderButton
+                icon={livePreview ? t("icon_visibility", "visibility") : t("icon_visibility_off", "visibility_off")}
                 tooltip={livePreview ? t("ui_os_preview_on", "Preview On") : t("ui_os_preview_off", "Preview Off")}
                 variant={livePreview ? "success" : "default"}
                 onClick={() => {
@@ -1010,6 +1308,7 @@ export function MasonChameleons({
         validationStats={validationStats}
         isDirty={isDirty}
         saveFile={saveFile}
+        discardChanges={mason.discardChanges}
         handlePublishLexicon={isVerifiedMason ? handlePublishLexicon : undefined}
         openFiles={openFiles}
         closeFile={closeFile}

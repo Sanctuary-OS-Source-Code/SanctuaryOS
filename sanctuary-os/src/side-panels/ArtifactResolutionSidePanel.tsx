@@ -13,6 +13,7 @@ import {
 import { useStore } from "../store";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlaySetLogic } from "../hooks/usePlaySetLogic";
+import { VAULT_CHIP_CLASS } from "../Cards";
 
 export default function ArtifactResolutionSidePanel({
   isOpen,
@@ -159,23 +160,17 @@ export default function ArtifactResolutionSidePanel({
 
   const title =
     type === "vault"
-      ? t("support_vault_lock", "Vault Lock Engaged")
-      : t("support_adult_mods", "Blueprint Lock Engaged");
+      ? t("support_vault_lock", "{Vault} Lock")
+      : t("support_adult_mods", "{Blueprint} Lock");
   const desc =
     type === "vault"
-      ? t(
-          "resolve_vault_desc",
-          "Purging these artifacts will permanently move them to your recycle bin and remove them from your active blueprint."
-        )
-      : t(
-          "resolve_blueprint_desc",
-          "Removing these artifacts will take them out of your active blueprint."
-        );
+      ? t("resolve_vault_desc", "Purging these {mods} will move them to your recycle bin and remove them from your active {blueprint}.")
+      : t("resolve_blueprint_desc", "Removing these {mods} will take them out of your active {blueprint}.");
   const panelIcon = type === "vault" ? t("icon_block", "block") : t("icon_warning", "warning");
   const actionLabel =
     type === "vault"
-      ? t("purge_from_vault", "Purge from Vault")
-      : t("remove_from_blueprint", "Remove from Blueprint");
+      ? t("purge_from_vault", "Purge from {Vault}")
+      : t("remove_from_blueprint", "Remove from {Blueprint}");
 
   return (
     <SidePanel
@@ -207,13 +202,13 @@ export default function ArtifactResolutionSidePanel({
           overline={t("resolve_alerts", "Resolve Alerts")}
           title={title}
           description={desc}
-          badge={`${(offendingMods || []).length} ${t("items", "Items")}`}
+          badge={`${(offendingMods || []).length} ${t("term_mods", "Items")}`}
           badgeIcon={panelIcon}
           variant="danger"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <StatBox
-              label={t("offending_artifacts", "Offending Artifacts")}
+              label={t("offending_artifacts", "Offending {Mods}")}
               value={(offendingMods || []).length}
               icon={t("icon_extension", "extension")}
               iconColorClass="text-[var(--danger)]"
@@ -239,7 +234,7 @@ export default function ArtifactResolutionSidePanel({
         </SidePanelHeroCard>
 
         <UniversalGroup
-          title={`${t("offending_artifacts", "Offending Artifacts")} (${(offendingMods || []).length})`}
+          title={`${t("offending_artifacts", "Offending {Mods}")} (${(offendingMods || []).length})`}
           icon={t("icon_extension", "extension")}
         >
           <div className="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -249,7 +244,13 @@ export default function ArtifactResolutionSidePanel({
                 className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                  <div
+                    className="w-10 h-10 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
+                    style={{
+                      color: "var(--danger)",
+                      borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                    }}
+                  >
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_extension", "extension")}
                     </span>
@@ -263,7 +264,16 @@ export default function ArtifactResolutionSidePanel({
                     </span>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--danger)] shrink-0">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--danger)",
+                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_block", "block")}
+                  </span>
                   {t("icon_block", "Restricted")}
                 </span>
               </div>
@@ -281,19 +291,13 @@ export default function ArtifactResolutionSidePanel({
                 {t("icon_sync", "sync")}
               </span>
               <span>
-                {t(
-                  "scanning_dependencies",
-                  "Scanning Blueprint for Symbiotic Dependencies..."
-                )}
+                {t("scanning_dependencies", "Scanning {Blueprint} for Symbiotic Dependencies...")}
               </span>
             </div>
           ) : dependencies.length > 0 ? (
             <div className="flex flex-col gap-3">
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                {t(
-                  "affected_deps_desc",
-                  "The following artifacts are currently active in your blueprint and depend on the offending artifacts. They may become unstable or broken if you proceed."
-                )}
+                {t("affected_deps_desc", "The following {mods} are currently active in your {blueprint} and depend on the offending {mods}. They may become unstable or broken if you proceed.")}
               </p>
               <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto custom-scrollbar">
                 {dependencies.map((dep, i) => (
@@ -302,7 +306,13 @@ export default function ArtifactResolutionSidePanel({
                     className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                      <div
+                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--warning)] flex items-center justify-center shrink-0"
+                        style={{
+                          color: "var(--warning)",
+                          borderColor: "color-mix(in srgb, var(--warning) 25%, var(--border))",
+                        }}
+                      >
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_link", "link")}
                         </span>
@@ -311,7 +321,16 @@ export default function ArtifactResolutionSidePanel({
                         {dep.displayName || dep.name}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--warning)] shrink-0">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--warning)",
+                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {t("icon_link", "link")}
+                      </span>
                       {t("bp_status_unstable", "Dependent")}
                     </span>
                   </div>
@@ -320,16 +339,19 @@ export default function ArtifactResolutionSidePanel({
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] flex items-center justify-center shrink-0">
+              <div
+                className="w-9 h-9 rounded-xl glass-surface border text-[var(--success)] flex items-center justify-center shrink-0"
+                style={{
+                  color: "var(--success)",
+                  borderColor: "color-mix(in srgb, var(--success) 25%, var(--border))",
+                }}
+              >
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_check_circle", "check_circle")}
                 </span>
               </div>
               <span className="text-xs font-bold text-[var(--text)]">
-                {t(
-                  "no_affected_deps",
-                  "No other artifacts in the active blueprint depend on these."
-                )}
+                {t("no_affected_deps", "No other {mods} in the active {blueprint} depend on these.")}
               </span>
             </div>
           )}

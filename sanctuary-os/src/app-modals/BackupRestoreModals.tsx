@@ -12,6 +12,7 @@ import {
   DashboardStatTile,
   PanelHeaderGroup,
   PanelHeaderButton,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import {
   TimeCapsuleSnapshotDossier,
@@ -153,7 +154,7 @@ export function BackupRestoreModals({
     : t("world_state", "World State");
 
   const activeTitle = isDefconPrompt
-    ? confirmDialog?.title || t("defcon_alert_title", "Global Alert")
+    ? confirmDialog?.title || t("tile_global_alert", "Global Alert")
     : isBusy
       ? isBackingUp
         ? isEngineBackup
@@ -259,6 +260,7 @@ export function BackupRestoreModals({
 
   const lockShieldOverlay = isLocked ? (
     <div
+      data-sa-malware-active="true"
       className="fixed inset-0 z-[59998] pointer-events-auto select-none cursor-passkey-locked"
       onMouseMove={(e) => {
         useTooltipStore.getState().setTooltip({
@@ -360,8 +362,14 @@ export function BackupRestoreModals({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-12 h-12 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[24px] animate-pulse">
+                    <div
+                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor:
+                          "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-outlined !text-[22px] animate-pulse">
                         {t("icon_warning_amber", "warning")}
                       </span>
                     </div>
@@ -372,13 +380,20 @@ export function BackupRestoreModals({
                       </span>
                       <h3 className="text-lg md:text-xl font-black tracking-tight text-[var(--text)] m-0 leading-snug">
                         {confirmDialog?.title ||
-                          t("defcon_alert_title", "Global Alert")}
+                          t("tile_global_alert", "Global Alert")}
                       </h3>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] flex items-center gap-1 shrink-0">
-                    <span className="material-symbols-outlined !text-[13px]">
+                  <span
+                    className={VAULT_CHIP_CLASS}
+                    style={{
+                      color: "var(--danger)",
+                      borderColor:
+                        "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
                       {t("icon_shield", "shield")}
                     </span>
                     {t("defcon_patch_detected", "Patch Detected")}
@@ -395,24 +410,46 @@ export function BackupRestoreModals({
               {/* Emergency Backup Scope Card */}
               <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                      {t("icon_archive", "archive")}
-                    </span>
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                      style={{
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_archive", "archive")}
+                      </span>
+                    </div>
                     <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                       {t("defcon_card_scope_title", "Emergency Backup Scope")}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[12px]">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor:
+                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
                         {t("icon_public", "public")}
                       </span>
                       {t("world_state", "World State")}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[12px]">
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--danger)",
+                        borderColor:
+                          "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
                         {t("icon_settings", "settings")}
                       </span>
                       {t("engine_full", "Engine Core")}
@@ -483,13 +520,18 @@ export function BackupRestoreModals({
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      className={`w-12 h-12 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
                         isDangerTheme
-                          ? "border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)]"
-                          : "border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)]"
+                          ? "text-[var(--danger)]"
+                          : "text-[var(--accent)]"
                       }`}
+                      style={{
+                        borderColor: isDangerTheme
+                          ? "color-mix(in srgb, var(--danger) 25%, var(--border))"
+                          : "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
                     >
-                      <span className="material-symbols-outlined !text-[24px] animate-pulse">
+                      <span className="material-symbols-outlined !text-[22px] animate-pulse">
                         {activeIcon}
                       </span>
                     </div>
@@ -546,7 +588,7 @@ export function BackupRestoreModals({
                         ? "text-[var(--danger)]"
                         : "text-[var(--accent)]"
                     }
-                    label={t("label_files", "Files")}
+                    label={t("modal_files", "Files")}
                     value={<span className="font-mono">{filesDisplay}</span>}
                   />
                 </div>

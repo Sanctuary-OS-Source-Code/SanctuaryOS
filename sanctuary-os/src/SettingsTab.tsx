@@ -100,7 +100,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const pickPath = async (rustKey: string, label: string) => {
     if (!config || !globalConfig) return;
     try {
-      const selected = await open({ directory: true, multiple: false, title: `${t("select_path")} ${label}` });
+      const selected = await open({ directory: true, multiple: false, title: `${t("select_path", "Select Directory for")} ${label}` });
       if (selected) {
         const newConfig = { ...config, [rustKey]: selected };
         setConfig(newConfig);
@@ -119,24 +119,24 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
   };
 
-  if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting") || "Booting..."}</div>;
+  if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting", "Booting core systems...") || "Booting..."}</div>;
 
   const pathMap = [
-    { rustKey: 'vault_path', label: t("vault_path") || "Vault Path", value: config.vault_path, icon: t("icon_account_balance") || "account_balance" },
-    { rustKey: 'mods_path', label: t("library_path") || "Library Path", value: config.mods_path, icon: t("icon_folder") || "folder" },
-    { rustKey: 'live_path', label: t("setup_btn_bin") || "Live Path", value: config.live_path, icon: t("icon_push_pin") || "push_pin" }
+    { rustKey: 'vault_path', label: t("vault_path", "The {Vault} Path") || "Vault Path", value: config.vault_path, icon: t("icon_account_balance", "account_balance") || "account_balance" },
+    { rustKey: 'mods_path', label: t("library_path", "Active Library ({Mods} Folder)") || "Library Path", value: config.mods_path, icon: t("icon_folder", "folder") || "folder" },
+    { rustKey: 'live_path', label: t("setup_btn_bin", "Select Bin Folder") || "Live Path", value: config.live_path, icon: t("icon_push_pin", "push_pin") || "push_pin" }
   ];
 
   let TABS = [
-    { id: 'CORE', icon: t("icon_account_circle") || "account_circle", label: t("tab_core") || "Core" },
-    { id: 'SUPPORTER', icon: t("icon_volunteer_activism") || "volunteer_activism", label: t("tab_supporter") || "Supporter & Perks" },
-    { id: 'ENGINE', icon: t("icon_history") || "history", label: t("tab_engine") || "Engine" },
-    { id: 'CLIENT', icon: t("icon_tune") || "tune", label: t("tab_preferences") || "Preferences" },
-    { id: 'NOTIFICATIONS', icon: t("icon_notifications") || "notifications", label: t("tab_notifs") || "Notifications" },
-    { id: 'AESTHETICS', icon: t("icon_format_paint") || "format_paint", label: t("tab_aesthetics") || "Aesthetics" },
-    { id: 'LOGIC', icon: t("icon_flag") || "flag", label: t("tab_logic") || "Logic" }
+    { id: 'CORE', icon: t("icon_account_circle", "account_circle") || "account_circle", label: t("tab_core", "Core") || "Core" },
+    { id: 'SUPPORTER', icon: t("icon_volunteer_activism", "volunteer_activism") || "volunteer_activism", label: t("tab_supporter", "Supporter & Perks") || "Supporter & Perks" },
+    { id: 'ENGINE', icon: t("icon_history", "history") || "history", label: t("tab_engine", "Engine") || "Engine" },
+    { id: 'CLIENT', icon: t("icon_tune", "tune") || "tune", label: t("tab_preferences", "Preferences") || "Preferences" },
+    { id: 'NOTIFICATIONS', icon: t("icon_notifications", "notifications") || "notifications", label: t("tab_notifs", "Notifications") || "Notifications" },
+    { id: 'AESTHETICS', icon: t("icon_format_paint", "format_paint") || "format_paint", label: t("tab_aesthetics", "Aesthetics") || "Aesthetics" },
+    { id: 'LOGIC', icon: t("icon_flag", "flag") || "flag", label: t("tab_logic", "Logic Integrity") || "Logic" }
   ];
-  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull") || "skull", label: t("malware_btn") || "Nuclear Override" });
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull", "skull") || "skull", label: t("malware_btn", "Configure Malware Process") || "Nuclear Override" });
 
   if (!isDesktop()) {
     TABS = TABS.filter(t => ['CORE', 'SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
@@ -145,12 +145,12 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   }
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
+    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
       <ViewHeader
-        title={t("settings_title") || "Settings"}
+        title={t("settings_title", "System Preferences") || "Settings"}
         breadcrumb={TABS.find(tab => tab.id === activeTab)?.label}
         icon="settings"
-        subtitle={t("settings_subtitle") || "Configure system parameters and workspace preferences."}
+        subtitle={t("settings_subtitle", "Local configuration, identity, libraries, and security processes") || "Configure system parameters and workspace preferences."}
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
       >
         <ActionPill
@@ -165,8 +165,8 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           actions={[
             {
               id: "logout",
-              icon: t("icon_logout") || "logout",
-              label: t("btn_logout") || "Logout",
+              icon: t("icon_logout", "logout") || "logout",
+              label: t("btn_logout", "Log Out") || "Logout",
               onClick: async () => {
                 await supabase.auth.signOut();
                 localStorage.setItem("sanctuary_show_login", "true");
@@ -182,8 +182,8 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       </ViewHeader>
 
       {TABS.length > 0 && (
-        <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:left-0 gap-3 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-          <StatTileCarousel innerClassName="px-6 md:px-0">
+        <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+          <StatTileCarousel>
             {TABS.map(tab => (
               <DashboardStatTile
                 key={tab.id}

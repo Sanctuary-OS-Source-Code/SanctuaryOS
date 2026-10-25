@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, ActionButton, ActionPill, HoverTooltip } from "./shared";
+import { EmptyState, InlineFilterGroup, ActionPill, HoverTooltip } from "./shared";
 import { supabase } from "./supabase";
 import { UniversalCard } from "./components/universal/UniversalCard";
 
@@ -21,6 +21,8 @@ interface CitizenTicketsProps {
   onOpenNewTicket?: () => void;
   isSidePanel?: boolean;
 }
+
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket, isSidePanel = false }: CitizenTicketsProps) {
   const { t } = useLexicon();
@@ -88,22 +90,22 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
           className="w-full !max-w-none"
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          searchPlaceholder={t("ph_search_tickets") || "Search Tickets..."}
+          searchPlaceholder={t("ph_search_tickets", "Search Tickets...") || "Search Tickets..."}
           primaryPopover={{
-            icon: "tune",
-            label: t("filters") || "Filters",
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters") || "Filters",
             content: (
               <div className="flex flex-col gap-4 w-[280px] p-2">
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status") || "Ticket Status"}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">{t("ticket_status", "Ticket Status") || "Ticket Status"}</span>
                   <InlineFilterGroup 
                     value={activeFilter}
                     onChange={(v) => setActiveFilter(v as any)}
                     options={[
-                      { id: 'all', label: 'ALL TICKETS' },
-                      { id: 'open', label: 'OPEN' },
-                      { id: 'pending', label: 'PENDING' },
-                      { id: 'closed', label: 'CLOSED' }
+                      { id: 'all', label: t("filter_all", "All") },
+                      { id: 'open', label: t("ticket_status_open", "Open") },
+                      { id: 'pending', label: t("ticket_status_pending", "Pending") },
+                      { id: 'closed', label: t("filter_closed", "Closed") }
                     ]}
                   />
                 </div>
@@ -117,9 +119,9 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
                   onClick={onOpenNewTicket}
                   className="h-9 px-4 rounded-md flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] font-black uppercase tracking-widest text-[10px] relative group"
                 >
-                  <span className="material-symbols-outlined !text-[18px]">add</span>
-                  <span className="hidden md:inline">{t("ticket_new") || "New Ticket"}</span>
-                  <HoverTooltip title={t("ticket_new") || "New Ticket"} />
+                  <span className="material-symbols-outlined !text-[18px]">{t("icon_add", "add")}</span>
+                  <span className="hidden md:inline">{t("ticket_new", "New Ticket") || "New Ticket"}</span>
+                  <HoverTooltip title={t("ticket_new", "New Ticket") || "New Ticket"} />
                 </button>
               </div>
             )
@@ -127,61 +129,99 @@ export default function CitizenTickets({ userId, onSelectTicket, onOpenNewTicket
         />
       </div>
 
-      <div className="w-full flex flex-col sm:grid sm:grid-cols-2 gap-3 px-6 md:px-8 pb-20 content-start sm:items-start sm:auto-rows-max">
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-2 gap-4 px-6 md:px-8 pb-20 content-start sm:items-start sm:auto-rows-max">
         {isLoading ? (
           <div className="col-span-full flex justify-center items-center h-32 opacity-50">
-            <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
+            <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
           </div>
         ) : filteredTickets.length === 0 ? (
           <div className="col-span-full">
-            <EmptyState icon={t("icon_receipt_long")} title={t("ticket_no_tickets")} className="col-span-full py-16" />
+            <EmptyState icon={t("icon_receipt_long", "receipt_long")} title={t("ticket_no_tickets", "No Active Tickets Found")} className="col-span-full py-16" />
           </div>
         ) : (
           filteredTickets.map(ticket => {
-            const isResolved = ticket.status?.toLowerCase() === 'resolved';
-            const isRejected = ticket.status?.toLowerCase() === 'rejected';
-            const isEscalated = ticket.status?.toLowerCase() === 'escalated';
-            const statusColorClass = isResolved ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)]" : isRejected ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]" : isEscalated ? "border-[color-mix(in_srgb,var(--warning)_50%,transparent)]" : "border-[color-mix(in_srgb,var(--success)_50%,transparent)]";
-            
+            const statusLower = ticket.status?.toLowerCase() || "open";
+            const isResolved = statusLower === "resolved" || statusLower === "closed";
+            const isRejected = statusLower === "rejected";
+            const isEscalated = statusLower === "escalated";
+            const isPending = statusLower === "pending" || statusLower === "investigating";
+
+            const statusIconColor = isResolved
+              ? "text-[var(--success)]"
+              : isEscalated || isRejected
+                ? "text-[var(--danger)]"
+                : isPending
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--accent)]";
+
+            const statusIcon = isResolved
+              ? t("icon_check_circle", "check_circle")
+              : isRejected
+                ? t("icon_cancel", "cancel")
+                : isEscalated
+                  ? t("icon_priority_high", "priority_high")
+                  : isPending
+                    ? t("icon_schedule", "schedule")
+                    : t("icon_confirmation_number", "confirmation_number");
+
+            const statusLabel = isResolved
+              ? t("ticket_status_resolved", "Resolved")
+              : isRejected
+                ? t("ticket_status_rejected", "Rejected")
+                : isEscalated
+                  ? t("ticket_status_escalated", "Escalated")
+                  : isPending
+                    ? t("ticket_status_pending", "Pending")
+                    : t("ticket_status_open", "Open");
+
             return (
               <UniversalCard
                 key={ticket.id}
-                layout="vertical-compact"
-                statusColor={statusColorClass}
-                className={`${isResolved ? "opacity-70 grayscale-[0.2]" : ""}`}
+                layout="vertical"
+                isGhosted={isResolved}
+                icon={t("icon_confirmation_number", "confirmation_number")}
+                imageOverlay={
+                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                    <div className={VAULT_CHIP_CLASS}>
+                      <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                        {statusIcon}
+                      </span>
+                      <span>{statusLabel}</span>
+                    </div>
+                    {ticket.metadata?.expedited_support && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                          {t("icon_bolt", "bolt")}
+                        </span>
+                        <span>{t("supporter_badge_expedited_support", "Expedited Support")}</span>
+                      </div>
+                    )}
+                  </div>
+                }
                 title={ticket.title}
-                subtitle={ticket.ticket_type || "SUPPORT"}
+                subtitle={`#${ticket.id.slice(0, 8)}`}
                 onClick={() => onSelectTicket && onSelectTicket(ticket)}
                 badges={
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {ticket.metadata?.expedited_support && (
-                      <span className="px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center gap-1 shadow-sm">
-                        <span className="material-symbols-outlined !text-[12px]">{t("icon_bolt", "bolt")}</span>
-                        {t("supporter_badge_expedited_support", "EXPEDITED SUPPORT PATH")}
-                      </span>
-                    )}
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest capitalize flex-shrink-0 shadow-sm
-                      ${!isResolved && !isRejected && !isEscalated ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-400 border border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : ''}
-                      ${isResolved ? 'bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}
-                      ${isRejected ? 'bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-rose-400 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : ''}
-                      ${isEscalated ? 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-amber-400 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shadow-md' : ''}
-                    `}>
-                      {ticket.status}
+                  <div className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_local_activity", "local_activity")}
                     </span>
+                    <span>{(ticket.ticket_type || t("support_tickets", "Support")).replace(/_/g, " ")}</span>
                   </div>
                 }
                 footer={
                   <div className="flex justify-between items-center w-full">
-                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">
+                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
+                      <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
                       {new Date(ticket.created_at).toLocaleDateString()}
                     </span>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-colors flex items-center gap-1">
-                      {t("view_details")} <span className="material-symbols-outlined !text-[11px]">{t("icon_arrow_forward")}</span>
-                    </button>
+                    <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+                      {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                    </span>
                   </div>
                 }
               >
-                <p className="hidden sm:block text-xs text-[var(--subtext)] line-clamp-2 glass-surface !z-auto p-3 shadow-inner border border-white/5 mt-3">
+                <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
                   {ticket.description}
                 </p>
               </UniversalCard>

@@ -15,7 +15,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
   async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
     if (!session) {
-      useStore.getState().pushStatus(t("alert_guest_mode_uploads"));
+      useStore.getState().pushStatus(t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled."));
       return;
     }
 
@@ -141,21 +141,21 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
       await logUserAction(`Uploaded Blueprint: ${targetSet.name}`, 'blueprints', code, `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${isMarketListed ? 'Listed' : 'Unlisted'}`);
 
-      setStatus(`${t("status_blueprint_uplinked")} ${code}`);
+      setStatus(`${t("status_blueprint_uplinked", "{Blueprint} Synced! Code:")} ${code}`);
       setSyncCode(code);
       return code;
     } catch (err: any) {
-      setStatus(`${t("icon_block")} ${t("status_uplink_failed")}${err.message || err}`);
+      setStatus(`${t("icon_block", "block")} ${t("status_uplink_failed", "Sync Failed:")}${err.message || err}`);
       return undefined;
     }
   }
 
   async function syncBlueprintByCode(code: string, suffix: string = " (Synced)") {
     if (!code) return;
-    setStatus(`${t("icon_radar")} ${t("status_sync_blueprint")}${code}...`);
+    setStatus(`${t("icon_radar", "radar")} ${t("status_sync_blueprint", "Synchronizing {Blueprint}:")}${code}...`);
     try {
       const { data, error } = await supabase.from('blueprints').select('*').eq('code', code.toUpperCase()).single();
-      if (error || !data) throw new Error(t("status_invalid_code"));
+      if (error || !data) throw new Error(t("status_invalid_code", "Invalid or Expired Code."));
       const isCodeInUse = playSets.some((s: any) => s.code && s.code === code.toUpperCase());
       const finalCode = isCodeInUse ? undefined : code.toUpperCase();
 
@@ -246,16 +246,16 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         const updatedSets = [...playSets, readySet];
         setPlaySets(updatedSets);
 
-        setStatus(`${t("icon_check_circle")} ${t("status_blueprint_synced")}`);
+        setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_blueprint_synced", "{Blueprint} Synchronized.")}`);
       }
     } catch (err: any) {
-      setStatus(`${t("icon_block")} ${t("status_sync_error")}${err.message || err}`);
+      setStatus(`${t("icon_block", "block")} ${t("status_sync_error", "Sync Error:")}${err.message || err}`);
     }
   }
 
   async function massIngestToCloud() {
     if (!session) {
-      useStore.getState().pushStatus(t("alert_guest_mode_uploads"));
+      useStore.getState().pushStatus(t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled."));
       return;
     }
     const rawGhosts = modList.filter((m) => m && !m.isSynced);
@@ -265,13 +265,13 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       ).values(),
     );
     if (ghosts.length === 0) {
-      setStatus(t("status_bunker_synced"));
-      useStore.getState().pushStatus(t("auto_all_mods_are_45"));
+      setStatus(t("status_bunker_synced", "LOADOUT FULLY SYNCED: No unique unknowns found."));
+      useStore.getState().pushStatus(t("auto_all_mods_are_45", "All {mods} are up to date!"));
       return;
     }
     setIngestProgress({ current: 0, total: ghosts.length, active: true });
     setStatus(
-      `${t("status_mass_ingestion_prefix")}${ghosts.length}${t("status_mass_ingestion_suffix")}`,
+      `${t("status_mass_ingestion_prefix", "MASS INGESTION: Unifying")}${ghosts.length}${t("status_mass_ingestion_suffix", "unique identities...")}`,
     );
     let successCount = 0;
     for (let i = 0; i < ghosts.length; i++) {
@@ -314,7 +314,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     }
     setIngestProgress(null);
     setStatus(
-      `${t("icon_check_circle")} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
+      `${t("icon_check_circle", "check_circle")} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
     );
   }
 

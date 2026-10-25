@@ -390,15 +390,15 @@ export function ActionPill({
             className={`material-symbols-outlined !text-[20px] transition-colors shrink-0 ml-4 ${isSearchFocused ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}
           >
             {isLoading
-              ? t("icon_hourglass_empty") || "hourglass_empty"
-              : t("icon_search") || "search"}
+              ? t("icon_hourglass_empty", "hourglass_empty") || "hourglass_empty"
+              : t("icon_search", "search") || "search"}
           </span>
           <input
             value={searchQuery || ""}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
-            placeholder={searchPlaceholder || t("shared_search") || "Search..."}
+            placeholder={searchPlaceholder || t("btn_search", "Search") || "Search..."}
             className="bg-transparent border-none outline-none text-[13px] font-medium text-[var(--text)] w-full transition-all duration-300 px-3 placeholder:text-[var(--subtext)]/50 h-13 min-w-0"
           />
         </div>
@@ -415,8 +415,10 @@ export function ActionPill({
           <FilterPopover
             icon={primaryPopover.icon}
             label={primaryPopover.label}
+            variant="inline"
+            iconOnly={true}
             className="shrink-0 h-full"
-            buttonClassName="!h-13 px-4 sm:px-5 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center gap-2 font-semibold shrink-0 !w-auto"
+            buttonClassName="!h-13 !w-auto px-4 !rounded-none"
           >
             {primaryPopover.content}
           </FilterPopover>
@@ -453,9 +455,11 @@ export function ActionPill({
         {!isIconsOnly && mergedActions && mergedActions.length > 0 && (
           <div className="flex sm:hidden h-full shrink-0 items-center justify-center border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
             <FilterPopover
-              icon={t("icon_more_vert") || "more_vert"}
+              icon={t("icon_more_vert", "more_vert") || "more_vert"}
+              variant="inline"
+              iconOnly={true}
               className="shrink-0 h-full"
-              buttonClassName="!h-13 w-12 !rounded-none !bg-transparent hover:!bg-[color-mix(in_srgb,var(--text)_5%,transparent)] !border-none !shadow-none transition-colors text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0"
+              buttonClassName="!h-13 w-12 !rounded-none"
             >
               <div className="flex flex-col p-2 min-w-[200px] gap-1">
                 {mergedActions.map((action) => (
@@ -504,4 +508,3 @@ export interface ActionPillProps {
   className?: string;
   isLoading?: boolean;
 }
-

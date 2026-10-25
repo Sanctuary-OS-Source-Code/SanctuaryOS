@@ -10,7 +10,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
-import { SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
+import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
 import {
   UniversalGroup,
@@ -20,6 +20,9 @@ import {
   StatBox,
 } from "./universal/UniversalLayout";
 import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export type NormalizedRuleSeverity = "corrupted" | "unstable" | "unrelated";
 
@@ -747,11 +750,11 @@ export function KnownErrorRuleEditorSidePanel({
   const severityOptions = [
     {
       id: "corrupted",
-      label: t("exc_rules_filter_corrupted", "Corrupted"),
+      label: t("status_corrupted", "Corrupted"),
     },
     {
       id: "unstable",
-      label: t("exc_rules_filter_unstable", "Unstable"),
+      label: t("label_unstable", "Unstable"),
     },
     {
       id: "unrelated",
@@ -783,10 +786,7 @@ export function KnownErrorRuleEditorSidePanel({
               "exc_rules_knowledge_subtitle",
               "Community-maintained cause and fix steps for this exception pattern"
             )
-          : t(
-              "exc_rules_editor_subtitle",
-              "Define how Sanctuary OS explains or filters known game & mod exceptions for this community"
-            )
+          : t("exc_rules_editor_subtitle", "Define how Sanctuary OS explains or filters known game & {mod} exceptions for this community")
       }
       icon={readOnly ? t("icon_psychology", "psychology") : t("icon_rule", "rule")}
       iconColorClass="text-[var(--accent)]"
@@ -795,7 +795,7 @@ export function KnownErrorRuleEditorSidePanel({
         !readOnly ? (
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon={t("icon_saves", "save")}
+              icon={t("icon_save", "save")}
               variant="success"
               disabled={isSaving || !rule.title.trim() || !rule.pattern.trim()}
               tooltip={t("exc_rules_btn_save", "Save Known Error Rule")}
@@ -814,216 +814,203 @@ export function KnownErrorRuleEditorSidePanel({
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-4 mt-2 w-full pb-8">
-        {/* Top Rule Banner on Panel Body */}
-        <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div
-              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                isCrit
-                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
-                  : isBenign
-                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[22px]">{sevIcon}</span>
-            </div>
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
-                {rule.file_hint || "lastException.txt"}
-              </span>
-              {readOnly ? (
-                <h3 className="text-base md:text-lg font-black text-[var(--text)] tracking-tight leading-snug break-words">
-                  {rule.title}
-                </h3>
-              ) : (
-                <input
-                  value={rule.title}
-                  onChange={(e) => setRule((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder={
-                    t(
-                      "exc_rules_field_title_ph",
-                      "e.g. StoreUtils / VirtualCurrencyWallet UI Desync"
-                    ) as string
-                  }
-                  className="w-full bg-transparent border-b border-[color-mix(in_srgb,var(--text)_15%,transparent)] focus:border-[var(--accent)] pb-1 text-base md:text-lg font-black text-[var(--text)] tracking-tight focus:outline-none transition-colors"
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
-                isCrit
-                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
-                  : isBenign
-                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
-                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
-              }`}
-            >
-              {isCrit
-                ? t("exc_rules_filter_corrupted", "Corrupted")
+      <div className="flex flex-col gap-5 mt-2 w-full pb-8">
+        <SidePanelHeroCard
+          title={
+            rule.title ||
+            t("exc_rules_editor_title", "Known Exception / Error Log Rule")
+          }
+          subtitle={
+            readOnly
+              ? t(
+                  "exc_rules_knowledge_subtitle",
+                  "Community-maintained cause and fix steps for this exception pattern"
+                )
+              : t("exc_rules_editor_subtitle", "Define how Sanctuary OS explains or filters known game & {mod} exceptions for this community")
+          }
+          label={rule.file_hint || "lastException.txt"}
+          icon={sevIcon}
+          variant={isCrit ? "danger" : isBenign ? "success" : "warning"}
+          badges={[
+            {
+              icon: sevIcon,
+              label: isCrit
+                ? t("status_corrupted", "Corrupted")
                 : isBenign
-                ? t("exc_rules_filter_unrelated", "Unrelated")
-                : t("exc_rules_filter_unstable", "Unstable")}
-            </span>
-            <span
-              className={`text-[10px] font-black uppercase tracking-wider ${
-                isBenign || rule.ignore_in_lab
-                  ? "text-[var(--success)]"
-                  : "text-[var(--warning)]"
-              }`}
-            >
-              {isBenign || rule.ignore_in_lab
-                ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
-                : t("exc_rules_lab_fails_test", "Fails Lab Test")}
-            </span>
-          </div>
-        </div>
-
-        {/* 3-Column Telemetry / Rule Config Row */}
-        {readOnly ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatBox
-              icon={sevIcon}
-              iconColorClass={
-                isCrit
-                  ? "text-[var(--danger)]"
-                  : isBenign
-                  ? "text-[var(--success)]"
-                  : "text-[var(--warning)]"
-              }
-              label={t("exc_rules_col_classification", "Issue Classification")}
-              value={
-                isCrit
-                  ? t("exc_rules_filter_corrupted", "Corrupted")
-                  : isBenign
                   ? t("exc_rules_filter_unrelated", "Unrelated")
-                  : t("exc_rules_filter_unstable", "Unstable")
-              }
-            />
-            <StatBox
-              icon={t("icon_description", "description")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("exc_rules_col_log_source", "Log File Source")}
-              value={rule.file_hint || "lastException.txt"}
-            />
-            <StatBox
-              icon={
+                  : t("label_unstable", "Unstable"),
+              colorClass: isCrit
+                ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
+                : isBenign
+                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]",
+            },
+            {
+              icon:
                 isBenign || rule.ignore_in_lab
                   ? t("icon_verified", "verified")
-                  : t("icon_science", "science")
-              }
-              iconColorClass={
-                isBenign || rule.ignore_in_lab
-                  ? "text-[var(--success)]"
-                  : "text-[var(--warning)]"
-              }
-              label={t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
-              value={
+                  : t("icon_science", "science"),
+              label:
                 isBenign || rule.ignore_in_lab
                   ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
-                  : t("exc_rules_lab_fails_test", "Fails Lab Test")
-              }
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
-                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
-                  {sevIcon}
-                </span>
-                <span className="truncate">
-                  {t("exc_rules_col_classification", "Issue Classification")}
-                </span>
-              </label>
-              <CustomDropdown
-                disableTint={true}
-                value={normSev}
-                options={severityOptions}
-                onChange={(vals: any) => {
-                  const rawVal = Array.isArray(vals) ? vals[0] : vals;
-                  const chosen = (rawVal || "unstable") as NormalizedRuleSeverity;
-                  setRule((prev) => ({
-                    ...prev,
-                    severity: chosen,
-                    ignore_in_lab: chosen === "unrelated",
-                  }));
-                }}
-              />
-            </div>
-
-            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
-                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
-                  {t("icon_description", "description")}
-                </span>
-                <span className="truncate">
-                  {t("exc_rules_col_log_source", "Log File Source")}
-                </span>
-              </label>
-              <input
-                value={rule.file_hint || ""}
-                onChange={(e) => setRule((prev) => ({ ...prev, file_hint: e.target.value }))}
-                placeholder={
-                  t(
-                    "exc_rules_field_file_hint_ph",
-                    "lastUIException.txt or lastException.txt"
-                  ) as string
+                  : t("exc_rules_lab_fails_test", "Fails Lab Test"),
+              colorClass:
+                isBenign || rule.ignore_in_lab
+                  ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                  : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]",
+            },
+          ]}
+        >
+          {/* 3-Column Telemetry / Rule Config Row */}
+          {readOnly ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+              <StatBox
+                icon={sevIcon}
+                iconColorClass={
+                  isCrit
+                    ? "text-[var(--danger)]"
+                    : isBenign
+                      ? "text-[var(--success)]"
+                      : "text-[var(--warning)]"
                 }
-                className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-              />
-            </div>
-
-            <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
-                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
-                  {t("icon_science", "science")}
-                </span>
-                <span className="truncate">
-                  {t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
-                </span>
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  !isBenign &&
-                  setRule((prev) => ({ ...prev, ignore_in_lab: !prev.ignore_in_lab }))
+                label={t("exc_rules_col_classification", "Issue Classification")}
+                value={
+                  isCrit
+                    ? t("status_corrupted", "Corrupted")
+                    : isBenign
+                      ? t("exc_rules_filter_unrelated", "Unrelated")
+                      : t("label_unstable", "Unstable")
                 }
-                className={`w-full h-10 rounded-xl px-3.5 border bg-transparent flex items-center justify-between text-xs font-black transition-all cursor-pointer ${
+              />
+              <StatBox
+                icon={t("icon_description", "description")}
+                iconColorClass="text-[var(--accent)]"
+                label={t("exc_rules_col_log_source", "Log File Source")}
+                value={rule.file_hint || "lastException.txt"}
+              />
+              <StatBox
+                icon={
                   isBenign || rule.ignore_in_lab
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                }`}
-              >
-                <span className="truncate">
-                  {isBenign || rule.ignore_in_lab
-                    ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
-                    : t("exc_rules_lab_fails_test", "Fails Lab Test")}
-                </span>
-                <span className="material-symbols-outlined !text-[16px] shrink-0">
-                  {isBenign || rule.ignore_in_lab
                     ? t("icon_verified", "verified")
-                    : t("icon_warning", "warning")}
-                </span>
-              </button>
+                    : t("icon_science", "science")
+                }
+                iconColorClass={
+                  isBenign || rule.ignore_in_lab
+                    ? "text-[var(--success)]"
+                    : "text-[var(--warning)]"
+                }
+                label={t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
+                value={
+                  isBenign || rule.ignore_in_lab
+                    ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                    : t("exc_rules_lab_fails_test", "Fails Lab Test")
+                }
+              />
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                    {sevIcon}
+                  </span>
+                  <span className="truncate">
+                    {t("exc_rules_col_classification", "Issue Classification")}
+                  </span>
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={normSev}
+                  options={severityOptions}
+                  onChange={(vals: any) => {
+                    const rawVal = Array.isArray(vals) ? vals[0] : vals;
+                    const chosen = (rawVal || "unstable") as NormalizedRuleSeverity;
+                    setRule((prev) => ({
+                      ...prev,
+                      severity: chosen,
+                      ignore_in_lab: chosen === "unrelated",
+                    }));
+                  }}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                    {t("icon_description", "description")}
+                  </span>
+                  <span className="truncate">
+                    {t("exc_rules_col_log_source", "Log File Source")}
+                  </span>
+                </label>
+                <input
+                  value={rule.file_hint || ""}
+                  onChange={(e) => setRule((prev) => ({ ...prev, file_hint: e.target.value }))}
+                  placeholder={
+                    t(
+                      "exc_rules_field_file_hint_ph",
+                      "lastUIException.txt or lastException.txt"
+                    ) as string
+                  }
+                  className="w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
+                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                    {t("icon_science", "science")}
+                  </span>
+                  <span className="truncate">
+                    {t("exc_rules_col_lab_behavior", "Lab Test Behavior")}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    !isBenign &&
+                    setRule((prev) => ({ ...prev, ignore_in_lab: !prev.ignore_in_lab }))
+                  }
+                  className={`w-full h-10 rounded-xl px-3.5 border bg-transparent flex items-center justify-between text-xs font-black transition-all cursor-pointer ${
+                    isBenign || rule.ignore_in_lab
+                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                      : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                  }`}
+                >
+                  <span className="truncate">
+                    {isBenign || rule.ignore_in_lab
+                      ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                      : t("exc_rules_lab_fails_test", "Fails Lab Test")}
+                  </span>
+                  <span className="material-symbols-outlined !text-[16px] shrink-0">
+                    {isBenign || rule.ignore_in_lab
+                      ? t("icon_verified", "verified")
+                      : t("icon_warning", "warning")}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </SidePanelHeroCard>
+
+        <SidePanelTitleInput
+          value={rule.title}
+          onChange={!readOnly ? (val) => setRule((prev) => ({ ...prev, title: val })) : undefined}
+          readOnly={readOnly}
+          placeholder={
+            t(
+              "exc_rules_field_title_ph",
+              "e.g. StoreUtils / VirtualCurrencyWallet UI Desync"
+            ) as string
+          }
+        />
 
         {/* Matched Log Signature Bar */}
-        <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
-              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
-                {t("icon_rule", "rule")}
-              </span>
-              {t("exc_rules_header_pattern", "Matched Log Signature")}
-            </span>
-            {!readOnly && (rule.raw_log || "").trim().length > 0 && (
+        <UniversalGroup
+          title={t("exc_rules_header_pattern", "Matched Log Signature")}
+          icon={t("icon_rule", "rule")}
+          headerAction={
+            !readOnly && (rule.raw_log || "").trim().length > 0 ? (
               <button
                 type="button"
                 onClick={handleExtractFromRawLog}
@@ -1034,10 +1021,11 @@ export function KnownErrorRuleEditorSidePanel({
                 </span>
                 {t("exc_rules_btn_extract_pattern", "Auto-Extract Signature from Log")}
               </button>
-            )}
-          </div>
+            ) : undefined
+          }
+        >
           {readOnly ? (
-            <div className="px-4 py-3 font-mono text-xs font-bold text-[var(--text)] break-words leading-relaxed">
+            <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] font-mono text-xs font-bold text-[var(--text)] break-words leading-relaxed">
               {rule.pattern}
             </div>
           ) : (
@@ -1050,10 +1038,10 @@ export function KnownErrorRuleEditorSidePanel({
                   "e.g. StoreUtils/StoreDisabledByFeatureParameter | Error #1006"
                 ) as string
               }
-              className="w-full bg-transparent px-4 py-3 font-mono text-xs font-bold text-[var(--text)] focus:outline-none"
+              className="w-full glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] font-mono text-xs font-bold text-[var(--text)] focus:outline-none"
             />
           )}
-        </div>
+        </UniversalGroup>
 
         {/* Side-by-Side Community Diagnosis (Cause) + Recommended Fix / Resolution */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1136,7 +1124,7 @@ export function KnownErrorRuleEditorSidePanel({
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[12px]">
-                    verified_user
+                    {t("icon_verified_user", "verified_user")}
                   </span>
                   {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
                 </span>
@@ -1153,10 +1141,10 @@ export function KnownErrorRuleEditorSidePanel({
                     className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[12px]">
-                      {copiedRawLog ? "check" : t("icon_content_copy", "content_copy")}
+                      {copiedRawLog ? t("icon_check", "check") : t("icon_content_copy", "content_copy")}
                     </span>
                     {copiedRawLog
-                      ? t("lab_report_copied_btn", "Copied")
+                      ? t("copied", "Copied")
                       : t("lab_report_copy_btn", "Copy Log")}
                   </button>
                 )}
@@ -1348,7 +1336,7 @@ export function KnownErrorRulesManager({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
           {filtered.map((rule) => {
             const normSev = normalizeRuleSeverity(rule);
             const isCrit = normSev === "corrupted";
@@ -1366,72 +1354,75 @@ export function KnownErrorRulesManager({
               ? "text-[var(--success)]"
               : "text-[var(--warning)]";
 
+            const statusLabel = isCrit
+              ? t("status_corrupted", "Corrupted")
+              : isBenign
+              ? t("exc_rules_filter_unrelated", "Unrelated")
+              : t("label_unstable", "Unstable");
+
             return (
-              <div
+              <UniversalCard
                 key={rule.id}
                 onClick={() => {
                   setEditingRule(rule);
                   setDefaultAsGameBug(false);
                   setIsEditorOpen(true);
                 }}
-                className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                      isCrit
-                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
-                        : isBenign
-                        ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-                        : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {iconName}
+                layout="vertical"
+                icon={iconName}
+                imageOverlay={
+                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                    <div className={VAULT_CHIP_CLASS}>
+                      <span className={`material-symbols-outlined !text-[12px] ${iconColorClass}`}>
+                        {iconName}
+                      </span>
+                      <span>{statusLabel}</span>
+                    </div>
+                  </div>
+                }
+                title={rule.title}
+                subtitle={rule.diagnosis || rule.pattern}
+                badges={
+                  <>
+                    {rule.file_hint && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_description", "description")}
+                        </span>
+                        <span>{rule.file_hint}</span>
+                      </div>
+                    )}
+                    <div className={VAULT_CHIP_CLASS}>
+                      <span
+                        className={`material-symbols-outlined !text-[12px] ${
+                          isBenign || rule.ignore_in_lab
+                            ? "text-[var(--success)]"
+                            : "text-[var(--warning)]"
+                        }`}
+                      >
+                        {isBenign || rule.ignore_in_lab
+                          ? t("icon_verified", "verified")
+                          : t("icon_science", "science")}
+                      </span>
+                      <span>
+                        {isBenign || rule.ignore_in_lab
+                          ? t("exc_rules_badge_no_autofail", "Won't Fail Test")
+                          : t("exc_rules_lab_fails_test", "Fails Lab Test")}
+                      </span>
+                    </div>
+                  </>
+                }
+                footer={
+                  <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    <span className="font-mono truncate max-w-[65%] opacity-75">
+                      {rule.pattern}
+                    </span>
+                    <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+                      {canEdit ? t("edit", "Edit") : t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
                     </span>
                   </div>
-                  <span
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
-                      isCrit
-                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
-                        : isBenign
-                        ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
-                        : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
-                    }`}
-                  >
-                    {isCrit
-                      ? t("exc_rules_filter_corrupted", "Corrupted")
-                      : isBenign
-                      ? t("exc_rules_filter_unrelated", "Unrelated")
-                      : t("exc_rules_filter_unstable", "Unstable")}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1 min-w-0">
-                  {rule.file_hint && (
-                    <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 truncate">
-                      {rule.file_hint}
-                    </span>
-                  )}
-                  <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
-                    {rule.title}
-                  </h3>
-                  <p className="text-xs font-medium text-[var(--subtext)] line-clamp-2 leading-relaxed">
-                    {rule.diagnosis || rule.pattern}
-                  </p>
-                </div>
-
-                <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
-                  <span className="font-mono truncate max-w-[65%]">
-                    {rule.pattern}
-                  </span>
-                  {(isBenign || rule.ignore_in_lab) && (
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-[var(--success)]">
-                      {t("exc_rules_badge_no_autofail", "Won't Fail Test")}
-                    </span>
-                  )}
-                </div>
-              </div>
+                }
+              />
             );
           })}
         </div>

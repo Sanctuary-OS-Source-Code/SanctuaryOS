@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, supabaseAuth } from '../supabase';
 import { useLexicon } from '../LexiconContext';
@@ -9,15 +8,20 @@ import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
-import { SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState, extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel } from "../shared";
+import {
+  SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState,
+  extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard,
+  PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel,
+  SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle, UniversalGroup, StatBox
+} from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import MasonPostCard from "../MasonPostCard";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
-import { logArchitectAction } from "../lib/audit";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
 import { ReleaseNotesShowcase } from "../components/ReleaseNotesShowcase";
 
@@ -73,7 +77,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       let isUnchanged = false;
       if (editingPost) {
         let rawContent = editingPost.message || editingPost.content || '';
-        let parsedImage = extractPostImage(editingPost) || "";
         if (rawContent.startsWith('[IMG:')) {
           const endIdx = rawContent.indexOf(']');
           if (endIdx !== -1) {
@@ -89,8 +92,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
           category === (editingPost.category || "Announcement") &&
           actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
           JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
-          codeSnippet === (editingPost.code_snippet || "") &&
-          true;
+          codeSnippet === (editingPost.code_snippet || "");
       } else {
         isUnchanged = title === "" &&
           description === "" &&
@@ -122,8 +124,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
 
   const updateTimeoutRef = useRef<any>(null);
 
-
-
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -153,9 +153,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       .ilike('target_audience', '%Public%')
       .order('created_at', { ascending: false });
     if (data) {
-      const activeSchema = useStore.getState().activeGameSchema;
-      const gameName = activeSchema ? (activeSchema.name || "Sanctuary") : "Sanctuary";
-
       const hydratedData = data.map((post: any) => {
         let teamName = "Sanctuary OS";
         return {
@@ -178,14 +175,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         if (profileData?.username) setWayfinderName(profileData.username);
       }
     }
-
-
-
-    if (true) {
-      const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
-      if (gamesData) {
-      }
-    }
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
@@ -200,8 +189,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
     const linkStr = `asset://${asset.type}/${asset.id}`;
 
     const typeKey = `masonhub_asset_type_${asset.type}`;
-    const translatedType = t(typeKey) !== typeKey ? t(typeKey) : (asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon');
-    const translatedView = t("btn_view");
+    const defaultTypeLabel = asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : 'Lexicon';
+    const translatedType = t(typeKey, defaultTypeLabel) !== typeKey ? t(typeKey, defaultTypeLabel) : defaultTypeLabel;
 
     const text = `${translatedType}: ${asset.name}`;
 
@@ -381,11 +370,11 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       }
 
       if (editingPostId) {
-        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
+        if (!res.error) await logArchitectAction("Updated Dispatch", targetTable, data.title, undefined, "Keepers Core", true, computeAuditDiff(editingPost, data));
       } else {
         if (!res.error && res.data && res.data.length > 0) {
           newPostId = res.data[0].id;
-          await logArchitectAction("Created Dispatch", targetTable, data.title, undefined, "Wayfinder Operations");
+          await logArchitectAction("Created Dispatch", targetTable, data.title, undefined, "Keepers Core", true, computeAuditDiff(null, data));
         }
       }
       return { error: res.error, data: res.data };
@@ -399,13 +388,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser.user) {
           const { data: followers } = await supabase.from('profiles').select("id");
-          console.log("Followers for dispatch:", followers);
           if (followers && followers.length > 0) {
-            const activeSchema = useStore.getState().activeGameSchema;
             let teamName = "Sanctuary Foundry";
-            if (false) {
-              teamName = false ? (activeSchema ? `${activeSchema.display_name || activeSchema.name} Oversight Team` : "Oversight Team") : (activeSchema ? `${activeSchema.display_name || activeSchema.name} Team` : "Wayfinder Team");
-            }
 
             const notifications = followers.map(f => {
               let actionWord = "a new System Dispatch";
@@ -450,7 +434,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
 
       closeEditor();
       fetchPostsAndAssets();
-      useStore.getState().pushStatus(editingPostId ? "Transmission Updated!" : t("post_success"), 'success');
+      useStore.getState().pushStatus(editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_success", "{Dispatch} published successfully."), 'success');
     } else {
       useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
     }
@@ -464,7 +448,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
     const res = await supabaseAuth.from(targetTable).delete().eq('id', id);
     let error = res.error;
 
-    if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Wayfinder Operations");
+    if (!error && postToDelete) await logArchitectAction("Deleted Dispatch", targetTable, postToDelete.title || id, undefined, "Keepers Core", true, computeAuditDiff(postToDelete, null));
     fetchPostsAndAssets();
   };
 
@@ -482,8 +466,6 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
     });
   }, [posts, searchTerm, filterAudience, filterCategory, filterStatus]);
 
-
-
   const draftKeysStr = useMemo(() => Object.keys(wayfinderDrafts).sort().join(','), [wayfinderDrafts]);
 
   const renderPostCard = (post: any) => {
@@ -497,6 +479,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         onPostClick={() => openEditor(post)}
         onToggleLike={() => { }}
         hasUnsavedEdits={hasUnsavedEdits}
+        layout="vertical"
       />
     );
   };
@@ -504,34 +487,34 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
+      label: t("overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard"),
       number: posts.length.toString(),
     },
     {
       id: "ReleasePosts",
       label: t("release_notes_keepers_tab", "Release Posts"),
-      icon: "new_releases",
+      icon: t("icon_new_releases", "new_releases"),
       number: "2",
       colorClass: "text-[var(--accent)]",
     },
     {
       id: "Urgent",
-      label: t("urgent") || "Urgent",
-      icon: "notification_important",
+      label: t("urgent", "Urgent"),
+      icon: t("icon_notification_important", "notification_important"),
       number: posts.filter(p => isPostPinned(p)).length.toString(),
       colorClass: "text-[var(--danger)]"
     },
     {
       id: "Active",
-      label: t("status_active") || "Active",
-      icon: "newspaper",
+      label: t("status_active", "Active"),
+      icon: t("icon_newspaper", "newspaper"),
       number: posts.filter(p => p.is_active !== false && !isPostPinned(p)).length.toString(),
     },
     {
       id: "Inactive",
-      label: t("status_inactive") || "Inactive",
-      icon: "hide_source",
+      label: t("tab_inactive", "Inactive"),
+      icon: t("icon_hide_source", "hide_source"),
       number: posts.filter(p => p.is_active === false).length.toString(),
     }
   ];
@@ -545,7 +528,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       <HubOverviewLanding>
         <HubOverviewSection
           className="xl:col-span-2"
-          icon="new_releases"
+          icon={t("icon_new_releases", "new_releases")}
           iconColorClass="text-[var(--accent)]"
           title={t("release_notes_keepers_section_title", "Current Build Release Posts (Public & Dev)")}
           gridClassName="flex flex-col w-full"
@@ -556,35 +539,35 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         {urgentPosts.length > 0 && (
           <HubOverviewSection
             className="xl:col-span-2"
-            icon="notification_important"
+            icon={t("icon_notification_important", "notification_important")}
             iconColorClass="text-[var(--danger)]"
-            title={t("urgent_news") || "Urgent News"}
+            title={t("urgent_news", "Urgent News")}
             isEmpty={urgentPosts.length === 0}
-            emptyIcon="done_all"
-            emptyTitle={t("no_transmissions") || "No Urgent News"}
+            emptyIcon={t("icon_done_all", "done_all")}
+            emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
           >
             {urgentPosts.slice(0, 4).map(renderPostCard)}
           </HubOverviewSection>
         )}
 
         <HubOverviewSection
-          icon="newspaper"
+          icon={t("icon_newspaper", "newspaper")}
           iconColorClass="text-[var(--accent)]"
-          title={t("recent_active_news") || "Recent Active News"}
+          title={t("recent_active_news", "Recent Active News")}
           isEmpty={activePosts.length === 0}
-          emptyIcon="newspaper"
-          emptyTitle={t("no_transmissions") || "No Active News"}
+          emptyIcon={t("icon_newspaper", "newspaper")}
+          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
         >
           {activePosts.slice(0, 4).map(renderPostCard)}
         </HubOverviewSection>
 
         <HubOverviewSection
-          icon="hide_source"
+          icon={t("icon_hide_source", "hide_source")}
           iconColorClass="text-[var(--subtext)]"
-          title={t("recent_inactive_news") || "Recent Inactive News"}
+          title={t("recent_inactive_news", "Recent Inactive News")}
           isEmpty={inactivePosts.length === 0}
-          emptyIcon="newspaper"
-          emptyTitle={t("no_transmissions") || "No Inactive News"}
+          emptyIcon={t("icon_newspaper", "newspaper")}
+          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
         >
           {inactivePosts.slice(0, 4).map(renderPostCard)}
         </HubOverviewSection>
@@ -594,14 +577,14 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
 
   const contentBlock = (
     <ElevatedHubLayout
-      headerTitle={t("web_news") || "Web News"}
-      headerSubtitle={t("web_news_subtitle") || "Manage website announcements and blog posts"}
-      headerIcon="newspaper"
+      headerTitle={t("web_news", "Web News")}
+      headerSubtitle={t("web_news_subtitle", "Manage website announcements and blog posts")}
+      headerIcon={t("icon_newspaper", "newspaper")}
       headerIconColorClass="theme-text-accent"
       hideHeader={isSidePanel}
       search={searchTerm}
       onSearchChange={setSearchTerm}
-      searchPlaceholder={t("mason_search_placeholder")}
+      searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...")}
       hideSearch={filterStatus === 'overview' || filterStatus === 'ReleasePosts'}
       tabs={tabs}
 
@@ -609,12 +592,12 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       onTabChange={(id) => setFilterStatus(id as any)}
       primaryPopover={
         filterStatus !== 'overview' && filterStatus !== 'ReleasePosts' ? {
-          icon: "tune",
-          label: t("filters") || "Filters",
+          icon: t("icon_tune", "tune"),
+          label: t("filters", "Filters"),
           content: (
             <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category", "Category")}</span>
                 <CustomDropdown
                   flat={true}
                   variant="pill"
@@ -622,12 +605,12 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                   value={filterCategory}
                   onChange={(v: string[]) => setFilterCategory(v[0])}
                   options={[
-                    { id: "All", label: t("all_classes") },
-                    { id: "Announcement", label: t("cat_announcement") || "Announcement" },
-                    { id: "Blog", label: t("cat_blog") || "Blog" },
-                    { id: "Press", label: t("cat_press") || "Press" },
-                    { id: "Update", label: t("comms_btn_update") || "Update" },
-                    { id: "Maintenance", label: t("cat_maintenance") || "Maintenance" }
+                    { id: "All", label: t("all_classes", "All Categories") },
+                    { id: "Announcement", label: t("cat_announcement", "Announcement") },
+                    { id: "Blog", label: t("cat_blog", "Blog") },
+                    { id: "Press", label: t("cat_press", "Press") },
+                    { id: "Update", label: t("category_update", "Update") },
+                    { id: "Maintenance", label: t("cat_maintenance", "Maintenance") }
                   ]}
                 />
               </div>
@@ -639,8 +622,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
         filterStatus !== 'overview' && filterStatus !== 'ReleasePosts' ? [
           {
             id: "post",
-            icon: t("icon_cell_tower") || "cell_tower",
-            label: wayfinderDrafts['new'] ? t("action_unsaved_draft") : t("post_broadcast"),
+            icon: t("icon_cell_tower", "cell_tower"),
+            label: wayfinderDrafts['new'] ? t("action_unsaved_draft", "Resume Draft") : t("post_broadcast", "New {Dispatch}"),
             onClick: () => openEditor()
           }
         ] : undefined
@@ -653,7 +636,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
       ) : (
           <div className="flex flex-col gap-4">
             {filteredPosts.length === 0 ? (
-              <EmptyState icon={t("icon_cell_tower")} title={t("no_transmissions")} className="col-span-full py-16" />
+              <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="col-span-full py-16" />
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
                 {filteredPosts.map(renderPostCard)}
@@ -675,10 +658,11 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
           <SidePanel
             isOpen={isEditorOpen}
             onClose={closeEditor}
-            icon="cell_tower"
-            widthClass="w-[800px]"
-            title={editingPostId ? (t("update_transmission")) : (t("post_broadcast"))}
-            subtitle={editingPostId ? (t("editing_record")) : (t("composing_broadcast"))}
+            icon={t("icon_newspaper", "newspaper")}
+            iconColorClass="text-[var(--accent)]"
+            widthClass="w-[90vw] md:w-[800px]"
+            title={editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_broadcast", "New {Dispatch}")}
+            subtitle={editingPostId ? t("editing_record", "Editing Record") : t("composing_broadcast", "Composing Broadcast")}
             headerActions={
               <PanelHeaderGroup>
                 {editingPostId && (
@@ -686,8 +670,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                     {confirmDelete === editingPostId ? (
                       <PanelHeaderButton
                         onClick={() => { handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
-                        tooltip={t("btn_confirm_delete", "Click again to permanently delete")}
-                        icon="delete_forever"
+                        tooltip={t("btn_confirm_delete", "Confirm {Delete}")}
+                        icon={t("icon_delete_forever", "delete_forever")}
                         variant="danger"
                         className="animate-pulse"
                       />
@@ -695,7 +679,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                       <PanelHeaderButton
                         onClick={() => setConfirmDelete(editingPostId)}
                         tooltip={t("purge", "Delete Post")}
-                        icon="delete"
+                        icon={t("icon_delete", "delete")}
                         variant="danger"
                       />
                     )}
@@ -705,7 +689,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                 <PanelHeaderButton
                   onClick={() => setIsActive(!isActive)}
                   tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
-                  icon={isActive ? "sensors" : "sensors_off"}
+                  icon={isActive ? t("icon_sensors", "sensors") : t("icon_sensors_off", "sensors_off")}
                   variant={isActive ? "success" : "default"}
                   isActive={isActive}
                 />
@@ -714,8 +698,8 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                   <PanelHeaderButton
                     onClick={handleDiscardChanges}
                     disabled={isSubmitting}
-                    tooltip={confirmDiscard ? (t("ui_confirm_discard")) : (t("ui_btn_discard_edits"))}
-                    icon={confirmDiscard ? "warning" : "close"}
+                    tooltip={confirmDiscard ? t("ui_confirm_discard", "Confirm Discard") : t("ui_btn_discard_edits", "Discard Edits")}
+                    icon={confirmDiscard ? t("icon_warning", "warning") : t("icon_close", "close")}
                     variant="danger"
                     className={confirmDiscard ? "animate-pulse" : ""}
                   />
@@ -723,48 +707,70 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                 <PanelHeaderButton
                   onClick={handleSubmit}
                   disabled={isSubmitting || !title || !content}
-                  tooltip={isSubmitting ? t("btn_saving") : (editingPostId ? t("update_transmission") : t("btn_post"))}
-                  icon={isSubmitting ? "sync" : "send"}
+                  tooltip={isSubmitting ? t("btn_saving", "Saving...") : (editingPostId ? t("update_transmission", "Update {Dispatch}") : t("btn_post", "Publish News Post"))}
+                  icon={isSubmitting ? t("icon_sync", "sync") : t("icon_send", "send")}
                   variant={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "warning" : "accent"}
                   className={isSubmitting ? "animate-pulse" : ""}
                 />
               </PanelHeaderGroup>
             }
           >
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <SidePanelHeroCard
+                icon={t("icon_newspaper", "newspaper")}
+                overline={t("web_news", "Web News")}
+                title={editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_broadcast", "New {Dispatch}")}
+                description={editingPostId ? t("editing_record", "Editing existing public website announcement or blog post.") : t("composing_broadcast", "Composing new public website announcement or blog post.")}
+                badge={isActive ? t("status_active", "Published") : t("tab_inactive", "Draft")}
+                variant={isActive ? "accent" : "warning"}
+              >
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <StatBox
+                    label={t("category", "Category")}
+                    value={category || t("cat_announcement", "Announcement")}
+                    icon={t("icon_category", "category")}
+                  />
+                  <StatBox
+                    label={t("dispatch_meta_action", "Action Required")}
+                    value={actionRequired || t("dispatch_action_none", "No Action Required")}
+                    icon={t("icon_fact_check", "fact_check")}
+                  />
+                </div>
+              </SidePanelHeroCard>
 
-              <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <SidePanelTitleInput
-                  value={title}
-                  onChange={setTitle}
-                  placeholder={t("post_title") || "Title"}
-                />
+              <SidePanelTitleInput
+                label={t("post_title", "Post Title")}
+                value={title}
+                onChange={setTitle}
+                placeholder={t("post_title", "Title")}
+              />
 
+              <UniversalGroup title={t("dispatch_telemetry_preview", "Dispatch Telemetry & Metadata")} icon={t("icon_tune", "tune")}>
                 <div className="flex flex-col gap-2 w-full">
                   <div className="flex justify-between items-center ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_description", "Short Summary")}</label>
                     <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length} / 250</span>
                   </div>
-                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                  <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph", "Brief summary shown on cards...")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category")}</label>
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("category", "Category")}</label>
                     <div className="h-14">
                       <CustomDropdown disableTint={true}
                         searchable={true}
                         allowCustom={true}
                         value={category}
                         onChange={(v: string[]) => setCategory(v[0])}
-                          options={[
-                            { id: "Announcement", label: t("cat_announcement") || "Announcement" },
-                            { id: "Blog", label: t("cat_blog") || "Blog" },
-                            { id: "Press", label: t("cat_press") || "Press" },
-                            { id: "Update", label: t("comms_btn_update") || "Update" },
-                            { id: "Maintenance", label: t("cat_maintenance") || "Maintenance" }
-                          ]}
-                        placeholder={t("auto_select_category")}
+                        options={[
+                          { id: "Announcement", label: t("cat_announcement", "Announcement") },
+                          { id: "Blog", label: t("cat_blog", "Blog") },
+                          { id: "Press", label: t("cat_press", "Press") },
+                          { id: "Update", label: t("category_update", "Update") },
+                          { id: "Maintenance", label: t("cat_maintenance", "Maintenance") }
+                        ]}
+                        placeholder={t("auto_select_category", "Select category...")}
                       />
                     </div>
                   </div>
@@ -789,7 +795,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 w-full">
                   <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}</label>
                   <DispatchMetadataHeader
                     post={{ category, target_audience: "Public", action_required: actionRequired }}
@@ -799,29 +805,28 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                   />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder")}</label>
-                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("header_image_placeholder", "Header Image URL")}</label>
+                  <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder={t("header_image_placeholder", "Header Image URL")} className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all" />
                 </div>
+              </UniversalGroup>
 
-                <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                  <div className="flex items-center justify-between ml-2">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">{t("post_content")}</label>
-                  </div>
+              <UniversalGroup title={t("post_content", "{Dispatch} Body...")} icon={t("icon_edit_document", "edit_document")}>
+                <div className="flex flex-col flex-1 min-h-[400px] w-full">
                   <div className="flex flex-col flex-1 glass-surface !overflow-visible bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
                     <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
                       <div className="relative flex flex-col items-center pointer-events-auto w-fit">
                         <div className="glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-wrap items-center gap-1 p-1.5 !rounded-[1.25rem] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_14px_34px_rgba(0,0,0,0.45)]">
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image")}</span></button><HoverTooltip title={t("editor_tt_image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code")}</span></button><HoverTooltip title={t("editor_tt_code")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
-                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">sentiment_satisfied</span></button><HoverTooltip title={t("editor_tt_icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bold') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_bold", "format_bold")}</span></button><HoverTooltip title={t("editor_tt_bold", "Bold")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('italic') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_italic", "format_italic")}</span></button><HoverTooltip title={t("editor_tt_italic", "Italic")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 1 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h1", "format_h1")}</span></button><HoverTooltip title={t("editor_tt_h1", "Heading 1")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('heading', { level: 2 }) ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_h2", "format_h2")}</span></button><HoverTooltip title={t("editor_tt_h2", "Heading 2")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('bulletList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_bulleted", "format_list_bulleted")}</span></button><HoverTooltip title={t("editor_tt_bullets", "Bullet List")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('orderedList') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_format_list_numbered", "format_list_numbered")}</span></button><HoverTooltip title={t("editor_tt_numbers", "Numbered List")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showImageInput ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_image", "image")}</span></button><HoverTooltip title={t("editor_tt_image", "Insert Image")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().toggleCodeBlock().run()} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${editor?.isActive('codeBlock') ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_code", "code")}</span></button><HoverTooltip title={t("editor_tt_code", "Code Block")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => editor?.chain().focus().setHorizontalRule().run()} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"><span className="material-symbols-outlined !text-[18px]">{t("icon_horizontal_rule", "horizontal_rule")}</span></button><HoverTooltip title={t("editor_tt_hr", "Horizontal Line")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
+                          <div className="relative group/btn flex"><button type="button" onClick={() => setShowIconPicker(!showIconPicker)} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner' : 'text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}><span className="material-symbols-outlined !text-[18px]">{t("icon_sentiment_satisfied", "sentiment_satisfied")}</span></button><HoverTooltip title={t("editor_tt_icon", "Insert Icon")} variant="info" className="group-hover/btn:flex z-[100]" /></div>
                         </div>
                         {showIconPicker && (
                           <IconPicker
@@ -848,7 +853,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                               setShowImageInput(false);
                             }
                           }}
-                          placeholder={t("image_url_placeholder")}
+                          placeholder={t("image_url_placeholder", "Enter image URL...")}
                           className="flex-1 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                           autoFocus
                         />
@@ -863,7 +868,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                           }}
                           className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                         >
-                          {t("ui_btn_insert")}
+                          {t("ui_btn_insert", "Insert")}
                         </button>
                       </div>
                     )}
@@ -877,7 +882,7 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                         <textarea
                           value={codeSnippet}
                           onChange={(e) => setCodeSnippet(e.target.value)}
-                          placeholder={t("code_snippet_placeholder")}
+                          placeholder={t("code_snippet_placeholder", "Paste code snippet...")}
                           className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-mono placeholder-[var(--subtext)] focus:outline-none focus:theme-border-accent h-48 resize-none custom-scrollbar transition-all"
                           spellCheck={false}
                         />
@@ -887,19 +892,19 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
                     <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setShowCodeInput(!showCodeInput)} className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${showCodeInput ? 'theme-bg-accent/20 theme-text-accent' : 'text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object")}</span> {showCodeInput ? (t("hide_code")) : (t("masonhub_add_code"))}
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_data_object", "data_object")}</span> {showCodeInput ? t("hide_code", "Hide Code") : t("masonhub_add_code", "Add Code")}
                         </button>
                         <button type="button" onClick={() => setIsAssetPanelOpen(true)} className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_link")}</span> {t("link_asset")}
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_link", "link")}</span> {t("link_asset", "Link Asset")}
                         </button>
                       </div>
-                      <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown")}</span> {t("icon_markdown")}</div>
+                      <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[14px]">{t("icon_markdown", "markdown")}</span> {t("icon_markdown", "markdown")}</div>
                     </div>
                   </div>
                 </div>
+              </UniversalGroup>
 
-                <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
-              </div>
+              <DispatchPollBuilder pollData={pollData} onChange={setPollData} />
             </div>
           </SidePanel>
         </>
@@ -927,26 +932,3 @@ export default function KeepersWebNewsEditor({ isSidePanel = false, isOpen = tru
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

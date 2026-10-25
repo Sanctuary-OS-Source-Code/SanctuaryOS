@@ -9,6 +9,9 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   handleOpenUrl,
+  SidePanelHeroCard,
+  SidePanelTitleInput,
+  UniversalGroup,
 } from "../shared";
 import { TabContainer, SettingsGrid, SettingsToggle } from "./shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -329,7 +332,12 @@ export default function SupporterTab() {
                 "supporter_dev_builds_channel_toggle",
                 "Daily Dev Build Channel",
               )}
-              subtitle={t(
+              subtitle={
+                isDevBuildUnlocked
+                  ? t("supporter_active_channel_label", "Active Stream")
+                  : t("supporter_dev_builds_locked", "Standard Stable Channel")
+              }
+              description={t(
                 "supporter_dev_builds_channel_desc",
                 "Receive nightly preview builds from the Dev Build channel while your supporter time is active.",
               )}
@@ -416,7 +424,8 @@ export default function SupporterTab() {
                 "supporter_status_card_title",
                 "Supporter Time & Updates",
               )}
-              subtitle={t(
+              subtitle={`${supporterState.dev_build.total_months_unlocked || 0} ${t("supporter_months_suffix", "Months")} • $${creditDollars} / $5.00`}
+              description={t(
                 "supporter_status_card_desc",
                 "Every $5 donated to any Partner Community automatically adds +30 days via payment processor webhook.",
               )}
@@ -457,15 +466,42 @@ export default function SupporterTab() {
           icon={t("icon_public", "public")}
         >
           <div className="flex flex-col gap-6 w-full">
+            {/* SINGLE COMBINED HIGH-CONTRAST NOTICE BAR (ABOVE COMMUNITIES) */}
+            <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,rgba(var(--bg-rgb),0.88))] shadow-[0_8px_24px_rgba(0,0,0,0.28)] flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 shadow-sm">
+                <span className="material-symbols-outlined !text-[20px]">
+                  {t("icon_info", "info")}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-xs font-black text-[var(--warning)] tracking-wide">
+                  {t(
+                    "supporter_liability_title",
+                    "100% Non-Custodial • 0% Platform Fee",
+                  )}
+                </span>
+                <p className="text-xs font-medium text-[var(--text)] opacity-90 leading-relaxed">
+                  {t(
+                    "supporter_combined_partner_notice",
+                    "Partner Communities run their own payment processors and receive 100% of your donation (0% platform fee, no chargebacks covered by Sanctuary OS). Payment webhooks automatically credit your account with +30 days per $5. If a community isn't listed yet, its Wayfinders can link their payment processor in Wayfinder Operations.",
+                  )}
+                </p>
+              </div>
+            </div>
+
             <SettingsGrid>
               <UniversalCard
                 title={t(
                   "supporter_keepers_title",
-                  "Sanctuary OS (Keepers Core)",
+                  "Sanctuary Foundry",
                 )}
                 subtitle={t(
+                  "supporter_keepers_card_subtitle",
+                  "Core OS & Global Dev Builds",
+                )}
+                description={t(
                   "supporter_keepers_desc",
-                  "Directly support the Keepers building Sanctuary OS. Every $5 donation adds +30 days of Global Daily Dev Build access to your account.",
+                  "Directly support Sanctuary Foundry building Sanctuary OS. Every $5 donation adds +30 days of Global Dev Build access to your account.",
                 )}
                 icon={t("icon_rocket_launch", "rocket_launch")}
                 onClick={() =>
@@ -502,7 +538,7 @@ export default function SupporterTab() {
                           "supporter_spoke_sandbox_checkout_btn",
                           "Simulate Sandbox Checkout (Test Mode)",
                         )
-                      : t("supporter_keepers_btn", "Support Sanctuary OS")
+                      : t("supporter_keepers_btn", "Support Sanctuary Foundry")
                   }
                   className="w-full pointer-events-none mt-2"
                 />
@@ -513,8 +549,12 @@ export default function SupporterTab() {
                   key={partner.id}
                   title={partner.name}
                   subtitle={t(
+                    "supporter_claim_partner_label",
+                    "Partner Community",
+                  )}
+                  description={t(
                     "supporter_partners_subtitle",
-                    "Donate to Sanctuary OS or any Partner Community below to support their work and stack Global Daily Dev Build time.",
+                    "Donate to any Partner Community below to support their work and stack Global Dev Build time.",
                   )}
                   icon={
                     partner.icon || t("icon_sports_esports", "sports_esports")
@@ -563,29 +603,6 @@ export default function SupporterTab() {
                 </UniversalCard>
               ))}
             </SettingsGrid>
-
-            {/* SINGLE COMBINED HIGH-CONTRAST NOTICE BAR */}
-            <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,rgba(var(--bg-rgb),0.88))] shadow-[0_8px_24px_rgba(0,0,0,0.28)] flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 shadow-sm">
-                <span className="material-symbols-outlined !text-[20px]">
-                  {t("icon_info", "info")}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 min-w-0">
-                <span className="text-xs font-black text-[var(--warning)] tracking-wide">
-                  {t(
-                    "supporter_liability_title",
-                    "100% Non-Custodial • 0% Platform Fee",
-                  )}
-                </span>
-                <p className="text-xs font-medium text-[var(--text)] opacity-90 leading-relaxed">
-                  {t(
-                    "supporter_combined_partner_notice",
-                    "Partner Communities run their own payment processors and receive 100% of your donation (0% platform fee, no chargebacks covered by Sanctuary OS). Payment webhooks automatically credit your account with +30 days per $5. If a community isn't listed yet, its Wayfinders need to set up their donation link in the Wayfinder Hub.",
-                  )}
-                </p>
-              </div>
-            </div>
           </div>
         </TabContainer>
 
@@ -593,7 +610,7 @@ export default function SupporterTab() {
         <TabContainer
           title={t(
             "supporter_masons_vault_title",
-            "Creator Supporter Passes (Local Vault)",
+            "{Mason} Supporter Passes (Local {Vault})",
           )}
           icon={t("icon_encrypted", "encrypted")}
         >
@@ -601,10 +618,11 @@ export default function SupporterTab() {
             <SettingsGrid>
               <UniversalCard
                 title={t(
-                  "supporter_link_pass_card_title",
-                  "Link Creator Supporter Pass",
+                  "supporter_btn_add_mason_bridge",
+                  "Link {Mason} Supporter Pass",
                 )}
-                subtitle={t(
+                subtitle={t("supporter_local_vault_chip", "Local PC {Vault}")}
+                description={t(
                   "supporter_link_pass_card_desc",
                   "Verify a Patreon or Ko-fi pass locally on your PC (zero cloud tracking) to unlock Priority Support and Early Access.",
                 )}
@@ -616,7 +634,7 @@ export default function SupporterTab() {
                       {t("icon_lock", "lock")}
                     </span>
                     <span className="text-[10px] font-bold text-[var(--success)] tracking-wide">
-                      {t("supporter_local_vault_chip", "Local PC Vault")}
+                      {t("supporter_local_vault_chip", "Local PC {Vault}")}
                     </span>
                   </div>
                 }
@@ -700,6 +718,7 @@ export default function SupporterTab() {
         )}
         icon={t("icon_encrypted", "encrypted")}
         iconColorClass="theme-text-accent"
+        widthClass="w-[90vw] md:w-[640px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -723,31 +742,40 @@ export default function SupporterTab() {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col gap-5 relative z-10 w-full">
-          <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--success)_14%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--success)]">
-              <span className="material-symbols-outlined !text-[22px]">
-                {t("icon_lock", "lock")}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-xs font-black tracking-wide text-[var(--success)]">
-                {t("supporter_local_vault_chip", "Local PC Vault")}
-              </span>
-              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                {t(
-                  "supporter_link_pass_card_desc",
-                  "Verify a Patreon or Ko-fi pass locally on your PC (zero cloud tracking) to unlock Priority Support and Early Access."
-                )}
-              </p>
-            </div>
-          </div>
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_lock", "lock")}
+            overline={t("supporter_local_vault_chip", "Local PC {Vault}")}
+            title={t(
+              "supporter_bridge_modal_title",
+              "Link Creator Supporter Pass",
+            )}
+            description={t(
+              "supporter_link_pass_card_desc",
+              "Verify a Patreon or Ko-fi pass locally on your PC (zero cloud tracking) to unlock Priority Support and Early Access.",
+            )}
+            variant="success"
+          />
 
-          <div className="glass-panel rounded-3xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-5">
+          <SidePanelTitleInput
+            value={bridgeMasonName}
+            onChange={(val) => setBridgeMasonName(val)}
+            label={t("supporter_bridge_creator_label", "{Mason} Name or ID")}
+            icon={t("icon_person", "person")}
+            placeholder={t("supporter_bridge_creator_label", "{Mason} Name or ID")}
+          />
+
+          <UniversalGroup
+            title={t(
+              "supporter_bridge_modal_title",
+              "Link Creator Supporter Pass",
+            )}
+            icon={t("icon_encrypted", "encrypted")}
+          >
             {knownMasons.length > 0 && (
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                  {t("supporter_bridge_creator_label", "Creator Name")}
+                  {t("supporter_bridge_creator_label", "{Mason} Name or ID")}
                 </label>
                 <CustomDropdown
                   disableTint={true}
@@ -776,19 +804,6 @@ export default function SupporterTab() {
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                {t("supporter_bridge_creator_label", "Creator Name")}
-              </label>
-              <input
-                type="text"
-                value={bridgeMasonName}
-                onChange={(e) => setBridgeMasonName(e.target.value)}
-                placeholder="e.g. Deaderpool, LittleMsSam..."
-                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
                 {t(
                   "supporter_bridge_provider_label",
                   "Payment Processor / Platform",
@@ -801,11 +816,35 @@ export default function SupporterTab() {
                   setBridgeProvider(Array.isArray(val) ? val[0] : val)
                 }
                 options={[
-                  { id: "patreon", label: "Patreon (Direct Local API Bridge)" },
-                  { id: "kofi", label: "Ko-fi Supporter Pass" },
-                  { id: "stripe", label: "Stripe Receipt / Subscription" },
-                  { id: "fourthwall", label: "Fourthwall Supporter" },
-                  { id: "custom", label: "Direct Creator Key" },
+                  {
+                    id: "patreon",
+                    label: t(
+                      "supporter_provider_patreon",
+                      "Patreon (Direct Local API Bridge)",
+                    ),
+                  },
+                  {
+                    id: "kofi",
+                    label: t("supporter_provider_kofi", "Ko-fi Supporter Pass"),
+                  },
+                  {
+                    id: "stripe",
+                    label: t(
+                      "supporter_provider_stripe",
+                      "Stripe Receipt / Subscription",
+                    ),
+                  },
+                  {
+                    id: "fourthwall",
+                    label: t(
+                      "supporter_provider_fourthwall",
+                      "Fourthwall Supporter",
+                    ),
+                  },
+                  {
+                    id: "custom",
+                    label: t("supporter_provider_custom", "Direct Creator Key"),
+                  },
                 ]}
               />
             </div>
@@ -840,7 +879,10 @@ export default function SupporterTab() {
                 type="text"
                 value={bridgeTierName}
                 onChange={(e) => setBridgeTierName(e.target.value)}
-                placeholder="e.g. Early Access Supporter"
+                placeholder={t(
+                  "supporter_bridge_tier_label",
+                  "Supporter Tier Name (Optional)",
+                )}
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-all shadow-inner"
               />
             </div>
@@ -860,7 +902,7 @@ export default function SupporterTab() {
               onClick={handleLinkMasonBridge}
               className="w-full"
             />
-          </div>
+          </UniversalGroup>
         </div>
       </SidePanel>
     </>

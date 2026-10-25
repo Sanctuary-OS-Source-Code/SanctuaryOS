@@ -26,7 +26,8 @@ function devLexiconSyncPlugin() {
           req.on('end', () => {
             try {
               const data = JSON.parse(body);
-              const { id, content } = data;
+              const id = String(data.id || data.file || "").trim();
+              const { content } = data;
               if (id.match(/^[a-z]{2}-.+\.json$/i) || id.match(/^[a-z0-9_-]+$/i)) {
                  const fileName = id.endsWith('.json') ? id : `${id}.json`;
                  const filePath = path.resolve(__dirname, 'src/lexicons', fileName);

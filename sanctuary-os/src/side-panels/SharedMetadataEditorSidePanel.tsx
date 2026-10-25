@@ -16,6 +16,7 @@ import {
   UniversalGroup,
 } from "../shared";
 import { CustomStatusDropdown, CustomMasonDropdown } from "../ArchitectHub";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 
 export function SharedMetadataEditorSidePanel({
   isOpen,
@@ -115,6 +116,15 @@ export function SharedMetadataEditorSidePanel({
           updated_at: new Date().toISOString(),
         })
         .eq("id", modForm.id);
+      await logArchitectAction(
+        "Updated Mod Metadata",
+        "mods",
+        modForm.name || modForm.id,
+        undefined,
+        "Architect Console",
+        false,
+        computeAuditDiff(activeMod, modForm)
+      );
       if (onModUpdated) onModUpdated();
     } catch (err) {
       console.error(err);
@@ -137,7 +147,7 @@ export function SharedMetadataEditorSidePanel({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon="save"
+            icon={t("icon_save", "save")}
             tooltip={
               isCommitting
                 ? t("dossier_btn_saving", "Saving...")
@@ -162,9 +172,9 @@ export function SharedMetadataEditorSidePanel({
           </div>
         ) : modForm._error ? (
           <SidePanelHeroCard
-            icon="error"
-            overline={t("err_load_meta", "Metadata Error")}
-            title={t("err_load_meta", "Failed to load artifact metadata")}
+            icon={t("icon_error", "error")}
+            overline={t("err_load_meta", "Failed to load {Mod} Metadata.")}
+            title={t("err_load_meta", "Failed to load {Mod} Metadata.")}
             description={`ID: ${modForm.id || "Unknown"}`}
             variant="danger"
           />
@@ -193,7 +203,7 @@ export function SharedMetadataEditorSidePanel({
             >
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                  {t("mason", "Mason")}
+                  {t("mason", "{Mason}")}
                 </label>
                 <CustomMasonDropdown
                   value={modForm.mason_id}
@@ -248,7 +258,7 @@ export function SharedMetadataEditorSidePanel({
             </UniversalGroup>
 
             <UniversalGroup
-              title={t("label_resources", "Resources & Description")}
+              title={t("resources", "Resources & Description")}
               icon={t("icon_link", "link")}
             >
               <div className="flex flex-col gap-1.5">
@@ -281,7 +291,7 @@ export function SharedMetadataEditorSidePanel({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                    {t("label_mason_version", "Latest Version")}
+                    {t("label_mason_version", "{Mason} Version")}
                   </label>
                   <input
                     value={modForm.latest_version || ""}
@@ -295,7 +305,7 @@ export function SharedMetadataEditorSidePanel({
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                    {t("registry_label_url", "Source URL")}
+                    {t("ui_url", "Source URL")}
                   </label>
                   <input
                     value={modForm.url || ""}
@@ -319,7 +329,7 @@ export function SharedMetadataEditorSidePanel({
                   onChange={(checked) =>
                     setModForm({ ...modForm, is_paid: checked })
                   }
-                  label={t("label_is_paid", "Paid / Paywalled")}
+                  label={t("label_is_paid", "Paid {Mod}")}
                   icon={t("icon_monetization_on", "monetization_on")}
                   variant="warning"
                 />
@@ -328,7 +338,7 @@ export function SharedMetadataEditorSidePanel({
                   onChange={(checked) =>
                     setModForm({ ...modForm, is_early_access: checked })
                   }
-                  label={t("label_is_early_access", "Early Access")}
+                  label={t("badge_early_access", "Early Access")}
                   icon={t("icon_science", "science")}
                   variant="accent"
                 />
@@ -399,19 +409,6 @@ export function SharedMetadataEditorSidePanel({
                 />
               </div>
             </UniversalGroup>
-
-            <ActionButton
-              variant="glass"
-              icon="save"
-              label={
-                isCommitting
-                  ? t("dossier_btn_saving", "Saving...")
-                  : t("ui_btn_commit", "Commit Changes")
-              }
-              disabled={isCommitting}
-              onClick={handleCommitChanges}
-              className="w-full !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_42%,transparent)]"
-            />
           </>
         )}
       </div>

@@ -34,14 +34,14 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full w-full">
       <ViewHeader
-        title={t("cc_title")}
-        subtitle={t("cc_subtitle")}
-        icon={t("icon_style")}
+        title={t("cc_title", "Asset Catalog")}
+        subtitle={t("cc_subtitle", "Visual Asset & Surface Level Management")}
+        icon={t("icon_style", "style")}
         iconColorClass="text-sky-400 border-sky-500/30"
         shape="circle"
       >
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_deployed")}</span>
+          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("cc_deployed", "Currently Deployed")}</span>
           <span className="text-2xl font-black theme-text-accent">{equippedCount} / {filteredCC.length}</span>
         </div>
       </ViewHeader>
@@ -49,10 +49,10 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
       <div className="flex flex-col md:flex-row justify-start items-center gap-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] backdrop-blur-[3px] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-2xl shadow-inner shrink-0">
 
         <div className="flex items-center gap-3 glass-panel px-4 py-2 rounded-xl w-full md:w-96">
-          <span className="theme-text-accent">{t("icon_search")}</span>
+          <span className="theme-text-accent">{t("icon_search", "search")}</span>
           <input
             type="text"
-            placeholder={t("cc_search")}
+            placeholder={t("cc_search", "Search Assets...")}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="bg-transparent border-none outline-none text-[var(--text)] text-sm font-bold w-full placeholder:text-[color-mix(in_srgb,var(--text)_20%,transparent)]"
@@ -62,7 +62,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
         <div className="flex gap-2">
           {["ALL", ...(useStore.getState().activeGameSchema?.mod_categories?.map((c: any) => c.id) || [])].map((f: string) => {
             const schemaCat = activeGameSchema?.mod_categories?.find((c: any) => c.id === f);
-            const label = f === "ALL" ? t("filter_all") : (schemaCat ? t(schemaCat.lexicon_key) : t(`vault_cat_${f.toLowerCase()}`));
+            const label = f === "ALL" ? t("filter_all", "All") : (schemaCat ? t(schemaCat.lexicon_key) : t(`vault_cat_${f.toLowerCase()}`));
             return (
               <button
                 key={f}
@@ -82,8 +82,8 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 pb-20">
         {filteredCC.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-50">
-            <span className="text-6xl mb-4 grayscale">{t("icon_inventory_2")}</span>
-            <span className="text-sm font-black text-[var(--text)] capitalize tracking-[0.3em]">{t("cc_no_assets_in_set")}</span>
+            <span className="text-6xl mb-4 grayscale">{t("icon_inventory_2", "inventory_2")}</span>
+            <span className="text-sm font-black text-[var(--text)] capitalize tracking-[0.3em]">{t("cc_no_assets_in_set", "Set Is Empty")}</span>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
@@ -101,7 +101,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
 
                   <div className="flex-1 relative w-full bg-black flex items-center justify-center overflow-hidden">
                     {mod.image_url ? (
-                      <img src={mod.image_url} alt={t("auto_cover")} className="absolute inset-0 rounded-[inherit] w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                      <img src={mod.image_url} alt={t("auto_cover", "Cover")} className="absolute inset-0 rounded-[inherit] w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                     ) : (
                       <span className="material-symbols-outlined text-4xl opacity-20 group-hover:opacity-40 transition-opacity">
                         {t(useStore.getState().activeGameSchema?.mod_categories?.find((c: any) => c.id === (mod.type || mod.category_override))?.icon_key || "icon_extension")}
@@ -117,7 +117,7 @@ export default function CCManager({ modList, activePlaySet, toggleInActiveSet }:
 
                   <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col">
                     <span className="text-[10px] theme-text-accent font-black capitalize tracking-widest mb-0.5 truncate drop-shadow-md">
-                      {mod.author || t("unknown")}
+                      {mod.author || t("unknown", "Unknown")}
                     </span>
                     <span className="text-xs text-[var(--text)] font-bold truncate drop-shadow-md leading-tight">
                       {mod.displayName || mod.name.replace(getExtensionRegex(useStore.getState().activeGameSchema), '')}

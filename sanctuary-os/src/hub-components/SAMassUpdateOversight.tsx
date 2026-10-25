@@ -14,7 +14,11 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { DynamicArtifactPreviewBanner } from "../chameleon-components/ThemeCard";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
 import { invoke } from "@tauri-apps/api/core";
@@ -103,27 +107,45 @@ export function MassUpdateOversight() {
         }
       }
 
-      const userRes = await supabase.auth.getUser();
-      const myId = userRes.data.user?.id;
-
       let actionStr = `Mass Updated ${selectedIds.size} Artifacts: `;
       const changes = [];
-      if (massStatus) changes.push(`Status->${massStatus}`);
-      if (massCategory) changes.push(`Cat->${massCategory}`);
-      if (massCompliance) changes.push(`Tier->${massCompliance}`);
-      if (massGameVersions.length > 0) changes.push(`Versions Modified`);
-      if (massConflictId) changes.push(`Added Conflict`);
+      const diffPayload: Record<string, any> = {
+        affected_artifacts: { to: selectedIds.size },
+      };
+      if (massStatus) {
+        changes.push(`Status->${massStatus}`);
+        diffPayload.status = { to: massStatus };
+      }
+      if (massCategory) {
+        changes.push(`Cat->${massCategory}`);
+        diffPayload.category_override = { to: massCategory };
+      }
+      if (massSubCategory) {
+        diffPayload.sub_type = { to: massSubCategory };
+      }
+      if (massCompliance) {
+        changes.push(`Tier->${massCompliance}`);
+        diffPayload.compliance_tier = { to: massCompliance };
+      }
+      if (massGameVersions.length > 0) {
+        changes.push(`Versions Modified`);
+        diffPayload.compatible_versions = { to: massGameVersions.join(", ") };
+      }
+      if (massConflictId) {
+        changes.push(`Added Conflict`);
+        diffPayload.conflict_linked = { to: massConflictId.name || massConflictId.id };
+      }
       actionStr += changes.join(", ");
 
-      await supabase.rpc('secure_upsert_cloud_file', {
-        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: actionStr,
-          target_table: 'mods',
-          target_name: 'BATCH OPERATION',
-          actor_id: myId,
-          reason: editReason.trim()
-        }
-      });
+      await logArchitectAction(
+        actionStr,
+        'mods',
+        `BATCH OPERATION (${selectedIds.size})`,
+        editReason.trim(),
+        'Oversight Mass Update',
+        false,
+        diffPayload
+      );
 
       setMassStatus(""); setMassCategory(""); setMassSubCategory(""); setMassCompliance(""); setMassGameVersions([]); setMassConflictId(null); setEditReason("");
       setSelectedIds(new Set());
@@ -170,20 +192,169 @@ export function MassUpdateOversight() {
   const hasAnyAction = !!(massStatus || massCategory || massCompliance || massGameVersions.length > 0 || massConflictId);
 
   const tabs = [
-    { id: "overview", label: t("landing_overview", "Overview"), icon: "dashboard" },
+    { id: "overview", label: t("overview", "Overview"), icon: "dashboard" },
     { id: "mass_select", label: t("mass_update_apply", "Mass Select"), icon: "checklist" },
-    { id: "recent", label: t("recent_changes", "Recent Changes"), icon: "history" }
+    { id: "recent", label: t("tab_recent", "Recent Changes"), icon: "history" }
   ];
+
+  const renderModCard = (m: any, onCardClick: () => void) => {
+    const isSelected = selectedIds.has(m.id);
+    const statusStr = String(m.status || "unverified").toLowerCase();
+    const isVerified = statusStr === "verified";
+    const isDanger = statusStr === "quarantined" || statusStr === "broken";
+
+    return (
+      <UniversalCard
+        key={m.id}
+        onClick={onCardClick}
+        layout="vertical"
+        isActive={isSelected}
+        icon={isSelected ? t("icon_check", "check") : t("icon_extension", "extension")}
+        customIcon={<DynamicArtifactPreviewBanner data={m} icon={isSelected ? t("icon_check", "check") : t("icon_extension", "extension")} heightClass="h-full" />}
+        title={m.name}
+        subtitle={`${t("by_author", "BY")} ${m.master_author || t("unknown_mason", "Unknown {Mason}")}`}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  isSelected
+                    ? "text-[var(--accent)]"
+                    : isVerified
+                      ? "text-[var(--success)]"
+                      : isDanger
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--warning)]"
+                }`}
+              >
+                {isSelected
+                  ? t("icon_check_circle", "check_circle")
+                  : isVerified
+                    ? t("icon_verified", "verified")
+                    : isDanger
+                      ? t("icon_gpp_maybe", "gpp_maybe")
+                      : t("icon_schedule", "schedule")}
+              </span>
+              <span>
+                {isSelected
+                  ? t("selected", "Selected")
+                  : (m.status || t("unverified", "Unverified")).replace(/_/g, " ")}
+              </span>
+            </div>
+          </div>
+        }
+        badges={
+          <>
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  isVerified ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                }`}
+              >
+                {t("icon_policy", "policy")}
+              </span>
+              <span>{(m.status || t("unverified", "Unverified")).replace(/_/g, " ")}</span>
+            </div>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_shield", "shield")}
+              </span>
+              <span>
+                {t("auto_tier", "Tier")} {m.compliance_tier ?? 0}
+              </span>
+            </div>
+            {m.category_override && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                  {t("icon_category", "category")}
+                </span>
+                <span>{m.category_override}</span>
+              </div>
+            )}
+          </>
+        }
+        footer={
+          <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+            <span className="flex items-center gap-1.5 truncate pr-2">
+              <span className="material-symbols-outlined !text-[12px] opacity-70">
+                {t("icon_videogame_asset", "videogame_asset")}
+              </span>
+              {m.compatible_versions?.length
+                ? `${m.compatible_versions.length} ${t("sa_game_versions", "Versions")}`
+                : t("oversight_na", "N/A")}
+            </span>
+            <span className="text-[var(--text)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 shrink-0">
+              {isSelected ? t("selected", "Selected") : t("select", "Select")}{" "}
+              <span className="text-base leading-none">&rarr;</span>
+            </span>
+          </div>
+        }
+      />
+    );
+  };
+
+  const renderBatchLogCard = (log: any) => (
+    <UniversalCard
+      key={log.id}
+      layout="vertical"
+      icon={t("icon_history", "history")}
+      title={log.action}
+      subtitle={log.target_name || t("batch_operation", "Batch Operation")}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_done_all", "done_all")}
+            </span>
+            <span>{t("completed", "Completed")}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_database", "database")}
+            </span>
+            <span>{log.target_table || t("term_mods", "{Mods}")}</span>
+          </div>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+              {t("icon_calendar_today", "calendar_today")}
+            </span>
+            <span>{new Date(log.created_at).toLocaleDateString()}</span>
+          </div>
+        </>
+      }
+      footer={
+        <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+          <span className="flex items-center gap-1.5 truncate pr-2">
+            <span className="material-symbols-outlined !text-[12px] opacity-70">
+              {t("icon_schedule", "schedule")}
+            </span>
+            {new Date(log.created_at).toLocaleTimeString()}
+          </span>
+          <span className="text-[var(--text)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 shrink-0">
+            {t("status_recorded", "Recorded")}
+          </span>
+        </div>
+      }
+    >
+      <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+        {log.reason || t("no_reason", "No reason provided")}
+      </p>
+    </UniversalCard>
+  );
 
   return (
     <ElevatedHubLayout
       headerTitle={t("mass_update_apply", "Mass Update")}
-      headerSubtitle={t("mass_update_subtitle", "Select artifacts to perform batch operations")}
+      headerSubtitle={t("mass_update_subtitle", "Select {mods} to perform batch operations")}
       headerIcon="batch_prediction"
       headerIconColorClass="theme-text-accent"
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={t("search_ph", "Search...") as string}
+      searchPlaceholder={t("search_ph", "Search {mods}...") as string}
       hideSearch={activeTab !== 'mass_select'}
       activeTab={activeTab}
       onTabChange={setActiveTab}
@@ -192,7 +363,7 @@ export function MassUpdateOversight() {
         {
           id: "toggleSelected",
           icon: "checklist",
-          label: showOnlySelected ? t("artifacts_selected", "Showing Selected") : t("mass_update_apply", "Selected Only"),
+          label: showOnlySelected ? t("artifacts_selected", "{Mods} Selected") : t("mass_update_apply", "Selected Only"),
           activeClassName: showOnlySelected ? "bg-[var(--accent)] text-black" : "",
           onClick: () => setShowOnlySelected(!showOnlySelected)
         },
@@ -222,7 +393,7 @@ export function MassUpdateOversight() {
                 value={filterCategory}
                 onChange={(v: string[]) => setFilterCategory(v[0])}
                 options={[
-                  { id: "", label: t("ql_all", "All Categories") },
+                  { id: "", label: t("filter_all", "All Categories") },
                   ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
                     id: cat.id,
                     label: t(cat.lexicon_key, cat.id)
@@ -247,21 +418,12 @@ export function MassUpdateOversight() {
             <HubOverviewSection
               icon="inventory_2"
               iconColorClass="text-[var(--accent)]"
-              title={t("items", "Artifact Registry")}
+              title={t("term_mods", "Artifact Registry")}
               isEmpty={mods.length === 0}
               emptyIcon="inventory_2"
-              emptyTitle={t("no_artifacts", "No Artifacts")}
+              emptyTitle={t("no_artifacts", "Creator No {Mods}")}
             >
-              {mods.slice(0, 4).map(mod => (
-                <UniversalCard
-                  key={mod.id}
-                  onClick={() => setActiveTab('mass_select')}
-                  layout="vertical"
-                  icon="inventory_2"
-                  title={mod.name}
-                  subtitle={mod.master_author || mod.category_override || t("items", "Artifact")}
-                />
-              ))}
+              {mods.slice(0, 4).map(mod => renderModCard(mod, () => setActiveTab('mass_select')))}
             </HubOverviewSection>
             <HubOverviewSection
               icon="history"
@@ -271,60 +433,20 @@ export function MassUpdateOversight() {
               emptyIcon="history"
               emptyTitle={t("no_logs", "No Recent Updates")}
             >
-              {recentChanges.slice(0, 4).map(log => (
-                <UniversalCard
-                  key={log.id}
-                  layout="vertical"
-                  icon="history"
-                  title={log.action}
-                  subtitle={new Date(log.created_at).toLocaleString()}
-                />
-              ))}
+              {recentChanges.slice(0, 4).map(renderBatchLogCard)}
             </HubOverviewSection>
           </HubOverviewLanding>
         ) : activeTab === 'recent' ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-            {recentChanges.map(log => (
-              <UniversalCard
-                key={log.id}
-                layout="vertical"
-                icon="history"
-                title={log.action}
-                subtitle={<span className="text-xs opacity-70">{new Date(log.created_at).toLocaleString()}</span>}
-                badges={[]}
-                footer={<div className="text-xs font-bold text-[var(--subtext)] italic truncate">{log.reason || t("no_reason", "No reason provided")}</div>}
-              />
-            ))}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+            {recentChanges.map(renderBatchLogCard)}
             {recentChanges.length === 0 && (
-              <EmptyState icon="history" title={t("no_logs", "No Recent Changes")} />
+              <EmptyState icon={t("icon_history", "history")} title={t("no_logs", "No Recent Changes")} />
             )}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-              {filteredMods.slice(0, visibleCount).map(m => (
-                <UniversalCard
-                  key={m.id}
-                  onClick={() => handleToggle(m.id)}
-                  layout="vertical-compact"
-                  isActive={selectedIds.has(m.id)}
-                  icon={selectedIds.has(m.id) ? "check" : "extension"}
-                  title={m.name}
-                  badges={
-                    <div className="flex justify-between items-center w-full mt-2">
-                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-black capitalize tracking-widest leading-none border bg-transparent ${selectedIds.has(m.id)
-                        ? 'text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
-                        : 'text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]'
-                        }`}>
-                        {m.master_author || t("unknown_mason", "UNKNOWN")}
-                      </span>
-                      <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize">
-                        {t("auto_status", "Status")} {(m.status || t("unverified", "UNVERIFIED")).replace(/_/g, ' ')} | {t("auto_tier", "Tier")} {m.compliance_tier}
-                      </span>
-                    </div>
-                  }
-                />
-              ))}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+              {filteredMods.slice(0, visibleCount).map(m => renderModCard(m, () => handleToggle(m.id)))}
             </div>
 
             {filteredMods.length > visibleCount && (
@@ -333,14 +455,14 @@ export function MassUpdateOversight() {
                   onClick={() => setVisibleCount(v => v + 100)}
                   className="group px-12 py-4 rounded-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:text-[var(--accent)] hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] bg-transparent transition-all shadow-xl flex items-center gap-3"
                 >
-                  <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">expand_more</span>
-                  {t("ui_btn_load_more", "Load More")} ({visibleCount} / {filteredMods.length})
+                  <span className="material-symbols-outlined !text-[20px] group-hover:animate-bounce">{t("icon_expand_more", "expand_more")}</span>
+                  {t("load_more", "Load More")} ({visibleCount} / {filteredMods.length})
                 </button>
               </div>
             )}
 
             {!loading && filteredMods.length === 0 && (
-              <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("sa_no_artifacts", "No Artifacts Found")} className="py-16" />
+              <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("sa_no_artifacts", "No {mods} found.")} className="py-16" />
             )}
           </>
         )}
@@ -350,7 +472,7 @@ export function MassUpdateOversight() {
         isOpen={isActionPanelOpen}
         onClose={() => setIsActionPanelOpen(false)}
         title={t("mass_update_apply", "Mass Update")}
-        subtitle={`${selectedIds.size} ${t("artifacts_selected", "Artifacts Selected")}`}
+        subtitle={`${selectedIds.size} ${t("artifacts_selected", "{Mods} Selected")}`}
         icon="batch_prediction"
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
@@ -371,22 +493,22 @@ export function MassUpdateOversight() {
           <SidePanelHeroCard
             icon="batch_prediction"
             overline={t("mass_update_apply", "Mass Update")}
-            title={`${selectedIds.size} ${t("artifacts_selected", "Artifacts Selected")}`}
-            description={t("mass_update_subtitle", "Select artifacts to perform batch operations")}
-            badge={`${selectedIds.size} ${t("items", "Items")}`}
+            title={`${selectedIds.size} ${t("artifacts_selected", "{Mods} Selected")}`}
+            description={t("mass_update_subtitle", "Select {mods} to perform batch operations")}
+            badge={`${selectedIds.size} ${t("term_mods", "Items")}`}
             badgeIcon="checklist"
             variant="accent"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
-                label={t("artifacts_selected", "Selected Artifacts")}
+                label={t("artifacts_selected", "{Mods} Selected")}
                 value={selectedIds.size}
                 icon="checklist"
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("mass_status_protocol", "Status Protocol")}
-                value={massStatus ? massStatus.toUpperCase() : t("ql_all", "Unchanged")}
+                value={massStatus ? massStatus.toUpperCase() : t("filter_all", "Unchanged")}
                 icon="policy"
                 iconColorClass={massStatus ? "text-[var(--success)]" : "text-[var(--subtext)]"}
               />
@@ -402,10 +524,10 @@ export function MassUpdateOversight() {
                 value={massStatus}
                 onChange={(v: string[]) => setMassStatus(v[0])}
                 options={[
-                  { id: "", label: t("ql_all", "-- Leave Unchanged --") },
+                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
                   { id: "verified", label: t("verified", "VERIFIED") },
                   { id: "unverified", label: t("unverified", "UNVERIFIED") },
-                  { id: "deprecated", label: t("status_inactive", "DEPRECATED") },
+                  { id: "deprecated", label: t("tab_inactive", "DEPRECATED") },
                   { id: "quarantined", label: t("recent_quarantine", "QUARANTINED") }
                 ]}
               />
@@ -413,13 +535,13 @@ export function MassUpdateOversight() {
 
             <div className="flex flex-col gap-1.5 relative z-40">
               <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                {t("vault_stat_tier", "Compliance Tier")}
+                {t("compliance_tier", "Compliance Tier")}
               </label>
               <CustomDropdown disableTint={true}
                 value={massCompliance}
                 onChange={(v: string[]) => setMassCompliance(v[0])}
                 options={[
-                  { id: "", label: t("ql_all", "-- Leave Unchanged --") },
+                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
                   { id: "0", label: t("tier_0_label", "Clean (Tier 0)") },
                   { id: "1", label: t("tier_1_label", "NSFW 18+ (Tier 1)") },
                   { id: "2", label: t("tier_2_label", "Explicit (Tier 2)") },
@@ -436,7 +558,7 @@ export function MassUpdateOversight() {
                 value={massCategory}
                 onChange={(v: string[]) => setMassCategory(v[0])}
                 options={[
-                  { id: "", label: t("ql_all", "-- Leave Unchanged --") },
+                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
                   ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
                     id: cat.id,
                     label: (t(cat.lexicon_key, cat.id) || cat.id).toUpperCase()
@@ -459,7 +581,7 @@ export function MassUpdateOversight() {
                 {t("mass_assign_conflict", "Assign Logical Conflict")}
               </label>
               <ModSearchDropdown
-                placeholder={t("auto_select_artifact_to_32", "Select artifact to link conflict...")}
+                placeholder={t("auto_select_artifact_to_32", "Select {Mods} to Assign...")}
                 selectedItem={massConflictId}
                 onSelect={setMassConflictId}
                 onClear={() => setMassConflictId(null)}
@@ -479,22 +601,6 @@ export function MassUpdateOversight() {
               onChange={setEditReason}
               placeholder={t("reason_update", "Enter reason for mass update...")}
             />
-
-            <div className="flex items-center justify-end gap-3 pt-1">
-              <ActionButton
-                onClick={() => setIsActionPanelOpen(false)}
-                variant="glass"
-                icon="close"
-                label={t("nav_cancel", "Cancel")}
-              />
-              <ActionButton
-                disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
-                onClick={executeMassUpdate}
-                variant="glass"
-                icon="done_all"
-                label={isUpdating ? t("ui_btn_processing", "Executing...") : t("mass_update_apply", "Initiate Mass Update")}
-              />
-            </div>
           </UniversalGroup>
         </div>
       </SidePanel>

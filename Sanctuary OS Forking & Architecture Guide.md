@@ -1,10 +1,6 @@
 # Sanctuary OS: Forking & Spoke Architecture Guide
 
-> **Document Version**: V0.5.8-Dev.3 (Hub-and-Spoke, Single-File Standalone Fork & Embedded SQL Edition)  
-> **Last Updated**: October 24, 2026  
-> **Sync Pipeline**: Synced bidirectionally between `Sanctuary OS Forking & Architecture Guide.md` and **Keepers Core -> System Directives (`public.system_directives`)**.
-
-Welcome to the **Sanctuary OS Forking & Spoke Architecture Guide**. Sanctuary OS is architected to support three seamless deployment and forking models:
+Sanctuary OS is architected to support three seamless deployment and forking models:
 1. **Official Hub-and-Spoke Partner Network (Zero Code Edits)**: Connect your community's Supabase Spoke database ([`schema.sql`](./schema.sql)) to the official Sanctuary OS Hub ([`schema_os.sql`](./schema_os.sql)) using a `SANCTUARY-UPLINK://` bundle.
 2. **True Standalone Codebase Fork (1 Database — Edit ONLY `src/supabase.ts`)**: Run your own completely independent build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql))**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and **editing only `SANCTUARY_CONFIG` at the top of [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts)**.
 3. **Full Hub-and-Spoke Multi-Game Federation Fork (Hub DB + Multiple Spoke DBs)**: Fork the entire multi-game Hub-and-Spoke ecosystem—running your own Central Core OS Hub ([`schema_os.sql`](./schema_os.sql) + `supabase/functions/game-gateway` Edge Function) connected to multiple independent community Spoke databases ([`schema.sql`](./schema.sql)).

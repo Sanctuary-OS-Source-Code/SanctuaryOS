@@ -35,6 +35,8 @@ export function VaultToolsSidePanel({
   const { t } = useLexicon();
   const setIsSidePanelOpen = (val: boolean) => !val && onClose();
 
+  if (!isOpen) return null;
+
   const localSets = JSON.parse(
     localStorage.getItem(
       `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
@@ -45,17 +47,16 @@ export function VaultToolsSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      keepMounted={true}
-      title={t("vault_tools_title", "Vault Tools")}
+      title={t("vault_tools_title", "{Vault} Tools")}
       subtitle={t("vault_tools_subtitle", "Quick Actions & Folder Controls")}
-      icon="tune"
+      icon={t("icon_tune", "tune")}
       iconColorClass="theme-text-accent"
       widthClass="w-[90vw] md:w-[620px]"
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
-          icon="tune"
-          overline={t("vault_tools_title", "Vault Operations")}
+          icon={t("icon_tune", "tune")}
+          overline={t("vault_tools_title", "{Vault} Tools")}
           description={t(
             "vault_tools_subtitle",
             "Switch active Blueprints, trigger a radar sweep, or manage custom local folders."
@@ -65,7 +66,7 @@ export function VaultToolsSidePanel({
 
         {playSets && playSets.length > 0 && (
           <UniversalGroup
-            title={t("type_blueprint", "Active Blueprint")}
+            title={t("blueprint", "{Blueprint}")}
             icon={t("icon_layers", "layers")}
           >
             <div className="flex flex-col sm:flex-row gap-3">
@@ -85,7 +86,7 @@ export function VaultToolsSidePanel({
               <ActionButton
                 variant="glass"
                 icon={t("icon_check_circle", "check_circle")}
-                label={t("auto_save", "Equip")}
+                label={t("hub_save", "Equip")}
                 onClick={() =>
                   equipPlaySet &&
                   equipPlaySet(playSets[activePlaySetIndex]?.name)
@@ -103,7 +104,7 @@ export function VaultToolsSidePanel({
           <div className="flex flex-col gap-2.5">
             <ActionButton
               variant="glass"
-              icon="refresh"
+              icon={t("icon_refresh", "refresh")}
               label={t("btn_radar", "Run Radar Sweep")}
               onClick={() => {
                 runRadarSweep(true);
@@ -114,8 +115,8 @@ export function VaultToolsSidePanel({
             {equipFilter === "ARCHIVES" && (
               <ActionButton
                 variant="glass"
-                icon="delete_sweep"
-                label={t("btn_purge_folder", "Purge Archives")}
+                icon={t("icon_delete_sweep", "delete_sweep")}
+                label={t("btn_purge_folder", "{Delete} Archives")}
                 onClick={() => {
                   const allFilesToPurge = new Set<string>();
                   finalVisibleMods.forEach((mod: any) => {
@@ -194,6 +195,16 @@ export function VaultLocalFolderEditorSidePanel({
   const [, setUpdateTrigger] = React.useState(0);
   const [deleteConfirm, setDeleteConfirm] = React.useState(false);
 
+  const searchResults = React.useMemo(() => {
+    const q = searchToAdd.trim().toLowerCase();
+    if (!isOpen || !q) return [];
+    return (displayModList || []).filter((m: any) =>
+      (m.displayName || m.name || "").toLowerCase().includes(q)
+    );
+  }, [isOpen, displayModList, searchToAdd]);
+
+  if (!isOpen) return null;
+
   const localSets = JSON.parse(
     localStorage.getItem(
       `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
@@ -212,21 +223,16 @@ export function VaultLocalFolderEditorSidePanel({
     targetSet.archetypes = { core: null, twins: [], addons: [] };
   }
 
-  const typeIcon = targetSet.isCollection ? "category" : "folder";
-
-  const searchResults = (displayModList || []).filter((m: any) =>
-    (m.displayName || m.name || "")
-      .toLowerCase()
-      .includes(searchToAdd.toLowerCase())
-  );
+  const typeIcon = targetSet.isCollection
+    ? t("icon_category", "category")
+    : t("icon_folder", "folder");
 
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={() => setIsLocalFolderEditorOpen(false)}
-      keepMounted={true}
       title={t("local_folders_edit", "Edit Local Folder")}
-      subtitle={t("local_folder_desc", "Manage grouped Vault packages")}
+      subtitle={t("local_folder_desc", "Group these {mods} locally. This does not affect the global database.")}
       icon={typeIcon}
       iconColorClass={
         targetSet.isCollection ? "text-[var(--accent)]" : "text-[var(--success)]"
@@ -237,11 +243,11 @@ export function VaultLocalFolderEditorSidePanel({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon={deleteConfirm ? "warning" : "delete"}
+            icon={deleteConfirm ? t("icon_warning", "warning") : t("icon_delete", "delete")}
             tooltip={
               deleteConfirm
-                ? t("btn_confirm_delete", "Confirm Delete")
-                : t("local_folders_delete", "Delete Folder")
+                ? t("btn_confirm_delete", "Confirm {Delete}")
+                : t("local_folders_delete", "{Delete} Folder")
             }
             variant="danger"
             onClick={() => {
@@ -260,7 +266,7 @@ export function VaultLocalFolderEditorSidePanel({
             }}
           />
           <PanelHeaderButton
-            icon="check"
+            icon={t("icon_check", "check")}
             tooltip={t("btn_done", "Done")}
             variant="accent"
             onClick={() => {
@@ -280,11 +286,8 @@ export function VaultLocalFolderEditorSidePanel({
               : t("folder", "Local Folder")
           }
           title={targetSet.name || t("local_folders_edit", "Local Folder")}
-          description={t(
-            "local_folder_desc",
-            "Assign core, twin, and add-on modules or manage collection members."
-          )}
-          badge={`${targetSet.items.length} ${t("items", "Items")}`}
+          description={t("local_folder_desc", "Group these {mods} locally. This does not affect the global database.")}
+          badge={`${targetSet.items.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_inventory_2", "inventory_2")}
           variant={targetSet.isCollection ? "accent" : "success"}
         />
@@ -293,7 +296,7 @@ export function VaultLocalFolderEditorSidePanel({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon="folder"
+            icon={t("icon_folder", "folder")}
             label={t("local_folder_title", "Container Type")}
             value={t("folder", "Folder")}
             isActive={!targetSet.isCollection}
@@ -312,7 +315,7 @@ export function VaultLocalFolderEditorSidePanel({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon="category"
+            icon={t("icon_category", "category")}
             label={t("local_folder_title", "Container Type")}
             value={t("collection", "Collection")}
             isActive={Boolean(targetSet.isCollection)}
@@ -336,7 +339,7 @@ export function VaultLocalFolderEditorSidePanel({
               ? t("ph_collection_name", "Collection Name")
               : t("ph_folder_name", "Folder Name")
           }
-          icon="edit_note"
+          icon={t("icon_edit_note", "edit_note")}
         >
           <div className="relative">
             <span
@@ -428,7 +431,7 @@ export function VaultLocalFolderEditorSidePanel({
                                 className="h-8 px-3 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center justify-center gap-1 shrink-0 text-[10px] font-black uppercase tracking-wider"
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
-                                  add
+                                  {t("icon_add", "add")}
                                 </span>{" "}
                                 {t("ql_add", "Add")}
                               </button>
@@ -460,10 +463,10 @@ export function VaultLocalFolderEditorSidePanel({
                                   className="w-8 h-8 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
-                                    stars
+                                    {t("icon_stars", "stars")}
                                   </span>
                                   <HoverTooltip
-                                    title={t("editor_core", "Core")}
+                                    title={t("tab_core", "Core")}
                                     variant="accent"
                                     className="z-[200] !right-0 !left-auto !translate-x-0"
                                   />
@@ -497,7 +500,7 @@ export function VaultLocalFolderEditorSidePanel({
                                   className="w-8 h-8 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] hover:border-[var(--success)] hover:text-[var(--success)] transition-all flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
-                                    join_inner
+                                    {t("icon_join_inner", "join_inner")}
                                   </span>
                                   <HoverTooltip
                                     title={t("editor_twin", "Twin")}
@@ -534,7 +537,7 @@ export function VaultLocalFolderEditorSidePanel({
                                   className="w-8 h-8 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] hover:border-[var(--warning)] hover:text-[var(--warning)] transition-all flex items-center justify-center relative group/actionbtn"
                                 >
                                   <span className="material-symbols-outlined !text-[16px]">
-                                    extension
+                                    {t("icon_extension", "extension")}
                                   </span>
                                   <HoverTooltip
                                     title={t("editor_addon", "Add-On")}
@@ -557,7 +560,7 @@ export function VaultLocalFolderEditorSidePanel({
         {targetSet.items.length === 0 ? (
           <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-2 text-[var(--subtext)] opacity-70">
             <span className="material-symbols-outlined !text-[28px]">
-              inventory_2
+              {t("icon_inventory_2", "inventory_2")}
             </span>
             <span className="text-xs font-bold uppercase tracking-widest">
               {t("empty_folder", "Folder is Empty")}
@@ -566,7 +569,7 @@ export function VaultLocalFolderEditorSidePanel({
         ) : targetSet.isCollection ? (
           <UniversalGroup
             title={`${t("collection_contents", "Collection Contents")} (${targetSet.items.length})`}
-            icon="category"
+            icon={t("icon_category", "category")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {targetSet.items.map((hash: string) => {
@@ -605,10 +608,10 @@ export function VaultLocalFolderEditorSidePanel({
                             );
                             setUpdateTrigger((prev) => prev + 1);
                           }}
-                          className="w-8 h-8 rounded-lg text-[var(--danger)] bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
+                          className="w-8 h-8 rounded-lg text-[var(--danger)] glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
                         >
                           <span className="material-symbols-outlined !text-[16px]">
-                            close
+                            {t("icon_close", "close")}
                           </span>
                         </button>
                       </div>
@@ -621,8 +624,8 @@ export function VaultLocalFolderEditorSidePanel({
         ) : (
           <div className="flex flex-col gap-4">
             <UniversalGroup
-              title={t("editor_core_artifact", "Core Artifact")}
-              icon="stars"
+              title={t("core_artifact", "Core {Mod}")}
+              icon={t("icon_stars", "stars")}
               headerColorClass="text-[var(--accent)]"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -674,10 +677,10 @@ export function VaultLocalFolderEditorSidePanel({
                                 );
                                 setUpdateTrigger((prev) => prev + 1);
                               }}
-                              className="w-8 h-8 rounded-lg bg-transparent text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
+                              className="w-8 h-8 rounded-lg glass-surface text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
                             >
                               <span className="material-symbols-outlined !text-[16px]">
-                                close
+                                {t("icon_close", "close")}
                               </span>
                             </button>
                           </div>
@@ -694,8 +697,8 @@ export function VaultLocalFolderEditorSidePanel({
             </UniversalGroup>
 
             <UniversalGroup
-              title={t("twin_artifacts", "Twin Artifacts")}
-              icon="join_inner"
+              title={t("twin_artifacts", "Twin {Mods}")}
+              icon={t("icon_join_inner", "join_inner")}
               headerColorClass="text-[var(--success)]"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -751,10 +754,10 @@ export function VaultLocalFolderEditorSidePanel({
                               );
                               setUpdateTrigger((prev) => prev + 1);
                             }}
-                            className="w-8 h-8 rounded-lg bg-transparent text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg glass-surface text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
                           >
                             <span className="material-symbols-outlined !text-[16px]">
-                              close
+                              {t("icon_close", "close")}
                             </span>
                           </button>
                         </div>
@@ -766,8 +769,8 @@ export function VaultLocalFolderEditorSidePanel({
             </UniversalGroup>
 
             <UniversalGroup
-              title={t("addon_artifacts", "Add-On Artifacts")}
-              icon="extension"
+              title={t("addon_artifacts", "Addon {Mods}")}
+              icon={t("icon_extension", "extension")}
               headerColorClass="text-[var(--warning)]"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -823,10 +826,10 @@ export function VaultLocalFolderEditorSidePanel({
                               );
                               setUpdateTrigger((prev) => prev + 1);
                             }}
-                            className="w-8 h-8 rounded-lg bg-transparent text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg glass-surface text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] transition-all flex items-center justify-center"
                           >
                             <span className="material-symbols-outlined !text-[16px]">
-                              close
+                              {t("icon_close", "close")}
                             </span>
                           </button>
                         </div>

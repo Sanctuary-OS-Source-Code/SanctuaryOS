@@ -32,10 +32,7 @@ export function DefconPanel() {
         : t("defcon_msg_normal", "System Normal");
     const statusMsg =
       newLevel === 1
-        ? t(
-            "defcon_active_sub",
-            "Vault Lockdown Engaged Across All Clients"
-          )
+        ? t("defcon_active_sub", "{Vault} lockdown engaged across all clients")
         : t("defcon_normal_sub", "Network Secure. All systems nominal.");
 
     setDefconLevel(newLevel);
@@ -62,7 +59,7 @@ export function DefconPanel() {
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview", "Overview"),
+      label: t("overview", "Overview"),
       icon: t("icon_dashboard", "dashboard"),
     },
   ];
@@ -135,10 +132,7 @@ export function DefconPanel() {
                   </h3>
                   <span className="text-xs font-medium text-[var(--subtext)]">
                     {isDefconActive
-                      ? t(
-                          "defcon_active_sub",
-                          "Vault Lockdown Engaged Across All Clients"
-                        )
+                      ? t("defcon_active_sub", "{Vault} lockdown engaged across all clients")
                       : t(
                           "defcon_normal_sub",
                           "Network Secure — All Systems Nominal"
@@ -311,7 +305,12 @@ export function DefconSidePanel({
       "global_network_status",
       "GLOBAL NETWORK",
       "Game Patch Imminent Override",
-      "Command Center Oversight"
+      "Command Center Oversight",
+      false,
+      {
+        defcon_level: { from: status?.defcon_level ?? 5, to: 1 },
+        message: { from: status?.message || "System Normal", to: "GAME PATCH IMMINENT" },
+      }
     );
 
     await fetchStatus();
@@ -353,7 +352,12 @@ export function DefconSidePanel({
       "global_network_status",
       "GLOBAL NETWORK",
       "Game Patch Concluded",
-      "Command Center Oversight"
+      "Command Center Oversight",
+      false,
+      {
+        defcon_level: { from: status?.defcon_level ?? 1, to: 5 },
+        message: { from: status?.message || "GAME PATCH IMMINENT", to: "System Normal" },
+      }
     );
 
     await fetchStatus();
@@ -445,10 +449,7 @@ export function DefconSidePanel({
                     </h3>
                     <span className="text-xs font-medium text-[var(--subtext)]">
                       {isDefconActive
-                        ? t(
-                            "defcon_active_sub",
-                            "Vault Lockdown Engaged Across All Clients"
-                          )
+                        ? t("defcon_active_sub", "{Vault} lockdown engaged across all clients")
                         : t(
                             "defcon_normal_sub",
                             "Network Secure — All Systems Nominal"

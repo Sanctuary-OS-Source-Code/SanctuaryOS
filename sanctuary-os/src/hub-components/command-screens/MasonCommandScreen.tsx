@@ -3,9 +3,11 @@ import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from '../../store';
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { ActionButton, stripMarkdown } from "../../shared";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, UrgentBroadcastBanner, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { stripMarkdown } from "../../shared";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = false, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost, onOpenBugReport, onOpenMetadataEditor }: any) {
   const { t } = useLexicon();
@@ -194,7 +196,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
           <DashboardStatTile className="col-span-2" icon={<span className="material-symbols-outlined ">{t("icon_bug_report", "bug_report")}</span>} number={stats.bugs} label={t("stat_bugs", "Bug Reports")} colorClass="text-rose-500" onClick={() => onNavigate("bug_reports")} />
         )}
         {isVerifiedMason && (
-          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_deployed_code", "deployed_code")}</span>} number={stats.artifacts} label={t("items", "Artifacts")} colorClass="text-blue-500" onClick={() => onNavigate("registry")} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_deployed_code", "deployed_code")}</span>} number={stats.artifacts} label={t("term_mods", "Artifacts")} colorClass="text-blue-500" onClick={() => onNavigate("registry")} />
         )}
         {isVerifiedMason && (
           <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_collections_bookmark", "collections_bookmark")}</span>} number={stats.collections} label={t("tab_cc", "Collections")} colorClass="text-amber-500" onClick={() => onNavigate("collections")} />
@@ -212,7 +214,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
           <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_handyman", "handyman")}</span>} number={1} label={t("sandbox_title", "Sandbox")} colorClass="text-emerald-500" onClick={() => onNavigate("sandbox")} />
         )}
         {!isVerifiedMason && (
-          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_hub", "hub")}</span>} number={stats.blueprints} label={t("tab_nexus", "Nexus")} colorClass="text-blue-500" onClick={() => onNavigate("nexus")} />
+          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_hub", "hub")}</span>} number={stats.blueprints} label={t("tab_nexus", "{Nexus}")} colorClass="text-blue-500" onClick={() => onNavigate("nexus")} />
         )}
         {!isVerifiedMason && (
           <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_palette", "palette")}</span>} number={1} label={t("tab_chameleons", "Chameleons")} colorClass="text-amber-500" onClick={() => onNavigate("chameleons")} />
@@ -224,26 +226,36 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
 
       <CommandScreenBody>
         <CommandScreenMain>
-          <CommandScreenSectionHeading title={t("wf_comms_title", "Broadcasts")} icon="history" />
+          <div className="flex flex-col gap-4 w-full">
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Broadcasts")} icon="history" />
 
-          <div className="w-full mb-8">
-            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+            <div className="w-full">
+              <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+            </div>
           </div>
 
           {isVerifiedMason && recentBugs.length > 0 && (
-            <>
+            <div className="flex flex-col gap-4 w-full">
               <CommandScreenSectionHeading title={t("stat_bugs", "Bug Reports")} icon="bug_report" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentBugs.map((bug: any) => (
                   <UniversalCard 
                     key={`bug-${bug.id}`} 
                     layout="vertical" 
                     title={bug.title || t("stat_bugs", "Bug Report")} 
-                    icon="bug_report" 
+                    icon={t("icon_bug_report", "bug_report")} 
                     onClick={() => onOpenBugReport && onOpenBugReport(bug.id)}
                     className="w-full"
+                    imageOverlay={
+                      <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
+                          <span>{t("status_open", "Open")}</span>
+                        </div>
+                      </div>
+                    }
                     badges={
-                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_bug_report", "bug_report")}</span>
                         <span>{t("stat_bugs", "Bug Reports")}</span>
                       </div>
@@ -262,25 +274,33 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                   </UniversalCard>
                 ))}
               </div>
-            </>
+            </div>
           )}
 
           {isVerifiedMason && recentArtifacts.length > 0 && (
-            <>
-              <CommandScreenSectionHeading title={t("items", "Artifacts")} icon="deployed_code" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading title={t("term_mods", "Artifacts")} icon="deployed_code" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentArtifacts.map((art: any) => (
                   <UniversalCard 
                     key={`art-${art.id}`} 
                     layout="vertical" 
                     title={art.name || art.title} 
-                    icon="deployed_code" 
+                    icon={t("icon_deployed_code", "deployed_code")} 
                     onClick={() => onOpenMetadataEditor && onOpenMetadataEditor(art.id)}
                     className="w-full"
+                    imageOverlay={
+                      <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_check_circle", "check_circle")}</span>
+                          <span>{t("active", "Active")}</span>
+                        </div>
+                      </div>
+                    }
                     badges={
-                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_deployed_code", "deployed_code")}</span>
-                        <span>{t("items", "Artifacts")}</span>
+                        <span>{t("term_mods", "Artifacts")}</span>
                       </div>
                     }
                     footer={
@@ -297,23 +317,31 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                   </UniversalCard>
                 ))}
               </div>
-            </>
+            </div>
           )}
 
           {isVerifiedMason && recentReplies.length > 0 && (
-            <>
+            <div className="flex flex-col gap-4 w-full">
               <CommandScreenSectionHeading title={t("ui.replies", "Replies")} icon="forum" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentReplies.map((rep: any) => (
                   <UniversalCard 
                     key={`rep-${rep.id}`} 
                     layout="vertical" 
-                    title={rep.profiles?.display_name || rep.profiles?.username || t("role_citizen", "Citizen")} 
-                    icon="forum" 
+                    title={rep.profiles?.display_name || rep.profiles?.username || t("role_citizen", "{Citizen}")} 
+                    icon={t("icon_forum", "forum")} 
                     onClick={onOpenRecentReplies}
                     className="w-full"
+                    imageOverlay={
+                      <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_chat", "chat")}</span>
+                          <span>{t("new", "New")}</span>
+                        </div>
+                      </div>
+                    }
                     badges={
-                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_forum", "forum")}</span>
                         <span>{t("ui.replies", "Replies")}</span>
                       </div>
@@ -332,54 +360,45 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                   </UniversalCard>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </CommandScreenMain>
 
         <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon="rocket_launch">
           {urgentBroadcast && (
-            <button onClick={() => setIsAlertsOpen(true)} className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-left group relative h-24">
-              <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:-translate-x-full duration-1000 transition-all ease-in-out" />
-              <div className="flex items-center gap-5 h-full">
-                <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors border-[color-mix(in_srgb,var(--danger)_30%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] shadow-md">
-                  <span className="material-symbols-outlined !text-3xl opacity-70 group-hover:scale-110 group-hover:opacity-100 transition-all duration-300 animate-pulse drop-shadow-md">
-                    {t("icon_priority_high", "priority_high")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
-                  <h3 className="text-[11px] font-black capitalize tracking-widest transition-colors truncate text-[var(--danger)] group-hover:text-red-400">{t("title_sanctuary_alerts", "Sanctuary Alerts")}</h3>
-                  <span className="text-[8px] capitalize font-bold tracking-widest transition-colors flex items-center gap-2 mt-1 text-[color-mix(in_srgb,var(--danger)_80%,transparent)] group-hover:text-red-300">
-                    <span className="w-1.5 h-1.5 rounded-full shadow-md bg-[var(--danger)] animate-pulse"></span> {t("urgent_alert", "Urgent Alert")}
-                  </span>
-                </div>
-              </div>
-            </button>
+            <CommandScreenQuickLink 
+              icon={t("icon_priority_high", "priority_high")}
+              title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
+              subtitle={t("urgent_alert", "Urgent Alert")}
+              onClick={() => setIsAlertsOpen(true)}
+              isAlert={true}
+            />
           )}
 
-          <CommandScreenQuickLink onClick={() => onNavigate("sandbox")} icon={t("icon_deployed_code", "deployed_code")} title={isVerifiedMason ? t("items", "Mods & Artifacts") : t("sandbox_title", "Sandbox")} subtitle={t("sandbox_sub", "Local & Nexus Workshop")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
-          <CommandScreenQuickLink onClick={() => onNavigate("nexus")} icon={t("icon_hub", "hub")} title={t("tab_nexus", "Nexus")} subtitle={t("playsets_title", "Blueprints")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("sandbox")} icon={t("icon_deployed_code", "deployed_code")} title={isVerifiedMason ? t("term_mods", "Mods & Artifacts") : t("sandbox_title", "Sandbox")} subtitle={t("sandbox_sub", "Local & Nexus Workshop")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
+          <CommandScreenQuickLink onClick={() => onNavigate("nexus")} icon={t("icon_hub", "hub")} title={t("tab_nexus", "{Nexus}")} subtitle={t("playsets_title", "{Blueprints}")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-blue-400" hoverTextColorClass="group-hover:text-blue-300" dotColorClass="bg-blue-400 shadow-md" />
           <CommandScreenQuickLink onClick={() => onNavigate("chameleons")} icon={t("icon_palette", "palette")} title={t("chameleons_unified_title", "Themes & Lexicons")} subtitle={t("chameleons_unified_sub", "Visual Skins & Language Packs")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
           {isVerifiedMason && (
             <>
               <CommandScreenQuickLink onClick={() => onNavigate("collections")} icon={t("icon_collections_bookmark", "collections_bookmark")} title={t("tab_cc", "Collections")} subtitle={t("studio_col_sub", "Curated Bundles")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-md" />
-              <CommandScreenQuickLink onClick={() => onNavigate("posts")} icon={t("icon_edit_document", "edit_document")} title={t("tab_posts", "Posts")} subtitle={t("wf_comms_title", "Broadcasts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
+              <CommandScreenQuickLink onClick={() => onNavigate("posts")} icon={t("icon_edit_document", "edit_document")} title={t("tab_posts", "{Dispatches}")} subtitle={t("wf_comms_title", "Broadcasts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
             </>
           )}
           {!urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon="warning_off" title={t("title_sanctuary_alerts", "Sanctuary Alerts")} subtitle={t("alert_empty", "No Active Alerts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
+            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon={t("icon_warning_off", "warning_off")} title={t("title_sanctuary_alerts", "Sanctuary Alerts")} subtitle={t("alert_empty", "No Active Alerts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
           )}
         </CommandScreenSidebar>
       </CommandScreenBody>
 
-      <div className="w-full">
-        <CommandScreenSectionHeading title={t("metrics", "Metrics")} icon="monitoring" />
-        <div className={`grid grid-cols-2 ${isVerifiedMason ? "lg:grid-cols-5" : "lg:grid-cols-3"} gap-4`}>
+      <div className="flex flex-col gap-4 w-full">
+        <CommandScreenSectionHeading title={t("metrics", "Hub Metrics")} icon={t("icon_monitoring", "monitoring")} />
+        <div className={`grid grid-cols-2 ${isVerifiedMason ? "lg:grid-cols-5" : "lg:grid-cols-3"} gap-4 w-full`}>
           {isVerifiedMason && (
-            <CommandScreenMetricTile icon={t("icon_deployed_code", "deployed_code")} value={stats.artifacts} label={t("items", "Artifacts")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+            <CommandScreenMetricTile icon={t("icon_deployed_code", "deployed_code")} value={stats.artifacts} label={t("term_mods", "Artifacts")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
           )}
-          <CommandScreenMetricTile icon={t("icon_architecture", "architecture")} value={stats.blueprints || 1} label={t("playsets_title", "Blueprints")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_architecture", "architecture")} value={stats.blueprints || 1} label={t("playsets_title", "{Blueprints}")} valueColorClass="text-emerald-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
           <CommandScreenMetricTile icon={t("icon_library_books", "library_books")} value={1} label={t("tab_lexicons", "Lexicons")} valueColorClass="text-indigo-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_palette", "palette")} value={1} label={t("type_theme", "Chameleon")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
+          <CommandScreenMetricTile icon={t("icon_palette", "palette")} value={1} label={t("chameleon", "Chameleon")} valueColorClass="text-pink-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
           {isVerifiedMason && (
             <CommandScreenMetricTile icon={t("icon_group", "group")} value={stats.followers} label={t("followers", "Followers")} valueColorClass="text-teal-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
           )}

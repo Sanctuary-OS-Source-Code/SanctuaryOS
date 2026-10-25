@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core';
 import { DiffEditor } from '@monaco-editor/react';
 import { useLexicon } from './LexiconContext';
-import { SidePanel, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton } from './shared';
+import { SidePanel, SidePanelHeroCard, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from './shared';
 import { useTheme } from './ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from './utils/monacoTheme';
 import { parseConfigContent } from './workbench/hooks/useWorkbenchEditor';
@@ -334,7 +334,7 @@ export default function VersionTimeline({
         const parts: string[] = [];
         if (s.type) parts.push(String(s.type));
         if (s.default !== undefined && s.default !== '') {
-          parts.push(`${t('diff_default_label', 'Default')}: ${formatDisplayValue(s.default)}`);
+          parts.push(`${t('type_default', 'Default')}: ${formatDisplayValue(s.default)}`);
         }
         if (s.category) {
           parts.push(tmplCatMap.get(s.category) || String(s.category));
@@ -603,7 +603,7 @@ export default function VersionTimeline({
       }
     >
       <div
-        className="flex flex-col lg:flex-row gap-4 w-full h-full min-h-0 relative z-10 p-2"
+        className="flex flex-col gap-4 w-full h-full min-h-0 relative z-10 p-2"
         style={
           {
             color: currentTheme.text,
@@ -613,6 +613,20 @@ export default function VersionTimeline({
           } as React.CSSProperties
         }
       >
+        <SidePanelHeroCard
+          icon={t('icon_history', 'history')}
+          overline={t('btn_timeline', 'Version Timeline')}
+          title={filePath.split(/[\\/]/).pop() || filePath}
+          description={
+            selectedMode === 'unsaved'
+              ? t('timeline_unsaved_desc', 'Comparing live unsaved buffer against saved disk baseline.')
+              : t('timeline_snapshot_desc', 'Inspecting historical snapshot differences and restore points.')
+          }
+          badge={`${history.length} ${t('tc_snapshots', 'Snapshots')}`}
+          badgeIcon={t('icon_history', 'history')}
+          variant={hasUnsavedChanges ? 'warning' : 'accent'}
+        />
+        <div className="flex flex-col lg:flex-row gap-4 w-full flex-1 min-h-0">
         {/* LEFT COLUMN: Working State & Snapshot Selector */}
         <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-3 min-h-0 h-full">
           <ActionPill
@@ -633,18 +647,28 @@ export default function VersionTimeline({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className={`material-symbols-outlined !text-[17px] shrink-0 ${
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
                         selectedMode === 'unsaved'
                           ? 'text-[var(--accent)]'
                           : hasUnsavedChanges
                             ? 'text-[var(--warning)]'
                             : 'text-[var(--subtext)]'
                       }`}
+                      style={{
+                        borderColor:
+                          selectedMode === 'unsaved'
+                            ? 'color-mix(in srgb, var(--accent) 25%, var(--border))'
+                            : hasUnsavedChanges
+                              ? 'color-mix(in srgb, var(--warning) 25%, var(--border))'
+                              : 'color-mix(in srgb, var(--subtext) 25%, var(--border))',
+                      }}
                     >
-                      {t('icon_edit_note', 'edit_note')}
-                    </span>
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t('icon_edit_note', 'edit_note')}
+                      </span>
+                    </div>
                     <span
                       className={`text-xs font-black tracking-wide truncate ${
                         selectedMode === 'unsaved' ? 'text-[var(--accent)]' : 'text-[var(--text)]'
@@ -654,14 +678,21 @@ export default function VersionTimeline({
                     </span>
                   </div>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full glass-surface border text-[10px] font-bold shrink-0 ${
-                      hasUnsavedChanges
-                        ? '!border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]'
-                        : '!border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]'
-                    }`}
+                    className={VAULT_CHIP_CLASS}
+                    style={{
+                      color: hasUnsavedChanges ? 'var(--warning)' : 'var(--success)',
+                      borderColor: hasUnsavedChanges
+                        ? 'color-mix(in srgb, var(--warning) 35%, var(--border))'
+                        : 'color-mix(in srgb, var(--success) 35%, var(--border))',
+                    }}
                   >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      {hasUnsavedChanges
+                        ? t('icon_edit_note', 'edit_note')
+                        : t('icon_check_circle', 'check_circle')}
+                    </span>
                     {hasUnsavedChanges
-                      ? t('workbench_unsaved_edit_badge', 'Unsaved')
+                      ? t('unsaved', 'Unsaved')
                       : t('diff_in_sync', 'In Sync')}
                   </span>
                 </div>
@@ -765,8 +796,17 @@ export default function VersionTimeline({
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {entry.timestamp === currentActiveTs && !searchQuery && (
-                          <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)] text-[10px] font-bold">
-                            {t('active_version', 'Latest')}
+                          <span
+                            className={VAULT_CHIP_CLASS}
+                            style={{
+                              color: 'var(--accent)',
+                              borderColor: 'color-mix(in srgb, var(--accent) 35%, var(--border))',
+                            }}
+                          >
+                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                              {t('icon_schedule', 'schedule')}
+                            </span>
+                            {t('active', 'Latest')}
                           </span>
                         )}
                         <div className="flex items-center glass-surface !rounded-full p-0.5 gap-0.5">
@@ -869,14 +909,14 @@ export default function VersionTimeline({
                         </span>
                         <span>
                           {diffOnlyChanged
-                            ? `${changedItemsCount} ${t('diff_settings_changed', 'Changed')}`
-                            : t('diff_all_settings', 'All Settings')}
+                            ? `${changedItemsCount} ${t('diff_status_modified', 'Changed')}`
+                            : t('cat_all', 'All Settings')}
                         </span>
                       </button>
                       <HoverTooltip
                         title={
                           diffOnlyChanged
-                            ? t('diff_all_settings', 'All Settings')
+                            ? t('cat_all', 'All Settings')
                             : t('diff_changed_only', 'Changed Only')
                         }
                       />
@@ -885,7 +925,16 @@ export default function VersionTimeline({
                     !isRawIdentical && (
                       <div className="flex items-center gap-1.5">
                         {rawDiffCount > 0 && (
-                          <span className="px-2.5 py-1 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_38%,transparent)] text-[10px] font-mono font-bold text-[var(--accent)]">
+                          <span
+                            className={`${VAULT_CHIP_CLASS} font-mono`}
+                            style={{
+                              color: 'var(--accent)',
+                              borderColor: 'color-mix(in srgb, var(--accent) 35%, var(--border))',
+                            }}
+                          >
+                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                              {t('icon_difference', 'difference')}
+                            </span>
                             {rawDiffIndex + 1}/{rawDiffCount}
                           </span>
                         )}
@@ -990,7 +1039,7 @@ export default function VersionTimeline({
                   {visibleDiffItems.map((item) => {
                     const baseLabel =
                       selectedMode === 'unsaved'
-                        ? t('diff_saved_label', 'Saved')
+                        ? t('btn_saved', 'Saved')
                         : t('diff_snapshot_label', 'Snapshot');
                     const baseStr = formatDisplayValue(item.baseVal);
                     const currStr = formatDisplayValue(item.currentVal);
@@ -1026,16 +1075,31 @@ export default function VersionTimeline({
                               </span>
                               {item.isChanged && (
                                 <span
-                                  className={`px-2 py-0.5 rounded-full glass-surface border text-[9px] font-bold shrink-0 ${
-                                    item.status === 'added'
-                                      ? '!border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]'
-                                      : item.status === 'removed'
-                                        ? '!border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)]'
-                                        : '!border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]'
-                                  }`}
+                                  className={VAULT_CHIP_CLASS}
+                                  style={{
+                                    color:
+                                      item.status === 'added'
+                                        ? 'var(--success)'
+                                        : item.status === 'removed'
+                                          ? 'var(--danger)'
+                                          : 'var(--warning)',
+                                    borderColor:
+                                      item.status === 'added'
+                                        ? 'color-mix(in srgb, var(--success) 35%, var(--border))'
+                                        : item.status === 'removed'
+                                          ? 'color-mix(in srgb, var(--danger) 35%, var(--border))'
+                                          : 'color-mix(in srgb, var(--warning) 35%, var(--border))',
+                                  }}
                                 >
+                                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                                    {item.status === 'added'
+                                      ? t('icon_add_circle', 'add_circle')
+                                      : item.status === 'removed'
+                                        ? t('icon_remove_circle', 'remove_circle')
+                                        : t('icon_edit_note', 'edit_note')}
+                                  </span>
                                   {item.status === 'added'
-                                    ? t('diff_status_added', 'Added')
+                                    ? t('staging_btn_added', 'Added')
                                     : item.status === 'removed'
                                       ? t('diff_status_removed', 'Removed')
                                       : t('diff_status_modified', 'Changed')}
@@ -1047,7 +1111,7 @@ export default function VersionTimeline({
                               {item.categoryLabel && item.defaultVal !== undefined && <span>&bull;</span>}
                               {item.defaultVal !== undefined && (
                                 <span className="font-mono break-all">
-                                  {t('diff_default_label', 'Default')}: {formatDisplayValue(item.defaultVal)}
+                                  {t('type_default', 'Default')}: {formatDisplayValue(item.defaultVal)}
                                 </span>
                               )}
                             </div>
@@ -1174,6 +1238,7 @@ export default function VersionTimeline({
               />
             </div>
           )}
+        </div>
         </div>
       </div>
     </SidePanel>

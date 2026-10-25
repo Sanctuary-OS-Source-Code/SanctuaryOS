@@ -43,9 +43,9 @@ export default function WebNewsFeed() {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
       {loading ? (
-        <div className="text-center py-12 opacity-50 font-black uppercase tracking-widest col-span-full">{t("loading")}</div>
+        <div className="text-center py-12 opacity-50 font-black uppercase tracking-widest col-span-full">{t("loading", "Loading")}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-12 opacity-50 font-black uppercase tracking-widest col-span-full">{t("system_no_broadcasts") || "No announcements."}</div>
+        <div className="text-center py-12 opacity-50 font-black uppercase tracking-widest col-span-full">{t("system_no_broadcasts", "No Recent Posts") || "No announcements."}</div>
       ) : (
         posts.map((p, index) => (
           <MasonPostCard

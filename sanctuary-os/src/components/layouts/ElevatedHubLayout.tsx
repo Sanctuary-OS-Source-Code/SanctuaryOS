@@ -5,7 +5,7 @@ export {
   HubOverviewLanding,
   HubOverviewSection,
   HubListGrid,
-  SidePanelTitleInput,
+  SidePanelHeroCard, SidePanelTitleInput,
   SidePanelPillToggle,
   UniversalGroup,
   UniversalInput,
@@ -18,7 +18,7 @@ export interface HubTab {
   label: string;
   icon?: string;
   number?: string | number;
-  colorClass?: string;
+  colorClass?: string; activeColor?: string;
 }
 
 interface ElevatedHubLayoutProps {
@@ -51,7 +51,7 @@ interface ElevatedHubLayoutProps {
   primaryPopover?: {
     icon: string;
     label: string;
-    content: React.ReactNode;
+    content?: React.ReactNode; renderContent?: () => React.ReactNode; id?: string; isActive?: boolean; badgeCount?: number; widthClass?: string;
     hideLabelOnMobile?: boolean;
     buttonClassName?: string;
   };
@@ -111,17 +111,17 @@ export function ElevatedHubLayout({
             hideSearch={hideSearch || !onSearchChange}
             leftContent={leftContent}
             rightContent={headerActions}
-            primaryPopover={primaryPopover}
+            primaryPopover={primaryPopover ? { ...primaryPopover, content: primaryPopover.content ?? primaryPopover.renderContent?.() } : undefined}
             actions={actions}
           />
         </HeaderActionPortal>
       )}
 
-      <div className="flex-1 flex flex-col h-full px-6 pt-4">
+      <div className={`flex-1 flex flex-col h-full ${hideHeader ? "px-6 pt-4" : "px-0 pt-0"}`}>
         {/* Navigation Tabs (Big Stat Tiles) */}
         {tabs.length > 0 && (
-          <div className="flex flex-col w-[calc(100%+3rem)] -mx-6 md:w-full md:mx-0 md:-translate-x-0 md:left-0 gap-3 mb-6 md:mb-8 -mt-4 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
-            <StatTileCarousel innerClassName="px-6 md:px-0">
+          <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+            <StatTileCarousel>
               {tabs.map((tab) => (
                 <DashboardStatTile
                   key={tab.id}
@@ -149,7 +149,7 @@ export function ElevatedHubLayout({
               hideSearch={hideSearch || !onSearchChange}
               leftContent={leftContent}
               rightContent={headerActions}
-              primaryPopover={primaryPopover}
+              primaryPopover={primaryPopover ? { ...primaryPopover, content: primaryPopover.content ?? primaryPopover.renderContent?.() } : undefined}
               actions={actions}
             />
           </div>

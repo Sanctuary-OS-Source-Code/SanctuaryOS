@@ -1,80 +1,73 @@
-# Sanctuary OS — Version 0.5.8-Dev.3 Update
-## *"Liquid Glass Optics, Reimagined Citizen's Workbench, Unified Artifact Studio & Silent In-App Updates"*
+# Sanctuary OS — Version 0.5.8-Dev.4 Update
+## *"WebGL2 3D Liquid Glass Engine, Unified Vault & SidePanel Architecture, Locked Security Gates & Streamlined Hub Operations"*
 
-**Release Date:** October 22, 2026 | **Version:** 0.5.8-3 (Dev Channel)
+**Release Date:** October 25, 2026 | **Version:** 0.5.8-4 (Dev Channel)
 
-Welcome to **Sanctuary OS 0.5.8-3**! This update brings a top-to-bottom visual and performance overhaul with our new **Zero-Tearing Liquid Glass Optics Engine**, a completely redesigned **Citizen's Workbench** (with a 2-column Visual Config Editor, Visual Template Builder, and interactive Timeline Diff Panel), a unified **3-Tile Artifact Studio** across both the Creator Hub and Architect Console, **1-Click Silent In-App Updates**, and a comprehensive full-stack security hardening sweep. Here is everything new in plain English.
-
----
-
-## 🛡️ Security Hotfix Patch (v0.5.8-Dev.3)
-
-Following this week's global internet security advisories surrounding the compromised **eMudhra / emSign** Certificate Authority keys and the **October 2026 Node.js Security Release**, we pushed an immediate preventive security patch across Sanctuary OS and our build pipeline:
-* **Trusted Certificate Store Hardening:** Updated Sanctuary OS's internal HTTPS networking and auto-updater security libraries (`rustls` & `webpki`) to explicitly block the compromised eMudhra / emSign certificates, ensuring all background downloads and update checks remain protected against spoofing or interception.
-* **Build Pipeline Security Update:** Upgraded our automated GitHub release builders to the newly patched **Node.js 24 LTS** security release (which fixes recent compression, DNS, and TLS verification vulnerabilities and removes the affected certificate authorities during builds).
+Welcome to **Sanctuary OS 0.5.8-4**! This update replaces traditional CSS glass effects with a custom **WebGL2 Instanced Signed-Distance-Field (SDF) 3D Liquid Glass Engine**, unifies every card, badge, dropdown, and `SidePanel` across the OS around our **Your Vault** aesthetic, introduces **Non-Dismissible Right-Hand Security & Backup Gates**, adds an isolated **Homestead Lab Test Save Slot**, and upgrades **Lexicons, Theme Matrix, Audit Logs, and FIDO2 Passkey Security**. Here is everything new in plain English.
 
 ---
 
 ## ⚡ TL;DR — The 60-Second Summary
 
-* **Zero-Tearing Liquid Glass & Theme Forge Optics:** Every card, side panel, and floating menu now refracts your background wallpaper smoothly with zero scroll seams on both Dark and Light themes—plus 6 new **Liquid Glass Optics** sliders in Theme Forge so you can tune glass opacity, blur, saturation, rim lighting, glare, and depth in real time.
-* **Reimagined Citizen's Workbench & Visual Timeline Diff:** Edit massive mod config files (like `mc_settings.cfg` with 430+ settings) with zero lag using a compact 2-column Visual Editor, 1-click Category Pill Bar, dual `Min` / `Max` range steppers, per-setting **Undo to Saved** and **Reset to Default**, and a full **2-Column Interactive Timeline & Diff Workspace** comparing your live unsaved edits or historical snapshots in either **Visual Diff** or **Raw Code Diff**.
-* **No-Code Visual Template Builder:** Create and edit `.json` config templates visually without touching raw JSON—auto-map keys directly from any `.cfg` or `.ini` file in one click, pick category icons visually with the built-in **Icon Picker**, and add Booleans, Numbers, Ranges, Text, Dropdowns, Keybinds, and Groups from a single row.
-* **Unified 3-Tile Artifact Studio & Mod Family Grouping:** We consolidated the fragmented `Protocols`, `Folder Structure`, and `Conflicts` screens in both the **Creator Hub** and **Architect Console** into a unified **3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, and `Rules & Upload`), and grouped multi-part mod suites (like *MC Command Center* and its 13 modules) into a single clean Parent Card.
-* **1-Click Silent In-App Updater & Single Morphing Dock:** Clicking **Install & Restart** now downloads and installs updates right inside Sanctuary OS with a live progress bar and automatic relaunch—no browser redirects or Windows installer popups—while the bottom status bars have been merged into a single sleek, auto-tucking **Morphing Status Pill**.
+* **WebGL2 SDF 3D Liquid Glass Engine & 8-Slider Theme Matrix:** Every card, header capsule, side panel, and dropdown menu is now rendered by a hardware-accelerated WebGL2 optical lens shader featuring true 3D curved meniscus edge refraction, convex dome magnification, zero scroll lag, and 8 live optical sliders + a dedicated WebGL2 Sandbox Preview in the Theme Matrix.
+* **OS-Wide "Your Vault" Cards, Dynamic Mini-Previews & Unified SidePanels:** Every view and Hub now shares the same clean card layout—complete with procedural miniature previews for Themes, Lexicons, Blueprints, Templates, and image-less Mods, de-cluttered top-left status badges, expandable multi-column Folder Drawers (`+X Modules`), and standardized right-hand `SidePanel`s.
+* **Locked Right-Hand Security Gates & Post-Backup Delta Dossier:** Malware alerts, Defcon patch warnings, active Time Capsule backups, and workspace preparation now use a non-dismissible right-hand `SidePanel` gate that locks the background OS while keeping the wallpaper crystal clear—and Time Capsule backups now stay open when finished to show your exact **Written to Disk**, **Storage Saved**, and **File Diffs**.
+* **Isolated Homestead Lab Test Save & Preloaded Conflict Radar:** Homestead Lab now uses a dedicated sandbox save slot (never touching or auto-cloning your live saves unless you choose to copy one), automatically links Dependencies & Conflicts in Lab Reports, and preloads Conflict Radar caches so conflict counts appear instantaneously.
+* **21-Term Dynamic Lexicon Engine, Keepers Title Area & FIDO2 Passkeys:** Customize 21 core domain terms (`{Mod}`, `{Vault}`, `{Blueprint}`, `{Mason}`, etc.) that automatically adapt grammar and casing across the entire OS, while Elevated Hubs are protected by native Windows `webauthn.dll` & Web FIDO2 Passkey verification.
 
 ---
 
 ## 🎮 For Players (Citizens)
 
-### 1. Reimagined Citizen's Workbench & Visual Config Editor
-Tweaking complex mod settings files shouldn't mean hunting through hundreds of lines of raw text or losing track of what you changed:
-* **Compact 2-Column Visual Editor:** Settings are now organized into a responsive 2-column grid of Liquid Glass cards with automatic readable label formatting (`AgeSpanCatLong` automatically becomes `Age Span Cat Long`) and collapsible multi-column Group cards.
-* **1-Click Category Pill Bar:** Switch between setting categories (`General`, `Gameplay`, `CAS`, `Occult`, etc.) directly from the interactive Category Pill Bar right below the search bar—complete with icons, live setting counts, and an expand/compact row toggle.
-* **Dual `Min` / `Max` Range Steppers:** Comma-separated slider bounds (like MCCC's `-100,100` CAS sliders) are automatically detected and rendered as side-by-side **Min** and **Max** numeric steppers.
-* **Unsaved vs. Modified Tracking & 1-Click Undo:** Every setting now tracks both **Unsaved** changes (edits since your last save, highlighted with an amber outline pill and **Undo to Saved** button) and **Modified** changes (values that differ from the mod's default, with a **Reset to Default** button). Filter by **Unsaved** or **Modified**—or revert all unsaved edits—directly from the filter toolbar.
-* **Instant Performance on 430+ Setting Files:** Progressive windowed rendering keeps massive configuration files like `mc_settings.cfg` scrolling and editing at a locked 60+ FPS.
+### 1. WebGL2 3D Liquid Glass Engine & Live Theme Matrix
+We replaced browser CSS blur filters with a custom hardware-accelerated **WebGL2 Instanced SDF Optical Engine**:
+* **True 3D Curved Meniscus Refraction:** Every `.glass-panel` and `.glass-surface` card, header capsule, `SidePanel`, and dropdown menu computes its exact rounded geometry on the GPU—bending background wallpaper details along a curved perimeter bevel while maintaining a smooth frosted smoked-crystal interior on both Dark and Light themes.
+* **8 Live Optical Controls & WebGL2 Sandbox:** Open the **Theme Matrix** to tune **Glass Opacity**, **Refractive Blur**, **Refractive Saturation**, **Lens Refraction**, **Meniscus Bezel**, **Specular Glare**, **Elevation Depth**, and **Rim Outline** at 60 FPS inside a dedicated WebGL2 Sandbox Preview, or pick from **6 1-Click Liquid Glass Materials** and **8 Color Harmony Palettes**.
+* **Sculpted Header Capsules, OS-Themed Dropdowns & Defcon-Aware Quick Launch:** Page headers (`ViewHeader`), `SidePanel` titles, and the Sidebar Brand Header now sit inside refracted Liquid Glass capsules. All dropdown menus now use the WebGL2 glass pipeline with 3D active selection pills, `<StatTileCarousel>` supports smooth mouse-wheel horizontal scrolling with centered scroll arrows, and the **Quick Launch** button shifts dynamically between **Operational Green** and **Defcon Red**.
 
-### 2. Interactive 2-Column Timeline & Diff Workspace
-We replaced the tiny 500-character timeline preview box with a full **2-Column Timeline & Diff Workspace**:
-* **Compare Unsaved Edits or Historical Snapshots:** The left timeline column features a live **"Current Edits vs. Saved"** card at the top right above your saved historical snapshots, with a high-contrast accent border so you always know which version you're inspecting.
-* **Visual Diff & Raw Code Diff Modes:** Switch between **Visual Diff** (which shows human-readable `Saved/Snapshot → Current` setting cards with individual 1-click **Undo** / **Restore** buttons and wraps long values cleanly across two rows) and **Raw Code Diff** (a side-by-side Monaco code diff with **Previous / Next Change** jump buttons).
-* **Filter & Search Changes:** Toggle between **Changed Only** and **All Settings**, search for specific keys, or restore an entire snapshot in one click.
+### 2. Unified "Your Vault" Cards, Dynamic Previews & Multi-Column Folder Drawers
+* **Dynamic Procedural Preview Banners:** Cards without custom cover art now generate live miniature previews right inside the top banner—including a mini Sanctuary OS window for **Chameleons**, a 2x2 terminology matrix for **Lexicons**, a `#01–#03` load-order stack for **Blueprints**, interactive control previews for **Workbench Templates**, and a 3-pill metadata HUD (`Suite` / `Script` / `Package`, target patch, and requirements) for **Mods**.
+* **De-Cluttered Badge Zones:** To keep card banners clean and readable, the **Status** chip (`Stable`, `Verified`, `Update`, `Conflict`, `Synced`) sits in the top-left corner of the banner, **Category & Type** chips sit in the card body, and **`+X Modules`** sits in the card footer.
+* **Full-Width Multi-Column Folder Drawers:** Clicking a multi-module mod folder in **Your Vault** or **The Nexus** expands a full-width multi-column drawer with an inline search bar so you can inspect or filter sub-packages effortlessly.
+* **60+ FPS Vault Scrolling & Instant Startup:** Parent-culled GPU scanning, lazy folder unmounting, and `0ms` cached workspace hydration make launching Sanctuary OS and scrolling through thousands of mods faster than ever.
 
-### 3. True Liquid Glass Optics, Single Morphing Dock & Clean Alert Cards
-* **Zero-Tearing Liquid Glass Engine:** We re-engineered how Sanctuary renders frosted glass across scrolling pages (`Nexus`, `Vault`, `Command Center`, `Workbench`). Cards now refract your theme wallpaper as a single continuous sheet of 3D glass without tile seams, double borders, or dark slate rings—automatically adapting to both Dark and Light themes.
-* **Theme Forge Optical Sliders:** Open **Theme Forge** to customize 6 live optical controls—**Glass Opacity**, **Refractive Blur**, **Refractive Saturation**, **Rim Light Intensity**, **Specular Glare**, and **Elevation Depth**—with a 1-click **Reset Optics** button.
-* **Single Morphing Dock Pill:** We merged the separate Status Bar, Notification Dock, and Main Dock into a single centered **Morphing Status Pill** that displays inline save/scan status updates and flat alert counters, and automatically tucks out of the way when a SidePanel opens or when you scroll to the bottom of a page.
-* **Clean 2-Column Alert & Update Cards with Expandable Modules:** Incompatible Mod and Available Update panels now use a spacious 2-column card layout where mod suites (like *MC Command Center* or `.package` + `.ts4script` twins) coalesce into a single parent card with an interactive **`{N} Linked Modules ▾`** drawer.
-* **Centered Beacon Alert Modals:** Confirmation dialogs, DEFCON alerts, Quarantine prompts, and Time Capsule restore modals have been redesigned into sleek, centered Beacon Glass cards.
+### 3. Locked Security Gates, Time Capsule Delta Dossier & Zero-Reload Sign-In
+* **Full-OS Malware, Defcon & Backup Lockdown Gates:** When Malware is quarantined, a Defcon game patch alert triggers, or a Time Capsule backup runs, Sanctuary OS locks the background interface and opens a non-dismissible right-hand `SidePanel` with a live block cursor hovertip (`OS Locked`). Malware gates persist across app restarts until every quarantined threat is shredded via **Secure Shred**.
+* **Post-Backup Completion Summary & `.delta_manifest.json` Explorer:** When a Time Capsule or Defcon backup finishes, the `SidePanel` unlocks and presents a complete **Snapshot Dossier** showing **Written to Disk**, **Storage Saved** (via hardlink deduplication), **Snapshot Size**, and **Indexed Files**, plus a 3-tab explorer (**Backed Up Delta**, **Live Folder Diff**, and **Extract**).
+* **Right-Hand Login `SidePanel` & Reworked Workspaces Directory:** Signing in or registering now slides open a right-hand `SidePanel` directly over your current screen with zero page reload, and the **Workspaces** drawer features unified smoked-crystal game cards with 1-click **Enter Workspace** switching.
 
-### 4. 1-Click Silent In-App Updates & Account Security
-* **Silent In-App Auto-Installer:** Updating Sanctuary OS no longer opens your web browser or pops up Windows setup wizards. Clicking **Install & Restart** inside the **Update Panel** streams the update in the background with a live progress bar (`Downloading Update...` → `Installing Update...` → `Restarting Sanctuary OS...`) and relaunches the app automatically.
-* **2-Column Bento Release Notes:** Both the in-app **Update Panel** and **Release Notes Showcase** now display updates in a clean 2-column Bento grid with a 4-box telemetry header.
-* **Password Recovery & Account Re-Authentication:** Added a complete in-app **Set New Password** recovery flow and required current-password verification before changing your account email, changing your password, or disabling Two-Factor Authentication (2FA) in **System Preferences**.
+### 4. Homestead Lab Sandbox Save Slot & Preloaded Conflict Radar
+* **Dedicated Lab Sandbox Save Slot:** Homestead Lab no longer automatically clones your latest live save. Instead, it maintains an isolated testing save inside `.sanctuary_lab_sandbox/saves` and includes a **Lab Test Save Configuration** panel where you can start with a clean empty sandbox or copy over any existing `.save` file whenever you choose.
+* **Automatic Lab Report Loadouts & Preloaded Conflict Radar:** Lab Reports now automatically resolve and display tested **Dependencies**, **Conflicts**, and `.package`/`.ts4script` twins beneath a prominent **Tested Mod** banner. Meanwhile, Conflict Radar precomputes and caches conflict counts during every radar sweep and Blueprint swap so your conflict breakdown loads immediately.
+
+### 5. Interactive Single-Column System Directives
+* **Click-to-Expand Walkthroughs & Roadmaps:** All 5 System Directives on the Landing Page (**Citizen Guide**, **Phase 12 $\rightarrow$ 1 Chronology**, **Forking & Spoke Provisioning Guide**, **Master Architecture**, and **Master Protocols**) now use a 1x3 top filter bar above a single-column vertical card stack where inactive steps stay compact and dimmed (`50%` opacity) and the selected step expands in-place with **Previous / Next** navigation.
 
 ---
 
-## 💖 Supporting Communities & Creators (0% Platform Cut)
+## 🛠️ For Mod Creators, Scouts, Wayfinders & Keepers
 
-* **Instant In-App Browser Auto-Stacking & Celebration Panel:** When you support a Partner Community through the in-app **Side Panel Browser** (including 100% Promo Code redemptions), Sanctuary automatically detects checkout completion, closes the checkout drawer, and slides open the **Supporter Celebration Panel** showing your **Time Added**, **Active Timer**, and **New Expiration Date** (supporting 3- and 4-digit day balances without text cutoff).
-* **Instant Dev / Stable Channel Switching:** Flipping the **Daily Dev Build Channel** toggle in **System Preferences → Support & Perks** now immediately offers the latest Dev Build (when switching to Dev) or the latest Public Stable release (when switching back to Stable) right in your status dock and Update Panel.
+### 1. 21-Term Dynamic Lexicon Studio & Keepers `Title Area`
+* **81% Leaner Lexicons & 21 Dynamic `{Glossary}` Tokens:** We streamlined Lexicon packs from `6,128` raw keys down to `1,168` curated core keys powered by **21 Dynamic Glossary Tokens** (`{Mod}`, `{Vault}`, `{Blueprint}`, `{Mason}`, `{Citizen}`, `{Backups}`, `{Lab}`, `{Settings}`, `{Nexus}`, `{Chameleon}`, `{Lexicon}`, `{Dispatch}`, `{Delete}`, `{Remove}`, and more). Changing a core term once automatically updates every matching string across the OS with smart Title/lower/UPPER casing and `a`/`an` grammar (`"a {mod}"` $\rightarrow$ `"an Artifact"`).
+* **Keepers Core `Title Area` & Full Spoke/Mason Lexicon Freedom:** Only 3 core brand elements are locked to Keepers Core—the **Two-Tone OS Title**, **Rotating Subtitles**, and **OS Logo** (managed in `Keepers Core → Core Aesthetics → Title Area` via the `Title & Subtitles` IDE card and `Logo & Brand Header` `SidePanel`). Community Wayfinders and Masons have 100% freedom to customize all other keys—including **Core Terms**, **OS Modules**, **Sidebar & View Titles**, **Landing Strings**, and **Icon Overrides**—inside the 4-tab **Lexicon Visual Studio**.
+* **`Closed = Closed` IDE with Automatic Draft Caching:** Closing the Lexicon or Schema IDE drawer now closes the file cleanly without leaving floating side tabs on screen, while any unsaved edits are automatically cached in `localStorage` (`Unsaved` badge on the card) with a 1-click **Revert Unsaved Changes** button in the IDE header.
+
+### 2. 3-Mode Visual Post Builder & Consolidated Elevated Hubs
+* **In-Place 3-Mode Post & Directive Editor (`Visual` / `Editor` / `Raw`):** All 6 Post, Dispatch, Release Notes, and Directive editors now share a unified 3-mode editor where **Visual Mode** lets you click any **Intro Box**, **Section Header**, or **2-Column Info Card** directly on the canvas to edit in-place, reorder (`↑`/`↓`), or add new cards without touching raw Markdown.
+* **Streamlined Wayfinder Operations, Oversight & Keepers Core:**
+  * **Keepers Core → Web Landing:** Consolidated `News`, `Directives` (with two-way `.md` file sync), and `Legal` into a single **Web Landing** hub.
+  * **Identity & `{Masons}` Hub:** Combined Mason Linker and Identity Matrix into a unified 4-tab view (`Overview`, `{Citizens}`, `Verified {Masons}`, `Unlinked {Masons}`).
+  * **Malware & Manifests Hub:** Combined Malware Triage, Heuristics (Spoke & Core), and Threat Manifests into a single 5-tab command view with 1-click Spoke Threat Manifest reporting.
+  * **Wayfinder Spoke Control:** Unified Spoke Setup, Bilateral Severance (*Cut the Cord*), Interactive Forking Guide, 0%-Cut Donations, Audit Logs, and Keepers Support under **Spoke Control** with actionable **Recent & Anomalies** monitoring.
+
+### 3. Dual-Write Audit Logs with Field-Level Diffs & Rolling Retention
+* **Spoke $\rightarrow$ Core Dual-Write & Strict Isolation:** Spoke staff actions automatically dual-write to both the active Spoke database and the Core OS Hub (with game attribution), while Keepers Core actions remain strictly isolated to Core OS (`role = 'keeper'` RLS).
+* **Field-Level Before/After Diffs & Cold Archive Export:** Audit Log entries now record exact field-level changes (`Previous Value → New Value`), resolve `@username` handles automatically, and support server-side pagination, `JSON`/`CSV` cold-storage exports, and 90-day retention pruning.
 
 ---
 
-## 🛠️ For Mod Creators, Scouts & Community Leaders
+## 🛡️ Security & Authentication
 
-### 1. Unified 3-Tile Artifact Studio (Creator Hub & Architect Console)
-We simplified mod management for both Creators and Community Architects by removing the separate `Protocols`, `Folder Structure`, and `Conflicts` navigation screens and bringing everything into a single unified **3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, and `Rules & Upload`):
-* **Single-Card Mod Family Grouping:** Multi-hop mod suites (such as a Core `.package` $\rightarrow$ Script Twin `.ts4script` $\rightarrow$ 12 Add-on modules) now collapse into a single **Core Mod** card (`+13 Modules`) across the Creator Workshop, Architect Registry, and Search results.
-* **Smart Sandbox Entry Choice & Auto-Pull:** Clicking an unlinked file in your local Sandbox lets you choose **Make a New Mod** or **Link to Existing Mod**. Choosing **New Version / Update** automatically pulls over your previous version's Title, Category, Description, Cover Art, URL, Paid/Early Access flags, Required DLC, Dependencies, Conflicts, Collections, Folder Structure, and Family Modules while archiving the old SHA-256 hash into version history!
-* **Always-Visible Mod Family Card & Family-Aware Folder Tree:** Tile 2 (`Files & Folders`) now features a dedicated **Mod Family Modules** card at the top (resolving real mod titles and `.package`/`.ts4script` badges for every linked Twin, Add-on, Flavor, and Beta) right above a family-aware `Mods/` folder tree where you can assign install subfolders for every file in the suite.
-* **Symmetrical 2x2 Rules Grid & Single-View Patch Range Picker:** Tile 3 (`Rules & Upload`) organizes **Required EA Packs (DLC)**, **Required Mods (Dependencies)**, **Incompatible Mods (Conflicts)**, and **Collections** into a clean 2x2 grid with compact 2-column scroll wells, while the **Game Version Picker** now includes an inline `From Patch → To Patch` range selector right above the version checklist.
-* **Expanded Local `manifest.json` & `override.json` Exports for All Citizens:** All registered users can now author and export complete local `manifest.json` and `override.json` packages in the Sandbox—including Protocol Flavors, Local Collections, Virtual Folder Structures, DLC requirements, Dependencies, and Conflicts—while cloud publishing and public Creator Profiles remain gated to **Verified Creators**.
-
-### 2. Visual Template Builder for Config Authors
-* **Author Templates Visually:** Switching a `.json` template to **Author Mode** in the Citizen's Workbench opens the new **Visual Template Builder** side-by-side with a live **Visual Preview**.
-* **1-Click Auto-Map & Visual Icon Picker:** Select a target config file and click **Auto-Map Target Keys** to automatically generate categorized controls from the file's keys and values, use the portaled **Icon Picker** to choose Material Symbol icons for your categories, and add `Boolean`, `Number`, `Range`, `Text`, `Dropdown`, `Keybind`, or `Group` fields from a single compact row.
-
-### 3. Full-Stack Security Hardening
-* **Database, Gateway & Desktop Hardening:** Locked down column-level security and Row-Level Security (RLS) across Hub and Spoke databases, enforced fail-closed HMAC-SHA256 webhook verification and role/ownership checks in Edge Functions, scoped Tauri v2 IPC capabilities strictly to the main OS windows, added Zip-Slip path traversal protection across all archive extractors, and secured the Side Panel Browser bridge with per-session cryptographic tokens.
+* **FIDO2 / WebAuthn Passkeys (Web + Native Windows `webauthn.dll` Bridge):** Enroll and verify hardware security keys, Windows Hello, Touch ID, or passkeys via direct `/auth/v1/passkeys` transport and our native Windows `webauthn.dll` desktop bridge (plus full subdomain verification across `sanctuaryos.net` and `www.sanctuaryos.net`). General Citizen features support Password + 6-digit TOTP 2FA, while Elevated Hubs (`Workshop`, `Console`, `Command`, `Operations`, `Keepers Core`) enforce a phishing-resistant FIDO2 Passkey step-up once per session.
+* **Email Privacy Masking:** Raw email addresses are automatically masked (`j***@outlook.com`) across all 2FA/Passkey factor lists, account security drawers, and native Windows Security prompts.
+* **eMudhra / emSign CA Revocation & Node 24 LTS Build Hardening:** Upgraded Sanctuary OS's Rust TLS trust store (`rustls 0.23.46`, `rustls-webpki 0.103.16`, `aws-lc-rs 1.18.2`) to explicitly block compromised eMudhra / emSign certificates and upgraded all CI/CD release builders to **Node.js 24 LTS**.

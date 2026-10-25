@@ -17,6 +17,7 @@ export interface UniversalCardProps {
   // Content
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  description?: React.ReactNode;
 
   // Slots
   badges?: React.ReactNode;
@@ -46,6 +47,7 @@ export function UniversalCard({
   customIcon,
   title,
   subtitle,
+  description,
   badges,
   imageOverlay,
   actions,
@@ -96,7 +98,7 @@ export function UniversalCard({
 
   const cleanStatusColor = statusColor ? statusColor.split(' ').filter((c: string) => !c.startsWith('border-') && !c.startsWith('theme-border-')).join(' ') : "";
   const activeClasses = isActive
-    ? "ring-1 ring-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.5))] z-10"
+    ? "!border-[var(--accent)] outline outline-2 -outline-offset-1 outline-[color-mix(in_srgb,var(--accent)_80%,transparent)] z-10"
     : `${cleanStatusColor}`;
 
   // For ghosted or disabled states (keep filter off the .glass-panel host so fixed background attachment never breaks)
@@ -169,23 +171,129 @@ export function UniversalCard({
             />
           ) : (
             <div
-              className="absolute inset-0 rounded-t-[inherit] border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] flex items-center justify-center transition-colors duration-500 overflow-hidden"
+              className="absolute inset-0 rounded-t-[inherit] flex items-center justify-center transition-colors duration-500 overflow-hidden"
               style={{ background: 'var(--glass-card-banner-bg)' }}
             >
-              {customIcon ? customIcon : (
-                <div
-                  className={`rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${layout === 'vertical-compact' ? 'w-12 h-12' : 'w-16 h-16'}`}
-                  style={{
-                    backgroundColor: 'var(--glass-card-icon-bg)',
-                    borderColor: 'var(--glass-card-icon-border)',
-                    boxShadow: 'var(--glass-card-icon-shadow)',
-                  }}
-                >
-                  <span className={`material-symbols-outlined text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm relative z-10 ${layout === 'vertical-compact' ? '!text-[24px]' : '!text-[34px]'}`}>
-                    {icon || t("icon_folder", "folder")}
-                  </span>
-                </div>
-              )}
+              {customIcon ? customIcon : icon ? (() => {
+                const resolvedBannerIcon = icon;
+                const statusStr = String(statusColor || "").toLowerCase();
+                const headerAccentVar =
+                  statusStr.includes("danger") || statusStr.includes("red")
+                    ? "var(--danger)"
+                    : statusStr.includes("warning") || statusStr.includes("amber") || statusStr.includes("orange")
+                      ? "var(--warning)"
+                      : isActive || statusStr.includes("success") || statusStr.includes("emerald")
+                        ? "var(--success)"
+                        : "var(--accent)";
+                const isCompactBanner = layout === "vertical-compact";
+                const rawSubtitleSegment =
+                  typeof subtitle === "string" && subtitle.trim()
+                    ? subtitle.split(/[•·|]/)[0]?.trim() || ""
+                    : "";
+                const firstBadgeLabel =
+                  Array.isArray(badges) &&
+                  typeof badges[0]?.label === "string" &&
+                  badges[0].label.trim()
+                    ? badges[0].label.trim()
+                    : "";
+                const topLabel = firstBadgeLabel
+                  ? firstBadgeLabel
+                  : rawSubtitleSegment && rawSubtitleSegment.length <= 28
+                    ? rawSubtitleSegment
+                    : typeof status === "string" && status.trim() && !status.includes("-")
+                      ? status.trim()
+                      : typeof title === "string" && title.trim() && title.trim().length <= 24
+                        ? title.trim()
+                        : t("status_active", "Active");
+                const bottomLabel =
+                  typeof title === "string" && title.trim()
+                    ? title.trim()
+                    : rawSubtitleSegment
+                      ? rawSubtitleSegment
+                      : t("overview", "Overview");
+
+                return (
+                  <div
+                    className="w-full h-full relative overflow-hidden select-none"
+                    style={{
+                      background: `radial-gradient(circle at 82% 20%, color-mix(in srgb, ${headerAccentVar} 18%, transparent) 0%, transparent 62%), var(--glass-card-banner-bg)`,
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined absolute -right-2 -bottom-3 !text-[72px] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]"
+                      style={{ color: headerAccentVar }}
+                    >
+                      {resolvedBannerIcon}
+                    </span>
+
+                    <div
+                      className={`absolute inset-x-3 ${
+                        isCompactBanner ? "top-10 bottom-2" : "top-12 bottom-2.5"
+                      } flex gap-2 pointer-events-none z-10`}
+                    >
+                      {/* Left Icon Tile */}
+                      <div
+                        className={`${
+                          isCompactBanner ? "w-12" : "w-14"
+                        } h-full rounded-xl glass-surface border flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+                        style={{
+                          borderColor: `color-mix(in srgb, ${headerAccentVar} 38%, transparent)`,
+                        }}
+                      >
+                        <span
+                          className={`material-symbols-outlined ${
+                            isCompactBanner ? "!text-[16px]" : "!text-[20px]"
+                          } group-hover:scale-110 transition-transform duration-300`}
+                          style={{ color: headerAccentVar }}
+                        >
+                          {resolvedBannerIcon}
+                        </span>
+                      </div>
+
+                      {/* Right Mini-Header Console */}
+                      <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
+                        <div className="grid grid-cols-2 gap-1 flex-1 min-h-0">
+                          <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: headerAccentVar }}
+                            />
+                            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-90 truncate">
+                              {topLabel}
+                            </span>
+                          </div>
+                          <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-end gap-1 min-w-0">
+                            <div
+                              className="w-5 h-1.5 rounded-full opacity-80"
+                              style={{ backgroundColor: headerAccentVar }}
+                            />
+                            <div className="w-3 h-1.5 rounded-full bg-[var(--text)] opacity-30" />
+                            <div className="w-2 h-1.5 rounded-full bg-[var(--subtext)] opacity-20" />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className="material-symbols-outlined !text-[10px] opacity-80 shrink-0"
+                              style={{ color: headerAccentVar }}
+                            >
+                              {resolvedBannerIcon}
+                            </span>
+                            <span className="text-[7.5px] font-bold text-[var(--text)] opacity-85 truncate">
+                              {bottomLabel}
+                            </span>
+                          </div>
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0 opacity-85"
+                            style={{ backgroundColor: headerAccentVar }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : null}
             </div>
           )}
         </div>
@@ -212,6 +320,14 @@ export function UniversalCard({
       {...restProps}
     >
 
+
+      {/* 3D Liquid Glass Meniscus Rim Overlay so card banner images sit beneath the continuous curved glass lens */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
+        style={{
+          boxShadow: "var(--glass-inset-highlight)",
+        }}
+      />
 
       {/* Floating or Inline Actions */}
       {actions && layout !== 'horizontal' && layout !== 'compact' && (
@@ -250,9 +366,12 @@ export function UniversalCard({
             {subtitle && layout !== 'stat' && (
               <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 relative group/subtitle w-full">
                 {subtitle}
-                {/* typeof subtitle === 'string' && (
-                  <HoverTooltip title={subtitle} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/subtitle:!flex z-[200]" />
-                ) */}
+              </div>
+            )}
+
+            {description && layout !== 'stat' && (
+              <div className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 w-full">
+                {description}
               </div>
             )}
           </div>

@@ -29,7 +29,7 @@ export function openSanctuaryLogin() {
 }
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
-  const { t } = useLexicon();
+  const { t, osLogoUrl } = useLexicon();
   const session = useStore((state) => state.session);
   const setSession = useStore((state) => state.setSession);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -532,10 +532,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   )}
                 </p>
                 <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                  {t(
-                    "quarantine_desc2",
-                    "Local mod management, backups, and offline tools remain accessible in isolated sandbox mode."
-                  )}
+                  {t("quarantine_desc2", "Online connectivity, {Mod} Syncing, and {Blueprint} Sharing privileges have been revoked. You are restricted to local environment operations only.")}
                 </p>
               </div>
             </div>
@@ -585,7 +582,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       : isResetPassword
         ? t("auth_panel_reset_title", "Reset Password")
         : isLogin
-          ? t("auth_panel_signin_title", "Sign In")
+          ? t("auth_tile_signin_val", "Sign In")
           : t("auth_panel_signup_title", "Create Account");
 
   const panelSubtitle = isPasswordRecovery
@@ -650,7 +647,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
             <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 p-1.5">
               <img
-                src="/icon.png"
+                src={osLogoUrl || "/icon.png"}
                 alt={t("sidebar_app_title", "Sanctuary OS")}
                 className="w-full h-full object-contain drop-shadow-sm"
               />
@@ -676,10 +673,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                           "Enter your registered email address and we will send a secure link to reset your password."
                         )
                       : isLogin
-                        ? t(
-                            "auth_panel_signin_desc",
-                            "Sign in to sync cloud play sets, diagnostic reports, creator workshops, and supporter perks across devices."
-                          )
+                        ? t("auth_panel_signin_desc", "Sign in to sync cloud {blueprints}, diagnostic reports, {mason} workshops, and supporter perks across devices.")
                         : t(
                             "network_access_guidelines_desc",
                             "Zero-knowledge identity protection and encrypted cloud sync across all Sanctuary workspaces."
@@ -794,7 +788,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                    {t("auth_recovery_confirm_password_label", "Confirm New Password")}
+                    {t("auth_confirm_new_password_label", "Confirm New Password")}
                   </label>
                   <div className="relative group/input">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 group-focus-within/input:text-[var(--accent)] group-focus-within/input:opacity-100 transition-all !text-[18px]">
@@ -808,7 +802,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                       spellCheck="false"
                       minLength={8}
                       placeholder={t(
-                        "auth_recovery_confirm_password_label",
+                        "auth_confirm_new_password_label",
                         "Confirm New Password"
                       )}
                       className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
@@ -855,7 +849,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                     variant="filter"
                     className="!w-full"
                     icon={t("icon_passkey", "passkey")}
-                    label={t("passkey_tile_fido_title", "FIDO2 Passkey")}
+                    label={t("auth_passkey_badge_fido", "FIDO2 Passkey")}
                     value={t("passkey_stat_enrolled_count", "{0} Enrolled").replace(
                       "{0}",
                       String(mfaPasskeys.length)
@@ -947,7 +941,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         }}
                         variant="glass"
                         icon={t("icon_close", "close")}
-                        label={t("auth_mfa_cancel_btn", "Cancel")}
+                        label={t("cancel", "Cancel")}
                         className="w-full"
                       />
                       <ActionButton
@@ -1007,7 +1001,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         }}
                         variant="glass"
                         icon={t("icon_close", "close")}
-                        label={t("auth_mfa_cancel_btn", "Cancel")}
+                        label={t("cancel", "Cancel")}
                         className="w-full"
                       />
                       <ActionButton
@@ -1120,7 +1114,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         autoComplete="off"
                         spellCheck="false"
                         data-1p-ignore
-                        placeholder={t("placeholder_email", "Email Address")}
+                        placeholder={t("auth_label_email", "Email Address")}
                         className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
                       />
                     </div>
@@ -1142,7 +1136,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                           autoComplete="new-password"
                           spellCheck="false"
                           data-1p-ignore
-                          placeholder={t("placeholder_password", "Password")}
+                          placeholder={t("auth_label_password", "Password")}
                           className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
                         />
                       </div>
@@ -1183,7 +1177,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         {t("icon_passkey", "passkey")}
                       </span>
                       <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
-                        {t("passkey_tile_fido_title", "FIDO2 Passkey")}
+                        {t("auth_passkey_badge_fido", "FIDO2 Passkey")}
                       </span>
                     </div>
                     <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
@@ -1294,10 +1288,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                           {t("auth_cloud_title", "Encrypted Cloud Sync")}
                         </span>
                         <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0">
-                          {t(
-                            "auth_cloud_desc",
-                            "Sync blueprints, radar signatures, and supporter perks seamlessly across your devices."
-                          )}
+                          {t("auth_cloud_desc", "Sanctuary does not monitor your local {Vault}. Metadata you explicitly upload to the network is associated with your account. You do not need to upload anything for the application to function properly.")}
                         </p>
                       </div>
                     </div>

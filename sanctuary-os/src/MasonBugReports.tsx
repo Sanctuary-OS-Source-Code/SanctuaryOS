@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { ViewHeader, EmptyState, FilterTabs, FilterTabButton, ActionButton, formatOverviewMetric } from "./shared";
-import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { EmptyState } from "./shared";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "./components/layouts/ElevatedHubLayout";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from './side-panels/TicketDossierSidePanel';
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
+
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?: string, onEditMetadata?: (hash: string) => void }) {
     const { t } = useLexicon();
@@ -16,80 +18,80 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
     const [activeTab, setActiveTab] = useState<"LANDING" | "pending" | "open" | "closed">("LANDING");
 
     const fetchBugReports = async () => {
-            setIsLoading(true);
+        setIsLoading(true);
 
-            const { data, error } = await supabase
-                .from('sanctuary_tickets')
-                .select('*')
-                .order('created_at', { ascending: false });
+        const { data, error } = await supabase
+            .from('sanctuary_tickets')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-            const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
 
-            if (data && !error) {
-                let filtered = data.filter(t => {
-                    const typeStr = (t.ticket_type || t.category || '').toLowerCase();
-                    return (typeStr.includes('bug') || typeStr.includes('artifact')) && !typeStr.includes('os');
+        if (data && !error) {
+            let filtered = data.filter(t => {
+                const typeStr = (t.ticket_type || t.category || '').toLowerCase();
+                return (typeStr.includes('bug') || typeStr.includes('artifact')) && !typeStr.includes('os');
+            });
+
+            if (masonId || user) {
+                let masonModIds: string[] = [];
+                let query = supabase.from('mods').select("id");
+                if (masonId && user) {
+                    query = query.or(`mason_id.eq.${masonId},mason_id.eq.${user.id}`);
+                } else if (masonId) {
+                    query = query.eq('mason_id', masonId);
+                } else if (user) {
+                    query = query.eq('mason_id', user.id);
+                }
+                const { data: modsData } = await query;
+                if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
+
+                filtered = filtered.filter(t => {
+                    const targetUser = t.metadata?.target_user_id;
+                    const targetMason = t.metadata?.target_mason;
+                    const ticketMasonId = t.metadata?.mason_id;
+                    const targetMod = t.metadata?.target_mod_id;
+
+                    if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
+                    if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
+                    if (targetMod && masonModIds.includes(targetMod)) return true;
+
+                    return false;
                 });
+            }
 
-                if (masonId || user) {
-                    let masonModIds: string[] = [];
-                    let query = supabase.from('mods').select("id");
-                    if (masonId && user) {
-                        query = query.or(`mason_id.eq.${masonId},mason_id.eq.${user.id}`);
-                    } else if (masonId) {
-                        query = query.eq('mason_id', masonId);
-                    } else if (user) {
-                        query = query.eq('mason_id', user.id);
-                    }
-                    const { data: modsData } = await query;
-                    if (modsData) masonModIds = modsData.flatMap(m => [m.id]).filter(Boolean);
+            const allTargetModIds = [...new Set(filtered.map(t => t.metadata?.target_mod_id).filter(Boolean))];
 
-                    filtered = filtered.filter(t => {
-                        const targetUser = t.metadata?.target_user_id;
-                        const targetMason = t.metadata?.target_mason;
-                        const ticketMasonId = t.metadata?.mason_id;
-                        const targetMod = t.metadata?.target_mod_id;
+            const isUUID = (uuid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uuid);
+            const validModIds = allTargetModIds.filter(isUUID);
 
-                        if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
-                        if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
-                        if (targetMod && masonModIds.includes(targetMod)) return true;
-
-                        return false;
+            let modNamesMap: Record<string, string> = {};
+            if (validModIds.length > 0) {
+                const { data: modsInfo } = await supabase.from('mods').select('id, name').in('id', validModIds);
+                if (modsInfo) {
+                    modsInfo.forEach(m => {
+                        modNamesMap[m.id] = m.name;
                     });
                 }
-
-                const allTargetModIds = [...new Set(filtered.map(t => t.metadata?.target_mod_id).filter(Boolean))];
-
-                const isUUID = (uuid: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(uuid);
-                const validModIds = allTargetModIds.filter(isUUID);
-
-                let modNamesMap: Record<string, string> = {};
-                if (validModIds.length > 0) {
-                    const { data: modsInfo } = await supabase.from('mods').select('id, name').in('id', validModIds);
-                    if (modsInfo) {
-                        modsInfo.forEach(m => {
-                            modNamesMap[m.id] = m.name;
-                        });
-                    }
-                }
-
-                const localModList = useStore.getState().modList;
-
-                filtered = filtered.map(t => {
-                    let localName = undefined;
-                    if (t.metadata?.target_mod_id) {
-                        const m = localModList.find((lm: any) => lm.id === t.metadata.target_mod_id || lm.hash === t.metadata.target_mod_id);
-                        if (m) localName = m.displayName || m.name;
-                    }
-                    return {
-                        ...t,
-                        target_mod_name: t.metadata?.target_mod_id ? (modNamesMap[t.metadata.target_mod_id] || localName) : undefined
-                    };
-                });
-
-                setTickets(filtered);
             }
-            setIsLoading(false);
+
+            const localModList = useStore.getState().modList;
+
+            filtered = filtered.map(t => {
+                let localName = undefined;
+                if (t.metadata?.target_mod_id) {
+                    const m = localModList.find((lm: any) => lm.id === t.metadata.target_mod_id || lm.hash === t.metadata.target_mod_id);
+                    if (m) localName = m.displayName || m.name;
+                }
+                return {
+                    ...t,
+                    target_mod_name: t.metadata?.target_mod_id ? (modNamesMap[t.metadata.target_mod_id] || localName) : undefined
+                };
+            });
+
+            setTickets(filtered);
+        }
+        setIsLoading(false);
     };
 
     useEffect(() => {
@@ -198,23 +200,42 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
     };
 
     const renderTicketCard = (ticket: any) => {
-        const statusClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' :
-            ticket.status?.toLowerCase() === 'resolved' ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' :
-                ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' :
-                    ticket.status?.toLowerCase() === 'escalated' ? 'border-fuchsia-500/50' :
-                        'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]';
+        const statusLower = ticket.status?.toLowerCase() || 'open';
+        const isOpen = statusLower === 'open' || statusLower === 'new';
+        const isResolved = statusLower === 'resolved' || statusLower === 'closed';
+        const isRejected = statusLower === 'rejected';
+        const isPending = statusLower === 'investigating' || statusLower === 'pending';
+        const isEscalated = statusLower === 'escalated';
 
-        const iconName = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'support_agent' :
-            ticket.status?.toLowerCase() === 'resolved' ? 'done_all' :
-                ticket.status?.toLowerCase() === 'investigating' ? 'warning' :
-                    ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' :
-                        'bug_report';
+        const statusIconColor = isResolved
+            ? "text-[var(--success)]"
+            : isEscalated || isRejected
+                ? "text-[var(--danger)]"
+                : isPending
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--accent)]";
 
-        const badgeClass = ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-rose-400 border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' :
-            ticket.status?.toLowerCase() === 'resolved' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-400 border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' :
-                ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-400 border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' :
-                    ticket.status?.toLowerCase() === 'escalated' ? 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 group-hover:bg-fuchsia-500/20' :
-                        'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+        const statusIcon = isResolved
+            ? t("icon_check_circle", "check_circle")
+            : isRejected
+                ? t("icon_cancel", "cancel")
+                : isEscalated
+                    ? t("icon_priority_high", "priority_high")
+                    : isPending
+                        ? t("icon_schedule", "schedule")
+                        : t("icon_bug_report", "bug_report");
+
+        const statusLabel = isOpen
+            ? t("ticket_status_open", "Open")
+            : isResolved
+                ? t("ticket_status_resolved", "Resolved")
+                : isRejected
+                    ? t("ticket_status_rejected", "Rejected")
+                    : isEscalated
+                        ? t("ticket_status_escalated", "Escalated")
+                        : isPending
+                            ? t("ticket_status_pending", "Pending")
+                            : t(`ticket_status_${statusLower}`, ticket.status || "Open");
 
         return (
             <UniversalCard
@@ -227,48 +248,63 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                     setSelectedTicket(ticket);
                 }}
                 layout="vertical"
-                icon={iconName}
-                title={ticket.title}
-                statusColor={statusClass}
-                badges={[
-                    <div key="status" className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                        <span className={`material-symbols-outlined !text-[12px] ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' ? 'text-[var(--success)]' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
-                            {iconName}
-                        </span>
-                        <span>
-                            {(ticket.status?.toLowerCase() === 'open' || ticket.status?.toLowerCase() === 'new') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status?.toLowerCase()}`) || ticket.status || "NEW")}
-                        </span>
+                isGhosted={isResolved || isRejected}
+                icon={t("icon_bug_report", "bug_report")}
+                imageOverlay={
+                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className={VAULT_CHIP_CLASS}>
+                            <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                                {statusIcon}
+                            </span>
+                            <span>{statusLabel}</span>
+                        </div>
+                        {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
+                            <div className={VAULT_CHIP_CLASS}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                                    {t("icon_bolt", "bolt")}
+                                </span>
+                                <span>{t("urgent", "Urgent")}</span>
+                            </div>
+                        )}
                     </div>
-                ]}
+                }
+                title={ticket.title}
+                subtitle={ticket.target_mod_name ? `${ticket.target_mod_name} • #${ticket.id.slice(0, 8)}` : `#${ticket.id.slice(0, 8)}`}
+                badges={
+                    <>
+                        {(ticket.ticket_type || ticket.category) && (
+                            <div className={VAULT_CHIP_CLASS}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                    {t("icon_local_activity", "local_activity")}
+                                </span>
+                                <span>{(ticket.ticket_type || ticket.category || "").replace(/_/g, " ")}</span>
+                            </div>
+                        )}
+                        {ticket.target_mod_name && (
+                            <div className={VAULT_CHIP_CLASS}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {t("icon_extension", "extension")}
+                                </span>
+                                <span className="truncate max-w-[160px]">{ticket.target_mod_name}</span>
+                            </div>
+                        )}
+                    </>
+                }
                 footer={
-                    <div className="flex justify-start items-center w-full">
+                    <div className="flex justify-between items-center w-full">
                         <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-                            <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+                            <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
                             {new Date(ticket.created_at).toLocaleDateString()}
                         </span>
-                        <div className="flex items-center gap-4">
-                            <div className="flex -space-x-2">
-                                {ticket.author_id && (
-                                    <div className="w-6 h-6 rounded-full border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] overflow-hidden">
-                                        <img src={`https://api.dicebear.com/7.x/bottts/svg?seed=${ticket.author_id}`} alt="avatar" className="w-full h-full opacity-80 mix-blend-screen" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+                            {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                        </span>
                     </div>
                 }
             >
-                <div className="mt-2 text-[11px] font-medium text-[var(--subtext)] leading-relaxed line-clamp-2 mb-2">
+                <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
                     {ticket.description}
-                </div>
-                {ticket.target_mod_name && (
-                    <div className="mt-auto pt-2 w-full flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_extension")}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-[var(--text)] truncate">{ticket.target_mod_name}</span>
-                    </div>
-                )}
+                </p>
             </UniversalCard>
         );
     };
@@ -285,39 +321,29 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         }).slice(0, 5);
 
         return (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">support_agent</span>
-                            </div>
-                            {t("ui_tab_new") || "New Tickets"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {openTickets.length > 0 ? openTickets.map(renderTicketCard) : (
-                            <EmptyState icon="celebration" title={t("no_tickets")} className="py-8" />
-                        )}
-                    </div>
-                </div>
+            <HubOverviewLanding>
+                <HubOverviewSection
+                    title={t("badge_new", "NEW")}
+                    icon={t("icon_support_agent", "support_agent")}
+                    iconColorClass="text-[var(--danger)]"
+                    isEmpty={openTickets.length === 0}
+                    emptyIcon={t("icon_celebration", "celebration")}
+                    emptyTitle={t("no_tickets", "No Support Tickets")}
+                >
+                    {openTickets.map(renderTicketCard)}
+                </HubOverviewSection>
 
-                <div className="flex flex-col gap-6">
-                    <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-                        <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--success)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-[24px] text-[var(--success)] opacity-90 drop-shadow-lg">done_all</span>
-                            </div>
-                            {t("filter_closed") || "Closed"}
-                        </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                        {closedTickets.length > 0 ? closedTickets.map(renderTicketCard) : (
-                            <EmptyState icon="celebration" title={t("no_tickets")} className="py-8" />
-                        )}
-                    </div>
-                </div>
-            </div>
+                <HubOverviewSection
+                    title={t("filter_closed", "Closed")}
+                    icon={t("icon_done_all", "done_all")}
+                    iconColorClass="text-[var(--success)]"
+                    isEmpty={closedTickets.length === 0}
+                    emptyIcon={t("icon_celebration", "celebration")}
+                    emptyTitle={t("no_tickets", "No Support Tickets")}
+                >
+                    {closedTickets.map(renderTicketCard)}
+                </HubOverviewSection>
+            </HubOverviewLanding>
         );
     };
 
@@ -335,7 +361,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         });
 
         if (filteredTickets.length === 0) return (
-            <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeTab === 'open' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
+            <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (activeTab === 'open' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
         );
 
         return (
@@ -347,19 +373,19 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
 
     return (
         <ElevatedHubLayout
-            headerTitle={t("mason_hub_title")}
-            headerBreadcrumb={t("stat_bugs") || "Bug Reports"}
-            headerIcon="bug_report"
+            headerTitle={t("mason_hub_title", "{Mason} Workshop")}
+            headerBreadcrumb={t("stat_bugs", "Reports") || "Bug Reports"}
+            headerIcon={t("icon_bug_report", "bug_report")}
             search={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search") as string}
+            searchPlaceholder={t("nav_search", "Search...") as string}
             hideSearch={activeTab === 'LANDING'}
             actions={
                 activeTab !== 'LANDING' ? [
                     {
                         id: "refresh",
-                        icon: "refresh",
-                        label: t("hub_refresh") || "Refresh",
+                        icon: t("icon_refresh", "refresh"),
+                        label: t("btn_refresh", "Refresh") || "Refresh",
                         onClick: fetchBugReports
                     }
                 ] : undefined
@@ -367,15 +393,15 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             activeTab={activeTab}
             onTabChange={setActiveTab as any}
             tabs={[
-                { id: 'LANDING', label: t("overview_tab") || "Overview", icon: 'dashboard', colorClass: 'text-[var(--accent)]' },
-                { id: 'open', label: t("ui_tab_new"), icon: 'support_agent', number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'open' || s === 'new'; }).length.toString(), colorClass: 'text-[var(--danger)]' },
-                { id: 'closed', label: t("filter_closed"), icon: 'done_all', number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'resolved' || s === 'rejected'; }).length.toString(), colorClass: 'text-[var(--success)]' }
+                { id: 'LANDING', label: t("overview", "Overview") || "Overview", icon: t("icon_dashboard", "dashboard"), colorClass: 'text-[var(--accent)]' },
+                { id: 'open', label: t("badge_new", "NEW"), icon: t("icon_support_agent", "support_agent"), number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'open' || s === 'new'; }).length.toString(), colorClass: 'text-[var(--danger)]' },
+                { id: 'closed', label: t("filter_closed", "Closed"), icon: t("icon_done_all", "done_all"), number: tickets.filter(t => { const s = t.status?.toLowerCase(); return s === 'resolved' || s === 'rejected'; }).length.toString(), colorClass: 'text-[var(--success)]' }
             ]}
         >
             <div className="w-full flex flex-col gap-6">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
+                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
                     </div>
                 ) : activeTab === 'LANDING' ? renderLanding() : renderList()}
                 {selectedTicket && (
@@ -397,4 +423,3 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         </ElevatedHubLayout>
     );
 }
-

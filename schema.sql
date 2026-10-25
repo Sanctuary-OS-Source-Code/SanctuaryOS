@@ -391,6 +391,8 @@ CREATE TABLE audit_logs (
     target_table TEXT NOT NULL,
     target_name TEXT,
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    game_name TEXT,
+    changes JSONB DEFAULT NULL,
     reason TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
@@ -609,6 +611,8 @@ CREATE TABLE sanctuary_themes (
 -- 8. INDEXES
 -- ============================================================================
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX idx_audit_logs_target_table_created ON audit_logs(target_table, created_at DESC);
+CREATE INDEX idx_audit_logs_action_created ON audit_logs(action, created_at DESC);
 CREATE INDEX idx_blueprints_code ON blueprints(code);
 CREATE INDEX idx_dispatch_poll_votes_broadcast ON dispatch_poll_votes(broadcast_id);
 CREATE INDEX idx_mason_posts_created_at ON mason_posts(created_at DESC);
@@ -650,6 +654,9 @@ LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
+    IF TG_OP = 'DELETE' AND COALESCE(current_setting('sanctuary.allow_audit_prune', true), '') = 'true' THEN
+        RETURN OLD;
+    END IF;
     RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
 END;
 $$;
@@ -657,6 +664,49 @@ $$;
 CREATE TRIGGER ensure_audit_log_immutability
 BEFORE UPDATE OR DELETE ON audit_logs
 FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_modifications();
+
+CREATE OR REPLACE FUNCTION public.prune_old_audit_logs(p_retention_days INTEGER DEFAULT 90)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+    v_deleted INTEGER := 0;
+BEGIN
+    IF p_retention_days < 30 THEN
+        RAISE EXCEPTION 'Retention window must be at least 30 days.';
+    END IF;
+
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin')
+       AND NOT EXISTS (
+           SELECT 1 FROM public.profiles
+           WHERE id = auth.uid()
+             AND role IN ('wayfinder', 'oversight', 'admin')
+       )
+    THEN
+        RAISE EXCEPTION 'Unauthorized: Only Wayfinders or Oversight may prune archived Spoke audit logs.';
+    END IF;
+
+    PERFORM set_config('sanctuary.allow_audit_prune', 'true', true);
+
+    DELETE FROM public.audit_logs
+    WHERE created_at < (NOW() - make_interval(days => p_retention_days));
+
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason)
+    VALUES (
+        'Pruned Archived Audit Logs',
+        'audit_logs',
+        p_retention_days || 'd Retention Policy',
+        auth.uid(),
+        'Executed rolling retention prune (' || v_deleted || ' entries older than ' || p_retention_days || ' days removed)'
+    );
+
+    RETURN v_deleted;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.purge_flagged_hash_from_blueprints()
 RETURNS TRIGGER

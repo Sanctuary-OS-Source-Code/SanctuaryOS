@@ -13,6 +13,7 @@ import { VaultTabs } from "./hub-components/vault/VaultTabs";
 import { VaultModals } from "./hub-components/vault/VaultModals";
 import { invoke } from '@tauri-apps/api/core';
 import { ModCard } from './ModCard';
+import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
 import { useStore } from './store';
 import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-panels/VaultSidePanels';
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
@@ -47,7 +48,14 @@ const Vault = React.memo(function Vault(props: any) {
     setBulkModal
   } = props;
   const { t } = useLexicon();
-  const localFolderCount = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]").filter((s: any) => !s.isCollection).length;
+  const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
+  const localFolderCount = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]").filter((s: any) => !s.isCollection).length;
+    } catch {
+      return 0;
+    }
+  }, [activeWorkspaceId, displayModList]);
   const unverifiedCount = React.useMemo(() => displayModList.filter((m: any) => !m.isVirtual && !m.verified).length, [displayModList]);
   const selectedVersion = useStore((state) => state.selectedVersion);
   const showImages = useStore((state: any) => state.showImages);
@@ -134,11 +142,15 @@ const Vault = React.memo(function Vault(props: any) {
   const uppercaseEquippedMods = React.useMemo(() => {
     return equippedDisplayMods.map((mData: any) => {
       const nameRaw = String(mData.name || "").toUpperCase();
+      const emBaseClean = nameRaw.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "") || nameRaw;
+      const emDisp = String(mData.displayName || "").toUpperCase();
       return {
         mData,
         emClean: nameRaw,
-        emBaseClean: nameRaw.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "") || nameRaw,
-        emDisp: String(mData.displayName || "").toUpperCase()
+        emBaseClean,
+        emBaseNoScript: emBaseClean.replace(/_SCRIPT(S)?$/i, ""),
+        emDisp,
+        emDispNoScript: emDisp.replace(/_SCRIPT(S)?$/i, ""),
       };
     });
   }, [equippedDisplayMods]);
@@ -455,14 +467,56 @@ const Vault = React.memo(function Vault(props: any) {
     return graph;
   }, [equippedDisplayMods]);
 
-  const paginatedMods = finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedMods = React.useMemo(
+    () => finalVisibleMods.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [finalVisibleMods, currentPage, itemsPerPage]
+  );
+
+  const recentOverviewMods = React.useMemo(() => {
+    if (equipFilter !== "OVERVIEW") return [];
+    return displayModList.filter((mod: any) => {
+      const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
+      const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
+      if (baseModName === "FILTERS") return false;
+
+      if (mod.isVirtual) {
+        if (["DATA", "SCRIPTS", "CFG", "CONFIG", "MOD", "MODS"].includes(modNameUpper)) return false;
+        if (modNameUpper.startsWith("FOLDER LOCAL DIR")) return false;
+
+        if (mod.isCollection) return true;
+        if (mod.isParent && mod.flavors && mod.flavors.some((f: any) => ["twin", "beta", "addon"].includes(f.relationshipType))) return true;
+        return false;
+      }
+      const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
+      return !folderExists;
+    }).slice(0, 20);
+  }, [equipFilter, displayModList, virtualFolderIds]);
+
+  const handleCreateLocalFolder = React.useCallback(() => {
+    const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
+    const newId = `f_${Date.now()}`;
+    localSets.push({
+      id: newId,
+      name: "",
+      items: [],
+      isCollection: false
+    });
+    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSets));
+    setActiveLocalFolder(newId);
+    setIsLocalFolderEditorOpen(true);
+    runRadarSweep(true);
+  }, [runRadarSweep]);
+
+  const handleVaultContextMenu = React.useCallback((e: any, mod: any) => {
+    setVaultContextMenu({ x: e.clientX, y: e.clientY, mod });
+  }, []);
 
   return (
     <div className="flex-1 overflow-visible pr-4 relative">
       <ViewHeader
-        title={t("vault_title")}
-        subtitle={t("vault_subtitle")}
-        icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance")}</span>}
+        title={t("vault_title", "Your {Vault}")}
+        subtitle={t("vault_subtitle", "Local library, secured assets, and installed {mods}")}
+        icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance", "account_balance")}</span>}
         breadcrumb={equipFilter !== "OVERVIEW" ? (t(`filter_${equipFilter.toLowerCase()}`) || equipFilter) : undefined}
         onTitleClick={() => setEquipFilter("OVERVIEW")}
       >
@@ -488,20 +542,7 @@ const Vault = React.memo(function Vault(props: any) {
             setHideGhostCards={setHideGhostCards}
             vaultLayout={vaultLayout}
             setVaultLayout={setVaultLayout}
-            onCreateLocalFolder={() => {
-              const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
-              const newId = `f_${Date.now()}`;
-              localSets.push({
-                id: newId,
-                name: "",
-                items: [],
-                isCollection: false
-              });
-              localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSets));
-              setActiveLocalFolder(newId);
-              setIsLocalFolderEditorOpen(true);
-              runRadarSweep(true);
-            }}
+            onCreateLocalFolder={handleCreateLocalFolder}
             setSelectedMods={setSelectedMods}
           />
         )}
@@ -510,60 +551,45 @@ const Vault = React.memo(function Vault(props: any) {
       <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} finalVisibleMods={finalVisibleMods} equippedDisplayMods={equippedDisplayMods} visibleMods={visibleMods} displayModList={displayModList} selectedVersion={selectedVersion} />
 
       {equipFilter === "OVERVIEW" ? (
-        <div className="mt-6">
+        <div>
           <CommandScreenLayout>
 
 
             <CommandScreenBody>
               <CommandScreenMain>
-                <div className="flex flex-col gap-6 w-full">
-                  <CommandScreenSectionHeading title="Recent Artifact Injections" icon="history" />
+                <div className="flex flex-col gap-4 w-full">
+                  <CommandScreenSectionHeading title={t("recent_injections", "Recent {Mod} Injections")} icon={t("icon_history", "history")} />
 
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
-                    {displayModList.filter((mod: any) => {
-                      const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
-                      const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
-                      if (baseModName === "FILTERS") return false;
-
-                      if (mod.isVirtual) {
-                        if (["DATA", "SCRIPTS", "CFG", "CONFIG", "MOD", "MODS"].includes(modNameUpper)) return false;
-                        if (modNameUpper.startsWith("FOLDER LOCAL DIR")) return false;
-
-                        if (mod.isCollection) return true;
-                        if (mod.isParent && mod.flavors && mod.flavors.some((f: any) => ["twin", "beta", "addon"].includes(f.relationshipType))) return true;
-                        return false;
-                      }
-                      const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
-                      return !folderExists;
-                    }).slice(0, 20).map((item: any, idx: number) => {
+                    {recentOverviewMods.map((item: any, idx: number) => {
                       const chipClass =
                         "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
                       const rawStatus = String(item?.status || "").toLowerCase().replace(/_/g, " ").replace(/[^\w\s-]/gi, "").trim();
                       const statusMeta = (() => {
                         if (rawStatus === "corrupted" || rawStatus === "broken") {
-                          return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
+                          return { label: t("status_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
                         }
                         if (rawStatus === "unstable") {
-                          return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                          return { label: t("label_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
                         }
                         if (rawStatus === "under review" || rawStatus === "pending") {
-                          return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                          return { label: t("status_dd_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
                         }
                         if (rawStatus === "synced") {
                           return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
                         }
                         if (rawStatus === "stable" || rawStatus === "verified") {
-                          return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                          return { label: t("status_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
                         }
-                        return { label: t("unlinked_badge", "Unlinked"), icon: t("icon_science", "science"), iconColor: "text-[var(--accent)]" };
+                        return { label: t("badge_local", "Unlinked"), icon: t("icon_science", "science"), iconColor: "text-[var(--accent)]" };
                       })();
                       const rawFileName = String(item?.file_extension || item?.name || "").toLowerCase();
                       const isScript = rawFileName.includes("ts4script") || String(item?.type || "").toLowerCase().includes("script");
                       const typeLabel = item?.isCollection
                         ? t("tab_cc", "Collection")
                         : isScript
-                          ? t("card_file_script", "Script")
-                          : t("card_file_package", "Package");
+                          ? t("type_script", "Script")
+                          : t("type_package", "Package");
                       const modulesCount = Array.isArray(item?.flavors) && item.flavors.length > 1 ? item.flavors.length : 0;
 
                       return (
@@ -596,18 +622,11 @@ const Vault = React.memo(function Vault(props: any) {
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             ) : (
-                              <div
-                                className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                                style={{
-                                  backgroundColor: 'var(--glass-card-icon-bg)',
-                                  borderColor: 'var(--glass-card-icon-border)',
-                                  boxShadow: 'var(--glass-card-icon-shadow)',
-                                }}
-                              >
-                                <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                                  {getModIcon(item, activeGameSchema, t)}
-                                </span>
-                              </div>
+                              <DynamicArtifactPreviewBanner
+                                data={item}
+                                icon={getModIcon(item, activeGameSchema, t)}
+                                heightClass="h-full"
+                              />
                             )}
                           </div>
 
@@ -616,7 +635,7 @@ const Vault = React.memo(function Vault(props: any) {
                               {formatDisplayName(item.displayName || item.meta_name || item.name || item.title || "")}
                             </h3>
                             <p className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate mb-2">
-                              BY {item.meta_author || item.author || t("unknown_mason")}
+                              BY {item.meta_author || item.author || t("unknown_mason", "Unknown {Mason}")}
                             </p>
 
                             <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
@@ -641,7 +660,7 @@ const Vault = React.memo(function Vault(props: any) {
                                   {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                                 </span>
                               )}
-                              <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity duration-300">{t("btn_view")} &rarr;</span>
+                              <span className="text-[9px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity duration-300">{t("btn_view", "View")} &rarr;</span>
                             </div>
                           </div>
                         </div>
@@ -651,30 +670,30 @@ const Vault = React.memo(function Vault(props: any) {
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("quick_actions")} icon="bolt">
+              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="bolt">
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
-                    icon={t("icon_warning")}
-                    title={t("status_unverified")}
-                    subtitle={`${unverifiedCount} ${t("tab_mods")}`}
+                    icon={t("icon_warning", "warning")}
+                    title={t("unverified", "Unverified")}
+                    subtitle={`${unverifiedCount} ${t("tab_mods", "{Mods}")}`}
                     hoverTextColorClass="group-hover:text-[var(--warning)]"
                     iconShadowClass="drop-shadow-md text-[var(--warning)]"
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
                     onClick={() => { setEquipFilter("ALL"); setFilterStatus("UNVERIFIED"); setActiveCategory("ALL"); setActiveSubType("ALL"); }}
                   />
                   <CommandScreenQuickLink
-                    icon={t("icon_folder_shared")}
-                    title={t("local_folders")}
-                    subtitle={`${localFolderCount} ${t("title_artifacts")}`}
+                    icon={t("icon_folder_shared", "folder_shared")}
+                    title={t("local_folders", "Local Folders")}
+                    subtitle={`${localFolderCount} ${t("title_artifacts", "Your {Mods}")}`}
                     hoverTextColorClass="group-hover:text-purple-400"
                     iconShadowClass="drop-shadow-md text-purple-400"
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                     onClick={() => { setEquipFilter("ALL"); setActiveCategory("LOCAL_FOLDERS"); }}
                   />
                   <CommandScreenQuickLink
-                    icon={t("icon_create_new_folder")}
-                    title={t("quick_create_node")}
-                    subtitle={t("quick_create_node_desc")}
+                    icon={t("icon_create_new_folder", "create_new_folder")}
+                    title={t("quick_create_node", "Create Local Folder")}
+                    subtitle={t("quick_create_node_desc", "Create a new local folder to organize your {mods}.")}
                     onClick={() => {
                       const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
                       const newId = `f_${Date.now()}`;
@@ -696,9 +715,9 @@ const Vault = React.memo(function Vault(props: any) {
                   />
 
                   <CommandScreenQuickLink
-                    icon={t("icon_delete_sweep")}
-                    title={t("purge_archives")}
-                    subtitle={t("purge_desc")}
+                    icon={t("icon_delete_sweep", "delete_sweep")}
+                    title={t("purge_archives", "Purge Archives")}
+                    subtitle={t("purge_desc", "Initiate irreversible purge of the selected archives from local storage. this action cannot be aborted.")}
                     onClick={() => {
                       const allFilesToPurge = new Map<string, string>();
                       displayModList.forEach((mod: any) => {
@@ -743,9 +762,9 @@ const Vault = React.memo(function Vault(props: any) {
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon={t("icon_auto_awesome")}
-                    title={t("nexus")}
-                    subtitle={t("nexus_core")}
+                    icon={t("icon_auto_awesome", "auto_awesome")}
+                    title={t("nexus", "Nexus")}
+                    subtitle={t("nexus_core", "Nexus Integration")}
                     onClick={() => useStore.getState().setView("nexus")}
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
@@ -803,9 +822,7 @@ const Vault = React.memo(function Vault(props: any) {
             setSelectedMods={setSelectedMods}
             setActiveLocalFolder={setActiveLocalFolder}
             setIsLocalFolderEditorOpen={setIsLocalFolderEditorOpen}
-            onContextMenu={(e: any, mod: any) => {
-              setVaultContextMenu({ x: e.clientX, y: e.clientY, mod });
-            }}
+            onContextMenu={handleVaultContextMenu}
           />
         </div>
       )}
@@ -875,7 +892,7 @@ const Vault = React.memo(function Vault(props: any) {
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
         >
           <div className="absolute inset-0 rounded-[inherit] -z-10">
-            <div className="w-full h-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl" />
+            <div className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover rounded-xl" />
           </div>
           <div className="py-1 flex flex-col w-full h-full">
             {(() => {
@@ -902,7 +919,7 @@ const Vault = React.memo(function Vault(props: any) {
                       className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
                     >
                       <span className="material-symbols-outlined !text-[16px]">edit</span>
-                      {t("manage_node")}
+                      {t("manage_node", "Manage Folder")}
                     </button>
                   )}
 
@@ -913,15 +930,15 @@ const Vault = React.memo(function Vault(props: any) {
                   >
                     <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                       <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture")}</span>
-                        {t("add_to_blueprint")}
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture", "structure")}</span>
+                        {t("add_to_blueprint", "Add to {Blueprint}")}
                       </div>
-                      <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right")}</span>
+                      <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right", "chevron_right")}</span>
                     </button>
                     {activeSubmenu === 'blueprint' && (
                       <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
-                        <div className="w-full h-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl py-1 animate-in fade-in zoom-in-95 duration-100">
-                          <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_blueprint")}</button>
+                        <div className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover rounded-xl py-1 animate-in fade-in zoom-in-95 duration-100">
+                          <button onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); setBulkModal(true); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>{t("context_new_blueprint", "New {Blueprint}")}</button>
                           <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                           {playSets.map((ps: any, index: number) => (
                             <button key={index} onClick={(e) => { e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null); invoke('add_to_play_set', { index, modNames: targetMods }).then(() => runRadarSweep(true)); }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[10px] font-bold capitalize tracking-widest text-[var(--accent)] truncate block">{ps.name}</button>
@@ -938,14 +955,14 @@ const Vault = React.memo(function Vault(props: any) {
                   >
                     <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                       <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder")}</span>
-                        {t("btn_group_folder")}
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">{t("icon_folder", "folder")}</span>
+                        {t("btn_group_folder", "Add to Local Folder")}
                       </div>
-                      <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right")}</span>
+                      <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right", "chevron_right")}</span>
                     </button>
                     {activeSubmenu === 'folder' && (
                       <div className={`absolute top-0 w-56 pt-0 z-50 ${openSubmenuLeft ? 'right-full pr-1' : 'left-full pl-1'}`}>
-                        <div className="w-full h-full glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl py-1 animate-in fade-in zoom-in-95 duration-100">
+                        <div className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover rounded-xl py-1 animate-in fade-in zoom-in-95 duration-100">
                           <button onClick={(e) => {
                             e.stopPropagation(); setVaultContextMenu(null); setActiveSubmenu(null);
                             const localSts = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
@@ -955,11 +972,11 @@ const Vault = React.memo(function Vault(props: any) {
                             setActiveLocalFolder(newId);
                             setIsLocalFolderEditorOpen(true);
                             runRadarSweep(true);
-                          }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add")}</span>{t("context_new_folder")}</button>
+                          }} className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-3"><span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>{t("context_new_folder", "New Folder")}</button>
                           <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_5%,transparent)] my-1" />
                           {(() => {
                             const localSts = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
-                            if (localSts.length === 0) return <div className="px-4 py-2 text-[9px] font-bold text-[var(--subtext)] opacity-50">{t("local_folders_empty")}</div>;
+                            if (localSts.length === 0) return <div className="px-4 py-2 text-[9px] font-bold text-[var(--subtext)] opacity-50">{t("local_folders_empty", "Folder Is Empty")}</div>;
                             return localSts.map((ls: any) => (
                               <button key={ls.id} onClick={(e) => {
                                 e.stopPropagation();
@@ -996,8 +1013,8 @@ const Vault = React.memo(function Vault(props: any) {
                         }}
                         className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--danger)] flex items-center gap-3 transition-colors"
                       >
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever")}</span>
-                        {t("context_purge")} {count > 1 ? t("context_artifacts") : t("context_artifact")}
+                        <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_forever", "delete_forever")}</span>
+                        {t("purge", "Purge")} {count > 1 ? t("term_mods", "Mods") : t("label_artifact", "{Mod}")}
                       </button>
                     </>
                   )}

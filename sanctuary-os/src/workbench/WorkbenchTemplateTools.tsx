@@ -69,7 +69,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_folder", "folder")}</span>
                </button>
-               <HoverTooltip title={t("workbench_field_category", "Category")} variant="info" className="mb-2" />
+               <HoverTooltip title={t("category", "Category")} variant="info" className="mb-2" />
             </div>
             <div className="relative group flex">
                <button onClick={() => {
@@ -117,7 +117,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
                }} className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-[var(--text)] opacity-50 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <span className="material-symbols-outlined !text-[16px]">{t("icon_dropdown", "arrow_drop_down_circle")}</span>
                </button>
-               <HoverTooltip title={t("workbench_add_dropdown", "Dropdown")} variant="info" className="mb-2" />
+               <HoverTooltip title={t("support_type_dropdown", "Dropdown")} variant="info" className="mb-2" />
             </div>
             <div className="relative group flex">
                <button onClick={() => {

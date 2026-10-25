@@ -109,6 +109,7 @@ export const stripMarkdown = (text: string) => {
   return text
     .replace(/\[IMG:[^\]]+\]\s*/g, "")
     .replace(/^(?:\*\*(?:Alert Type|Dispatch Type|Dispatch Date|Impact|Audience|Severity|Action Required|Action Needed):\*\*[^\r\n]*[\r\n]+)+(?:\s*---+\s*[\r\n]*)?/i, "")
+    .replace(/(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/[^)]+\)/gi, "")
     .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, (match) =>
       match.replace(/\\/g, ""),
     )

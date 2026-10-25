@@ -9,6 +9,8 @@ import {
   cleanSearchName,
   DashboardStatTile,
   StatBox,
+  SidePanelHeroCard,
+  UniversalGroup,
    fetchAllPaginated,
 } from "./shared";
 import {
@@ -16,6 +18,7 @@ import {
   HubOverviewLanding,
   HubOverviewSection,
 } from "./components/layouts/ElevatedHubLayout";
+import { UniversalCard } from "./components/universal/UniversalCard";
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
@@ -716,20 +719,20 @@ export function HomesteadDiagnostics({
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
+      label: t("overview", "Overview") || "Overview",
+      icon: t("icon_dashboard", "dashboard"),
       number: filteredReports.length.toString(),
     },
     {
       id: "pending",
-      label: t("pending") || "Pending",
-      icon: "schedule",
+      label: t("pending", "Pending") || "Pending",
+      icon: t("icon_schedule", "schedule"),
       number: pendingReports.length.toString(),
     },
     {
       id: "completed",
-      label: t("status_completed") || "Completed",
-      icon: "check_circle",
+      label: t("status_completed", "Completed") || "Completed",
+      icon: t("icon_check_circle", "check_circle"),
       number: completedReports.length.toString(),
     },
     {
@@ -740,6 +743,9 @@ export function HomesteadDiagnostics({
     },
   ];
 
+  const VAULT_CHIP_CLASS =
+    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
   const renderDiagnosticCard = (mod: any) => {
     const isVerified = mod.status === "verified";
     const isBroken = mod.status === "broken";
@@ -747,103 +753,120 @@ export function HomesteadDiagnostics({
     const modVer = getModVersionLabel(mod, modList);
     const reportDate = mod.last_report_at || mod.updated_at;
 
+    const statusIcon = isBroken
+      ? t("icon_warning", "warning")
+      : isVerified
+        ? t("icon_check_circle", "check_circle")
+        : t("icon_schedule", "schedule");
+    const statusIconColor = isBroken
+      ? "text-[var(--danger)]"
+      : isVerified
+        ? "text-[var(--success)]"
+        : "text-[var(--warning)]";
+    const statusLabel = isBroken
+      ? t("status_corrupted", "Corrupted")
+      : isVerified
+        ? t("verified", "Verified")
+        : t("status_pending_review", "Pending Review");
+
     return (
-      <div
+      <UniversalCard
         key={mod.id}
         onClick={() => setActiveReport(mod)}
-        className="relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 shadow-xl overflow-hidden group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all duration-300"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-              isBroken
-                ? "text-rose-400 border-rose-500/35"
-                : isVerified
-                  ? "text-emerald-400 border-emerald-500/35"
-                  : "text-amber-400 border-amber-500/35"
-            }`}
-          >
-            <span className="material-symbols-outlined !text-[20px]">
-              {isBroken ? "warning" : isVerified ? "check_circle" : "schedule"}
+        layout="vertical"
+        icon={
+          isBroken
+            ? t("icon_bug_report", "bug_report")
+            : isVerified
+              ? t("icon_verified", "verified")
+              : t("icon_science", "science")
+        }
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                {statusIcon}
+              </span>
+              <span>{statusLabel}</span>
+            </div>
+          </div>
+        }
+        title={getCleanModBaseName(mod)}
+        subtitle={
+          mod.master_author
+            ? `${t("by_prefix", "By")} ${mod.master_author}`
+            : t("target_engine_core", "Target: Engine Core Only")
+        }
+        badges={
+          <>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {modExt.toLowerCase().includes("script")
+                  ? t("icon_terminal", "terminal")
+                  : t("icon_deployed_code", "deployed_code")}
+              </span>
+              <span>{modExt}</span>
+            </div>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_memory", "memory")}
+              </span>
+              <span>{`${t("auto_v", "v")}${modVer}`}</span>
+            </div>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_sports_esports", "sports_esports")}
+              </span>
+              <span>{selectedVersion || t("unknown", "Unknown")}</span>
+            </div>
+          </>
+        }
+        footer={
+          <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+            <span className="flex items-center gap-1.5 truncate pr-2 opacity-75">
+              <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)]">
+                {t("icon_calendar_today", "calendar_today")}
+              </span>
+              <span>
+                {reportDate
+                  ? new Date(reportDate).toLocaleDateString([], {
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : t("pending", "Pending")}
+              </span>
+            </span>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+              {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
             </span>
           </div>
-          <span
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 shrink-0 ${
-              isBroken
-                ? "text-rose-400 border-rose-500/45"
-                : isVerified
-                  ? "text-emerald-400 border-emerald-500/45"
-                  : "text-amber-400 border-amber-500/45"
-            }`}
-          >
-            {isBroken
-              ? t("status_broken")
-              : isVerified
-                ? t("verified")
-                : t("status_pending_review")}
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-[10px] font-black font-mono uppercase tracking-[0.18em] text-[var(--accent)]">
-            {modExt}
-          </span>
-          <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug truncate">
-            {getCleanModBaseName(mod)}
-          </h3>
-          <p className="text-xs font-semibold text-[var(--subtext)] truncate">
-            {mod.master_author || t("target_engine_core")}
-          </p>
-        </div>
-
-        <div className="mt-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[11px] font-bold text-[var(--subtext)] opacity-75">
-          <span className="font-mono truncate">
-            {`v${modVer} • ${selectedVersion || t("vlocal")}`}
-          </span>
-          {reportDate ? (
-            <span className="shrink-0">
-              {new Date(reportDate).toLocaleDateString([], {
-                month: "short",
-                day: "numeric",
-              })}{" "}
-              &bull;{" "}
-              {new Date(reportDate).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
-          ) : (
-            <span className="shrink-0 font-mono uppercase tracking-wider text-[10px] text-[var(--accent)]">
-              {t("btn_view") || "View"}
-            </span>
-          )}
-        </div>
-      </div>
+        }
+      />
     );
   };
 
   const renderLanding = () => (
     <HubOverviewLanding>
       <HubOverviewSection
-        icon="schedule"
+        icon={t("icon_schedule", "schedule")}
         iconColorClass="text-[var(--accent)]"
-        title={t("recent_pending") || "Recent Pending"}
+        title={t("recent_pending", "Recent Pending") || "Recent Pending"}
         isEmpty={pendingReports.length === 0}
-        emptyIcon="check_circle"
-        emptyTitle={t("no_pending") || "No Pending Reports"}
-        gridClassName="grid grid-cols-1 md:grid-cols-2 gap-4"
+        emptyIcon={t("icon_check_circle", "check_circle")}
+        emptyTitle={t("no_pending", "No Pending") || "No Pending Reports"}
+        gridClassName="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6"
       >
         {pendingReports.slice(0, 4).map((mod: any) => renderDiagnosticCard(mod))}
       </HubOverviewSection>
 
       <HubOverviewSection
-        icon="check_circle"
+        icon={t("icon_check_circle", "check_circle")}
         iconColorClass="text-[var(--success)]"
-        title={t("recent_completed") || "Recent Completed"}
+        title={t("recent_completed", "Recent Completed") || "Recent Completed"}
         isEmpty={completedReports.length === 0}
-        emptyIcon="history"
-        emptyTitle={t("no_history") || "No History"}
-        gridClassName="grid grid-cols-1 md:grid-cols-2 gap-4"
+        emptyIcon={t("icon_history", "history")}
+        emptyTitle={t("no_history", "No History") || "No History"}
+        gridClassName="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6"
       >
         {completedReports.slice(0, 4).map((mod: any) => renderDiagnosticCard(mod))}
       </HubOverviewSection>
@@ -912,15 +935,15 @@ export function HomesteadDiagnostics({
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("tab_diagnostics") || "Lab"}
+        headerTitle={t("tab_diagnostics", "Diagnostics") || "Lab"}
         headerSubtitle={
-          t("lab_diagnostics_desc") || "Automated lab testing and diagnostics"
+          t("lab_diagnostics_desc", "Automated lab testing and diagnostics") || "Automated lab testing and diagnostics"
         }
-        headerIcon="science"
+        headerIcon={t("icon_science", "science")}
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={(t("search_ph") || "Search diagnostics...") as string}
+        searchPlaceholder={(t("search_ph", "Search {mods}...") || "Search diagnostics...") as string}
         hideSearch={filterTab === "overview"}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
@@ -948,18 +971,18 @@ export function HomesteadDiagnostics({
 
         {filterTab === "pending" && (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
               {pendingReports.length === 0 ? (
                 <EmptyState
                   icon={
                     searchTerm
-                      ? "search_off"
-                      : t("icon_monitor_heart") || "monitor_heart"
+                      ? t("icon_search_off", "search_off")
+                      : t("icon_monitor_heart", "monitor_heart") || "monitor_heart"
                   }
                   title={
                     searchTerm
-                      ? t("no_matches") || "No matches"
-                      : t("no_diagnostics") || "No diagnostics"
+                      ? t("no_matches", "No matches found") || "No matches"
+                      : t("no_diagnostics", "Creator No Diagnostics") || "No diagnostics"
                   }
                   className="col-span-full py-16"
                 />
@@ -974,7 +997,7 @@ export function HomesteadDiagnostics({
                 onClick={() => setVisibleCount((v) => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "Load More"} ({visibleCount} /{" "}
+                {t("load_more", "Load More") || "Load More"} ({visibleCount} /{" "}
                 {pendingReports.length})
               </button>
             )}
@@ -983,7 +1006,7 @@ export function HomesteadDiagnostics({
 
         {filterTab === "completed" && completedReports.length > 0 && (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
               {completedReports
                 .slice(0, visibleCount)
                 .map((mod: any) => renderDiagnosticCard(mod))}
@@ -993,7 +1016,7 @@ export function HomesteadDiagnostics({
                 onClick={() => setVisibleCount((v) => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more") || "Load More"} ({visibleCount} /{" "}
+                {t("load_more", "Load More") || "Load More"} ({visibleCount} /{" "}
                 {completedReports.length})
               </button>
             )}
@@ -1004,13 +1027,13 @@ export function HomesteadDiagnostics({
           <EmptyState
             icon={
               searchTerm
-                ? "search_off"
-                : t("icon_monitor_heart") || "monitor_heart"
+                ? t("icon_search_off", "search_off")
+                : t("icon_monitor_heart", "monitor_heart") || "monitor_heart"
             }
             title={
               searchTerm
-                ? t("no_matches") || "No matches"
-                : t("no_completed_reports") || "No completed reports"
+                ? t("no_matches", "No matches found") || "No matches"
+                : t("no_completed_reports", "No Completed Reports") || "No completed reports"
             }
             className="py-16 mt-10"
           />
@@ -1053,15 +1076,15 @@ export function HomesteadDiagnostics({
             <SidePanel
               isOpen={!!activeReport}
               onClose={closePanel}
-              title={t("diagnostic_panel_title") || "Diagnostic Report"}
-              icon="monitor_heart"
+              title={t("diagnostic_panel_title", "Diagnostic Report") || "Diagnostic Report"}
+              icon={t("icon_monitor_heart", "monitor_heart")}
               iconColorClass="text-[var(--accent)]"
               subtitle={`${
                 isBroken
-                  ? t("status_broken")
+                  ? t("status_corrupted", "Corrupted")
                   : isVerified
-                    ? t("verified")
-                    : t("status_pending_review")
+                    ? t("verified", "Verified")
+                    : t("status_pending_review", "Pending Review")
               } • UUID: ${String(activeReport.id).slice(0, 8)}`}
               widthClass="w-[90vw] md:w-[820px]"
               headerActions={
@@ -1069,12 +1092,12 @@ export function HomesteadDiagnostics({
                   {isLoading ? (
                     <>
                       <PanelHeaderButton
-                        icon={isDiagVerified ? "check" : "lock"}
+                        icon={isDiagVerified ? t("icon_check", "check") : t("icon_lock", "lock")}
                         variant="success"
                         disabled={!isDiagVerified}
                         tooltip={
                           isDiagVerified
-                            ? t("auto_conclude_pass") || "Conclude Pass"
+                            ? t("auto_conclude_pass", "Conclude & Pass") || "Conclude Pass"
                             : t(
                                 "lab_tooltip_approve_locked",
                                 "Approval Locked (Lab Test Required)"
@@ -1083,25 +1106,25 @@ export function HomesteadDiagnostics({
                         onClick={() => concludeTest(true)}
                       />
                       <PanelHeaderButton
-                        icon="block"
+                        icon={t("icon_block", "block")}
                         variant="danger"
-                        tooltip={t("auto_conclude_fail") || "Conclude Fail"}
+                        tooltip={t("auto_conclude_fail", "Conclude & Fail") || "Conclude Fail"}
                         onClick={() => concludeTest(false)}
                       />
                     </>
                   ) : !testRun ? (
                     isModMissingLocally(activeReport.name) ? (
                       <PanelHeaderButton
-                        icon="download"
+                        icon={t("icon_download", "download")}
                         variant="warning"
-                        tooltip={t("missing_artifacts") || "Missing Artifacts"}
+                        tooltip={t("missing_artifacts", "Missing {Mods}") || "Missing Artifacts"}
                         onClick={() => setIsMissingArtifactPanelOpen(true)}
                       />
                     ) : (
                       <PanelHeaderButton
-                        icon="play_arrow"
+                        icon={t("icon_play_arrow", "play_arrow")}
                         variant="accent"
-                        tooltip={t("btn_run_diagnostic") || "Run Diagnostic"}
+                        tooltip={t("btn_run_diagnostic", "Run Diagnostic") || "Run Diagnostic"}
                         onClick={runSimulation}
                       />
                     )
@@ -1109,7 +1132,7 @@ export function HomesteadDiagnostics({
                   <PanelHeaderButton
                     icon={
                       downloadState === "done"
-                        ? "check_circle"
+                        ? t("icon_check_circle", "check_circle")
                         : t("icon_download", "download")
                     }
                     variant={downloadState === "done" ? "success" : "accent"}
@@ -1129,103 +1152,80 @@ export function HomesteadDiagnostics({
                 </PanelHeaderGroup>
               }
             >
-              <div className="flex flex-col gap-4 mt-2 w-full pb-8">
+              <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
                 {/* Tested Mod Banner on Panel Body */}
-                <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                        isBroken
-                          ? "text-rose-400 border-rose-500/35"
-                          : isVerified
-                            ? "text-emerald-400 border-emerald-500/35"
-                            : "text-amber-400 border-amber-500/35"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[22px]">
-                        {isBroken
-                          ? "warning"
-                          : isVerified
-                            ? "check_circle"
-                            : "schedule"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                        {t("subject_isolation")}
-                      </span>
-                      <h3 className="text-base md:text-lg font-black text-[var(--text)] tracking-tight truncate">
-                        {getCleanModBaseName(activeReport)}
-                      </h3>
-                    </div>
+                <SidePanelHeroCard
+                  icon={
+                    isBroken
+                      ? t("icon_warning", "warning")
+                      : isVerified
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_schedule", "schedule")
+                  }
+                  overline={t("subject_isolation", "Subject Isolation")}
+                  title={getCleanModBaseName(activeReport)}
+                  description={`${modExt} • v${modVer}`}
+                  badge={
+                    isBroken
+                      ? t("status_corrupted", "Corrupted")
+                      : isVerified
+                        ? t("verified", "Verified")
+                        : t("status_pending_review", "Pending Review")
+                  }
+                  variant={
+                    isBroken
+                      ? "danger"
+                      : isVerified
+                        ? "success"
+                        : "warning"
+                  }
+                >
+                  {/* 3-Column Telemetry StatBoxes */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <StatBox
+                      icon={t("icon_sell", "sell")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("game_version", "Game Version")}
+                      value={selectedVersion || t("unknown", "Unknown")}
+                    />
+                    <StatBox
+                      icon={t("icon_memory", "memory")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("mod_version", "{Mod} Version")}
+                      value={modVer}
+                    />
+                    <StatBox
+                      icon={t("icon_schedule", "schedule")}
+                      iconColorClass="text-[var(--accent)]"
+                      label={t("date_created", "Time")}
+                      tooltipSubtitle={
+                        activeReportDate
+                          ? new Date(activeReportDate).toLocaleString()
+                          : undefined
+                      }
+                      value={
+                        <span className="text-xs md:text-sm font-black tracking-tight">
+                          {new Date(activeReportDate || Date.now()).toLocaleDateString(
+                            [],
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}{" "}
+                          &bull;{" "}
+                          {new Date(activeReportDate || Date.now()).toLocaleTimeString(
+                            [],
+                            {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </span>
+                      }
+                    />
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border bg-transparent flex items-center gap-1 ${
-                        isBroken
-                          ? "text-rose-400 border-rose-500/45"
-                          : isVerified
-                            ? "text-emerald-400 border-emerald-500/45"
-                            : "text-amber-400 border-amber-500/45"
-                      }`}
-                    >
-                      {isBroken
-                        ? t("status_broken")
-                        : isVerified
-                          ? t("verified")
-                          : t("status_pending_review")}
-                    </span>
-                    <span className="text-[11px] font-mono font-bold text-[var(--subtext)]">
-                      {modExt} &bull; v{modVer}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3-Column Telemetry StatBoxes */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <StatBox
-                    icon={t("icon_sell", "sell")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("game_version") || "Game Version"}
-                    value={selectedVersion || t("vlocal")}
-                  />
-                  <StatBox
-                    icon={t("icon_memory", "memory")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("mod_version") || "Mod Version"}
-                    value={modVer}
-                  />
-                  <StatBox
-                    icon={t("icon_schedule", "schedule")}
-                    iconColorClass="text-[var(--accent)]"
-                    label={t("date_created") || "Time"}
-                    tooltipSubtitle={
-                      activeReportDate
-                        ? new Date(activeReportDate).toLocaleString()
-                        : undefined
-                    }
-                    value={
-                      <span className="text-xs md:text-sm font-black tracking-tight">
-                        {new Date(activeReportDate || Date.now()).toLocaleDateString(
-                          [],
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}{" "}
-                        &bull;{" "}
-                        {new Date(activeReportDate || Date.now()).toLocaleTimeString(
-                          [],
-                          {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          }
-                        )}
-                      </span>
-                    }
-                  />
-                </div>
+                </SidePanelHeroCard>
 
                 {/* Timed Lab Verification Gate (hideErrorLog avoids duplicate raw log box) */}
                 <LabVerificationGate
@@ -1249,9 +1249,9 @@ export function HomesteadDiagnostics({
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                          extension
+                          {t("icon_extension", "extension")}
                         </span>
-                        {t("section_deps_title") || "Dependencies"}
+                        {t("section_deps_title", "Dependencies") || "Dependencies"}
                       </span>
                       <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
                         {dependencies.length}
@@ -1261,7 +1261,7 @@ export function HomesteadDiagnostics({
                       selectedItem={null}
                       onSelect={handleSelectDependency}
                       onClear={() => {}}
-                      placeholder={t("search_dep_ph") || "Search dependency..."}
+                      placeholder={t("search_dep_ph", "Search dependencies...") || "Search dependency..."}
                       modList={allMods.filter(
                         (m) =>
                           m.id !== activeReport.id &&
@@ -1277,7 +1277,7 @@ export function HomesteadDiagnostics({
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
-                                extension
+                                {t("icon_extension", "extension")}
                               </span>
                               <span className="text-xs font-bold text-[var(--text)] truncate">
                                 {getCleanModBaseName(d)}
@@ -1299,7 +1299,7 @@ export function HomesteadDiagnostics({
                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_close") || "close"}
+                                  {t("icon_close", "close") || "close"}
                                 </span>
                               </button>
                             </div>
@@ -1319,9 +1319,9 @@ export function HomesteadDiagnostics({
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
-                          warning
+                          {t("icon_warning", "warning")}
                         </span>
-                        {t("diagnostic_conflict_target") || "Conflict Target"}
+                        {t("diagnostic_conflict_target", "Target Conflict Matrix") || "Conflict Target"}
                       </span>
                       <span className="text-[10px] font-mono font-bold text-[var(--warning)]">
                         {conflictTarget ? 1 : 0}
@@ -1332,7 +1332,7 @@ export function HomesteadDiagnostics({
                       onSelect={(m: any) => setConflictTarget(m)}
                       onClear={() => {}}
                       placeholder={
-                        t("search_conflict_ph") || "Search conflict target..."
+                        t("search_conflict_ph", "Select conflict target...") || "Search conflict target..."
                       }
                       modList={allMods.filter(
                         (m) =>
@@ -1344,7 +1344,7 @@ export function HomesteadDiagnostics({
                       <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] shrink-0">
-                            warning
+                            {t("icon_warning", "warning")}
                           </span>
                           <span className="text-xs font-bold text-[var(--text)] truncate">
                             {getCleanModBaseName(conflictTarget)}
@@ -1365,7 +1365,7 @@ export function HomesteadDiagnostics({
                             className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[14px]">
-                              {t("icon_close") || "close"}
+                              {t("icon_close", "close") || "close"}
                             </span>
                           </button>
                         </div>
@@ -1432,7 +1432,7 @@ export function HomesteadDiagnostics({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[12px]">
-                          verified_user
+                          {t("icon_verified_user", "verified_user")}
                         </span>
                         {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
                       </span>
@@ -1449,11 +1449,11 @@ export function HomesteadDiagnostics({
                       >
                         <span className="material-symbols-outlined !text-[12px]">
                           {copiedLogState
-                            ? "check"
+                            ? t("icon_check", "check")
                             : t("icon_content_copy", "content_copy")}
                         </span>
                         {copiedLogState
-                          ? t("lab_report_copied_btn", "Copied")
+                          ? t("copied", "Copied")
                           : t("lab_report_copy_btn", "Copy Log")}
                       </button>
                     </div>
@@ -1461,36 +1461,37 @@ export function HomesteadDiagnostics({
 
                   <pre className="p-5 font-mono text-[12px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed flex-1 max-h-[480px] overflow-y-auto custom-scrollbar opacity-90">
                     {diagLogViewTab === "REAL_LOG"
-                      ? realEngineLogContent || t("no_logs")
+                      ? realEngineLogContent || t("no_logs", "No logs available for this session. System reports standard exit code.")
                       : formattedDiagReportText ||
                         formatHumanReadableLogText(activeRawLog) ||
-                        t("no_logs")}
+                        t("no_logs", "No logs available for this session. System reports standard exit code.")}
                   </pre>
                 </div>
 
                 {testRun && !testPassed && conflictTarget && (
-                  <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex flex-col gap-3">
-                    <h3 className="text-xs font-black text-[var(--accent)] uppercase tracking-widest">
-                      {t("btn_add_to_nexus") || "Add Conflict Rule"}
-                    </h3>
+                  <UniversalGroup
+                    title={t("btn_add_to_nexus", "Add To {Nexus}")}
+                    icon={t("icon_warning", "warning")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
                     <form onSubmit={submitToNexus} className="flex flex-col gap-3">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                          {t("resolution_suggestion") || "Resolution Suggestion"}
+                          {t("resolution_suggestion", "Resolution Suggestion")}
                         </label>
                         <input
                           required
                           value={resolution}
                           onChange={(e) => setResolution(e.target.value)}
                           placeholder={
-                            (t("auto_e_g_load_31") || "e.g. Load after...") as string
+                            t("auto_e_g_load_31", "e.g. Load after...") as string
                           }
                           className="glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--accent)]"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                          {t("severity") || "Severity"}
+                          {t("severity", "Severity")}
                         </label>
                         <CustomTierDropdown
                           value={severity}
@@ -1503,11 +1504,11 @@ export function HomesteadDiagnostics({
                         className="w-full py-3 rounded-xl border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50"
                       >
                         {isSubmitting
-                          ? t("btn_saving") || "Saving..."
-                          : t("btn_save_conflict_rule") || "Save Conflict Rule"}
+                          ? t("btn_saving", "Saving...")
+                          : t("btn_save_conflict_rule", "Save Conflict Rule")}
                       </button>
                     </form>
-                  </div>
+                  </UniversalGroup>
                 )}
               </div>
             </SidePanel>
@@ -1517,21 +1518,23 @@ export function HomesteadDiagnostics({
       <SidePanel
         isOpen={isMissingArtifactPanelOpen}
         onClose={() => setIsMissingArtifactPanelOpen(false)}
-        title={t("missing_artifacts") || "Missing Artifacts"}
-        icon="download"
-        widthClass="w-[450px]"
+        title={t("missing_artifacts", "Missing {Mods}")}
+        subtitle={t("missing_dependency_desc", "Missing Dependency or {Mod}")}
+        icon={t("icon_download", "download")}
+        iconColorClass="text-[var(--warning)]"
+        widthClass="w-[90vw] md:w-[540px]"
         headerActions={
           <PanelHeaderGroup>
             {activeReport?.download_url ? (
               <PanelHeaderButton
-                icon="download"
-                tooltip={t("download_source") || "Download Source"}
+                icon={t("icon_download", "download")}
+                tooltip={t("download_source", "Download Source")}
                 onClick={() => window.open(activeReport.download_url, "_blank")}
               />
             ) : null}
             <PanelHeaderButton
-              icon="search"
-              tooltip={t("search_web") || "Search Web"}
+              icon={t("icon_search", "search")}
+              tooltip={t("search_web", "Search Web")}
               onClick={() =>
                 window.open(
                   `https://www.google.com/search?q=${encodeURIComponent(
@@ -1549,24 +1552,33 @@ export function HomesteadDiagnostics({
           </PanelHeaderGroup>
         }
       >
-        <div className="flex flex-col h-full gap-4">
-          <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--warning)]">
-              {t("missing_dependency_desc") || "Missing Local Artifact"}
-            </span>
-            <h3 className="text-base font-black text-[var(--text)]">
-              {getCleanModBaseName(activeReport)}
-            </h3>
-          </div>
-          <div className="p-6 glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
-            <span className="material-symbols-outlined !text-[48px] text-[var(--warning)] opacity-80">
-              {t("icon_extension_off") || "extension_off"}
-            </span>
-            <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-              {t("missing_dependency_desc") ||
-                "Artifact is missing from local storage."}
-            </span>
-          </div>
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_download", "download")}
+            overline={t("missing_dependency_desc", "Missing Dependency or {Mod}")}
+            title={
+              activeReport
+                ? getCleanModBaseName(activeReport)
+                : t("missing_artifacts", "Missing {Mods}")
+            }
+            description={t("missing_dependency_desc", "Missing Dependency or {Mod}")}
+            variant="warning"
+          />
+
+          <UniversalGroup
+            title={t("missing_artifacts", "Missing {Mods}")}
+            icon={t("icon_extension_off", "extension_off")}
+            headerColorClass="text-[var(--warning)]"
+          >
+            <div className="p-4 flex flex-col items-center justify-center gap-3 text-center">
+              <span className="material-symbols-outlined !text-[40px] text-[var(--warning)] opacity-80">
+                {t("icon_extension_off", "extension_off")}
+              </span>
+              <span className="text-[11px] font-bold text-[var(--subtext)] opacity-80 tracking-wide">
+                {t("missing_dependency_desc", "Missing Dependency or {Mod}")}
+              </span>
+            </div>
+          </UniversalGroup>
         </div>
       </SidePanel>
     </>

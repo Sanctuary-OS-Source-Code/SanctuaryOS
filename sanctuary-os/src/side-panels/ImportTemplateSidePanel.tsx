@@ -88,7 +88,7 @@ export function ImportTemplateSidePanel({
             </span>
             <input
               type="text"
-              placeholder={t("ui_search_templates", "Search templates...")}
+              placeholder={t("search_tmpl", "Search templates...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent border-none text-xs font-bold text-[var(--text)] focus:outline-none placeholder:text-[var(--subtext)] placeholder:opacity-50"

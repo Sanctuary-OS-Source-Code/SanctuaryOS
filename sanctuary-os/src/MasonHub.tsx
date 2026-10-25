@@ -59,7 +59,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           setMasonProfile({
             id: session.user.id,
             profile_id: session.user.id,
-            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split("@")[0] || (t("citizen_creator", "Citizen Creator")),
+            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split("@")[0] || (t("citizen_creator", "{Citizen} Creator")),
             isUnverifiedLocal: true
           });
         }
@@ -81,7 +81,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     }
   }, [loading, isVerifiedMason, masonActiveTab, setMasonActiveTab]);
 
-  if (loading) return <LoadingScreen title={t("verifying", "Verifying...")} />;
+  if (loading) return <LoadingScreen title={t("verifying", "Verifying {Mason} Credentials...")} />;
 
   if (!masonProfile) return (
     <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
@@ -89,7 +89,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_construction", "construction")}</span>
       </div>
       <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">{t("unlinked", "Unlinked")}</h2>
-      <p className="text-sm font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc", "Account not linked.")}</p>
+      <p className="text-sm font-bold capitalize tracking-widest text-[var(--subtext)] opacity-60">{t("unlinked_desc", "Your profile is not linked to a {Mason} Entity. Contact a Dev.")}</p>
     </div>
   );
 
@@ -101,29 +101,29 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
     >
       <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
         <ViewHeader
-          title={t("mason_hub_title") || "Mason Hub"}
-          subtitle={t("mason_hub_subtitle") || "Creator Studio & Asset Management"}
-          icon={t("icon_construction") || "construction"}
+          title={t("mason_hub_title", "{Mason} Workshop") || "Mason Hub"}
+          subtitle={t("mason_hub_subtitle", "Creator Studio & Asset Management") || "Creator Studio & Asset Management"}
+          icon={t("icon_construction", "construction") || "construction"}
           iconColorClass="text-[var(--accent)]"
           breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") : undefined}
           onTitleClick={() => setMasonActiveTab("command_center")}
           hubActions={[
             ...(isVerifiedMason ? [{
               id: "mason_view_profile",
-              icon: t("icon_visibility") || "visibility",
-              label: t("btn_view_profile") || "View Profile",
+              icon: t("icon_visibility", "visibility") || "visibility",
+              label: t("btn_view_profile", "View Profile") || "View Profile",
               onClick: () => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)
             }] : []),
             {
               id: "mason_notepad",
-              icon: t("icon_description") || "description",
-              label: t("ui_btn_notepad") || "Notepad",
+              icon: t("icon_description", "description") || "description",
+              label: t("ui_btn_notepad", "Notepad") || "Notepad",
               onClick: () => setIsNotepadOpen(true)
             },
             ...(isVerifiedMason ? [{
               id: "mason_settings",
-              icon: t("icon_settings") || "settings",
-              label: t("masonhub_settings_title") || "Mason Settings",
+              icon: t("icon_settings", "settings") || "settings",
+              label: t("masonhub_settings_title", "{Mason} Settings") || "Mason Settings",
               onClick: () => setIsSettingsOpen(true)
             }] : [])
           ]}
@@ -131,7 +131,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
         <div className="md:hidden">
           <HoverTabDrawer
-            title={t("mason_hub_title") || "Mason Navigation"}
+            title={t("mason_hub_title", "{Mason} Workshop") || "Mason Navigation"}
             activeTab={masonActiveTab}
             setTab={setMasonActiveTab}
             hideMobilePills={true}
@@ -139,24 +139,24 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
               <>
                 {isVerifiedMason && (
                   <ActionButton
-                    icon={t("icon_visibility") || "visibility"}
-                    label={t("btn_view_profile") || "View Profile"}
+                    icon={t("icon_visibility", "visibility") || "visibility"}
+                    label={t("btn_view_profile", "View Profile") || "View Profile"}
                     variant="glass"
                     className="w-full"
                     onClick={() => handleOpenMasonProfile && handleOpenMasonProfile(masonProfile.id)}
                   />
                 )}
                 <ActionButton
-                  icon={t("icon_description") || "description"}
-                  label={t("ui_btn_notepad") || "Notepad"}
+                  icon={t("icon_description", "description") || "description"}
+                  label={t("ui_btn_notepad", "Notepad") || "Notepad"}
                   variant="glass"
                   className="w-full"
                   onClick={() => setIsNotepadOpen(true)}
                 />
                 {isVerifiedMason && (
                   <ActionButton
-                    icon={t("icon_settings") || "settings"}
-                    label={t("masonhub_settings_title") || "Mason Settings"}
+                    icon={t("icon_settings", "settings") || "settings"}
+                    label={t("masonhub_settings_title", "{Mason} Settings") || "Mason Settings"}
                     variant="glass"
                     className="w-full"
                     onClick={() => setIsSettingsOpen(true)}
@@ -165,18 +165,18 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
               </>
             }
           >
-            <VerticalTabButton id="command_center" icon={t("icon_desktop_windows") || "desktop_windows"} label={(t("wf_tab_command") || "Command Center").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-            <VerticalTabButton id="sandbox" icon={isVerifiedMason ? (t("icon_deployed_code") || "deployed_code") : (t("icon_handyman") || "handyman")} label={(isVerifiedMason ? (t("items") || "Mods") : (t("filter_dev") || "Sandbox")).replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab === "registry" ? "sandbox" : masonActiveTab} setTab={setMasonActiveTab} />
-            <VerticalTabButton id="nexus" icon={t("icon_hub") || "hub"} label={(t("tab_nexus") || "Nexus").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            <VerticalTabButton id="command_center" icon={t("icon_desktop_windows", "desktop_windows") || "desktop_windows"} label={(t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+            <VerticalTabButton id="sandbox" icon={isVerifiedMason ? (t("icon_deployed_code", "deployed_code") || "deployed_code") : (t("icon_handyman", "handyman") || "handyman")} label={(isVerifiedMason ? (t("term_mods", "Mods") || "Mods") : (t("filter_dev", "Sandbox") || "Sandbox")).replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab === "registry" ? "sandbox" : masonActiveTab} setTab={setMasonActiveTab} />
+            <VerticalTabButton id="nexus" icon={t("icon_hub", "hub") || "hub"} label={(t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
             {isDesktop() && (
-              <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={(t("tab_chameleons") || "Chameleons").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={(t("tab_chameleons", "Chameleons") || "Chameleons").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
             )}
 
             {isVerifiedMason && (
               <>
-                <VerticalTabButton id="collections" icon={t("icon_collections_bookmark") || "collections_bookmark"} label={(t("tab_cc") || "Collections").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-                <VerticalTabButton id="posts" icon={t("icon_edit_document") || "edit_document"} label={(t("tab_posts") || "Posts").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
-                <VerticalTabButton id="bug_reports" icon={t("icon_bug_report") || "bug_report"} label={(t("stat_bugs") || "Bug Reports").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+                <VerticalTabButton id="collections" icon={t("icon_collections_bookmark", "collections_bookmark") || "collections_bookmark"} label={(t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+                <VerticalTabButton id="posts" icon={t("icon_edit_document", "edit_document") || "edit_document"} label={(t("tab_posts", "{Dispatches}") || "Posts").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+                <VerticalTabButton id="bug_reports" icon={t("icon_bug_report", "bug_report") || "bug_report"} label={(t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
               </>
             )}
           </HoverTabDrawer>
@@ -259,9 +259,9 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 export function MasonStatusDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const { t } = useLexicon();
   const options = [
-    { id: "stable", label: t("status_tag_stable") || "Stable" },
-    { id: "unstable", label: t("status_tag_unstable") || "Unstable" },
-    { id: "corrupted", label: t("status_tag_corrupted") || "Corrupted" }
+    { id: "stable", label: t("status_stable", "STABLE") || "Stable" },
+    { id: "unstable", label: t("label_unstable", "Unstable") || "Unstable" },
+    { id: "corrupted", label: t("status_corrupted", "Corrupted") || "Corrupted" }
   ];
   return <CustomDropdown disableTint={true} value={value} options={options} onChange={(v: string[]) => onChange(v[0])} placeholder={t("registry_label_status", "Status")} />;
 }

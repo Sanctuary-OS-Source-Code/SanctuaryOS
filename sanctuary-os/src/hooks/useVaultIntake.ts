@@ -20,13 +20,13 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
     const schemaFeatures = activeGameSchema?.features || { has_cc: true };
     if (!schemaFeatures.has_cc) {
-      setStatus(t("status_not_supported"));
+      setStatus(t("status_not_supported", "Active game does not support custom content intake."));
       return false;
     }
 
     setDropzoneState("ingesting");
     setStatus(
-      `${t("status_mass_ingestion_prefix")}${paths.length}${t("status_mass_ingestion_suffix")}`,
+      `${t("status_mass_ingestion_prefix", "MASS INGESTION: Unifying")}${paths.length}${t("status_mass_ingestion_suffix", "unique identities...")}`,
     );
     let hasMalware = false;
     try {
@@ -68,9 +68,9 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       }
       
       if (successCount > 0) {
-        setStatus(t("status_ingest_success"));
+        setStatus(t("status_ingest_success", "{Mods} Imported Successfully!"));
       } else if (lastError) {
-        setStatus(`${t("status_link_failed")}${lastError}`);
+        setStatus(`${t("status_link_failed", "Link Failed:")}${lastError}`);
       } else if (dnaMatchCount > 0) {
         setStatus(""); 
       } else {
@@ -82,7 +82,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       }
       return hasMalware;
     } catch (err) {
-      setStatus(`${t("err_save_failed")}${err}`);
+      setStatus(`${t("err_save_failed", "Save failed:")}${err}`);
       return hasMalware;
     }
   };

@@ -289,6 +289,38 @@ const safeLocalStorageSetItem = (key: string, value: string) => {
   }
 };
 
+const CACHED_GAME_DBS_KEY = 'sanctuary_cached_game_dbs_v1';
+
+const loadCachedGameDatabases = (): any[] => {
+  try {
+    const raw = localStorage.getItem(CACHED_GAME_DBS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const mergeGamesWithLocalWorkspaces = (games: any[], localWorkspaces: any[] = []): any[] => {
+  return games.map((g: any) => {
+    const existing = localWorkspaces.find((w: any) => w.schema_id === g.schema_id || w.id === g.schema_id);
+    const derivedId = existing ? existing.id : (g.schema_id || g.id);
+    const finalId = derivedId === 'default_workspace' ? g.schema_id : derivedId;
+    return {
+      id: finalId,
+      game_id: g.game_id || g.id,
+      name: existing && existing.name !== 'Default Game' ? existing.name : g.name,
+      schema_id: g.schema_id,
+      supabase_url: g.supabase_url,
+      supabase_anon_key: g.supabase_anon_key,
+      live_path: existing?.live_path ?? g.live_path,
+      mods_path: existing?.mods_path ?? g.mods_path,
+      vault_path: existing?.vault_path ?? g.vault_path
+    };
+  });
+};
+
 interface GlobalState {
   view: string;
   setView: (view: string) => void;
@@ -540,7 +572,7 @@ export const useStore = create<GlobalState>((set) => ({
   setVaultPath: (vaultPath) => set({ vaultPath }),
   isGlobalConfigLoaded: false,
   setIsGlobalConfigLoaded: (loaded) => set({ isGlobalConfigLoaded: loaded }),
-  workspaces: [],
+  workspaces: loadCachedGameDatabases(),
   setWorkspaces: (ws) => set({ workspaces: ws }),
   activeWorkspaceId: null,
   setActiveWorkspaceId: (activeWorkspaceId) => set({ activeWorkspaceId }),
@@ -758,55 +790,64 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default_schem
   }
 };
 
-export const syncGameDatabases = async () => {
-  try {
-    if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
-       useStore.setState({ isGameDatabasesSynced: true });
-       return; // Rely on existing local workspaces/fallback config
-    }
-    const { supabaseAuth } = await import('../supabase');
-    const { data: games, error } = await supabaseAuth
-      .from('sanctuary_games')
-      .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
-      .neq('is_active', false);
-    
-    if (error) {
-      alert(`HUB DB ERROR: ${error.message}. If this says JWT invalid, you need to sign out and sign back in!`);
-    }
-
-    if (games && games.length > 0) {
-      let localWorkspaces: any[] = [];
-      try {
-        if (isDesktop()) {
-           const { invoke } = await import('@tauri-apps/api/core');
-           const gConf: any = await invoke("get_global_config");
-           if (gConf && gConf.workspaces) localWorkspaces = gConf.workspaces;
-        }
-      } catch(e) {}
-      
-      const liveWorkspaces = games.map((g: any) => {
-        // Find existing local workspace that matches this schema to preserve its UUID and paths
-        const existing = localWorkspaces.find(w => w.schema_id === g.schema_id || w.id === g.schema_id);
-        const derivedId = existing ? existing.id : g.schema_id;
-        const finalId = derivedId === 'default_workspace' ? g.schema_id : derivedId;
-        return {
-          id: finalId,
-          game_id: g.id,
-          name: existing && existing.name !== 'Default Game' ? existing.name : g.name,
-          schema_id: g.schema_id,
-          supabase_url: g.supabase_url,
-          supabase_anon_key: g.supabase_anon_key,
-          live_path: existing?.live_path,
-          mods_path: existing?.mods_path,
-          vault_path: existing?.vault_path
-        };
-      });
-      useStore.setState({ workspaces: liveWorkspaces, isGameDatabasesSynced: true });
-    } else {
-        useStore.setState({ isGameDatabasesSynced: true });
-    }
-  } catch (err) {
-    console.error("Failed to sync core game databases", err);
-    useStore.setState({ isGameDatabasesSynced: true });
+export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
+  const cachedGames = loadCachedGameDatabases();
+  if (cachedGames.length > 0) {
+    const hydratedCached = mergeGamesWithLocalWorkspaces(cachedGames, preloadedLocalWorkspaces || []);
+    useStore.setState({ workspaces: hydratedCached, isGameDatabasesSynced: true });
   }
+
+  if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
+    useStore.setState({ isGameDatabasesSynced: true });
+    return;
+  }
+
+  const performNetworkSync = async () => {
+    try {
+      const { supabaseAuth } = await import('../supabase');
+      const { data: games, error } = await supabaseAuth
+        .from('sanctuary_games')
+        .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+        .neq('is_active', false);
+
+      if (error) {
+        alert(`HUB DB ERROR: ${error.message}. If this says JWT invalid, you need to sign out and sign back in!`);
+      }
+
+      if (games && games.length > 0) {
+        safeLocalStorageSetItem(CACHED_GAME_DBS_KEY, JSON.stringify(games));
+        let localWorkspaces: any[] = Array.isArray(preloadedLocalWorkspaces) ? preloadedLocalWorkspaces : [];
+        if (localWorkspaces.length === 0 && isDesktop()) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            const gConf: any = await invoke("get_global_config");
+            if (gConf && gConf.workspaces) localWorkspaces = gConf.workspaces;
+          } catch (e) {}
+        }
+
+        const liveWorkspaces = mergeGamesWithLocalWorkspaces(games, localWorkspaces);
+        useStore.setState({ workspaces: liveWorkspaces, isGameDatabasesSynced: true });
+      } else {
+        useStore.setState({ isGameDatabasesSynced: true });
+      }
+    } catch (err) {
+      console.error("Failed to sync core game databases", err);
+      useStore.setState({ isGameDatabasesSynced: true });
+    }
+  };
+
+  if (cachedGames.length > 0) {
+    // Already hydrated from local cache in 0ms; refresh in the background without blocking workspace boot
+    performNetworkSync();
+    return;
+  }
+
+  // First-time cold boot without cache: bound network wait to 2500ms so a slow connection never hangs boot
+  await Promise.race([
+    performNetworkSync(),
+    new Promise<void>((resolve) => setTimeout(() => {
+      useStore.setState({ isGameDatabasesSynced: true });
+      resolve();
+    }, 2500)),
+  ]);
 };

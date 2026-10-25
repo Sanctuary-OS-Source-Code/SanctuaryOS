@@ -187,7 +187,7 @@ export function SystemStatusPanel({
           title={t("sys_info_app", "Application")}
           icon={t("icon_desktop_windows", "desktop_windows")}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {(() => {
               const installedVersion = String(packageJson.version || "")
                 .replace(/^v/i, "")
@@ -204,7 +204,7 @@ export function SystemStatusPanel({
                 installedVersion === targetUpdateVersion
                   ? ` (${
                       isDevUpdate
-                        ? t("release_notes_meta_channel_dev", "Dev")
+                        ? t("sidebar_wayfinder_tools", "Dev")
                         : t("release_notes_meta_channel_stable", "Stable")
                     })`
                   : "";
@@ -214,7 +214,7 @@ export function SystemStatusPanel({
                     updatePayload
                       ? isDevUpdate
                         ? t("sys_stat_dev_update_available", "Dev Build Available")
-                        : t("sys_stat_update_available", "Update Available")
+                        : t("card_update_available", "Update Available")
                       : t("sys_stat_version", "Build Version")
                   }
                   value={
@@ -289,7 +289,7 @@ export function SystemStatusPanel({
           icon={t("icon_devices", "devices")}
           delayClass="delay-100"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <StatBox
               label={t("sys_stat_os_name", "Operating System")}
               value={telemetry?.host_os || navigator.userAgent}
@@ -299,7 +299,7 @@ export function SystemStatusPanel({
             />
             <StatBox
               label={t("target_patch", "Detected Patch")}
-              value={selectedVersion || t("status_unknown", "Unknown")}
+              value={selectedVersion || t("unknown", "Unknown")}
               icon={t("icon_verified_user", "verified_user")}
               iconColorClass="text-[var(--success)]"
             />
@@ -416,7 +416,7 @@ export function SystemStatusPanel({
           icon={t("icon_storage", "storage")}
           delayClass="delay-300"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <StatBox
               label={t("sys_stat_usage", "Local Storage Used")}
               value={
@@ -437,7 +437,7 @@ export function SystemStatusPanel({
             {vaultSize !== null && (
               <>
                 <StatBox
-                  label={t("sys_stat_vault", "Vault Footprint")}
+                  label={t("sys_stat_vault", "{Vault} Footprint")}
                   value={(() => {
                     const s = parseBytes(vaultSize);
                     return <AnimatedNumber value={s.val} suffix={s.unit} />;
@@ -446,7 +446,7 @@ export function SystemStatusPanel({
                   iconColorClass="text-[var(--accent)]"
                 />
                 <StatBox
-                  label={t("items", "Vault")}
+                  label={t("term_mods", "Vault")}
                   value={(() => {
                     const s = parseBytes(artifactsSize || 0);
                     return <AnimatedNumber value={s.val} suffix={s.unit} />;
@@ -473,7 +473,7 @@ export function SystemStatusPanel({
                   iconColorClass="text-[var(--warning)]"
                 />
                 <StatBox
-                  label={t("backups_title", "Time Capsule")}
+                  label={t("term_backups", "Time Capsule")}
                   value={(() => {
                     const s = parseBytes(timeCapsuleSize || 0);
                     return <AnimatedNumber value={s.val} suffix={s.unit} />;

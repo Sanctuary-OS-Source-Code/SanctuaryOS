@@ -190,20 +190,20 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview", "Overview"),
-      icon: "dashboard",
+      label: t("overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard"),
       number: verifiedSubmissions.length.toString()
     },
     {
       id: "pending",
       label: t("pending", "Pending"),
-      icon: "schedule",
+      icon: t("icon_schedule", "schedule"),
       number: verifiedSubmissions.filter(s => s.status === 'under_review').length.toString()
     },
     {
       id: "completed",
       label: t("status_completed", "Completed"),
-      icon: "check_circle",
+      icon: t("icon_check_circle", "check_circle"),
       number: verifiedSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').length.toString()
     }
   ];
@@ -211,12 +211,12 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const renderLanding = () => (
     <HubOverviewLanding>
       <HubOverviewSection
-        icon="schedule"
+        icon={t("icon_schedule", "schedule")}
         iconColorClass="text-[var(--accent)]"
         title={t("recent_pending", "Recent Pending")}
         isEmpty={pendingList.length === 0}
-        emptyIcon="check_circle"
-        emptyTitle={t("no_pending_masons", "No pending submissions")}
+        emptyIcon={t("icon_check_circle", "check_circle")}
+        emptyTitle={t("no_pending_masons", "No Pending {Mason} Submissions")}
       >
         {pendingList.slice(0, 4).map((mod: any) => (
           <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
@@ -224,11 +224,11 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       </HubOverviewSection>
 
       <HubOverviewSection
-        icon="check_circle"
+        icon={t("icon_check_circle", "check_circle")}
         iconColorClass="text-[var(--success)]"
         title={t("recent_completed", "Recent Completed")}
         isEmpty={completedList.length === 0}
-        emptyIcon="history"
+        emptyIcon={t("icon_history", "history")}
         emptyTitle={t("no_history", "No history")}
       >
         {completedList.slice(0, 4).map((mod: any) => (
@@ -241,13 +241,13 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("mason_queue", "Mason Queue")}
-        headerSubtitle={t("mason_queue_desc", "Review submissions from Masons.")}
-        headerIcon="construction"
+        headerTitle={t("mason_queue", "{Mason} Queue")}
+        headerSubtitle={t("mason_queue_desc", "Review submissions from {masons}.")}
+        headerIcon={t("icon_construction", "construction")}
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_ph", "Search submissions...") as string}
+        searchPlaceholder={t("search_ph", "Search {mods}...") as string}
         hideSearch={filterTab === 'overview'}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
@@ -258,10 +258,10 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         ) : filterTab === 'overview' ? (
           renderLanding()
         ) : filteredSubmissions.length === 0 ? (
-          <EmptyState icon={t("icon_account_balance", "account_balance")} title={t("no_pending_masons", "No submissions found")} className="col-span-full py-16" />
+          <EmptyState icon={t("icon_account_balance", "account_balance")} title={t("no_pending_masons", "No Pending {Mason} Submissions")} className="col-span-full py-16" />
         ) : (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
               {filteredSubmissions.slice(0, visibleCount).map((mod: any) => (
                 <ArtifactCard key={mod.id} mod={mod} onClick={() => handleSelect(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
               ))}
@@ -271,7 +271,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more", "Load More")} ({visibleCount} / {filteredSubmissions.length})
+                {t("load_more", "Load More")} ({visibleCount} / {filteredSubmissions.length})
               </button>
             )}
           </div>
@@ -284,19 +284,19 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         title={t("registry_select_master", "Review Submission")}
         icon={t("icon_construction", "construction")}
         iconColorClass="text-[var(--accent)]"
-        subtitle={activeMod ? `${t("lbl_uuid", "UUID")}: ${activeMod.id}` : t("mason_queue_desc", "Review submissions from Masons.")}
+        subtitle={activeMod ? `${t("lbl_uuid", "UUID")}: ${activeMod.id}` : t("mason_queue_desc", "Review submissions from {masons}.")}
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="block"
+              icon={t("icon_block", "block")}
               variant="danger"
               tooltip={t("registry_btn_sever", "Reject")}
               onClick={handleReject}
               disabled={isProcessing}
             />
             <PanelHeaderButton
-              icon={requireMasonLabTest && (!isActiveVerified || isActiveFailed) ? "lock" : "check"}
+              icon={requireMasonLabTest && (!isActiveVerified || isActiveFailed) ? t("icon_lock", "lock") : t("icon_check", "check")}
               variant="success"
               tooltip={
                 requireMasonLabTest && (!isActiveVerified || isActiveFailed)
@@ -317,28 +317,28 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard
               icon={t("icon_construction", "construction")}
-              overline={t("mason_queue", "Mason Queue")}
+              overline={t("mason_queue", "{Mason} Queue")}
               title={editForm.name || activeMod.name || t("registry_select_master", "Review Submission")}
-              description={t("mason_queue_desc", "Review submissions from Masons.")}
+              description={t("mason_queue_desc", "Review submissions from {masons}.")}
               badge={(activeMod.status || t("pending", "Pending")).replace(/_/g, " ")}
-              badgeIcon={activeMod.status === "verified" ? "verified" : "schedule"}
+              badgeIcon={activeMod.status === "verified" ? t("icon_verified", "verified") : t("icon_schedule", "schedule")}
               variant={activeMod.status === "verified" ? "success" : "accent"}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <StatBox
-                  label={t("mason", "Mason")}
+                  label={t("mason", "{Mason}")}
                   value={
                     masonsList.find((m: any) => m.id === editForm.mason_id)?.name ||
                     activeMod.master_author ||
-                    t("unknown_mason", "Unknown Mason")
+                    t("unknown_mason", "Unknown {Mason}")
                   }
-                  icon="architecture"
+                  icon={t("icon_architecture", "architecture")}
                   iconColorClass="text-[var(--accent)]"
                 />
                 <StatBox
                   label={t("compliance_tier", "Compliance Tier")}
                   value={`${t("auto_tier", "Tier")} ${editForm.compliance_tier || 0}`}
-                  icon="verified_user"
+                  icon={t("icon_verified_user", "verified_user")}
                   iconColorClass={
                     (editForm.compliance_tier || 0) >= 3
                       ? "text-[var(--danger)]"
@@ -353,8 +353,8 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <SidePanelTitleInput
               value={editForm.name || ""}
               onChange={val => setEditForm({ ...editForm, name: val })}
-              label={t("label_modname", "Artifact Name")}
-              placeholder={t("label_modname", "Artifact Name")}
+              label={t("label_modname", "{Mod} Name")}
+              placeholder={t("label_modname", "{Mod} Name")}
               subtitle={`${t("lbl_uuid", "UUID")}: ${String(activeMod.id || "").substring(0, 8)}`}
             />
 
@@ -381,7 +381,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <UniversalGroup title={t("btn_view", "Classification")} icon={t("icon_info", "info")}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "Mason")}</label>
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "{Mason}")}</label>
                   <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({ ...editForm, mason_id: id })} />
                 </div>
 
@@ -401,9 +401,9 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("label_resources", "Resources")} icon={t("icon_link", "link")}>
+            <UniversalGroup title={t("resources", "Resources")} icon={t("icon_link", "link")}>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("registry_label_url", "Source URL")}</label>
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("ui_url", "Source URL")}</label>
                 <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" />
               </div>
 

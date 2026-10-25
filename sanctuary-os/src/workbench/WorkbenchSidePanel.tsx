@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { SidePanel, CustomDropdown, ActionPill, PanelHeaderGroup, PanelHeaderButton, HoverTooltip } from '../shared';
+import { SidePanel, CustomDropdown, ActionPill, PanelHeaderGroup, PanelHeaderButton, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
 import { WorkbenchVisualEditor, countModifiedSettings, countEditedFromSavedSettings, countSettingsByCategory } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
@@ -273,7 +273,7 @@ export function WorkbenchSidePanel({
                         <>
                            <PanelHeaderButton
                               icon={t("icon_close", "close")}
-                              tooltip={t("nav_cancel", "Cancel")}
+                              tooltip={t("cancel", "Cancel")}
                               variant="danger"
                               onClick={() => layoutState.setConfirmSaveWithErrors(false)}
                            />
@@ -395,7 +395,7 @@ export function WorkbenchSidePanel({
                </PanelHeaderGroup>
                <PanelHeaderGroup className="ml-2">
                   <PanelHeaderButton
-                     icon={layoutState.isFullscreen ? 'fullscreen_exit' : t("icon_fullscreen", "fullscreen")}
+                     icon={layoutState.isFullscreen ? t("icon_fullscreen_exit", "fullscreen_exit") : t("icon_fullscreen", "fullscreen")}
                      tooltip={layoutState.isFullscreen ? t("btn_exit_fullscreen", "Exit Fullscreen") : t("btn_fullscreen", "Fullscreen")}
                      onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
                   />
@@ -417,14 +417,28 @@ export function WorkbenchSidePanel({
                         }
                      }}
                   >
-                     <div className="flex items-center gap-5">
-                        <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
+                     <div className="flex items-center gap-4">
+                        <div
+                           className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0"
+                           style={{
+                              borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                           }}
+                        >
                            <span className="material-symbols-outlined !text-[20px]">{t("icon_error", "error")}</span>
                         </div>
                         <div className="flex flex-col min-w-0">
                            <span className="text-sm font-bold text-[var(--danger)] flex items-center gap-2">
                               <strong>{editorState.problemsList.length}</strong> {t("syntax_error_title", "Syntax Error")}
-                              <span className="text-[10px] text-[var(--danger)] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shrink-0 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] ml-1">
+                              <span
+                                 className={`${VAULT_CHIP_CLASS} font-mono ml-1`}
+                                 style={{
+                                    color: "var(--danger)",
+                                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
+                                 }}
+                              >
+                                 <span className="material-symbols-rounded !text-[12px] shrink-0">
+                                    {t("icon_code", "code")}
+                                 </span>
                                  L{editorState.problemsList[0]?.line}
                               </span>
                            </span>
@@ -462,7 +476,7 @@ export function WorkbenchSidePanel({
                                  className="w-full"
                                  searchQuery={searchQuery}
                                  setSearchQuery={setSearchQuery}
-                                 searchPlaceholder={t("workbench_search_placeholder", "Search settings...")}
+                                 searchPlaceholder={t("diff_search_settings", "Search settings...")}
                                  rightContent={
                                     <div className="flex items-center gap-2 px-3 h-full py-2">
                                        {(unsavedEditCount > 0 || onlyUnsaved || hasUnsavedChanges) && (
@@ -770,7 +784,7 @@ export function WorkbenchSidePanel({
                                           className="w-full"
                                           searchQuery={previewSearchQuery}
                                           setSearchQuery={setPreviewSearchQuery}
-                                          searchPlaceholder={t("workbench_search_placeholder", "Search settings...")}
+                                          searchPlaceholder={t("diff_search_settings", "Search settings...")}
                                        />
                                        {templatePreviewObject?.categories && templatePreviewObject.categories.length > 0 && (
                                           <WorkbenchCategoryBar
@@ -789,11 +803,18 @@ export function WorkbenchSidePanel({
                                        )}
                                     </>
                                  ) : (
-                                    <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full px-4 py-2 flex items-center gap-2 w-fit">
-                                       <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
-                                          {t("icon_description", "description")}
-                                       </span>
-                                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">
+                                    <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-2 flex items-center gap-2.5 w-fit">
+                                       <div
+                                          className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                                          style={{
+                                             borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                                          }}
+                                       >
+                                          <span className="material-symbols-outlined !text-[18px]">
+                                             {t("icon_description", "description")}
+                                          </span>
+                                       </div>
+                                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] pr-2">
                                           {templatePreviewObject?.target_file || t("tab_file", "Target File")}
                                        </span>
                                     </div>

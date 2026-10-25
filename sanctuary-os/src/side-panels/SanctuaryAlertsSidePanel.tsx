@@ -11,6 +11,7 @@ import {
   ActionPill,
   InlineFilterGroup,
   EmptyState,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import MasonPostViewer from "./MasonPostViewer";
 import { useStore } from "../store";
@@ -159,7 +160,7 @@ export function SanctuaryAlertsSidePanel({
               variant="filter"
               className="!w-full"
               icon={t("icon_history", "history")}
-              label={t("status_inactive", "Inactive")}
+              label={t("tab_inactive", "Inactive")}
               isActive={filterStatus === "Inactive"}
               onClick={() => setFilterStatus("Inactive")}
             />
@@ -167,7 +168,7 @@ export function SanctuaryAlertsSidePanel({
               variant="filter"
               className="!w-full"
               icon={t("icon_all_inclusive", "all_inclusive")}
-              label={t("alert_filter_status_all", "All Statuses")}
+              label={t("status_dd_all", "All Statuses")}
               isActive={filterStatus === "All"}
               onClick={() => setFilterStatus("All")}
             />
@@ -176,7 +177,7 @@ export function SanctuaryAlertsSidePanel({
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search", "Search...")}
+            searchPlaceholder={t("nav_search", "Search...")}
             primaryPopover={{
               icon: t("icon_tune", "tune"),
               label: t("ui_btn_filter", "Filters"),
@@ -202,7 +203,7 @@ export function SanctuaryAlertsSidePanel({
                         },
                         {
                           id: "Artifact Alert",
-                          label: t("category_artifact_alert", "Artifact Alert"),
+                          label: t("category_artifact_alert", "{Mod} Alert"),
                         },
                       ]}
                     />
@@ -215,9 +216,9 @@ export function SanctuaryAlertsSidePanel({
                       value={filterStatus}
                       onChange={(v: string) => setFilterStatus(v)}
                       options={[
-                        { id: "All", label: t("alert_filter_status_all", "All Statuses") },
+                        { id: "All", label: t("status_dd_all", "All Statuses") },
                         { id: "Active", label: t("status_active", "Active") },
-                        { id: "Inactive", label: t("status_inactive", "Inactive") },
+                        { id: "Inactive", label: t("tab_inactive", "Inactive") },
                       ]}
                     />
                   </div>
@@ -289,8 +290,14 @@ export function SanctuaryAlertsSidePanel({
                     >
                       {/* Top Header Bar */}
                       <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                        <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1">
-                          <span className="material-symbols-outlined !text-[12px]">
+                        <span
+                          className={VAULT_CHIP_CLASS}
+                          style={{
+                            color: "var(--accent)",
+                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
                             {isPinned
                               ? t("icon_warning", "warning")
                               : t("icon_podcasts", "podcasts")}
@@ -298,8 +305,17 @@ export function SanctuaryAlertsSidePanel({
                           <span>{categoryLabel}</span>
                         </span>
                         {isPinned && (
-                          <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-wider">
-                            {t("urgent_alert", "Urgent")}
+                          <span
+                            className={VAULT_CHIP_CLASS}
+                            style={{
+                              color: "var(--warning)",
+                              borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                            }}
+                          >
+                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                              {t("icon_priority_high", "priority_high")}
+                            </span>
+                            <span>{t("urgent_alert", "Urgent")}</span>
                           </span>
                         )}
                       </div>

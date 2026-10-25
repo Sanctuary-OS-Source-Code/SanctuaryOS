@@ -251,15 +251,15 @@ export const mapDlcCode = (code: string) => {
   return DLC_MAP[baseCode] || LOCAL_DLC_MAP[baseCode] || code;
 };
 export const getModIcon = (mod: any, schema: any, t: any) => {
-  if (mod.isFlavorFolder) return t("icon_style") || "style";
+  if (mod.isFlavorFolder) return t("icon_style", "style") || "style";
   if (
     mod.isParent &&
     mod.flavors?.some((f: any) =>
       ["twin", "beta", "addon"].includes(f.relationshipType),
     )
   )
-    return t("icon_account_tree") || "account_tree";
-  if (mod.isParent) return t("icon_folder_open") || "folder_open";
+    return t("icon_account_tree", "account_tree") || "account_tree";
+  if (mod.isParent) return t("icon_folder_open", "folder_open") || "folder_open";
 
   const name = (mod.name || "").toLowerCase();
   const rawType = (mod.type || mod.category_override || "").toLowerCase();
@@ -278,20 +278,20 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
     name.includes("clothes") ||
     name.includes("tattoo")
   )
-    return t("icon_checkroom") || "checkroom";
+    return t("icon_checkroom", "checkroom") || "checkroom";
   if (
     rawType.includes("build") ||
     name.includes("furniture") ||
     name.includes("object")
   )
-    return t("icon_chair") || "chair";
+    return t("icon_chair", "chair") || "chair";
   if (rawType.includes("script") || getFileLabel(name, schema) === "SCRIPT")
-    return t("icon_receipt_long") || "code";
+    return t("icon_receipt_long", "receipt_long") || "code";
   if (rawType.includes("anim") || name.includes("anim"))
-    return t("icon_movie") || "animation";
+    return t("icon_movie", "movie") || "animation";
   if (rawType.includes("cc") || name.includes("set"))
-    return t("icon_folder_special") || "folder_special";
-  return t("icon_extension") || "extension";
+    return t("icon_folder_special", "folder_special") || "folder_special";
+  return t("icon_extension", "extension") || "extension";
 };
 export const processModsIntoCollections = (
   modsData: any[],

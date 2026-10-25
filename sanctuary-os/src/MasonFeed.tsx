@@ -35,7 +35,7 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
+    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active"));
     const session = useStore.getState().session;
     
     const { error } = await supabase.rpc('secure_upsert_cloud_file', {
@@ -67,9 +67,9 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const feedContent = (
     <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? 'pb-12' : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("no_posts")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("no_posts", "No Community Posts Found")}</div>
       ) : (
         posts.map((p, index) => {
           return (

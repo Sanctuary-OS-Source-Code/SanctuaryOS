@@ -225,8 +225,8 @@ export function PushTemplateSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("author_push", "Push Template")}
-      subtitle={t("upload_push_subtitle", "Publish Workbench Template to Nexus")}
+      title={t("author_push", "Push To {Nexus}")}
+      subtitle={t("upload_push_subtitle", "Publish your template to the global {Nexus} to share it with the community.")}
       icon={t("icon_cloud_upload", "cloud_upload")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[540px] max-w-[100vw]"
@@ -238,7 +238,7 @@ export function PushTemplateSidePanel({
             tooltip={
               isUploading
                 ? t("uploading", "Uploading...")
-                : t("market_upload_btn", "Publish")
+                : t("market_upload_btn", "Publish To {Nexus}")
             }
             onClick={() => handleSubmit()}
             disabled={!name.trim() || isUploading}
@@ -252,12 +252,9 @@ export function PushTemplateSidePanel({
       >
         <SidePanelHeroCard
           icon={t("icon_cloud_upload", "cloud_upload")}
-          overline={t("author_push", "Push Template")}
+          overline={t("author_push", "Push To {Nexus}")}
           title={name.trim() || t("upload_template_name", "Workbench Template")}
-          description={t(
-            "upload_push_subtitle",
-            "Publish or update your Workbench configuration template on the Nexus."
-          )}
+          description={t("upload_push_subtitle", "Publish your template to the global {Nexus} to share it with the community.")}
           badge={`v${version}`}
           badgeIcon={t("icon_tag", "tag")}
           variant="accent"
@@ -345,7 +342,7 @@ export function PushTemplateSidePanel({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
-                  {t("update_version", "Version")}
+                  {t("label_version", "Version")}
                 </label>
                 <input
                   type="text"
@@ -373,7 +370,7 @@ export function PushTemplateSidePanel({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
-                {t("upload_attach_mod", "Attached Artifact")}
+                {t("upload_attach_mod", "Attach To {Mod} (Optional)")}
               </label>
               <CustomDropdown
                 disableTint={true}
@@ -394,7 +391,7 @@ export function PushTemplateSidePanel({
                       label: mod.displayName || mod.name || "Unknown Mod",
                     })),
                 ]}
-                placeholder={t("auto_select_a_mod", "Select a mod...")}
+                placeholder={t("auto_select_a_mod", "Select a {Mod}")}
                 searchable={true}
               />
             </div>
@@ -451,7 +448,7 @@ export function PushTemplateSidePanel({
                 title={t("auto_detected_architecture", "Detected Architecture")}
                 icon={t("icon_info", "info")}
               >
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-3">
                   {parsed.template_id && (
                     <StatBox
                       label={t("auto_template_id", "Template ID")}
@@ -468,14 +465,14 @@ export function PushTemplateSidePanel({
                   )}
                   {parsed.mod_author && (
                     <StatBox
-                      label={t("auto_mod_author", "Author")}
+                      label={t("auto_mod_author", "{Mod} Author")}
                       value={parsed.mod_author}
                       icon={t("icon_person", "person")}
                     />
                   )}
                   {parsed.write_scope && (
                     <StatBox
-                      label={t("auto_write_scope", "Write Scope")}
+                      label={t("workbench_write_scope", "Write Scope")}
                       value={parsed.write_scope}
                       icon={t("icon_folder", "folder")}
                     />
@@ -484,28 +481,6 @@ export function PushTemplateSidePanel({
               </UniversalGroup>
             );
           })()}
-
-        <div className="grid grid-cols-2 gap-3">
-          <ActionButton
-            variant="glass"
-            icon={t("icon_close", "close")}
-            label={t("nav_cancel", "Cancel")}
-            onClick={onClose}
-            className="!w-full !h-11"
-          />
-          <ActionButton
-            variant="glass"
-            icon={t("icon_publish", "publish")}
-            label={
-              isUploading
-                ? t("uploading", "Uploading...")
-                : t("market_upload_btn", "Publish")
-            }
-            onClick={() => handleSubmit()}
-            disabled={!name.trim() || isUploading}
-            className="!w-full !h-11 !text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-          />
-        </div>
       </form>
     </SidePanel>
   );

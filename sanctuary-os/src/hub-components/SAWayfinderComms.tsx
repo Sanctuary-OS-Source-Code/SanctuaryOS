@@ -87,7 +87,7 @@ export function WayfinderComms() {
 
     if (editingCommId) {
       const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_payload: { id: editingCommId, message: commsInput.trim() } });
-      if (error) useStore.getState().pushStatus(t("comms_update_error") + " " + error.message);
+      if (error) useStore.getState().pushStatus(t("comms_update_error", "Update Error:") + " " + error.message);
       setEditingCommId(null);
     } else {
       const { error } = await supabase.rpc('secure_upsert_cloud_file', {
@@ -97,20 +97,20 @@ export function WayfinderComms() {
           message: commsInput.trim()
         }
       });
-      if (error) useStore.getState().pushStatus(t("comms_insert_error") + " " + error.message);
+      if (error) useStore.getState().pushStatus(t("comms_insert_error", "Insert Error:") + " " + error.message);
     }
     setCommsInput("");
   };
 
   const deleteComm = async (id: number | string) => {
     const { error } = await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'wf_comms_title', p_id: id });
-    if (error) useStore.getState().pushStatus(t("comms_delete_error") + " " + error.message);
+    if (error) useStore.getState().pushStatus(t("comms_delete_error", "Delete Error:") + " " + error.message);
   };
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("wayfinder_comms") || "Wayfinder Comms"}
-      headerSubtitle={t("comms_handshake") || "Secure communication channel"}
+      headerTitle={t("wayfinder_comms", "Moderator Dispatches") || "Wayfinder Comms"}
+      headerSubtitle={t("comms_handshake", "Awaiting Cryptographic Handshake.") || "Secure communication channel"}
       headerIcon="cell_tower"
       headerIconColorClass="theme-text-accent"
     >
@@ -119,7 +119,7 @@ export function WayfinderComms() {
 
         <div className="flex-1 flex flex-col gap-5 relative z-10">
           {commsMessages.length === 0 ? (
-            <EmptyState icon={t("icon_cell_tower")} title={t("comms_offline")} subtitle={t("comms_handshake")} className="col-span-full py-16" />
+            <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("comms_offline", "Secure transmission channel currently offline.")} subtitle={t("comms_handshake", "Awaiting Cryptographic Handshake.")} className="col-span-full py-16" />
           ) : (
             commsMessages.map((msg, i) => (
               <UniversalCard
@@ -134,8 +134,8 @@ export function WayfinderComms() {
                 subtitle={<span className="text-[9px] font-black tracking-widest text-[var(--subtext)] opacity-60">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
                 actions={currentUserId === msg.sender_id ? (
                   <div className="flex gap-2">
-                    <ActionButton onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} iconOnly={true} icon="edit" label={t("emote_edit")} />
-                    <ActionButton onClick={() => deleteComm(msg.id)} iconOnly={true} icon="delete" label={t("btn_delete")} variant="danger" />
+                    <ActionButton onClick={() => { setEditingCommId(msg.id); setCommsInput(msg.message); }} iconOnly={true} icon="edit" label={t("icon_edit", "edit")} />
+                    <ActionButton onClick={() => deleteComm(msg.id)} iconOnly={true} icon="delete" label={t("btn_delete", "{Delete}")} variant="danger" />
                   </div>
                 ) : null}
                 className="animate-in fade-in slide-in-from-bottom-4"
@@ -153,13 +153,13 @@ export function WayfinderComms() {
             onChange={(e) => setCommsInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendComm()}
             className="flex-1 bg-transparent rounded-2xl px-6 py-3 text-[var(--text)] text-sm font-bold focus:outline-none transition-all placeholder-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
-            placeholder={t("sa_comms_placeholder")}
+            placeholder={t("sa_comms_placeholder", "Send priority message to Devs...")}
           />
           <ActionButton
             onClick={sendComm}
             disabled={!commsInput.trim()}
             className="shrink-0 h-14"
-            label={editingCommId ? t("comms_btn_update") : t("btn_send")}
+            label={editingCommId ? t("category_update", "Update") : t("btn_send", "SEND")}
           />
         </div>
       </div>

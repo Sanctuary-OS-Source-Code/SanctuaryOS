@@ -12,6 +12,7 @@ import {
   StatBox,
   DashboardStatTile,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { useLexicon } from "../LexiconContext";
@@ -212,10 +213,8 @@ export default function CommandConflictsPanel({
   const headerIcon =
     tier4Count > 0 ? t("icon_crisis_alert", "crisis_alert") : t("icon_tune", "tune");
 
-  const winnerBadgeClass =
-    "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] flex items-center gap-1.5 shrink-0";
-  const loserBadgeClass =
-    "px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5 shrink-0";
+  const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]`;
+  const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
 
   return (
     <SidePanel
@@ -240,7 +239,7 @@ export default function CommandConflictsPanel({
                   "Tuning Overlap — Load order override or minor feature overlap"
                 )
           }
-          badge={`${activeConflicts.length} ${t("items", "Items")}`}
+          badge={`${activeConflicts.length} ${t("term_mods", "Items")}`}
           badgeIcon={headerIcon}
           variant={
             tier4Count > 0 ? "danger" : activeConflicts.length > 0 ? "warning" : "success"
@@ -269,44 +268,10 @@ export default function CommandConflictsPanel({
         </SidePanelHeroCard>
 
         {activeConflicts.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={severityFilter === "all"}
-              icon={t("icon_tune", "tune")}
-              label={t("filter_all", "All")}
-              value={activeConflicts.length}
-              onClick={() => setSeverityFilter("all")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={severityFilter === "fatal"}
-              icon={t("icon_crisis_alert", "crisis_alert")}
-              label={t("fatal_conflict", "Fatal Conflict")}
-              value={tier4Count}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setSeverityFilter("fatal")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={severityFilter === "overlap"}
-              icon={t("icon_tune", "tune")}
-              label={t("tier3_conflict", "Tuning Overlap")}
-              value={tier3Count}
-              colorClass="text-[var(--warning)]"
-              onClick={() => setSeverityFilter("overlap")}
-            />
-          </div>
-        )}
-
-        {activeConflicts.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search", "Search...")}
+            searchPlaceholder={t("nav_search", "Search...")}
             primaryPopover={{
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
@@ -366,8 +331,8 @@ export default function CommandConflictsPanel({
                   ? t("icon_crisis_alert", "crisis_alert")
                   : t("icon_tune", "tune");
                 const badgeOutline = isTier4
-                  ? "bg-transparent border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
-                  : "bg-transparent border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]";
+                  ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`
+                  : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]`;
 
                 const imageA =
                   showImages &&
@@ -392,9 +357,7 @@ export default function CommandConflictsPanel({
                       ac.conflict.resolution_note || t("tier3_conflict", "Tuning Overlap")
                     }
                     badges={
-                      <div
-                        className={`border px-2.5 py-1 rounded-lg flex items-center gap-1.5 ${badgeOutline}`}
-                      >
+                      <div className={badgeOutline}>
                         <span className="material-symbols-outlined !text-[12px]">
                           {iconName}
                         </span>
@@ -449,7 +412,7 @@ export default function CommandConflictsPanel({
                         image={imageA}
                         icon={!imageA ? getModIcon(ac.modA, activeGameSchema, t) : undefined}
                         title={formatDisplayName(ac.modA.displayName || ac.modA.name)}
-                        subtitle={ac.modA.author || t("unknown_mason", "Unknown Creator")}
+                        subtitle={ac.modA.author || t("unknown_mason", "Unknown {Mason}")}
                         actions={
                           <div className="flex items-center gap-1.5">
                             {ac.conflict.severity_rank === 4 ? (
@@ -470,7 +433,7 @@ export default function CommandConflictsPanel({
                                     {t("icon_delete", "delete")}
                                   </span>
                                   <HoverTooltip
-                                    title={t("btn_remove", "Remove")}
+                                    title={t("btn_remove", "{Remove}")}
                                     icon={t("icon_delete", "delete")}
                                     variant="danger"
                                   />
@@ -482,7 +445,7 @@ export default function CommandConflictsPanel({
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
-                                  <span>{t("bp_winning_artifact", "Winning Override")}</span>
+                                  <span>{t("winner", "WINNING {MOD}")}</span>
                                 </div>
                               ) : isWinnerB ? (
                                 <div className={loserBadgeClass}>
@@ -531,7 +494,7 @@ export default function CommandConflictsPanel({
                         image={imageB}
                         icon={!imageB ? getModIcon(ac.modB, activeGameSchema, t) : undefined}
                         title={formatDisplayName(ac.modB.displayName || ac.modB.name)}
-                        subtitle={ac.modB.author || t("unknown_mason", "Unknown Creator")}
+                        subtitle={ac.modB.author || t("unknown_mason", "Unknown {Mason}")}
                         actions={
                           <div className="flex items-center gap-1.5">
                             {ac.conflict.severity_rank === 4 ? (
@@ -552,7 +515,7 @@ export default function CommandConflictsPanel({
                                     {t("icon_delete", "delete")}
                                   </span>
                                   <HoverTooltip
-                                    title={t("btn_remove", "Remove")}
+                                    title={t("btn_remove", "{Remove}")}
                                     icon={t("icon_delete", "delete")}
                                     variant="danger"
                                   />
@@ -564,7 +527,7 @@ export default function CommandConflictsPanel({
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
-                                  <span>{t("bp_winning_artifact", "Winning Override")}</span>
+                                  <span>{t("winner", "WINNING {MOD}")}</span>
                                 </div>
                               ) : isWinnerA ? (
                                 <div className={loserBadgeClass}>

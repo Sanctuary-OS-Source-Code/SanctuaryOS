@@ -2,12 +2,16 @@ import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle } from "../components/universal/UniversalLayout";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { SidePanel, PanelHeaderGroup, PanelHeaderButton, CustomDropdown, EmptyState } from "../shared";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
+import { logArchitectAction } from "../lib/audit";
 
 export default function KeepersHeuristicsOversight() {
   const { t } = useLexicon();
@@ -118,13 +122,21 @@ export default function KeepersHeuristicsOversight() {
 
       if (error) throw error;
 
-      await supabaseAuth.from("audit_logs").insert({
-        action: editingId ? `Updated Core OS heuristic signature: ${id}` : `Added Core OS heuristic signature: ${id}`,
-        target_table: "keeper_heuristic_signatures",
-        target_name: id,
-        actor_id: userRes.data?.user?.id,
-        reason: notes.trim()
-      });
+      const prevSig = editingId ? signatures.find((s) => s.id === editingId) : null;
+      await logArchitectAction(
+        editingId ? `Updated Core OS heuristic signature: ${id}` : `Added Core OS heuristic signature: ${id}`,
+        "keeper_heuristic_signatures",
+        id,
+        notes.trim() || "Keepers Core Heuristics",
+        "Keepers Core",
+        true,
+        {
+          signature: { from: prevSig?.signature, to: newSig.trim() },
+          match_type: { from: prevSig?.match_type, to: matchType },
+          severity: { from: prevSig?.severity, to: severity },
+          enabled: { from: prevSig?.enabled, to: enabled },
+        }
+      );
 
       useStore.getState().pushStatus(t("auto_heuristic_signature_saved", "Core Heuristic Signature Saved"));
       setIsEditorOpen(false);
@@ -141,6 +153,7 @@ export default function KeepersHeuristicsOversight() {
     if (!editingId) return;
     setIsSubmitting(true);
     try {
+      const prevSig = signatures.find((s) => s.id === editingId);
       const { error } = await supabaseAuth
         .from("keeper_heuristic_signatures")
         .delete()
@@ -148,16 +161,20 @@ export default function KeepersHeuristicsOversight() {
 
       if (error) throw error;
 
-      const userRes = await supabaseAuth.auth.getUser();
-      await supabaseAuth.from("audit_logs").insert({
-        action: `Deleted Core OS heuristic signature: ${editingId}`,
-        target_table: "keeper_heuristic_signatures",
-        target_name: editingId,
-        actor_id: userRes.data?.user?.id,
-        reason: "Removed via Keepers Core"
-      });
+      await logArchitectAction(
+        `Deleted Core OS heuristic signature: ${editingId}`,
+        "keeper_heuristic_signatures",
+        editingId,
+        "Removed via Keepers Core",
+        "Keepers Core",
+        true,
+        {
+          id: { from: editingId, to: null },
+          signature: { from: prevSig?.signature, to: null },
+        }
+      );
 
-      useStore.getState().pushStatus(t("btn_delete", "Deleted"));
+      useStore.getState().pushStatus(t("btn_delete", "{Delete}"));
       setIsEditorOpen(false);
       await fetchSignatures();
       window.dispatchEvent(new CustomEvent("force-heuristics-refresh"));
@@ -182,81 +199,84 @@ export default function KeepersHeuristicsOversight() {
   const activeSigs = filtered.filter((s) => s.enabled !== false);
   const disabledSigs = filtered.filter((s) => s.enabled === false);
 
-  const renderCard = (s: any) => (
-    <UniversalCard
-      key={s.id}
-      layout="vertical"
-      icon={t("icon_shield_lock", "shield_lock")}
-      title={s.signature}
-      statusColor={s.enabled !== false ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-50"}
-      onClick={() => openEditEditor(s)}
-      badges={
-        <div className="w-full flex flex-wrap items-center gap-1.5">
-          <div className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center gap-1.5 shrink-0">
-            <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-              {t("icon_shield_lock", "shield_lock")}
-            </span>
-            <span>{t("core_os_badge", "Core OS")}</span>
+  const renderCard = (s: any) => {
+    const isEnabled = s.enabled !== false;
+    return (
+      <UniversalCard
+        key={s.id}
+        layout="vertical"
+        icon={t("icon_shield_lock", "shield_lock")}
+        title={s.signature}
+        subtitle={s.notes || "---"}
+        isGhosted={!isEnabled}
+        statusColor={isEnabled ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}
+        onClick={() => openEditEditor(s)}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${isEnabled ? "text-[var(--danger)]" : "text-[var(--subtext)]"}`}>
+                {isEnabled ? t("icon_shield_lock", "shield_lock") : t("icon_science", "science")}
+              </span>
+              <span>{isEnabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}</span>
+            </div>
           </div>
-          <div className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5 shrink-0">
-            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-              {t("icon_terminal", "terminal")}
-            </span>
-            <span>{s.match_type}</span>
-          </div>
-        </div>
-      }
-    >
-      <div className="flex flex-col items-center justify-center gap-1 mt-1 text-center">
-        <span className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate max-w-full px-2">
-          {s.notes || "---"}
-        </span>
-      </div>
-    </UniversalCard>
-  );
-
-  const renderLanding = () => (
-    <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-          <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] text-[var(--danger)] opacity-90 drop-shadow-lg">
+        }
+        badges={
+          <>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
                 {t("icon_shield_lock", "shield_lock")}
               </span>
+              <span>{t("core_os_badge", "Core OS")}</span>
             </div>
-            {t("recent_core_heuristics", "Active Core Heuristics")}
-          </h3>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-          {activeSigs.slice(0, 8).length > 0 ? (
-            activeSigs.slice(0, 8).map(renderCard)
-          ) : (
-            <EmptyState icon={t("icon_shield_lock", "shield_lock")} title={t("comp_no_alerts", "No Active Signatures")} className="py-8" />
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/5 pb-4">
-          <h3 className="text-sm font-black text-[var(--text)] capitalize tracking-[0.2em] flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl theme-glass-panel border border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[24px] text-[var(--subtext)] opacity-90 drop-shadow-lg">
-                {t("icon_science", "science")}
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_terminal", "terminal")}
               </span>
+              <span>{String(s.match_type || "").replace(/_/g, " ")}</span>
             </div>
-            {t("disabled_core_heuristics", "Disabled Core Heuristics")}
-          </h3>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
-          {disabledSigs.length > 0 ? (
-            disabledSigs.map(renderCard)
-          ) : (
-            <EmptyState icon={t("icon_science", "science")} title={t("comp_no_alerts", "No Disabled Signatures")} className="py-8" />
-          )}
-        </div>
-      </div>
-    </div>
+          </>
+        }
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+              {s.severity || t("rating_malware", "Malware")}
+            </span>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+              {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+            </span>
+          </div>
+        }
+      />
+    );
+  };
+
+  const renderLanding = () => (
+    <HubOverviewLanding>
+      <HubOverviewSection
+        title={t("recent_core_heuristics", "Active Core Heuristics")}
+        icon={t("icon_shield_lock", "shield_lock")}
+        iconColorClass="text-[var(--danger)]"
+        isEmpty={activeSigs.length === 0}
+        emptyIcon={t("icon_shield_lock", "shield_lock")}
+        emptyTitle={t("comp_no_alerts", "No Active Signatures")}
+        gridClassName="grid grid-cols-1 2xl:grid-cols-2 gap-6"
+      >
+        {activeSigs.slice(0, 6).map(renderCard)}
+      </HubOverviewSection>
+
+      <HubOverviewSection
+        title={t("disabled_core_heuristics", "Disabled Core Heuristics")}
+        icon={t("icon_science", "science")}
+        iconColorClass="text-[var(--subtext)]"
+        isEmpty={disabledSigs.length === 0}
+        emptyIcon={t("icon_science", "science")}
+        emptyTitle={t("comp_no_alerts", "No Disabled Signatures")}
+        gridClassName="grid grid-cols-1 2xl:grid-cols-2 gap-6"
+      >
+        {disabledSigs.map(renderCard)}
+      </HubOverviewSection>
+    </HubOverviewLanding>
   );
 
   const renderGrid = (items: any[]) => (
@@ -266,7 +286,7 @@ export default function KeepersHeuristicsOversight() {
           {t("comp_scanning", "Scanning...")}
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {items.map(renderCard)}
         </div>
       ) : (
@@ -278,13 +298,13 @@ export default function KeepersHeuristicsOversight() {
   return (
     <>
       <ElevatedHubLayout
-        headerTitle={t("keepers_heuristics_title", "Core Heuristics")}
+        headerTitle={t("core_heuristics_tab", "Core Heuristics")}
         headerSubtitle={t("keepers_heuristics_subtitle", "System-Wide Elevated Threat Definitions")}
         headerIcon={t("icon_shield_lock", "shield_lock")}
         headerIconColorClass="text-[var(--danger)]"
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder={t("search_ph", "Search...")}
+        searchPlaceholder={t("search_ph", "Search {mods}...")}
         hideSearch={false}
         actions={[
           {
@@ -299,7 +319,7 @@ export default function KeepersHeuristicsOversight() {
         tabs={[
           {
             id: "LANDING",
-            label: t("overview_tab", "Overview"),
+            label: t("overview", "Overview"),
             icon: t("icon_dashboard", "dashboard"),
             number: signatures.length.toString(),
             colorClass: "text-[var(--accent)]"
@@ -338,7 +358,7 @@ export default function KeepersHeuristicsOversight() {
             {editingId && (
               <PanelHeaderButton
                 icon={confirmDelete ? t("icon_warning", "warning") : t("icon_delete", "delete")}
-                tooltip={confirmDelete ? t("btn_confirm_delete", "Confirm Delete") : t("btn_delete", "Delete")}
+                tooltip={confirmDelete ? t("btn_confirm_delete", "Confirm {Delete}") : t("btn_delete", "{Delete}")}
                 variant="danger"
                 disabled={isSubmitting}
                 onClick={() => {
@@ -379,7 +399,7 @@ export default function KeepersHeuristicsOversight() {
           />
 
           <UniversalGroup
-            title={t("keepers_heuristics_title", "Core Heuristics")}
+            title={t("core_heuristics_tab", "Core Heuristics")}
             icon={t("icon_shield_lock", "shield_lock")}
             headerColorClass="text-[var(--danger)]"
           >

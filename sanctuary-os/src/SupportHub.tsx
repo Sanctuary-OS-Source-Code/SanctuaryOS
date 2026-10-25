@@ -8,7 +8,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import ArtifactResolutionSidePanel from "./side-panels/ArtifactResolutionSidePanel";
-import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from "./components/universal/UniversalLayout";
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
 import { getSupporterState, findLocalMasonSupporterPass, LocalMasonSupporter } from "./utils/supporterManager";
 import { scrubLogUserData } from "./utils/logScrubber";
 
@@ -265,13 +265,13 @@ export default function SupportHub() {
     if (!activeCategory) return [];
 
     const params: any[] = [];
-    params.push({ id: 'classification', type: 'CLASSIFICATION', label: t("support_classification") || "Classification", required: true });
+    params.push({ id: 'classification', type: 'CLASSIFICATION', label: t("comp_type", "Classification") || "Classification", required: true });
 
     if (activeCategory.requires_target_mod) {
-      params.push({ id: 'target_mod', type: 'TARGET_MOD', label: t("support_target_artifact") || "Target Artifact", required: true });
+      params.push({ id: 'target_mod', type: 'TARGET_MOD', label: t("target_artifact", "Target {Mod}") || "Target Artifact", required: true });
     }
     if (activeCategory.requires_target_user) {
-      params.push({ id: 'target_user', type: 'TARGET_USER', label: t("support_target_user_label") || "Target User", required: true });
+      params.push({ id: 'target_user', type: 'TARGET_USER', label: t("support_target_user_label", "Target User ID") || "Target User", required: true });
     }
 
     if (activeCategory.custom_fields?.length > 0) {
@@ -281,11 +281,11 @@ export default function SupportHub() {
     }
 
     if (String(activeCategory.show_description_box) !== "false") {
-      params.push({ id: 'description', type: 'DESCRIPTION', label: t("support_desc") || "Description", required: true });
+      params.push({ id: 'description', type: 'DESCRIPTION', label: t("support_desc", "Ticket Description") || "Description", required: true });
     }
 
     if (activeCategory.telemetry_config?.sources?.length > 0 || String(activeCategory.show_logs_box) !== "false") {
-      params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("dossier_attached_logs") || "Diagnostic Telemetry", required: false });
+      params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("dossier_attached_logs", "Attached Logs") || "Diagnostic Telemetry", required: false });
     }
 
     params.push({ id: 'review', type: 'REVIEW', label: "Review & Submit", required: false });
@@ -306,15 +306,15 @@ export default function SupportHub() {
   }, [isOpen]);
 
   const submitTicket = async () => {
-    if (String(activeCategory?.show_title_box) !== "false" && !title) return setError(t("support_error_fields"));
-    if (String(activeCategory?.show_description_box) !== "false" && !description) return setError(t("support_error_fields"));
+    if (String(activeCategory?.show_title_box) !== "false" && !title) return setError(t("support_error_fields", "Please fill out all required fields."));
+    if (String(activeCategory?.show_description_box) !== "false" && !description) return setError(t("support_error_fields", "Please fill out all required fields."));
 
     if (activeCategory?.custom_fields) {
       for (const field of activeCategory.custom_fields) {
         if (field.required) {
           const val = customFieldsData[field.id];
           if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0)) {
-            return setError(t("support_error_fields"));
+            return setError(t("support_error_fields", "Please fill out all required fields."));
           }
         }
       }
@@ -415,7 +415,7 @@ export default function SupportHub() {
                   if (dirtyTraces.length > 0) {
                     const uniqueTraces = [...new Set(dirtyTraces)];
                     const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                    const errStr = (t("support_err_dirty_logs") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
+                    const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
                     throw new Error(errStr);
                   }
                 }
@@ -430,7 +430,7 @@ export default function SupportHub() {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error(t("auto_guest_mode_active_45"));
+        throw new Error(t("auto_guest_mode_active_45", "Guest Mode Active"));
       }
 
       const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
@@ -467,7 +467,7 @@ export default function SupportHub() {
 
       if (error) throw error;
 
-      useStore.getState().pushStatus(t("ss_support_success"), "success");
+      useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
 
       // Reset form after submit
       setTitle("");
@@ -489,13 +489,23 @@ export default function SupportHub() {
 
   if (!session || isBanned) {
     return (
-      <SidePanel isOpen={isOpen} onClose={onClose} title={t("support_title") || "Support Tickets"} icon={t("icon_support_agent") || "support_agent"}>
-        <div className="flex flex-col gap-8 items-center justify-center py-40 text-center animate-in fade-in duration-500 w-full max-w-2xl mx-auto">
-          <div className="w-32 h-32 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined !text-[64px] text-[var(--text)] opacity-50">{t("icon_lock")}</span>
-          </div>
-          <h2 className="text-3xl font-black capitalize tracking-tighter text-[var(--text)]">{t("access_denied")}</h2>
-          <p className="text-sm font-black text-[var(--subtext)] capitalize tracking-widest">{isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}</p>
+      <SidePanel
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t("support_title", "Support Tickets")}
+        subtitle={t("sidebar_support", "Support & Feedback")}
+        icon={t("icon_support_agent", "support_agent")}
+        iconColorClass="text-[var(--danger)]"
+        widthClass="w-[90vw] md:w-[760px]"
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_lock", "lock")}
+            overline={t("support_title", "Support Tickets")}
+            title={t("access_denied", "Access Denied")}
+            description={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Please sign in to submit support tickets.")}
+            variant="danger"
+          />
         </div>
       </SidePanel>
     );
@@ -503,9 +513,17 @@ export default function SupportHub() {
 
   if (loadingCats) {
     return (
-      <SidePanel isOpen={isOpen} onClose={onClose} title={t("support_title") || "Support Tickets"} icon={t("icon_support_agent") || "support_agent"}>
+      <SidePanel
+        isOpen={isOpen}
+        onClose={onClose}
+        title={t("support_title", "Support Tickets")}
+        subtitle={t("sidebar_support", "Support & Feedback")}
+        icon={t("icon_support_agent", "support_agent")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
+      >
         <div className="flex-1 w-full h-full min-h-[500px]">
-          <LoadingScreen title={t("support_loading_cats") || "Connecting to Support Network"} subtitle="Establishing secure channel..." icon="wifi_tethering" />
+          <LoadingScreen title={t("support_loading_cats", "Connecting to Support Network")} subtitle={t("loading", "Establishing secure channel...")} icon="wifi_tethering" />
         </div>
       </SidePanel>
     );
@@ -518,34 +536,52 @@ export default function SupportHub() {
       <SidePanel
         isOpen={isOpen}
         onClose={onClose}
-        title={t("support_title") || "Submit A Ticket"}
-        subtitle={t("sidebar_support") || "Support & Feedback"}
-        icon={t("icon_support_agent") || "support_agent"}
-        widthClass="w-[800px] max-w-[90vw]"
+        title={t("support_title", "Submit A Ticket")}
+        subtitle={t("sidebar_support", "Support & Feedback")}
+        icon={t("icon_support_agent", "support_agent")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[800px]"
       >
         {showDraftPrompt ? (
-          <div className="flex-1 w-full h-full min-h-[500px] flex items-center justify-center p-8 animate-in fade-in zoom-in duration-500">
-            <div className="glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-3xl p-10 flex flex-col gap-8 max-w-md w-full shadow-[0_20px_60px_-10px_rgba(var(--accent-rgb),0.2)] bg-black/40 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-50 pointer-events-none"></div>
-              <div className="flex flex-col items-center text-center gap-4 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[var(--accent)] flex items-center justify-center shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]">
-                  <span className="material-symbols-outlined !text-4xl text-[var(--accent)]">restore_page</span>
-                </div>
-                <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-widest mt-2">Draft Detected</h2>
-                <p className="text-sm font-bold text-[var(--subtext)] leading-relaxed">An unfinished support dossier was found in your local memory. Would you like to resume where you left off?</p>
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_restore_page", "restore_page")}
+              overline={t("support_title", "Support Dossier")}
+              title={t("draft_detected", "Draft Detected")}
+              description={t("draft_detected_desc", "An unfinished support dossier was found in your local memory. Would you like to resume where you left off?")}
+              variant="accent"
+            >
+              <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                <ActionButton label={t("continue_draft", "Continue Draft")} icon="play_arrow" onClick={loadDraft} variant="accent" className="flex-1" />
+                <ActionButton label={t("discard_draft", "Discard & Start Over")} icon="delete" onClick={clearDraft} variant="glass" className="flex-1" />
               </div>
-              <div className="flex flex-col gap-4 mt-2 relative z-10">
-                <ActionButton label="Continue Draft" icon="play_arrow" onClick={loadDraft} variant="accent" />
-                <button onClick={clearDraft} className="w-full py-3 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all text-xs font-black uppercase tracking-widest">
-                  Discard & Start Over
-                </button>
-              </div>
-            </div>
+            </SidePanelHeroCard>
           </div>
         ) : (
-        <div className="flex flex-col gap-6 w-full h-full">
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-12">
+          <SidePanelHeroCard
+            icon={t("icon_support_agent", "support_agent")}
+            overline={t("sidebar_support", "Support & Feedback")}
+            title={activeCategory?.category_name || t("support_title", "Submit A Ticket")}
+            description={activeCategory?.description || t("support_subtitle", "Complete each stage below to transmit a diagnostic support dossier.")}
+            badge={`${activeCardIndex + 1} / ${cards.length}`}
+            variant={isFormDisabled ? "danger" : "accent"}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <StatBox
+                label={t("support_category", "Category")}
+                value={activeCategory?.category_name || activeTab}
+                icon={t("icon_category", "category")}
+              />
+              <StatBox
+                label={t("status", "Step Progress")}
+                value={`${activeCardIndex + 1} / ${cards.length}`}
+                icon={t("icon_checklist", "checklist")}
+              />
+            </div>
+          </SidePanelHeroCard>
 
-          <div className="flex flex-col w-full mx-auto gap-6 pb-20 mt-4 max-w-4xl px-4">
+          <div className="flex flex-col w-full gap-4">
 
             {error && (
               <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
@@ -567,7 +603,7 @@ export default function SupportHub() {
                 </div>
                 {policyViolations.length > 0 && (
                   <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted Artifacts Detected")}</span>
+                    <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
                     <div className="flex flex-wrap gap-2">
                       {policyViolations.map((mod, i) => (
                         <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
@@ -589,7 +625,7 @@ export default function SupportHub() {
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "Vault Lock Engaged")}</span>
+                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
                       {t("support_vault_lock_desc", `Your vault contains ${totalExtremeMods} severe artifact(s) (Tier 3-5). Support submissions are disabled until purged.`)}
                     </span>
@@ -609,7 +645,7 @@ export default function SupportHub() {
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "Blueprint Lock: Explicit Artifacts Detected")}</span>
+                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
                       {t("support_adult_mods_desc", `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`)}
                     </span>
@@ -635,7 +671,7 @@ export default function SupportHub() {
                     return (
                       <div key={idx} onClick={() => setActiveCardIndex(idx)} className="glass-panel border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-2xl px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all shrink-0 w-full group shadow-md mt-2">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-80">{t("completed_step") || "Completed Step"}</span>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-80">{t("completed_step", "Step Completed") || "Completed Step"}</span>
                           <span className="text-sm font-black text-[var(--text)] tracking-widest">{card.label}</span>
                         </div>
                         <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 p-2 rounded-lg">edit</span>
@@ -670,7 +706,7 @@ export default function SupportHub() {
                       {/* Active Block Header */}
                       <div className="flex flex-col mb-8">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] drop-shadow-sm mb-2 flex items-center justify-between gap-2 w-full">
-                          <span>{isActive ? (t("active_protocol") || "Active Step") : (t("completed_step") || "Completed Step")}</span>
+                          <span>{isActive ? (t("active_protocol", "Current Question") || "Active Step") : (t("completed_step", "Step Completed") || "Completed Step")}</span>
                           <span className="opacity-60">
                             STEP {idx + 1} / {cards.length}
                           </span>
@@ -695,7 +731,7 @@ export default function SupportHub() {
                           <div className="flex flex-col gap-4 relative z-[60]">
                             <ModSearchDropdown
                               modList={modList}
-                              placeholder={t("support_placeholder_mod_uuid") || "Select Mod..."}
+                              placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...") || "Select Mod..."}
                               selectedItem={modList.find((m: any) => m.id === targetModId || m.hash === targetModId) || (targetModId ? { displayName: targetModId } : null)}
                               onSelect={(m: any) => setTargetModId(m.id || m.hash)}
                               onClear={() => setTargetModId("")}
@@ -707,10 +743,10 @@ export default function SupportHub() {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
-                                    {t("supporter_ticket_expedited_banner", "Verified Creator Supporter — Expedited Support Routing Active")}
+                                    {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Expedited Support Routing Active")}
                                   </span>
                                   <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
-                                    {t("supporter_ticket_expedited_desc", "Your local SQLite Supporter Pass was verified for this creator. This ticket will be flagged for Priority Queue routing without exposing your global subscription list.")}
+                                    {t("supporter_ticket_expedited_desc", "Your local SQLite Supporter Pass was verified for this {mason}. This ticket will be flagged for Priority Queue routing without exposing your global subscription list.")}
                                   </p>
                                 </div>
                               </div>
@@ -723,7 +759,7 @@ export default function SupportHub() {
                             value={targetUserId}
                             onChange={setTargetUserId}
                             onKeyDown={handleAdvance}
-                            placeholder={t("support_placeholder_user_uuid") || "Enter Target UUID..."}
+                            placeholder={t("support_placeholder_user_uuid", "User UUID...") || "Enter Target UUID..."}
                             className="font-mono text-xl font-bold p-6"
                           />
                         )}
@@ -765,7 +801,7 @@ export default function SupportHub() {
                                 <UniversalToggle
                                   checked={customFieldsData[card.id] === "true"}
                                   onChange={(val: boolean) => setCustomFieldsData(prev => ({ ...prev, [card.id]: val ? "true" : "" }))}
-                                  label={t("label_yes") || "Yes"}
+                                  label={t("label_yes", "Yes") || "Yes"}
                                 />
                               ) : (
                                 <div className="flex flex-col gap-4">
@@ -774,7 +810,7 @@ export default function SupportHub() {
                                     return (
                                       <label key={opt} className={`flex items-center gap-4 py-4 px-6 rounded-xl cursor-pointer transition-all border ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]' : 'bg-black/40 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-black/60 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
                                         <div className={`w-6 h-6 rounded-[6px] flex items-center justify-center border transition-all shrink-0 ${isChecked ? 'bg-[var(--accent)] border-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
-                                          {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check") || "check"}</span>}
+                                          {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check") || "check"}</span>}
                                         </div>
                                         <span className={`text-base font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)]'}`}>{opt}</span>
                                         <input type="checkbox" className="hidden" checked={isChecked} onChange={() => {
@@ -801,23 +837,23 @@ export default function SupportHub() {
                           <div className="flex flex-col gap-6 w-full">
                             {(String(activeCategory?.show_title_box) !== "false") && (
                               <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{t("support_dossier_title_placeholder") || "Dossier Title"}</label>
+                                <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{t("support_dossier_title_placeholder", "Enter Ticket Title...") || "Dossier Title"}</label>
                                 <input
                                   value={title}
                                   onChange={e => setTitle(e.target.value)}
                                   onKeyDown={handleAdvance}
-                                  placeholder={t("support_dossier_title_placeholder") || "Enter Dossier Title..."}
+                                  placeholder={t("support_dossier_title_placeholder", "Enter Ticket Title...") || "Enter Dossier Title..."}
                                   className="w-full glass-panel rounded-2xl px-6 py-4 text-[var(--text)] text-xl font-bold focus:outline-none focus:border-[var(--accent)] transition-all border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner"
                                 />
                               </div>
                             )}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{t("support_step_desc") || "Incident Description"}</label>
+                              <label className="text-xs font-black uppercase tracking-widest text-[var(--subtext)] ml-2">{t("support_step_desc", "Incident Description") || "Incident Description"}</label>
                               <textarea
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 onKeyDown={handleAdvance}
-                                placeholder={t("support_dossier_desc_placeholder") || "Describe the issue..."}
+                                placeholder={t("support_dossier_desc_placeholder", "Describe the issue in detail...") || "Describe the issue..."}
                                 className="w-full glass-panel rounded-2xl px-6 py-6 text-[var(--text)] text-lg focus:outline-none focus:border-[var(--accent)] transition-all resize-none custom-scrollbar border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[inset_0_2px_15px_rgba(0,0,0,0.2)] placeholder:opacity-30 leading-relaxed min-h-[300px]"
                               />
                             </div>
@@ -857,7 +893,7 @@ export default function SupportHub() {
                               <div className="w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-1 min-h-[200px] flex flex-col relative group">
                                 <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
                                   <button onClick={(e) => { e.stopPropagation(); attachLog(); }} className="pointer-events-auto text-[10px] px-4 py-2 rounded-xl glass-panel text-[var(--text)] hover:text-[var(--accent)] transition-all font-black uppercase flex items-center gap-2 shadow-md border border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[var(--accent)] group/btn">
-                                    <span className="material-symbols-outlined !text-[14px] group-hover/btn:-translate-y-0.5 transition-transform">upload</span> {t("attach_logs")}
+                                    <span className="material-symbols-outlined !text-[14px] group-hover/btn:-translate-y-0.5 transition-transform">upload</span> {t("attach_logs", "Attach Logs")}
                                   </button>
                                 </div>
                                 {logs ? (
@@ -865,14 +901,14 @@ export default function SupportHub() {
                                     value={logs}
                                     onChange={(e) => setLogs(e.target.value)}
                                     className="w-full bg-black/20 text-[#e6edf3] text-[11px] font-mono focus:outline-none resize-none custom-scrollbar h-[200px] p-6 pt-16 relative z-0 rounded-[14px]"
-                                    placeholder={t("support_placeholder_logs")}
+                                    placeholder={t("support_placeholder_logs", "No logs attached.")}
                                   />
                                 ) : (
                                   <div onClick={attachLog} className="flex-1 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] m-3 rounded-xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--accent)] min-h-[160px]">
                                     <span className="material-symbols-outlined !text-4xl opacity-50 drop-shadow-sm">cloud_upload</span>
                                     <div className="flex flex-col items-center">
-                                      <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md">{t("attach_logs")}</span>
-                                      <span className="text-[9px] font-bold opacity-70 mt-1">{t("click_to_browse")}</span>
+                                      <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md">{t("attach_logs", "Attach Logs")}</span>
+                                      <span className="text-[9px] font-bold opacity-70 mt-1">{t("click_to_browse", "Click to Browse")}</span>
                                     </div>
                                   </div>
                                 )}
@@ -886,13 +922,13 @@ export default function SupportHub() {
                             <div className="w-24 h-24 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] mb-4">
                               <span className="material-symbols-outlined !text-[48px] text-[var(--accent)] drop-shadow-md">task_alt</span>
                             </div>
-                            <h3 className="text-2xl font-black tracking-widest uppercase text-[var(--text)] drop-shadow-md">{t("support_ready_to_submit") || "Ready to Submit"}</h3>
-                            <p className="text-[var(--subtext)] text-sm max-w-sm">{t("support_ready_desc") || "Ensure all provided details are correct. Processing may take up to 48 hours."}</p>
+                            <h3 className="text-2xl font-black tracking-widest uppercase text-[var(--text)] drop-shadow-md">{t("support_ready_to_submit", "Ready to Submit") || "Ready to Submit"}</h3>
+                            <p className="text-[var(--subtext)] text-sm max-w-sm">{t("support_ready_desc", "Ensure all provided details are correct. Processing may take up to 48 hours.") || "Ensure all provided details are correct. Processing may take up to 48 hours."}</p>
 
                             <div className="mt-8">
                               <ActionButton
                                 icon={isSubmitting || isScanning ? "sync" : "send"}
-                                label={isSubmitting || isScanning ? t("scanning") : t("support_submit")}
+                                label={isSubmitting || isScanning ? t("scanning", "Scanning...") : t("support_submit", "Submit Ticket")}
                                 variant="accent"
                                 disabled={isSubmitting || isScanning}
                                 onClick={submitTicket}
@@ -908,7 +944,7 @@ export default function SupportHub() {
                       {card.type !== 'REVIEW' && isActive && (
                         <div className="flex items-center justify-end mt-12 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                           <ActionButton
-                            label={t("confirm") || "Confirm"}
+                            label={t("confirm", "Confirm") || "Confirm"}
                             icon="done"
                             disabled={
                               (card.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||

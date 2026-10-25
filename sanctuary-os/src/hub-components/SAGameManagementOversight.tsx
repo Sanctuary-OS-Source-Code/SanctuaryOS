@@ -14,6 +14,9 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
@@ -86,61 +89,89 @@ export function GameManagementOversight() {
     if (isDelete) {
       if (sidePanelMode === 'edit_version') {
         await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_id: panelTarget });
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Deleted Game Version ${panelTarget}`, target_table: 'game_versions', target_name: panelTarget, actor_id: userRes.data.user?.id, reason: panelReason
-          }
-        });
+        await logArchitectAction(
+          `Deleted Game Version ${panelTarget}`,
+          'game_versions',
+          String(panelTarget),
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { version: { from: panelTarget, to: null } }
+        );
         useStore.getState().pushStatus(`Deleted Game Version ${panelTarget}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_id: panelTarget.id });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Deleted DLC Pack ${panelTarget.id}`, target_table: 'dlc_registry', target_name: panelTarget.id, actor_id: userRes.data.user?.id, reason: panelReason
-          }
-        });
+        await logArchitectAction(
+          `Deleted DLC Pack ${panelTarget.id}`,
+          'dlc_registry',
+          String(panelTarget.id),
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { id: { from: panelTarget.id, to: null }, name: { from: panelTarget.name, to: null }, type: { from: panelTarget.type, to: null } }
+        );
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
         fetchDlcs();
       }
     } else {
       if (sidePanelMode === 'add_version') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Added Game Version ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-          }
-        });
+        await logArchitectAction(
+          `Added Game Version ${panelInput1}`,
+          'game_versions',
+          panelInput1,
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { version: { to: panelInput1 } }
+        );
         useStore.getState().pushStatus(`Added Game Version ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'edit_version') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'game_versions', p_payload: { version: panelInput1 } });
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Edited Game Version ${panelTarget} -> ${panelInput1}`, target_table: 'game_versions', target_name: panelInput1, actor_id: userRes.data.user?.id, reason: panelReason
-          }
-        });
+        await logArchitectAction(
+          `Edited Game Version ${panelTarget} -> ${panelInput1}`,
+          'game_versions',
+          panelInput1,
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { version: { from: panelTarget, to: panelInput1 } }
+        );
         useStore.getState().pushStatus(`Edited Game Version ${panelTarget} -> ${panelInput1}`, "success");
         fetchVersions();
       } else if (sidePanelMode === 'add_dlc') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
-          }
-        });
+        await logArchitectAction(
+          `Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`,
+          'dlc_registry',
+          panelInput1.toUpperCase(),
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { id: { to: panelInput1.toUpperCase() }, name: { to: panelInput2 }, type: { to: resolvedType } }
+        );
         useStore.getState().pushStatus(`Added DLC Pack [${panelInput1.toUpperCase()}] ${panelInput2}`, "success");
         fetchDlcs();
       } else if (sidePanelMode === 'edit_dlc') {
         await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'dlc_registry', p_payload: { id: panelInput1.toUpperCase(), name: panelInput2, type: resolvedType } });
         await loadDLCMap();
-        await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-            action: `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`, target_table: 'dlc_registry', target_name: panelInput1.toUpperCase(), actor_id: userRes.data.user?.id, reason: panelReason
+        await logArchitectAction(
+          `Edited DLC Pack [${panelTarget.id}] -> [${panelInput1.toUpperCase()}] ${panelInput2}`,
+          'dlc_registry',
+          panelInput1.toUpperCase(),
+          panelReason,
+          'Oversight Game Management',
+          false,
+          {
+            id: { from: panelTarget.id, to: panelInput1.toUpperCase() },
+            name: { from: panelTarget.name, to: panelInput2 },
+            type: { from: panelTarget.type, to: resolvedType }
           }
-        });
+        );
         useStore.getState().pushStatus(`Edited DLC Pack [${panelTarget.id}]`, "success");
         fetchDlcs();
       }
@@ -167,26 +198,107 @@ export function GameManagementOversight() {
     ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
     ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()));
 
+  const renderVersionCard = (v: any) => (
+    <UniversalCard
+      key={v.version}
+      onClick={() => openPanel('edit_version', v.version)}
+      layout="vertical"
+      icon={t("icon_gamepad", "gamepad")}
+      title={v.version}
+      subtitle={t("patch_release", "Patch Release")}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_verified", "verified")}
+            </span>
+            <span>{t("patch_release", "Patch Release")}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <div className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+            {t("icon_calendar_today", "calendar_today")}
+          </span>
+          <span>
+            {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : t("status_active", "Active"))}
+          </span>
+        </div>
+      }
+      footer={
+        <div className="flex justify-between items-center w-full">
+          <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+            {v.version}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
+    />
+  );
+
+  const renderDlcCard = (d: any) => (
+    <UniversalCard
+      key={d.id}
+      onClick={() => openPanel('edit_dlc', d)}
+      layout="vertical"
+      icon={t("icon_extension", "extension")}
+      title={d.name}
+      subtitle={d.type ? t(`dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`, `${d.type} PACK`) : t("unknown", "UNKNOWN")}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_extension", "extension")}
+            </span>
+            <span>{d.type || t("dlc_registry", "DLC")}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <div className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+            {t("icon_fingerprint", "fingerprint")}
+          </span>
+          <span>{d.id}</span>
+        </div>
+      }
+      footer={
+        <div className="flex justify-between items-center w-full">
+          <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar_today", "calendar_today")}</span>
+            {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
+    />
+  );
+
   return (
     <ElevatedHubLayout
       headerTitle={t("tab_game_versions", "Game Versions")}
       headerSubtitle={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
-      headerIcon="settings"
+      headerIcon={t("icon_settings", "settings")}
       headerIconColorClass="theme-text-accent"
       search={activeTab === 'versions' ? versionSearch : dlcSearch}
       onSearchChange={(e: string) => activeTab === 'versions' ? setVersionSearch(e) : setDlcSearch(e)}
-      searchPlaceholder={activeTab === 'versions' ? t("search_ph", "Search Patches...") : t("search_ph", "Search DLC...")}
+      searchPlaceholder={activeTab === 'versions' ? t("search_ph", "Search {mods}...") : t("search_ph", "Search {mods}...")}
       hideSearch={activeTab === 'overview'}
       tabs={[
-        { id: 'overview', label: t("landing_overview", "Overview"), icon: "dashboard", number: (versions.length + dlcs.length).toString() },
-        { id: 'versions', label: t("sa_game_versions", "Game Versions"), icon: "gamepad", number: versions.length.toString() },
-        { id: 'dlc', label: t("dlc_registry", "DLC Registry"), icon: "extension", number: dlcs.length.toString() }
+        { id: 'overview', label: t("overview", "Overview"), icon: t("icon_dashboard", "dashboard"), number: (versions.length + dlcs.length).toString() },
+        { id: 'versions', label: t("sa_game_versions", "Game Versions"), icon: t("icon_gamepad", "gamepad"), number: versions.length.toString() },
+        { id: 'dlc', label: t("dlc_registry", "DLC Registry"), icon: t("icon_extension", "extension"), number: dlcs.length.toString() }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab as any}
       primaryPopover={
         activeTab === 'dlc' ? {
-          icon: "tune",
+          icon: t("icon_tune", "tune"),
           label: t("filters", "Filters"),
           content: (
             <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
@@ -198,7 +310,7 @@ export function GameManagementOversight() {
                   disableTint={true}
                   value={dlcTypeFilter}
                   onChange={(v: string[]) => setDlcTypeFilter(v[0])}
-                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? t("ui_tab_all_types", "All Types") : x }))}
+                  options={["ALL", ...new Set(dlcs.map(d => d.type))].filter(Boolean).map(x => ({ id: x, label: x === "ALL" ? t("all_types", "All Types") : x }))}
                 />
               </div>
             </div>
@@ -221,101 +333,38 @@ export function GameManagementOversight() {
         {activeTab === 'overview' && (
           <HubOverviewLanding>
             <HubOverviewSection
-              icon="gamepad"
+              icon={t("icon_gamepad", "gamepad")}
               iconColorClass="text-[var(--accent)]"
               title={t("sa_game_versions", "Game Versions")}
               isEmpty={versions.length === 0}
-              emptyIcon="gamepad"
+              emptyIcon={t("icon_gamepad", "gamepad")}
               emptyTitle={t("no_versions", "No Game Versions")}
             >
-              {versions.slice(0, 4).map(v => (
-                <UniversalCard
-                  key={v.version}
-                  onClick={() => openPanel('edit_version', v.version)}
-                  layout="vertical"
-                  icon="gamepad"
-                  title={v.version}
-                  subtitle={t("patch_release", "Patch Release")}
-                />
-              ))}
+              {versions.slice(0, 4).map(renderVersionCard)}
             </HubOverviewSection>
             <HubOverviewSection
-              icon="extension"
+              icon={t("icon_extension", "extension")}
               iconColorClass="text-[var(--success)]"
               title={t("dlc_registry", "DLC Registry")}
               isEmpty={dlcs.length === 0}
-              emptyIcon="extension"
+              emptyIcon={t("icon_extension", "extension")}
               emptyTitle={t("no_dlc", "No DLC Packs")}
             >
-              {dlcs.slice(0, 4).map(d => (
-                <UniversalCard
-                  key={d.id}
-                  onClick={() => openPanel('edit_dlc', d)}
-                  layout="vertical"
-                  icon="extension"
-                  title={d.name}
-                  subtitle={d.id}
-                />
-              ))}
+              {dlcs.slice(0, 4).map(renderDlcCard)}
             </HubOverviewSection>
           </HubOverviewLanding>
         )}
 
         {activeTab === 'versions' && (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-            {filteredVersions.map(v => (
-              <UniversalCard
-                key={v.version}
-                onClick={() => openPanel('edit_version', v.version)}
-                layout="vertical"
-                icon="gamepad"
-                title={v.version}
-                subtitle={t("patch_release", "Patch Release")}
-                footer={
-                  <div className="flex justify-between items-center w-full">
-                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                      <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
-                      {v.release_date ? new Date(v.release_date).toLocaleDateString() : (v.created_at ? new Date(v.created_at).toLocaleDateString() : t("vlocal", "UNKNOWN"))}
-                    </span>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("btn_view", "View")} <span className="text-lg leading-none">&rarr;</span>
-                    </button>
-                  </div>
-                }
-              />
-            ))}
+            {filteredVersions.map(renderVersionCard)}
             {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad", "gamepad")} title={t("no_versions", "No Game Versions")} className="col-span-full py-16" />}
           </div>
         )}
 
         {activeTab === 'dlc' && (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-            {filteredDlcs.map(d => (
-              <UniversalCard
-                key={d.id}
-                onClick={() => openPanel('edit_dlc', d)}
-                layout="vertical"
-                icon="extension"
-                title={d.name}
-                subtitle={d.type ? t(`dlc_type_${d.type.toLowerCase().replace(/ /g, '_')}`, `${d.type} PACK`) : t("vlocal", "UNKNOWN")}
-                badges={[
-                  <span key="dlc-id" className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border bg-transparent shrink-0 text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]">
-                    {d.id}
-                  </span>
-                ]}
-                footer={
-                  <div className="flex justify-between items-center w-full">
-                    <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60 shrink-0">
-                      <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
-                      {d.release_date ? new Date(d.release_date).toLocaleDateString() : d.id}
-                    </span>
-                    <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-                      {t("btn_view", "View")} <span className="text-lg leading-none">&rarr;</span>
-                    </button>
-                  </div>
-                }
-              />
-            ))}
+            {filteredDlcs.map(renderDlcCard)}
             {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("no_dlc", "No DLC Packs")} className="col-span-full py-16" />}
           </div>
         )}
@@ -354,34 +403,6 @@ export function GameManagementOversight() {
               onClick={() => handlePanelCommit(false)}
             />
           </PanelHeaderGroup>
-        }
-        footer={
-          <div className="flex justify-end items-center gap-3 w-full px-6">
-            {(sidePanelMode === 'add_version' || sidePanelMode === 'add_dlc') && (
-              <ActionButton
-                variant="glass"
-                onClick={() => setSidePanelMode(null)}
-                label={t("nav_cancel", "Cancel")}
-                icon="close"
-              />
-            )}
-            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
-              <ActionButton
-                variant="glass"
-                disabled={!panelReason.trim() || isPanelSubmitting}
-                onClick={() => handlePanelCommit(true)}
-                label={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("purge", "Purge")}
-                icon="delete"
-              />
-            )}
-            <ActionButton
-              variant="glass"
-              onClick={() => handlePanelCommit(false)}
-              disabled={isCommitDisabled}
-              label={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("ui_btn_commit", "Commit")}
-              icon="save"
-            />
-          </div>
         }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">

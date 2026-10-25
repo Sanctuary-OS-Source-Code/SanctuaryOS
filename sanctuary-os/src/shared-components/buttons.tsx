@@ -219,7 +219,7 @@ export function SidebarActionButton({
       <span
         className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? "opacity-100 translate-x-0" : ""}`}
       >
-        {t("icon_chevron_right")}
+        {t("icon_chevron_right", "chevron_right")}
       </span>
     </button>
   );

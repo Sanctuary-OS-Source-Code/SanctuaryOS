@@ -18,6 +18,7 @@ import {
   StatBox,
   UniversalGroup,
 } from "../shared";
+import { VAULT_CHIP_CLASS } from "../Cards";
 
 export function MissingImportsAlert({
   missingImportMods,
@@ -189,37 +190,65 @@ export function MissingImportsAlert({
           key={idx}
           className="flex justify-between items-center glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all group gap-3 flex-wrap sm:flex-nowrap"
         >
-          <div className="flex flex-col min-w-0 pr-2 flex-1 gap-1">
-            <span className="text-xs font-black text-[var(--text)] capitalize truncate group-hover:text-[var(--accent)] transition-colors">
-              {cleanSearchName(mod.name, activeSchema)}
-            </span>
-            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 capitalize tracking-wider">
-              {customAuthor || t("unknown_mason", "Unknown Creator")}
-            </span>
-            {(mod.is_paid || mod.is_early_access) && (
-              <div className="flex flex-wrap gap-2 mt-1">
-                {mod.is_early_access && (
-                  <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] rounded-md flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[11px]">
-                      {t("icon_science", "science")}
-                    </span>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
+          <div className="flex items-center gap-3.5 min-w-0 pr-2 flex-1">
+            <div
+              className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+              style={{
+                color: mod.is_paid || mod.is_early_access ? "var(--warning)" : "var(--accent)",
+                borderColor:
+                  mod.is_paid || mod.is_early_access
+                    ? "color-mix(in srgb, var(--warning) 25%, var(--border))"
+                    : "color-mix(in srgb, var(--accent) 25%, var(--border))",
+              }}
+            >
+              <span className="material-symbols-outlined !text-[20px]">
+                {mod.is_paid
+                  ? t("icon_monetization_on", "monetization_on")
+                  : mod.is_early_access
+                    ? t("icon_science", "science")
+                    : t("icon_extension", "extension")}
+              </span>
+            </div>
+            <div className="flex flex-col min-w-0 flex-1 gap-1">
+              <span className="text-xs font-black text-[var(--text)] capitalize truncate group-hover:text-[var(--accent)] transition-colors">
+                {cleanSearchName(mod.name, activeSchema)}
+              </span>
+              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 capitalize tracking-wider">
+                {customAuthor || t("unknown_mason", "Unknown {Mason}")}
+              </span>
+              {(mod.is_paid || mod.is_early_access) && (
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {mod.is_early_access && (
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--accent)",
+                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {t("icon_science", "science")}
+                      </span>
                       {t("badge_early_access", "Early Access")}
                     </span>
-                  </div>
-                )}
-                {mod.is_paid && (
-                  <div className="px-2 py-0.5 bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] rounded-md flex items-center gap-1">
-                    <span className="material-symbols-outlined !text-[11px]">
-                      {t("icon_monetization_on", "monetization_on")}
-                    </span>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
+                  )}
+                  {mod.is_paid && (
+                    <span
+                      className={VAULT_CHIP_CLASS}
+                      style={{
+                        color: "var(--warning)",
+                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        {t("icon_monetization_on", "monetization_on")}
+                      </span>
                       {t("badge_paid", "Paid")}
                     </span>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -280,14 +309,14 @@ export function MissingImportsAlert({
         setMissingImportMods(null);
         setPendingImportSet(null);
       }}
-      title={t("import_title", "Missing Blueprint Mods")}
+      title={t("import_title", "Missing {Mods} Detected")}
       subtitle={
         <>
-          {t("import_desc1", "Your vault is missing")}{" "}
+          {t("import_desc1", "This {Blueprint} requires")}{" "}
           <span className="theme-text-accent font-black text-sm">
             {missingImportMods.length}
           </span>{" "}
-          {t("import_desc2", "artifacts required by this blueprint.")}
+          {t("import_desc2", "{mods} that are not currently in your {Vault}. Please acquire them below.")}
         </>
       }
       icon={t("icon_warning", "warning")}
@@ -299,7 +328,7 @@ export function MissingImportsAlert({
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon={t("icon_check", "check")}
-            tooltip={t("btn_confirm", "Confirm Import")}
+            tooltip={t("confirm", "Confirm Import")}
             variant="success"
             onClick={() => finalizeImport(pendingImportSet)}
           />
@@ -309,36 +338,36 @@ export function MissingImportsAlert({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_warning", "warning")}
-          overline={t("import_title", "Missing Blueprint Mods")}
-          title={pendingImportSet?.name || t("import_title", "Missing Blueprint Mods")}
+          overline={t("import_title", "Missing {Mods} Detected")}
+          title={pendingImportSet?.name || t("import_title", "Missing {Mods} Detected")}
           description={
             <>
-              {t("import_desc1", "Your vault is missing")}{" "}
+              {t("import_desc1", "This {Blueprint} requires")}{" "}
               <span className="font-black text-[var(--text)]">
                 {missingImportMods.length}
               </span>{" "}
-              {t("import_desc2", "artifacts required by this blueprint.")}
+              {t("import_desc2", "{mods} that are not currently in your {Vault}. Please acquire them below.")}
             </>
           }
-          badge={`${missingImportMods.length} ${t("items", "Items")}`}
+          badge={`${missingImportMods.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_warning", "warning")}
           variant="warning"
         >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             <StatBox
-              label={t("items", "Missing")}
+              label={t("term_mods", "Missing")}
               value={missingImportMods.length}
               icon={t("icon_warning", "warning")}
               iconColorClass="text-[var(--warning)]"
             />
             <StatBox
-              label={t("standard_artifacts", "Standard Artifacts")}
+              label={t("standard_artifacts", "Standard {Mods}")}
               value={standardMods.length}
               icon={t("icon_inventory_2", "inventory_2")}
               iconColorClass="text-[var(--accent)]"
             />
             <StatBox
-              label={t("premium_detected", "Premium")}
+              label={t("premium_detected", "Premium {Mods} Detected")}
               value={premiumMods.length}
               icon={t("icon_auto_fix_high", "auto_fix_high")}
               iconColorClass="text-[var(--warning)]"
@@ -348,7 +377,7 @@ export function MissingImportsAlert({
           <ActionButton
             variant="glass"
             icon={t("icon_check", "check")}
-            label={t("btn_confirm", "Confirm Import")}
+            label={t("confirm", "Confirm Import")}
             onClick={() => finalizeImport(pendingImportSet)}
             className="w-full"
           />
@@ -356,7 +385,7 @@ export function MissingImportsAlert({
 
         {premiumMods.length > 0 && (
           <UniversalGroup
-            title={`${t("premium_detected", "Premium Artifacts Detected")} (${premiumMods.length})`}
+            title={`${t("premium_detected", "Premium {Mods} Detected")} (${premiumMods.length})`}
             icon={t("icon_auto_fix_high", "auto_fix_high")}
             headerAction={
               <ActionButton
@@ -383,7 +412,7 @@ export function MissingImportsAlert({
 
         {standardMods.length > 0 && (
           <UniversalGroup
-            title={`${t("standard_artifacts", "Standard Artifacts")} (${standardMods.length})`}
+            title={`${t("standard_artifacts", "Standard {Mods}")} (${standardMods.length})`}
             icon={t("icon_inventory_2", "inventory_2")}
           >
             <div className="flex flex-col gap-3">{renderModList(standardMods)}</div>
@@ -393,7 +422,7 @@ export function MissingImportsAlert({
         {missingImportMods.length > 100 && (
           <div className="flex items-center justify-center p-5 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] border-dashed">
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              + {missingImportMods.length - 100} {t("items", "More Artifacts")}
+              + {missingImportMods.length - 100} {t("term_mods", "More Artifacts")}
             </span>
           </div>
         )}

@@ -24,18 +24,18 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl glass-surface border border-[rgba(var(--text-rgb,255,255,255),0.1)] flex items-center justify-center shadow-inner">
-            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_receipt_long")}</span>
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_receipt_long", "receipt_long")}</span>
           </div>
           <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)] drop-shadow-md">
-            {t("sys_log_history")}
+            {t("sys_log_history", "System Log History")}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <button onPointerDown={(e) => { e.stopPropagation(); clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
-            <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
+            <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep", "delete_sweep")}</span>
           </button>
           <button onPointerDown={(e) => { e.stopPropagation(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <span className="material-symbols-outlined !text-[16px]">{t("icon_close")}</span>
+            <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>
           </button>
         </div>
       </div>
@@ -92,7 +92,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
                     {idx < fileNames.length - 1 && <span className="opacity-50">,</span>}
                   </React.Fragment>
                 ))}
-                {otherFilesPart} <span className="opacity-80 ml-1">{isPlural ? 'have' : 'has'} {t("cached_changes")}</span>
+                {otherFilesPart} <span className="opacity-80 ml-1">{isPlural ? 'have' : 'has'} {t("cached_changes", "Unsaved Edits")}</span>
               </span>
             );
             if (logIcon === 'terminal') logIcon = 'save';
@@ -113,7 +113,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
               </div>
               <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
                 <div className="text-[10px] font-bold text-[var(--text)] capitalize tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logTextNode}</div>
-                <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_schedule")}</span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-50 flex items-center gap-1.5"><span className="material-symbols-outlined !text-[10px]">{t("icon_schedule", "schedule")}</span>{new Date(log.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>
           );

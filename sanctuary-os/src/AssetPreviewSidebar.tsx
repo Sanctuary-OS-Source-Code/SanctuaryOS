@@ -1,17 +1,40 @@
-import React, { useState, useEffect, Fragment } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { stripMarkdown, getFileLabel, isSupportedExtension, formatDisplayName, compareVersions, SidePanel, PanelHeaderGroup, PanelHeaderButton } from "./shared";
+import {
+  stripMarkdown,
+  compareVersions,
+  SidePanel,
+  SidePanelHeroCard,
+  UniversalGroup,
+  StatBox,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+} from "./shared";
+import { VAULT_CHIP_CLASS } from "./Cards";
 import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
+import { isDesktop } from "./utils/envUtils";
 import { readTextFile, writeTextFile, mkdir, exists, readDir } from "@tauri-apps/plugin-fs";
-import { appDataDir } from "@tauri-apps/api/path";
-import { UniversalCard } from "./components/universal/UniversalCard";
-import { DynamicThemePreviewBanner } from "./chameleon-components/ThemeCard";
+import {
+  DynamicThemePreviewBanner,
+  DynamicLexiconPreviewBanner,
+  DynamicBlueprintPreviewBanner,
+  DynamicTemplatePreviewBanner,
+} from "./chameleon-components/ThemeCard";
 
-export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFlag }: { assetType: string, assetId: string, onClose: () => void, onFlag?: (assetId: string, assetType: string) => void }) {
+export default function AssetPreviewSidebar({
+  assetType,
+  assetId,
+  onClose,
+  onFlag,
+}: {
+  assetType: string;
+  assetId: string;
+  onClose: () => void;
+  onFlag?: (assetId: string, assetType: string) => void;
+}) {
   const { t, importLexicon, registry } = useLexicon();
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [data, setData] = useState<any>(null);
@@ -33,31 +56,33 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
           const files = await readDir(templatesDir);
           const map: Record<string, string> = {};
           for (const file of files) {
-            if (file.name?.endsWith('_template.json')) {
+            if (file.name?.endsWith("_template.json")) {
               try {
                 const content = await readTextFile(`${templatesDir}\\${file.name}`);
                 const parsed = JSON.parse(content);
                 const d = Array.isArray(parsed) ? parsed[0] : parsed;
                 if (d.name) {
-                  map[d.name] = d.version || '1.0.0';
+                  map[d.name] = d.version || "1.0.0";
                 }
-              } catch { }
+              } catch {}
             }
           }
           setInstalledTemplates(map);
         }
-      } catch { }
+      } catch {}
     };
     fetchLocalTemplates();
   }, [vaultPath]);
 
   const isInstalled = (asset: any) => {
     if (!asset) return false;
-    if (assetType === 'chameleon') {
-      return Object.values({ ...CORE_THEMES, ...customThemes }).some((th: any) => th.name === asset.name);
-    } else if (assetType === 'workbench_template') {
+    if (assetType === "chameleon") {
+      return Object.values({ ...CORE_THEMES, ...customThemes }).some(
+        (th: any) => th.name === asset.name
+      );
+    } else if (assetType === "workbench_template") {
       return !!installedTemplates[asset.name];
-    } else if (assetType === 'lexicon') {
+    } else if (assetType === "lexicon") {
       return !!registry?.[asset.name];
     }
     return false;
@@ -65,28 +90,31 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
 
   const getLocalVersion = (asset: any) => {
     if (!asset) return null;
-    if (assetType === 'chameleon') {
-      const theme = Object.values({ ...CORE_THEMES, ...customThemes }).find((th: any) => th.name === asset.name) as any;
-      return theme?.version || '1.0.0';
-    } else if (assetType === 'workbench_template') {
+    if (assetType === "chameleon") {
+      const theme = Object.values({ ...CORE_THEMES, ...customThemes }).find(
+        (th: any) => th.name === asset.name
+      ) as any;
+      return theme?.version || "1.0.0";
+    } else if (assetType === "workbench_template") {
       return installedTemplates[asset.name];
-    } else if (assetType === 'lexicon') {
+    } else if (assetType === "lexicon") {
       const lex = registry?.[asset.name];
-      return lex?._meta_version || '1.0.0';
+      return lex?._meta_version || "1.0.0";
     }
     return null;
   };
 
   const getAssetDisplayVersion = (asset: any) => {
-    let version = asset.version || '1.0.0';
-    if (assetType === 'workbench_template' && asset.json_data) {
+    let version = asset.version || "1.0.0";
+    if (assetType === "workbench_template" && asset.json_data) {
       try {
-        const parsedRaw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : data.json_data;
+        const parsedRaw =
+          typeof asset.json_data === "string" ? JSON.parse(asset.json_data) : data.json_data;
         const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
         if (parsed && parsed.template_version) {
           version = parsed.template_version;
         }
-      } catch (e) { }
+      } catch (e) {}
     }
     return version;
   };
@@ -103,15 +131,31 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
       setError("");
       try {
         if (assetType === "mod") {
-          const { data: mData, error: mErr } = await supabase.from('mods').select('*').eq('id', assetId).single();
+          const { data: mData, error: mErr } = await supabase
+            .from("mods")
+            .select("*")
+            .eq("id", assetId)
+            .single();
           if (mErr) throw mErr;
           setData(mData);
         } else if (assetType === "blueprint") {
-          const { data: bData, error: bErr } = await supabase.from('blueprints').select('*').eq('id', assetId).single();
+          const { data: bData, error: bErr } = await supabase
+            .from("blueprints")
+            .select("*")
+            .eq("id", assetId)
+            .single();
           if (bErr) throw bErr;
           setData(bData);
-        } else if (assetType === "lexicon" || assetType === "chameleon" || assetType === "workbench_template") {
-          const { data: mData, error: mErr } = await supabase.from('nexus_assets').select('*').eq('id', assetId).single();
+        } else if (
+          assetType === "lexicon" ||
+          assetType === "chameleon" ||
+          assetType === "workbench_template"
+        ) {
+          const { data: mData, error: mErr } = await supabase
+            .from("nexus_assets")
+            .select("*")
+            .eq("id", assetId)
+            .single();
           if (mErr) throw mErr;
           setData(mData);
         } else {
@@ -125,247 +169,453 @@ export default function AssetPreviewSidebar({ assetType, assetId, onClose, onFla
     fetchData();
   }, [assetType, assetId]);
 
+  const panelIcon =
+    assetType === "chameleon"
+      ? t("icon_palette", "palette")
+      : assetType === "lexicon"
+        ? t("icon_translate", "translate")
+        : assetType === "blueprint"
+          ? t("icon_map", "map")
+          : assetType === "workbench_template"
+            ? t("icon_edit", "edit")
+            : t("icon_extension", "extension");
+
+  const panelTitle =
+    assetType === "chameleon"
+      ? t("chameleon_inspector", "Chameleon Inspector")
+      : assetType === "lexicon"
+        ? t("lexicon_inspector", "Lexicon Inspector")
+        : assetType === "workbench_template"
+          ? t("template_inspector", "Template Inspector")
+          : t("asset_inspector", "Asset Inspector");
+
+  const panelSubtitle =
+    assetType === "chameleon"
+      ? t("chameleon_desc", "Community Theme")
+      : assetType === "lexicon"
+        ? t("lexicon_desc", "Community Language Pack")
+        : assetType === "workbench_template"
+          ? t("template_desc", "Community Template")
+          : t("asset_desc", "Community Asset");
+
   return (
     <SidePanel
       isOpen={true}
       onClose={onClose}
-      title={assetType === 'chameleon' ? (t("chameleon_inspector") || "Chameleon Inspector") : assetType === 'lexicon' ? (t("lexicon_inspector") || "Lexicon Inspector") : assetType === 'workbench_template' ? (t("template_inspector") || "Template Inspector") : (t("asset_inspector") || "Asset Inspector")}
-      subtitle={assetType === 'chameleon' ? (t("chameleon_desc") || "Community Theme") : assetType === 'lexicon' ? (t("lexicon_desc") || "Community Language Pack") : assetType === 'workbench_template' ? (t("template_desc") || "Community Template") : (t("asset_desc") || "Community Asset")}
-      icon={assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}
+      title={panelTitle}
+      subtitle={panelSubtitle}
+      icon={panelIcon}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[600px]"
+      widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[70000]"
       panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
       headerActions={
-        data ? (() => {
-          const assetStagingId = `asset_${assetType}_${data.id || assetId}`;
-          const isAssetStaged = stagingDraftItems.some(
-            (item: any) => String(item.id || "").toLowerCase() === assetStagingId.toLowerCase()
-          );
-          return (
-            <PanelHeaderGroup>
-              {session?.user && session?.user?.user_metadata?.username !== data.author && onFlag && (
-                <PanelHeaderButton
-                  icon="flag"
-                  tooltip={t("feed_btn_flag")}
-                  onClick={() => onFlag(assetId, assetType)}
-                  variant="danger"
-                />
-              )}
-              <PanelHeaderButton
-                icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
-                tooltip={
-                  assetType === 'blueprint'
-                    ? t("staging_btn_stage_blueprint", "Stage Blueprint to Desktop")
-                    : isAssetStaged
-                      ? t("staging_btn_unstage_mod", "Remove from Staging")
-                      : t("staging_btn_stage_mod", "Stage to PC")
-                }
-                onClick={(e?: React.MouseEvent) => {
-                  e?.stopPropagation();
-                  if (assetType === 'blueprint') {
-                    stageBlueprintToDraft(data);
-                    useStore.getState().pushStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
-                    onClose();
-                    useStore.getState().setView('playsets');
-                  } else {
-                    toggleModInStagingDraft({
-                      ...data,
-                      asset_type: assetType,
-                      asset_id: data.id || assetId,
-                    });
-                    useStore.getState().pushStatus(
-                      isAssetStaged
-                        ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
-                        : t("status_staging_item_added", "Added to Remote Staging Queue.")
-                    );
-                  }
-                }}
-                variant={isAssetStaged ? "accent" : "default"}
-              />
-              <PanelHeaderButton
-                icon={assetType === 'blueprint' ? "download" : (isInstalled(data) ? (isOutdated(data) ? "update" : "check_circle") : "download")}
-                tooltip={assetType === 'blueprint' ? (t("update_panel_install")) : (isInstalled(data) ? (isOutdated(data) ? "UPDATE" : t("btn_reinstall")) : (t("update_panel_install")))}
-                onClick={async (e?: React.MouseEvent) => {
-                  e?.stopPropagation();
-                  if (assetType === 'blueprint') {
-                    navigator.clipboard.writeText(data.json_data?.code || '').catch(() => { });
-                    useStore.getState().pushStatus("Copied Uplink Code: " + (data.json_data?.code || ''));
-                  } else if (assetType === 'lexicon' || assetType === 'chameleon' || assetType === 'workbench_template') {
-                    if (assetType === 'lexicon') {
-                      const parsedData = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                      importLexicon({ ...parsedData, _meta_language: data.language || "Custom", _meta_version: data.version || '1.0.0' }, data.name);
-                      useStore.getState().pushStatus(`Successfully Installed Lexicon: ${data.name}`);
-                    } else if (assetType === 'chameleon') {
-                      importTheme(data.json_data);
-                      useStore.getState().pushStatus(`Successfully Installed Chameleon: ${data.name}`);
-                    } else if (assetType === 'workbench_template') {
-                      try {
-                        if (!vaultPath) throw new Error("Vault path not configured.");
+        data
+          ? (() => {
+              const assetStagingId = `asset_${assetType}_${data.id || assetId}`;
+              const isAssetStaged = stagingDraftItems.some(
+                (item: any) => String(item.id || "").toLowerCase() === assetStagingId.toLowerCase()
+              );
+              return (
+                <PanelHeaderGroup>
+                  {session?.user &&
+                    session?.user?.user_metadata?.username !== data.author &&
+                    onFlag && (
+                      <PanelHeaderButton
+                        icon={t("icon_flag", "flag")}
+                        tooltip={t("feed_btn_flag", "Report")}
+                        onClick={() => onFlag(assetId, assetType)}
+                        variant="danger"
+                      />
+                    )}
+                  {!isDesktop() && (
+                    <PanelHeaderButton
+                      icon={
+                        isAssetStaged
+                          ? t("icon_playlist_add_check", "playlist_add_check")
+                          : t("icon_playlist_add", "playlist_add")
+                      }
+                      tooltip={
+                        assetType === "blueprint"
+                          ? t("staging_btn_stage_blueprint", "Stage {Blueprint} to PC")
+                          : isAssetStaged
+                            ? t("staging_btn_unstage_mod", "Remove from Staging")
+                            : t("staging_btn_stage_mod", "Stage to PC")
+                      }
+                      onClick={(e?: React.MouseEvent) => {
+                        e?.stopPropagation();
+                        if (assetType === "blueprint") {
+                          stageBlueprintToDraft(data);
+                          useStore
+                            .getState()
+                            .pushStatus(
+                              t(
+                                "status_staging_blueprint_loaded",
+                                "Blueprint loaded into Payload Editor."
+                              )
+                            );
+                          onClose();
+                          useStore.getState().setView("playsets");
+                        } else {
+                          toggleModInStagingDraft({
+                            ...data,
+                            asset_type: assetType,
+                            asset_id: data.id || assetId,
+                          });
+                          useStore
+                            .getState()
+                            .pushStatus(
+                              isAssetStaged
+                                ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+                                : t("status_staging_item_added", "Added to Remote Staging Queue.")
+                            );
+                        }
+                      }}
+                      variant={isAssetStaged ? "accent" : "default"}
+                    />
+                  )}
+                  <PanelHeaderButton
+                    icon={
+                      assetType === "blueprint"
+                        ? t("icon_download", "download")
+                        : isInstalled(data)
+                          ? isOutdated(data)
+                            ? t("icon_update", "update")
+                            : t("icon_check_circle", "check_circle")
+                          : t("icon_download", "download")
+                    }
+                    tooltip={
+                      assetType === "blueprint"
+                        ? t("update_panel_install", "Install")
+                        : isInstalled(data)
+                          ? isOutdated(data)
+                            ? t("btn_update", "Update")
+                            : t("btn_reinstall", "Reinstall")
+                          : t("update_panel_install", "Install")
+                    }
+                    onClick={async (e?: React.MouseEvent) => {
+                      e?.stopPropagation();
+                      if (assetType === "blueprint") {
+                        navigator.clipboard.writeText(data.json_data?.code || "").catch(() => {});
+                        useStore
+                          .getState()
+                          .pushStatus("Copied Uplink Code: " + (data.json_data?.code || ""));
+                      } else if (
+                        assetType === "lexicon" ||
+                        assetType === "chameleon" ||
+                        assetType === "workbench_template"
+                      ) {
+                        if (assetType === "lexicon") {
+                          const parsedData =
+                            typeof data.json_data === "string"
+                              ? JSON.parse(data.json_data)
+                              : data.json_data;
+                          importLexicon(
+                            {
+                              ...parsedData,
+                              _meta_language: data.language || "Custom",
+                              _meta_version: data.version || "1.0.0",
+                            },
+                            data.name
+                          );
+                          useStore
+                            .getState()
+                            .pushStatus(`Successfully Installed Lexicon: ${data.name}`);
+                        } else if (assetType === "chameleon") {
+                          importTheme(data.json_data);
+                          useStore
+                            .getState()
+                            .pushStatus(`Successfully Installed Chameleon: ${data.name}`);
+                        } else if (assetType === "workbench_template") {
+                          try {
+                            if (!vaultPath) throw new Error("Vault path not configured.");
 
-                        let parsed = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-                        const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-                        const templateId = displayData?.template_id || "vlocal";
+                            const parsed =
+                              typeof data.json_data === "string"
+                                ? JSON.parse(data.json_data)
+                                : data.json_data;
+                            const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
+                            const templateId = displayData?.template_id || "vlocal";
 
-                        const templatesDir = `${vaultPath}\\Data\\Templates`;
-                        if (!(await exists(templatesDir))) {
-                          await mkdir(templatesDir, { recursive: true });
+                            const templatesDir = `${vaultPath}\\Data\\Templates`;
+                            if (!(await exists(templatesDir))) {
+                              await mkdir(templatesDir, { recursive: true });
+                            }
+
+                            await writeTextFile(
+                              `${templatesDir}\\${templateId}_template.json`,
+                              JSON.stringify(parsed, null, 2)
+                            );
+                            useStore
+                              .getState()
+                              .pushStatus(`Successfully Installed Template: ${data.name}`);
+                          } catch (err: any) {
+                            useStore
+                              .getState()
+                              .pushStatus(`Failed to install template: ${err.message}`);
+                          }
                         }
 
-                        await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
-                        useStore.getState().pushStatus(`Successfully Installed Template: ${data.name}`);
-                      } catch (err: any) {
-                        useStore.getState().pushStatus(`Failed to install template: ${err.message}`);
+                        try {
+                          await supabase.rpc("increment_asset_downloads", { asset_id: assetId });
+                        } catch (e) {
+                          console.error("Could not increment downloads", e);
+                        }
                       }
+                    }}
+                    variant={
+                      assetType === "blueprint"
+                        ? isInstalled(data)
+                          ? "primary"
+                          : "success"
+                        : isInstalled(data)
+                          ? isOutdated(data)
+                            ? "primary"
+                            : "glass"
+                          : "success"
                     }
-
-                    try {
-                      await supabase.rpc('increment_asset_downloads', { asset_id: assetId });
-                    } catch (e) { console.error("Could not increment downloads", e); }
-                  }
-                }}
-                variant={assetType === 'blueprint' ? (isInstalled(data) ? "primary" : "success") : (isInstalled(data) ? (isOutdated(data) ? "primary" : "glass") : "success")}
-              />
-            </PanelHeaderGroup>
-          );
-        })() : undefined
+                  />
+                </PanelHeaderGroup>
+              );
+            })()
+          : undefined
       }
     >
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <span className="text-xs font-black capitalize tracking-widest text-[var(--subtext)] animate-pulse">{t("loading")}</span>
-        </div>
-      ) : error ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10">
-          <span className="text-4xl">⚠️</span>
-          <span className="text-xs font-black capitalize tracking-widest text-[var(--danger)] text-center">{error}</span>
-        </div>
-      ) : data ? (
-        <div className="flex flex-col relative z-10 w-full pb-10 break-words">
-          <div className="flex flex-col gap-8 pb-8 px-6 shrink-0 relative border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none" style={{ transform: 'translate(20%, -20%)' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '300px' }}>{assetType === 'chameleon' ? 'palette' : assetType === 'lexicon' ? 'translate' : assetType === 'blueprint' ? 'map' : assetType === 'workbench_template' ? 'edit' : 'extension'}</span>
-            </div>
-            <div className="flex items-start justify-between gap-6 relative z-10 w-full mt-6">
-              <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-full">
-                <h1 className="text-4xl font-black capitalize tracking-tight text-[var(--text)] drop-shadow-md break-words break-all" style={{ overflowWrap: 'anywhere' }}>
-                  {(data.displayName || (data.name || '').split('/').pop() || "").replace(/_/g, ' ').replace(/\.[^/.]+$/, "")}
-                </h1>
-                <div className="flex items-center gap-3 flex-wrap mt-2">
-                  <span className="px-4 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-xs font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-2 shadow-sm backdrop-blur-sm truncate max-w-full">
-                    <span className="material-symbols-outlined !text-[16px] shrink-0">draft</span>
-                    <span className="truncate">{assetType === 'workbench_template' ? 'template' : assetType}</span>
-                  </span>
-                  {data.is_early_access && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#a855f7_15%,transparent)] border border-[color-mix(in_srgb,#a855f7_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
-                      <span className="material-symbols-outlined !text-[12px] text-[#d8b4fe]">science</span>
-                      <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#d8b4fe]">{t("badge_early_access")}</span>
-                    </div>
-                  )}
-                  {data.is_paid && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[color-mix(in_srgb,#eab308_15%,transparent)] border border-[color-mix(in_srgb,#eab308_30%,transparent)] rounded-lg backdrop-blur-[2px] shadow-lg">
-                      <span className="material-symbols-outlined !text-[12px] text-[#fef08a]">monetization_on</span>
-                      <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[#fef08a]">{t("badge_paid")}</span>
-                    </div>
-                  )}
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8 break-words">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <span className="text-xs font-black capitalize tracking-widest text-[var(--subtext)] animate-pulse">
+              {t("loading", "Loading...")}
+            </span>
+          </div>
+        ) : error ? (
+          <SidePanelHeroCard
+            icon={t("icon_error", "error")}
+            overline={panelTitle}
+            title={t("status_error", "Error")}
+            description={error}
+            variant="danger"
+          />
+        ) : data ? (
+          <>
+            <SidePanelHeroCard
+              icon={panelIcon}
+              overline={assetType === "workbench_template" ? "template" : assetType}
+              title={(data.displayName || (data.name || "").split("/").pop() || "")
+                .replace(/_/g, " ")
+                .replace(/\.[^/.]+$/, "")}
+              description={panelSubtitle}
+              badge={`v${getAssetDisplayVersion(data) || "1.0.0"}`}
+              badgeIcon={t("icon_new_releases", "new_releases")}
+              variant="accent"
+            >
+              <div className="flex flex-col gap-3 mt-1">
+                {(data.is_early_access || data.is_paid) && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {data.is_early_access && (
+                      <span
+                        className={`${VAULT_CHIP_CLASS} !border-purple-500/40 !text-purple-300`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_science", "science")}
+                        </span>
+                        {t("badge_early_access", "Early Access")}
+                      </span>
+                    )}
+                    {data.is_paid && (
+                      <span
+                        className={`${VAULT_CHIP_CLASS} !border-amber-500/40 !text-amber-300`}
+                      >
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_monetization_on", "monetization_on")}
+                        </span>
+                        {t("badge_paid", "Paid")}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <StatBox
+                    label={t("author", "Author")}
+                    value={data.author || data.master_author || "Citizen"}
+                    icon={t("icon_person", "person")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={t("label_version", "Version")}
+                    value={getAssetDisplayVersion(data) || "1.0.0"}
+                    icon={t("icon_new_releases", "new_releases")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={t("sort_downloads", "Downloads")}
+                    value={data.downloads?.toLocaleString() || "0"}
+                    icon={t("icon_download", "download")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={t("created_date", "Published")}
+                    value={
+                      data.created_at
+                        ? new Date(data.created_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "—"
+                    }
+                    icon={t("icon_calendar_today", "calendar_today")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
                 </div>
               </div>
-            </div>
+            </SidePanelHeroCard>
 
-            {assetType === 'chameleon' && data.json_data && (
-              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-2xl relative z-10">
+            {assetType === "chameleon" && data.json_data && (
+              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
                 <DynamicThemePreviewBanner
                   data={{
-                    ...(typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data),
+                    ...data,
+                    ...(typeof data.json_data === "string"
+                      ? JSON.parse(data.json_data)
+                      : data.json_data),
                     name: data.name,
-                    previewImage: data.image_url || data.json_data?.previewImage
+                    previewImage: data.image_url || data.json_data?.previewImage,
                   }}
                   heightClass="h-44"
                 />
               </div>
             )}
 
-            <div className="flex items-center gap-3 relative z-10 w-full flex-wrap">
-              <div className="flex-[1.5] min-w-[200px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("author") || "Author"}</span>
-                <span className="text-lg font-black flex items-center gap-2 max-w-full"><span className="material-symbols-outlined !text-[20px] theme-text-accent shrink-0">person</span> <span className="truncate" title={data.author || data.master_author || "Citizen"}>{data.author || data.master_author || "Citizen"}</span></span>
-              </div>
-              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("update_version") || "Version"}</span>
-                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">new_releases</span> {getAssetDisplayVersion(data) || "1.0.0"}</span>
-              </div>
-              <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("downloads_count") || "Downloads"}</span>
-                <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">download</span> {data.downloads?.toLocaleString() || "0"}</span>
-              </div>
-              {data.created_at && (
-                <div className="flex-1 min-w-[140px] flex flex-col gap-1 items-start px-5 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-sm backdrop-blur-md transition-transform hover:-translate-y-1 hover:shadow-lg">
-                  <span className="text-[10px] uppercase font-black tracking-widest opacity-50">{t("created_date") || "Published"}</span>
-                  <span className="text-lg font-black flex items-center gap-2"><span className="material-symbols-outlined !text-[20px] theme-text-accent">calendar_today</span> {new Date(data.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="p-6 flex flex-col gap-8 flex-1">
-            <div className="flex flex-col gap-4">
-              <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("upload_desc")}</h4>
-              <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-                <div className="relative z-10">
-                  {data.description ? stripMarkdown(data.description) : t("no_desc_sub")}
-                </div>
-              </div>
-            </div>
-
-            {assetType === 'workbench_template' && data.json_data && (() => {
-              const parsedRaw = typeof data.json_data === 'string' ? JSON.parse(data.json_data) : data.json_data;
-              const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
-              return (
-                <div className="flex flex-col gap-4">
-                  <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("auto_template_architecture")}</h4>
-                  <div className="flex flex-wrap gap-4">
-                    {parsed.template_id && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_template_id")} subtitle={parsed.template_id} />
-                    )}
-                    {parsed.target_file && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("upload_target_file")} subtitle={parsed.target_file} />
-                    )}
-                    {parsed.schema_version && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_schema")} subtitle={`${t("auto_v")}${parsed.schema_version}`} />
-                    )}
-                    {parsed.template_version && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("update_version")} subtitle={parsed.template_version} />
-                    )}
-                    {parsed.mod_author && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_mod_author")} subtitle={parsed.mod_author} />
-                    )}
-                    {parsed.parser_type && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_parser")} subtitle={parsed.parser_type} />
-                    )}
-                    {parsed.supported_mod_versions && Array.isArray(parsed.supported_mod_versions) && parsed.supported_mod_versions.length > 0 && (
-                      <UniversalCard layout="stat" className="flex-1 min-w-[200px]" title={t("auto_supported_versions")} subtitle={parsed.supported_mod_versions.join(', ')} />
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {(data.changelog || data.release_notes || (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
-              <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("whats_new")}</h4>
-                <div className="text-sm text-[var(--text)] leading-relaxed font-medium glass-panel p-6 rounded-3xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative group">
-                  <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_3%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-                  <div className="relative z-10">
-                    {stripMarkdown(data.changelog || data.release_notes || (data.json_data?.changelog) || (data.json_data?.release_notes))}
-                  </div>
-                </div>
+            {assetType === "lexicon" && (
+              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
+                <DynamicLexiconPreviewBanner data={data} heightClass="h-40" />
               </div>
             )}
-          </div>
-        </div>
-      ) : null}
+
+            {assetType === "blueprint" && (
+              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
+                <DynamicBlueprintPreviewBanner data={data} heightClass="h-40" />
+              </div>
+            )}
+
+            {assetType === "workbench_template" && (
+              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
+                <DynamicTemplatePreviewBanner data={data} heightClass="h-40" />
+              </div>
+            )}
+
+            <UniversalGroup
+              title={t("upload_desc", "Description")}
+              icon={t("icon_description", "description")}
+            >
+              <div className="text-sm text-[var(--text)] leading-relaxed font-medium px-1 py-0.5">
+                {data.description
+                  ? stripMarkdown(data.description)
+                  : t("no_desc_sub", "No specific local description provided for this sub-{mod}.")}
+              </div>
+            </UniversalGroup>
+
+            {assetType === "workbench_template" &&
+              data.json_data &&
+              (() => {
+                const parsedRaw =
+                  typeof data.json_data === "string"
+                    ? JSON.parse(data.json_data)
+                    : data.json_data;
+                const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+                return (
+                  <UniversalGroup
+                    title={t("auto_template_architecture", "Template Architecture")}
+                    icon={t("icon_architecture", "architecture")}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {parsed.template_id && (
+                        <StatBox
+                          label={t("auto_template_id", "Template ID")}
+                          value={parsed.template_id}
+                          icon={t("icon_tag", "tag")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.target_file && (
+                        <StatBox
+                          label={t("upload_target_file", "Target File")}
+                          value={parsed.target_file}
+                          icon={t("icon_description", "description")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.schema_version && (
+                        <StatBox
+                          label={t("auto_schema", "Schema")}
+                          value={`${t("auto_v", "v")}${parsed.schema_version}`}
+                          icon={t("icon_schema", "schema")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.template_version && (
+                        <StatBox
+                          label={t("label_version", "Version")}
+                          value={parsed.template_version}
+                          icon={t("icon_new_releases", "new_releases")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.mod_author && (
+                        <StatBox
+                          label={t("auto_mod_author", "{Mod} Author")}
+                          value={parsed.mod_author}
+                          icon={t("icon_person", "person")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.parser_type && (
+                        <StatBox
+                          label={t("auto_parser", "Parser")}
+                          value={parsed.parser_type}
+                          icon={t("icon_code", "code")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      )}
+                      {parsed.supported_mod_versions &&
+                        Array.isArray(parsed.supported_mod_versions) &&
+                        parsed.supported_mod_versions.length > 0 && (
+                          <StatBox
+                            label={t("auto_supported_versions", "Supported Versions")}
+                            value={parsed.supported_mod_versions.join(", ")}
+                            icon={t("icon_verified", "verified")}
+                            iconColorClass="text-[var(--success)]"
+                            className="sm:col-span-2"
+                          />
+                        )}
+                    </div>
+                  </UniversalGroup>
+                );
+              })()}
+
+            {(data.changelog ||
+              data.release_notes ||
+              (data.json_data && (data.json_data.changelog || data.json_data.release_notes))) && (
+              <UniversalGroup
+                title={t("whats_new", "What's New")}
+                icon={t("icon_new_releases", "new_releases")}
+              >
+                <div className="text-sm text-[var(--text)] leading-relaxed font-medium px-1 py-0.5">
+                  {stripMarkdown(
+                    data.changelog ||
+                      data.release_notes ||
+                      data.json_data?.changelog ||
+                      data.json_data?.release_notes
+                  )}
+                </div>
+              </UniversalGroup>
+            )}
+          </>
+        ) : null}
+      </div>
     </SidePanel>
   );
 }

@@ -1644,7 +1644,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
               bottom: coords.isDropUp ? window.innerHeight - coords.top + 8 : "auto",
               left: coords.left,
             }}
-            className="!fixed rounded-2xl glass-panel portal-glass-fix border border-[rgba(var(--text-rgb,255,255,255),0.14)] shadow-2xl pointer-events-auto w-[360px] max-w-[calc(100vw-24px)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]"
+            className="!fixed rounded-2xl glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto w-[360px] max-w-[calc(100vw-24px)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]"
           >
             <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
               <div className="relative">

@@ -12,7 +12,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
       <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] animate-bounce">download</span>
-          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">{t("browser_downloads_intercepted")}</span>
+          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)]">{t("browser_downloads_intercepted", "Downloads Intercepted")}</span>
         </div>
         <span className="text-[10px] font-black capitalize tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] px-2 py-0.5 rounded-full">{downloadsQueue.length}</span>
       </div>
@@ -34,7 +34,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
                   }}
                   className="flex-1 py-2 rounded-xl text-[9px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--subtext)] hover:text-red-400 border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                 >
-                  {t("browser_ignore")}
+                  {t("btn_ignore", "Ignore")}
                 </button>
                 <button
                   onClick={async () => {
@@ -54,7 +54,7 @@ export function SidePanelBrowserDownloads({ downloadsQueue, setDownloadsQueue }:
                   }}
                   className="flex-1 py-2 rounded-xl text-[9px] font-black capitalize tracking-widest transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.5)]"
                 >
-                  {t("browser_import")}
+                  {t("btn_import", "Import")}
                 </button>
               </div>
             </div>

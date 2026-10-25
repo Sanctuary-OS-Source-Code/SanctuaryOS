@@ -37,16 +37,24 @@ const cleanModName = (name: string) => {
   return cleaned;
 };
 
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
 const ModNameWithBadge = ({ name }: { name: string }) => {
+  const { t } = useLexicon();
   const type = extractType(name);
   const cleanName = cleanModName(name);
+  const isScript = String(type).toUpperCase().includes("SCRIPT");
   return (
     <div className="flex flex-col gap-1.5 min-w-0 w-full">
       <div className="text-sm font-black text-[var(--text)] break-words whitespace-normal leading-tight">
         {cleanName}
       </div>
-      <div className="self-start px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[9px] font-black uppercase tracking-wider shrink-0 text-[var(--subtext)]">
-        {type as any}
+      <div className={`self-start ${VAULT_CHIP_CLASS}`}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+          {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
+        </span>
+        <span>{type as any}</span>
       </div>
     </div>
   );
@@ -131,16 +139,15 @@ export default function ConflictResolutionSidebar({
       }
       widthClass="w-[90vw] md:w-[680px]"
       headerActions={
-        selectedMod ? (
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_check_circle", "check_circle")}
-              tooltip={t("btn_set_winner", "Confirm Winner")}
-              variant="success"
-              onClick={handleConfirmWinner}
-            />
-          </PanelHeaderGroup>
-        ) : undefined
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_check_circle", "check_circle")}
+            tooltip={t("btn_set_winner", "Confirm Winner")}
+            variant="success"
+            disabled={!selectedMod}
+            onClick={handleConfirmWinner}
+          />
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -150,16 +157,10 @@ export default function ConflictResolutionSidebar({
           title={heroSubtitle}
           description={
             isTier4
-              ? t(
-                  "tier4_desc_winner",
-                  "Select the artifact to keep active. The conflicting artifact will be removed from your active blueprint."
-                )
+              ? t("tier4_desc_winner", "Only ONE of these {mods} can remain active. Choose the winner to keep in your {Blueprint}.")
               : isTier3
-                ? t(
-                    "tier3_desc_winner",
-                    "Select the winning artifact to override conflicting tuning resources."
-                  )
-                : t("identical_assets_winner", "Select the primary copy to retain.")
+                ? t("tier3_desc_winner", "Both {mods} can remain active. Choose the winner to safely override the other in the Sanctuary.")
+                : t("identical_assets_winner", "Identical assets detected. Choose the winner to keep in your {Blueprint}.")
           }
           badge={
             conflict.is_ghost
@@ -269,15 +270,6 @@ export default function ConflictResolutionSidebar({
               );
             })}
           </div>
-
-          <ActionButton
-            variant="glass"
-            icon={t("icon_check_circle", "check_circle")}
-            label={t("btn_set_winner", "Confirm Winner")}
-            disabled={!selectedMod}
-            onClick={handleConfirmWinner}
-            className="w-full mt-1"
-          />
         </UniversalGroup>
       </div>
     </SidePanel>

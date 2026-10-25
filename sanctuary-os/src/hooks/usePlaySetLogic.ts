@@ -575,6 +575,155 @@ export function unpackBlueprintLoadOrder(
   };
 }
 
+export async function precomputeBlueprintConflicts(
+  scopeName: string,
+  targetMods?: any[],
+  vaultPathOverride?: string
+): Promise<{
+  fatal: any[];
+  tuning: any[];
+  clone: any[];
+  soft: any[];
+  packages: number;
+  totalClashes: number;
+  timestamp: number;
+} | null> {
+  if (!scopeName) return null;
+  try {
+    let vaultPath = vaultPathOverride;
+    if (!vaultPath) {
+      const config: any = await invoke("get_saved_coordinates");
+      vaultPath = config?.vault_path;
+    }
+    if (!vaultPath) return null;
+
+    const state = useStore.getState();
+    const sets = state.playSets || [];
+    const set = sets.find((s: any) => s.name === scopeName);
+    const rawMods = targetMods || set?.mods || [];
+    const targetFiles = rawMods
+      .map((m: any) => (typeof m === "string" ? m : m?.name || m?.path || ""))
+      .filter(Boolean);
+
+    const targetPath = `${vaultPath}/Mods`;
+    const report = await invoke<any>("run_conflict_radar", {
+      modsPath: targetPath,
+      targetFiles,
+    });
+
+    const isClone = (modA: string, modB: string) => {
+      if (!modA || !modB) return false;
+      const clean = (s: string) => {
+        const file = s.split(/[\\/]/).pop() || s;
+        const extMatch = file.match(getExtensionRegex(state.activeGameSchema));
+        const ext = extMatch ? extMatch[1].toLowerCase() : "";
+        const cleaned = file
+          .toLowerCase()
+          .replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\.[a-zA-Z0-9]+)/g, "")
+          .replace(/[^a-z0-9]/g, "");
+        return cleaned + "_" + ext;
+      };
+      return clean(modA) === clean(modB);
+    };
+
+    const fatal: any[] = [];
+    const tuning: any[] = [];
+    const clone: any[] = [];
+    const soft: any[] = [];
+    let actionableClashes = 0;
+
+    (report?.conflicts || []).forEach((c: any) => {
+      const parts = String(c.mod_pair || "").split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
+      const modA = parts[0];
+      const modB = parts.length > 1 ? parts[1] : "Unknown Overlap";
+      const enrichedConflict = { ...c, modA, modB };
+
+      if (isClone(modA, modB)) {
+        clone.push(enrichedConflict);
+        actionableClashes++;
+      } else if (c.severity_rank == 4) {
+        fatal.push(enrichedConflict);
+        actionableClashes++;
+      } else if (c.severity_rank == 3) {
+        tuning.push(enrichedConflict);
+        actionableClashes++;
+      } else {
+        soft.push(enrichedConflict);
+      }
+    });
+
+    if (report?.installed_mods && navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
+      try {
+        const { supabase } = await import("../supabase");
+        const { data: hitList, error: dbError } = await supabase.from("logical_conflicts").select(`
+          *,
+          mod_a_rel:mods!logical_conflicts_mod_a_id_fkey(name),
+          mod_b_rel:mods!logical_conflicts_mod_b_id_fkey(name)
+        `);
+        if (hitList && !dbError) {
+          hitList.forEach((hit: any) => {
+            const modAName = hit.mod_a_rel?.name || hit.mod_a;
+            const modBName = hit.mod_b_rel?.name || hit.mod_b;
+            if (!modAName || !modBName) return;
+            const actualA = report.installed_mods.find(
+              (m: string) => m && m.toLowerCase().includes(modAName.toLowerCase())
+            );
+            const actualB = report.installed_mods.find(
+              (m: string) => m && m.toLowerCase().includes(modBName.toLowerCase())
+            );
+            if (actualA && actualB) {
+              const ghostPair = `${actualA} 👻 ${actualB}`;
+              actionableClashes++;
+              const ghostConflict = {
+                mod_pair: ghostPair,
+                modA: actualA,
+                modB: actualB,
+                is_ghost: true,
+                resolution_note: hit.resolution_note,
+                severity_rank: hit.severity_rank,
+              };
+              if (Number(hit.severity_rank) === 4) fatal.push(ghostConflict);
+              else if (Number(hit.severity_rank) === 3) tuning.push(ghostConflict);
+            }
+          });
+        }
+      } catch {}
+    }
+
+    const payload = {
+      fatal,
+      tuning,
+      clone,
+      soft,
+      packages: report?.total_packages || 0,
+      totalClashes: actionableClashes,
+      timestamp: Date.now(),
+    };
+
+    try {
+      const ignored: string[] = JSON.parse(localStorage.getItem("sanctuary_ignored_conflicts") || "[]");
+      localStorage.setItem(`sanctuary_radar_cache_${scopeName}`, JSON.stringify(payload));
+      localStorage.setItem(
+        `radar_stats_${scopeName}`,
+        JSON.stringify({
+          fatal: fatal.filter((c) => !ignored.includes(c.mod_pair)).length,
+          tuning: tuning.filter((c) => !ignored.includes(c.mod_pair)).length,
+          clone: clone.filter((c) => !ignored.includes(c.mod_pair)).length,
+          soft: soft.filter((c) => !ignored.includes(c.mod_pair)).length,
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("sanctuary-radar-cache-updated", { detail: { scope: scopeName, payload } })
+      );
+    } catch {}
+
+    return payload;
+  } catch (e) {
+    console.warn("Failed to precompute blueprint conflicts:", e);
+    return null;
+  }
+}
+
 export function usePlaySetLogic() {
   const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, ignoredGlobal, setIgnoredGlobal } = useStore();
   const { t } = useLexicon();
@@ -729,7 +878,7 @@ export function usePlaySetLogic() {
             });
             if (toDelete) {
                newMods.delete(toDelete);
-               setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(targetName)} ${t("artifact_removed")}.`);
+               setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetName)} ${t("artifact_removed", "Will {Remove}")}.`);
             }
             const updatedSets = [...prevSets];
             updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
@@ -854,7 +1003,7 @@ export function usePlaySetLogic() {
                  
                  if (isFlavorRival || isCommunityRival || isBetaRival) {
                      deepDelete(m.name, true);
-                     setStatus(`${t("radar_intercept")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced")} ${formatDisplayName(m.displayName || m.name)}.`);
+                     setStatus(`${t("radar_intercept", "RADAR")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced", "Will Replace")} ${formatDisplayName(m.displayName || m.name)}.`);
                  }
              }
           });
@@ -875,7 +1024,7 @@ export function usePlaySetLogic() {
                  if (matchStr) {
                     const deletedMod = modMap.get(matchStr);
                     deepDelete(matchStr);
-                    setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
+                    setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
                  }
               }
            });
@@ -884,8 +1033,8 @@ export function usePlaySetLogic() {
       
       const addWithFamily = (modObj: any) => {
         if (!modObj || !modObj.name) return;
-        if (excludeBroken && (modObj.status === t("status_broken") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
-          setStatus(t("critical_action"));
+        if (excludeBroken && (modObj.status === t("status_corrupted", "Corrupted") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
+          setStatus(t("critical_action", "CRITICAL ACTION REQUIRED: Fatal conflicts require resolution before deployment"));
           return;
         }
         newMods.add(modObj.name);
@@ -906,7 +1055,7 @@ export function usePlaySetLogic() {
                         }
                         if (isReverseMatch) {
                             deepDelete(activeName);
-                            setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
+                            setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
                         }
                     }
                 });
@@ -952,7 +1101,7 @@ export function usePlaySetLogic() {
                   m.relationshipType === "core" ||
                   !m.relationshipType || isTwinMatch)
               ) {
-                if (!(excludeBroken && (m.status === t("status_broken") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
+                if (!(excludeBroken && (m.status === t("status_corrupted", "Corrupted") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
                   if (!deletedInPass.has(m.name)) {
                      applyConflicts(m);
                      newMods.add(m.name);
@@ -968,7 +1117,7 @@ export function usePlaySetLogic() {
           let validKids = kids;
           if (excludeBroken) {
             validKids = kids.filter((k) => {
-              if (k.status === t("status_broken") || k.status?.includes("BROKEN") || checkGhosted(k)) {
+              if (k.status === t("status_corrupted", "Corrupted") || k.status?.includes("BROKEN") || checkGhosted(k)) {
                 return false;
               }
               return true;
@@ -1081,7 +1230,7 @@ export function usePlaySetLogic() {
           deepDelete(targetName);
         }
         if (forceRemove) {
-           setStatus(`${t("anarchy_intercept")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed")}.`);
+           setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed", "Will {Remove}")}.`);
         }
       }
       const updatedSets = [...prevSets];
@@ -1118,7 +1267,7 @@ export function usePlaySetLogic() {
       localStorage.removeItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
     }
     setStatus(
-      `${t("status_removed_manifest_prefix")}${setName}${t("status_removed_manifest_suffix")}`,
+      `${t("status_removed_manifest_prefix", "Removed: '")}${setName}${t("status_removed_manifest_suffix", "' {blueprint} was deleted.")}`,
     );
   }
 
@@ -1156,7 +1305,7 @@ export function usePlaySetLogic() {
       });
       const parsed = JSON.parse(content);
       if (!parsed.sanctuary_profile) {
-        alert(t("status_invalid_profile"));
+        alert(t("status_invalid_profile", "Invalid Profile format."));
         return;
       }
       const missing: any[] = [];
@@ -1237,7 +1386,7 @@ export function usePlaySetLogic() {
         return "success";
       }
     } catch (err) {
-      setStatus(`${t("icon_block")} ${t("alert_import_failed")}${err}`);
+      setStatus(`${t("icon_block", "block")} ${t("alert_import_failed", "Import Failed:")}${err}`);
       return "error";
     }
   }
@@ -1256,7 +1405,7 @@ export function usePlaySetLogic() {
     setPlaySets(updatedSets);
 
     setStatus(
-      `${t("icon_check_circle")} ${t("status_profile_imported")}${setToAdd.name}`,
+      `${t("icon_check_circle", "check_circle")} ${t("status_profile_imported", "Profile Imported")}${setToAdd.name}`,
     );
     setMissingImportMods(null);
     setPendingImportSet(null);
@@ -1266,7 +1415,7 @@ export function usePlaySetLogic() {
     const targetSet = playSets.find((s) => s.name === setName);
     if (!targetSet) return;
     setStatus(
-      `${t("status_deploying_prefix")}${setName}${t("status_deploying_suffix")}`,
+      `${t("status_deploying_prefix", "DEPLOYING: {Blueprint} [")}${setName}${t("status_deploying_suffix", "]...")}`,
     );
     await new Promise(resolve => setTimeout(resolve, 50));
     
@@ -1502,9 +1651,10 @@ export function usePlaySetLogic() {
       
       const jsTime = Date.now() - jsStartTime;
 
-      setStatus(`${t("icon_check_circle")} ${t("btn_deployed")} ${msg as string} ${t("backend_deployed_suffix")} `);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
+      precomputeBlueprintConflicts(setName, targetSet.mods, config.vault_path).catch(() => {});
     } catch (err) {
-      setStatus(`${t("status_deploy_failed")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
     }
   }
 
@@ -1901,7 +2051,7 @@ export function usePlaySetLogic() {
         updatedSets[idx] = currentSet;
         return updatedSets;
       });
-      setStatus(`${t("icon_check_circle")} ${t("lo_status_sorted", "Load order topologically sorted by active rules.")}`);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${t("lo_status_sorted", "Load order topologically sorted by active rules.")}`);
     },
     [activeGameSchema, setPlaySets, setStatus, t]
   );

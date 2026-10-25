@@ -17,8 +17,9 @@ import {
   LinkAssetSidePanel,
   handleOpenUrl,
   stripMarkdown,
+  ActionButton,
 } from "../shared";
-import { SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
+import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
 import { UniversalGroup } from "./universal/UniversalLayout";
 import {
@@ -26,6 +27,11 @@ import {
   DispatchPollData,
   DispatchPollViewer,
 } from "./universal/DispatchPollAndMeta";
+import {
+  PostEditorMode,
+  UnifiedPostBodyEditor,
+  PostAttachmentsManager,
+} from "./universal/UnifiedPostEditor";
 import MarkdownRenderer from "../MarkdownRenderer";
 import IconPicker from "../IconPicker";
 import {
@@ -40,6 +46,9 @@ import bundledNerdChangelog from "../../../changelog.md?raw";
 export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
 const DEV_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_DEV]";
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 const GITHUB_RELEASES_WEB_URL =
   "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
@@ -90,31 +99,72 @@ export function cleanPostBodyForViewer(markdown: string): string {
       cleaned.push(trimmed.replace(/^[\s\u200B\uFEFF#\\]+/, ""));
       continue;
     }
-    cleaned.push(lines[i]);
+    // Strip standalone or inline asset:// link lines (rendered separately in Attached Nexus Assets section)
+    const withoutAssets = lines[i].replace(
+      /(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/[^)]+\)/gi,
+      ""
+    );
+    if (lines[i].includes("asset://") && !withoutAssets.trim()) {
+      continue;
+    }
+    cleaned.push(withoutAssets);
   }
 
   return cleaned.join("\n").replace(/^\s*---\s*\n/, "").trim();
 }
 
-interface ParsedReleaseSubItem {
+export interface ParsedReleaseSubItem {
   title: string;
   body: string;
 }
 
-interface ParsedReleaseCard {
+export interface ParsedReleaseCard {
   title: string;
+  icon?: string;
   paragraphs: string[];
   subItems?: ParsedReleaseSubItem[];
+  imageUrl?: string;
+  codeBlock?: string;
 }
 
-interface ParsedReleaseSection {
+export interface ParsedReleaseSection {
   title: string;
+  icon?: string;
+  description?: string;
   cards: ParsedReleaseCard[];
+  images?: string[];
+}
+
+export function extractHeadingIconAndTitle(raw: string): {
+  icon?: string;
+  title: string;
+} {
+  let extractedIcon: string | undefined;
+  const withoutIcon = (raw || "").replace(
+    /\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi,
+    (_, iconName) => {
+      if (!extractedIcon) extractedIcon = String(iconName).toLowerCase();
+      return "";
+    }
+  );
+  return {
+    icon: extractedIcon,
+    title: cleanHeadingTitle(withoutIcon),
+  };
+}
+
+function normalizeLatexArrows(text: string): string {
+  return (text || "")
+    .replace(/\$*\\+rightleftarrows\$*/gi, "⇄")
+    .replace(/\$*\\+leftrightarrow\$*/gi, "↔")
+    .replace(/\$*\\+rightarrow\$*/gi, "→")
+    .replace(/\$*\\+leftarrow\$*/gi, "←");
 }
 
 function cleanHeadingTitle(raw: string): string {
   return stripEmojiPrefix(
-    raw
+    normalizeLatexArrows(raw || "")
+      .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, "")
       .replace(/^[\s\u200B\uFEFF#*\\-]+/, "")
       .replace(/\\+$/, "")
       .replace(/\*\*/g, "")
@@ -127,11 +177,12 @@ function cleanHeadingTitle(raw: string): string {
 }
 
 function cleanCardTitle(raw: string): string {
-  const cleaned = raw
+  const cleaned = normalizeLatexArrows(raw || "")
     .replace(
       /\((?:[^()]*?(?:src\/|src-tauri\/|\.github\/|supabase\/|[A-Za-z0-9_/-]+\.(?:rs|tsx?|sql|css|yml)\b|keeper_heuristic|compliance_tier|tier2_hashes|schema_os)[^()]*)\)/gi,
       ""
     )
+    .replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, "[ICON:$1]")
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/`/g, "")
@@ -142,11 +193,50 @@ function cleanCardTitle(raw: string): string {
   return stripEmojiPrefix(cleaned);
 }
 
+export function extractCardIconAndTitle(rawTitle: string): {
+  icon?: string;
+  title: string;
+} {
+  let extractedIcon: string | undefined;
+  const withoutIcon = (rawTitle || "")
+    .replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, (_, iconName) => {
+      if (!extractedIcon) extractedIcon = String(iconName).toLowerCase();
+      return "";
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return {
+    icon: extractedIcon,
+    title: withoutIcon,
+  };
+}
+
+function extractImagesFromLine(raw: string): {
+  images: string[];
+  textWithoutImages: string;
+} {
+  const images: string[] = [];
+  const textWithoutImages = (raw || "").replace(
+    /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/gi,
+    (_, url) => {
+      images.push(String(url).trim());
+      return "";
+    }
+  );
+  return { images, textWithoutImages };
+}
+
 function cleanCardParagraph(raw: string): string {
-  return raw
+  return normalizeLatexArrows(raw || "")
     .replace(/^\s*(?:[*-]|\d+\.)\s+/, "")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
     .replace(/\\+$/, "")
+    .replace(
+      /(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/[^)]+\)/gi,
+      ""
+    )
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, "[ICON:$1]")
     .replace(
       /\((?:[^()]*?(?:src\/|src-tauri\/|\.github\/|supabase\/|[A-Za-z0-9_/-]+\.(?:rs|tsx?|sql|css|yml)\b|keeper_heuristic|compliance_tier|tier2_hashes|schema_os)[^()]*)\)/gi,
       ""
@@ -160,8 +250,7 @@ function cleanCardParagraph(raw: string): string {
         );
       return withoutBackticks.length > 14 ? match : "";
     })
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/(?!\[ICON:)\[([^\]]+)\]\((?!asset:\/\/)[^)]+\)/gi, "$1")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
     .replace(/\s{2,}/g, " ")
@@ -293,18 +382,22 @@ function parseBulletGroupIntoCards(bulletLines: string[]): ParsedReleaseCard[] {
 
     // If there is only 1 untitled sub-bullet and no main body, fold it cleanly into a single 1-column card.
     if (!cleanedMainBody && firstLinesParsed.length === 1 && !firstLinesParsed[0].title) {
+      const parsedMain = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
       return [
         {
-          title: mainExtracted ? mainExtracted.title : "",
+          title: parsedMain.title,
+          icon: parsedMain.icon,
           paragraphs: firstLinesParsed[0].body ? [firstLinesParsed[0].body] : [],
         },
       ];
     }
 
     // Render sub-bullets as structured mini-cards inside the parent card so there is never a multi-paragraph wall of text.
+    const parsedParent = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
     return [
       {
-        title: mainExtracted ? mainExtracted.title : "",
+        title: parsedParent.title,
+        icon: parsedParent.icon,
         paragraphs: cleanedMainBody ? [cleanedMainBody.replace(/:\s*$/, ".")] : [],
         subItems: firstLinesParsed
           .filter((s) => s.title || s.body)
@@ -318,17 +411,21 @@ function parseBulletGroupIntoCards(bulletLines: string[]): ParsedReleaseCard[] {
 
   if (!mainExtracted && !cleanedMainBody) return [];
 
+  const parsedSingle = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
   return [
     {
-      title: mainExtracted ? mainExtracted.title : "",
+      title: parsedSingle.title,
+      icon: parsedSingle.icon,
       paragraphs: cleanedMainBody ? [cleanedMainBody] : [],
     },
   ];
 }
 
-function parseMarkdownIntoReleaseSections(markdown: string): {
+export function parseMarkdownIntoReleaseSections(markdown: string): {
   introTitle: string;
+  introIcon?: string;
   intro: string;
+  introImages?: string[];
   sections: ParsedReleaseSection[];
 } {
   const cleaned = cleanPostBodyForViewer(
@@ -339,54 +436,78 @@ function parseMarkdownIntoReleaseSections(markdown: string): {
   interface HeadingBlock {
     level: number;
     title: string;
+    icon?: string;
     lines: string[];
   }
 
   let introTitle = "";
+  let introIcon: string | undefined;
   const introLines: string[] = [];
   const blocks: HeadingBlock[] = [];
   let currentBlock: HeadingBlock | null = null;
+  let inTopFence = false;
 
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i];
     const trimmed = line.trim();
 
-    if (trimmed === "---") continue;
-    if (i < 6 && /^\*\*(Date|Version|Release Date):/i.test(trimmed)) continue;
-
-    const headingMatch = trimmed.match(/^\\?(#{1,4})\s+(.*)$/);
-    if (headingMatch) {
-      const level = headingMatch[1].length;
-      const rawHeadingText = headingMatch[2].trim();
-
-      // If a long multi-sentence paragraph at the top was accidentally formatted as a heading in TipTap, treat it as intro prose
-      if (
-        !currentBlock &&
-        blocks.length === 0 &&
-        i < 5 &&
-        rawHeadingText.length > 105
-      ) {
-        introLines.push(rawHeadingText);
-        continue;
-      }
-
-      const headingTitle = cleanHeadingTitle(rawHeadingText);
-
-      // Skip only the raw seed file top-level release header ("# Sanctuary OS — Version 0.5.7 Update")
-      if (
-        !currentBlock &&
-        blocks.length === 0 &&
-        i < 5 &&
-        /^sanctuary\s+os\s+[—–-]\s+version\b/i.test(headingTitle)
-      ) {
-        continue;
-      }
-
+    if (/^```/.test(trimmed)) {
+      inTopFence = !inTopFence;
       if (currentBlock) {
-        blocks.push(currentBlock);
+        currentBlock.lines.push(line);
+      } else {
+        introLines.push(line);
       }
-      currentBlock = { level, title: headingTitle, lines: [] };
-    } else if (currentBlock) {
+      continue;
+    }
+
+    if (!inTopFence) {
+      if (trimmed === "---") continue;
+      if (i < 6 && /^\*\*(Date|Version|Release Date):/i.test(trimmed)) continue;
+
+      const headingMatch = trimmed.match(/^\\?(#{1,4})\s+(.*)$/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const rawHeadingText = headingMatch[2].trim();
+
+        // If a long multi-sentence paragraph at the top was accidentally formatted as a heading in TipTap, treat it as intro prose
+        if (
+          !currentBlock &&
+          blocks.length === 0 &&
+          i < 5 &&
+          rawHeadingText.length > 105
+        ) {
+          introLines.push(rawHeadingText);
+          continue;
+        }
+
+        const { icon: headingIcon, title: headingTitle } =
+          extractHeadingIconAndTitle(rawHeadingText);
+
+        // Skip only the raw seed file top-level release header ("# Sanctuary OS — Version 0.5.7 Update")
+        if (
+          !currentBlock &&
+          blocks.length === 0 &&
+          i < 5 &&
+          /^sanctuary\s+os\s+[—–-]\s+version\b/i.test(headingTitle)
+        ) {
+          continue;
+        }
+
+        if (currentBlock) {
+          blocks.push(currentBlock);
+        }
+        currentBlock = {
+          level,
+          title: headingTitle,
+          icon: headingIcon,
+          lines: [],
+        };
+        continue;
+      }
+    }
+
+    if (currentBlock) {
       currentBlock.lines.push(line);
     } else {
       introLines.push(line);
@@ -395,6 +516,23 @@ function parseMarkdownIntoReleaseSections(markdown: string): {
 
   if (currentBlock) {
     blocks.push(currentBlock);
+  }
+
+  // If introLines itself contains bullet items (e.g. a post with bullets and no ## heading above them),
+  // split introLines at the first bullet into prose intro + a leading section block.
+  const firstIntroBulletIdx = introLines.findIndex((l) =>
+    /^\s{0,1}(?:[*-]|\d+\.)\s+/.test(l)
+  );
+  if (firstIntroBulletIdx !== -1) {
+    const bulletPortion = introLines.splice(firstIntroBulletIdx);
+    blocks.unshift({
+      level: 2,
+      title: introTitle || "",
+      icon: introIcon,
+      lines: bulletPortion,
+    });
+    if (introTitle) introTitle = "";
+    if (introIcon) introIcon = undefined;
   }
 
   // If the first heading block at the top of the post has only prose paragraphs (zero bullet items) before the first bulleted section,
@@ -407,73 +545,203 @@ function parseMarkdownIntoReleaseSections(markdown: string): {
   ) {
     const firstBlock = blocks.shift()!;
     introTitle = firstBlock.title;
+    introIcon = firstBlock.icon;
     introLines.push(...firstBlock.lines);
   }
 
   const sections: ParsedReleaseSection[] = [];
 
   for (const block of blocks) {
-    const bulletGroups: string[][] = [];
-    const proseLines: string[] = [];
+    const preBulletProseLines: string[] = [];
+    const orderedEntries: Array<
+      | { kind: "bullet"; lines: string[] }
+      | { kind: "prose"; line: string }
+      | { kind: "code"; code: string }
+    > = [];
+    const sectionImages: string[] = [];
     let currentBullet: string[] | null = null;
+    let seenAnyCardItem = false;
 
-    for (const line of block.lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === "---") continue;
+    for (let idx = 0; idx < block.lines.length; idx++) {
+      const rawLine = block.lines[idx];
+      const trimmed = rawLine.trim();
 
-      const isTopBullet = /^\s{0,1}(?:[*-]|\d+\.)\s+/.test(line);
+      // Handle fenced code blocks ``` ... ```
+      if (/^```/.test(trimmed)) {
+        if (currentBullet) {
+          orderedEntries.push({ kind: "bullet", lines: currentBullet });
+          currentBullet = null;
+        }
+        seenAnyCardItem = true;
+        const codeLines: string[] = [];
+        const firstFenceRest = trimmed.replace(/^```[a-zA-Z0-9_-]*\s*/, "");
+        if (firstFenceRest && !firstFenceRest.endsWith("```")) {
+          codeLines.push(firstFenceRest);
+        }
+        idx++;
+        while (idx < block.lines.length) {
+          const cLine = block.lines[idx];
+          if (/^```/.test(cLine.trim())) {
+            break;
+          }
+          codeLines.push(cLine);
+          idx++;
+        }
+        const joinedCode = codeLines.join("\n").trim();
+        if (joinedCode) {
+          orderedEntries.push({ kind: "code", code: joinedCode });
+        }
+        continue;
+      }
+
+      if (!trimmed || trimmed === "---") {
+        if (currentBullet) {
+          // Look ahead to next non-empty line: only keep currentBullet open across a blank line if the next line is an indented sub-bullet
+          let nextNonEmpty = "";
+          for (let j = idx + 1; j < block.lines.length; j++) {
+            if (block.lines[j].trim()) {
+              nextNonEmpty = block.lines[j];
+              break;
+            }
+          }
+          const nextIsSubBullet = /^\s{2,}(?:[*-]|\d+\.)\s+/.test(nextNonEmpty);
+          if (!nextIsSubBullet) {
+            orderedEntries.push({ kind: "bullet", lines: currentBullet });
+            currentBullet = null;
+          }
+        }
+        continue;
+      }
+
+      const { images: lineImages, textWithoutImages } = extractImagesFromLine(rawLine);
+      if (lineImages.length > 0) {
+        sectionImages.push(...lineImages);
+      }
+
+      const cleanTrimmed = textWithoutImages.trim();
+      if (!cleanTrimmed) {
+        if (currentBullet) {
+          orderedEntries.push({ kind: "bullet", lines: currentBullet });
+          currentBullet = null;
+        }
+        continue;
+      }
+
+      const isTopBullet = /^\s{0,1}(?:[*-]|\d+\.)\s+/.test(textWithoutImages);
+      const isSubBullet = /^\s{2,}(?:[*-]|\d+\.)\s+/.test(textWithoutImages);
+
       if (isTopBullet) {
-        if (currentBullet) bulletGroups.push(currentBullet);
-        currentBullet = [line];
+        if (currentBullet) {
+          orderedEntries.push({ kind: "bullet", lines: currentBullet });
+        }
+        currentBullet = [textWithoutImages];
+        seenAnyCardItem = true;
+      } else if (isSubBullet && currentBullet) {
+        currentBullet.push(textWithoutImages);
       } else if (currentBullet) {
-        currentBullet.push(line);
+        currentBullet.push(textWithoutImages);
+      } else if (seenAnyCardItem) {
+        if (!cleanTrimmed.endsWith(":")) {
+          orderedEntries.push({ kind: "prose", line: cleanTrimmed });
+        }
       } else {
-        if (!trimmed.endsWith(":")) {
-          proseLines.push(trimmed);
+        if (!cleanTrimmed.endsWith(":")) {
+          preBulletProseLines.push(cleanTrimmed);
         }
       }
     }
 
     if (currentBullet) {
-      bulletGroups.push(currentBullet);
+      orderedEntries.push({ kind: "bullet", lines: currentBullet });
     }
 
-    const parsedCards = bulletGroups.flatMap(parseBulletGroupIntoCards);
+    const parsedCards: ParsedReleaseCard[] = [];
+    for (const entry of orderedEntries) {
+      if (entry.kind === "bullet") {
+        parsedCards.push(...parseBulletGroupIntoCards(entry.lines));
+      } else if (entry.kind === "code") {
+        parsedCards.push({
+          title: "",
+          paragraphs: [],
+          codeBlock: entry.code,
+        });
+      } else if (entry.kind === "prose") {
+        const extracted = extractBulletTitleAndRest(entry.line);
+        if (extracted) {
+          const cleanedRest = cleanCardParagraph(extracted.rest);
+          parsedCards.push({
+            title: extracted.title,
+            paragraphs: cleanedRest ? [cleanedRest] : [],
+          });
+        } else {
+          const cleanedLine = cleanCardParagraph(entry.line);
+          if (cleanedLine) {
+            parsedCards.push({
+              title: "",
+              paragraphs: [cleanedLine],
+            });
+          }
+        }
+      }
+    }
+
     const hasTitledCards = parsedCards.some((c) => Boolean(c.title));
+    const sectionDescription = preBulletProseLines
+      .map(cleanCardParagraph)
+      .filter(Boolean)
+      .join(" ")
+      .trim();
 
     if (hasTitledCards) {
       sections.push({
         title: block.title,
+        icon: block.icon,
+        description: sectionDescription || undefined,
         cards: parsedCards,
+        images: sectionImages.length > 0 ? sectionImages : undefined,
       });
-    } else if (parsedCards.length > 0 || proseLines.length > 0) {
-      // Untitled bullets in this subsection (e.g., "### 3. Decentralized Mod Updates" or "### 3. Forking Sanctuary OS"):
-      // Keep the section header consistent (`block.title`) and render each bullet as its own clean card.
+    } else if (
+      parsedCards.length > 0 ||
+      preBulletProseLines.length > 0 ||
+      sectionImages.length > 0 ||
+      block.title
+    ) {
       const cardsFromUntitled: ParsedReleaseCard[] =
         parsedCards.length > 0
           ? parsedCards
-          : proseLines
+          : preBulletProseLines
               .map(cleanCardParagraph)
               .filter(Boolean)
               .map((p) => ({ title: "", paragraphs: [p] }));
 
-      if (cardsFromUntitled.length > 0) {
+      if (cardsFromUntitled.length > 0 || sectionImages.length > 0) {
         sections.push({
           title: block.title,
+          icon: block.icon,
+          description:
+            parsedCards.length > 0 ? sectionDescription || undefined : undefined,
           cards: cardsFromUntitled,
+          images: sectionImages.length > 0 ? sectionImages : undefined,
         });
       }
     }
   }
 
+  const introImages: string[] = [];
   const nonEmptyIntroLines = introLines
-    .map((l) => l.replace(/\\+$/, "").trim())
+    .map((l) => {
+      const { images, textWithoutImages } = extractImagesFromLine(l);
+      if (images.length > 0) introImages.push(...images);
+      return textWithoutImages.replace(/\\+$/, "").trim();
+    })
     .filter((l) => l && !l.endsWith(":"));
 
   if (!introTitle && nonEmptyIntroLines.length >= 2) {
-    const firstLinePlain = cleanHeadingTitle(nonEmptyIntroLines[0]);
+    const { icon: firstLineIcon, title: firstLinePlain } =
+      extractHeadingIconAndTitle(nonEmptyIntroLines[0]);
     if (firstLinePlain.length >= 2 && firstLinePlain.length <= 100) {
       introTitle = firstLinePlain;
+      if (firstLineIcon) introIcon = firstLineIcon;
       nonEmptyIntroLines.shift();
     }
   }
@@ -490,33 +758,67 @@ function parseMarkdownIntoReleaseSections(markdown: string): {
       /^(Welcome to [^*!.\n]{2,60}\*{0,2}!)\s+(.+)$/i
     );
     if (inlineWelcomeMatch) {
-      introTitle = cleanHeadingTitle(inlineWelcomeMatch[1]);
+      const { icon: wIcon, title: wTitle } = extractHeadingIconAndTitle(
+        inlineWelcomeMatch[1]
+      );
+      introTitle = wTitle;
+      if (wIcon) introIcon = wIcon;
       cleanedIntro = inlineWelcomeMatch[2].trim();
     }
   }
 
   return {
     introTitle,
+    introIcon,
     intro: cleanedIntro,
+    introImages: introImages.length > 0 ? introImages : undefined,
     sections,
   };
 }
 
 function renderCleanInlineText(text: string): React.ReactNode {
   const sanitized = (text || "").replace(/^[\s\u200B\uFEFF#\\]+/, "");
-  const parts = sanitized.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  const parts = sanitized.split(
+    /(\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/gi
+  );
   return parts.map((part, idx) => {
+    const iconMatch = part.match(/^\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]$/i);
+    if (iconMatch) {
+      const iconName = iconMatch[1].toLowerCase();
+      return (
+        <span
+          key={idx}
+          className="material-symbols-outlined !text-[15px] align-middle mx-0.5 text-[var(--accent)] inline-block leading-none"
+        >
+          {iconName}
+        </span>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return (
+        <code
+          key={idx}
+          className="px-1.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] font-mono text-[11px] font-semibold text-[var(--accent)]"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
         <strong key={idx} className="font-bold text-[var(--text)] opacity-100">
-          {part.slice(2, -2).replace(/^[\s\u200B\uFEFF#\\]+/, "")}
+          {renderCleanInlineText(
+            part.slice(2, -2).replace(/^[\s\u200B\uFEFF#\\]+/, "")
+          )}
         </strong>
       );
     }
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
       return (
         <em key={idx} className="italic text-[var(--text)] opacity-95">
-          {part.slice(1, -1).replace(/^[\s\u200B\uFEFF#\\]+/, "")}
+          {renderCleanInlineText(
+            part.slice(1, -1).replace(/^[\s\u200B\uFEFF#\\]+/, "")
+          )}
         </em>
       );
     }
@@ -526,10 +828,19 @@ function renderCleanInlineText(text: string): React.ReactNode {
 
 export function StructuredReleaseNotesView({ content }: { content: string }) {
   const { t } = useLexicon();
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const parsed = useMemo(() => parseMarkdownIntoReleaseSections(content), [content]);
 
-  const resolveSectionIcon = (title: string) => {
-    const lower = title.toLowerCase();
+  const resolveSectionIcon = (title: string, explicitIcon?: string) => {
+    if (explicitIcon) {
+      return t(`icon_${explicitIcon}`, explicitIcon);
+    }
+    const inlineMatch = (title || "").match(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/i);
+    if (inlineMatch) {
+      const iconKey = inlineMatch[1].toLowerCase();
+      return t(`icon_${iconKey}`, iconKey);
+    }
+    const lower = (title || "").toLowerCase();
     if (lower.includes("tl;dr") || lower.includes("summary") || lower.includes("short")) {
       return t("icon_bolt", "bolt");
     }
@@ -576,36 +887,74 @@ export function StructuredReleaseNotesView({ content }: { content: string }) {
     return t("icon_new_releases", "new_releases");
   };
 
+  const renderSectionImages = (images?: string[]) => {
+    if (!images || images.length === 0) return null;
+    return (
+      <div className="flex flex-col gap-3 w-full">
+        {images.map((src, imgIdx) => {
+          const isExpanded = expandedImage === src;
+          return (
+            <div
+              key={`${src}-${imgIdx}`}
+              onClick={() => setExpandedImage(isExpanded ? null : src)}
+              className="group block overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg glass-surface relative cursor-pointer transition-all duration-500"
+            >
+              <img
+                src={src}
+                alt=""
+                className={`w-full object-cover transition-all duration-500 ${
+                  isExpanded
+                    ? "max-h-none"
+                    : "max-h-96 group-hover:scale-[1.02]"
+                }`}
+              />
+              <span className="absolute top-3 right-3 bg-black/50 hover:bg-black/80 rounded-full w-9 h-9 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <span className="material-symbols-outlined !text-[18px] text-white">
+                  {isExpanded
+                    ? t("icon_close_fullscreen", "close_fullscreen")
+                    : t("icon_fullscreen", "fullscreen")}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (parsed.sections.length === 0) {
     return (
       <div className="flex flex-col gap-3.5 min-w-0">
         {parsed.introTitle && (
           <div className="flex items-center gap-3 px-1 pt-1">
             <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
-              {resolveSectionIcon(parsed.introTitle)}
+              {resolveSectionIcon(parsed.introTitle, parsed.introIcon)}
             </span>
             <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
               {parsed.introTitle}
             </h2>
           </div>
         )}
-        <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] leading-relaxed break-words">
-          <p className="opacity-85">
-            {renderCleanInlineText(parsed.intro || cleanCardParagraph(content))}
-          </p>
-        </div>
+        {(parsed.intro || cleanCardParagraph(content)) && (
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] leading-relaxed break-words">
+            <p className="opacity-85">
+              {renderCleanInlineText(parsed.intro || cleanCardParagraph(content))}
+            </p>
+          </div>
+        )}
+        {renderSectionImages(parsed.introImages)}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-7 min-w-0">
-      {(parsed.introTitle || parsed.intro) && (
+      {(parsed.introTitle || parsed.intro || (parsed.introImages && parsed.introImages.length > 0)) && (
         <div className="flex flex-col gap-3.5">
           {parsed.introTitle && (
             <div className="flex items-center gap-3 px-1 pt-1">
               <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
-                {resolveSectionIcon(parsed.introTitle)}
+                {resolveSectionIcon(parsed.introTitle, parsed.introIcon)}
               </span>
               <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
                 {parsed.introTitle}
@@ -626,96 +975,140 @@ export function StructuredReleaseNotesView({ content }: { content: string }) {
               </p>
             </div>
           )}
+          {renderSectionImages(parsed.introImages)}
         </div>
       )}
 
       {parsed.sections.map((section, sIdx) => {
-        // Pair compact single cards first, followed by full-width multi-item cards so the 2-column Bento grid has zero orphan gaps
+        // Pair compact single cards first, followed by full-width multi-item or code cards so the 2-column Bento grid has zero orphan gaps
         const singleCards = section.cards.filter(
-          (c) => !c.subItems || c.subItems.length === 0
+          (c) => (!c.subItems || c.subItems.length === 0) && !c.codeBlock
         );
         const multiItemCards = section.cards.filter(
-          (c) => c.subItems && c.subItems.length > 0
+          (c) => (c.subItems && c.subItems.length > 0) || Boolean(c.codeBlock)
         );
         const orderedCards = [...singleCards, ...multiItemCards];
 
         return (
           <div key={`${section.title}-${sIdx}`} className="flex flex-col gap-3.5">
-            <div className="flex items-center gap-3 px-1 pt-1">
-              <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
-                {resolveSectionIcon(section.title)}
-              </span>
-              <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
-                {section.title}
-              </h2>
-            </div>
+            {section.title && (
+              <div className="flex items-center gap-3 px-1 pt-1">
+                <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">
+                  {resolveSectionIcon(section.title, section.icon)}
+                </span>
+                <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
+                  {section.title}
+                </h2>
+              </div>
+            )}
+            {section.description && (
+              <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
+                <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                  {renderCleanInlineText(section.description)}
+                </p>
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {orderedCards.map((card, cIdx) => {
-                const hasSubItems = Boolean(card.subItems && card.subItems.length > 0);
-                const isLastOddSingleCard =
-                  !hasSubItems &&
-                  singleCards.length % 2 === 1 &&
-                  cIdx === singleCards.length - 1;
-                const spanFull = hasSubItems || isLastOddSingleCard;
+            {orderedCards.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {orderedCards.map((card, cIdx) => {
+                  const hasSubItems = Boolean(card.subItems && card.subItems.length > 0);
+                  const hasCodeBlock = Boolean(card.codeBlock);
+                  const isLastOddSingleCard =
+                    !hasSubItems &&
+                    !hasCodeBlock &&
+                    singleCards.length % 2 === 1 &&
+                    cIdx === singleCards.length - 1;
+                  const spanFull = hasSubItems || hasCodeBlock || isLastOddSingleCard;
 
-                return (
-                  <div
-                    key={`${card.title || "card"}-${cIdx}`}
-                    className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden ${
-                      spanFull ? "md:col-span-2" : ""
-                    }`}
-                  >
+                  return (
                     <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
-                      }}
-                    />
-                    {card.title && (
-                      <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-[var(--text)] leading-snug relative z-10">
-                        {card.title}
-                      </h3>
-                    )}
-                    {card.paragraphs.length > 0 && (
-                      <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
-                        {card.paragraphs.map((p, pIdx) => (
-                          <p key={pIdx}>{renderCleanInlineText(p)}</p>
-                        ))}
-                      </div>
-                    )}
-                    {card.subItems && card.subItems.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 relative z-10">
-                        {card.subItems.map((sub, subIdx) => {
-                          const isLastOddSub =
-                            card.subItems!.length > 1 &&
-                            card.subItems!.length % 2 === 1 &&
-                            subIdx === card.subItems!.length - 1;
-                          return (
-                            <div
-                              key={`${sub.title || "sub"}-${subIdx}`}
-                              className={`glass-surface rounded-2xl p-3.5 flex flex-col gap-1 ${
-                                isLastOddSub ? "sm:col-span-2" : ""
-                              }`}
-                            >
-                              {sub.title && (
-                                <span className="text-xs font-bold text-[var(--text)]">
-                                  {sub.title}
-                                </span>
-                              )}
-                              <span className="text-xs text-[var(--text)] opacity-80 leading-relaxed">
-                                {renderCleanInlineText(sub.body)}
+                      key={`${card.title || "card"}-${cIdx}`}
+                      className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden ${
+                        spanFull ? "md:col-span-2" : ""
+                      }`}
+                    >
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
+                        }}
+                      />
+                      {card.title && (
+                        <div className="flex items-center gap-2.5 relative z-10">
+                          {card.icon && (
+                            <div className="w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t(`icon_${card.icon}`, card.icon)}
                               </span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                          )}
+                          <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-[var(--text)] leading-snug">
+                            {renderCleanInlineText(card.title)}
+                          </h3>
+                        </div>
+                      )}
+                      {card.paragraphs.length > 0 && (
+                        <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                          {card.paragraphs.map((p, pIdx) => (
+                            <p key={pIdx}>{renderCleanInlineText(p)}</p>
+                          ))}
+                        </div>
+                      )}
+                      {card.codeBlock && (
+                        <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative group/code z-10 overflow-x-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigator.clipboard.writeText(card.codeBlock || "")
+                            }
+                            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] opacity-0 group-hover/code:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                            title={t("btn_copy", "Copy")}
+                          >
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t("icon_content_copy", "content_copy")}
+                            </span>
+                          </button>
+                          <pre className="font-mono text-xs text-[var(--accent)] whitespace-pre-wrap break-words m-0 pr-8">
+                            <code>{card.codeBlock}</code>
+                          </pre>
+                        </div>
+                      )}
+                      {card.subItems && card.subItems.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 relative z-10">
+                          {card.subItems.map((sub, subIdx) => {
+                            const isLastOddSub =
+                              card.subItems!.length > 1 &&
+                              card.subItems!.length % 2 === 1 &&
+                              subIdx === card.subItems!.length - 1;
+                            return (
+                              <div
+                                key={`${sub.title || "sub"}-${subIdx}`}
+                                className={`glass-surface rounded-2xl p-3.5 flex flex-col gap-1 ${
+                                  isLastOddSub ? "sm:col-span-2" : ""
+                                }`}
+                              >
+                                {sub.title && (
+                                  <span className="text-xs font-bold text-[var(--text)]">
+                                    {renderCleanInlineText(sub.title)}
+                                  </span>
+                                )}
+                                <span className="text-xs text-[var(--text)] opacity-80 leading-relaxed">
+                                  {renderCleanInlineText(sub.body)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {renderSectionImages(section.images)}
           </div>
         );
       })}
@@ -977,6 +1370,7 @@ export function ReleaseNotesShowcase({
 
   // Keepers Core Dispatch / Comm-Link Post Editor state
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<PostEditorMode>("visual");
   const [editorChannel, setEditorChannel] = useState<"stable" | "dev">("stable");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSummary, setDraftSummary] = useState("");
@@ -1164,7 +1558,7 @@ export function ReleaseNotesShowcase({
       updateTimeoutRef.current = null;
     }
     let finalBody = draftBody;
-    if (editor) {
+    if (editor && editorMode === "wysiwyg") {
       finalBody = (editor.storage as any).markdown.getMarkdown();
       setDraftBody(finalBody);
     }
@@ -1399,7 +1793,7 @@ export function ReleaseNotesShowcase({
   const activeDateStr = isDevActive ? devDateDisplay : stableDateDisplay;
   const activePlatformStr = isDevActive ? devPlatformDisplay : stablePlatformDisplay;
   const activeChannelShort = isDevActive
-    ? t("release_notes_meta_channel_dev", "Dev")
+    ? t("sidebar_wayfinder_tools", "Dev")
     : t("release_notes_meta_channel_public", "Public");
   const activeChannelBadge = isDevActive
     ? t("release_notes_dev_channel_badge", "Daily Dev Build")
@@ -1429,7 +1823,7 @@ export function ReleaseNotesShowcase({
   ) => {
     const compactDate = formatCompactReleaseDate(dateVal);
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+      <div className="grid grid-cols-2 gap-3 w-full">
         <StatBox
           className="w-full"
           icon={t("icon_calendar_today", "calendar_today")}
@@ -1453,7 +1847,7 @@ export function ReleaseNotesShowcase({
           label={t("release_notes_meta_channel", "Channel")}
           value={
             isDevChan
-              ? t("release_notes_meta_channel_dev", "Dev")
+              ? t("sidebar_wayfinder_tools", "Dev")
               : t("release_notes_meta_channel_public", "Public")
           }
           tooltipSubtitle={
@@ -1476,94 +1870,192 @@ export function ReleaseNotesShowcase({
 
   return (
     <div className="w-full flex flex-col gap-6">
-      {/* 2-Card Comm-Link Grid: One for Stable (Public), One for Daily Dev Build */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-        {/* Card 1: Public / Stable Release */}
-        <UniversalCard
-          layout="vertical"
-          icon={t("icon_new_releases", "new_releases")}
-          title={publicPost.title}
-          subtitle={buildCommSubtitle(
-            t("release_notes_stable_channel_badge", "Stable Release"),
-            stableVersion
-          )}
-          onClick={() => openReleasePanel("stable")}
-          className="w-full h-full"
-          imageOverlay={
-            <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_verified", "verified")}
+      {/* 2-Card Grid: Compact Keepers cards when isKeepers=true, or full Landing cards */}
+      {isKeepers ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          {/* Card 1: Public / Stable Release */}
+          <div
+            onClick={() => openReleasePanel("stable")}
+            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 group"
+          >
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                    {t("icon_verified", "verified")}
+                  </span>
+                </div>
+                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_35%,transparent)] !text-[var(--accent)]`}>
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {t("icon_verified", "verified")}
+                  </span>
+                  {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
                 </span>
-                {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
-              </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]">
+                  {t("release_notes_stable_channel_badge", "Stable Release")}
+                </span>
+                <h4 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
+                  {publicPost.title}
+                </h4>
+              </div>
+              <p className="text-[11px] font-normal text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+                {publicPost.summary}
+              </p>
             </div>
-          }
-          footer={
-            <div className="flex items-center justify-between w-full mt-2">
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-65 flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_calendar_today", "calendar_today")}
                 </span>
                 {stableDateDisplay}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
-                {t("release_notes_read_notes_cta", "Read Release Notes")}{" "}
-                <span className="material-symbols-outlined !text-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                {t("release_notes_read_notes_cta", "Read Release Notes")}
+                <span className="material-symbols-outlined !text-[14px]">
                   {t("icon_arrow_forward", "arrow_forward")}
                 </span>
               </span>
             </div>
-          }
-        >
-          <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {publicPost.summary}
-          </p>
-        </UniversalCard>
+          </div>
 
-        {/* Card 2: Daily Dev Build */}
-        <UniversalCard
-          layout="vertical"
-          icon={t("icon_bolt", "bolt")}
-          title={devPost.title}
-          subtitle={buildCommSubtitle(
-            t("release_notes_dev_channel_badge", "Daily Dev Build"),
-            devVersion
-          )}
-          onClick={() => openReleasePanel("dev")}
-          className="w-full h-full"
-          imageOverlay={
-            <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                  {t("icon_bolt", "bolt")}
+          {/* Card 2: Daily Dev Build */}
+          <div
+            onClick={() => openReleasePanel("dev")}
+            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 group"
+          >
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">
+                    {t("icon_bolt", "bolt")}
+                  </span>
+                </div>
+                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_35%,transparent)] !text-[var(--success)]`}>
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {t("icon_bolt", "bolt")}
+                  </span>
+                  {t("sidebar_wayfinder_tools", "Dev")} &bull; v{devVersion}
                 </span>
-                {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
-              </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] font-black uppercase tracking-widest text-[var(--success)]">
+                  {t("release_notes_dev_channel_badge", "Daily Dev Build")}
+                </span>
+                <h4 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
+                  {devPost.title}
+                </h4>
+              </div>
+              <p className="text-[11px] font-normal text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+                {devPost.summary}
+              </p>
             </div>
-          }
-          footer={
-            <div className="flex items-center justify-between w-full mt-2">
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-65 flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_calendar_today", "calendar_today")}
                 </span>
                 {devDateDisplay}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
-                {t("release_notes_read_dev_cta", "Read Dev Build Notes")}{" "}
-                <span className="material-symbols-outlined !text-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                {t("release_notes_read_dev_cta", "Read Dev Build Notes")}
+                <span className="material-symbols-outlined !text-[14px]">
                   {t("icon_arrow_forward", "arrow_forward")}
                 </span>
               </span>
             </div>
-          }
-        >
-          <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {devPost.summary}
-          </p>
-        </UniversalCard>
-      </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          {/* Card 1: Public / Stable Release */}
+          <UniversalCard
+            layout="vertical"
+            icon={t("icon_new_releases", "new_releases")}
+            title={publicPost.title}
+            subtitle={buildCommSubtitle(
+              t("release_notes_stable_channel_badge", "Stable Release"),
+              stableVersion
+            )}
+            onClick={() => openReleasePanel("stable")}
+            className="w-full h-full"
+            imageOverlay={
+              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_verified", "verified")}
+                  </span>
+                  {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
+                </span>
+              </div>
+            }
+            footer={
+              <div className="flex items-center justify-between w-full mt-2">
+                <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {t("icon_calendar_today", "calendar_today")}
+                  </span>
+                  {stableDateDisplay}
+                </span>
+                <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                  {t("release_notes_read_notes_cta", "Read Release Notes")}{" "}
+                  <span className="material-symbols-outlined !text-sm">
+                    {t("icon_arrow_forward", "arrow_forward")}
+                  </span>
+                </span>
+              </div>
+            }
+          >
+            <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
+              {publicPost.summary}
+            </p>
+          </UniversalCard>
+
+          {/* Card 2: Daily Dev Build */}
+          <UniversalCard
+            layout="vertical"
+            icon={t("icon_bolt", "bolt")}
+            title={devPost.title}
+            subtitle={buildCommSubtitle(
+              t("release_notes_dev_channel_badge", "Daily Dev Build"),
+              devVersion
+            )}
+            onClick={() => openReleasePanel("dev")}
+            className="w-full h-full"
+            imageOverlay={
+              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                    {t("icon_bolt", "bolt")}
+                  </span>
+                  {t("sidebar_wayfinder_tools", "Dev")} &bull; v{devVersion}
+                </span>
+              </div>
+            }
+            footer={
+              <div className="flex items-center justify-between w-full mt-2">
+                <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {t("icon_calendar_today", "calendar_today")}
+                  </span>
+                  {devDateDisplay}
+                </span>
+                <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                  {t("release_notes_read_dev_cta", "Read Dev Build Notes")}{" "}
+                  <span className="material-symbols-outlined !text-sm">
+                    {t("icon_arrow_forward", "arrow_forward")}
+                  </span>
+                </span>
+              </div>
+            }
+          >
+            <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
+              {devPost.summary}
+            </p>
+          </UniversalCard>
+        </div>
+      )}
 
       {/* Comm-Link Style SidePanel with StatTiles (View -> Post / Changelog / On GitHub) */}
       <SidePanel
@@ -1575,8 +2067,6 @@ export function ReleaseNotesShowcase({
         widthClass="w-[55vw] max-w-5xl"
         panelZ="z-[50001]"
         backdropZ="z-[50000]"
-        noPadding={true}
-        noScroll={true}
         panelClass="!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
         headerActions={
           isKeepers ? (
@@ -1597,87 +2087,66 @@ export function ReleaseNotesShowcase({
           ) : undefined
         }
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
-          {activeView === "post" && activePostRecord.imageUrl && (
-            <div className="w-full h-56 sm:h-72 relative shrink-0 overflow-hidden">
-              <img
-                src={activePostRecord.imageUrl}
-                alt={activeTitle}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent" />
-            </div>
-          )}
+        <div className="flex flex-col gap-6 pb-12 w-full">
+          {/* StatTile Navigation: Top line "View", Bottom line "Post" / "Changelog" / "On GitHub" */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_menu_book", "menu_book")}
+              label={t("btn_view", "View")}
+              number={t("btn_post", "Post")}
+              colorClass="text-[var(--accent)]"
+              isActive={activeView === "post"}
+              onClick={() => setActiveView("post")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_terminal", "terminal")}
+              label={t("btn_view", "View")}
+              number={t("release_notes_tile_changelog", "Changelog")}
+              colorClass="text-[var(--accent)]"
+              isActive={activeView === "changelog"}
+              onClick={() => setActiveView("changelog")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_open_in_new", "open_in_new")}
+              label={t("btn_view", "View")}
+              number={t("release_notes_tile_on_github", "On GitHub")}
+              colorClass="text-[var(--text)]"
+              isActive={false}
+              onClick={() => handleOpenUrl(activeGitHubUrl)}
+            />
+          </div>
 
-          <div className="px-4 sm:px-8 md:px-12 pb-12 pt-8 gap-6 flex flex-col flex-1 relative z-20">
-            {/* StatTile Navigation: Top line "View", Bottom line "Post" / "Changelog" / "On GitHub" */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-              <DashboardStatTile
-                variant="filter"
-                className="!w-full"
-                icon={t("icon_menu_book", "menu_book")}
-                label={t("release_notes_tile_view", "View")}
-                number={t("release_notes_tile_post", "Post")}
-                colorClass="text-[var(--accent)]"
-                isActive={activeView === "post"}
-                onClick={() => setActiveView("post")}
-              />
-              <DashboardStatTile
-                variant="filter"
-                className="!w-full"
-                icon={t("icon_terminal", "terminal")}
-                label={t("release_notes_tile_view", "View")}
-                number={t("release_notes_tile_changelog", "Changelog")}
-                colorClass="text-[var(--accent)]"
-                isActive={activeView === "changelog"}
-                onClick={() => setActiveView("changelog")}
-              />
-              <DashboardStatTile
-                variant="filter"
-                className="!w-full"
-                icon={t("icon_open_in_new", "open_in_new")}
-                label={t("release_notes_tile_view", "View")}
-                number={t("release_notes_tile_on_github", "On GitHub")}
-                colorClass="text-[var(--text)]"
-                isActive={false}
-                onClick={() => handleOpenUrl(activeGitHubUrl)}
-              />
-            </div>
-
-            {/* Post Header & 4-Column Release Telemetry */}
-            <div className="flex flex-col gap-5 mt-2">
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-sm leading-tight text-[var(--text)]">
-                {activeTitle}
-              </h1>
-
-              <div className="flex items-center gap-3.5 relative z-20">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,var(--surface))] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-inner">
-                  <span className="material-symbols-outlined !text-[22px]">
-                    {t("icon_memory", "memory")}
-                  </span>
+          <SidePanelHeroCard
+            title={activeTitle}
+            subtitle={t("release_notes_author_subtitle", "Official Release Dispatch")}
+            label={`${activeChannelBadge} v${activeVersion}`}
+            icon={isDevActive ? t("icon_bolt", "bolt") : t("icon_forum", "forum")}
+            variant="accent"
+            badges={[
+              {
+                icon: t("icon_verified", "verified"),
+                label: t("author_sanctuary_team", "Sanctuary Foundry"),
+                colorClass:
+                  "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+              },
+            ]}
+          >
+            <div className="flex flex-col gap-4 w-full">
+              {activeView === "post" && activePostRecord.imageUrl && (
+                <div className="w-full h-52 sm:h-64 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                  <img
+                    src={activePostRecord.imageUrl}
+                    alt={activeTitle}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-
-                <div className="flex flex-col gap-0.5 z-20 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base sm:text-lg font-black capitalize tracking-tight text-[var(--text)] leading-tight">
-                      {t("author_sanctuary_team", "Sanctuary Foundry")}
-                    </span>
-                    <span className="relative inline-flex items-center cursor-default">
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-                        {t("icon_verified", "verified")}
-                      </span>
-                      <HoverTooltip
-                        title={t("verified", "Verified")}
-                        icon={t("icon_verified", "verified")}
-                        variant="default"
-                      />
-                    </span>
-                  </div>
-                  <span className="text-xs sm:text-[13px] font-medium text-[var(--subtext)] opacity-85">
-                    {t("release_notes_author_subtitle", "Official Release Dispatch")}
-                  </span>
-                </div>
-              </div>
+              )}
 
               {renderReleaseInfoPanel(
                 activeDateStr,
@@ -1685,29 +2154,42 @@ export function ReleaseNotesShowcase({
                 isDevActive,
                 activePlatformStr
               )}
-
-              <div className="flex-1 flex flex-col mt-2 gap-6 min-w-0">
-                <StructuredReleaseNotesView content={activeMarkdownContent} />
-
-                {activeView === "post" && activePostRecord.codeSnippet && (
-                  <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
-                    <code>{activePostRecord.codeSnippet}</code>
-                  </pre>
-                )}
-
-                {activeView === "post" && activePostRecord.pollData && (
-                  <DispatchPollViewer
-                    post={{
-                      id: activePostRecord.id || `release-post-${activeChannel}`,
-                      poll_data: activePostRecord.pollData,
-                      _sourceTable: "keeper_system_broadcasts",
-                    }}
-                    userId={session?.user?.id || null}
-                  />
-                )}
-              </div>
             </div>
-          </div>
+          </SidePanelHeroCard>
+
+          <UniversalGroup
+            title={
+              activeView === "changelog"
+                ? t("release_notes_tile_changelog", "Changelog")
+                : t("release_notes_blog_panel_title", "Community Release Notes")
+            }
+            icon={
+              activeView === "changelog"
+                ? t("icon_terminal", "terminal")
+                : t("icon_menu_book", "menu_book")
+            }
+          >
+            <div className="flex-1 flex flex-col gap-6 min-w-0">
+              <StructuredReleaseNotesView content={activeMarkdownContent} />
+
+              {activeView === "post" && activePostRecord.codeSnippet && (
+                <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
+                  <code>{activePostRecord.codeSnippet}</code>
+                </pre>
+              )}
+
+              {activeView === "post" && activePostRecord.pollData && (
+                <DispatchPollViewer
+                  post={{
+                    id: activePostRecord.id || `release-post-${activeChannel}`,
+                    poll_data: activePostRecord.pollData,
+                    _sourceTable: "keeper_system_broadcasts",
+                  }}
+                  userId={session?.user?.id || null}
+                />
+              )}
+            </div>
+          </UniversalGroup>
         </div>
       </SidePanel>
 
@@ -1721,7 +2203,7 @@ export function ReleaseNotesShowcase({
             widthClass="w-[800px]"
             backdropZ="z-[60000]"
             panelZ="z-[60001]"
-            title={t("update_transmission", "Update Transmission")}
+            title={t("update_transmission", "Update {Dispatch}")}
             subtitle={
               editorChannel === "dev"
                 ? t("release_notes_dev_post_label", "Dev Channel Post")
@@ -1735,7 +2217,7 @@ export function ReleaseNotesShowcase({
                   tooltip={
                     isSaving
                       ? t("btn_saving", "Saving...")
-                      : t("update_transmission", "Update Transmission")
+                      : t("update_transmission", "Update {Dispatch}")
                   }
                   icon={isSaving ? "sync" : "send"}
                   variant="accent"
@@ -1766,417 +2248,119 @@ export function ReleaseNotesShowcase({
                   icon={
                     <span className="material-symbols-outlined">{t("icon_bolt", "bolt")}</span>
                   }
-                  label={t("release_notes_meta_channel_dev", "Dev")}
+                  label={t("sidebar_wayfinder_tools", "Dev")}
                   number={t("release_notes_dev_post_label", "Dev Channel Post")}
                   isActive={editorChannel === "dev"}
                   onClick={() => populateDraftForChannel("dev")}
                 />
               </div>
 
-              <SidePanelTitleInput
-                value={draftTitle}
-                onChange={setDraftTitle}
-                placeholder={t("post_title", "Title")}
-              />
-
-              <div className="flex flex-col gap-2 w-full">
-                <div className="flex justify-between items-center ml-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                    {t("post_description", "Description")}
-                  </label>
-                  <span
-                    className={`text-[9px] font-black ${
-                      draftSummary.length >= 250
-                        ? "text-[var(--warning)]"
-                        : "text-[var(--subtext)] opacity-60"
-                    }`}
-                  >
-                    {draftSummary.length} / 250
-                  </span>
-                </div>
-                <input
-                  maxLength={250}
-                  value={draftSummary}
-                  onChange={(e) => setDraftSummary(e.target.value)}
-                  placeholder={t("post_description_ph", "Short summary shown on the Release Card...")}
-                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                />
-              </div>
-
-              {/* Release Info Fields (Release Date / Version Number / Platform) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                <div className="flex flex-col gap-2 flex-1">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("release_notes_meta_release_date", "Release Date")}
-                  </label>
-                  <input
-                    value={draftReleaseDate}
-                    onChange={(e) => setDraftReleaseDate(e.target.value)}
-                    className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 flex-1">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("release_notes_meta_version", "Version Number")}
-                  </label>
-                  <input
-                    value={draftVersion}
-                    onChange={(e) => setDraftVersion(e.target.value)}
-                    className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--accent)] font-mono text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 flex-1">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("release_notes_meta_platform", "Platform")}
-                  </label>
-                  <input
-                    value={draftPlatform}
-                    onChange={(e) => setDraftPlatform(e.target.value)}
-                    className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Live 2x2 Release Info Panel Preview */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                  {t("dispatch_telemetry_preview", "Dispatch Telemetry Header Preview")}
-                </label>
-                {renderReleaseInfoPanel(
-                  draftReleaseDate || (editorChannel === "dev" ? defaultDevDate : defaultStableDate),
-                  draftVersion ||
-                    (editorChannel === "dev" ? defaultDevVersion : defaultStableVersion),
-                  editorChannel === "dev",
-                  draftPlatform ||
-                    t("release_notes_meta_platform_default", "Windows / Mac (Planned)")
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                  {t("header_image_placeholder", "Header Image URL (Optional)")}
-                </label>
-                <input
-                  value={draftImageUrl}
-                  onChange={(e) => setDraftImageUrl(e.target.value)}
-                  placeholder={t("header_image_placeholder", "Header Image URL (Optional)")}
-                  className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                />
-              </div>
-
-              {/* Dispatch / Comm-Link Rich TipTap Post Editor */}
-              <div className="flex flex-col gap-2 flex-1 min-h-[400px]">
-                <div className="flex items-center justify-between ml-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                    {t("post_content", "Post Content")}
-                  </label>
-                </div>
-                <div className="flex flex-col flex-1 glass-surface !overflow-visible bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-2xl border focus-within:border-[var(--accent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner transition-all">
-                  <div className="shrink-0 sticky top-0 z-50 flex flex-col items-center p-3 bg-transparent pointer-events-none">
-                    <div className="relative flex flex-col items-center pointer-events-auto w-fit">
-                      <div className="glass-panel portal-glass-fix backdrop-blur-[var(--glassBlur)] flex flex-wrap items-center gap-1 p-1.5 !rounded-[1.25rem] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_14px_34px_rgba(0,0,0,0.45)]">
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().toggleBold().run()}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("bold")
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_bold", "format_bold")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_bold", "Bold")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().toggleItalic().run()}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("italic")
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_italic", "format_italic")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_italic", "Italic")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              editor?.chain().focus().toggleHeading({ level: 1 }).run()
-                            }
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("heading", { level: 1 })
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_h1", "format_h1")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_h1", "Heading 1")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              editor?.chain().focus().toggleHeading({ level: 2 }).run()
-                            }
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("heading", { level: 2 })
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_h2", "format_h2")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_h2", "Heading 2")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("bulletList")
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_list_bulleted", "format_list_bulleted")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_bullets", "Bullet List")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("orderedList")
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_format_list_numbered", "format_list_numbered")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_numbers", "Numbered List")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => setShowImageInput(!showImageInput)}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              showImageInput
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_image", "image")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_image", "Insert Image")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              editor?.isActive("codeBlock")
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_code", "code")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_code", "Code Block")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => editor?.chain().focus().setHorizontalRule().run()}
-                            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_horizontal_rule", "horizontal_rule")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_hr", "Divider")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                        <div className="relative group/btn flex">
-                          <button
-                            type="button"
-                            onClick={() => setShowIconPicker(!showIconPicker)}
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                              showIconPicker
-                                ? "bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] shadow-inner"
-                                : "text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_sentiment_satisfied", "sentiment_satisfied")}
-                            </span>
-                          </button>
-                          <HoverTooltip
-                            title={t("editor_tt_icon", "Insert Icon")}
-                            variant="info"
-                            className="group-hover/btn:flex z-[100]"
-                          />
-                        </div>
-                      </div>
-                      {showIconPicker && (
-                        <IconPicker
-                          onSelect={(icon) => {
-                            editor?.chain().focus().insertContent(`[ICON:${icon}] `).run();
-                            setShowIconPicker(false);
-                          }}
-                          onClose={() => setShowIconPicker(false)}
-                        />
-                      )}
-                    </div>
+              {/* Single Compact Metadata Card */}
+              <UniversalGroup
+                title={t("metadata", "Metadata")}
+                icon={t("icon_tune", "tune")}
+              >
+                <div className="flex flex-col gap-4 w-full">
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                      {t("post_title", "Post Title")}
+                    </label>
+                    <input
+                      value={draftTitle}
+                      onChange={(e) => setDraftTitle(e.target.value)}
+                      placeholder={t("post_title", "Title")}
+                      className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                    />
                   </div>
 
-                  {showImageInput && (
-                    <div className="border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-top-2 duration-300 flex items-center gap-3 relative z-10 backdrop-blur-xl">
-                      <input
-                        value={inlineImageUrl}
-                        onChange={(e) => setInlineImageUrl(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && inlineImageUrl) {
-                            e.preventDefault();
-                            editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                            setInlineImageUrl("");
-                            setShowImageInput(false);
-                          }
-                        }}
-                        placeholder={t("image_url_placeholder", "Paste Image URL...")}
-                        className="flex-1 glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (inlineImageUrl) {
-                            editor?.chain().focus().setImage({ src: inlineImageUrl }).run();
-                            setInlineImageUrl("");
-                            setShowImageInput(false);
-                          }
-                        }}
-                        className="px-6 py-2 bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] rounded-xl font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)] transition-all hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-                      >
-                        {t("ui_btn_insert", "Insert")}
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="w-full flex-1 relative min-h-[350px]">
-                    <EditorContent editor={editor} className="h-full w-full custom-scrollbar" />
-                  </div>
-
-                  {showCodeInput && (
-                    <div className="border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-3 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner animate-in slide-in-from-bottom-2 duration-300">
-                      <textarea
-                        value={draftCodeSnippet}
-                        onChange={(e) => setDraftCodeSnippet(e.target.value)}
-                        placeholder={t("code_snippet_placeholder", "Paste code snippet...")}
-                        className="w-full glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-xs font-mono placeholder-[var(--subtext)] focus:outline-none focus:theme-border-accent h-48 resize-none custom-scrollbar transition-all"
-                        spellCheck={false}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between p-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] rounded-b-2xl shrink-0">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowCodeInput(!showCodeInput)}
-                        className={`px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest flex items-center gap-1.5 ${
-                          showCodeInput
-                            ? "theme-bg-accent/20 theme-text-accent"
-                            : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest">
+                        {t("post_description", "Description")}
+                      </label>
+                      <span
+                        className={`text-[9px] font-black ${
+                          draftSummary.length >= 250
+                            ? "text-[var(--warning)]"
+                            : "text-[var(--subtext)] opacity-60"
                         }`}
                       >
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t("icon_data_object", "data_object")}
-                        </span>{" "}
-                        {showCodeInput
-                          ? t("hide_code", "Hide Code")
-                          : t("masonhub_add_code", "Add Code")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsAssetPanelOpen(true)}
-                        className="px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold tracking-widest text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] flex items-center gap-1.5"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t("icon_link", "link")}
-                        </span>{" "}
-                        {t("link_asset", "Link Asset")}
-                      </button>
+                        {draftSummary.length} / 250
+                      </span>
                     </div>
-                    <div className="text-[9px] font-black tracking-widest capitalize opacity-40 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[14px]">
-                        {t("icon_markdown", "markdown")}
-                      </span>{" "}
-                      {t("icon_markdown", "markdown")}
+                    <input
+                      maxLength={250}
+                      value={draftSummary}
+                      onChange={(e) => setDraftSummary(e.target.value)}
+                      placeholder={t(
+                        "post_description_ph",
+                        "Short summary shown on the Release Card..."
+                      )}
+                      className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-medium focus:outline-none focus:theme-border-accent transition-all"
+                    />
+                  </div>
+
+                  {/* Release Info Fields (Release Date / Version Number / Platform) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                        {t("release_notes_meta_release_date", "Release Date")}
+                      </label>
+                      <input
+                        value={draftReleaseDate}
+                        onChange={(e) => setDraftReleaseDate(e.target.value)}
+                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                        {t("release_notes_meta_version", "Version Number")}
+                      </label>
+                      <input
+                        value={draftVersion}
+                        onChange={(e) => setDraftVersion(e.target.value)}
+                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--accent)] font-mono text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                        {t("release_notes_meta_platform", "Platform")}
+                      </label>
+                      <input
+                        value={draftPlatform}
+                        onChange={(e) => setDraftPlatform(e.target.value)}
+                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
+              </UniversalGroup>
 
-              <DispatchPollBuilder pollData={draftPollData} onChange={setDraftPollData} />
+              {/* Unified 3-Mode Post Editor (Visual UI / Rich Text / Markdown) */}
+              <UnifiedPostBodyEditor
+                mode={editorMode}
+                onModeChange={setEditorMode}
+                content={draftBody}
+                onContentChange={setDraftBody}
+                editor={editor}
+                placeholder={t("post_content", "{Dispatch} Body...")}
+              />
+
+              {/* Revamped Attachments & Media */}
+              <PostAttachmentsManager
+                content={draftBody}
+                onContentChange={setDraftBody}
+                editor={editor}
+                onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
+                imageUrl={draftImageUrl}
+                onImageUrlChange={setDraftImageUrl}
+                showCodeInput={showCodeInput}
+                onToggleCodeInput={setShowCodeInput}
+                codeSnippet={draftCodeSnippet}
+                onCodeSnippetChange={setDraftCodeSnippet}
+                pollData={draftPollData}
+                onPollDataChange={setDraftPollData}
+              />
             </div>
           </SidePanel>
 

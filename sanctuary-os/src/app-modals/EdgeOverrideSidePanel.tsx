@@ -4,6 +4,7 @@ import {
   StatBox,
   SidePanelHeroCard,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
@@ -75,24 +76,21 @@ export function EdgeOverrideSidePanel({
         <SidePanelHeroCard
           icon={t("icon_warning", "warning")}
           overline={t("title_edge_override_details", "Edge Manifest Override")}
-          description={t(
-            "desc_override_warning",
-            "Importing this override will replace locally maintained metadata and atomic logic for this artifact family with data from the linked Edge Manifest. The override can be removed and the Local Dossier restored at any time."
-          )}
+          description={t("desc_override_warning", "Importing this override will replace locally maintained metadata and atomic logic for this {mod} family with data from the linked Edge Manifest. The override can be removed and the Local Dossier restored at any time.")}
           variant="warning"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <StatBox
               icon={t("icon_extension", "extension")}
               iconColorClass="text-[var(--accent)]"
-              label={t("label_target_mod", "Target Artifact")}
-              value={data.artifact_id || t("unknown_label", "Unknown")}
+              label={t("target_artifact", "Target {Mod}")}
+              value={data.artifact_id || t("unknown", "Unknown")}
             />
             <StatBox
               icon={t("icon_person", "person")}
               iconColorClass="text-[var(--accent)]"
-              label={t("role_mason", "Mason")}
-              value={masonName || data.mason_id || t("unknown_label", "Unknown")}
+              label={t("role_mason", "{Mason}")}
+              value={masonName || data.mason_id || t("unknown", "Unknown")}
             />
           </div>
         </SidePanelHeroCard>
@@ -111,16 +109,23 @@ export function EdgeOverrideSidePanel({
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
                   {t("label_verified_signature", "Verified Local Signature")}
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-mono text-[10px] font-bold">
+                <span
+                  className={`${VAULT_CHIP_CLASS} font-mono`}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor:
+                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_verified", "verified")}
+                  </span>
                   {activeHash.substring(0, 8)}...
                   {activeHash.substring(activeHash.length - 6)}
                 </span>
               </div>
               <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 m-0">
-                {t(
-                  "desc_override_signature_note",
-                  "This override can manage only the matched artifact family."
-                )}
+                {t("desc_override_signature_note", "This override can manage only the matched {mod} family.")}
               </p>
             </div>
           )}
@@ -134,7 +139,17 @@ export function EdgeOverrideSidePanel({
             {activeHash && (
               <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-2 font-mono text-xs">
                 <span className="truncate text-[var(--text)]">{activeHash}</span>
-                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shrink-0">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor:
+                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_fingerprint", "fingerprint")}
+                  </span>
                   {t("label_target", "Target")}
                 </span>
               </div>
@@ -145,7 +160,17 @@ export function EdgeOverrideSidePanel({
                 className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 font-mono text-xs"
               >
                 <span className="truncate text-[var(--subtext)]">{h}</span>
-                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] shrink-0">
+                <span
+                  className={VAULT_CHIP_CLASS}
+                  style={{
+                    color: "var(--subtext)",
+                    borderColor:
+                      "color-mix(in srgb, var(--subtext) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_archive", "archive")}
+                  </span>
                   {t("label_archive", "Archive")}
                 </span>
               </div>

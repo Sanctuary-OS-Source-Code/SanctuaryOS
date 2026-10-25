@@ -20,6 +20,7 @@ import {
   StatBox,
   DashboardStatTile,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -93,7 +94,7 @@ export function evaluateModIssues(
       category: "corrupted",
       type: "red",
       icon: t("icon_broken_image", "broken_image"),
-      title: t("status_broken", "Corrupted"),
+      title: t("status_corrupted", "Corrupted"),
       detail: mod.status_reason || "",
     });
   }
@@ -183,7 +184,7 @@ export function evaluateModIssues(
             category: "missing_deps",
             type: "red",
             icon: t("icon_extension", "extension"),
-            title: t("missing_dependency", "Missing Dependency"),
+            title: t("badge_missing_dep", "Missing Dependency"),
             detail: cleanSearchName(reqStr, activeGameSchema) || formatDisplayName(reqStr),
           });
         });
@@ -586,8 +587,8 @@ export function IncompatibleModCard({
     /\.ts4script$/i.test(String(gm?.name || gm?._originalSetName || ""))
   );
   const fallbackTypeLabel = hasScriptFile
-    ? t("card_file_script", "Script")
-    : t("card_file_package", "Package");
+    ? t("type_script", "Script")
+    : t("type_package", "Package");
 
   const hasUpdate = Boolean(mod.hasUpdate && mod.newVersion);
   const cleanNewVer = mod.newVersion
@@ -626,8 +627,8 @@ export function IncompatibleModCard({
               ? t("icon_warning", "warning")
               : t("icon_error", "error"),
             title: isAmber
-              ? t("status_tag_unstable", "Unstable")
-              : t("status_tag_corrupted", "Corrupted"),
+              ? t("label_unstable", "Unstable")
+              : t("status_corrupted", "Corrupted"),
             detail: mod.status_reason || "",
           },
         ];
@@ -676,49 +677,77 @@ export function IncompatibleModCard({
     };
   });
 
-  return (
-    <>
-      <div
-        className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
-          effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""
-        }`}
-      >
-        {/* Top Row: Mod Icon & Metadata on Left + Unified Ignore/Remove Capsule on Right */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {image ? (
-              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0">
-                <img src={image} alt={title} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-transparent flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:opacity-100 transition-opacity">
-                <span className="material-symbols-outlined !text-[18px]">{modIcon}</span>
-              </div>
-            )}
+  const primaryIssue = issueRows[0];
+  const extraIssues = issueRows.slice(1);
+  const hasFooterRow = Boolean(
+    primaryIssue?.detailValue || extraIssues.length > 0 || (hasUpdate && cleanNewVer)
+  );
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+  return (
+    <div
+      className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
+        effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""
+      }`}
+    >
+      {/* Top Row: Boxed Mod Icon + Title & Subtitle on Left | Status Badge + Actions on Right */}
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {image ? (
+            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+              <img src={image} alt={title} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div
+              className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-opacity ${
+                isAmber
+                  ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                  : "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <span
+              className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate"
+              title={title}
+            >
+              {title}
+            </span>
+
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0 flex-wrap">
               <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
+              {!hasUpdate && cleanInstalledVer && (
+                <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--subtext)]`}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_sell", "sell")}
+                  </span>
+                  <span>v{cleanInstalledVer}</span>
+                </span>
+              )}
               {groupedMods.length > 1 && (
-                <>
-                  <span className="opacity-40 shrink-0">&bull;</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsExpanded((prev) => !prev);
-                    }}
-                    className="relative group/modpill inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] opacity-90 hover:opacity-100 transition-all cursor-pointer shrink-0"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded((prev) => !prev);
+                  }}
+                  className={`relative group/modpill ${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer`}
+                >
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_inventory_2", "inventory_2")}
+                  </span>
+                  <span>
+                    {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                  </span>
+                  <span
+                    className={`material-symbols-outlined !text-[12px] opacity-75 transition-transform duration-300 ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
                   >
-                    <span>
-                      {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                    </span>
-                    <span
-                      className={`material-symbols-outlined !text-[13px] opacity-75 transition-transform duration-300 ${
-                        isExpanded ? "rotate-180" : ""
-                      }`}
-                    >
-                      {t("icon_expand_more", "expand_more")}
-                    </span>
+                    {t("icon_expand_more", "expand_more")}
+                  </span>
 
                     {!isExpanded && (
                       <HoverTooltip
@@ -749,8 +778,8 @@ export function IncompatibleModCard({
                                     </span>
                                     <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
                                       {isScript
-                                        ? t("card_file_script", "Script")
-                                        : t("card_file_package", "Package")}
+                                        ? t("type_script", "Script")
+                                        : t("type_package", "Package")}
                                     </span>
                                   </div>
                                 );
@@ -760,112 +789,125 @@ export function IncompatibleModCard({
                         }
                       />
                     )}
-                  </button>
-                </>
-              )}
-              {!hasUpdate && cleanInstalledVer && (
-                <>
-                  <span className="opacity-40 shrink-0">&bull;</span>
-                  <span className="font-mono shrink-0 opacity-85">v{cleanInstalledVer}</span>
-                </>
+                </button>
               )}
             </div>
           </div>
-
-          {/* Unified Capsule Action Pill (Ignore / Remove) */}
-          {((setIgnoredBroken && ignoredBroken instanceof Set) ||
-            (allow_write && toggleInActiveSet)) && (
-            <div className="flex items-center glass-surface !rounded-full p-0.5 gap-0.5 shrink-0">
-              {setIgnoredBroken && ignoredBroken instanceof Set && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const next = new Set(ignoredBroken);
-                    if (effectiveIgnored) {
-                      groupedMods.forEach((m) => next.delete(m.name));
-                    } else {
-                      groupedMods.forEach((m) => next.add(m.name));
-                    }
-                    setIgnoredBroken(next);
-                  }}
-                  className="relative group/actionbtn w-7 h-7 rounded-full border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[15px]">
-                    {effectiveIgnored
-                      ? t("icon_visibility", "visibility")
-                      : t("icon_visibility_off", "visibility_off")}
-                  </span>
-                  <HoverTooltip
-                    className="z-[100] !right-0 !translate-x-0 !left-auto"
-                    title={
-                      effectiveIgnored
-                        ? t("bp_restore_alert", "Restore")
-                        : t("btn_ignore", "Ignore")
-                    }
-                    icon={
-                      effectiveIgnored
-                        ? t("icon_visibility", "visibility")
-                        : t("icon_visibility_off", "visibility_off")
-                    }
-                  />
-                </button>
-              )}
-
-              {allow_write && toggleInActiveSet && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    groupedMods.forEach((m) => {
-                      toggleInActiveSet(m._originalSetName || m.name, true, true);
-                    });
-                  }}
-                  className="relative group/actionbtn w-7 h-7 rounded-full border border-transparent hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[15px]">
-                    {t("icon_delete", "delete")}
-                  </span>
-                  <HoverTooltip
-                    className="z-[100] !right-0 !translate-x-0 !left-auto"
-                    title={t("btn_remove", "Remove")}
-                    icon={t("icon_delete", "delete")}
-                    variant="danger"
-                  />
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Middle Row: Full-Width Mod Title */}
-        <span
-          className="text-[15px] font-black text-[var(--text)] tracking-tight leading-snug truncate"
-          title={title}
-        >
-          {title}
-        </span>
+        {/* Right Side: Primary Issue Badge + Individual Glass Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {primaryIssue && (
+            <span
+              className={`${VAULT_CHIP_CLASS} ${
+                primaryIssue.type === "amber"
+                  ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
+                  : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[12px] shrink-0">
+                {primaryIssue.icon}
+              </span>
+              <span>{primaryIssue.issueLabel}</span>
+            </span>
+          )}
 
-        {/* Bottom Section: Issues Stack (1 or Multiple) + Version Update Bar (only when hasUpdate is true) */}
-        <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2">
-          {issueRows.map((row, idx) => {
+          {setIgnoredBroken && ignoredBroken instanceof Set && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = new Set(ignoredBroken);
+                if (effectiveIgnored) {
+                  groupedMods.forEach((m) => next.delete(m.name));
+                } else {
+                  groupedMods.forEach((m) => next.add(m.name));
+                }
+                setIgnoredBroken(next);
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {effectiveIgnored
+                  ? t("icon_visibility", "visibility")
+                  : t("icon_visibility_off", "visibility_off")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  effectiveIgnored
+                    ? t("bp_restore_alert", "Restore")
+                    : t("btn_ignore", "Ignore")
+                }
+                icon={
+                  effectiveIgnored
+                    ? t("icon_visibility", "visibility")
+                    : t("icon_visibility_off", "visibility_off")
+                }
+              />
+            </button>
+          )}
+
+          {allow_write && toggleInActiveSet && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                groupedMods.forEach((m) => {
+                  toggleInActiveSet(m._originalSetName || m.name, true, true);
+                });
+              }}
+              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_delete", "delete")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={t("btn_remove", "{Remove}")}
+                icon={t("icon_delete", "delete")}
+                variant="danger"
+              />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Optional Footer Row: Issue Details / Extra Stacked Issues / Version Update Bar */}
+      {hasFooterRow && (
+        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2">
+          {primaryIssue?.detailValue && (
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-[11px] font-bold text-[var(--subtext)] opacity-85">
+                {primaryIssue.issueLabel === t("modal_version_mismatch", "Version Mismatch")
+                  ? t("req_game_ver", "Required Game Version")
+                  : t("audit_details_title", "Diagnostic Details")}
+              </span>
+              <span
+                className="font-mono text-[11px] font-bold text-[var(--text)] truncate"
+                title={primaryIssue.detailValue}
+              >
+                {primaryIssue.detailValue}
+              </span>
+            </div>
+          )}
+
+          {extraIssues.map((row, idx) => {
             const isRowAmber = row.type === "amber";
             const badgeColorClass = isRowAmber
-              ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-              : "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]";
+              ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
+              : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]";
             return (
               <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-                <span
-                  className={`px-2 py-0.5 rounded-md bg-transparent border ${badgeColorClass} text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 min-w-0`}
-                >
-                  <span className="material-symbols-outlined !text-[13px] shrink-0">
+                <span className={`${VAULT_CHIP_CLASS} ${badgeColorClass} min-w-0`}>
+                  <span className="material-symbols-outlined !text-[12px] shrink-0">
                     {row.icon}
                   </span>
                   <span className="truncate">{row.issueLabel}</span>
                 </span>
                 {row.detailValue && (
                   <span
-                    className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate max-w-[160px]"
+                    className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate"
                     title={row.detailValue}
                   >
                     {row.detailValue}
@@ -876,8 +918,11 @@ export function IncompatibleModCard({
           })}
 
           {hasUpdate && cleanNewVer && (
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <span className="font-mono text-xs font-bold truncate">
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--accent)]`}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_new_releases", "new_releases")}
+                </span>
                 {cleanInstalledVer ? (
                   <>
                     <span className="text-[var(--subtext)]">v{cleanInstalledVer} &rarr; </span>
@@ -891,34 +936,36 @@ export function IncompatibleModCard({
               <button
                 type="button"
                 onClick={openModUpdate}
-                className="px-3 h-7 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="px-3.5 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
-                <span>{t("comms_btn_update", "Update")}</span>
+                <span>{t("category_update", "Update")}</span>
                 <span className="text-xs leading-none">&rarr;</span>
               </button>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Full-Width Addon / Linked Modules Drawer (Spans across both grid columns below the card row) */}
+      {/* Expanded Linked Modules Drawer inside the card */}
       {isExpanded && groupedMods.length > 1 && (
-        <div className="col-span-full glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="flex items-center justify-between gap-2 px-1 pb-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+        <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
-                {t("icon_extension", "extension")}
-              </span>
-              <span className="text-xs font-black text-[var(--text)] truncate">
-                {title} &bull; {groupedMods.length} {t("card_files_linked", "Linked Files")}
+              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_extension", "extension")}
+                </span>
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
+                {groupedMods.length} {t("card_files_linked", "Linked Files")}
               </span>
             </div>
             <button
               type="button"
               onClick={() => setIsExpanded(false)}
-              className="w-7 h-7 rounded-full glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer shrink-0"
+              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined !text-[15px]">
+              <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_close", "close")}
               </span>
             </button>
@@ -943,9 +990,11 @@ export function IncompatibleModCard({
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
-                      {getModIcon(gm, activeGameSchema, t)}
-                    </span>
+                    <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {getModIcon(gm, activeGameSchema, t)}
+                      </span>
+                    </div>
                     <div className="flex flex-col min-w-0">
                       <span
                         className="text-xs font-bold text-[var(--text)] truncate"
@@ -955,15 +1004,15 @@ export function IncompatibleModCard({
                       </span>
                       <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75">
                         {isScript
-                          ? t("card_file_script", "Script")
-                          : t("card_file_package", "Package")}
+                          ? t("type_script", "Script")
+                          : t("type_package", "Package")}
                       </span>
                     </div>
                   </div>
 
                   {((setIgnoredBroken && ignoredBroken instanceof Set) ||
                     (allow_write && toggleInActiveSet)) && (
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {setIgnoredBroken && ignoredBroken instanceof Set && (
                         <button
                           type="button"
@@ -974,7 +1023,7 @@ export function IncompatibleModCard({
                             else next.add(gm.name);
                             setIgnoredBroken(next);
                           }}
-                          className="relative group/actionbtn w-6 h-6 rounded-full hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
+                          className="relative group/actionbtn w-7 h-7 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {gmIgnored
@@ -990,7 +1039,7 @@ export function IncompatibleModCard({
                             e.stopPropagation();
                             toggleInActiveSet(gm._originalSetName || gm.name, true, true);
                           }}
-                          className="relative group/actionbtn w-6 h-6 rounded-full hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                          className="relative group/actionbtn w-7 h-7 rounded-lg hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {t("icon_delete", "delete")}
@@ -1005,7 +1054,7 @@ export function IncompatibleModCard({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -1019,7 +1068,7 @@ export function renderGroupedIncompatibleSections({
   activeGameSchema,
 }: any) {
   return (
-    <div className="grid grid-flow-row-dense grid-cols-1 sm:grid-cols-2 gap-3.5 items-start w-full">
+    <div className="flex flex-col gap-3 w-full">
       {groupedBrokenMods.map((mod: any) => {
         const groupNames: string[] = mod._groupOriginalNames || [mod.name];
         const isGroupIgnored =
@@ -1154,7 +1203,7 @@ export default function CommandIncompatiblePanel({
       isOpen={isOpen}
       onClose={onClose}
       title={t("citizen_action_incompatible", "Incompatible")}
-      subtitle={t("incompatible_broken", "Corrupted, Outdated & Unstable Mods")}
+      subtitle={t("incompatible_broken", "Incompatible {Mods}")}
       icon={panelIcon}
       iconColorClass={redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"}
       widthClass="w-[90vw] md:w-[760px]"
@@ -1198,9 +1247,9 @@ export default function CommandIncompatiblePanel({
         <SidePanelHeroCard
           icon={panelIcon}
           overline={t("citizen_action_incompatible", "Incompatible")}
-          title={t("incompatible_broken", "Corrupted, Outdated & Unstable Mods")}
-          description={t("citizen_action_required", "Action Required")}
-          badge={`${groupedBrokenMods.length} ${t("items", "Items")}`}
+          title={t("incompatible_broken", "Incompatible {Mods}")}
+          description={t("action_required", "Action Required")}
+          badge={`${groupedBrokenMods.length} ${t("term_mods", "Items")}`}
           badgeIcon={panelIcon}
           variant={
             redMods.length > 0
@@ -1220,13 +1269,13 @@ export default function CommandIncompatiblePanel({
               }
             />
             <StatBox
-              label={t("bp_pill_corrupted", "Corrupted")}
+              label={t("status_corrupted", "Corrupted")}
               value={redMods.length}
               icon={t("icon_broken_image", "broken_image")}
               iconColorClass="text-[var(--danger)]"
             />
             <StatBox
-              label={t("bp_pill_unstable", "Unstable")}
+              label={t("label_unstable", "Unstable")}
               value={amberMods.length}
               icon={t("icon_warning_amber", "warning_amber")}
               iconColorClass="text-[var(--warning)]"
@@ -1235,64 +1284,10 @@ export default function CommandIncompatiblePanel({
         </SidePanelHeroCard>
 
         {groupedBrokenMods.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "all"}
-              icon={t("icon_tune", "tune")}
-              label={t("filter_all", "All")}
-              value={groupedBrokenMods.length}
-              onClick={() => setCategoryFilter("all")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "corrupted"}
-              icon={t("icon_broken_image", "broken_image")}
-              label={t("bp_pill_corrupted", "Corrupted")}
-              value={corruptedCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("corrupted")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "version_mismatch"}
-              icon={t("icon_sports_esports", "sports_esports")}
-              label={t("badge_version_mismatch", "Version Mismatch")}
-              value={mismatchCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("version_mismatch")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "missing_reqs"}
-              icon={t("icon_extension", "extension")}
-              label={t("badge_missing_dep", "Missing Dependency")}
-              value={missingReqsCount}
-              colorClass="text-[var(--danger)]"
-              onClick={() => setCategoryFilter("missing_reqs")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              isActive={categoryFilter === "unstable"}
-              icon={t("icon_warning_amber", "warning_amber")}
-              label={t("bp_pill_unstable", "Unstable")}
-              value={unstableCount}
-              colorClass="text-[var(--warning)]"
-              onClick={() => setCategoryFilter("unstable")}
-            />
-          </div>
-        )}
-
-        {groupedBrokenMods.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("ui_placeholder_search", "Search...")}
+            searchPlaceholder={t("nav_search", "Search...")}
             primaryPopover={{
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
@@ -1307,10 +1302,10 @@ export default function CommandIncompatiblePanel({
                       onChange={(v: string) => setCategoryFilter(v)}
                       options={[
                         { id: "all", label: t("filter_all", "All") },
-                        { id: "corrupted", label: t("bp_pill_corrupted", "Corrupted") },
-                        { id: "version_mismatch", label: t("badge_version_mismatch", "Version Mismatch") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                        { id: "version_mismatch", label: t("modal_version_mismatch", "Version Mismatch") },
                         { id: "missing_reqs", label: t("badge_missing_dep", "Missing Dependency") },
-                        { id: "unstable", label: t("bp_pill_unstable", "Unstable") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
                       ]}
                     />
                   </div>
@@ -1324,7 +1319,7 @@ export default function CommandIncompatiblePanel({
           <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
             <EmptyState
               icon={t("icon_check_circle", "check_circle")}
-              title={t("no_incompatible_detected", "No Incompatible Mods Detected")}
+              title={t("no_incompatible_detected", "No Incompatible {Mods} Detected")}
             />
           </div>
         ) : (

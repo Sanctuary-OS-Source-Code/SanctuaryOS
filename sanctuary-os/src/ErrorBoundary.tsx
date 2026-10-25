@@ -16,12 +16,12 @@ function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
   const { t } = useLexicon();
   return (
     <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-12">
-      <div className="material-symbols-outlined !text-[80px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] mb-6 animate-pulse">{t("icon_warning_amber")}</div>
+      <div className="material-symbols-outlined !text-[80px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] mb-6 animate-pulse">{t("icon_warning_amber", "warning_amber")}</div>
       
       <div className="relative z-10 flex flex-col items-center mb-8 text-center">
-        <h2 className="text-3xl font-black text-[var(--text)] capitalize tracking-[0.2em] mb-4">{t("err_module_fail")}</h2>
+        <h2 className="text-3xl font-black text-[var(--text)] capitalize tracking-[0.2em] mb-4">{t("err_module_fail", "Module Failure")}</h2>
         <p className="text-[var(--subtext)] text-sm max-w-lg leading-relaxed font-semibold">
-          {t("auto_the")} <strong className="text-[var(--danger)]">{moduleName || (t("err_module_default"))}</strong> {t("err_module_desc")}
+          {t("auto_the", "The")} <strong className="text-[var(--danger)]">{moduleName || (t("err_module_default", "Module"))}</strong> {t("err_module_desc", "The module encountered a critical error. The rest of Sanctuary OS remains operational.")}
         </p>
       </div>
       
@@ -32,8 +32,8 @@ function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
             <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
             <div className="w-3 h-3 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"></div>
           </div>
-          <span className="text-[10px] font-black capitalize tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] ml-2">{t("err_exception_trace")}</span>
-          <span className="ml-auto material-symbols-outlined !text-[14px] text-[color-mix(in_srgb,var(--danger)_50%,transparent)]">{t("icon_code")}</span>
+          <span className="text-[10px] font-black capitalize tracking-[0.3em] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] ml-2">{t("err_exception_trace", "Exception Trace")}</span>
+          <span className="ml-auto material-symbols-outlined !text-[14px] text-[color-mix(in_srgb,var(--danger)_50%,transparent)]">{t("icon_code", "code")}</span>
         </div>
         <code className="text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-xs font-mono font-medium leading-relaxed whitespace-pre-wrap">{error?.toString()}</code>
       </div>
@@ -42,8 +42,8 @@ function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
         onClick={resetErrorBoundary}
         className="mt-10 px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] backdrop-blur-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-[var(--danger)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-3 relative z-10 group/btn"
       >
-        <span className="material-symbols-outlined !text-[18px] group-hover/btn:-rotate-180 transition-transform duration-700">{t("icon_restart_alt")}</span>
-        {t("err_reboot")}
+        <span className="material-symbols-outlined !text-[18px] group-hover/btn:-rotate-180 transition-transform duration-700">{t("icon_restart_alt", "restart_alt")}</span>
+        {t("err_reboot", "Reboot Module")}
       </button>
     </div>
   );

@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { DynamicArtifactPreviewBanner } from "./chameleon-components/ThemeCard";
 
-export const REGISTRY_CHIP_CLASS =
+export const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+export const REGISTRY_CHIP_CLASS = VAULT_CHIP_CLASS;
 
 export function ArtifactCard({
   mod,
@@ -27,43 +30,71 @@ export function ArtifactCard({
   const showImages = useStore((state: any) => state.showImages);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const rawStatus = String(mod?.status || "").toLowerCase().replace(/_/g, " ").replace(/[^\w\s-]/gi, "").trim();
+  const rawStatus = String(mod?.status || "")
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/[^\w\s-]/gi, "")
+    .trim();
   const versionCount = Array.isArray(mod?.mod_versions) ? mod.mod_versions.length : 0;
-  const familyChildrenCount = typeof mod?._familyChildrenCount === "number" ? mod._familyChildrenCount : 0;
+  const familyChildrenCount =
+    typeof mod?._familyChildrenCount === "number" ? mod._familyChildrenCount : 0;
   const familyRole = mod?._familyRole as string | undefined;
+
+  const authorName =
+    masonsList?.find(
+      (m: any) => m.id === mod?.mason_id || m.id === mod?.suggested_mason_id
+    )?.name ||
+    mod?.master_author ||
+    mod?.author ||
+    mod?.suggested_author ||
+    t("unknown_mason", "Unknown {Mason}");
 
   const roleBadgeLabel = familyRole
     ? familyRole === "core"
-      ? t("studio_badge_core", "Core Mod")
+      ? t("core_artifact", "Core {Mod}")
       : familyRole === "twin"
-        ? t("studio_badge_twin", "Twin")
+        ? t("editor_twin", "Twin")
         : familyRole === "flavor"
           ? t("studio_badge_flavor", "Flavor")
           : familyRole === "beta"
-            ? t("studio_badge_beta", "Beta")
-            : t("studio_badge_addon", "Addon")
+            ? t("badge_beta", "Beta")
+            : t("editor_addon", "Addon")
     : null;
 
   const statusMeta = (() => {
     if (rawStatus === "corrupted" || rawStatus === "broken") {
       return {
-        label: t("status_tag_corrupted", "Corrupted"),
+        label: t("status_corrupted", "Corrupted"),
         icon: t("icon_error", "error"),
+        iconColor: "text-[var(--danger)]",
+      };
+    }
+    if (rawStatus === "rejected") {
+      return {
+        label: t("rejected", "Rejected"),
+        icon: t("icon_block", "block"),
         iconColor: "text-[var(--danger)]",
       };
     }
     if (rawStatus === "unstable") {
       return {
-        label: t("status_tag_unstable", "Unstable"),
+        label: t("label_unstable", "Unstable"),
         icon: t("icon_warning", "warning"),
         iconColor: "text-[var(--warning)]",
       };
     }
     if (rawStatus === "under review" || rawStatus === "pending") {
       return {
-        label: t("status_tag_under_review", "Under Review"),
+        label: t("status_dd_review", "Under Review"),
         icon: t("icon_schedule", "schedule"),
         iconColor: "text-[var(--accent)]",
+      };
+    }
+    if (rawStatus === "unverified" || rawStatus === "unknown") {
+      return {
+        label: t("unverified", "Unverified"),
+        icon: t("icon_help", "help"),
+        iconColor: "text-[var(--subtext)]",
       };
     }
     if (rawStatus === "synced" || mod?._isSyncedSandbox) {
@@ -80,8 +111,15 @@ export function ArtifactCard({
         iconColor: "text-[var(--accent)]",
       };
     }
+    if (rawStatus === "verified" || rawStatus === "approved") {
+      return {
+        label: t("verified", "Verified"),
+        icon: t("icon_verified", "verified"),
+        iconColor: "text-[var(--success)]",
+      };
+    }
     return {
-      label: t("status_tag_stable", "Stable"),
+      label: t("status_stable", "Stable"),
       icon: t("icon_verified", "verified"),
       iconColor: "text-[var(--success)]",
     };
@@ -124,7 +162,7 @@ export function ArtifactCard({
     </button>
   ) : undefined;
 
-  const chipClass = REGISTRY_CHIP_CLASS;
+  const chipClass = VAULT_CHIP_CLASS;
 
   const statusChip = (
     <div className={chipClass}>
@@ -139,6 +177,15 @@ export function ArtifactCard({
     <>
       {layout !== "vertical" && statusChip}
 
+      <div className={chipClass}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+          {String(categoryLabel).toLowerCase().includes("script") || extClean === "ts4script"
+            ? t("icon_terminal", "terminal")
+            : t("icon_deployed_code", "deployed_code")}
+        </span>
+        <span>{categoryLabel}</span>
+      </div>
+
       {roleBadgeLabel && (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -150,7 +197,7 @@ export function ArtifactCard({
         </div>
       )}
 
-      {versionCount > 1 && (
+      {versionCount > 1 ? (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
             {t("icon_history", "history")}
@@ -159,14 +206,38 @@ export function ArtifactCard({
             {versionCount} {t("badge_versions_count", "Versions")}
           </span>
         </div>
-      )}
-
-      {extClean && (
+      ) : mod?.latest_version || mod?.suggested_version ? (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-            {extClean === "ts4script" ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+            {t("icon_history", "history")}
+          </span>
+          <span>
+            {String(mod.latest_version || mod.suggested_version).startsWith("v")
+              ? mod.latest_version || mod.suggested_version
+              : `${t("auto_v", "v")}${mod.latest_version || mod.suggested_version}`}
+          </span>
+        </div>
+      ) : null}
+
+      {extClean && String(categoryLabel).toLowerCase() !== extClean && (
+        <div className={chipClass}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+            {extClean === "ts4script"
+              ? t("icon_terminal", "terminal")
+              : t("icon_deployed_code", "deployed_code")}
           </span>
           <span className="text-[var(--subtext)]">{extClean}</span>
+        </div>
+      )}
+
+      {typeof mod?.compliance_tier === "number" && mod.compliance_tier > 0 && (
+        <div className={chipClass}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+            {t("icon_shield", "shield")}
+          </span>
+          <span>
+            {t("stat_tier", "Tier")} {mod.compliance_tier}
+          </span>
         </div>
       )}
     </>
@@ -174,7 +245,7 @@ export function ArtifactCard({
 
   const footer =
     layout === "vertical" ? (
-      <div className="flex gap-2 items-center justify-between group">
+      <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
         {familyChildrenCount > 0 ? (
           <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
             <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
@@ -184,13 +255,34 @@ export function ArtifactCard({
               +{familyChildrenCount} {t("badge_modules_count", "Modules")}
             </span>
           </div>
+        ) : mod?.dna_hash ? (
+          <span className="flex items-center gap-1.5 font-mono truncate pr-2 opacity-75">
+            <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)]">
+              {t("icon_fingerprint", "fingerprint")}
+            </span>
+            <span>{String(mod.dna_hash).slice(0, 8)}</span>
+          </span>
         ) : (
-          <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
-            {categoryLabel}
+          <span className="flex items-center gap-1.5 truncate pr-2 opacity-75">
+            {mod?.updated_at || mod?.created_at ? (
+              <>
+                <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)]">
+                  {t("icon_calendar_today", "calendar_today")}
+                </span>
+                <span>
+                  {new Date(mod.updated_at || mod.created_at).toLocaleDateString([], {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </>
+            ) : (
+              <span>{categoryLabel}</span>
+            )}
           </span>
         )}
         <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
-          {overrideActionLabel || t("emote_edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+          {overrideActionLabel || t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
         </button>
       </div>
     ) : undefined;
@@ -201,11 +293,21 @@ export function ArtifactCard({
       isActive={activeModId === mod.id}
       onClick={onClick}
       title={mod?.name || t("unnamed_artifact", "Unnamed Mod")}
+      subtitle={`${t("by_prefix", "By")} ${authorName}`}
       image={showImages && mod.image_url ? mod.image_url : undefined}
       icon={t("icon_deployed_code", "deployed_code")}
+      customIcon={
+        layout === "vertical" ? (
+          <DynamicArtifactPreviewBanner
+            data={mod}
+            icon={t("icon_deployed_code", "deployed_code")}
+            heightClass="h-full"
+          />
+        ) : undefined
+      }
       imageOverlay={
         layout === "vertical" ? (
-          <div className="absolute top-3 left-3 z-30 pointer-events-auto">
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             {statusChip}
           </div>
         ) : undefined
@@ -217,13 +319,38 @@ export function ArtifactCard({
   );
 }
 
-export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonNameFallback }: { setItem: any, activeSetId?: string, onClick: () => void, masonsList?: any[], masonNameFallback?: string }) {
+export function VaultCard({
+  setItem,
+  activeSetId,
+  onClick,
+  masonsList,
+  masonNameFallback,
+}: {
+  setItem: any;
+  activeSetId?: string;
+  onClick: () => void;
+  masonsList?: any[];
+  masonNameFallback?: string;
+}) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
-  const masonName = masonsList?.find((m: any) => m.id === setItem.mason_id)?.name || setItem.creator_name || masonNameFallback || t("mason", "Mason");
+  const masonName =
+    masonsList?.find((m: any) => m.id === setItem.mason_id)?.name ||
+    setItem.creator_name ||
+    masonNameFallback ||
+    t("mason", "{Mason}");
+
+  const statusChip = (
+    <div className={VAULT_CHIP_CLASS}>
+      <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+        {t("icon_verified", "verified")}
+      </span>
+      <span>{t("verified", "Verified")}</span>
+    </div>
+  );
 
   const cardBadges = (
-    <div className={REGISTRY_CHIP_CLASS}>
+    <div className={VAULT_CHIP_CLASS}>
       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
         {t("icon_shield", "shield")}
       </span>
@@ -234,12 +361,12 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
   );
 
   const footer = (
-    <div className="flex gap-2 items-center justify-start group">
-      <span className="text-[10px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest flex items-center gap-1.5 truncate pr-2">
-        {masonName}
+    <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+      <span className="flex items-center gap-1.5 font-mono truncate pr-2 opacity-75">
+        {String(setItem.id || "").slice(0, 8)}
       </span>
-      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 shrink-0">
-        {t("emote_edit", "Edit")} <span className="text-lg leading-none">&rarr;</span>
+      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+        {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
       </button>
     </div>
   );
@@ -250,9 +377,21 @@ export function VaultCard({ setItem, activeSetId, onClick, masonsList, masonName
       isActive={activeSetId === setItem.id}
       onClick={onClick}
       title={setItem.name || t("unnamed_artifact", "Unnamed Mod")}
-      subtitle={setItem.id}
+      subtitle={`${t("by_prefix", "By")} ${masonName}`}
       image={showImages && setItem.image_url ? setItem.image_url : undefined}
       icon={t("icon_collections_bookmark", "collections_bookmark")}
+      customIcon={
+        <DynamicArtifactPreviewBanner
+          data={{ ...setItem, isCollection: true }}
+          icon={t("icon_collections_bookmark", "collections_bookmark")}
+          heightClass="h-full"
+        />
+      }
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          {statusChip}
+        </div>
+      }
       badges={cardBadges}
       footer={footer}
     />

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
-import { useLexicon } from './LexiconContext';
-import { useModalStore } from './store/modalStore';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import React, { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import { useLexicon } from "./LexiconContext";
+import { useModalStore } from "./store/modalStore";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 interface MarkdownRendererProps {
   content: string;
@@ -13,89 +12,217 @@ interface MarkdownRendererProps {
   isAlert?: boolean;
 }
 
-export default function MarkdownRenderer({ content, onAssetClick, isAlert }: MarkdownRendererProps) {
+export default function MarkdownRenderer({
+  content,
+  onAssetClick,
+  isAlert,
+}: MarkdownRendererProps) {
   const { t } = useLexicon();
-  const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } = useModalStore();
+  const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } =
+    useModalStore();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
-  const processedContent = content.replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, '![](icon://$1)');
+  const processedContent = (content || "")
+    .replace(
+      /(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/([a-zA-Z0-9_-]+)\/([^)]+)\)/gi,
+      (_match, rawLabel, type, id) => {
+        const cleanLabel = String(rawLabel || "")
+          .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, "")
+          .replace(
+            /^(?:Artifact|Mod|Blueprint|Play Set|Theme|Chameleon|Template|Lexicon)\s*:\s*/i,
+            ""
+          )
+          .replace(/^[\s:—–\\-]+/, "")
+          .replace(/\\+$/, "")
+          .trim();
+        return `[${cleanLabel || id}](asset://${type}/${id})`;
+      }
+    )
+    .replace(/\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]/gi, "![](icon://$1)");
 
   return (
     <div className="prose prose-invert max-w-none text-[var(--text)] opacity-90 leading-relaxed marker:text-[var(--subtext)]">
-      <ReactMarkdown urlTransform={(uri) => /^(https?:\/\/|mailto:|asset:\/\/|icon:\/\/)/i.test((uri || '').trim()) ? uri : ''}
+      <ReactMarkdown
+        urlTransform={(uri) =>
+          /^(https?:\/\/|mailto:|asset:\/\/|icon:\/\/)/i.test(
+            (uri || "").trim()
+          )
+            ? uri
+            : ""
+        }
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
-          h1: ({ node, ...props }) => <h1 className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`} {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-2xl font-black capitalize tracking-tight mt-5 mb-3 text-[var(--text)]" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-xl font-bold capitalize tracking-widest mt-4 mb-2 text-[var(--text)] opacity-90" {...props} />,
+          h1: ({ node, ...props }) => (
+            <h1
+              className={`text-3xl font-black capitalize tracking-tighter mt-6 mb-4 ${
+                isAlert ? "text-[var(--danger)]" : "text-[var(--text)]"
+              }`}
+              {...props}
+            />
+          ),
+          h2: ({ node, ...props }) => (
+            <h2
+              className="text-2xl font-black capitalize tracking-tight mt-5 mb-3 text-[var(--text)]"
+              {...props}
+            />
+          ),
+          h3: ({ node, ...props }) => (
+            <h3
+              className="text-xl font-bold capitalize tracking-widest mt-4 mb-2 text-[var(--text)] opacity-90"
+              {...props}
+            />
+          ),
           p: ({ node, ...props }) => <p className="mb-4 last:mb-0" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+          ul: ({ node, ...props }) => (
+            <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />
+          ),
+          ol: ({ node, ...props }) => (
+            <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />
+          ),
           li: ({ node, ...props }) => <li className="pl-1" {...props} />,
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 border-[color-mix(in_srgb,var(--text)_25%,transparent)] pl-4 py-1 my-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-r-lg italic opacity-80" {...props} />
+            <blockquote
+              className="border-l-4 border-[color-mix(in_srgb,var(--text)_25%,transparent)] pl-4 py-1 my-4 bg-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-r-lg italic opacity-80"
+              {...props}
+            />
           ),
-          hr: ({ node, ...props }) => <hr className="my-8 border-[color-mix(in_srgb,var(--text)_10%,transparent)]" {...props} />,
+          hr: ({ node, ...props }) => (
+            <hr
+              className="my-8 border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+              {...props}
+            />
+          ),
+          pre: ({ children }) => <>{children}</>,
           code: ({ node, className, children, ...props }: any) => {
-            const match = /language-(\w+)/.exec(className || '');
-            const isInline = !match && !content.includes('\n```');
+            const match = /language-(\w+)/.exec(className || "");
+            const isMultiLineNode = Boolean(
+              node?.position &&
+                node.position.start.line !== node.position.end.line
+            );
+            const isInline =
+              !match && !isMultiLineNode && !String(children).includes("\n");
             if (isInline) {
-              return <code className="bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] px-1.5 py-0.5 rounded-md font-semibold text-xs text-[var(--text)]" {...props}>{children}</code>;
+              return (
+                <code
+                  className="bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] px-1.5 py-0.5 rounded-md font-semibold text-xs text-[var(--text)]"
+                  {...props}
+                >
+                  {children}
+                </code>
+              );
             }
             return (
               <div className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 my-4 overflow-x-auto accent-scrollbar relative group">
-                <button 
-                  onClick={() => navigator.clipboard.writeText(String(children))} 
+                <button
+                  onClick={() =>
+                    navigator.clipboard.writeText(String(children))
+                  }
                   className="absolute top-2 right-2 p-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer"
-                  title={t("ctx_copy")}
+                  title={t("btn_copy", "Copy")}
                 >
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_content_copy")}</span>
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_content_copy", "content_copy")}
+                  </span>
                 </button>
-                <code className="font-mono text-sm text-[var(--subtext)] block pr-8" {...props}>
+                <code
+                  className="font-mono text-sm text-[var(--subtext)] block pr-8"
+                  {...props}
+                >
                   {children}
                 </code>
               </div>
             );
           },
           img: ({ node, src, alt, ...props }) => {
-            if (src && src.startsWith('icon://')) {
-              const iconName = src.replace('icon://', '');
-              return <span className="material-symbols-outlined !text-[inherit] align-middle opacity-90 mx-0.5" title={alt || iconName}>{iconName}</span>;
+            if (src && src.startsWith("icon://")) {
+              const iconName = src.replace("icon://", "").toLowerCase();
+              return (
+                <span
+                  className="material-symbols-outlined !text-[inherit] align-middle opacity-90 mx-0.5"
+                  title={alt || iconName}
+                >
+                  {iconName}
+                </span>
+              );
             }
             const isExpanded = expandedImage === src;
             return (
-              <span 
-                className={`group block my-6 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg glass-surface relative cursor-pointer transition-all duration-500`}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedImage(isExpanded ? null : (src || null)); }}
+              <span
+                className="group block my-6 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-lg glass-surface relative cursor-pointer transition-all duration-500"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpandedImage(isExpanded ? null : src || null);
+                }}
               >
-                <img src={src} alt={alt} className={`w-full object-cover transition-all duration-500 ${isExpanded ? 'max-h-none' : 'max-h-96 group-hover:scale-105 group-hover:blur-[2px]'}`} {...props} />
+                <img
+                  src={src}
+                  alt={alt}
+                  className={`w-full object-cover transition-all duration-500 ${
+                    isExpanded
+                      ? "max-h-none"
+                      : "max-h-96 group-hover:scale-105 group-hover:blur-[2px]"
+                  }`}
+                  {...props}
+                />
                 {!isExpanded && (
                   <span className="absolute inset-0 rounded-[inherit] bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
-                    <span className="material-symbols-outlined !text-5xl text-white drop-shadow-xl scale-50 group-hover:scale-100 transition-transform duration-500 ease-out">fullscreen</span>
+                    <span className="material-symbols-outlined !text-5xl text-white drop-shadow-xl scale-50 group-hover:scale-100 transition-transform duration-500 ease-out">
+                      {t("icon_fullscreen", "fullscreen")}
+                    </span>
                   </span>
                 )}
                 {isExpanded && (
                   <span className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <span className="material-symbols-outlined text-white">close_fullscreen</span>
+                    <span className="material-symbols-outlined text-white">
+                      {t("icon_close_fullscreen", "close_fullscreen")}
+                    </span>
                   </span>
                 )}
               </span>
             );
           },
           a: ({ node, href, children, ...props }: any) => {
-            if (href && href.startsWith('asset://')) {
-              const parts = href.replace('asset://', '').split('/');
+            if (href && href.startsWith("asset://")) {
+              const parts = href.replace("asset://", "").split("/");
               const type = parts[0];
               const id = parts[1];
-              const cleanChildren = React.Children.toArray(children).map(c => typeof c === 'string' ? c.replace(/^[\s:]+/, '') : c);
+              const cleanChildren = React.Children.toArray(children)
+                .filter(
+                  (c: any) =>
+                    !(
+                      React.isValidElement(c) &&
+                      (c.props as any)?.src?.startsWith?.("icon://")
+                    )
+                )
+                .map((c) =>
+                  typeof c === "string"
+                    ? c
+                        .replace(
+                          /^(?:Artifact|Mod|Blueprint|Play Set|Theme|Chameleon|Template|Lexicon)\s*:\s*/i,
+                          ""
+                        )
+                        .replace(/^[\s:—–\\-]+/, "")
+                    : c
+                );
               return (
-                <span 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAssetClick?.(type, id); }}
+                <span
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onAssetClick?.(type, id);
+                  }}
                   className="my-2 mx-1 group relative flex flex-row items-center justify-between gap-4 p-3 px-4 rounded-[20px] glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-2xl backdrop-blur-2xl transition-all cursor-pointer hover:scale-[1.02] w-[calc(100%-0.5rem)] align-top no-underline"
                 >
                   <span className="flex items-center gap-4 min-w-0 flex-1">
                     <span className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 text-[var(--text)] opacity-80 group-hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:theme-text-accent transition-all">
                       <span className="material-symbols-outlined !text-[20px]">
-                        {type === 'mod' ? t("icon_inventory_2", "inventory_2") : type === 'blueprint' ? t("icon_map", "map") : type === 'lexicon' ? t("icon_translate", "translate") : t("icon_palette", "palette")}
+                        {type === "mod"
+                          ? t("icon_inventory_2", "inventory_2")
+                          : type === "blueprint"
+                            ? t("icon_map", "map")
+                            : type === "lexicon"
+                              ? t("icon_translate", "translate")
+                              : t("icon_palette", "palette")}
                       </span>
                     </span>
                     <span className="flex flex-col min-w-0 flex-1 gap-0.5">
@@ -103,19 +230,22 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                         {cleanChildren}
                       </span>
                       <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 tracking-widest uppercase flex items-center gap-1.5 truncate">
-                         {type} <span className="opacity-50">•</span> {t("attached_asset", "Attached Asset")}
+                        {type} <span className="opacity-50">•</span>{" "}
+                        {t("attached_asset", "Attached Asset")}
                       </span>
                     </span>
                   </span>
                   <span className="w-8 h-8 rounded-full border border-[color-mix(in_srgb,var(--text)_15%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] group-hover:text-[var(--accent)] backdrop-blur-md flex items-center justify-center shrink-0 transition-all shadow-[inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.18)] group-hover:shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent),inset_0_1px_1px_rgba(var(--text-rgb,255,255,255),0.25)] group-hover:scale-110 group-active:scale-95">
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
                   </span>
                 </span>
               );
             }
             return (
-              <a 
-                href={href} 
+              <a
+                href={href}
                 onClick={(e) => {
                   e.preventDefault();
                   if (href && /^https?:\/\//i.test(href)) {
@@ -123,17 +253,19 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
                       setSideBrowserUrl(href);
                       setIsSideBrowserOpen(true);
                     } else {
-                      openUrl(href).catch(err => console.error("Failed to open URL externally", err));
+                      openUrl(href).catch((err) =>
+                        console.error("Failed to open URL externally", err)
+                      );
                     }
                   }
                 }}
-                className="theme-text-accent hover:underline font-bold cursor-pointer" 
+                className="theme-text-accent hover:underline font-bold cursor-pointer"
                 {...props}
               >
                 {children}
               </a>
             );
-          }
+          },
         }}
       >
         {processedContent}
@@ -141,7 +273,3 @@ export default function MarkdownRenderer({ content, onAssetClick, isAlert }: Mar
     </div>
   );
 }
-
-
-
-

@@ -11,6 +11,7 @@ import {
   EmptyState,
   SidePanelHeroCard,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import {
   getNotificationMode,
@@ -213,13 +214,13 @@ export default function NotificationSidebar({
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "reply":
-        return "forum";
+        return t("icon_forum", "forum");
       case "support_reply":
-        return "support_agent";
+        return t("icon_support_agent", "support_agent");
       case "new_post":
-        return "campaign";
+        return t("icon_campaign", "campaign");
       default:
-        return "notifications";
+        return t("icon_notifications", "notifications");
     }
   };
 
@@ -252,7 +253,7 @@ export default function NotificationSidebar({
       isOpen={true}
       onClose={onClose}
       title={t("tab_notifs", "Notifications")}
-      subtitle={`${unreadCount} ${t("unread", "Unread")} • ${notifications.length} ${t("items", "Items")}`}
+      subtitle={`${unreadCount} ${t("unread", "Unread")} • ${notifications.length} ${t("term_mods", "Items")}`}
       icon={t("icon_notifications", "notifications")}
       iconColorClass="theme-text-accent"
       widthClass="w-[90vw] md:w-[680px]"
@@ -263,15 +264,15 @@ export default function NotificationSidebar({
           <PanelHeaderGroup>
             {notifications.some((n) => !n.is_read) && (
               <PanelHeaderButton
-                icon="done_all"
+                icon={t("icon_done_all", "done_all")}
                 tooltip={t("notif_mark_read", "Mark All Read")}
                 onClick={markAllRead}
               />
             )}
             {notifications.length > 0 && (
               <PanelHeaderButton
-                icon="delete_sweep"
-                tooltip={t("notif_clear_all", "Clear All")}
+                icon={t("icon_delete_sweep", "delete_sweep")}
+                tooltip={t("nav_clear_all", "Clear All")}
                 variant="danger"
                 onClick={clearAll}
               />
@@ -348,7 +349,7 @@ export default function NotificationSidebar({
                     : n.type === "support_reply"
                       ? t("notif_type_support", "Support")
                       : n.type === "new_post"
-                        ? t("post_broadcast", "Broadcast")
+                        ? t("post_broadcast", "New {Dispatch}")
                         : t("category_system", "System");
 
                 return (
@@ -363,16 +364,16 @@ export default function NotificationSidebar({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span
-                        className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-transparent border flex items-center gap-1.5 shrink-0"
+                        className={VAULT_CHIP_CLASS}
                         style={{
-                          borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
                           color: `var(${colorVar})`,
+                          borderColor: `color-mix(in srgb, var(${colorVar}) 35%, var(--border))`,
                         }}
                       >
-                        <span className="material-symbols-outlined !text-[12px]">
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
                           {getNotificationIcon(n.type)}
                         </span>
-                        {badgeLabel}
+                        <span>{badgeLabel}</span>
                       </span>
 
                       <div className="flex items-center gap-2">
@@ -389,10 +390,10 @@ export default function NotificationSidebar({
                           <button
                             type="button"
                             onClick={(e) => clearNotification(e, n.id, n._db)}
-                            className="shrink-0 w-7 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:text-[var(--danger)] text-[var(--subtext)] flex items-center justify-center transition-colors"
+                            className="shrink-0 w-7 h-7 rounded-lg border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:text-[var(--danger)] text-[var(--subtext)] flex items-center justify-center transition-colors"
                           >
-                            <span className="material-symbols-outlined !text-[14px]">
-                              close
+                            <span className="material-symbols-rounded !text-[14px]">
+                              {t("icon_close", "close")}
                             </span>
                           </button>
                         </div>

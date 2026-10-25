@@ -285,47 +285,47 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview", "Overview"),
-      icon: "dashboard",
+      label: t("overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard"),
       number: (pendingSubmissions.length + completedSubmissions.length).toString(),
     },
     {
       id: "pending",
       label: t("pending", "Pending"),
-      icon: "pending_actions",
+      icon: t("icon_pending_actions", "pending_actions"),
       number: pendingSubmissions.length.toString(),
     },
     {
       id: "completed",
       label: t("status_completed", "Completed"),
-      icon: "check_circle",
+      icon: t("icon_check_circle", "check_circle"),
       number: completedSubmissions.length.toString(),
     }
   ];
 
   const renderScoutCard = (mod: any) => (
-    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || "Scout Suggestion" }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
+    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || t("scout_queue", "Scout Queue") }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
   );
 
   const renderLanding = () => (
     <HubOverviewLanding>
       <HubOverviewSection
-        icon="pending_actions"
+        icon={t("icon_pending_actions", "pending_actions")}
         iconColorClass="text-[var(--accent)]"
         title={t("recent_pending", "Recent Pending")}
         isEmpty={pendingSubmissions.length === 0}
-        emptyIcon="check_circle"
+        emptyIcon={t("icon_check_circle", "check_circle")}
         emptyTitle={t("no_pending", "No Pending Submissions")}
       >
         {pendingSubmissions.slice(0, 4).map(renderScoutCard)}
       </HubOverviewSection>
 
       <HubOverviewSection
-        icon="check_circle"
+        icon={t("icon_check_circle", "check_circle")}
         iconColorClass="text-[var(--success)]"
         title={t("recent_completed", "Recent Completed")}
         isEmpty={completedSubmissions.length === 0}
-        emptyIcon="history"
+        emptyIcon={t("icon_history", "history")}
         emptyTitle={t("no_history", "No History")}
       >
         {completedSubmissions.slice(0, 4).map(renderScoutCard)}
@@ -338,7 +338,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <ElevatedHubLayout
         headerTitle={t("scout_queue", "Scout Queue")}
         headerSubtitle={t("scout_queue_desc", "Review automated network anomaly submissions.")}
-        headerIcon="radar"
+        headerIcon={t("icon_radar", "radar")}
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
@@ -351,11 +351,11 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         {filterTab === 'overview' ? renderLanding() : (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting...")}</div>
+              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting {Dispatches}...")}</div>
             ) : filteredSubmissions.length === 0 ? (
               <EmptyState icon={t("icon_account_balance", "account_balance")} title={t("no_pending_submissions", "No pending submissions")} className="col-span-full py-16" />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                 {filteredSubmissions.slice(0, visibleCount).map(renderScoutCard)}
               </div>
             )}
@@ -364,7 +364,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 onClick={() => setVisibleCount(v => v + 100)}
                 className="w-full py-4 mt-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] font-black capitalize tracking-widest transition-all"
               >
-                {t("ui_btn_load_more", "Load More")} ({visibleCount} / {filteredSubmissions.length})
+                {t("load_more", "Load More")} ({visibleCount} / {filteredSubmissions.length})
               </button>
             )}
           </div>
@@ -382,14 +382,14 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="delete"
+              icon={t("icon_delete", "delete")}
               variant="danger"
               tooltip={t("discard", "Discard")}
               onClick={() => handleAction('rejected')}
               disabled={isProcessing}
             />
             <PanelHeaderButton
-              icon={requireScoutLabTest && (!isActiveVerified || isActiveFailed) ? "lock" : "check"}
+              icon={requireScoutLabTest && (!isActiveVerified || isActiveFailed) ? t("icon_lock", "lock") : t("icon_check", "check")}
               variant="success"
               tooltip={
                 requireScoutLabTest && (!isActiveVerified || isActiveFailed)
@@ -414,24 +414,24 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               title={editForm.name || activeScout.suggested_name || t("reviewing", "Reviewing Submission")}
               description={t("scout_queue_desc", "Review automated network anomaly submissions.")}
               badge={(activeScout.status || t("pending", "Pending")).replace(/_/g, " ")}
-              badgeIcon={activeScout.status === "approved" ? "verified" : "pending_actions"}
+              badgeIcon={activeScout.status === "approved" ? t("icon_verified", "verified") : t("icon_pending_actions", "pending_actions")}
               variant={activeScout.status === "approved" ? "success" : "accent"}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <StatBox
                   label={t("dna_hash", "DNA Hash")}
                   value={activeScout.dna_hash ? `${String(activeScout.dna_hash).substring(0, 12)}...` : t("oversight_na", "N/A")}
-                  icon="fingerprint"
+                  icon={t("icon_fingerprint", "fingerprint")}
                   iconColorClass="text-[var(--accent)]"
                 />
                 <StatBox
-                  label={t("mason", "Mason")}
+                  label={t("mason", "{Mason}")}
                   value={
                     masonsList.find((m: any) => m.id === editForm.mason_id)?.name ||
                     activeScout.suggested_author ||
-                    t("unknown_mason", "Unknown Mason")
+                    t("unknown_mason", "Unknown {Mason}")
                   }
-                  icon="architecture"
+                  icon={t("icon_architecture", "architecture")}
                   iconColorClass="text-[var(--accent)]"
                 />
               </div>
@@ -440,8 +440,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <SidePanelTitleInput
               value={editForm.name}
               onChange={val => setEditForm({ ...editForm, name: val })}
-              label={t("label_modname", "Artifact Name")}
-              placeholder={t("label_modname", "Artifact Name")}
+              label={t("label_modname", "{Mod} Name")}
+              placeholder={t("label_modname", "{Mod} Name")}
               subtitle={`${t("dna_hash", "HASH")}: ${String(activeScout.dna_hash || "").substring(0, 12)}`}
             />
 
@@ -470,16 +470,16 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 onSelect={(m: any) => setLineageId(m.id)}
                 selectedItem={cloudModsList?.find((m: any) => m.id === lineageId)}
                 onClear={() => setLineageId("")}
-                placeholder={t("ph_link_lineage", "Link existing lineage...")}
+                placeholder={t("ph_link_lineage", "Search to link with existing {Mod} Lineage...")}
               />
               <p className="text-[10px] font-bold text-[var(--subtext)] opacity-70 mt-1 px-1">
-                {t("label_lineage_desc", "Link to an existing artifact to append this hash.")}
+                {t("label_lineage_desc", "Linking will append this signature to the existing {Mod} rather than creating a new one.")}
               </p>
             </UniversalGroup>
 
             <UniversalGroup title={t("btn_view", "Classification")} icon={t("icon_info", "info")}>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "Mason")}</label>
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "{Mason}")}</label>
                 <div className="flex items-center gap-2 relative">
                   <div className="flex-1 min-w-0">
                     <CustomMasonDropdown value={editForm.mason_id} options={masonsList} onChange={(id: string) => setEditForm({ ...editForm, mason_id: id })} />
@@ -487,8 +487,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                   <ActionButton
                     onClick={() => setIsMasonPanelOpen(true)}
                     variant="glass"
-                    icon="person_add"
-                    label={t("create_title", "Create Mason")}
+                    icon={t("icon_person_add", "person_add")}
+                    label={t("create_title", "New {Mason}")}
                     iconOnly={true}
                     className="!h-11 !w-11 !px-0 rounded-xl shrink-0"
                   />
@@ -513,9 +513,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("label_resources", "Resources")} icon={t("icon_link", "link")}>
+            <UniversalGroup title={t("resources", "Resources")} icon={t("icon_link", "link")}>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("registry_label_url", "Source URL")}</label>
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("ui_url", "Source URL")}</label>
                 <input value={editForm.url || ""} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all" />
               </div>
 
@@ -557,15 +557,15 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
       <SidePanel
         isOpen={isMasonPanelOpen}
         onClose={() => setIsMasonPanelOpen(false)}
-        title={t("create_title", "Create Mason")}
-        subtitle={t("create_mason_subtitle", "Create a new mason entry")}
+        title={t("create_title", "New {Mason}")}
+        subtitle={t("create_mason_subtitle", "Link a new verified or unverified {Mason}")}
         icon={t("icon_person_add", "person_add")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="check"
+              icon={t("icon_check", "check")}
               variant="accent"
               tooltip={t("create_btn_create", "Create Mason")}
               onClick={handleCreateMason}
@@ -577,28 +577,18 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_person_add", "person_add")}
-            overline={t("mason", "Mason")}
-            title={t("create_title", "Create Mason")}
-            description={t("create_mason_subtitle", "Create a new mason entry")}
+            overline={t("mason", "{Mason}")}
+            title={t("create_title", "New {Mason}")}
+            description={t("create_mason_subtitle", "Link a new verified or unverified {Mason}")}
             variant="accent"
           />
 
           <SidePanelTitleInput
             value={newMasonName}
             onChange={setNewMasonName}
-            label={t("mason_name", "Mason Name")}
-            placeholder={t("create_ph_name", "Mason Name")}
+            label={t("mason_name", "{Mason} Name")}
+            placeholder={t("create_ph_name", "Enter {mason} name...")}
           />
-
-          <div className="flex justify-end">
-            <ActionButton
-              variant="glass"
-              icon="check"
-              label={t("create_btn_create", "Create Mason")}
-              onClick={handleCreateMason}
-              disabled={isCreatingMason || !newMasonName.trim()}
-            />
-          </div>
         </div>
       </SidePanel>
     </>

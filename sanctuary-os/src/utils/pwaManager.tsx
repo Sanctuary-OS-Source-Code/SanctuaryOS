@@ -3,7 +3,7 @@ import { isDesktop } from "./envUtils";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { SidePanel } from "../shared";
-import { UniversalGroup } from "../components/layouts/ElevatedHubLayout";
+import { SidePanelHeroCard, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -88,7 +88,6 @@ export function initPwaManager() {
       ...pwaStore.state,
       deferredPrompt: e as BeforeInstallPromptEvent,
     };
-    notifyPwaListeners();
   });
 
   window.addEventListener("appinstalled", () => {
@@ -241,25 +240,19 @@ export function PwaInstallPrompt() {
         title={t("pwa_guide_title", "Add to Home Screen")}
         subtitle={t("pwa_guide_subtitle", "Install Sanctuary OS as a standalone app")}
         icon={t("icon_install_mobile", "install_mobile")}
-        widthClass="w-full md:w-[520px]"
+        widthClass="w-full md:w-[540px]"
       >
-        <div className="flex flex-col gap-6 p-6">
-          <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
-              <img src="/pwa-192x192.png" alt="" className="w-10 h-10 object-contain drop-shadow-md" />
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-sm font-black uppercase tracking-widest text-[var(--text)]">
-                {t("pwa_install_title", "Install Sanctuary Web App")}
-              </span>
-              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed">
-                {t(
-                  "pwa_install_desc",
-                  "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
-                )}
-              </p>
-            </div>
-          </div>
+        <div className="flex flex-col gap-6">
+          <SidePanelHeroCard
+            title={t("pwa_install_title", "Install Sanctuary Web App")}
+            subtitle={t(
+              "pwa_install_desc",
+              "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
+            )}
+            label={t("pwa_guide_title", "Add to Home Screen")}
+            icon={t("icon_install_mobile", "install_mobile")}
+            variant="accent"
+          />
 
           {canNativePrompt && (
             <button

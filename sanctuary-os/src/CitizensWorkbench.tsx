@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, standardButtonClass, standardDangerButtonClass, ActionPill } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, SidePanelHeroCard, UniversalGroup, ActionButton, standardButtonClass, standardDangerButtonClass, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -12,10 +12,14 @@ import { supabase } from './supabase';
 import { supabaseServices } from './lib/supabase-services';
 import { writeTextFile, remove } from '@tauri-apps/plugin-fs';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import { UniversalCard } from './components/universal/UniversalCard';
 
 import { useWorkbenchFiles } from './workbench/hooks/useWorkbenchFiles';
 import { useWorkbenchEditor } from './workbench/hooks/useWorkbenchEditor';
 import { useWorkbenchLayout } from './workbench/hooks/useWorkbenchLayout';
+
+const VAULT_CHIP_CLASS =
+   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
    const { t } = useLexicon();
@@ -141,7 +145,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    return (
       <div className="flex flex-col w-full relative animate-in fade-in slide-in-from-bottom-4 duration-700">
          <ViewHeader
-            title={t("workbench_title", "User Workbench")}
+            title={t("workbench_title", "{Citizen} Workbench")}
             subtitle={t("workbench_subtitle", "Community-powered configuration editor")}
             icon={t("icon_tune", "tune")}
             breadcrumb={mainTab !== "COMMAND" ? (t(`tab_${mainTab.toLowerCase()}`, mainTab) || mainTab) : undefined}
@@ -160,18 +164,18 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
          </ViewHeader>
 
          <div className="md:hidden">
-            <HoverTabDrawer title={t("workbench_title", "Workbench Navigation")} activeTab={mainTab} setTab={setMainTab as any}>
-               <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview", "Overview")} activeTab={mainTab} setTab={setMainTab as any} />
-               <VerticalTabButton id="CONFIGS" icon="settings" label={t("configs", "Configs")} activeTab={mainTab} setTab={setMainTab as any} />
-               <VerticalTabButton id="TEMPLATES" icon="data_object" label={t("ql_templates", "Templates")} activeTab={mainTab} setTab={setMainTab as any} />
+            <HoverTabDrawer title={t("workbench_title", "{Citizen} Workbench")} activeTab={mainTab} setTab={setMainTab as any}>
+               <VerticalTabButton id="COMMAND" icon={t("icon_dashboard", "dashboard")} label={t("overview", "Overview")} activeTab={mainTab} setTab={setMainTab as any} />
+               <VerticalTabButton id="CONFIGS" icon={t("icon_settings", "settings")} label={t("configs", "Configs")} activeTab={mainTab} setTab={setMainTab as any} />
+               <VerticalTabButton id="TEMPLATES" icon={t("icon_data_object", "data_object")} label={t("ql_templates", "Templates")} activeTab={mainTab} setTab={setMainTab as any} />
             </HoverTabDrawer>
          </div>
 
-         <div className="hidden md:flex flex-col w-full gap-3 mb-6">
+         <div className="hidden md:flex flex-col w-full gap-3 mb-8 md:mb-10">
             <StatTileCarousel>
-               <DashboardStatTile variant="tab" icon="dashboard" label={t("overview", "Overview")} number="" onClick={() => setMainTab("COMMAND" as any)} isActive={mainTab === "COMMAND"} />
-               <DashboardStatTile variant="tab" icon="settings" label={t("configs", "Configs")} number={configsCount} onClick={() => setMainTab("CONFIGS" as any)} isActive={mainTab === "CONFIGS"} />
-               <DashboardStatTile variant="tab" icon="data_object" label={t("ql_templates", "Templates")} number={templatesCount} onClick={() => setMainTab("TEMPLATES" as any)} isActive={mainTab === "TEMPLATES"} />
+               <DashboardStatTile variant="tab" icon={t("icon_dashboard", "dashboard")} label={t("overview", "Overview")} number="" onClick={() => setMainTab("COMMAND" as any)} isActive={mainTab === "COMMAND"} />
+               <DashboardStatTile variant="tab" icon={t("icon_settings", "settings")} label={t("configs", "Configs")} number={configsCount} onClick={() => setMainTab("CONFIGS" as any)} isActive={mainTab === "CONFIGS"} />
+               <DashboardStatTile variant="tab" icon={t("icon_data_object", "data_object")} label={t("ql_templates", "Templates")} number={templatesCount} onClick={() => setMainTab("TEMPLATES" as any)} isActive={mainTab === "TEMPLATES"} />
             </StatTileCarousel>
          </div>
 
@@ -180,10 +184,10 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                <CommandScreenLayout>
                   <CommandScreenBody>
                      <CommandScreenMain>
-                        <div className="flex flex-col gap-6">
+                        <div className="flex flex-col gap-4">
                            <CommandScreenSectionHeading
                               title={t("recent_activity", "Recent Activity")}
-                              icon="history"
+                              icon={t("icon_history", "history")}
                            />
 
                            {(() => {
@@ -207,33 +211,52 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                               }
 
                               return (
-                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
+                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                     {recentActivityFiles.map((file: any) => {
                                        const isTmpl = file.name.toLowerCase().endsWith('.json');
                                        const dotIndex = file.name.lastIndexOf('.');
                                        const baseTitle = dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name;
                                        const extLabel = dotIndex > 0 ? file.name.substring(dotIndex) : (isTmpl ? t("schema_json", ".json") : t("schema_system", ".cfg"));
                                        return (
-                                          <div key={file.path} className="group relative break-inside-avoid">
-                                             <button
-                                                type="button"
-                                                onClick={() => fileState.openFile(file)}
-                                                className="w-full text-left p-6 rounded-2xl transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex flex-col gap-4 relative glass-panel group-hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] cursor-pointer"
-                                             >
-                                                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner group-hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors ${isTmpl ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-emerald-500 border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-blue-500 border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'}`}>
-                                                   <span className="material-symbols-outlined !text-2xl transition-colors">{isTmpl ? t("icon_data_object", "data_object") : t("icon_settings", "settings")}</span>
+                                          <UniversalCard
+                                             key={file.path}
+                                             layout="vertical"
+                                             onClick={() => fileState.openFile(file)}
+                                             icon={isTmpl ? t("icon_data_object", "data_object") : t("icon_settings", "settings")}
+                                             title={baseTitle}
+                                             subtitle={isTmpl ? t("ql_templates", "Templates") : t("configs", "Configs")}
+                                             imageOverlay={
+                                                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                                                   <div className={VAULT_CHIP_CLASS}>
+                                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                                         {t("icon_edit_note", "edit_note")}
+                                                      </span>
+                                                      <span>{t("unsaved", "Unsaved")}</span>
+                                                   </div>
                                                 </div>
-                                                <div className="flex flex-col gap-1 z-10 w-full pr-10">
-                                                   <span className="text-sm font-black text-[var(--text)] tracking-wider truncate">{baseTitle}</span>
-                                                   <span className="text-[10px] font-bold lowercase tracking-widest text-[var(--subtext)] opacity-60">{extLabel}</span>
+                                             }
+                                             badges={
+                                                <div className={VAULT_CHIP_CLASS}>
+                                                   <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                                      {isTmpl ? t("icon_data_object", "data_object") : t("icon_description", "description")}
+                                                   </span>
+                                                   <span className="text-[var(--subtext)]">{extLabel}</span>
                                                 </div>
-                                             </button>
-                                             <div className="absolute top-6 right-6 flex items-center gap-1.5 text-[10px] font-bold text-[var(--warning)] glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] px-3 py-1 rounded-full z-20 pointer-events-none">
-                                                <span className="material-symbols-outlined !text-[13px]">{t("icon_edit_note", "edit_note")}</span>
-                                                <span>{t("workbench_unsaved_edit_badge", "Unsaved")}</span>
-                                             </div>
-                                          </div>
+                                             }
+                                             footer={
+                                                <div className="flex gap-2 items-center justify-between group">
+                                                   <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+                                                      {extLabel}
+                                                   </span>
+                                                   <button
+                                                      type="button"
+                                                      className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0"
+                                                   >
+                                                      {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+                                                   </button>
+                                                </div>
+                                             }
+                                          />
                                        );
                                     })}
                                  </div>
@@ -242,9 +265,9 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         </div>
                      </CommandScreenMain>
 
-                     <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="bolt">
+                     <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon={t("icon_bolt", "bolt")}>
                         <CommandScreenQuickLink
-                           icon="settings"
+                           icon={t("icon_settings", "settings")}
                            title={t("configs", "Configs")}
                            subtitle={t("workbench_subtitle", "Manage Configuration Files")}
                            textColorClass="text-blue-400"
@@ -253,7 +276,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                            onClick={() => setMainTab("CONFIGS" as any)}
                         />
                         <CommandScreenQuickLink
-                           icon="data_object"
+                           icon={t("icon_data_object", "data_object")}
                            title={t("ql_templates", "Templates")}
                            subtitle={t("ql_templates_desc", "Manage Metadata Formats")}
                            textColorClass="text-emerald-400"
@@ -262,7 +285,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                            onClick={() => setMainTab("TEMPLATES" as any)}
                         />
                         <CommandScreenQuickLink
-                           icon="note_add"
+                           icon={t("icon_note_add", "note_add")}
                            title={t("btn_new_template", "New Template")}
                            subtitle={t("author_mode", "Author Mode")}
                            textColorClass="text-cyan-400"
@@ -275,7 +298,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         />
                         {unsavedConfigsCount > 0 && (
                            <CommandScreenQuickLink
-                              icon="edit_document"
+                              icon={t("icon_edit_document", "edit_document")}
                               title={t("unsaved_configs", "Unsaved Configs")}
                               subtitle={`${unsavedConfigsCount} ${t("unsaved_changes", "unsaved")}`}
                               textColorClass="text-amber-400"
@@ -286,7 +309,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         )}
                         {unsavedTemplatesCount > 0 && (
                            <CommandScreenQuickLink
-                              icon="edit_note"
+                              icon={t("icon_edit_note", "edit_note")}
                               title={t("unsaved_templates", "Unsaved Templates")}
                               subtitle={`${unsavedTemplatesCount} ${t("unsaved_changes", "unsaved")}`}
                               textColorClass="text-orange-400"
@@ -296,9 +319,9 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                            />
                         )}
                         <CommandScreenQuickLink
-                           icon="explore"
+                           icon={t("icon_explore", "explore")}
                            title={t("nexus_templates", "Nexus Templates")}
-                           subtitle={t("search_nexus", "Discover Community Templates")}
+                           subtitle={t("search_nexus", "Search The {Nexus}")}
                            textColorClass="text-fuchsia-400"
                            hoverTextColorClass="group-hover:text-fuchsia-300"
                            dotColorClass="bg-fuchsia-400"
@@ -393,17 +416,16 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             title={t("auto_report", "Report Template")}
             subtitle={t("flag_reason", "Report an issue with this community template")}
             icon={t("icon_flag", "flag")}
-            iconColorClass="text-rose-500"
-            footer={
-               flagSuccess ? undefined : (
-                  <div className="flex w-full gap-3 mt-4">
-                     <button
-                        onClick={() => setIsFlagPanelOpen(false)}
-                        className={standardButtonClass + " flex-1"}
-                     >
-                        {t("nav_cancel", "Cancel")}
-                     </button>
-                     <button
+            iconColorClass="text-[var(--danger)]"
+            widthClass="w-[90vw] md:w-[640px]"
+            headerActions={
+               !flagSuccess ? (
+                  <PanelHeaderGroup>
+                     <PanelHeaderButton
+                        icon={isFlagging ? t("icon_refresh", "refresh") : t("icon_flag", "flag")}
+                        variant="danger"
+                        tooltip={isFlagging ? t("create_btn_creating", "Submitting...") : t("auto_report", "Report")}
+                        disabled={isFlagging || !flagReason.trim()}
                         onClick={async () => {
                            if (!flagReason.trim()) return;
                            setIsFlagging(true);
@@ -413,34 +435,42 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                            setIsFlagging(false);
                            setFlagSuccess(true);
                         }}
-                        disabled={isFlagging || !flagReason.trim()}
-                        className={standardDangerButtonClass + " flex-1"}
-                     >
-                        {isFlagging ? <span className="material-symbols-outlined animate-spin">{t("icon_refresh", "refresh")}</span> : <span className="material-symbols-outlined">{t("icon_flag", "flag")}</span>}
-                        {isFlagging ? t("create_btn_creating", "Submitting...") : t("auto_report", "Report")}
-                     </button>
-                  </div>
-               )
+                     />
+                  </PanelHeaderGroup>
+               ) : undefined
             }
          >
-            <div className="p-8 flex flex-col gap-6">
+            <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+               <SidePanelHeroCard
+                  icon={flagSuccess ? t("icon_check_circle", "check_circle") : t("icon_flag", "flag")}
+                  overline={t("auto_report", "Community Template Report")}
+                  title={selectedTemplatePath?.split(/[\\/]/).pop() || t("auto_report", "Report Template")}
+                  description={t("flag_reason", "Report an issue or policy violation with this community template.")}
+                  badge={flagSuccess ? t("status_submitted", "Submitted") : t("auto_report", "Report")}
+                  variant={flagSuccess ? "success" : "danger"}
+               />
+
                {flagSuccess ? (
-                  <div className="flex flex-col items-center justify-center p-12 text-center gap-4">
-                     <div className="w-16 h-16 rounded-full bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-emerald-500 flex items-center justify-center">
-                        <span className="material-symbols-outlined !text-3xl">{t("icon_check", "check")}</span>
-                     </div>
-                     <p className="text-[var(--text)] font-bold">{t("verify_panel_flag_success", "Report submitted successfully.")}</p>
-                  </div>
+                  <UniversalGroup
+                     title={t("verify_panel_flag_success", "Report Submitted")}
+                     icon={t("icon_check_circle", "check_circle")}
+                  >
+                     <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed m-0">
+                        {t("verify_panel_flag_success", "Report submitted successfully.")}
+                     </p>
+                  </UniversalGroup>
                ) : (
-                  <div className="glass-panel p-6 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-                     <label className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("flag_reason", "Reason")}</label>
+                  <UniversalGroup
+                     title={t("flag_reason", "Reason")}
+                     icon={t("icon_edit_note", "edit_note")}
+                  >
                      <textarea
                         value={flagReason}
                         onChange={(e) => setFlagReason(e.target.value)}
-                        className="w-full h-32 bg-black/20 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-[12px] font-bold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] resize-none custom-scrollbar"
+                        className="w-full h-32 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:border-[var(--danger)] resize-y custom-scrollbar"
                         placeholder={t("flag_reason", "Describe the issue...")}
                      />
-                  </div>
+                  </UniversalGroup>
                )}
             </div>
          </SidePanel>

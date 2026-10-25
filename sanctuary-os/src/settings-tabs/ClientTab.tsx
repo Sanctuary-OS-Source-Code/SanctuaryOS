@@ -41,27 +41,27 @@ export default function ClientTab() {
   };
 
   return (
-    <TabContainer title={t("tab_preferences")} icon="tune">
+    <TabContainer title={t("tab_preferences", "Preferences")} icon="tune">
       <SettingsGrid>
         <UniversalCard 
-          title={t("local_only")} 
-          subtitle={t("local_only_desc")} 
+          title={t("local_only", "Local Network Only")} 
+          subtitle={t("local_only_desc", "Block external uploads/downloads. Strict offline mode.")} 
           icon="wifi_off"
           onClick={toggleLocalOnly}
           actions={<SettingsToggle checked={localOnly} />}
         />
         
         <UniversalCard 
-          title={t("show_images")} 
-          subtitle={t("show_images_desc")} 
+          title={t("show_images", "Show {Mod} Images")} 
+          subtitle={t("show_images_desc", "Display cover images on {mod} cards and profiles.")} 
           icon="image"
           onClick={() => setShowImages(!showImages)}
           actions={<SettingsToggle checked={showImages} />}
         />
         
         <UniversalCard 
-          title={t("settings_use_internal_browser")} 
-          subtitle={`${t("use_internal_browser_desc")} ${t("use_internal_browser_desc2")}`} 
+          title={t("settings_use_internal_browser", "Use the Sanctuary Browser")} 
+          subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`} 
           icon="language"
           onClick={() => setUseInternalBrowser(!useInternalBrowser)}
           actions={<SettingsToggle checked={useInternalBrowser} />}
@@ -69,8 +69,8 @@ export default function ClientTab() {
 
         <div className="relative group/malware">
           <UniversalCard 
-            title={t("malware_share_title")} 
-            subtitle={`${t("malware_share_desc")} ${t("malware_share_desc2")}`} 
+            title={t("malware_share_title", "Share Malware Reports")} 
+            subtitle={`${t("malware_share_desc", "Send your local quarantine manifests to the Admins for analysis and malware activity updates.")} ${t("malware_share_desc2", "All manifests are strickly metadata only and contain no personal or any identifying information.")}`} 
             icon="security"
             onClick={() => {
               if (!session || isBanned) return;
@@ -86,8 +86,8 @@ export default function ClientTab() {
           />
           {(!session || isBanned) && (
             <HoverTooltip
-              title={t("access_denied")}
-              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45")}
+              title={t("access_denied", "Access Denied")}
+              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Guest Mode Active")}
               variant="danger"
               className="group-hover/malware:flex group-hover/malware:opacity-100"
             />
@@ -95,13 +95,13 @@ export default function ClientTab() {
         </div>
 
         <UniversalCard 
-          title={t("btn_reset_all_local")} 
-          subtitle={t("reset_all_local_desc")} 
+          title={t("btn_reset_all_local", "Reset All Local Overrides")} 
+          subtitle={t("reset_all_local_desc", "Permanently clear all locally saved metadata overrides for all {mods}.")} 
           icon="delete_forever"
           statusColor="border-red-500"
           onClick={() => {
             localStorage.removeItem('sanctuary_local_overrides');
-            useStore.getState().pushStatus(t("local_overrides_cleared"));
+            useStore.getState().pushStatus(t("local_overrides_cleared", "All local metadata overrides have been cleared."));
           }}
           actions={
             <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">

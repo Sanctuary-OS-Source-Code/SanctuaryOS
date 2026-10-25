@@ -4,8 +4,13 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
+import { logArchitectAction } from '../lib/audit';
+
+const VAULT_CHIP_CLASS =
+  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -53,16 +58,18 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     try {
       await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 0, status: 'verified' } });
-      const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', {
-        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Cleared compliance flag for artifact: ${mod.name}`,
-          target_table: 'mods',
-          target_name: mod.id,
-          actor_id: userRes.data?.user?.id,
-          reason: editReason
+      await logArchitectAction(
+        `Cleared compliance flag for artifact: ${mod.name}`,
+        'mods',
+        mod.name || mod.id,
+        editReason,
+        'Oversight Compliance',
+        false,
+        {
+          compliance_tier: { from: mod.compliance_tier, to: 0 },
+          status: { from: mod.status || 'flagged', to: 'verified' }
         }
-      });
+      );
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -80,16 +87,18 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     try {
       await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 2, status: 'blacklisted' } });
-      const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', {
-        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Set compliance flag for artifact: ${mod.name} to Tier 2`,
-          target_table: 'mods',
-          target_name: mod.id,
-          actor_id: userRes.data?.user?.id,
-          reason: editReason
+      await logArchitectAction(
+        `Set compliance flag for artifact: ${mod.name} to Tier 2`,
+        'mods',
+        mod.name || mod.id,
+        editReason,
+        'Oversight Compliance',
+        false,
+        {
+          compliance_tier: { from: mod.compliance_tier, to: 2 },
+          status: { from: mod.status || 'verified', to: 'blacklisted' }
         }
-      });
+      );
       setEditReason("");
       fetchMods();
     } catch (err) {
@@ -121,18 +130,17 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: selectedMod.id, compliance_tier: editTier } });
       if (error) throw error;
 
-      const userRes = await supabase.auth.getUser();
-      const myId = userRes.data.user?.id;
-
-      await supabase.rpc('secure_upsert_cloud_file', {
-        p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-          action: `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
-          target_table: 'mods',
-          target_name: selectedMod.name || selectedMod.id,
-          actor_id: myId,
-          reason: editReason.trim() || "Compliance Update"
+      await logArchitectAction(
+        `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
+        'mods',
+        selectedMod.name || selectedMod.id,
+        editReason.trim() || "Compliance Update",
+        'Oversight Compliance',
+        false,
+        {
+          compliance_tier: { from: selectedMod.compliance_tier, to: editTier }
         }
-      });
+      );
 
       setStatus(t("identities_updated", "Success"));
       setSelectedMod(null);
@@ -184,45 +192,67 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview", "Overview"),
+      label: t("overview", "Overview"),
       icon: "dashboard",
       number: (pendingCount + activeCount + inactiveCount).toString(),
     },
     { id: 'pending', label: t("pending", "Pending"), icon: 'policy', number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
     { id: 'active', label: t("status_active", "Active"), icon: 'verified', number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
-    { id: 'inactive', label: t("status_inactive", "Inactive"), icon: 'block', number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
+    { id: 'inactive', label: t("tab_inactive", "Inactive"), icon: 'block', number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
   ];
 
   const renderModCard = (mod: any) => {
     const td = getTierDetails(mod.compliance_tier);
+    const statusLower = (mod.status || "").toLowerCase();
+    const isPending = ["under_review", "pending", "unverified"].includes(statusLower);
+    const isInactive = mod.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(statusLower);
+    const statusLabel = isPending ? t("pending", "Pending") : isInactive ? t("tab_inactive", "Inactive") : t("status_active", "Active");
+    const statusIcon = isPending ? t("icon_schedule", "schedule") : isInactive ? t("icon_block", "block") : t("icon_verified", "verified");
+    const statusIconColor = isPending ? "text-[var(--warning)]" : isInactive ? "text-[var(--danger)]" : "text-[var(--success)]";
+
     return (
       <UniversalCard
         key={mod.id}
         onClick={() => handleOpenPanel(mod)}
         layout="vertical"
-        icon="policy"
+        icon={t("icon_policy", "policy")}
+        customIcon={<DynamicArtifactPreviewBanner data={mod} icon={t("icon_policy", "policy")} heightClass="h-full" />}
         title={mod.name}
-        subtitle={
-          <span className="flex gap-1.5 items-center">
-            <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_person", "person")}</span>
-            {mod.master_author || t("unknown_mason", "Unknown Mason")}
-          </span>
-        }
-        badges={[
-          <div key="tier" className={`px-2.5 py-1 rounded-lg bg-transparent border ${td.border} text-[9px] font-black uppercase tracking-wider ${td.color} flex items-center gap-1.5 shrink-0`}>
-            <span className={`material-symbols-outlined !text-[12px] ${td.color}`}>
-              {t("icon_policy", "policy")}
-            </span>
-            <span>{td.label}</span>
+        subtitle={`${t("by_prefix", "By")} ${mod.master_author || t("unknown_mason", "Unknown {Mason}")}`}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${td.color}`}>
+                {t("icon_policy", "policy")}
+              </span>
+              <span>{td.label}</span>
+            </div>
           </div>
-        ]}
+        }
+        badges={
+          <>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                {statusIcon}
+              </span>
+              <span>{statusLabel}</span>
+            </div>
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_fingerprint", "fingerprint")}
+              </span>
+              <span>{mod.id.substring(0, 8)}</span>
+            </div>
+          </>
+        }
         footer={
           <div className="flex justify-between items-center w-full">
-            <span className="flex items-center gap-1.5 truncate">
-              <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_fingerprint", "fingerprint")}</span>
-              {mod.id.substring(0, 8)}
+            <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+              {td.label}
             </span>
-            <span className="text-[10px] font-black theme-text-accent capitalize opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0">{t("btn_review", "Review")} &rarr;</span>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+              {t("btn_review", "Review")} <span className="text-base leading-none">&rarr;</span>
+            </span>
           </div>
         }
       />
@@ -238,10 +268,10 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       <HubOverviewLanding>
         <HubOverviewSection
           title={t("recent_pending", "Recent Pending")}
-          icon="policy"
+          icon={t("icon_policy", "policy")}
           iconColorClass="text-[var(--danger)]"
           isEmpty={pendingMods.length === 0}
-          emptyIcon="policy"
+          emptyIcon={t("icon_policy", "policy")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
         >
           {pendingMods.slice(0, 6).map(renderModCard)}
@@ -249,10 +279,10 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
         <HubOverviewSection
           title={t("recent_live", "Recent Active")}
-          icon="verified"
+          icon={t("icon_verified", "verified")}
           iconColorClass="text-[var(--success)]"
           isEmpty={activeMods.length === 0}
-          emptyIcon="verified"
+          emptyIcon={t("icon_verified", "verified")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
         >
           {activeMods.slice(0, 6).map(renderModCard)}
@@ -260,11 +290,11 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
         <HubOverviewSection
           title={t("recent_inactive", "Recent Inactive")}
-          icon="block"
+          icon={t("icon_block", "block")}
           iconColorClass="text-[var(--warning)]"
           className="col-span-1 xl:col-span-2"
           isEmpty={inactiveMods.length === 0}
-          emptyIcon="block"
+          emptyIcon={t("icon_block", "block")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
         >
           {inactiveMods.slice(0, 6).map(renderModCard)}
@@ -276,12 +306,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   return (
     <ElevatedHubLayout
       headerTitle={t("hub_compliance", "Compliance Oversight")}
-      headerSubtitle={t("hub_compliance_subtitle", "Manage and review system compliance and artifact safety")}
+      headerSubtitle={t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
       headerIcon="gavel"
       headerIconColorClass="text-[var(--danger)]"
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder={t("search_ph", "Search...")}
+      searchPlaceholder={t("search_ph", "Search {mods}...")}
       hideSearch={filterStatus === 'overview'}
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
@@ -341,7 +371,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         title={t("comp_edit_tier", "Compliance Enforcement")}
         icon={t("icon_policy", "policy")}
         iconColorClass="text-[var(--danger)]"
-        subtitle={selectedMod ? `${t("lbl_uuid", "UUID")}: ${selectedMod.id}` : t("hub_compliance_subtitle", "Manage and review system compliance and artifact safety")}
+        subtitle={selectedMod ? `${t("lbl_uuid", "UUID")}: ${selectedMod.id}` : t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
@@ -379,15 +409,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             icon={t("icon_policy", "policy")}
             overline={t("hub_compliance", "Compliance Oversight")}
             title={selectedMod?.name || t("comp_edit_tier", "Compliance Enforcement")}
-            description={t("hub_compliance_subtitle", "Manage and review system compliance and artifact safety")}
+            description={t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
             badge={getTierDetails(editTier).label}
             badgeIcon="policy"
             variant={editTier >= 3 ? "danger" : editTier >= 1 ? "warning" : "success"}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
-                label={t("mason", "Mason")}
-                value={selectedMod?.master_author || t("unknown_mason", "Unknown Mason")}
+                label={t("mason", "{Mason}")}
+                value={selectedMod?.master_author || t("unknown_mason", "Unknown {Mason}")}
                 icon="person"
                 iconColorClass="text-[var(--accent)]"
               />
@@ -417,7 +447,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           <SidePanelTitleInput
             value={selectedMod?.name || ""}
             readOnly
-            label={t("label_modname", "Artifact Name")}
+            label={t("label_modname", "{Mod} Name")}
             subtitle={`${t("lbl_uuid", "UUID")}: ${selectedMod?.id || ""}`}
           />
 

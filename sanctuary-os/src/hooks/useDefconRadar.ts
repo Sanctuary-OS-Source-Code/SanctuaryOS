@@ -24,7 +24,7 @@ export function useDefconRadar(t: (key: string, fallback?: string) => string, as
         uniqueId: defconUniqueId,
         category: 'defcon',
         title: t("notif_defcon_os_title", "Game Patch Detected — Safety Lockdown"),
-        body: t("notif_defcon_os_body", "A new game update was detected. Sanctuary OS has engaged safety protocols to protect your mods and saves."),
+        body: t("notif_defcon_os_body", "A new game update was detected. Sanctuary OS has engaged safety protocols to protect your {mods} and saves."),
         data: { type: 'defcon', workspaceId: activeWorkspaceId },
       });
     };
@@ -94,7 +94,7 @@ export function useDefconRadar(t: (key: string, fallback?: string) => string, as
                 localStorage.setItem('sanctuary_defcon_ack', 'true');
               } else if (agency === 1) {
                 if (defconMode !== 'NONE') {
-                  askCustom(t("defcon_prompt_patch_detected"), false, t("defcon_btn_backup"), t("defcon_btn_skip"), true, t("defcon_alert_title")).then(async (proceed: boolean) => {
+                  askCustom(t("defcon_prompt_patch_detected", "A game patch has been detected.\n\nWould you like to run an emergency backup now?"), false, t("defcon_btn_backup", "Backup"), t("defcon_btn_skip", "SKIP"), true, t("tile_global_alert", "Global Alert")).then(async (proceed: boolean) => {
                     if (proceed) {
                       await runDefconBackups();
                     }

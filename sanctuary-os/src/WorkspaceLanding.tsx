@@ -126,9 +126,9 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
       <div className="w-full h-full flex-1 flex flex-col p-4 overflow-hidden gap-6">
 
         {!selectedGameConfig && (
-          <HoverTabDrawer title={t("quick_actions")}>
-            <VerticalTabButton id="configured" icon="storage" label={t("tab_workspace")} activeTab={filterTab} setTab={setFilterTab} />
-            <VerticalTabButton id="unconfigured" icon="add_circle" label={t("workspace_unconfigured")} activeTab={filterTab} setTab={setFilterTab} />
+          <HoverTabDrawer title={t("quick_actions", "Quick Actions")}>
+            <VerticalTabButton id="configured" icon="storage" label={t("tab_workspace", "Workspace")} activeTab={filterTab} setTab={setFilterTab} />
+            <VerticalTabButton id="unconfigured" icon="add_circle" label={t("workspace_unconfigured", "Unconfigured")} activeTab={filterTab} setTab={setFilterTab} />
           </HoverTabDrawer>
         )}
 
@@ -138,25 +138,25 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
               <CartographerSetup preselectedGame={selectedGameConfig} onCancel={() => setSelectedGameConfig(null)} />
             </>
           ) : (
-            <>
-              <CommandScreenSectionHeading
-                title={t("workspace_sidebar")}
-                subtitle={t("workspace_select_subtitle")}
-                icon="dns"
-                shape="circle"
-                rightContent={
-                  <div className="w-[300px]">
-                    <ActionPill
-                      searchQuery={searchQuery}
-                      setSearchQuery={setSearchQuery}
-                      searchPlaceholder={t("search_ph")}
-                    />
-                  </div>
-                }
-              />
+            <CommandScreenBody>
+              <CommandScreenMain>
+                <div className="flex flex-col gap-4 w-full">
+                  <CommandScreenSectionHeading
+                    title={t("workspace_sidebar", "Workspaces")}
+                    subtitle={t("workspace_select_subtitle", "Choose Your Instance")}
+                    icon="dns"
+                    shape="circle"
+                    rightContent={
+                      <div className="w-[300px]">
+                        <ActionPill
+                          searchQuery={searchQuery}
+                          setSearchQuery={setSearchQuery}
+                          searchPlaceholder={t("search_ph", "Search {mods}...")}
+                        />
+                      </div>
+                    }
+                  />
 
-              <CommandScreenBody>
-                <CommandScreenMain>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-6 pb-20">
                     {filteredCards.map((card: any, idx: number) => {
                       if (card.type === 'workspace') {
@@ -182,16 +182,16 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
                         const footer = (
                           <div className="flex flex-col min-w-0 flex-1 pr-2">
-                            <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                            <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status", "Status")}</span>
                             {isSelecting === ws.id ? (
                               <span className="text-[11px] font-bold text-[var(--accent)] opacity-90 mt-1 flex items-center gap-2 truncate animate-pulse">
                                 <span className="material-symbols-outlined !text-[14px] shrink-0 animate-spin">sync</span>
-                                <span className="truncate">{t("workspace_loading")}</span>
+                                <span className="truncate">{t("workspace_loading", "Loading Workspaces...")}</span>
                               </span>
                             ) : (
                               <span className="text-[11px] font-bold text-[var(--success)] opacity-90 mt-1 flex items-center gap-2 truncate">
                                 <span className="material-symbols-outlined !text-[14px] shrink-0">check_circle</span>
-                                <span className="truncate">{t("tab_workspace")}</span>
+                                <span className="truncate">{t("tab_workspace", "Workspace")}</span>
                               </span>
                             )}
                           </div>
@@ -220,10 +220,10 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
 
                         const footer = (
                           <div className="flex flex-col min-w-0 flex-1 pr-2">
-                            <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status")}</span>
+                            <span className="text-[9px] font-black capitalize tracking-[0.2em] text-[var(--subtext)] opacity-50">{t("status", "Status")}</span>
                             <span className="text-[11px] font-bold text-[var(--warning)] opacity-90 mt-1 flex items-center gap-2 truncate">
                               <span className="material-symbols-outlined !text-[14px] shrink-0">error</span>
-                              <span className="truncate">{t("workspace_unconfigured")}</span>
+                              <span className="truncate">{t("workspace_unconfigured", "Unconfigured")}</span>
                             </span>
                           </div>
                         );
@@ -243,12 +243,12 @@ export function WorkspaceLanding({ onClose, isModal }: { onClose?: () => void, i
                     })}
 
                     {filteredCards.length === 0 && (
-                      <EmptyState icon="search" title={t("no_assets")} className="col-span-full py-16" />
+                      <EmptyState icon="search" title={t("no_assets", "No assets found")} className="col-span-full py-16" />
                     )}
                   </div>
-                </CommandScreenMain>
-              </CommandScreenBody>
-            </>
+                </div>
+              </CommandScreenMain>
+            </CommandScreenBody>
           )}
         </CommandScreenLayout>
       </div>

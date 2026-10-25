@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
 import { supabase, supabaseAuth } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, standardAccentGlassButtonClass, EmptyState, FilterTabs, FilterTabButton } from "../shared";
+import { CustomDropdown, EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
+import KeeperSupportSettings from "./KeeperSupportSettings";
 
 interface Ticket {
   id: string;
@@ -24,16 +25,39 @@ interface Ticket {
   onEditMetadata?: (hash: string) => void;
 }
 
-export default function KeepersSupportTickets({ userRole = "keeper", masonProfileId, onEditMetadata, setStatus }: { userRole?: string, masonProfileId?: string, onEditMetadata?: (hash: string) => void, setStatus?: any }) {
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+export default function KeepersSupportTickets({
+  userRole = "keeper",
+  masonProfileId,
+  onEditMetadata,
+  setStatus,
+  initialTab
+}: {
+  userRole?: string;
+  masonProfileId?: string;
+  onEditMetadata?: (hash: string) => void;
+  setStatus?: any;
+  initialTab?: "overview" | "new" | "pending" | "closed" | "settings";
+}) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed">("overview");
+  const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed" | "settings">(initialTab || "overview");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
+  const [settingsCount, setSettingsCount] = useState<number>(0);
+  const [settingsStatusFilter, setSettingsStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const openCatRef = useRef<(() => void) | null>(null);
   const currentUserId = useStore(state => state.session?.user?.id);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveFilter(initialTab);
+    }
+  }, [initialTab]);
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -41,7 +65,6 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       .from('keeper_tickets')
       .select('*')
       .order('created_at', { ascending: false });
-
 
     if (userRole === "mason" && masonProfileId) {
       query = query.eq('author_id', masonProfileId);
@@ -66,6 +89,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       }));
 
       const { data: catData } = await supabaseAuth.from('keeper_support_categories').select('*');
+      setSettingsCount(catData?.length || 0);
 
       const targetModIds = [...new Set(mergedTickets.map(t => t.target_mod_id || t.metadata?.target_mod_id).filter(Boolean))];
       const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -100,7 +124,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
 
       const uniqueCats = [...new Set(finalTickets.map(t => t.ticket_type || t.category || "GENERAL"))];
       const dynamicOptions = [
-        { id: "all", label: t("ui_tab_all_types") },
+        { id: "all", label: t("all_types", "All Types") },
         ...uniqueCats.map(c => ({ id: c, label: c.replace(/_/g, ' ') }))
       ];
       setCategoryOptions(dynamicOptions);
@@ -143,11 +167,11 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
       .eq('id', selectedTicket.id);
 
     if (error) {
-      useStore.getState().pushStatus("Failed to update ticket: " + error.message, "error");
+      useStore.getState().pushStatus(t("err_save_failed", "Save failed:") + " " + error.message, "error");
       return;
     }
 
-    useStore.getState().pushStatus(t("auto_ticket_status_updated_39"), "success");
+    useStore.getState().pushStatus(t("auto_ticket_status_updated_39", "Ticket status updated."), "success");
 
     if (userRole === "keeper" || userRole === "keepers") {
       logArchitectAction(`Keeper Ticket ${actionType}: ${reason}`, 'keeper_tickets', selectedTicket.id, undefined, 'Keeper Hub', true);
@@ -161,9 +185,9 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId };
     const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
-       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
-       fetchTickets();
-       useStore.getState().pushStatus(t("ticket_claim") || "Ticket Claimed", "success");
+      setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+      fetchTickets();
+      useStore.getState().pushStatus(t("ticket_claim", "Claim Ticket") || "Ticket Claimed", "success");
     }
   };
 
@@ -173,58 +197,117 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     delete newMetadata.claimed_by;
     const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
-       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
-       fetchTickets();
-       useStore.getState().pushStatus(t("ticket_release") || "Ticket Released", "success");
+      setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
+      fetchTickets();
+      useStore.getState().pushStatus(t("ticket_release", "Release Ticket") || "Ticket Released", "success");
     }
   };
 
-  const renderTicketCard = (ticket: Ticket) => (
-    <UniversalCard
-      key={ticket.id}
-      onClick={() => setSelectedTicket(ticket)}
-      layout="vertical"
-      icon={ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'support_agent' : ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'done_all' : ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'warning' : ticket.status?.toLowerCase() === 'escalated' ? 'priority_high' : 'bug_report'}
-      title={ticket.title}
-      statusColor={
-        ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'border-[var(--danger)]' :
-        ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'border-[var(--success)]' :
-        ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'border-[var(--warning)]' :
-        ticket.status?.toLowerCase() === 'escalated' ? 'border-[var(--accent)]' : undefined
-      }
-      badges={[
-        <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
-                    ${ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open' ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'closed' || ticket.status?.toLowerCase() === 'resolved' || ticket.status?.toLowerCase() === 'rejected' ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'investigating' || ticket.status?.toLowerCase() === 'pending' ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
-                    ${ticket.status?.toLowerCase() === 'escalated' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
-                    ${!['new', 'open', 'closed', 'resolved', 'rejected', 'investigating', 'pending', 'escalated'].includes(ticket.status?.toLowerCase() || '') ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
-                `}>
-          {(ticket.status?.toLowerCase() === 'new' || ticket.status?.toLowerCase() === 'open') ? (t("ui_tab_new")) : (t(`ticket_status_${ticket.status.toLowerCase()}`) || ticket.status || "NEW")}
-        </span>,
-        (ticket.ticket_type || ticket.category) && (
-          <span key="category" className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
-            {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
-          </span>
-        )
-      ].filter(Boolean)}
-      footer={
-        <div className="flex justify-between items-center w-full">
-          <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-            <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
-            {new Date(ticket.created_at).toLocaleDateString()}
-          </span>
-          <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
-            {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-          </button>
-        </div>
-      }
-    >
-      <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity mt-4">
-        {ticket.description}
-      </p>
-    </UniversalCard>
-  );
+  const renderTicketCard = (ticket: Ticket) => {
+    const statusLower = ticket.status?.toLowerCase() || 'new';
+    const isNew = statusLower === 'new' || statusLower === 'open';
+    const isResolved = statusLower === 'closed' || statusLower === 'resolved';
+    const isRejected = statusLower === 'rejected';
+    const isPending = statusLower === 'investigating' || statusLower === 'pending';
+    const isEscalated = statusLower === 'escalated';
+
+    const statusIconColor = isResolved
+      ? "text-[var(--success)]"
+      : isEscalated || isRejected
+        ? "text-[var(--danger)]"
+        : isPending
+          ? "text-[var(--warning)]"
+          : "text-[var(--accent)]";
+
+    const statusIcon = isResolved
+      ? t("icon_check_circle", "check_circle")
+      : isRejected
+        ? t("icon_cancel", "cancel")
+        : isEscalated
+          ? t("icon_priority_high", "priority_high")
+          : isPending
+            ? t("icon_schedule", "schedule")
+            : t("icon_confirmation_number", "confirmation_number");
+
+    const statusLabel = isNew
+      ? t("ticket_status_open", "Open")
+      : isResolved
+        ? t("ticket_status_resolved", "Resolved")
+        : isRejected
+          ? t("ticket_status_rejected", "Rejected")
+          : isEscalated
+            ? t("ticket_status_escalated", "Escalated")
+            : isPending
+              ? t("ticket_status_pending", "Pending")
+              : t(`ticket_status_${statusLower}`, ticket.status || "Open");
+
+    return (
+      <UniversalCard
+        key={ticket.id}
+        onClick={() => setSelectedTicket(ticket)}
+        layout="vertical"
+        isGhosted={isResolved || isRejected}
+        icon={t("icon_support_agent", "support_agent")}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                {statusIcon}
+              </span>
+              <span>{statusLabel}</span>
+            </div>
+            {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                  {t("icon_bolt", "bolt")}
+                </span>
+                <span>{t("urgent", "Urgent")}</span>
+              </div>
+            )}
+          </div>
+        }
+        title={ticket.title}
+        subtitle={ticket.author_username ? `${ticket.author_username} • #${ticket.id.slice(0, 8)}` : `#${ticket.id.slice(0, 8)}`}
+        badges={
+          <>
+            {(ticket.ticket_type || ticket.category) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_local_activity", "local_activity")}
+                </span>
+                <span>{(ticket.ticket_type || ticket.category || "").replace(/_/g, " ")}</span>
+              </div>
+            )}
+            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                  {t("icon_extension", "extension")}
+                </span>
+                <span className="truncate max-w-[140px]">
+                  {String(ticket.target_mod_id || ticket.metadata?.target_mod_id).slice(0, 12)}
+                </span>
+              </div>
+            )}
+          </>
+        }
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
+              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
+              {new Date(ticket.created_at).toLocaleDateString()}
+            </span>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+              {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+            </span>
+          </div>
+        }
+      >
+        <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+          {ticket.description}
+        </p>
+      </UniversalCard>
+    );
+  };
 
   const renderLanding = () => {
     const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status);
@@ -233,21 +316,21 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          title={t("recent_new_reports") || "Recent New"}
-          icon="new_releases"
+          title={t("recent_new_reports", "Recent New Reports") || "Recent New"}
+          icon={t("icon_new_releases", "new_releases")}
           iconColorClass="text-[var(--danger)]"
           isEmpty={newTickets.length === 0}
-          emptyState={<EmptyState icon="support_agent" title={t("no_bug_reports") || "No New Tickets"} className="py-8" />}
+          emptyState={<EmptyState icon={t("icon_support_agent", "support_agent")} title={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") || "No New Tickets"} className="py-8" />}
         >
           {newTickets.slice(0, 4).map(renderTicketCard)}
         </HubOverviewSection>
 
         <HubOverviewSection
-          title={t("recent_pending") || "Recent Pending"}
-          icon="pending_actions"
+          title={t("recent_pending", "Recent Pending") || "Recent Pending"}
+          icon={t("icon_pending_actions", "pending_actions")}
           iconColorClass="text-[var(--warning)]"
           isEmpty={pendingTickets.length === 0}
-          emptyState={<EmptyState icon="done_all" title={t("no_tickets") || "No Pending Tickets"} className="py-8" />}
+          emptyState={<EmptyState icon={t("icon_done_all", "done_all")} title={t("no_tickets", "No Support Tickets") || "No Pending Tickets"} className="py-8" />}
         >
           {pendingTickets.slice(0, 4).map(renderTicketCard)}
         </HubOverviewSection>
@@ -258,71 +341,123 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
+      label: t("overview", "Overview") || "Overview",
+      icon: t("icon_dashboard", "dashboard"),
       number: tickets.length.toString(),
     },
     {
       id: "new",
-      label: t("ui_tab_new"),
-      icon: "new_releases",
+      label: t("badge_new", "NEW"),
+      icon: t("icon_new_releases", "new_releases"),
       number: tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status).length.toString(),
     },
     {
       id: "pending",
-      label: t("ticket_tab_claimed") || t("pending"),
-      icon: "pending_actions",
+      label: t("ticket_tab_claimed", "Claimed") || t("pending", "Pending"),
+      icon: t("icon_pending_actions", "pending_actions"),
       number: tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length.toString(),
     },
     {
       id: "closed",
-      label: t("ui_tab_closed"),
-      icon: "check_circle",
+      label: t("filter_closed", "Closed"),
+      icon: t("icon_check_circle", "check_circle"),
       number: tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length.toString(),
+      colorClass: "text-[var(--success)]",
+    },
+    {
+      id: "settings",
+      label: t("settings", "Settings") || "Settings",
+      icon: t("icon_settings", "settings"),
+      number: settingsCount.toString(),
     }
   ];
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("hub_title_tickets") || "Support Tickets"}
-      headerSubtitle={t("hub_subtitle_tickets") || "Manage and resolve citizen support requests."}
-      headerIcon="support_agent"
+      headerTitle={t("support_tickets", "Support Tickets") || "Support Tickets"}
+      headerSubtitle={t("hub_subtitle_tickets", "Manage and resolve {citizen} support requests.") || "Manage and resolve citizen support requests."}
+      headerIcon={t("icon_support_agent", "support_agent")}
       headerIconColorClass="text-[var(--accent)]"
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={t("ui_placeholder_search")}
+      searchPlaceholder={t("nav_search", "Search...")}
       hideSearch={activeFilter === 'overview'}
       tabs={tabs}
-
       activeTab={activeFilter}
       onTabChange={(id) => setActiveFilter(id as any)}
       primaryPopover={
-        activeFilter !== 'overview' ? {
-          icon: "tune",
-          label: t("filters") || "Filters",
-          content: (
-            <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category") || "Category"}</span>
-                <CustomDropdown
-                  flat={true}
-                  variant="pill"
-                  value={activeCategory}
-                  onChange={(v: string[]) => setActiveCategory(v[0])}
-                  options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-                  disableTint={true}
-                />
-              </div>
-            </div>
-          )
-        } : undefined
+        activeFilter === 'settings'
+          ? {
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters") || "Filters",
+              content: (
+                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("status", "Status") || "Status"}</span>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      value={settingsStatusFilter}
+                      onChange={(v: string[]) => setSettingsStatusFilter((v[0] as any) || "all")}
+                      options={[
+                        { id: "all", label: t("all_classes", "All Categories") },
+                        { id: "active", label: t("support_active_only", "Active Only") },
+                        { id: "inactive", label: t("support_inactive_only", "Inactive Only") }
+                      ]}
+                      disableTint={true}
+                    />
+                  </div>
+                </div>
+              )
+            }
+          : activeFilter !== 'overview'
+            ? {
+                icon: t("icon_tune", "tune"),
+                label: t("filters", "Filters") || "Filters",
+                content: (
+                  <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category", "Category") || "Category"}</span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        value={activeCategory}
+                        onChange={(v: string[]) => setActiveCategory(v[0])}
+                        options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("all_types", "All Types") }]}
+                        disableTint={true}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            : undefined
+      }
+      actions={
+        activeFilter === 'settings'
+          ? [
+              {
+                id: "add_cat",
+                icon: t("icon_add", "add"),
+                label: t("support_add_cat", "Add Category"),
+                onClick: () => openCatRef.current?.()
+              }
+            ]
+          : undefined
       }
     >
-      {activeFilter === 'overview' ? renderLanding() : (
+      {activeFilter === 'settings' ? (
+        <KeeperSupportSettings
+          embedded={true}
+          externalSearch={searchQuery}
+          statusFilter={settingsStatusFilter}
+          openCatRef={openCatRef}
+          onCountsChange={setSettingsCount}
+        />
+      ) : activeFilter === 'overview' ? renderLanding() : (
         <div className="flex flex-col gap-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-40 opacity-50">
-              <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing")}</span>
+              <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
             </div>
           ) : (() => {
             const filteredTickets = tickets.filter(t => {
@@ -352,7 +487,7 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
             });
 
             if (filteredTickets.length === 0) return (
-              <EmptyState icon={searchQuery ? "search_off" : t("icon_celebration")} title={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))} className="col-span-full py-16" />
+              <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (activeFilter === 'new' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
             );
 
             return (
@@ -383,8 +518,3 @@ export default function KeepersSupportTickets({ userRole = "keeper", masonProfil
     </ElevatedHubLayout>
   );
 }
-
-
-
-
-

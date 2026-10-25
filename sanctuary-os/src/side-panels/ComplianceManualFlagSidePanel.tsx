@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from '../utils/envUtils';
+import { logArchitectAction } from '../lib/audit';
 
 export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initialQuery = "", initialHeuristicEdit = null, sourceHub = "Oversight", isMalwareOnly = false, onSuccess }: any) {
   const { t } = useLexicon();
@@ -154,7 +155,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           const newId = crypto.randomUUID();
           const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: newId, name: 'Manual Flag (Hash)', compliance_tier: manualTier } });
           if (modErr) throw modErr;
-          const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mod_versions', p_payload: { mod_id: newId, dna_hash: q, version_label: 'vlocal' } });
+          const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mod_versions', p_payload: { mod_id: newId, dna_hash: q, version_label: 'unknown' } });
           if (verErr) throw verErr;
           targetId = newId;
           targetName = q;
@@ -167,16 +168,23 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         }
       }
       
-      const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-         action: `Manually flagged with tier ${manualTier}`,
-         target_table: 'mods',
-         target_name: targetName || targetId,
-         actor_id: userRes.data.user?.id,
-         reason: registryReason.trim()
-      }});
+      await logArchitectAction(
+        `Manually flagged with tier ${manualTier}`,
+        'mods',
+        targetName || targetId,
+        registryReason.trim(),
+        sourceHub || 'Oversight',
+        false,
+        {
+          compliance_tier: {
+            from: manualSelectedMod?.compliance_tier ?? 0,
+            to: manualTier,
+          },
+          target: { to: targetName || targetId },
+        }
+      );
 
-      useStore.getState().pushStatus(t("comp_manual_alert_success", "Flagged successfully"));
+      useStore.getState().pushStatus(t("comp_manual_alert_success", "{Mod} flagged manually successfully."));
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 5) {
@@ -196,7 +204,6 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     const id = editingId || newSig.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
     
     try {
-      const userRes = await supabase.auth.getUser();
       const newObj = {
         id,
         signature: newSig.trim(),
@@ -212,13 +219,20 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'heuristic_signatures', p_payload: newObj });
       if (error && error.code !== '23505') throw error;
       
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-         action: editingId ? `Updated heuristic signature: ${id}` : `Added heuristic signature: ${id}`,
-         target_table: 'heuristic_signatures',
-         target_name: id,
-         actor_id: userRes.data?.user?.id,
-         reason: "Manual addition/edit via Oversight"
-      }});
+      await logArchitectAction(
+        editingId ? `Updated heuristic signature: ${id}` : `Added heuristic signature: ${id}`,
+        'heuristic_signatures',
+        id,
+        notes.trim() || 'Manual addition/edit via Oversight',
+        sourceHub || 'Oversight',
+        false,
+        {
+          signature: { to: newSig.trim() },
+          match_type: { to: matchType },
+          severity: { to: severity },
+          enabled: { to: enabled },
+        }
+      );
 
       await loadSignatures();
       
@@ -251,18 +265,19 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     try {
       await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'heuristic_signatures', p_id: id });
       
-      const userRes = await supabase.auth.getUser();
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'audit_logs', p_payload: {
-         action: `Removed heuristic signature: ${id}`,
-         target_table: 'heuristic_signatures',
-         target_name: id,
-         actor_id: userRes.data?.user?.id,
-         reason: "Manual removal via Oversight"
-      }});
+      await logArchitectAction(
+        `Removed heuristic signature: ${id}`,
+        'heuristic_signatures',
+        id,
+        'Manual removal via Oversight',
+        sourceHub || 'Oversight',
+        false,
+        { id: { from: id, to: null } }
+      );
 
       await loadSignatures();
       resetHeuristicForm();
-      useStore.getState().pushStatus(t("btn_delete", "Deleted"));
+      useStore.getState().pushStatus(t("btn_delete", "{Delete}"));
       window.dispatchEvent(new CustomEvent('force-heuristics-refresh'));
       onClose();
       if (onSuccess) onSuccess();
@@ -287,7 +302,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           {activeTab === 'heuristic' && editingId && (
             <PanelHeaderButton
               icon={confirmDelete ? t("icon_warning", "warning") : t("icon_delete", "delete")}
-              tooltip={confirmDelete ? t("btn_confirm_delete", "Confirm Delete") : t("btn_delete", "Delete")}
+              tooltip={confirmDelete ? t("btn_confirm_delete", "Confirm {Delete}") : t("btn_delete", "{Delete}")}
               variant="danger"
               disabled={isSubmitting}
               onClick={() => {
@@ -347,7 +362,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             headerColorClass={isMalwareOnly ? "text-[var(--danger)]" : "theme-text-accent"} 
           >
             <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_manual_search_label", "Target Artifact")}</label>
+              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("comp_manual_search_label", "Search {Mod} Registry")}</label>
               <div className="relative">
                 <input 
                   ref={inputRef}
@@ -366,17 +381,19 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               {isDropdownOpen && !manualSelectedMod && manualSearchResults.length > 0 && createPortal(
                 <>
                   <div className="fixed inset-0 z-[50000]" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="fixed mt-2 glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl shadow-md z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-y-auto custom-scrollbar" style={{
+                  <div className="fixed mt-2 glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-hidden" style={{
                     top: inputRef.current?.getBoundingClientRect().bottom,
                     left: inputRef.current?.getBoundingClientRect().left,
                     width: inputRef.current?.getBoundingClientRect().width,
                   }}>
-                    {manualSearchResults.map(m => (
-                      <button key={m.id} onClick={() => { setManualSelectedMod(m); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] last:border-0 flex flex-col group transition-all">
-                        <span className="text-[11px] font-black capitalize text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
-                        <span className="text-[9px] font-bold capitalize tracking-widest opacity-60">{m.master_author || t("vlocal", "Local")}</span>
-                      </button>
-                    ))}
+                    <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1">
+                      {manualSearchResults.map(m => (
+                        <button key={m.id} onClick={() => { setManualSelectedMod(m); setIsDropdownOpen(false); }} className="sa-dropdown-item w-full text-left px-3 py-2 flex flex-col group transition-all cursor-pointer">
+                          <span className="text-[11px] font-black capitalize text-[var(--text)] group-hover:theme-text-accent truncate">{m.name}</span>
+                          <span className="text-[9px] font-bold capitalize tracking-widest opacity-60">{m.master_author || t("unknown", "Local")}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>, document.body
               )}
@@ -440,8 +457,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               />
 
               <SidePanelPillToggle
-                label={t("comp_enabled", "Heuristic Active")}
-                description={enabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}
+                label={enabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}
                 icon={t("icon_shield", "shield")}
                 checked={enabled}
                 onChange={setEnabled}

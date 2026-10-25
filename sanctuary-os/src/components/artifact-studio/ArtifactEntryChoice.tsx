@@ -38,10 +38,7 @@ export function ArtifactEntryChoice({
             {t("studio_entry_title", "How would you like to set up this file?")}
           </h3>
           <p className="text-xs font-semibold text-[var(--subtext)]">
-            {t(
-              "studio_entry_subtitle",
-              "Choose whether this Sandbox file is a brand-new mod or links to an existing mod in your catalog."
-            )}
+            {t("studio_entry_subtitle", "Choose whether this Sandbox file is a brand-new {mod} or links to an existing {mod} in your catalog.")}
           </p>
         </div>
       </div>
@@ -57,17 +54,14 @@ export function ArtifactEntryChoice({
               <span className="material-symbols-outlined !text-[24px]">{t("icon_add_box", "add_box")}</span>
             </div>
             <h4 className="text-base font-black uppercase tracking-wider text-[var(--text)]">
-              {t("studio_entry_new_mod_title", "Make a New Mod")}
+              {t("studio_entry_new_mod_title", "Make a New {Mod}")}
             </h4>
             <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
-              {t(
-                "studio_entry_new_mod_desc",
-                "Start fresh with a new mod entry, configure its files, folder layout, and publish or export."
-              )}
+              {t("studio_entry_new_mod_desc", "Start fresh with a new {mod} entry, configure its files, folder layout, and publish or export.")}
             </p>
           </div>
           <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--accent)]">
-            <span>{t("studio_entry_new_mod_title", "Make a New Mod")}</span>
+            <span>{t("studio_entry_new_mod_title", "Make a New {Mod}")}</span>
             <span className="material-symbols-outlined !text-[16px]">{t("icon_arrow_forward", "arrow_forward")}</span>
           </div>
         </div>
@@ -80,7 +74,7 @@ export function ArtifactEntryChoice({
             </div>
             <div className="flex flex-col">
               <h4 className="text-base font-black uppercase tracking-wider text-[var(--text)]">
-                {t("studio_entry_link_title", "Link to Existing Mod")}
+                {t("studio_entry_link_title", "Link to Existing {Mod}")}
               </h4>
               <p className="text-[11px] font-semibold text-[var(--subtext)]">
                 {t(
@@ -128,10 +122,7 @@ export function ArtifactEntryChoice({
                   "studio_entry_link_mode_version_desc",
                   "Auto-pulls Title, Category, Description, DLC, Dependencies, Conflicts & Folder Layout from the previous version and clears Game Version for the new patch."
                 )
-              : t(
-                  "studio_entry_link_mode_module_desc",
-                  "Attaches this file to the selected parent mod as a Script Twin (.ts4script), Add-on, or Pick-One Flavor."
-                )}
+              : t("studio_entry_link_mode_module_desc", "Attaches this file to the selected parent {mod} as a Script Twin (.ts4script), Add-on, or Pick-One Flavor.")}
           </p>
 
           {entryLinkMode === "module" && (
@@ -142,10 +133,10 @@ export function ArtifactEntryChoice({
                 if (val[0]) setEntryModuleRole(val[0] as any);
               }}
               options={[
-                { id: "twin", label: t("studio_badge_twin", "Script Twin") },
-                { id: "addon", label: t("studio_badge_addon", "Add-on Module") },
+                { id: "twin", label: t("editor_twin", "Script Twin") },
+                { id: "addon", label: t("editor_addon", "Add-on Module") },
                 { id: "flavor", label: t("studio_badge_flavor", "Flavor (Pick One)") },
-                { id: "beta", label: t("studio_badge_beta", "Beta Variant") },
+                { id: "beta", label: t("badge_beta", "Beta Variant") },
               ]}
             />
           )}
@@ -156,7 +147,7 @@ export function ArtifactEntryChoice({
               onSelect={(selectedMod: any) => setEntryTargetMod(selectedMod)}
               selectedItem={entryTargetMod}
               onClear={() => setEntryTargetMod(null)}
-              placeholder={t("studio_entry_select_target_ph", "Search your mods to link...")}
+              placeholder={t("studio_entry_select_target_ph", "Search your {mods} to link...")}
             />
           </div>
 
@@ -173,7 +164,7 @@ export function ArtifactEntryChoice({
             </span>
             {entryLinkMode === "version"
               ? t("studio_entry_btn_pull_and_continue", "Pull Info & Continue")
-              : t("studio_entry_btn_attach_module", "Attach to Mod")}
+              : t("studio_entry_btn_attach_module", "Attach to {Mod}")}
           </button>
         </div>
       </div>

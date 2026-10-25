@@ -5,6 +5,7 @@ import {
   ActionButton,
   SidePanelHeroCard,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 
@@ -55,7 +56,7 @@ export function DropzoneSidePanel({
             </span>
             {t("awaiting_desc3", ", or ")}
             <span className="text-[var(--text)]">{t("auto_zip", ".zip")}</span>
-            {t("awaiting_desc4", " archives")}
+            {t("awaiting_desc4", "archives directly into this zone to ingest them into the secure {Vault}.")}
           </>
         ) : (
           <>
@@ -80,7 +81,7 @@ export function DropzoneSidePanel({
                 handleDroppedFiles(safeFiles);
               }}
               variant="accent"
-              icon="flight_takeoff"
+              icon={t("icon_flight_takeoff", "flight_takeoff")}
               tooltip={t("btn_import", "Import Files")}
             />
           </PanelHeaderGroup>
@@ -120,7 +121,13 @@ export function DropzoneSidePanel({
                 : "border-[color-mix(in_srgb,var(--text)_18%,transparent)]"
             }`}
           >
-            <div className="w-16 h-16 rounded-2xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center">
+            <div
+              className="w-16 h-16 rounded-2xl glass-surface border text-[var(--accent)] flex items-center justify-center"
+              style={{
+                borderColor:
+                  "color-mix(in srgb, var(--accent) 25%, var(--border))",
+              }}
+            >
               <span className="material-symbols-outlined !text-[34px] animate-bounce">
                 {t("icon_cloud", "cloud_upload")}
               </span>
@@ -140,11 +147,19 @@ export function DropzoneSidePanel({
                   {safeFiles.map((f: any, i: number) => (
                     <div
                       key={i}
-                      className="glass-surface rounded-xl px-4 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] flex items-center gap-3"
+                      className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] flex items-center gap-3"
                     >
-                      <span className="text-[var(--success)] material-symbols-outlined !text-[16px] shrink-0">
-                        {t("icon_check_circle", "check_circle")}
-                      </span>
+                      <div
+                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--success)] flex items-center justify-center shrink-0"
+                        style={{
+                          borderColor:
+                            "color-mix(in srgb, var(--success) 25%, var(--border))",
+                        }}
+                      >
+                        <span className="material-symbols-outlined !text-[18px]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                      </div>
                       <span className="truncate">{f}</span>
                     </div>
                   ))}
@@ -155,14 +170,32 @@ export function DropzoneSidePanel({
             {dropzoneState === "ingesting" ? (
               <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_42%,transparent)] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined animate-spin !text-[20px] text-[var(--accent)]">
-                    {t("icon_sync", "sync")}
-                  </span>
+                  <div
+                    className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
+                    style={{
+                      borderColor:
+                        "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-outlined animate-spin !text-[18px]">
+                      {t("icon_sync", "sync")}
+                    </span>
+                  </div>
                   <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                     {t("btn_importing", "Importing...")}
                   </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                <span
+                  className={`${VAULT_CHIP_CLASS} font-mono`}
+                  style={{
+                    color: "var(--accent)",
+                    borderColor:
+                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    {t("icon_inventory_2", "inventory_2")}
+                  </span>
                   {ingestProgress?.current || 0} / {ingestProgress?.total || 0}{" "}
                   {t("modal_files", "Files")}
                 </span>
@@ -171,7 +204,7 @@ export function DropzoneSidePanel({
               safeFiles.length > 0 && (
                 <ActionButton
                   variant="glass"
-                  icon="flight_takeoff"
+                  icon={t("icon_flight_takeoff", "flight_takeoff")}
                   label={t("btn_import", "Import Files")}
                   onClick={() => handleDroppedFiles(safeFiles)}
                   className="w-full !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_42%,transparent)]"

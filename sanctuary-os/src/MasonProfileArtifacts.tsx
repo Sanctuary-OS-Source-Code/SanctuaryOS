@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
+import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
+import { useStore } from './store';
 
 export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, isOwner, handlePin, t }: any) {
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
   const [drawerSearchQuery, setDrawerSearchQuery] = useState("");
+  const showImages = useStore((state: any) => state.showImages);
 
   return (
     <>
-      {filteredMods.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold capitalize tracking-widest text-center mt-10">{t("no_mods")}</div>}
+      {filteredMods.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold capitalize tracking-widest text-center mt-10">{t("no_mods", "No {mods} deployed.")}</div>}
       <div className="grid grid-flow-row-dense grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {filteredMods.map((mod: any, index: number) => {
           const mainKey = mod.id || mod.hash || mod.name || String(index);
@@ -16,10 +19,17 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
           const renderedCard = (
             <UniversalCard
               layout="vertical"
-              image={mod.image_url ? mod.image_url : undefined}
+              image={showImages !== false && mod.image_url ? mod.image_url : undefined}
               icon={!mod.image_url ? getModIcon(mod, activeGameSchema, t) : undefined}
+              customIcon={
+                <DynamicArtifactPreviewBanner
+                  data={mod}
+                  icon={getModIcon(mod, activeGameSchema, t)}
+                  heightClass="h-full"
+                />
+              }
               title={mod.name}
-              subtitle={`${mason.name || t("unknown_mason", "Unknown Creator")}${mod.latest_version ? ` • ${mod.latest_version}` : ""}`}
+              subtitle={`${mason.name || t("unknown_mason", "Unknown {Mason}")}${mod.latest_version ? ` • ${mod.latest_version}` : ""}`}
               onClick={() => {
                 if (isFolder) {
                   setExpandedFolder(expandedFolder === mainKey ? null : mainKey);
@@ -66,7 +76,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                     <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                       {String(mod.category_override || mod.name || "").toLowerCase().includes("script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                     </span>
-                    <span className="text-[var(--subtext)]">{mod.category_override || t("label_artifact", "Artifact")}</span>
+                    <span className="text-[var(--subtext)]">{mod.category_override || t("label_artifact", "{Mod}")}</span>
                   </div>
                   {mod.is_early_access && (
                     <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
@@ -146,7 +156,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                         </h3>
                         <span className="text-[10px] font-black capitalize tracking-[0.18em] text-[var(--accent)] opacity-90 flex items-center gap-1.5">
                           <span className="material-symbols-outlined !text-[13px]">{t("icon_account_tree", "account_tree")}</span>
-                          {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("items", "Artifacts")}
+                          {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("term_mods", "Artifacts")}
                         </span>
                       </div>
                     </div>
@@ -158,7 +168,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                           value={drawerSearchQuery}
                           onChange={(e) => setDrawerSearchQuery(e.target.value)}
                           onClick={(e) => e.stopPropagation()}
-                          placeholder={t("search_ph", "Search...")}
+                          placeholder={t("search_ph", "Search {mods}...")}
                           className="w-full bg-transparent border-none outline-none text-[11px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)]/50 tracking-wider"
                         />
                         {drawerSearchQuery && (
@@ -194,11 +204,19 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                           .map((flavor: any, subIdx: number) => (
                             <UniversalCard
                               key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
-                              layout="vertical"
-                              image={flavor.image_url ? flavor.image_url : undefined}
+                              layout="vertical-compact"
+                              image={showImages !== false && flavor.image_url ? flavor.image_url : undefined}
                               icon={!flavor.image_url ? getModIcon(flavor, activeGameSchema, t) : undefined}
+                              customIcon={
+                                <DynamicArtifactPreviewBanner
+                                  data={flavor}
+                                  icon={getModIcon(flavor, activeGameSchema, t)}
+                                  compact={true}
+                                  heightClass="h-full"
+                                />
+                              }
                               title={flavor.name}
-                              subtitle={`${flavor.author || mason.name || t("unknown_mason", "Unknown Creator")}${flavor.version ? ` • ${flavor.version}` : ""}`}
+                              subtitle={`${flavor.author || mason.name || t("unknown_mason", "Unknown {Mason}")}${flavor.version ? ` • ${flavor.version}` : ""}`}
                               onClick={() => onModClick({ ...flavor, author: flavor.author || mason.name, isNexusView: true })}
                               className="w-full h-full cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
                             />

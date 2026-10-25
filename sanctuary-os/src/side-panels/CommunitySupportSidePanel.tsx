@@ -8,7 +8,6 @@ import {
   StatBox,
   DashboardStatTile,
   ActionButton,
-  CustomDropdown,
   handleOpenUrl,
 } from "../shared";
 import { SettingsToggle } from "../settings-tabs/shared";
@@ -154,57 +153,77 @@ export function CommunitySupportSidePanel({
   }, [isOpen, initialPartnerId, activeWorkspaceId]);
 
   const activeWs = (workspaces || []).find(
-    (w: any) => w.id === activeWorkspaceId
+    (w: any) => String(w.id) === String(activeWorkspaceId)
   );
+  const activeSchemaId = (
+    activeWs?.schema_id ||
+    activeGameSchema?.schema_id ||
+    activeGameSchema?.id ||
+    ""
+  ).toLowerCase();
   const activeSpokeName =
     activeWs?.name ||
     activeGameSchema?.display_name ||
     activeGameSchema?.name ||
     "Current Workspace";
 
-  const dropdownOptions = [
+  const matchedSpokePartner = partners.find(
+    (p) =>
+      String(p.id).toLowerCase() ===
+        String(activeWorkspaceId).toLowerCase() ||
+      (activeSchemaId &&
+        String(p.schema_id || "").toLowerCase() === activeSchemaId) ||
+      (activeSpokeName &&
+        String(p.name || "").toLowerCase() === activeSpokeName.toLowerCase())
+  );
+
+  const activeSpokeOption = matchedSpokePartner
+    ? {
+        id: String(matchedSpokePartner.id),
+        name: matchedSpokePartner.name,
+        icon:
+          matchedSpokePartner.icon ||
+          t("icon_sports_esports", "sports_esports"),
+        donation_url: matchedSpokePartner.donation_url || "",
+        payment_processor: matchedSpokePartner.payment_processor || "STRIPE",
+      }
+    : {
+        id: String(activeWorkspaceId || "active_spoke"),
+        name: activeSpokeName,
+        icon:
+          activeWs?.icon ||
+          activeGameSchema?.icon ||
+          t("icon_sports_esports", "sports_esports"),
+        donation_url: "",
+        payment_processor: "STRIPE",
+      };
+
+  const spokeTileOptions = [
     {
       id: "keepers_core",
-      label: t("supporter_keepers_title", "Sanctuary OS (Keepers Core)"),
+      label: t("supporter_keepers_title", "Sanctuary Foundry"),
       icon: t("icon_rocket_launch", "rocket_launch"),
     },
-    ...partners
-      .filter((p) => {
-        const isConfigured = Boolean(
-          p.donation_url && String(p.donation_url).trim().length > 0
-        );
-        const isSelected = String(p.id) === String(selectedPartnerId);
-        const isCurrentSpoke =
-          String(p.name || "").toLowerCase() ===
-            String(activeSpokeName).toLowerCase() ||
-          String(p.id) === String(activeWorkspaceId);
-        return isConfigured || isSelected || isCurrentSpoke;
-      })
-      .map((p) => ({
-        id: String(p.id),
-        label: p.name,
-        icon: p.icon || t("icon_sports_esports", "sports_esports"),
-      })),
+    {
+      id: activeSpokeOption.id,
+      label: activeSpokeOption.name,
+      icon: activeSpokeOption.icon,
+    },
   ];
 
   const selectedPartner =
     selectedPartnerId === "keepers_core"
       ? {
           id: "keepers_core",
-          name: t("supporter_keepers_title", "Sanctuary OS (Keepers Core)"),
+          name: t("supporter_keepers_title", "Sanctuary Foundry"),
           icon: t("icon_rocket_launch", "rocket_launch"),
           donation_url: keepersConfig.keepers_donation_url || "",
           payment_processor:
             keepersConfig.keepers_payment_processor ||
             "STRIPE / GITHUB SPONSORS",
         }
-      : partners.find((p) => String(p.id) === String(selectedPartnerId)) || {
-          id: activeWorkspaceId || "active_spoke",
-          name: activeSpokeName,
-          icon: t("icon_sports_esports", "sports_esports"),
-          donation_url: "",
-          payment_processor: "STRIPE",
-        };
+      : partners.find((p) => String(p.id) === String(selectedPartnerId)) ||
+        activeSpokeOption;
 
   const hasConfiguredUrl = Boolean(
     selectedPartner.donation_url &&
@@ -349,19 +368,30 @@ export function CommunitySupportSidePanel({
             "0% Platform Fee • +30 Days Dev Builds per $5"
           )}
           title={selectedPartner.name}
-          description={t(
-            "supporter_webhook_auto_note",
-            "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID—no manual receipt entry required."
-          )}
+          description={
+            selectedPartnerId === "keepers_core"
+              ? t(
+                  "supporter_keepers_desc",
+                  "Directly support Sanctuary Foundry building Sanctuary OS. Every $5 donation adds +30 days of Global Dev Build access to your account."
+                )
+              : t(
+                  "supporter_webhook_auto_note",
+                  "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID — no manual receipt entry required."
+                )
+          }
           badge={
-            isSandbox
-              ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
-              : selectedPartner.payment_processor
+            !hasConfiguredUrl
+              ? t("supporter_badge_not_configured", "Not Configured")
+              : isSandbox
+                ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
+                : selectedPartner.payment_processor
           }
           badgeIcon={
-            isSandbox
-              ? t("icon_science", "science")
-              : t("icon_payments", "payments")
+            !hasConfiguredUrl
+              ? t("icon_link_off", "link_off")
+              : isSandbox
+                ? t("icon_science", "science")
+                : t("icon_payments", "payments")
           }
           variant="accent"
         >
@@ -370,7 +400,7 @@ export function CommunitySupportSidePanel({
               label={t("supporter_stat_time_remaining", "Active Time Remaining")}
               value={
                 isDevBuildUnlocked
-                  ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days")}`
+                  ? `${remainingDays} ${t("supporter_celebration_days_unit", "Days")}`
                   : t("supporter_no_active_time", "No Active Time")
               }
               icon={t("icon_schedule", "schedule")}
@@ -398,7 +428,9 @@ export function CommunitySupportSidePanel({
                       "supporter_spoke_sandbox_checkout_btn",
                       "Simulate Sandbox Checkout (Test Mode)"
                     )
-                  : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
+                  : selectedPartnerId === "keepers_core"
+                    ? `${t("supporter_keepers_btn", "Support Sanctuary Foundry")} (${selectedPartner.payment_processor})`
+                    : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
               }
               disabled={isSyncing}
               onClick={handleCheckoutOrSandbox}
@@ -418,47 +450,27 @@ export function CommunitySupportSidePanel({
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "supporter_spoke_not_setup_desc",
-                  "The Wayfinders for this community haven't linked a payment processor in the Wayfinder Hub yet. You can support Sanctuary OS (Keepers Core) or enable the Sandbox Test Processor in the Wayfinder Hub."
+                  "This community's Wayfinders haven't linked a payment processor in Wayfinder Operations yet. You can support Sanctuary Foundry below to unlock Global Dev Builds in the meantime."
                 )}
               </p>
             </div>
           )}
         </SidePanelHeroCard>
 
-        {/* TARGET PARTNER SELECTOR */}
-        {dropdownOptions.length > 1 && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {dropdownOptions.slice(0, 3).map((opt) => (
-                <DashboardStatTile
-                  key={opt.id}
-                  variant="filter"
-                  className="!w-full"
-                  icon={opt.icon || t("icon_sports_esports", "sports_esports")}
-                  label={opt.label}
-                  isActive={String(selectedPartnerId) === String(opt.id)}
-                  onClick={() => setSelectedPartnerId(String(opt.id))}
-                />
-              ))}
-            </div>
-
-            {dropdownOptions.length > 3 && (
-              <UniversalGroup
-                title={t("supporter_claim_partner_label", "Partner Community")}
-                icon={t("icon_groups", "groups")}
-              >
-                <CustomDropdown
-                  disableTint={true}
-                  value={selectedPartnerId}
-                  onChange={(val: any) =>
-                    setSelectedPartnerId(Array.isArray(val) ? val[0] : val)
-                  }
-                  options={dropdownOptions}
-                />
-              </UniversalGroup>
-            )}
-          </>
-        )}
+        {/* TARGET PARTNER SELECTOR (FOUNDRY & ACTIVE SPOKE — 2 CENTERED TILES) */}
+        <div className="grid grid-cols-2 gap-3 w-full">
+          {spokeTileOptions.map((opt) => (
+            <DashboardStatTile
+              key={opt.id}
+              variant="filter"
+              className="!w-full"
+              icon={opt.icon || t("icon_sports_esports", "sports_esports")}
+              label={opt.label}
+              isActive={String(selectedPartnerId) === String(opt.id)}
+              onClick={() => setSelectedPartnerId(String(opt.id))}
+            />
+          ))}
+        </div>
 
         {/* YOUR GLOBAL DAILY DEV BUILD STATUS */}
         <UniversalGroup

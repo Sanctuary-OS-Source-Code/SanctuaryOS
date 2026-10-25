@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
@@ -15,7 +13,11 @@ import {
 } from "../shared";
 import { ChameleonEditorPanel } from "../side-panels/ChameleonEditorPanel";
 import { ThemeCard } from "../chameleon-components/ThemeCard";
-import { getLuminance } from "../chameleon-components/ChameleonShared";
+import {
+  getLuminance,
+  exportThemeWithAssets,
+  importThemeWithAssets,
+} from "../chameleon-components/ChameleonShared";
 
 export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   const { t } = useLexicon();
@@ -28,6 +30,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
     renameTheme,
     createNewTheme,
     importTheme,
+    updateActiveTheme,
     deleteTheme,
     useGlobalTheme,
     setUseGlobalTheme,
@@ -68,34 +71,22 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
 
   const handleExportTheme = async (e: React.MouseEvent, themeObj: any) => {
     e.stopPropagation();
-    try {
-      const defaultPath = config?.vault_path
-        ? `${config.vault_path}\\Data\\Themes\\${themeObj.name}.json`
-        : `${themeObj.name}.json`;
-      const path = await save({
-        defaultPath,
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      });
-      if (path) await writeTextFile(path, JSON.stringify(themeObj, null, 2));
-    } catch (err) {
-      useStore
-        .getState()
-        .pushStatus(`${t("alert_export_failed", "Export failed: ")}${err}`);
-    }
+    await exportThemeWithAssets(themeObj, {
+      vaultPath: config?.vault_path,
+      t,
+      pushStatus: useStore.getState().pushStatus,
+    });
   };
 
   const handleImportTheme = async () => {
-    try {
-      const selected = await open({
-        filters: [{ name: "Theme", extensions: ["json"] }],
-      });
-      if (!selected) return;
-      const content = await readTextFile(selected as string);
-      importTheme(JSON.parse(content));
-    } catch (err) {
-      useStore
-        .getState()
-        .pushStatus(`${t("alert_import_failed", "Import failed: ")}${err}`);
+    const res = await importThemeWithAssets({
+      t,
+      pushStatus: useStore.getState().pushStatus,
+    });
+    if (res?.theme) {
+      importTheme(res.theme);
+    } else if (res?.imageOnlyDataUrl) {
+      updateActiveTheme({ bgImage: res.imageOnlyDataUrl });
     }
   };
 
@@ -172,7 +163,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("chameleon_title", "Themes")}
+      title={t("chameleon_title", "{Chameleon} Library")}
       subtitle={t(
         "chameleon_desc",
         "Customize the visual theme and color palette."
@@ -190,7 +181,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           />
           <PanelHeaderButton
             icon={t("icon_explore", "explore")}
-            tooltip={t("tab_nexus", "Marketplace")}
+            tooltip={t("tab_nexus", "{Nexus}")}
             onClick={() => {
               setMarketTab("CHAMELEONS");
               setView("nexus");
@@ -216,7 +207,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_palette", "palette")}
-          overline={t("chameleon_title", "Active Theme")}
+          overline={t("chameleon_title", "{Chameleon} Library")}
           title={activeThemeObj?.name || activeThemeId}
           description={t(
             "chameleon_desc",
@@ -234,7 +225,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
         <ActionPill
           searchQuery={themeSearch}
           setSearchQuery={setThemeSearch}
-          searchPlaceholder={t("ui_search_chameleons", "Search Themes...")}
+          searchPlaceholder={t("ui_search_chameleons", "Search {Chameleons}...")}
           primaryPopover={{
             icon: t("icon_tune", "tune"),
             label: t("filters", "Filters"),
@@ -323,7 +314,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
 
         {favoriteThemes.length > 0 && (
           <UniversalGroup
-            title={t("installed_themes", "Favorite Themes")}
+            title={t("installed_themes", "Installed {Chameleons}")}
             icon={t("icon_keep", "keep")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -339,7 +330,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
         )}
 
         <UniversalGroup
-          title={t("ui_library", "Library")}
+          title={t("tab_vault", "{Vault}")}
           icon={t("icon_grid_view", "grid_view")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">

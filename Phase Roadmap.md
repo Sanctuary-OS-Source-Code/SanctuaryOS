@@ -1,6 +1,6 @@
 # Sanctuary OS — Master Phase Roadmap
 
-> **Live Directive Synchronization:** This master roadmap reflects the complete architectural evolution of Sanctuary OS from its initial airgapped symlink prototype (Phase 1) through the current multi-workspace, game-agnostic Liquid Glass OS & Web PWA era (Phase 12). Changes to this document synchronize bidirectionally with the `public.system_directives` cloud table (`directive_key = 'phase_roadmap'`) via the Keepers Core Directive Engine.
+Reverse-chronological engineering timeline from Phase 12 (Agnostic Multi-Game Future, Sovereignty & Liquid Glass) down to Phase 1 (Genesis & Cartographer).
 
 ---
 

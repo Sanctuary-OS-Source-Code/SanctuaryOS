@@ -15,33 +15,33 @@ export function VaultStats({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <DashboardStatTile
-        icon={<span className="material-symbols-outlined">{t("icon_inventory_2")}</span>}
+        icon={<span className="material-symbols-outlined">{t("icon_inventory_2", "inventory_2")}</span>}
         number={displayModList.length}
-        label={t("vault_title")}
+        label={t("vault_title", "Your {Vault}")}
         colorClass="text-[var(--text)]"
         onClick={() => { setActiveCategory("all"); setFilterStatus("ALL"); setEquipFilter("ALL"); }}
       />
 
       <DashboardStatTile
-        icon={<span className="material-symbols-outlined">{t("icon_check_circle")}</span>}
+        icon={<span className="material-symbols-outlined">{t("icon_check_circle", "check_circle")}</span>}
         number={equippedDisplayMods.length}
-        label={t("filter_equipped")}
+        label={t("filter_equipped", "In {Blueprint}")}
         colorClass="text-emerald-500"
         onClick={() => { setActiveCategory("equipped"); setEquipFilter("EQUIPPED"); }}
       />
 
       <DashboardStatTile
-        icon={<span className="material-symbols-outlined">{t("icon_help_outline")}</span>}
+        icon={<span className="material-symbols-outlined">{t("icon_help_outline", "help_outline")}</span>}
         number={unverifiedCount}
-        label={t("status_unverified")}
+        label={t("unverified", "Unverified")}
         colorClass="text-orange-500"
         onClick={() => { setActiveCategory("all"); setFilterStatus("unverified"); }}
       />
 
       <DashboardStatTile
-        icon={<span className="material-symbols-outlined">{t("icon_account_tree")}</span>}
+        icon={<span className="material-symbols-outlined">{t("icon_account_tree", "account_tree")}</span>}
         number={localFolderCount}
-        label={t("local_folders")}
+        label={t("local_folders", "Local Folders")}
         colorClass="text-purple-500"
         onClick={() => setLocalFolderModal(true)}
       />

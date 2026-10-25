@@ -143,6 +143,7 @@ CREATE TABLE audit_logs (
     actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     reason TEXT,
     game_name TEXT,
+    changes JSONB DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -266,6 +267,9 @@ LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
+    IF TG_OP = 'DELETE' AND COALESCE(current_setting('sanctuary.allow_audit_prune', true), '') = 'true' THEN
+        RETURN OLD;
+    END IF;
     RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
 END;
 $$;
@@ -273,6 +277,50 @@ $$;
 CREATE TRIGGER ensure_os_audit_log_immutability
   BEFORE UPDATE OR DELETE ON audit_logs
   FOR EACH ROW EXECUTE FUNCTION public.prevent_audit_modifications();
+
+CREATE INDEX IF NOT EXISTS idx_os_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_os_audit_logs_game_created ON audit_logs(game_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_os_audit_logs_target_table_created ON audit_logs(target_table, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.prune_old_audit_logs(p_retention_days INTEGER DEFAULT 90)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+    v_deleted INTEGER := 0;
+BEGIN
+    IF p_retention_days < 30 THEN
+        RAISE EXCEPTION 'Retention window must be at least 30 days.';
+    END IF;
+
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin')
+       AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'keeper')
+    THEN
+        RAISE EXCEPTION 'Unauthorized: Only Keepers may prune archived Core OS audit logs.';
+    END IF;
+
+    PERFORM set_config('sanctuary.allow_audit_prune', 'true', true);
+
+    DELETE FROM public.audit_logs
+    WHERE created_at < (NOW() - make_interval(days => p_retention_days));
+
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason, game_name)
+    VALUES (
+        'Pruned Archived Audit Logs',
+        'audit_logs',
+        p_retention_days || 'd Retention Policy',
+        auth.uid(),
+        'Executed rolling retention prune (' || v_deleted || ' entries older than ' || p_retention_days || ' days removed)',
+        'Core OS'
+    );
+
+    RETURN v_deleted;
+END;
+$$;
 
 -- Non-Custodial Partner Donation Cumulative Time-Stacking RPC ($5 = +30 Days)
 -- Merges back-to-back donations across any Partner Communities cumulatively
@@ -447,7 +495,7 @@ CREATE POLICY "Allow public read theme images" ON sanctuary_theme_images FOR SEL
 CREATE POLICY "Allow public read games" ON sanctuary_games FOR SELECT USING (true);
 CREATE POLICY "Allow public select on hardware_bans" ON hardware_bans FOR SELECT USING (true);
 CREATE POLICY "Public can view core heuristic signatures" ON keeper_heuristic_signatures FOR SELECT USING (true);
-CREATE POLICY "Allow public read audit logs" ON audit_logs FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Keepers can read core audit logs" ON audit_logs FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'keeper'));
 CREATE POLICY "Public can view support categories" ON keeper_support_categories FOR SELECT USING (true);
 CREATE POLICY "Public can view keeper broadcasts" ON keeper_system_broadcasts FOR SELECT USING (true);
 CREATE POLICY "Public can view keeper dispatch poll votes" ON keeper_dispatch_poll_votes FOR SELECT USING (true);

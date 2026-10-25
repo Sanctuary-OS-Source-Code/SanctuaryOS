@@ -7,6 +7,8 @@ import {
   StatBox,
   HoverTooltip,
   handleOpenUrl,
+  SidePanelHeroCard,
+  UniversalGroup,
 } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
@@ -429,7 +431,7 @@ export function UpdateSidePanel() {
   const canAutoInstall = isDesktop() || !updatePayload.isExternalDownload;
 
   const activeChannelShort = isDevUpdate
-    ? t("release_notes_meta_channel_dev", "Dev")
+    ? t("sidebar_wayfinder_tools", "Dev")
     : t("release_notes_meta_channel_public", "Public");
 
   const installStatusText = (() => {
@@ -457,7 +459,7 @@ export function UpdateSidePanel() {
       subtitle={`${activeChannelBadge} v${cleanTargetVersion}`}
       icon={t("icon_system_update_alt", "system_update_alt")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[55vw] max-w-5xl"
+      widthClass="w-[90vw] md:w-[55vw] max-w-5xl"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       noPadding={true}
@@ -501,15 +503,15 @@ export function UpdateSidePanel() {
           </div>
         )}
 
-        <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-6 flex flex-col flex-1 relative z-20 min-w-0">
+        <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-4 flex flex-col flex-1 relative z-20 min-w-0">
           {/* 3-Column View Switcher Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
               icon={t("icon_menu_book", "menu_book")}
-              value={t("release_notes_tile_post", "Post")}
-              label={t("release_notes_tile_view", "View")}
+              value={t("btn_post", "Post")}
+              label={t("btn_view", "View")}
               colorClass="text-[var(--accent)]"
               isActive={activeView === "post"}
               onClick={() => setActiveView("post")}
@@ -524,7 +526,7 @@ export function UpdateSidePanel() {
               className="!w-full"
               icon={t("icon_terminal", "terminal")}
               value={t("release_notes_tile_changelog", "Changelog")}
-              label={t("release_notes_tile_view", "View")}
+              label={t("btn_view", "View")}
               colorClass="text-[var(--accent)]"
               isActive={activeView === "changelog"}
               onClick={() => setActiveView("changelog")}
@@ -539,7 +541,7 @@ export function UpdateSidePanel() {
               className="!w-full"
               icon={t("icon_open_in_new", "open_in_new")}
               value={t("release_notes_tile_github", "On GitHub")}
-              label={t("release_notes_tile_view", "View")}
+              label={t("btn_view", "View")}
               colorClass="text-[var(--text)]"
               isActive={false}
               onClick={() => handleOpenUrl(activeGitHubUrl)}
@@ -548,27 +550,76 @@ export function UpdateSidePanel() {
             />
           </div>
 
-          {/* Title, Author & Centered Enlarged Install Button */}
-          <div className="flex flex-wrap items-center justify-between gap-6 relative z-20">
-            <div className="flex flex-col gap-5 min-w-0 flex-1">
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight text-[var(--text)] break-words">
-                {activeTitle}
-              </h1>
+          <SidePanelHeroCard
+            icon={t("icon_system_update_alt", "system_update_alt")}
+            overline={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${t("release_notes_author_subtitle", "Official Release Dispatch")}`}
+            title={activeTitle}
+            description={activePostRecord.summary}
+            badge={activeChannelBadge}
+            badgeIcon={
+              isDevUpdate
+                ? t("icon_bolt", "bolt")
+                : t("icon_verified", "verified")
+            }
+            variant={isDevUpdate ? "warning" : "success"}
+          >
+            {/* 2-Column Release Telemetry StatBox Grid */}
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <StatBox
+                icon={t("icon_calendar_today", "calendar_today")}
+                iconColorClass="text-[var(--accent)]"
+                label={t("release_notes_meta_release_date", "Release Date")}
+                value={resolvedDateStr}
+                tooltipSubtitle={resolvedDateStr}
+              />
+              <StatBox
+                icon={t("icon_tag", "tag")}
+                iconColorClass="text-[var(--accent)]"
+                label={t("release_notes_meta_version", "Version Number")}
+                value={`v${cleanTargetVersion}`}
+                tooltipSubtitle={`v${cleanTargetVersion}`}
+              />
+              <StatBox
+                icon={
+                  isDevUpdate
+                    ? t("icon_bolt", "bolt")
+                    : t("icon_verified", "verified")
+                }
+                iconColorClass={
+                  isDevUpdate ? "text-[var(--warning)]" : "text-[var(--success)]"
+                }
+                label={t("release_notes_meta_channel", "Channel")}
+                value={activeChannelShort}
+                tooltipSubtitle={activeChannelBadge}
+              />
+              <StatBox
+                icon={t("icon_devices", "devices")}
+                iconColorClass="text-[var(--accent)]"
+                label={t("release_notes_meta_platform", "Platform")}
+                value={activePlatformStr}
+                tooltipSubtitle={activePlatformStr}
+              />
+            </div>
 
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,var(--surface))] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-inner">
-                  <span className="material-symbols-outlined !text-[22px]">
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--accent)]"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                  }}
+                >
+                  <span className="material-symbols-outlined !text-[20px]">
                     {t("icon_memory", "memory")}
                   </span>
                 </div>
-
-                <div className="flex flex-col gap-0.5 z-20 min-w-0">
+                <div className="flex flex-col gap-0.5 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base sm:text-lg font-black capitalize tracking-tight text-[var(--text)] leading-tight">
+                    <span className="text-sm font-black capitalize tracking-tight text-[var(--text)] leading-tight">
                       {t("author_sanctuary_team", "Sanctuary Foundry")}
                     </span>
                     <span className="relative inline-flex items-center cursor-default">
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                         {t("icon_verified", "verified")}
                       </span>
                       <HoverTooltip
@@ -578,19 +629,17 @@ export function UpdateSidePanel() {
                       />
                     </span>
                   </div>
-                  <span className="text-xs sm:text-[13px] font-medium text-[var(--subtext)] opacity-85">
+                  <span className="text-xs font-medium text-[var(--subtext)] opacity-85">
                     {t("release_notes_author_subtitle", "Official Release Dispatch")}
                   </span>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center justify-center self-stretch sm:px-4 lg:px-8 shrink-0">
               <button
                 type="button"
                 onClick={handleInstallUpdate}
                 disabled={isInstalling}
-                className="glass-panel before:!hidden rounded-3xl px-7 py-4 sm:px-8 sm:py-4.5 flex items-center justify-center gap-3.5 border !border-[color-mix(in_srgb,var(--success)_55%,rgba(var(--text-rgb),0.25))] hover:!border-[var(--success)] hover:brightness-110 transition-all duration-300 active:scale-[0.99] disabled:pointer-events-none shrink-0 cursor-pointer relative overflow-hidden group"
+                className="glass-panel before:!hidden rounded-2xl px-6 py-3 flex items-center justify-center gap-3 border !border-[color-mix(in_srgb,var(--success)_55%,rgba(var(--text-rgb),0.25))] hover:!border-[var(--success)] hover:brightness-110 transition-all duration-300 active:scale-[0.99] disabled:pointer-events-none shrink-0 cursor-pointer relative overflow-hidden group"
               >
                 <div
                   className="absolute inset-0 rounded-[inherit] pointer-events-none"
@@ -610,7 +659,7 @@ export function UpdateSidePanel() {
                   />
                 )}
                 <span
-                  className={`material-symbols-outlined !text-[24px] text-[var(--success)] relative z-10 transition-transform duration-300 group-hover:scale-110 ${
+                  className={`material-symbols-outlined !text-[20px] text-[var(--success)] relative z-10 transition-transform duration-300 group-hover:scale-110 ${
                     isInstalling ? "animate-spin" : ""
                   }`}
                 >
@@ -620,67 +669,39 @@ export function UpdateSidePanel() {
                       ? t("icon_system_update_alt", "system_update_alt")
                       : t("icon_download", "download")}
                 </span>
-                <span className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] relative z-10">
+                <span className="text-sm font-black tracking-tight text-[var(--text)] relative z-10">
                   {installStatusText}
                 </span>
               </button>
             </div>
-          </div>
-
-          {/* 4-Column Release Telemetry StatBox Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-            <StatBox
-              icon={t("icon_calendar_today", "calendar_today")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("release_notes_meta_release_date", "Release Date")}
-              value={resolvedDateStr}
-              tooltipSubtitle={resolvedDateStr}
-            />
-            <StatBox
-              icon={t("icon_tag", "tag")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("release_notes_meta_version", "Version Number")}
-              value={`v${cleanTargetVersion}`}
-              tooltipSubtitle={`v${cleanTargetVersion}`}
-            />
-            <StatBox
-              icon={
-                isDevUpdate
-                  ? t("icon_bolt", "bolt")
-                  : t("icon_verified", "verified")
-              }
-              iconColorClass={
-                isDevUpdate ? "text-[var(--warning)]" : "text-[var(--success)]"
-              }
-              label={t("release_notes_meta_channel", "Channel")}
-              value={activeChannelShort}
-              tooltipSubtitle={activeChannelBadge}
-            />
-            <StatBox
-              icon={t("icon_devices", "devices")}
-              iconColorClass="text-[var(--accent)]"
-              label={t("release_notes_meta_platform", "Platform")}
-              value={activePlatformStr}
-              tooltipSubtitle={activePlatformStr}
-            />
-          </div>
+          </SidePanelHeroCard>
 
           {/* Structured Card-Based Release Notes Body */}
           {activeMarkdownContent ? (
             <StructuredReleaseNotesView content={activeMarkdownContent} />
           ) : (
-            <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
-              <span className="material-symbols-outlined !text-[24px]">
-                {t("icon_visibility_off", "visibility_off")}
-              </span>
-              {t("update_panel_no_notes", "No Release Notes Provided")}
-            </div>
+            <UniversalGroup
+              title={activeTitle}
+              icon={t("icon_menu_book", "menu_book")}
+            >
+              <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
+                <span className="material-symbols-outlined !text-[24px]">
+                  {t("icon_visibility_off", "visibility_off")}
+                </span>
+                {t("update_panel_no_notes", "No Release Notes Provided")}
+              </div>
+            </UniversalGroup>
           )}
 
           {activeView === "post" && activePostRecord.codeSnippet && (
-            <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
-              <code>{activePostRecord.codeSnippet}</code>
-            </pre>
+            <UniversalGroup
+              title={t("release_notes_tab_changelog", "Technical Log")}
+              icon={t("icon_terminal", "terminal")}
+            >
+              <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
+                <code>{activePostRecord.codeSnippet}</code>
+              </pre>
+            </UniversalGroup>
           )}
 
           {activeView === "post" && activePostRecord.pollData && (

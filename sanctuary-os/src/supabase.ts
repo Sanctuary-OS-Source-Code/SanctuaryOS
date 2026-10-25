@@ -76,10 +76,6 @@ const authKey = RESOLVED_SANCTUARY_CONFIG.supabaseAnonKey;
 const rawAuthClient = createClient(authUrl, authKey, {
     auth: {
         storageKey: "sanctuary-os-auth-token",
-        lock: async (_name, _acquireTimeout, fn) => {
-            // Bypass navigator.locks in development to prevent Vite HMR hangs
-            return await fn();
-        }
     }
 });
 
@@ -475,15 +471,14 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'keeper_support_categories',
                     'keeper_heuristic_signatures',
                     'sanctuary_theme_images',
-                    'audit_logs',
                     'hardware_bans'
                 ];
 
                 const state = useStore.getState();
                 const view = state.view;
 
-                // When in Keepers Core, Schemas, Lexicons, and Profiles must route to the Core Hub Database
-                if (view === 'KeepersCore' && (table === 'profiles' || table === 'sanctuary_lexicons' || table === 'sanctuary_schemas' || table === 'master_tags')) {
+                // When in Keepers Core, Audit Logs, Schemas, Lexicons, and Profiles must route to the Core Hub Database
+                if (view === 'KeepersCore' && (table === 'audit_logs' || table === 'profiles' || table === 'sanctuary_lexicons' || table === 'sanctuary_schemas' || table === 'master_tags')) {
                     return supabaseAuth.from(table);
                 }
 
@@ -645,7 +640,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 }
 
                 // Determine if this is an OS channel (e.g. notifications)
-                if (name.includes('notifications') || name.includes('system_broadcasts') || name.includes('audit_logs') || name.includes('sanctuary_games')) {
+                if (name.includes('notifications') || name.includes('system_broadcasts') || (useStore.getState().view === 'KeepersCore' && name.includes('audit_logs')) || name.includes('sanctuary_games')) {
                     return supabaseAuth.channel(name, opts);
                 }
 
@@ -685,3 +680,158 @@ export const supabase = new Proxy({} as SupabaseClient, {
         return (client as any)[prop];
     }
 });
+
+async function resolveFallbackSpokeClient(): Promise<SupabaseClient | null> {
+    const direct = getActiveGameClient();
+    if (direct) return direct;
+    try {
+        const state = useStore.getState();
+        const wsId = state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || 'sims4';
+        if (!wsId || wsId === 'default_workspace') return null;
+
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wsId);
+        let query = supabaseAuth
+            .from('sanctuary_games')
+            .select('id, schema_id, supabase_url, supabase_anon_key');
+        query = isUuid ? query.eq('id', wsId) : query.eq('schema_id', wsId);
+        const { data: game } = await query.maybeSingle();
+
+        if (game?.supabase_url && game?.supabase_anon_key) {
+            const cleanUrl = String(game.supabase_url).trim().replace(/\/+$/, '');
+            const cacheKey = `${cleanUrl}::${String(game.supabase_anon_key).slice(0, 16)}`;
+            if (spokeClientCache.has(cacheKey)) {
+                return spokeClientCache.get(cacheKey)!;
+            }
+            const client = createClient(cleanUrl, String(game.supabase_anon_key).trim(), {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false,
+                    storageKey: `sb-spoke-fallback-${game.id || wsId}`,
+                }
+            });
+            spokeClientCache.set(cacheKey, client);
+            return client;
+        }
+    } catch (e) {
+        console.warn('Fallback Spoke client resolution warning:', e);
+    }
+    return null;
+}
+
+export async function submitThreatManifestToSpoke(
+    item: any,
+    options?: { isAuto?: boolean; defaultSignature?: string }
+): Promise<{ data: any; error: any; skipped?: boolean }> {
+    try {
+        const state = useStore.getState();
+        const wsId = state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || 'sims4';
+        const detectedHash = String(item?.detected_hash || item?.hash || 'unknown-hash').trim();
+        const artifactName = String(
+            item?.artifact_name || item?.displayName || item?.name || item?.filename || 'Unknown'
+        ).trim();
+        const rawSig = String(item?.matched_signature || item?.signature || '').trim();
+        const cleanSig =
+            rawSig && rawSig.toUpperCase() !== 'NO SIGNATURE MATCH'
+                ? rawSig
+                : options?.defaultSignature || 'Known Malware Hash Match';
+        const detectedAt = item?.detected_at || new Date().toISOString();
+
+        // Deduplicate automatic background sweeps per local incident so the same unshredded file
+        // does not re-insert on every radar sweep, while still allowing new incidents or manual uploads
+        // even if the hash was previously reported on the Spoke.
+        const incidentId = `${wsId}::${detectedHash}::${item?.detected_at || item?.quarantine_path || item?.path || artifactName}`;
+        if (options?.isAuto && typeof localStorage !== 'undefined') {
+            try {
+                const seenMap = JSON.parse(localStorage.getItem('sanctuary_submitted_malware_manifests') || '{}');
+                const lastTs = seenMap[incidentId];
+                if (lastTs && Date.now() - Number(lastTs) < 1000 * 60 * 60 * 12) {
+                    return { data: null, error: null, skipped: true };
+                }
+            } catch {}
+        }
+
+        const rowPayload = {
+            artifact_name: artifactName,
+            detected_hash: detectedHash,
+            signature: cleanSig,
+            original_hash_at_import: item?.original_hash_at_import || detectedHash || null,
+            original_exists: Boolean(item?.original_exists),
+            original_shredded: Boolean(item?.original_shredded),
+            quarantined_file_shredded: Boolean(item?.quarantined_file_shredded),
+            detected_at: detectedAt,
+            status: item?.status || 'pending',
+        };
+
+        let insertedData: any = null;
+        let lastError: any = null;
+
+        // 1. Prefer authenticated gateway upsert (uses Spoke Service Role Key and works even before workspace hydration)
+        if (state.session?.access_token && !isStandaloneFork) {
+            const targetGameId =
+                state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||
+                state.workspaces?.find((w: any) => w.id === wsId)?.schema_id ||
+                wsId;
+            const rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {
+                p_game_id: targetGameId,
+                p_target: 'malware_reports',
+                p_payload: rowPayload,
+            });
+            if (!rpcRes?.error && rpcRes?.data) {
+                insertedData = rpcRes.data;
+            } else if (rpcRes?.error) {
+                lastError = rpcRes.error;
+            }
+        }
+
+        // 2. Fallback to direct Spoke client insert (works for unauthenticated / anon Spoke clients)
+        if (!insertedData) {
+            const spokeClient = await resolveFallbackSpokeClient();
+            if (!spokeClient) {
+                return {
+                    data: null,
+                    error: lastError || new Error('Active Spoke database client is not connected.'),
+                };
+            }
+            const { data, error } = await spokeClient
+                .from('malware_reports')
+                .insert(rowPayload)
+                .select();
+            if (error) {
+                return { data: null, error };
+            }
+            insertedData = data;
+        }
+
+        if (typeof localStorage !== 'undefined') {
+            try {
+                const seenMap = JSON.parse(localStorage.getItem('sanctuary_submitted_malware_manifests') || '{}');
+                seenMap[incidentId] = Date.now();
+                localStorage.setItem('sanctuary_submitted_malware_manifests', JSON.stringify(seenMap));
+            } catch {}
+        }
+
+        return { data: insertedData, error: null };
+    } catch (err: any) {
+        console.error('submitThreatManifestToSpoke error:', err);
+        return { data: null, error: err };
+    }
+}
+
+export async function updateThreatManifestShredStatus(
+    detectedHash: string,
+    updates: { original_shredded?: boolean; original_exists?: boolean; quarantined_file_shredded?: boolean }
+): Promise<void> {
+    if (!detectedHash) return;
+    try {
+        const spokeClient = await resolveFallbackSpokeClient();
+        if (spokeClient) {
+            await spokeClient
+                .from('malware_reports')
+                .update(updates)
+                .eq('detected_hash', detectedHash);
+        }
+    } catch (e) {
+        console.warn('Failed to update threat manifest shred status on Spoke:', e);
+    }
+}

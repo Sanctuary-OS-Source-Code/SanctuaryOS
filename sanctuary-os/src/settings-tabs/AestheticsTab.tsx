@@ -16,8 +16,8 @@ export default function AestheticsTab({ config }: any) {
       <TabContainer title={t("tab_aesthetics", "Aesthetics")} icon={t("icon_format_paint", "format_paint")}>
         <SettingsGrid>
           <UniversalCard
-            title={t("chameleon_title", "Themes")}
-            subtitle={t("chameleon_desc", "Customize the visual theme and color palette.")}
+            title={t("chameleon_title", "{Chameleon} {Vault}")}
+            subtitle={t("chameleon_desc", "Customize the visual theme, Liquid Glass optics, and color palette.")}
             icon={t("icon_palette", "palette")}
             onClick={() => setIsChameleonOpen(true)}
             actions={
@@ -29,12 +29,12 @@ export default function AestheticsTab({ config }: any) {
             <ActionButton
               variant="glass"
               icon={t("icon_palette", "palette")}
-              label={t("chameleon_title", "Themes")}
+              label={t("chameleon_title", "{Chameleon} {Vault}")}
               className="w-full pointer-events-none mt-2"
             />
           </UniversalCard>
           <UniversalCard
-            title={t("lexicon_title", "Language & Lexicon")}
+            title={t("lexicon_title", "{Lexicon} {Vault}")}
             subtitle={t("lexicon_desc", "Select your interface language and thematic terminology.")}
             icon={t("icon_language", "language")}
             onClick={() => setIsLexiconOpen(true)}
@@ -47,7 +47,7 @@ export default function AestheticsTab({ config }: any) {
             <ActionButton
               variant="glass"
               icon={t("icon_language", "language")}
-              label={t("lexicon_title", "Language & Lexicon")}
+              label={t("lexicon_title", "{Lexicon} {Vault}")}
               className="w-full pointer-events-none mt-2"
             />
           </UniversalCard>
@@ -59,5 +59,3 @@ export default function AestheticsTab({ config }: any) {
     </>
   );
 }
-
-

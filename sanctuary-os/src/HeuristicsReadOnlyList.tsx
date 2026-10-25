@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { EmptyState, SidePanel } from './shared';
+import { EmptyState, SidePanel, StatBox } from './shared';
+import { SidePanelHeroCard, SidePanelTitleInput } from './components/layouts/ElevatedHubLayout';
 import { UniversalGroup, UniversalInput, UniversalTextArea } from './components/universal/UniversalLayout';
 
 export function HeuristicsReadOnlyList({
@@ -57,20 +58,20 @@ export function HeuristicsReadOnlyList({
       {readOnly && scope === "core" && (
         <div className="glass-surface px-5 py-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center gap-3 mb-2">
           <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
-            {t("icon_shield_lock") || "shield_lock"}
+            {t("icon_shield_lock", "shield_lock")}
           </span>
           <span className="text-[11px] font-bold text-[var(--subtext)] tracking-wide">
-            {t("core_heuristics_readonly_notice") || "Core OS heuristic definitions are governed globally by Keepers Core and are read-only at the Spoke level."}
+            {t("core_heuristics_readonly_notice", "Core OS heuristic definitions are governed globally by Keepers Core and are read-only at the Spoke level.")}
           </span>
         </div>
       )}
 
       {loading ? (
         <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">
-          {t("auto_loading_signatures") || "Loading Signatures..."}
+          {t("auto_loading_signatures", "Loading Signatures...")}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredSignatures.map(sig => {
             const isMalware = sig.severity === 'malware';
             const isExplicit = sig.severity === 'explicit';
@@ -96,16 +97,16 @@ export function HeuristicsReadOnlyList({
                 <div className="flex justify-between items-start relative z-10">
                   <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${sBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
                     <span className={`material-symbols-outlined !text-[24px] ${sColor} opacity-90 drop-shadow-lg`}>
-                      {scope === "core" ? (t("icon_shield_lock") || "shield_lock") : (t("icon_bug_report") || "bug_report")}
+                      {scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
                     <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                       <span className={`material-symbols-outlined !text-[12px] ${scope === "core" ? "text-[var(--accent)]" : "text-[var(--warning)]"}`}>
-                        {scope === "core" ? (t("icon_shield_lock") || "shield_lock") : (t("icon_bug_report") || "bug_report")}
+                        {scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
                       </span>
-                      <span>{scope === "core" ? (t("core_os_badge") || "Core OS") : (t("spoke_badge") || "Spoke")}</span>
+                      <span>{scope === "core" ? t("core_os_badge", "Core OS") : t("spoke_badge", "Spoke")}</span>
                     </div>
                     <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                       <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
@@ -124,7 +125,7 @@ export function HeuristicsReadOnlyList({
                     <span className={`text-[9px] font-black ${sColor} capitalize tracking-widest`}>{sig.severity}</span>
                     <span className="text-[var(--subtext)] opacity-50">&bull;</span>
                     <span className="text-[9px] font-black text-[var(--subtext)] lowercase tracking-widest truncate flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[10px]">account_tree</span>
+                      <span className="material-symbols-outlined !text-[10px]">{t("icon_account_tree", "account_tree")}</span>
                       {sig.match_type}
                     </span>
                   </div>
@@ -140,13 +141,13 @@ export function HeuristicsReadOnlyList({
                     <button
                       className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${sColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm`}
                     >
-                      <span className="material-symbols-outlined !text-sm">{readOnly ? "visibility" : "edit"}</span>
-                      {t("btn_inspect") || "Inspect"}
+                      <span className="material-symbols-outlined !text-sm">{readOnly ? t("icon_visibility", "visibility") : t("icon_edit", "edit")}</span>
+                      {t("btn_inspect", "Inspect {Mod}")}
                     </button>
                     <div
                       className={`flex-1 h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest ${sig.enabled ? 'text-[var(--success)]' : 'text-[var(--danger)]'} bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl`}
                     >
-                      <span className="material-symbols-outlined !text-sm">{sig.enabled ? 'verified' : 'block'}</span>
+                      <span className="material-symbols-outlined !text-sm">{sig.enabled ? t("icon_verified", "verified") : t("icon_block", "block")}</span>
                     </div>
                   </div>
                 </div>
@@ -154,7 +155,7 @@ export function HeuristicsReadOnlyList({
             );
           })}
           {filteredSignatures.length === 0 && (
-            <EmptyState icon={t("ui_icon_find_in_page") || "find_in_page"} title={t("comp_no_heuristics") || "No Heuristics Found"} className="col-span-full py-16" />
+            <EmptyState icon={t("ui_icon_find_in_page", "find_in_page")} title={t("comp_no_heuristics", "No Heuristics Found")} className="col-span-full py-16" />
           )}
         </div>
       )}
@@ -162,37 +163,90 @@ export function HeuristicsReadOnlyList({
       <SidePanel
         isOpen={!!inspectingSig}
         onClose={() => setInspectingSig(null)}
-        title={t("inspect_core_heuristic") || "Inspect Core Heuristic"}
+        title={t("inspect_core_heuristic", "Inspect Core Heuristic")}
         subtitle={inspectingSig ? `ID: ${inspectingSig.id}` : undefined}
-        icon={t("icon_shield_lock") || "shield_lock"}
-        widthClass="w-[500px]"
+        icon={t("icon_shield_lock", "shield_lock")}
+        widthClass="w-[540px]"
       >
         {inspectingSig && (
           <div className="flex flex-col gap-6">
-            <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center gap-3">
-              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
-                {t("icon_shield_lock") || "shield_lock"}
-              </span>
-              <span className="text-[11px] font-bold text-[var(--subtext)]">
-                {t("core_heuristics_readonly_notice") || "Core OS heuristic definitions are governed globally by Keepers Core and are read-only at the Spoke level."}
-              </span>
-            </div>
+            <SidePanelHeroCard
+              title={inspectingSig.signature || t("inspect_core_heuristic", "Inspect Core Heuristic")}
+              subtitle={t(
+                "core_heuristics_readonly_notice",
+                "Core OS heuristic definitions are governed globally by Keepers Core and are read-only at the Spoke level."
+              )}
+              label={
+                scope === "core"
+                  ? t("core_os_badge", "Core OS")
+                  : t("spoke_badge", "Spoke")
+              }
+              icon={
+                scope === "core"
+                  ? t("icon_shield_lock", "shield_lock")
+                  : t("icon_bug_report", "bug_report")
+              }
+              variant={
+                inspectingSig.severity === "malware"
+                  ? "danger"
+                  : inspectingSig.severity === "explicit"
+                    ? "warning"
+                    : "accent"
+              }
+              badges={[
+                {
+                  icon: inspectingSig.enabled ? t("icon_verified", "verified") : t("icon_block", "block"),
+                  label: inspectingSig.enabled
+                    ? t("status_active", "Active")
+                    : t("status_disabled", "Disabled"),
+                  colorClass: inspectingSig.enabled
+                    ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                    : "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]",
+                },
+              ]}
+            >
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <StatBox
+                  label={t("comp_match_type", "Match Type")}
+                  value={inspectingSig.match_type || "--"}
+                  icon={t("icon_account_tree", "account_tree")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("label_severity", "Severity")}
+                  value={inspectingSig.severity || "--"}
+                  icon={t("icon_shield_lock", "shield_lock")}
+                  iconColorClass={
+                    inspectingSig.severity === "malware"
+                      ? "text-[var(--danger)]"
+                      : inspectingSig.severity === "explicit"
+                        ? "text-[var(--warning)]"
+                        : "text-[var(--accent)]"
+                  }
+                />
+              </div>
+            </SidePanelHeroCard>
 
-            <UniversalGroup title={t("core_heuristics_tab") || "Core Heuristics"} icon={t("icon_memory") || "memory"}>
+            <SidePanelTitleInput
+              value={inspectingSig.signature || ""}
+              readOnly={true}
+            />
+
+            <UniversalGroup title={t("core_heuristics_tab", "Core Heuristics")} icon={t("icon_memory", "memory")}>
               <UniversalInput
-                label={t("auto_file_signature") || "File Signature"}
+                label={t("auto_file_signature", "File Signature")}
                 value={inspectingSig.signature || ""}
                 onChange={() => {}}
                 readOnly={true}
               />
               <UniversalInput
-                label={t("comp_match_type") || "Match Type"}
+                label={t("comp_match_type", "Match Type")}
                 value={inspectingSig.match_type || ""}
                 onChange={() => {}}
                 readOnly={true}
               />
               <UniversalTextArea
-                label={t("reason") || "Reason / Notes"}
+                label={t("reason", "Reason / Notes")}
                 value={inspectingSig.notes || ""}
                 onChange={() => {}}
                 readOnly={true}
@@ -205,6 +259,3 @@ export function HeuristicsReadOnlyList({
     </>
   );
 }
-
-
-

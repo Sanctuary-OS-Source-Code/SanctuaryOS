@@ -254,7 +254,7 @@ export function ContextMenu() {
                       }]);
                    }
                 }).catch(() => {
-                   pushStatus(t("clipboard_read_error"), "error");
+                   pushStatus(t("clipboard_read_error", "Failed to read clipboard"), "error");
                 });
              });
           }
@@ -409,12 +409,12 @@ export function ContextMenu() {
       className="flex"
     >
       <div
-    className="w-48 h-max glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl rounded-xl flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100"
+    className="w-48 h-max glass-panel portal-glass-fix sa-dropdown-popover rounded-xl flex flex-col p-1.5 gap-0.5 animate-in fade-in zoom-in-95 duration-100"
         onContextMenu={(e) => e.preventDefault()}
       >
       {misspelledInfo && (
         <>
-            <div className="px-4 py-2 text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">{t("spell_suggest")}</div>
+            <div className="px-4 py-2 text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">{t("spell_suggest", "Spelling Suggestions")}</div>
             {misspelledInfo.suggestions.map((suggestion) => (
                 <button
                     key={suggestion}
@@ -433,7 +433,7 @@ export function ContextMenu() {
           className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
         >
           <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_cut</span>
-          {t("ctx_cut")}
+          {t("ctx_cut", "Cut")}
         </button>
       )}
       <button
@@ -441,7 +441,7 @@ export function ContextMenu() {
         className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
       >
         <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_copy</span>
-        {t("ctx_copy")}
+        {t("btn_copy", "Copy")}
       </button>
       {!isReadOnly && (
         <>
@@ -450,7 +450,7 @@ export function ContextMenu() {
             className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
             <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_paste</span>
-            {t("ctx_paste")}
+            {t("ctx_paste", "Paste")}
           </button>
           {supportsIcons && (
             <>
@@ -461,7 +461,7 @@ export function ContextMenu() {
               >
                 <div className="flex items-center gap-3">
                    <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">add_reaction</span>
-                   {t("ctx_insert_icon")}
+                   {t("editor_tt_icon", "Insert Icon")}
                 </div>
                 <span className="material-symbols-outlined !text-[16px] opacity-50">{showIconPicker ? 'expand_less' : 'chevron_right'}</span>
               </button>
@@ -473,7 +473,7 @@ export function ContextMenu() {
             className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
             <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">select_all</span>
-            {t("btn_select_all")}
+            {t("btn_select_all", "Select All")}
           </button>
         </>
       )}

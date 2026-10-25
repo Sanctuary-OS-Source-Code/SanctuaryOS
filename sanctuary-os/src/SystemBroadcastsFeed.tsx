@@ -42,9 +42,9 @@ export default function SystemBroadcastsFeed({ audience, noCardWrapper, gridCols
   const feedContent = (
     <div className={`flex flex-col md:grid ${gridCols || 'md:grid-cols-2'} gap-6 flex-1 overflow-y-auto custom-scrollbar pb-4`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("comm_link_quiet")}</div>
+        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("comm_link_quiet", "Your feed is quiet.")}</div>
       ) : (
         posts.map((p, index) => {
           const isFeatured = index === 0 && posts.length !== 2;

@@ -1,50 +1,10 @@
 # Sanctuary OS — Official Citizen Guide & Interactive OS Walkthrough
 
-![Version](https://img.shields.io/badge/version-0.5.8--Dev.3-blue)
-![Last Updated](https://img.shields.io/badge/last_updated-October_24,_2026-brightgreen)
-![Platform](https://img.shields.io/badge/platform-Windows_%7C_Web-lightgrey)
-![Architecture](https://img.shields.io/badge/architecture-Hub_&_Spoke-cyan)
-
-> **Official Citizen Guide & Step-by-Step OS Walkthrough**  
-> Synced bidirectionally between the Sanctuary OS Codebase (`Citizen Guide.md`) and **Keepers Core -> System Directives (`public.system_directives`)**.
-
----
-
-## Table of Contents
-- [Part 1: Step-by-Step OS Walkthrough (What Everything Does)](#part-1-step-by-step-os-walkthrough-what-everything-does)
-  - [Stage 1: Global Shell Anatomy (Sidebar, Top Workspace Pill & Morphing Dock)](#stage-1-global-shell-anatomy-sidebar-top-workspace-pill--morphing-dock)
-  - [Stage 2: Mounting a Game Workspace & The Cartographer](#stage-2-mounting-a-game-workspace--the-cartographer)
-  - [Stage 3: Your Vault, Mod Cards & ActionPill Toolbar](#stage-3-your-vault-mod-cards--actionpill-toolbar)
-  - [Stage 4: Blueprints & 1-Click Loadout Hot-Swapping](#stage-4-blueprints--1-click-loadout-hot-swapping)
-  - [Stage 5: Conflict Radar, Load Order Engine & Homestead Lab](#stage-5-conflict-radar-load-order-engine--homestead-lab)
-  - [Stage 6: Citizen's Workbench, Timeline Diff & Time Capsule](#stage-6-citizens-workbench-timeline-diff--time-capsule)
-  - [Stage 7: Open Mason Workshop, FIDO2 Passkey Vault & Malware Lockdown](#stage-7-open-mason-workshop-fido2-passkey-vault--malware-lockdown)
-- [Part 2: Citizen Module Reference](#part-2-citizen-module-reference)
-  - [Cartographer Initialization](#cartographer-initialization)
-  - [The Command Center](#the-command-center)
-  - [Your Vault](#your-vault)
-  - [The Nexus & Integrated Side Browser](#the-nexus--integrated-side-browser)
-  - [Blueprints](#blueprints)
-  - [Conflict Radar & Load Order Engine](#conflict-radar--load-order-engine)
-  - [Homestead Lab](#homestead-lab)
-  - [Citizen's Workbench & Visual Config Studio](#citizens-workbench--visual-config-studio)
-  - [Time Capsule](#time-capsule)
-  - [Compliance, DEFCON & Malware Quarantine SidePanel](#compliance-defcon--malware-quarantine-sidepanel)
-- [Part 3: 6-Tier Clearance Hierarchy & Command Hubs](#part-3-6-tier-clearance-hierarchy--command-hubs)
-  - [Tier 1: Citizen (Base Clearance + Open Mason Workshop Inheritance)](#tier-1-citizen-base-clearance--open-mason-workshop-inheritance)
-  - [Tier 2: Verified Mason (Verified Mod Creator)](#tier-2-verified-mason-verified-mod-creator)
-  - [Tier 3: Architect (Registry & Conflict Moderator)](#tier-3-architect-registry--conflict-moderator)
-  - [Tier 4: Oversight (Spoke Security & System Administrator)](#tier-4-oversight-spoke-security--system-administrator)
-  - [Tier 5: Wayfinder (Community Manager & Spoke Sovereign)](#tier-5-wayfinder-community-manager--spoke-sovereign)
-  - [Tier 6: Keeper (Core OS Hub & Sanctuary Foundry Developer)](#tier-6-keeper-core-os-hub--sanctuary-foundry-developer)
+New to Sanctuary OS? This 7-stage walkthrough explains every persistent bar, button, card, and drawer in the operating system so you always know what each control does before clicking it.
 
 ---
 
 # Part 1: Step-by-Step OS Walkthrough (What Everything Does)
-
-**Version:** 0.5.8-Dev.3 | **Last Updated:** October 24, 2026
-
-New to Sanctuary OS? This 7-stage walkthrough explains every persistent bar, button, card, and drawer in the operating system so you always know what each control does before clicking it.
 
 ## Stage 1: Global Shell Anatomy (Sidebar, Top Workspace Pill & Morphing Dock)
 Sanctuary OS is framed by three persistent glassmorphic regions that adapt dynamically to whether you are on the **Foundry Landing Page** or inside an active **Game Workspace**:

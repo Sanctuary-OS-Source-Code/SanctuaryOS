@@ -34,6 +34,7 @@ export interface DirectiveBuilderSchema {
   slug: DirectiveSlug;
   title: string;
   summary: string;
+  isActive?: boolean;
   tabs: DirectiveBuilderTab[];
 }
 
@@ -41,9 +42,31 @@ const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
   /\n*<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:\s*([\s\S]*?)\s*-->\s*$/;
 
+export function stripDirectiveMarkdownClutter(content: string): string {
+  if (!content) return "";
+  return content
+    // Remove shields.io badge images (markdown or HTML)
+    .replace(/^[ \t]*!\[[^\]]*\]\(https?:\/\/img\.shields\.io\/[^)]+\)[ \t]*\r?\n?/gm, "")
+    .replace(/<img[^>]+src=["']https?:\/\/img\.shields\.io\/[^"']+["'][^>]*>\s*/gi, "")
+    // Remove Table of Contents block up to the next horizontal rule or major heading
+    .replace(/(\n---\s*\n)?##+\s*Table of Contents[\s\S]*?\n---\s*\n/gi, "\n")
+    .replace(/##+\s*Table of Contents[\s\S]*?(?=\n# |\n## (?!Table of Contents))/gi, "")
+    // Remove legacy sync metadata blockquotes and version lines
+    .replace(/^[ \t]*>[ \t]*\*\*Official Citizen Guide[^\r\n]*\r?\n[ \t]*>[ \t]*Synced bidirectionally[^\r\n]*\r?\n?/gim, "")
+    .replace(/^[ \t]*>[ \t]*\*\*Live Directive Synchronization:\*\*[^\r\n]*\r?\n?/gim, "")
+    .replace(/^[ \t]*>?[ \t]*\*\*Document Version:?\*\*:?[^\r\n]*\r?\n?/gim, "")
+    .replace(/^[ \t]*>?[ \t]*\*\*Last Updated:?\*\*:?[^\r\n]*\r?\n?/gim, "")
+    .replace(/^[ \t]*>?[ \t]*\*\*Sync Pipeline:?\*\*:?[^\r\n]*\r?\n?/gim, "")
+    .replace(/^[ \t]*\*\*Version:\*\*[^\r\n]*\|\s*\*\*Last Updated:\*\*[^\r\n]*\r?\n?/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function stripDirectiveBuilderComment(content: string): string {
   if (!content) return "";
-  return content.replace(BUILDER_COMMENT_REGEX, "").trim();
+  return stripDirectiveMarkdownClutter(
+    content.replace(BUILDER_COMMENT_REGEX, "").trim()
+  );
 }
 
 export function extractDirectiveBuilderSchema(
@@ -133,13 +156,10 @@ export function getDefaultDirectiveBuilderSchema(
       id: "role_citizen",
       icon: t("icon_person", "person"),
       overline: t("dir_proto_r1_tier", "Tier 1 • Base + Open Workshop"),
-      badge: t("dir_proto_r1_role", "Citizen"),
-      title: t("dir_proto_r1_role", "Citizen"),
+      badge: t("role_citizen", "{Citizen}"),
+      title: t("role_citizen", "{Citizen}"),
       footerMeta: t("dir_proto_r1_tier", "Tier 1 • Base + Open Workshop"),
-      desc: t(
-        "dir_proto_r1_scope",
-        "All 9 Citizen Modules (Vault, Nexus, Blueprints, Conflict Radar, Homestead Lab, Workbench, Time Capsule) + Inherited Open Mason Workshop (Sandbox, Mason IDE, 3-Tile Artifact Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions."
-      ),
+      desc: t("dir_proto_r1_scope", "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions."),
       status: "citizen",
       subCards: [],
     },
@@ -148,12 +168,9 @@ export function getDefaultDirectiveBuilderSchema(
       icon: t("icon_construction", "construction"),
       overline: t("dir_proto_r2_tier", "Tier 2 • Verified Creator"),
       badge: t("auth_passkey_badge_fido", "FIDO2 PASSKEY"),
-      title: t("dir_proto_r2_role", "Verified Mason"),
+      title: t("dir_proto_r2_role", "Verified {Mason}"),
       footerMeta: t("dir_proto_r2_tier", "Tier 2 • Verified Creator"),
-      desc: t(
-        "dir_proto_r2_scope",
-        "Inherits all Citizen & Open Workshop tools + FIDO2 Passkey Vault gate, Direct Nexus Artifact Publishing, Verified Mason Queue Fast-Lane (bypasses Scout threshold), Public Mason Profile Showcase, Creator Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."
-      ),
+      desc: t("dir_proto_r2_scope", "Inherits all {Citizen} & Open Workshop tools + FIDO2 Passkey {Vault} gate, Direct Nexus {Mod} Publishing, Verified {Mason} Queue Fast-Lane (bypasses Scout threshold), Public {Mason} Profile Showcase, {Mason} Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."),
       status: "passkey",
       subCards: [],
     },
@@ -162,12 +179,9 @@ export function getDefaultDirectiveBuilderSchema(
       icon: t("icon_architecture", "architecture"),
       overline: t("dir_proto_r3_tier", "Tier 3 • Spoke Moderator"),
       badge: t("auth_passkey_badge_fido", "FIDO2 PASSKEY"),
-      title: t("dir_proto_r3_role", "Architect"),
+      title: t("architect", "Architect"),
       footerMeta: t("dir_proto_r3_tier", "Tier 3 • Spoke Moderator"),
-      desc: t(
-        "dir_proto_r3_scope",
-        "Unlocks Architect Console: Global Registry curation (3-Tile Artifact Studio), Verified Mason & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable Citizen Support Desk tickets."
-      ),
+      desc: t("dir_proto_r3_scope", "Unlocks Architect Console: Global Registry curation (3-Tile {Mod} Studio), Verified {Mason} & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable {Citizen} Support Desk tickets."),
       status: "passkey",
       subCards: [],
     },
@@ -176,12 +190,9 @@ export function getDefaultDirectiveBuilderSchema(
       icon: t("icon_admin_panel_settings", "admin_panel_settings"),
       overline: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
       badge: t("auth_passkey_badge_fido", "FIDO2 PASSKEY"),
-      title: t("dir_proto_r4_role", "Oversight"),
+      title: t("role_oversight", "Oversight"),
       footerMeta: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
-      desc: t(
-        "dir_proto_r4_scope",
-        "Unlocks Oversight Command: Spoke Heuristic Signatures authoring, Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, Mason Linker, and Spoke Identity Matrix (up to Architect)."
-      ),
+      desc: t("dir_proto_r4_scope", "Unlocks Oversight Command: Spoke Heuristic Signatures authoring, Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."),
       status: "passkey",
       subCards: [],
     },
@@ -190,7 +201,7 @@ export function getDefaultDirectiveBuilderSchema(
       icon: t("icon_explore", "explore"),
       overline: t("dir_proto_r5_tier", "Tier 5 • Spoke Sovereign"),
       badge: t("auth_passkey_badge_fido", "FIDO2 PASSKEY"),
-      title: t("dir_proto_r5_role", "Wayfinder"),
+      title: t("role_wayfinder", "Wayfinder"),
       footerMeta: t("dir_proto_r5_tier", "Tier 5 • Spoke Sovereign"),
       desc: t(
         "dir_proto_r5_scope",
@@ -218,14 +229,8 @@ export function getDefaultDirectiveBuilderSchema(
   if (slug === "citizen_guide") {
     return {
       slug: "citizen_guide",
-      title: t(
-        "sd_card_guide_title",
-        "Interactive Citizen Guide & OS Walkthrough"
-      ),
-      summary: t(
-        "sd_card_guide_desc",
-        "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink Vault & Load Order compilation, to Homestead Lab testing, Time Capsule snapshots, and Elevated Clearances."
-      ),
+      title: t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
+      summary: t("sd_card_guide_desc", "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, and Elevated Clearances."),
       tabs: [
         {
           id: "walkthrough",
@@ -249,10 +254,7 @@ export function getDefaultDirectiveBuilderSchema(
                   id: "walk_1_c1",
                   icon: t("icon_menu", "menu"),
                   title: t("dir_walk_s1_c1_name", "Left Sidebar (Context-Aware)"),
-                  desc: t(
-                    "dir_walk_s1_c1_desc",
-                    "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 Citizen modules, unlocked Command Hubs, and the Quick Launch button."
-                  ),
+                  desc: t("dir_walk_s1_c1_desc", "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 {Citizen} modules, unlocked Command Hubs, and the Quick Launch button."),
                 },
                 {
                   id: "walk_1_c2",
@@ -267,10 +269,7 @@ export function getDefaultDirectiveBuilderSchema(
                   id: "walk_1_c3",
                   icon: t("icon_dock_to_bottom", "dock_to_bottom"),
                   title: t("dir_walk_s1_c3_name", "Bottom Morphing Status Pill"),
-                  desc: t(
-                    "dir_walk_s1_c3_desc",
-                    "Houses 1-Click Radar Sweep, Vault Lockdown, Blueprint Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."
-                  ),
+                  desc: t("dir_walk_s1_c3_desc", "Houses 1-Click Radar Sweep, {Vault} Lockdown, {Blueprint} Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."),
                 },
               ],
             },
@@ -281,10 +280,7 @@ export function getDefaultDirectiveBuilderSchema(
               badge: t("dir_walk_s2_short", "2. Cartographer"),
               title: t("dir_walk_s2_title", "Mounting a Workspace & Cartographer"),
               footerMeta: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE Ripper"),
-              desc: t(
-                "dir_walk_s2_desc",
-                "Selecting a workspace on the Landing Page launches The Cartographer to link your game binary, live Mods directory, and airgapped Vault storage."
-              ),
+              desc: t("dir_walk_s2_desc", "Selecting a workspace on the Landing Page launches The Cartographer to link your game binary, live {Mods} directory, and airgapped {Vault} storage."),
               subCards: [
                 {
                   id: "walk_2_c1",
@@ -298,20 +294,14 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_2_c2",
                   icon: t("icon_folder_open", "folder_open"),
-                  title: t("dir_walk_s2_c2_name", "Mods Folder (Symlink Target)"),
-                  desc: t(
-                    "dir_walk_s2_c2_desc",
-                    "Your live game Mods folder. Keep this untouched—Sanctuary projects active mods here via zero-copy OS symlinks."
-                  ),
+                  title: t("dir_walk_s2_c2_name", "{Mods} Folder (Symlink Target)"),
+                  desc: t("dir_walk_s2_c2_desc", "Your live game {Mods} folder. Keep this untouched—Sanctuary projects active {mods} here via zero-copy OS symlinks."),
                 },
                 {
                   id: "walk_2_c3",
                   icon: t("icon_inventory_2", "inventory_2"),
-                  title: t("dir_walk_s2_c3_name", "Vault Folder (Deep Archive)"),
-                  desc: t(
-                    "dir_walk_s2_c3_desc",
-                    "Your isolated storage directory where Sanctuary builds Mods/, Blueprints/, Backups/World/, Backups/Engine/, Quarantine/, and Data/Cache/."
-                  ),
+                  title: t("dir_walk_s2_c3_name", "{Vault} Folder (Deep Archive)"),
+                  desc: t("dir_walk_s2_c3_desc", "Your isolated storage directory where Sanctuary builds {Mods}/, {Blueprints}/, Backups/World/, Backups/Engine/, Quarantine/, and Data/Cache/."),
                 },
               ],
             },
@@ -319,13 +309,10 @@ export function getDefaultDirectiveBuilderSchema(
               id: "walk_3",
               icon: t("icon_inventory_2", "inventory_2"),
               overline: "STAGE 3 OF 7",
-              badge: t("dir_walk_s3_short", "3. Vault & Cards"),
-              title: t("dir_walk_s3_title", "Your Vault, Mod Cards & ActionPill"),
+              badge: t("dir_walk_s3_short", "3. {Vault} & Cards"),
+              title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & ActionPill"),
               footerMeta: t("dir_walk_s3_sub", "Drag-and-Drop Ingestion, Suite Grouping & Dossiers"),
-              desc: t(
-                "dir_walk_s3_desc",
-                "Every mod you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Dual-Tier Heuristic Engine, and indexed in Your Vault."
-              ),
+              desc: t("dir_walk_s3_desc", "Every {mod} you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Dual-Tier Heuristic Engine, and indexed in Your {Vault}."),
               subCards: [
                 {
                   id: "walk_3_c1",
@@ -340,15 +327,12 @@ export function getDefaultDirectiveBuilderSchema(
                   id: "walk_3_c2",
                   icon: t("icon_toggle_on", "toggle_on"),
                   title: t("dir_walk_s3_c2_name", "Parent Suite Card & Equip Toggle"),
-                  desc: t(
-                    "dir_walk_s3_c2_desc",
-                    "Toggles symlinks in milliseconds. Multi-part mod suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."
-                  ),
+                  desc: t("dir_walk_s3_c2_desc", "Toggles symlinks in milliseconds. Multi-part {mod} suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."),
                 },
                 {
                   id: "walk_3_c3",
                   icon: t("icon_menu_book", "menu_book"),
-                  title: t("dir_walk_s3_c3_name", "Mod Dossier SidePanel"),
+                  title: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
                   desc: t(
                     "dir_walk_s3_c3_desc",
                     "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static manifest.json URL, or inspect package files."
@@ -360,8 +344,8 @@ export function getDefaultDirectiveBuilderSchema(
               id: "walk_4",
               icon: t("icon_map", "map"),
               overline: "STAGE 4 OF 7",
-              badge: t("dir_walk_s4_short", "4. Blueprints"),
-              title: t("dir_walk_s4_title", "Blueprints & Loadout Hot-Swapping"),
+              badge: t("sd_guide_s4_short", "4. {Blueprints}"),
+              title: t("dir_walk_s4_title", "{Blueprints} & Loadout Hot-Swapping"),
               footerMeta: t("dir_walk_s4_sub", "Zero-Copy Profile Switching & SNCXXX Cloud Uplinks"),
               desc: t(
                 "dir_walk_s4_desc",
@@ -371,11 +355,8 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_4_c1",
                   icon: t("icon_swap_horiz", "swap_horiz"),
-                  title: t("dir_walk_s4_c1_name", "Blueprint Hot-Swap Dropdown"),
-                  desc: t(
-                    "dir_walk_s4_c1_desc",
-                    "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the Vault header or Bottom Dock."
-                  ),
+                  title: t("dir_walk_s4_c1_name", "{Blueprint} Hot-Swap Dropdown"),
+                  desc: t("dir_walk_s4_c1_desc", "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the {Vault} header or Bottom Dock."),
                 },
                 {
                   id: "walk_4_c2",
@@ -390,10 +371,7 @@ export function getDefaultDirectiveBuilderSchema(
                   id: "walk_4_c3",
                   icon: t("icon_tag", "tag"),
                   title: t("dir_walk_s4_c3_name", "6-Digit Cloud Uplink (SNCXXX)"),
-                  desc: t(
-                    "dir_walk_s4_c3_desc",
-                    "Generates a 6-character share code (SNCXXX) or publishes your Blueprint to The Nexus while auto-stripping flagged Tier 1–4 hashes."
-                  ),
+                  desc: t("dir_walk_s4_c3_desc", "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–4 hashes."),
                 },
               ],
             },
@@ -404,19 +382,13 @@ export function getDefaultDirectiveBuilderSchema(
               badge: t("dir_walk_s5_short", "5. Radar & Lab"),
               title: t("dir_walk_s5_title", "Conflict Radar & Homestead Lab"),
               footerMeta: t("dir_walk_s5_sub", "Pick-a-Winner Load Order & 100% Nuke Proving Grounds"),
-              desc: t(
-                "dir_walk_s5_desc",
-                "Resolve tuning overlaps before launching the game, or isolate suspect mods in a sterile crash-monitored sandbox."
-              ),
+              desc: t("dir_walk_s5_desc", "Resolve tuning overlaps before launching the game, or isolate suspect {mods} in a sterile crash-monitored sandbox."),
               subCards: [
                 {
                   id: "walk_5_c1",
                   icon: t("icon_emoji_events", "emoji_events"),
                   title: t("dir_walk_s5_c1_name", "Casual Mode (Pick a Winner)"),
-                  desc: t(
-                    "dir_walk_s5_c1_desc",
-                    "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning mod into a higher priority tier and dynamic Resource.cfg."
-                  ),
+                  desc: t("dir_walk_s5_c1_desc", "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning {mod} into a higher priority tier and dynamic Resource.cfg."),
                 },
                 {
                   id: "walk_5_c2",
@@ -431,10 +403,7 @@ export function getDefaultDirectiveBuilderSchema(
                   id: "walk_5_c3",
                   icon: t("icon_science", "science"),
                   title: t("dir_walk_s5_c3_name", "Homestead 100% Nuke & 1v1 Test"),
-                  desc: t(
-                    "dir_walk_s5_c3_desc",
-                    "Strips your main loadout and boots the game with only the test mod (or 2 conflicting mods) while harvesting lastException.txt logs."
-                  ),
+                  desc: t("dir_walk_s5_c3_desc", "Strips your main loadout and boots the game with only the test {mod} (or 2 conflicting {mods}) while harvesting lastException.txt logs."),
                 },
               ],
             },
@@ -443,12 +412,9 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_construction", "construction"),
               overline: "STAGE 6 OF 7",
               badge: t("dir_walk_s6_short", "6. IDE & Backups"),
-              title: t("dir_walk_s6_title", "Workbench, Timeline Diff & Time Capsule"),
+              title: t("dir_walk_s6_title", "Workbench, Timeline Diff & {Backups}"),
               footerMeta: t("dir_walk_s6_sub", "2-Column Visual Config Studio & Hardlink Backups"),
-              desc: t(
-                "dir_walk_s6_desc",
-                "Edit 430+ setting mod config files visually at 60 FPS and safeguard your saves and game binaries with zero-bloat snapshots."
-              ),
+              desc: t("dir_walk_s6_desc", "Edit 430+ setting {mod} config files visually at 60 FPS and safeguard your saves and game binaries with zero-bloat snapshots."),
               subCards: [
                 {
                   id: "walk_6_c1",
@@ -471,7 +437,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_6_c3",
                   icon: t("icon_history", "history"),
-                  title: t("dir_walk_s6_c3_name", "Time Capsule (World & Engine)"),
+                  title: t("dir_walk_s6_c3_name", "{Backups} (World & Engine)"),
                   desc: t(
                     "dir_walk_s6_c3_desc",
                     "Uses OS hardlinks so unchanged files consume 0 extra bytes, paired with differential rollback restoration."
@@ -485,29 +451,20 @@ export function getDefaultDirectiveBuilderSchema(
               overline: "STAGE 7 OF 7",
               badge: t("dir_walk_s7_short", "7. Hubs & Security"),
               title: t("dir_walk_s7_title", "Open Workshop, Passkeys & Lockdown"),
-              footerMeta: t("dir_walk_s7_sub", "Citizen Creator Inheritance & Full-OS Security Gates"),
-              desc: t(
-                "dir_walk_s7_desc",
-                "Every Citizen inherits the local Mason Workshop, while hardware FIDO2 Passkeys and full-OS Quarantine Lockdowns protect the ecosystem."
-              ),
+              footerMeta: t("dir_walk_s7_sub", "{Citizen} Creator Inheritance & Full-OS Security Gates"),
+              desc: t("dir_walk_s7_desc", "Every {Citizen} inherits the local {Mason} Workshop, while hardware FIDO2 Passkeys and full-OS Quarantine Lockdowns protect the ecosystem."),
               subCards: [
                 {
                   id: "walk_7_c1",
                   icon: t("icon_handyman", "handyman"),
-                  title: t("dir_walk_s7_c1_name", "Open Mason Workshop (Citizen Tier)"),
-                  desc: t(
-                    "dir_walk_s7_c1_desc",
-                    "All Citizens can use Dev Sandbox, Mason IDE, 3-Tile Artifact Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
-                  ),
+                  title: t("dir_walk_s7_c1_name", "Open {Mason} Workshop ({Citizen} Tier)"),
+                  desc: t("dir_walk_s7_c1_desc", "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."),
                 },
                 {
                   id: "walk_7_c2",
                   icon: t("icon_passkey", "passkey"),
-                  title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP Vault"),
-                  desc: t(
-                    "dir_walk_s7_c2_desc",
-                    "Elevated clearances (Verified Mason through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security Vault SidePanel."
-                  ),
+                  title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
+                  desc: t("dir_walk_s7_c2_desc", "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} SidePanel."),
                 },
                 {
                   id: "walk_7_c3",
@@ -613,7 +570,7 @@ export function getDefaultDirectiveBuilderSchema(
             badge:
               p.status === "active"
                 ? t("sd_roadmap_status_active", "ACTIVE PHASE")
-                : t("sd_roadmap_status_completed", "COMPLETED"),
+                : t("status_completed", "COMPLETED"),
             title: t(`sd_roadmap_p${p.num}_title`, `Phase ${p.num}`),
             footerMeta: t(`sd_roadmap_p${p.num}_focus`, ""),
             desc: t(`sd_roadmap_p${p.num}_summary`, ""),
@@ -638,10 +595,7 @@ export function getDefaultDirectiveBuilderSchema(
     return {
       slug: "forking_guide",
       title: t("sd_card_fork_title", "Forking & Spoke Provisioning Guide"),
-      summary: t(
-        "sd_card_fork_desc",
-        "Interactive blueprint for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://), a 1-file Standalone Codebase Fork (src/supabase.ts), or a Full Hub & Spoke Multi-Game Federation."
-      ),
+      summary: t("sd_card_fork_desc", "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Dynamic Game Schemas and Cut the Cord."),
       tabs: [
         {
           id: "spoke",
@@ -656,7 +610,7 @@ export function getDefaultDirectiveBuilderSchema(
                 "sd_fork_spoke_hero_badge",
                 "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"
               ),
-              badge: t("workspace_badge_active", "Active"),
+              badge: t("active", "Active"),
               title: t(
                 "sd_fork_spoke_hero_title",
                 "Connect a Sovereign Community Spoke in 3 Steps"
@@ -877,7 +831,7 @@ export function getDefaultDirectiveBuilderSchema(
                 "dir_arch_p1_badge",
                 "ARCHITECTURE PILLAR 1 • CORE ENGINE & OPTICS"
               ),
-              badge: t("workspace_badge_active", "Active"),
+              badge: t("active", "Active"),
               title: t(
                 "dir_arch_p1_heading",
                 "Tauri v2 Rust Kernel, Liquid Glass V3 & Lexicon Engine"
@@ -941,7 +895,7 @@ export function getDefaultDirectiveBuilderSchema(
                 "dir_arch_p2_badge",
                 "ARCHITECTURE PILLAR 2 • FEDERATION & STATIC EDGE"
               ),
-              badge: t("workspace_badge_active", "Active"),
+              badge: t("active", "Active"),
               title: t(
                 "dir_arch_p2_heading",
                 "Decoupled Hub-and-Spoke Cloud, Static Edge & Standalone Mode"
@@ -1008,16 +962,13 @@ export function getDefaultDirectiveBuilderSchema(
           id: "p3",
           icon: t("icon_shield", "shield"),
           label: t("dir_ar_t3_lbl", "PILLAR 3"),
-          value: t("dir_ar_t3_val", "Vault & Lab"),
+          value: t("dir_ar_t3_val", "{Vault} & Lab"),
           cards: [
             {
               id: "arch_p3",
               icon: t("icon_inventory_2", "inventory_2"),
-              overline: t(
-                "dir_arch_p3_badge",
-                "ARCHITECTURE PILLAR 3 • VAULT, AIRGAP & DEFENSE"
-              ),
-              badge: t("workspace_badge_active", "Active"),
+              overline: t("dir_arch_p3_badge", "ARCHITECTURE PILLAR 3 • {VAULT}, AIRGAP & DEFENSE"),
+              badge: t("active", "Active"),
               title: t(
                 "dir_arch_p3_heading",
                 "Symlink Airgap 2.5, Topological Compiler, FIDO2 & Malware Lockdown"
@@ -1035,10 +986,7 @@ export function getDefaultDirectiveBuilderSchema(
                     "sd_arch_vault_c2_title",
                     "Symlink Airgap 2.5 & Dynamic Config Watcher"
                   ),
-                  desc: t(
-                    "dir_arch_p3_b1",
-                    "Symlink Airgap 2.5 projects mods from Vault/Mods/ into the live game folder, grouping multi-file mod suites into expandable Parent Cards"
-                  ),
+                  desc: t("dir_arch_p3_b1", "Symlink Airgap 2.5 projects {mods} from {Vault}/{Mods}/ into the live game folder, grouping multi-file {mod} suites into expandable Parent Cards"),
                 },
                 {
                   id: "arch_p3_c2",
@@ -1055,14 +1003,8 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "arch_p3_c3",
                   icon: t("icon_construction", "construction"),
-                  title: t(
-                    "sd_roadmap_p7_title",
-                    "Citizen's Workbench & Open Mason Workshop"
-                  ),
-                  desc: t(
-                    "dir_arch_p3_b3",
-                    "Reimagined 2-Column Citizen's Workbench (430+ settings at 60 FPS), No-Code Visual Template Builder, 2-Column Timeline Diff & Unified 3-Tile Artifact Studio"
-                  ),
+                  title: t("sd_roadmap_p7_title", "Core Architecture, {Backups} Compression & Windows MSI Pipeline"),
+                  desc: t("dir_arch_p3_b3", "Reimagined 2-Column {Citizen}'s Workbench (430+ settings at 60 FPS), No-Code Visual Template Builder, 2-Column Timeline Diff & Unified 3-Tile {Mod} Studio"),
                 },
                 {
                   id: "arch_p3_c4",
@@ -1071,10 +1013,7 @@ export function getDefaultDirectiveBuilderSchema(
                     "sd_arch_logic_c3_title",
                     "Homestead Lab 100% Nuke & 1v1 Stability"
                   ),
-                  desc: t(
-                    "dir_arch_p3_b4",
-                    "Homestead 100% Nuke & 1v1 Stability Lab + Time Capsule incremental NTFS/POSIX hardlink snapshots (.tar.zst) with differential rollback"
-                  ),
+                  desc: t("dir_arch_p3_b4", "Homestead 100% Nuke & 1v1 Stability Lab + {Backups} incremental NTFS/POSIX hardlink snapshots (.tar.zst) with differential rollback"),
                 },
               ],
             },
@@ -1113,10 +1052,7 @@ export function getDefaultDirectiveBuilderSchema(
             badge: "TIER 0",
             title: t("sd_proto_tier0_title", "Standard Verified & General Audience"),
             footerMeta: t("sd_proto_tier0_badge", "TIER 0 • PUBLIC SAFE"),
-            desc: t(
-              "sd_proto_tier0_desc",
-              "Eligible for full public indexing across The Nexus, shared Cloud Blueprints (SNCXXX), and public Mason Profiles. Full Citizen Support Desk access."
-            ),
+            desc: t("sd_proto_tier0_desc", "Eligible for full public indexing across The Nexus, shared Cloud {Blueprints} (SNCXXX), and public {Mason} Profiles. Full {Citizen} Support Desk access."),
             subCards: [],
           },
           {
@@ -1129,10 +1065,7 @@ export function getDefaultDirectiveBuilderSchema(
               "Adult (NSFW) & Illicit Themes — Local Allowed, Public Scrubbed"
             ),
             footerMeta: t("sd_proto_tier12_badge", "TIERS 1–2 • EXPLICIT / ILLICIT"),
-            desc: t(
-              "sd_proto_tier12_desc",
-              "Permitted in local Vaults and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from public Cloud Blueprints (trg_purge_flagged_hash_from_blueprints). Eligible for Support Desk with automated 'Dirty Log' sanitization."
-            ),
+            desc: t("sd_proto_tier12_desc", "Permitted in local Vaults and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Eligible for Support Desk with automated 'Dirty Log' sanitization."),
             subCards: [],
           },
           {
@@ -1140,15 +1073,9 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_lock", "lock"),
             overline: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
             badge: "TIERS 3–4",
-            title: t(
-              "sd_proto_tier34_title",
-              "Extreme Violence & Taboo Content — Triggers Vault Lock"
-            ),
+            title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
             footerMeta: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
-            desc: t(
-              "sd_proto_tier34_desc",
-              "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and Cloud Blueprints. Equipping or storing Tier 3–4 artifacts engages a Vault Lock that restricts Citizen Support Desk ticket submissions until removed."
-            ),
+            desc: t("sd_proto_tier34_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and Cloud {Blueprints}. Equipping or storing Tier 3–4 {mods} engages a {Vault} Lock that restricts {Citizen} Support Desk ticket submissions until removed."),
             subCards: [],
           },
           {

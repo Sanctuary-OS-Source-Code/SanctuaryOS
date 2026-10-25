@@ -36,6 +36,7 @@ export function VaultGrid(props: any) {
   const checkConflicts = React.useCallback((mObj: any, targetCasualties: any[], targetTier3: any[]) => {
     const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
     const mObjDispUpper = mObj.displayName?.toUpperCase();
+    const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
 
     if (mObj.conflicts && mObj.conflicts.length > 0) {
       const processSeverity = (targetRank: number, targetList: any[]) => {
@@ -46,7 +47,7 @@ export function VaultGrid(props: any) {
             if (c.enemy_name) {
               const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
               const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
-              if (mObjBase === targetClean || item.emBaseClean.replace(/_SCRIPT(S)?$/i, "") === targetClean || mObjDispUpper === targetClean || item.emDisp.replace(/_SCRIPT(S)?$/i, "") === targetClean) return true;
+              if (mObjBase === targetClean || (item.emBaseNoScript ?? item.emBaseClean.replace(/_SCRIPT(S)?$/i, "")) === targetClean || mObjDispUpper === targetClean || (item.emDispNoScript ?? item.emDisp.replace(/_SCRIPT(S)?$/i, "")) === targetClean) return true;
             }
             return false;
           });
@@ -361,7 +362,7 @@ export function VaultGrid(props: any) {
     uppercaseEquippedMods,
     localConflictsMemo,
     activeGameSchema,
-    expandedFolder
+    activeGameSchema
   ]);
 
   const drawerComputations = React.useMemo(() => {
@@ -369,6 +370,7 @@ export function VaultGrid(props: any) {
     paginatedMods.forEach((mod: any, index: number) => {
       const mainKey = `${mod.hash || mod.name}-${index}`;
       const isExpanded = expandedFolder === mainKey;
+      if (!isExpanded) return;
 
       (mod.flavors || []).forEach((flavor: any) => {
         const isFlavorEquipped = activeSetMods.includes(flavor.name);
@@ -517,7 +519,7 @@ export function VaultGrid(props: any) {
     <>
       <div id="vault-grid-container" className={`${gridLayoutClass} gap-6 pb-24 pl-2 pr-6 relative`}>
         {paginatedMods.length === 0 ? (
-          <EmptyState icon="search_off" title={t("registry_no_mods")} subtitle={t("vault_no_results_sub")} className="col-span-full py-24" />
+          <EmptyState icon="search_off" title={t("registry_no_mods", "No {Mods} Found")} subtitle={t("vault_no_results_sub", "Try adjusting your search criteria or filters.")} className="col-span-full py-24" />
         ) : (
           paginatedMods.map((mod: any, index: number) => {
             const mainKey = `${mod.hash || mod.name}-${index}`;
@@ -631,6 +633,7 @@ export function VaultGrid(props: any) {
                   setActiveDossier(mod);
                 }}
                 isParent={mod.isParent}
+                isGhostPlaceholder={expandedFolder === mainKey}
                 isExpanded={expandedFolder === mainKey}
                 isFlavorSwap={isFlavorSwapCard}
                 onExpand={() =>
@@ -656,10 +659,11 @@ export function VaultGrid(props: any) {
               <React.Fragment key={mainKey}>
                 {/* GHOST PLACEHOLDER IN GRID TO PREVENT SHIFTING */}
                 <div className="contents">
-                  {React.cloneElement(renderedModCard, { isGhostPlaceholder: expandedFolder === mainKey })}
+                  {renderedModCard}
                 </div>
 
-                <AccordionDrawer isOpen={expandedFolder === mainKey}>
+                {expandedFolder === mainKey && (
+                <AccordionDrawer isOpen={true}>
                   <div
                     className="w-full glass-panel rounded-3xl p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-6 relative isolate"
                     onClick={(e) => e.stopPropagation()}
@@ -682,7 +686,7 @@ export function VaultGrid(props: any) {
                                 {t("icon_account_tree", "account_tree")}
                               </span>
                               <span>
-                                {t("nav_exploring", "Exploring")} {(renderedMod.flavors || []).length} {t("items", "Artifacts")}
+                                {t("nav_exploring", "Exploring")} {(renderedMod.flavors || []).length} {t("term_mods", "Artifacts")}
                               </span>
                             </div>
                           </div>
@@ -706,7 +710,7 @@ export function VaultGrid(props: any) {
                               e.stopPropagation();
                               if (e.key === "Escape") setDrawerSearchQuery("");
                             }}
-                            placeholder={t("search_ph", "Search...")}
+                            placeholder={t("search_ph", "Search {mods}...")}
                             className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                           />
                           {drawerSearchQuery && (
@@ -756,7 +760,7 @@ export function VaultGrid(props: any) {
                           return (
                             <EmptyState
                               icon={t("icon_search_off", "search_off")}
-                              title={t("registry_no_mods", "No Artifacts Found")}
+                              title={t("registry_no_mods", "No {Mods} Found")}
                               minHeightClass="min-h-[180px]"
                               className="col-span-full py-6"
                             />
@@ -827,6 +831,7 @@ export function VaultGrid(props: any) {
                     </div>
                   </div>
                 </AccordionDrawer>
+                )}
             </React.Fragment>
           );
         })
@@ -839,7 +844,7 @@ export function VaultGrid(props: any) {
             disabled={currentPage === 1}
             className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
-            {t("nav_prev")}
+            {t("nav_prev", "PREV")}
           </button>
           <span className="text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] px-4">
             {currentPage} / {totalPages}
@@ -849,7 +854,7 @@ export function VaultGrid(props: any) {
             disabled={currentPage === totalPages}
             className="px-6 py-3 glass-surface rounded-xl overflow-hidden font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)]"
           >
-            {t("nav_next")}
+            {t("nav_next", "NEXT")}
           </button>
         </div>
       )

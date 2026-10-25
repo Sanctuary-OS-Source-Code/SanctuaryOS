@@ -7,6 +7,7 @@ import {
   DashboardStatTile,
   EmptyState,
   CustomDropdown,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalSearch } from "../components/universal/UniversalLayout";
 
@@ -29,7 +30,7 @@ export default function SidePanelMasonPin({
     "ALL",
     ...Array.from(
       new Set(
-        mods?.map((m: any) => m.category_override || t("label_artifact", "Artifact")) || []
+        mods?.map((m: any) => m.category_override || t("label_artifact", "{Mod}")) || []
       )
     ),
   ];
@@ -55,7 +56,7 @@ export default function SidePanelMasonPin({
     mods?.filter((m: any) => {
       if (
         activeCategory !== "ALL" &&
-        (m.category_override || t("label_artifact", "Artifact")) !== activeCategory
+        (m.category_override || t("label_artifact", "{Mod}")) !== activeCategory
       )
         return false;
       if (searchQuery && !m.name?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -100,7 +101,7 @@ export default function SidePanelMasonPin({
             "creator_identity",
             "Highlight your featured artifacts, blueprints, and Nexus creations on your public profile."
           )}
-          badge={mason?.name || t("label_artifact", "Showcase")}
+          badge={mason?.name || t("label_artifact", "{Mod}")}
           badgeIcon={t("icon_verified", "verified")}
           variant="accent"
         />
@@ -110,7 +111,7 @@ export default function SidePanelMasonPin({
             variant="filter"
             className="!w-full"
             icon={t("icon_account_balance", "account_balance")}
-            label={t("pin_tab_artifacts", "Artifacts")}
+            label={t("term_mods", "Artifacts")}
             value={mods?.length || 0}
             isActive={activeTab === "mod"}
             onClick={() => {
@@ -122,7 +123,7 @@ export default function SidePanelMasonPin({
             variant="filter"
             className="!w-full"
             icon={t("icon_map", "map")}
-            label={t("pin_tab_blueprints", "Blueprints")}
+            label={t("playsets_title", "{Blueprints}")}
             value={blueprintAssets.length}
             isActive={activeTab === "blueprint"}
             onClick={() => {
@@ -147,9 +148,9 @@ export default function SidePanelMasonPin({
         <UniversalGroup
           title={
             activeTab === "mod"
-              ? t("pin_tab_artifacts", "Artifacts")
+              ? t("term_mods", "Artifacts")
               : activeTab === "blueprint"
-                ? t("pin_tab_blueprints", "Blueprints")
+                ? t("playsets_title", "{Blueprints}")
                 : t("pin_tab_assets", "Assets")
           }
           icon={
@@ -166,10 +167,10 @@ export default function SidePanelMasonPin({
               onChange={setSearchQuery}
               placeholder={
                 activeTab === "mod"
-                  ? t("search_artifacts", "Search artifacts...")
+                  ? t("search_ph", "Search {mods}...")
                   : activeTab === "blueprint"
-                    ? t("search_blueprints", "Search blueprints...")
-                    : t("search_assets", "Search assets...")
+                    ? t("search_blueprints", "Search {Blueprints}...")
+                    : t("cc_search", "Search assets...")
               }
               wrapperClassName="flex-1"
             />
@@ -227,7 +228,12 @@ export default function SidePanelMasonPin({
                           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl shrink-0 overflow-hidden bg-transparent flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
+                      <div
+                        className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
+                        style={{
+                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                        }}
+                      >
                         {mod.image_url ? (
                           <img
                             src={mod.image_url}
@@ -236,7 +242,7 @@ export default function SidePanelMasonPin({
                           />
                         ) : (
                           <span
-                            className={`material-symbols-outlined !text-2xl transition-all duration-300 ${
+                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${
                               isPinned
                                 ? "text-[var(--accent)]"
                                 : "text-[var(--subtext)] opacity-70 group-hover:text-[var(--accent)]"
@@ -257,8 +263,19 @@ export default function SidePanelMasonPin({
                         >
                           {mod.name}
                         </h3>
-                        <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider truncate w-fit">
-                          {mod.category_override || t("label_artifact", "Artifact")}
+                        <span
+                          className={`${VAULT_CHIP_CLASS} w-fit`}
+                          style={{
+                            color: "var(--accent)",
+                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {getModIcon(mod, activeGameSchema, t)}
+                          </span>
+                          <span className="truncate">
+                            {mod.category_override || t("label_artifact", "{Mod}")}
+                          </span>
                         </span>
                       </div>
 
@@ -280,7 +297,7 @@ export default function SidePanelMasonPin({
             ) : (
               <EmptyState
                 icon={t("icon_search", "search")}
-                title={t("no_match_artifacts", "No Matching Artifacts Found")}
+                title={t("mason_cc_no_assets", "No Matching {Mods}")}
                 minHeightClass="min-h-[180px]"
               />
             )
@@ -302,7 +319,12 @@ export default function SidePanelMasonPin({
                           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl shrink-0 overflow-hidden bg-transparent flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
+                      <div
+                        className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
+                        style={{
+                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                        }}
+                      >
                         {bp.image_url ? (
                           <img
                             src={bp.image_url}
@@ -311,7 +333,7 @@ export default function SidePanelMasonPin({
                           />
                         ) : (
                           <span
-                            className={`material-symbols-outlined !text-2xl transition-all duration-300 ${
+                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${
                               isPinned
                                 ? "text-[var(--accent)]"
                                 : "text-[var(--subtext)] opacity-70 group-hover:text-[var(--accent)]"
@@ -332,8 +354,17 @@ export default function SidePanelMasonPin({
                         >
                           {bp.name}
                         </h3>
-                        <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider truncate w-fit">
-                          {t("type_blueprint", "Blueprint")}
+                        <span
+                          className={`${VAULT_CHIP_CLASS} w-fit`}
+                          style={{
+                            color: "var(--accent)",
+                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                          }}
+                        >
+                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                            {bpIcon}
+                          </span>
+                          <span className="truncate">{t("blueprint", "{Blueprint}")}</span>
                         </span>
                       </div>
 
@@ -355,7 +386,7 @@ export default function SidePanelMasonPin({
             ) : (
               <EmptyState
                 icon={t("icon_search", "search")}
-                title={t("no_match_blueprints", "No Matching Blueprints Found")}
+                title={t("no_match_blueprints", "No Matching {Blueprints} Found")}
                 minHeightClass="min-h-[180px]"
               />
             )
@@ -381,7 +412,12 @@ export default function SidePanelMasonPin({
                         : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                     }`}
                   >
-                    <div className="w-12 h-12 rounded-xl shrink-0 overflow-hidden bg-transparent flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
+                    <div
+                      className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
                       {asset.image_url ? (
                         <img
                           src={asset.image_url}
@@ -390,7 +426,7 @@ export default function SidePanelMasonPin({
                         />
                       ) : (
                         <span
-                          className={`material-symbols-outlined !text-2xl transition-all duration-300 ${
+                          className={`material-symbols-rounded !text-xl transition-all duration-300 ${
                             isPinned
                               ? "text-[var(--accent)]"
                               : "text-[var(--subtext)] opacity-70 group-hover:text-[var(--accent)]"
@@ -411,8 +447,19 @@ export default function SidePanelMasonPin({
                       >
                         {asset.name}
                       </h3>
-                      <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider truncate w-fit">
-                        {t(asset.asset_type, asset.asset_type) || asset.asset_type}
+                      <span
+                        className={`${VAULT_CHIP_CLASS} w-fit`}
+                        style={{
+                          color: "var(--accent)",
+                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                        }}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          {smIcon}
+                        </span>
+                        <span className="truncate">
+                          {t(asset.asset_type, asset.asset_type) || asset.asset_type}
+                        </span>
                       </span>
                     </div>
 

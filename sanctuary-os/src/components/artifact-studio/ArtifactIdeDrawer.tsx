@@ -2,7 +2,8 @@ import React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { PanelHeaderButton, PanelHeaderGroup, SidePanel } from "../../shared";
+import { PanelHeaderButton, PanelHeaderGroup, SidePanel, StatBox } from "../../shared";
+import { SidePanelHeroCard } from "../layouts/ElevatedHubLayout";
 import { WorkbenchRawEditor } from "../../workbench/WorkbenchRawEditor";
 import VersionTimeline from "../../VersionTimeline";
 
@@ -26,6 +27,16 @@ export function ArtifactIdeDrawer({
   const { t } = useLexicon();
 
   if (!cwSelectedFile) return null;
+
+  const detectedLanguage =
+    cwSelectedFile.name.toLowerCase().endsWith(".json") ||
+    (wbEditorState.rawText &&
+      (wbEditorState.rawText.trim().startsWith("{") ||
+        wbEditorState.rawText.trim().startsWith("[")))
+      ? "json"
+      : cwSelectedFile.name.toLowerCase().endsWith(".xml")
+        ? "xml"
+        : "ini";
 
   return (
     <>
@@ -54,7 +65,7 @@ export function ArtifactIdeDrawer({
               onClick={() => setWbShowTimeline(true)}
             />
             <PanelHeaderButton
-              icon={wbLayoutState.isFullscreen ? "fullscreen_exit" : "fullscreen"}
+              icon={wbLayoutState.isFullscreen ? "fullscreen_exit" : t("icon_fullscreen", "fullscreen")}
               tooltip={
                 wbLayoutState.isFullscreen
                   ? t("btn_exit_fullscreen", "Exit Fullscreen")
@@ -66,6 +77,44 @@ export function ArtifactIdeDrawer({
         }
       >
         <div className="flex-1 min-h-0 flex flex-col h-full w-full relative gap-3 p-2">
+          <SidePanelHeroCard
+            title={cwSelectedFile.name}
+            subtitle={cwSelectedFile.path}
+            label={t("editor_mode", "Editor Mode")}
+            icon={t("icon_code", "code")}
+            variant={hasUnsavedIdeChanges ? "warning" : "accent"}
+            badges={[
+              {
+                icon: hasUnsavedIdeChanges ? t("icon_edit_note", "edit_note") : t("icon_check_circle", "check_circle"),
+                label: hasUnsavedIdeChanges
+                  ? t("status_unsaved_changes", "Unsaved Changes")
+                  : t("alert_saved", "Saved"),
+                colorClass: hasUnsavedIdeChanges
+                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
+                  : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]",
+              },
+            ]}
+          >
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <StatBox
+                label={t("label_format", "Format")}
+                value={detectedLanguage.toUpperCase()}
+                icon={t("icon_data_object", "data_object")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("syntax_error_title", "Syntax Errors")}
+                value={wbEditorState.problemsList.length}
+                icon={t("icon_bug_report", "bug_report")}
+                iconColorClass={
+                  wbEditorState.problemsList.length > 0
+                    ? "text-[var(--danger)]"
+                    : "text-[var(--success)]"
+                }
+              />
+            </div>
+          </SidePanelHeroCard>
+
           {wbEditorState.problemsList.length > 0 && (
             <div
               onClick={() => {
@@ -105,16 +154,7 @@ export function ArtifactIdeDrawer({
             <WorkbenchRawEditor
               value={wbEditorState.rawText}
               onChange={wbEditorState.handleRawChange}
-              language={
-                cwSelectedFile.name.toLowerCase().endsWith(".json") ||
-                (wbEditorState.rawText &&
-                  (wbEditorState.rawText.trim().startsWith("{") ||
-                    wbEditorState.rawText.trim().startsWith("[")))
-                  ? "json"
-                  : cwSelectedFile.name.toLowerCase().endsWith(".xml")
-                    ? "xml"
-                    : "ini"
-              }
+              language={detectedLanguage}
               isLight={wbLayoutState.isLight}
               problemsList={wbEditorState.problemsList}
               setProblemsList={wbEditorState.setProblemsList}
@@ -158,4 +198,3 @@ export function ArtifactIdeDrawer({
     </>
   );
 }
-

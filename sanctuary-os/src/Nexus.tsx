@@ -15,14 +15,20 @@ import { isDesktop } from "./utils/envUtils";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
-import { DynamicThemePreviewBanner } from "./chameleon-components/ThemeCard";
+import {
+  DynamicThemePreviewBanner,
+  DynamicLexiconPreviewBanner,
+  DynamicBlueprintPreviewBanner,
+  DynamicTemplatePreviewBanner,
+  DynamicArtifactPreviewBanner,
+} from "./chameleon-components/ThemeCard";
 
 
 
 if (!window.__sanctuaryCache) {
   window.__sanctuaryCache = {} as any;
 }
-if (!window.__sanctuaryCache!.nexus) {
+if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).schemaRev !== 3) {
   window.__sanctuaryCache!.nexus = {
     nexusItems: null,
     lastNexusFetch: 0,
@@ -31,8 +37,9 @@ if (!window.__sanctuaryCache!.nexus) {
     homeStats: null,
 
     recentFeed: [],
-    lastHomeFetch: 0
-  };
+    lastHomeFetch: 0,
+    schemaRev: 3,
+  } as any;
 }
 
 const CACHE_TTL = 1000 * 60 * 15;
@@ -190,7 +197,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         // Stale-While-Revalidate: Show cache immediately if we have it
         if (window.__sanctuaryCache!.nexus!.homeStats) {
           setStats(window.__sanctuaryCache!.nexus!.homeStats);
-          setRecentFeed(window.__sanctuaryCache!.nexus!.recentFeed);
+          setRecentFeed((window.__sanctuaryCache!.nexus!.recentFeed || []).filter((item: any) => item.is_public !== false));
           setLoadingHome(false);
         }
 
@@ -368,8 +375,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             { data: recentBps },
             { data: recentAssets }
           ] = await Promise.all([
-            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).order('created_at', { ascending: false }).limit(20),
-            supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access').order('created_at', { ascending: false }).limit(20)
+            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
+            supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
           ]);
 
           let combined = [
@@ -379,6 +386,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           ];
 
           combined = combined.filter((item: any) => {
+            if (item.is_public === false) return false;
             if (item.feed_type === 'artifact') {
               return !item.name?.toLowerCase().includes("manual flag");
             }
@@ -522,7 +530,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           { data: masonData }
         ] = await Promise.all([
           supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).order('created_at', { ascending: false }).limit(1000),
-          supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
+          supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
           supabase.from('masons').select('id, name, is_verified')
         ]);
 
@@ -547,7 +555,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             id: b.id,
             name: b.name,
             author: masonData?.find((m: any) => m.id === b.mason_id)?.name || "Citizen",
-            description: artifactsList.length > 0 ? `${artifactsList.length} ${t("items")}` : (t("tab_blueprints")),
+            description: artifactsList.length > 0 ? `${artifactsList.length} ${t("term_mods", "Mods")}` : (t("tab_blueprints", "{Blueprints}")),
             created_at: b.created_at,
             asset_type: 'blueprint',
             is_paid: isPaid,
@@ -607,13 +615,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const handleUploadAsset = async () => {
     try {
       if (!session?.user?.id) {
-        useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to upload.");
+        useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active") || "Login required to upload.");
         return;
       }
       if (session?.user?.id) {
         const { data: profileData } = await supabase.from('user_profiles').select('allow_upload').eq('id', session.user.id).maybeSingle();
         if (profileData && profileData.allow_upload === false) {
-          useStore.getState().pushStatus(t("upload_banned"));
+          useStore.getState().pushStatus(t("upload_banned", "Upload access has been revoked."));
           return;
         }
       }
@@ -666,7 +674,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const submitUpload = async () => {
     try {
       if (!session?.user?.id) {
-        useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to upload.");
+        useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active") || "Login required to upload.");
         return;
       }
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
@@ -735,7 +743,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user?.id) {
-      useStore.getState().pushStatus(t("auto_guest_mode_active_45") || "Login required to submit reports.");
+      useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active") || "Login required to submit reports.");
       return;
     }
     if (!reportState.assetId || !reportState.reason.trim()) return;
@@ -811,7 +819,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const importTemplate = async (templateJson: any) => {
     if (!isDesktop()) {
-      if (onSetStatus) onSetStatus(t("error_web_feature_disabled") || "Not available on Web");
+      if (onSetStatus) onSetStatus(t("error_web_feature_disabled", "Desktop App Required") || "Not available on Web");
       return;
     }
     try {
@@ -1160,7 +1168,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         }
       } catch (err: any) {
         console.error(err);
-        if (!isSilent) useStore.getState().pushStatus(t("error_nexus_load"));
+        if (!isSilent) useStore.getState().pushStatus(t("error_nexus_load", "Failed to load Nexus items."));
         throw err;
       }
     })();
@@ -1175,7 +1183,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
   }
 
-  const categories = useMemo(() => [t("ql_all"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))], [results, t]);
+  const categories = useMemo(() => [t("filter_all", "All"), ...Array.from(new Set(results.map((m: any) => m.category_override || "Uncategorized").filter(Boolean)))], [results, t]);
 
   const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
   const filteredResults = useMemo(() => {
@@ -1232,7 +1240,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         (masonName || "").toLowerCase().includes(searchText) ||
         (mod.description || "").toLowerCase().includes(searchText);
 
-      const matchesCategory = categoryFilter === (t("ql_all")) ||
+      const matchesCategory = categoryFilter === (t("filter_all", "All")) ||
         categoryFilter === "ALL" ||
         mod.category_override === categoryFilter;
       let matchesGameVersion = false;
@@ -1380,24 +1388,24 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     return (
       <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 gap-6">
         <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
-        <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title")}</h2>
-        <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
+        <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title", "Offline Mode")}</h2>
+        <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc", "This module requires a secure network connection. Please restore your connection or disable Local Network Only mode in preferences.")}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]  active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
-          {t("loading")}
+          {t("loading", "Loading")}
         </button>
       </div>
     );
   }
 
   const viewFilterOptions = useMemo(() => [
-    { id: "hide_installed", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">download_done</span> {t("filter_hide_installed")}</span> },
-    { id: "hide_paid", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">monetization_on</span> {t("filter_hide_paid")}</span> },
-    { id: "hide_ea", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">science</span> {t("filter_hide_early_access")}</span> },
-    { id: "hide_missing_dlc", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">extension</span> {t("filter_hide_dlc")}</span> }
+    { id: "hide_installed", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">download_done</span> {t("filter_hide_installed", "Hide Installed")}</span> },
+    { id: "hide_paid", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">monetization_on</span> {t("filter_hide_paid", "Hide Paid")}</span> },
+    { id: "hide_ea", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">science</span> {t("filter_hide_early_access", "Hide Early Access")}</span> },
+    { id: "hide_missing_dlc", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">extension</span> {t("filter_hide_dlc", "Hide Missing DLC")}</span> }
   ], [t]);
 
   const activeViewFilters = useMemo(() => {
@@ -1462,9 +1470,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     <>
       <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <ViewHeader
-          title={t("market_title")}
-          subtitle={`${t("subtitle_suffix")}`}
-          icon={t("icon_hub")}
+          title={t("market_title", "The {Nexus}")}
+          subtitle={`${t("subtitle_suffix", "Community index, {mod} discovery, and metadata links")}`}
+          icon={t("icon_hub", "hub")}
           iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
           breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview', 'Overview') : marketTab === 'STAGING' ? t('tab_staging', 'Staging') : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
@@ -1479,19 +1487,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   setCurrentPage(1);
                 }}
                 searchPlaceholder={
-                  marketTab === 'MODS' ? (t("search_placeholder") as string) :
-                    marketTab === 'LEXICONS' ? (t("search_lexicons") as string) :
-                      marketTab === 'TEMPLATES' ? (t("search_tmpl") as string) :
-                        marketTab === 'BLUEPRINTS' ? (t("search_blueprints") as string) :
-                          (t("search_chameleons") as string)
+                  marketTab === 'MODS' ? (t("search_placeholder", "Search {Mods} or {Masons}...") as string) :
+                    marketTab === 'LEXICONS' ? (t("search_lexicons", "Search {Lexicons} or {Masons}...") as string) :
+                      marketTab === 'TEMPLATES' ? (t("search_tmpl", "Search Templates...") as string) :
+                        marketTab === 'BLUEPRINTS' ? (t("search_blueprints", "Search {Blueprints}...") as string) :
+                          (t("search_chameleons", "Search {Chameleons} or {Masons}...") as string)
                 }
                 primaryPopover={{
                   icon: "tune",
-                  label: t("filters") || "Filters",
+                  label: t("filters", "Filters") || "Filters",
                   content: (
                     <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
                       <FilterSection
-                        title={t("sort_by") || "Sort By"}
+                        title={t("sort_by", "Sort By") || "Sort By"}
                         value={marketTab === 'MODS' ? sortBy : assetSortBy}
                         onChange={(val: string) => {
                           if (marketTab === 'MODS') setSortBy(val);
@@ -1499,16 +1507,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           setCurrentPage(1);
                         }}
                         options={[
-                          { id: "newest", label: t("sort_newest") },
-                          { id: "oldest", label: t("sort_oldest") },
-                          { id: "name", label: t("sort_name") },
-                          { id: "author", label: t("sort_author") }
+                          { id: "newest", label: t("sort_newest", "Newest") },
+                          { id: "oldest", label: t("sort_oldest", "Oldest First") },
+                          { id: "name", label: t("sort_name", "Name (A-z)") },
+                          { id: "author", label: t("sort_author", "{Mason} (A-z)") }
                         ]}
                       />
 
                       {marketTab === 'MODS' && (
                         <FilterSection
-                          title={t("filter_category") || "Category"}
+                          title={t("filter_category", "Filter Category") || "Category"}
                           value={categoryFilter}
                           onChange={(val: string) => {
                             setCategoryFilter(val);
@@ -1523,7 +1531,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                       {(marketTab === 'LEXICONS' || marketTab === 'TEMPLATES') && (
                         <FilterSection
-                          title={marketTab === 'LEXICONS' ? t("tab_lexicons") : (t("ql_templates"))}
+                          title={marketTab === 'LEXICONS' ? t("tab_lexicons", "Language") : (t("ql_templates", "Templates"))}
                           value={languageFilter}
                           onChange={(val: string) => { setLanguageFilter(val); setCurrentPage(1); }}
                           options={[
@@ -1535,32 +1543,32 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                       {marketTab === 'LEXICONS' && (
                         <FilterSection
-                          title={t("filter_type") || "Type"}
+                          title={t("filter_type", "Type") || "Type"}
                           value={lexiconTypeFilter}
                           onChange={(val: string) => { setLexiconTypeFilter(val); setCurrentPage(1); }}
                           options={[
                             { id: "all", label: "All Types" },
-                            { id: "Default", label: t("type_default") },
-                            { id: "Theme", label: t("type_theme") }
+                            { id: "Default", label: t("type_default", "Default") },
+                            { id: "Theme", label: t("chameleon", "Theme") }
                           ]}
                         />
                       )}
 
                       {marketTab === 'CHAMELEONS' && (
                         <FilterSection
-                          title={t("filter_mode") || "Theme Mode"}
+                          title={t("filter_mode", "Theme Mode") || "Theme Mode"}
                           value={themeModeFilter}
                           onChange={(val: string) => { setThemeModeFilter(val); setCurrentPage(1); }}
                           options={[
                             { id: "all", label: "All Modes" },
-                            { id: "Dark", label: t("mode_dark") },
-                            { id: "Light", label: t("mode_light") }
+                            { id: "Dark", label: t("mode_dark", "Dark") },
+                            { id: "Light", label: t("mode_light", "Light") }
                           ]}
                         />
                       )}
 
                       <FilterSection
-                        title={t("filter_view_options") || "View Options"}
+                        title={t("filter_view_options", "View Options") || "View Options"}
                         multiSelect={true}
                         value={activeViewFilters}
                         onChange={handleViewFiltersChange}
@@ -1570,7 +1578,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
                         <div className="flex flex-col mb-5 w-full last:mb-0">
                           <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                            {t("label_game_version") || "Game Version"}
+                            {t("label_game_version", "Game Version") || "Game Version"}
                             <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
                           </div>
                           <div className="h-10 w-full relative z-[60]">
@@ -1583,7 +1591,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 setCurrentPage(1);
                               }}
                               options={[
-                                { id: "all", label: t("filter_all_versions") || "ALL VERSIONS" },
+                                { id: "all", label: t("filter_all_versions", "All Versions") || "ALL VERSIONS" },
                                 ...(selectedGameVersion !== "all" && !gameVersions.includes(selectedGameVersion) ? [{ id: selectedGameVersion, label: selectedGameVersion }] : []),
                                 ...gameVersions.map(v => ({ id: v, label: v }))
                               ]}
@@ -1599,7 +1607,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           )}
         </ViewHeader>
 
-        <div className="flex flex-col w-full gap-3 mb-6 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
           <StatTileCarousel>
             {['HOME', 'MODS', 'BLUEPRINTS', 'LEXICONS', 'CHAMELEONS', 'TEMPLATES'].map((tab) => (
               <DashboardStatTile
@@ -1619,16 +1627,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           <CommandScreenLayout>
             <CommandScreenBody>
               <CommandScreenMain>
-                <div className="flex flex-col gap-6 w-full">
+                <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
-                    title={t("recent_activity")}
+                    title={t("recent_activity", "Recent Activity")}
                     icon="history"
                   />
                   <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {loadingHome ? (
                       <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse flex flex-col items-center gap-4">
                         <span className="material-symbols-outlined animate-spin theme-text-accent">autorenew</span>
-                        {t("loading")}
+                        {t("loading", "Loading")}
                       </div>
                     ) : recentFeed.length > 0 ? recentFeed.map((item, index) => {
                       const mainKey = item.id || `${item.feed_type}_${index}`;
@@ -1639,18 +1647,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       const rawStatus = String(item?.status || "stable").toLowerCase().replace(/_/g, " ").replace(/[^\w\s-]/gi, "").trim();
                       const statusMeta = (() => {
                         if (rawStatus === "corrupted" || rawStatus === "broken") {
-                          return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
+                          return { label: t("status_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
                         }
                         if (rawStatus === "unstable") {
-                          return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                          return { label: t("label_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
                         }
                         if (rawStatus === "under review" || rawStatus === "pending") {
-                          return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                          return { label: t("status_dd_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
                         }
                         if (item.feed_type !== 'artifact' || rawStatus === "synced") {
                           return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
                         }
-                        return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                        return { label: t("status_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
                       })();
 
                       const typeBadgeIcon = item.feed_type === 'artifact'
@@ -1712,22 +1720,29 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             ) : item.feed_type === 'chameleon' ? (
                               <div className="w-full h-full">
                                 <DynamicThemePreviewBanner
-                                  data={{ ...(item.json_data || {}), name: item.name || item.title, previewImage: showImages !== false ? (item.image_url || item.json_data?.previewImage) : undefined }}
+                                  data={{ ...item, ...(typeof item.json_data === 'object' ? item.json_data : {}), name: item.name || item.title, previewImage: showImages !== false ? (item.image_url || item.json_data?.previewImage) : undefined }}
                                   heightClass="h-full"
                                 />
                               </div>
+                            ) : item.feed_type === 'lexicon' ? (
+                              <div className="w-full h-full">
+                                <DynamicLexiconPreviewBanner data={item} heightClass="h-full" />
+                              </div>
+                            ) : item.feed_type === 'blueprint' ? (
+                              <div className="w-full h-full">
+                                <DynamicBlueprintPreviewBanner data={item} heightClass="h-full" />
+                              </div>
+                            ) : item.feed_type === 'template' ? (
+                              <div className="w-full h-full">
+                                <DynamicTemplatePreviewBanner data={item} heightClass="h-full" />
+                              </div>
                             ) : (
-                              <div
-                                className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                                style={{
-                                  backgroundColor: 'var(--glass-card-icon-bg)',
-                                  borderColor: 'var(--glass-card-icon-border)',
-                                  boxShadow: 'var(--glass-card-icon-shadow)',
-                                }}
-                              >
-                                <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                                  {bannerIcon}
-                                </span>
+                              <div className="w-full h-full">
+                                <DynamicArtifactPreviewBanner
+                                  data={item}
+                                  icon={bannerIcon}
+                                  heightClass="h-full"
+                                />
                               </div>
                             )}
                           </div>
@@ -1801,7 +1816,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     </div>
                                     <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
                                       <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                                      {t("nav_exploring")} {(item.flavors || []).length} {t("items")}
+                                      {t("nav_exploring", "Exploring")} {(item.flavors || []).length} {t("term_mods", "Mods")}
                                     </span>
                                   </div>
                                 </div>
@@ -1822,7 +1837,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         e.stopPropagation();
                                         if (e.key === "Escape") setDrawerSearchQuery("");
                                       }}
-                                      placeholder={t("search_ph", "Search...")}
+                                      placeholder={t("search_ph", "Search {mods}...")}
                                       className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                                     />
                                     {drawerSearchQuery && (
@@ -1894,18 +1909,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                 />
                                               ) : (
-                                                <div
-                                                  className="w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                                                  style={{
-                                                    backgroundColor: 'var(--glass-card-icon-bg)',
-                                                    borderColor: 'var(--glass-card-icon-border)',
-                                                    boxShadow: 'var(--glass-card-icon-shadow)',
-                                                  }}
-                                                >
-                                                  <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                                                    {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                                  </span>
-                                                </div>
+                                                <DynamicArtifactPreviewBanner
+                                                  data={flavor}
+                                                  icon={getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                                  compact={true}
+                                                  heightClass="h-full"
+                                                />
                                               )}
                                             </div>
                                             <div className="p-4 flex flex-col flex-1">
@@ -1921,7 +1930,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                     {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                   </span>
                                                   <span className="text-[var(--subtext)]">
-                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("card_file_script", "Script") : t("card_file_package", "Package")}
+                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("type_script", "Script") : t("type_package", "Package")}
                                                   </span>
                                                 </div>
                                               </div>
@@ -1939,19 +1948,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     }) : (
                       <div className="col-span-full glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
                         <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">history</span>
-                        <span className="text-xl">{t("no_recent_activity")}</span>
+                        <span className="text-xl">{t("no_recent_activity", "No Recent Activity")}</span>
                       </div>
                     )}
                   </div>
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("wf_quick_links")} icon="bolt">
+              <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon="bolt">
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
                     icon="extension"
-                    title={t("tab_mods")}
-                    subtitle={`${t("btn_browse")} ${t("ql_all")} ${stats.artifacts} ${t("tab_mods")}`}
+                    title={t("tab_mods", "{Mods}")}
+                    subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.artifacts} ${t("tab_mods", "{Mods}")}`}
                     onClick={() => setMarketTab('MODS')}
                     textColorClass="text-emerald-500"
                     hoverTextColorClass="group-hover:text-emerald-400"
@@ -1960,8 +1969,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                   <CommandScreenQuickLink
                     icon="map"
-                    title={t("tab_blueprints")}
-                    subtitle={`${t("btn_browse")} ${t("ql_all")} ${stats.blueprints} ${t("tab_blueprints")}`}
+                    title={t("tab_blueprints", "{Blueprints}")}
+                    subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.blueprints} ${t("tab_blueprints", "{Blueprints}")}`}
                     onClick={() => setMarketTab('BLUEPRINTS')}
                     textColorClass="text-blue-500"
                     hoverTextColorClass="group-hover:text-blue-400"
@@ -1970,8 +1979,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                   <CommandScreenQuickLink
                     icon="translate"
-                    title={t("tab_lexicons")}
-                    subtitle={`${t("btn_browse")} ${t("ql_all")} ${stats.lexicons} ${t("tab_lexicons")}`}
+                    title={t("tab_lexicons", "Language")}
+                    subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.lexicons} ${t("tab_lexicons", "Language")}`}
                     onClick={() => setMarketTab('LEXICONS')}
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
@@ -1980,8 +1989,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                   <CommandScreenQuickLink
                     icon="palette"
-                    title={t("tab_chameleons")}
-                    subtitle={`${t("btn_browse")} ${t("ql_all")} ${stats.chameleons} ${t("tab_chameleons")}`}
+                    title={t("tab_chameleons", "Chameleons")}
+                    subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.chameleons} ${t("tab_chameleons", "Chameleons")}`}
                     onClick={() => setMarketTab('CHAMELEONS')}
                     textColorClass="text-rose-500"
                     hoverTextColorClass="group-hover:text-rose-400"
@@ -1990,8 +1999,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                   <CommandScreenQuickLink
                     icon="draw"
-                    title={t("tab_templates")}
-                    subtitle={`${t("btn_browse")} ${t("ql_all")} ${stats.templates} ${t("tab_templates")}`}
+                    title={t("tab_templates", "Templates")}
+                    subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.templates} ${t("tab_templates", "Templates")}`}
                     onClick={() => setMarketTab('TEMPLATES')}
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
@@ -2011,7 +2020,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse">
-                  {t("searching")}
+                  {t("searching", "Searching The {Nexus}...")}
                 </div>
               ) : paginatedResults.length > 0 ? (
                 <>
@@ -2024,19 +2033,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     const rawStatus = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]]/g, "").replace(/_/g, " ").trim();
                     const statusMeta = (() => {
                       if (rawStatus === 'broken' || rawStatus === 'corrupted') {
-                        return { label: t("status_tag_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
+                        return { label: t("status_corrupted", "Corrupted"), icon: t("icon_error", "error"), iconColor: "text-[var(--danger)]" };
                       }
                       if (rawStatus === 'unstable') {
-                        return { label: t("status_tag_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
+                        return { label: t("label_unstable", "Unstable"), icon: t("icon_warning", "warning"), iconColor: "text-[var(--warning)]" };
                       }
                       if (rawStatus === 'under review' || rawStatus === 'pending') {
-                        return { label: t("status_tag_under_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
+                        return { label: t("status_dd_review", "Under Review"), icon: t("icon_schedule", "schedule"), iconColor: "text-[var(--accent)]" };
                       }
                       if (rawStatus === 'synced') {
                         return { label: t("synced_badge", "Synced"), icon: t("icon_cloud_done", "cloud_done"), iconColor: "text-[var(--success)]" };
                       }
                       if (rawStatus === 'stable' || rawStatus === 'verified') {
-                        return { label: t("status_tag_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
+                        return { label: t("status_stable", "Stable"), icon: t("icon_verified", "verified"), iconColor: "text-[var(--success)]" };
                       }
                       if (rawStatus === 'early access') {
                         return { label: t("badge_early_access", "Early Access"), icon: t("icon_science", "science"), iconColor: "text-purple-400" };
@@ -2076,18 +2085,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : (
-                            <div
-                              className="w-16 h-16 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                              style={{
-                                backgroundColor: 'var(--glass-card-icon-bg)',
-                                borderColor: 'var(--glass-card-icon-border)',
-                                boxShadow: 'var(--glass-card-icon-shadow)',
-                              }}
-                            >
-                              <span className="material-symbols-outlined !text-[34px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                                {getModIcon(mod, useStore.getState().activeGameSchema, t)}
-                              </span>
-                            </div>
+                            <DynamicArtifactPreviewBanner
+                              data={mod}
+                              icon={getModIcon(mod, useStore.getState().activeGameSchema, t)}
+                              heightClass="h-full"
+                            />
                           )}
                         </div>
 
@@ -2096,7 +2098,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             {cleanModName(mod.name || mod.id).name}
                           </h3>
                           <p className="text-[9px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
-                            {mod.master_author || t("unknown_mason")}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
+                            {mod.master_author || t("unknown_mason", "Unknown {Mason}")}{(mod.latest_version) ? ` • ${mod.latest_version}` : ""}
                           </p>
 
                           <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
@@ -2105,7 +2107,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 {isScriptMod ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                               </span>
                               <span className="text-[var(--subtext)]">
-                                {mod.category_override || t("label_artifact")}
+                                {mod.category_override || t("label_artifact", "{Mod}")}
                               </span>
                             </div>
 
@@ -2114,7 +2116,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 <span className="material-symbols-outlined !text-[12px] text-purple-400">
                                   {t("icon_science", "science")}
                                 </span>
-                                <span>{t("badge_early_access")}</span>
+                                <span>{t("badge_early_access", "Early Access")}</span>
                               </div>
                             )}
                             {mod.is_paid && (
@@ -2122,7 +2124,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 <span className="material-symbols-outlined !text-[12px] text-amber-400">
                                   {t("icon_monetization_on", "monetization_on")}
                                 </span>
-                                <span>{t("badge_paid")}</span>
+                                <span>{t("badge_paid", "Paid")}</span>
                               </div>
                             )}
                           </div>
@@ -2153,11 +2155,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               </button>
                             ) : (
                               <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10">
-                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown")}
+                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown", "Unknown Date")}
                               </span>
                             )}
 
-                            {(() => {
+                            {!isDesktop() && (() => {
                               const isModOrSuiteStaged = isFolder && Array.isArray(mod.flavors) && mod.flavors.length > 0
                                 ? mod.flavors.every((f: any) => stagedModKeys.has(String(f.id)) || (f.hash && stagedModKeys.has(String(f.hash))))
                                 : (stagedModKeys.has(String(mod.id)) || (mod.hash && stagedModKeys.has(String(mod.hash))));
@@ -2227,7 +2229,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   </div>
                                   <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
                                     <span className="material-symbols-outlined !text-[14px]">account_tree</span>
-                                    {t("nav_exploring")} {(mod.flavors || []).length} {t("items")}
+                                    {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("term_mods", "Mods")}
                                   </span>
                                 </div>
                               </div>
@@ -2248,7 +2250,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       e.stopPropagation();
                                       if (e.key === "Escape") setDrawerSearchQuery("");
                                     }}
-                                    placeholder={t("search_ph", "Search...")}
+                                    placeholder={t("search_ph", "Search {mods}...")}
                                     className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
                                   />
                                   {drawerSearchQuery && (
@@ -2320,18 +2322,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                               />
                                             ) : (
-                                              <div
-                                                className="w-12 h-12 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-105"
-                                                style={{
-                                                  backgroundColor: 'var(--glass-card-icon-bg)',
-                                                  borderColor: 'var(--glass-card-icon-border)',
-                                                  boxShadow: 'var(--glass-card-icon-shadow)',
-                                                }}
-                                              >
-                                                <span className="material-symbols-outlined !text-[24px] text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all duration-500 drop-shadow-sm">
-                                                  {getModIcon(flavor, useStore.getState().activeGameSchema, t)}
-                                                </span>
-                                              </div>
+                                              <DynamicArtifactPreviewBanner
+                                                data={flavor}
+                                                icon={getModIcon(flavor, useStore.getState().activeGameSchema, t)}
+                                                compact={true}
+                                                heightClass="h-full"
+                                              />
                                             )}
                                           </div>
                                           <div className="p-4 flex flex-col flex-1">
@@ -2347,36 +2343,38 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                   {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                 </span>
                                                 <span className="text-[var(--subtext)]">
-                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("card_file_script", "Script") : t("card_file_package", "Package")}
+                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("type_script", "Script") : t("type_package", "Package")}
                                                 </span>
                                               </div>
                                             </div>
-                                            <div className="mt-auto pt-2 flex justify-end">
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  const wasStaged = stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash)));
-                                                  toggleModInStagingDraft(flavor);
-                                                  onSetStatus(wasStaged ? t("status_staging_item_removed", "Removed from Remote Staging Queue.") : t("status_staging_item_added", "Added to Remote Staging Queue."));
-                                                }}
-                                                className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
-                                                  (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
-                                                    ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
-                                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
-                                                }`}
-                                              >
-                                                <span className="material-symbols-outlined !text-[12px]">
-                                                  {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
-                                                    ? t("icon_playlist_add_check", "playlist_add_check")
-                                                    : t("icon_playlist_add", "playlist_add")}
-                                                </span>
-                                                <span>
-                                                  {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
-                                                    ? t("staging_btn_staged", "Staged")
-                                                    : t("staging_btn_stage_mod", "Stage to PC")}
-                                                </span>
-                                              </button>
-                                            </div>
+                                            {!isDesktop() && (
+                                              <div className="mt-auto pt-2 flex justify-end">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const wasStaged = stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash)));
+                                                    toggleModInStagingDraft(flavor);
+                                                    onSetStatus(wasStaged ? t("status_staging_item_removed", "Removed from Remote Staging Queue.") : t("status_staging_item_added", "Added to Remote Staging Queue."));
+                                                  }}
+                                                  className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
+                                                    (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
+                                                  }`}
+                                                >
+                                                  <span className="material-symbols-outlined !text-[12px]">
+                                                    {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                      ? t("icon_playlist_add_check", "playlist_add_check")
+                                                      : t("icon_playlist_add", "playlist_add")}
+                                                  </span>
+                                                  <span>
+                                                    {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                      ? t("staging_btn_staged", "Staged")
+                                                      : t("staging_btn_stage_mod", "Stage to PC")}
+                                                  </span>
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       ))}
@@ -2393,10 +2391,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
                   <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_hub")}</span>
+                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_hub", "hub")}</span>
                   </div>
-                  <p className="font-black capitalize tracking-widest text-xl mb-2">{t("empty_title")}</p>
-                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc")}</p>
+                  <p className="font-black capitalize tracking-widest text-xl mb-2">{t("empty_title", "No new {mods} detected.")}</p>
+                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}</p>
                 </div>
               )}
             </div>
@@ -2408,7 +2406,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   disabled={currentPage === 1}
                   className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
-                  {t("nav_prev")}
+                  {t("nav_prev", "PREV")}
                 </button>
                 <span className="text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] px-4">
                   {currentPage} / {totalPages}
@@ -2418,7 +2416,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   disabled={currentPage === totalPages}
                   className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
-                  {t("nav_next")}
+                  {t("nav_next", "NEXT")}
                 </button>
               </div>
             )}
@@ -2432,7 +2430,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (
                 <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse">
-                  {t("searching")}
+                  {t("searching", "Searching The {Nexus}...")}
                 </div>
               ) : assetPaginatedResults.length > 0 ? (
                 assetPaginatedResults.map((asset: any, index: number) => (
@@ -2462,9 +2460,21 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       {marketTab === 'CHAMELEONS' ? (
                         <div className="w-full h-full">
                           <DynamicThemePreviewBanner
-                            data={{ ...(asset.json_data || {}), name: asset.name, previewImage: showImages !== false ? (asset.image_url || asset.json_data?.previewImage) : undefined }}
+                            data={{ ...asset, ...(typeof asset.json_data === 'object' ? asset.json_data : {}), name: asset.name, previewImage: showImages !== false ? (asset.image_url || asset.json_data?.previewImage) : undefined }}
                             heightClass="h-full"
                           />
+                        </div>
+                      ) : marketTab === 'LEXICONS' ? (
+                        <div className="w-full h-full">
+                          <DynamicLexiconPreviewBanner data={asset} heightClass="h-full" />
+                        </div>
+                      ) : marketTab === 'BLUEPRINTS' ? (
+                        <div className="w-full h-full">
+                          <DynamicBlueprintPreviewBanner data={asset} heightClass="h-full" />
+                        </div>
+                      ) : marketTab === 'TEMPLATES' ? (
+                        <div className="w-full h-full">
+                          <DynamicTemplatePreviewBanner data={asset} heightClass="h-full" />
                         </div>
                       ) : (
                         <div
@@ -2505,7 +2515,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'CHAMELEONS' ? t("icon_palette", "palette") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
                           </span>
                           <span>
-                            {marketTab === 'BLUEPRINTS' ? t("type_blueprint") : marketTab === 'CHAMELEONS' ? t("type_theme") : marketTab === 'TEMPLATES' ? t("type_template") : t("tab_lexicons")}
+                            {marketTab === 'BLUEPRINTS' ? t("blueprint", "{Blueprint}") : marketTab === 'CHAMELEONS' ? t("chameleon", "Theme") : marketTab === 'TEMPLATES' ? t("workbench_template", "Template") : t("tab_lexicons", "Language")}
                           </span>
                         </div>
 
@@ -2514,7 +2524,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <span className="material-symbols-outlined !text-[12px] text-purple-400">
                               {t("icon_science", "science")}
                             </span>
-                            <span>{t("badge_early_access")}</span>
+                            <span>{t("badge_early_access", "Early Access")}</span>
                           </div>
                         )}
 
@@ -2523,7 +2533,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <span className="material-symbols-outlined !text-[12px] text-amber-400">
                               {t("icon_monetization_on", "monetization_on")}
                             </span>
-                            <span>{t("badge_paid")}</span>
+                            <span>{t("badge_paid", "Paid")}</span>
                           </div>
                         )}
                       </div>
@@ -2547,13 +2557,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             )}
                             {asset.created_at && (
                               <span className="flex items-center gap-1 text-[8px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar")}</span>
-                                {t("updated_date")}: {new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar", "event")}</span>
+                                {t("updated_date", "Last Updated")}: {new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                               </span>
                             )}
                             <span className="flex items-center gap-1 text-[10px] font-black text-[var(--accent)] capitalize tracking-widest">
                               <span className="material-symbols-outlined !text-[14px]">download</span>
-                              {asset.downloads || 0} <span className="opacity-70">{t("auto_dl")}</span>
+                              {asset.downloads || 0} <span className="opacity-70">{t("sort_downloads", "DOWNLOADS")}</span>
                             </span>
                           </div>
                         </div>
@@ -2562,7 +2572,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <ActionButton
                               onClick={(e) => handleEditAsset(e, asset)}
                               variant="glass"
-                              label={t("emote_edit")}
+                              label={t("icon_edit", "edit")}
                               className="!py-1.5 !px-3 !text-[9px]"
                             />
                           )}
@@ -2570,18 +2580,20 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             const isInstalled = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
                             return (
                               <>
-                                <ActionButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    stageBlueprintToDraft(asset);
-                                    onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
-                                    useStore.getState().setView('playsets');
-                                  }}
-                                  variant="glass"
-                                  icon={t("icon_phonelink", "phonelink")}
-                                  label={t("staging_btn_use_short", "Use Blueprint")}
-                                  className="!py-1.5 !px-3 !text-[9px]"
-                                />
+                                {!isDesktop() && (
+                                  <ActionButton
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      stageBlueprintToDraft(asset);
+                                      onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
+                                      useStore.getState().setView('playsets');
+                                    }}
+                                    variant="glass"
+                                    icon={t("icon_phonelink", "phonelink")}
+                                    label={t("staging_btn_use_short", "Use {Blueprint}")}
+                                    className="!py-1.5 !px-3 !text-[9px]"
+                                  />
+                                )}
                                 <ActionButton
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -2589,7 +2601,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   }}
                                   variant={isInstalled ? "primary" : "success"}
                                   icon="download"
-                                  label={isInstalled ? (t("btn_install_copy")) : (t("update_panel_install"))}
+                                  label={isInstalled ? (t("btn_install_copy", "Install Copy")) : (t("update_panel_install", "Install"))}
                                   className="!py-1.5 !px-3 !text-[9px]"
                                 />
                               </>
@@ -2600,25 +2612,27 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             const isAssetStaged = stagedModKeys.has(assetStagingId.toLowerCase());
                             return (
                               <>
-                                <ActionButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleModInStagingDraft({
-                                      ...asset,
-                                      asset_type: assetTypeKey,
-                                      asset_id: asset.id,
-                                    });
-                                    onSetStatus(
-                                      isAssetStaged
-                                        ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
-                                        : t("status_staging_item_added", "Added to Remote Staging Queue.")
-                                    );
-                                  }}
-                                  variant={isAssetStaged ? "primary" : "glass"}
-                                  icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
-                                  label={isAssetStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
-                                  className="!py-1.5 !px-3 !text-[9px]"
-                                />
+                                {!isDesktop() && (
+                                  <ActionButton
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleModInStagingDraft({
+                                        ...asset,
+                                        asset_type: assetTypeKey,
+                                        asset_id: asset.id,
+                                      });
+                                      onSetStatus(
+                                        isAssetStaged
+                                          ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+                                          : t("status_staging_item_added", "Added to Remote Staging Queue.")
+                                      );
+                                    }}
+                                    variant={isAssetStaged ? "primary" : "glass"}
+                                    icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
+                                    label={isAssetStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
+                                    className="!py-1.5 !px-3 !text-[9px]"
+                                  />
+                                )}
                                 <ActionButton
                                   onClick={async (e) => {
                                     e.stopPropagation();
@@ -2652,7 +2666,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   }}
                                   variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
                                   icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
-                                  label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall"))) : (t("update_panel_install"))}
+                                  label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall", "Reinstall"))) : (t("update_panel_install", "Install"))}
                                   className="!py-1.5 !px-3 !text-[9px]"
                                 />
                               </>
@@ -2666,18 +2680,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               ) : (
                 <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
                   <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("icon_map")) : marketTab === 'TEMPLATES' ? "draw" : (t("icon_palette"))}</span>
+                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("icon_map", "map")) : marketTab === 'TEMPLATES' ? "draw" : (t("icon_palette", "palette"))}</span>
                   </div>
                   <p className="font-black capitalize tracking-widest text-xl mb-2">
                     {marketTab === 'CHAMELEONS'
-                      ? (t("empty_title_chameleons"))
+                      ? (t("empty_title_chameleons", "No {Chameleon} found."))
                       : marketTab === 'TEMPLATES'
-                        ? (t("empty_title_templates"))
+                        ? (t("empty_title_templates", "No Templates Found"))
                         : marketTab === 'BLUEPRINTS'
-                          ? (t("bp_no_blueprints_found"))
-                          : (t("empty_title_lexicons"))}
+                          ? (t("bp_no_blueprints_found", "No {Blueprints} Found"))
+                          : (t("empty_title_lexicons", "No {Lexicons} found."))}
                   </p>
-                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc")}</p>
+                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}</p>
                 </div>
               )}
             </div>
@@ -2689,7 +2703,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   disabled={currentPage === 1}
                   className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
-                  {t("nav_prev")}
+                  {t("nav_prev", "PREV")}
                 </button>
                 <span className="text-[12px] font-black capitalize tracking-widest text-[var(--subtext)] px-4">
                   {currentPage} / {assetTotalPages}
@@ -2699,7 +2713,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   disabled={currentPage === assetTotalPages}
                   className="px-6 py-3 glass-surface rounded-xl font-black text-[10px] capitalize tracking-widest disabled:opacity-30 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-border-accent"
                 >
-                  {t("nav_next")}
+                  {t("nav_next", "NEXT")}
                 </button>
               </div>
             )}

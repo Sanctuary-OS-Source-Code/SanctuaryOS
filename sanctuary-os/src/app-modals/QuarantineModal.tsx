@@ -54,7 +54,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_close", "close")}
-              tooltip={t("nav_cancel")}
+              tooltip={t("cancel", "Cancel")}
               variant="danger"
               onClick={() => setShowQuarantineModal(false)}
             />
@@ -90,7 +90,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
 
         <div className="flex flex-col items-center gap-2 relative z-10 w-full">
           <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none text-[var(--danger)] drop-shadow-md m-0">
-            {t("quarantine_modal_title")}
+            {t("malware_alert_title", "Malware Detected")}
           </h2>
           <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[var(--danger)] opacity-85">
             {t("urgent_alert", "Quarantine")}
@@ -105,7 +105,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
           />
 
           <p className="text-sm font-medium text-[var(--text)] opacity-90 leading-relaxed max-w-lg m-0">
-            {t("quarantine_modal_desc")}
+            {t("quarantine_modal_desc", "These files are highly volatile and have been structurally disabled to protect your environment.")}
           </p>
         </div>
 
@@ -121,14 +121,14 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
                   <ActionButton
                     variant="success"
                     icon={t("icon_restore", "restore")}
-                    label={t("quarantine_modal_restore")}
+                    label={t("quarantine_modal_restore", "Restore File")}
                     onClick={() => restoreMod(q)}
                     className="!px-3.5 !py-2"
                   />
                   <ActionButton
                     variant="danger"
                     icon={t("icon_delete", "delete")}
-                    label={t("quarantine_modal_purge")}
+                    label={t("quarantine_modal_purge", "{Delete} Permanently")}
                     onClick={() => purgeMod(q)}
                     className="!px-3.5 !py-2"
                   />
@@ -137,7 +137,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
             ))
           ) : (
             <div className="text-[var(--text)] text-center opacity-50 p-4 italic">
-              {t("quarantine_modal_empty")}
+              {t("quarantine_modal_empty", "Quarantine is empty!")}
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ export function QuarantineModal({ showQuarantineModal, setShowQuarantineModal, q
           <ActionButton
             variant="glass"
             icon={t("icon_close", "close")}
-            label={t("nav_cancel")}
+            label={t("cancel", "Cancel")}
             onClick={() => setShowQuarantineModal(false)}
             className="w-full !py-3.5"
           />

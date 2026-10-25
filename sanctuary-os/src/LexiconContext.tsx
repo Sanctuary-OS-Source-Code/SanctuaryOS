@@ -11,6 +11,305 @@ import { useStore } from './store';
 
 const enSims: Record<string, any> = { ...enSimlish, ...enSimsJson };
 
+export interface GlossaryTermDefinition {
+  key: string;
+  token: string;
+  labelKey: string;
+  icon: string;
+  defaults: {
+    'en-default': string;
+    'en-sanctuary': string;
+    'en-sims': string;
+  };
+}
+
+export const CORE_GLOSSARY_TERMS: GlossaryTermDefinition[] = [
+  {
+    key: 'term_mod',
+    token: 'Mod',
+    labelKey: 'term_mod_label',
+    icon: 'extension',
+    defaults: { 'en-default': 'Mod', 'en-sanctuary': 'Artifact', 'en-sims': 'Mod' },
+  },
+  {
+    key: 'term_mods',
+    token: 'Mods',
+    labelKey: 'term_mods_label',
+    icon: 'widgets',
+    defaults: { 'en-default': 'Mods', 'en-sanctuary': 'Artifacts', 'en-sims': 'Mods' },
+  },
+  {
+    key: 'term_vault',
+    token: 'Vault',
+    labelKey: 'term_vault_label',
+    icon: 'inventory_2',
+    defaults: { 'en-default': 'Library', 'en-sanctuary': 'Vault', 'en-sims': 'Library' },
+  },
+  {
+    key: 'term_blueprint',
+    token: 'Blueprint',
+    labelKey: 'term_blueprint_label',
+    icon: 'map',
+    defaults: { 'en-default': 'Play Set', 'en-sanctuary': 'Blueprint', 'en-sims': 'Modpack' },
+  },
+  {
+    key: 'term_blueprints',
+    token: 'Blueprints',
+    labelKey: 'term_blueprints_label',
+    icon: 'collections_bookmark',
+    defaults: { 'en-default': 'Play Sets', 'en-sanctuary': 'Blueprints', 'en-sims': 'Modpacks' },
+  },
+  {
+    key: 'term_mason',
+    token: 'Mason',
+    labelKey: 'term_mason_label',
+    icon: 'construction',
+    defaults: { 'en-default': 'Creator', 'en-sanctuary': 'Mason', 'en-sims': 'Creator' },
+  },
+  {
+    key: 'term_masons',
+    token: 'Masons',
+    labelKey: 'term_masons_label',
+    icon: 'engineering',
+    defaults: { 'en-default': 'Creators', 'en-sanctuary': 'Masons', 'en-sims': 'Creators' },
+  },
+  {
+    key: 'term_citizen',
+    token: 'Citizen',
+    labelKey: 'term_citizen_label',
+    icon: 'person',
+    defaults: { 'en-default': 'User', 'en-sanctuary': 'Citizen', 'en-sims': 'Simmer' },
+  },
+  {
+    key: 'term_citizens',
+    token: 'Citizens',
+    labelKey: 'term_citizens_label',
+    icon: 'group',
+    defaults: { 'en-default': 'Users', 'en-sanctuary': 'Citizens', 'en-sims': 'Simmers' },
+  },
+  {
+    key: 'term_backups',
+    token: 'Backups',
+    labelKey: 'term_backups_label',
+    icon: 'history',
+    defaults: { 'en-default': 'Backups', 'en-sanctuary': 'Time Capsule', 'en-sims': 'Backups' },
+  },
+  {
+    key: 'term_lab',
+    token: 'Lab',
+    labelKey: 'term_lab_label',
+    icon: 'science',
+    defaults: { 'en-default': 'Testing Lab', 'en-sanctuary': 'Homestead', 'en-sims': 'Testing Lab' },
+  },
+  {
+    key: 'term_settings',
+    token: 'Settings',
+    labelKey: 'term_settings_label',
+    icon: 'settings',
+    defaults: { 'en-default': 'Settings', 'en-sanctuary': 'System Preferences', 'en-sims': 'Settings' },
+  },
+  {
+    key: 'term_nexus',
+    token: 'Nexus',
+    labelKey: 'term_nexus_label',
+    icon: 'hub',
+    defaults: { 'en-default': 'Marketplace', 'en-sanctuary': 'The Nexus', 'en-sims': 'The Gallery' },
+  },
+  {
+    key: 'term_chameleon',
+    token: 'Chameleon',
+    labelKey: 'term_chameleon_label',
+    icon: 'palette',
+    defaults: { 'en-default': 'Theme', 'en-sanctuary': 'Chameleon', 'en-sims': 'Theme' },
+  },
+  {
+    key: 'term_chameleons',
+    token: 'Chameleons',
+    labelKey: 'term_chameleons_label',
+    icon: 'style',
+    defaults: { 'en-default': 'Themes', 'en-sanctuary': 'Chameleons', 'en-sims': 'Themes' },
+  },
+  {
+    key: 'term_lexicon',
+    token: 'Lexicon',
+    labelKey: 'term_lexicon_label',
+    icon: 'translate',
+    defaults: { 'en-default': 'Language', 'en-sanctuary': 'Lexicon', 'en-sims': 'Language' },
+  },
+  {
+    key: 'term_lexicons',
+    token: 'Lexicons',
+    labelKey: 'term_lexicons_label',
+    icon: 'g_translate',
+    defaults: { 'en-default': 'Languages', 'en-sanctuary': 'Lexicons', 'en-sims': 'Languages' },
+  },
+  {
+    key: 'term_dispatch',
+    token: 'Dispatch',
+    labelKey: 'term_dispatch_label',
+    icon: 'podcasts',
+    defaults: { 'en-default': 'Post', 'en-sanctuary': 'Transmission', 'en-sims': 'Post' },
+  },
+  {
+    key: 'term_dispatches',
+    token: 'Dispatches',
+    labelKey: 'term_dispatches_label',
+    icon: 'cell_tower',
+    defaults: { 'en-default': 'Posts', 'en-sanctuary': 'Transmissions', 'en-sims': 'Posts' },
+  },
+  {
+    key: 'term_delete',
+    token: 'Delete',
+    labelKey: 'term_delete_label',
+    icon: 'delete_forever',
+    defaults: { 'en-default': 'Delete', 'en-sanctuary': 'Purge', 'en-sims': 'Delete' },
+  },
+  {
+    key: 'term_remove',
+    token: 'Remove',
+    labelKey: 'term_remove_label',
+    icon: 'eject',
+    defaults: { 'en-default': 'Remove', 'en-sanctuary': 'Yeet', 'en-sims': 'Remove' },
+  },
+];
+
+const TOKEN_TO_TERM_DEF: Record<string, { def: GlossaryTermDefinition; casing: 'title' | 'lower' | 'upper' }> = {};
+for (const item of CORE_GLOSSARY_TERMS) {
+  TOKEN_TO_TERM_DEF[item.token] = { def: item, casing: 'title' };
+  TOKEN_TO_TERM_DEF[item.token.toLowerCase()] = { def: item, casing: 'lower' };
+  TOKEN_TO_TERM_DEF[item.token.toUpperCase()] = { def: item, casing: 'upper' };
+  TOKEN_TO_TERM_DEF[item.key] = { def: item, casing: 'title' };
+}
+
+export function sanitizeLexiconMojibake(str: string): string {
+  if (typeof str !== 'string' || !str.includes('Ã')) return str;
+  return str
+    .replace(/Ã¢â‚¬Â¢/g, '•')
+    .replace(/Ã¢â‚¬â€\s*/g, '— ')
+    .replace(/Ã¢â‚¬â€/g, '—')
+    .replace(/Ã‚Â©/g, '©');
+}
+
+export function interpolateGlossaryTokens(
+  str: string,
+  dict: Record<string, any>,
+  activeLang: string = 'en-sanctuary'
+): string {
+  if (typeof str !== 'string') return str;
+  const cleaned = sanitizeLexiconMojibake(str);
+  if (!cleaned.includes('{')) return cleaned;
+
+  const resolveToken = (tokName: string): string | null => {
+    const entry = TOKEN_TO_TERM_DEF[tokName];
+    if (!entry) return null;
+    const langBucket =
+      activeLang === 'en-default'
+        ? 'en-default'
+        : activeLang === 'en-sims' || activeLang === 'Simlish'
+          ? 'en-sims'
+          : 'en-sanctuary';
+    const rawDictVal = dict?.[entry.def.key];
+    const validDictVal =
+      typeof rawDictVal === 'string' && rawDictVal.trim() !== '' && !rawDictVal.includes('{')
+        ? rawDictVal
+        : undefined;
+    const baseVal =
+      validDictVal ||
+      entry.def.defaults[langBucket] ||
+      entry.def.defaults['en-default'];
+    if (entry.casing === 'lower') return String(baseVal).toLowerCase();
+    if (entry.casing === 'upper') return String(baseVal).toUpperCase();
+    return String(baseVal);
+  };
+
+  const withArticles = cleaned.replace(
+    /\b(a|A|an|An)(\s+)\{\{?\{?([A-Za-z_]+)\}?\}?\}/g,
+    (full, article, space, tokName) => {
+      const resolved = resolveToken(tokName);
+      if (resolved === null) return full;
+      const startsWithVowel = /^[aeiouAEIOU]/.test(resolved.trim());
+      const isUpperFirst = article[0] === 'A';
+      const isAllCaps = article === 'AN';
+      const nextArticle = startsWithVowel
+        ? isAllCaps
+          ? 'AN'
+          : isUpperFirst
+            ? 'An'
+            : 'an'
+        : isUpperFirst
+          ? 'A'
+          : 'a';
+      return `${nextArticle}${space}${resolved}`;
+    }
+  );
+
+  return withArticles.replace(/\{\{?\{?([A-Za-z_]+)\}?\}?\}/g, (full, tokName) => {
+    const resolved = resolveToken(tokName);
+    return resolved !== null ? resolved : full;
+  });
+}
+
+export const DEFAULT_TITLE_AREA_SUBTITLES: string[] = [
+  'Dont Be Evil',
+  'Advise Never Dictate',
+  'Chronological By Design',
+  'Your System Your Sovereignty',
+  'Control Your Code',
+  'Cloud Not Required',
+  'Your Personal Co-Pilot',
+  'Update Not Required',
+  "Yeeting Conflicts Since '26",
+  'King Notepad++ Dethroned',
+  'No Black Boxes',
+  'Private By Design',
+];
+
+export interface CoreTitleAreaConfig {
+  logoUrl: string;
+  appTitle: string;
+  subtitles: string[];
+  lockedStrings: Record<string, string>;
+  updatedAt?: string;
+}
+
+export const DEFAULT_CORE_TITLE_AREA_CONFIG: CoreTitleAreaConfig = {
+  logoUrl: '/icon.png',
+  appTitle: 'Sanctuary OS',
+  subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES],
+  lockedStrings: {},
+};
+
+export const CORE_TITLE_AREA_STORAGE_KEY = 'sanctuary_core_title_area_config_v1';
+
+export function readCoreTitleAreaConfig(): CoreTitleAreaConfig {
+  try {
+    const raw = localStorage.getItem(CORE_TITLE_AREA_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES], lockedStrings: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      logoUrl: typeof parsed?.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl.trim() : '/icon.png',
+      appTitle: typeof parsed?.appTitle === 'string' && parsed.appTitle.trim() ? parsed.appTitle.trim() : 'Sanctuary OS',
+      subtitles: Array.isArray(parsed?.subtitles) && parsed.subtitles.length > 0
+        ? parsed.subtitles.map((s: any) => String(s || '').trim()).filter(Boolean)
+        : [...DEFAULT_TITLE_AREA_SUBTITLES],
+      lockedStrings: parsed?.lockedStrings && typeof parsed.lockedStrings === 'object' ? { ...parsed.lockedStrings } : {},
+      updatedAt: parsed?.updatedAt,
+    };
+  } catch {
+    return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES], lockedStrings: {} };
+  }
+}
+
+export const KEEPER_LOCKED_LEXICON_KEYS = new Set<string>([
+  'sidebar_app_title',
+]);
+
+export function isKeeperLockedLexiconKey(key: string): boolean {
+  if (!key) return false;
+  const k = key.toLowerCase();
+  return k === 'sidebar_app_title' || k.startsWith('sidebar_app_subtitle');
+}
+
 const LexiconContext = createContext<any>(null);
 
 export const LexiconProvider = ({ children }: any) => {
@@ -109,6 +408,10 @@ export const LexiconProvider = ({ children }: any) => {
     }
   });
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const osRoleFromStore = useStore((state) => state.osRole);
+  const [builtinOverrides, setBuiltinOverrides] = useState<Record<string, Record<string, any>>>({});
+  const [titleAreaConfig, setTitleAreaConfig] = useState<CoreTitleAreaConfig>(() => readCoreTitleAreaConfig());
+  const [previewSubtitleText, setPreviewSubtitleText] = useState<string | null>(null);
   const [activeLangState, setActiveLangState] = useState(() => {
     const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
     
@@ -159,19 +462,28 @@ export const LexiconProvider = ({ children }: any) => {
 
   useEffect(() => {
     const loadLang = () => {
+      const baseDefault = { ...enDefault, ...(builtinOverrides['en-default'] || {}) };
+      const baseSanctuary = { ...baseDefault, ...enSanctuary, ...(builtinOverrides['en-sanctuary'] || {}) };
       if (activeLangState === 'en-default') {
-        setDictionary(enDefault);
+        setDictionary(baseDefault);
         return;
       }
       if (activeLangState === 'en-sanctuary') {
-        setDictionary({ ...enDefault, ...enSanctuary });
+        setDictionary(baseSanctuary);
         return;
       }
       if (activeLangState === 'en-sims' || activeLangState === 'Simlish') {
+        const cleanSpokeOverrides: Record<string, any> = {};
+        for (const [k, v] of Object.entries(registry[activeLangState] || {})) {
+          if (v !== '' && v !== null && v !== undefined && !isKeeperLockedLexiconKey(k)) {
+            cleanSpokeOverrides[k] = v;
+          }
+        }
         setDictionary({
-          ...enDefault,
+          ...baseDefault,
           ...enSims,
-          ...(registry[activeLangState] || {})
+          ...(builtinOverrides[activeLangState] || {}),
+          ...cleanSpokeOverrides
         });
         return;
       }
@@ -179,20 +491,164 @@ export const LexiconProvider = ({ children }: any) => {
         const customDict = registry[activeLangState];
         const nonEmptyCustom: Record<string, any> = {};
         for (const [k, v] of Object.entries(customDict)) {
-          if (v !== "" && v !== null && v !== undefined) {
+          if (v !== "" && v !== null && v !== undefined && !isKeeperLockedLexiconKey(k)) {
             nonEmptyCustom[k] = v;
           }
         }
         setDictionary({
-          ...enDefault,
+          ...baseDefault,
           ...nonEmptyCustom
         });
-      } else {
-        setDictionary({ ...enDefault, ...enSanctuary });
+        return;
       }
+      setDictionary(baseSanctuary);
+      return;
     };
     loadLang();
-  }, [activeLangState, registry, wsId]);
+  }, [activeLangState, registry, builtinOverrides, wsId]);
+
+  useEffect(() => {
+    const handleLiveLexiconUpdate = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (!detail?.id || !detail?.lexiconData) return;
+      const { id, lexiconData } = detail;
+      if (BUILTIN_LEXICON_IDS.has(id)) {
+        setBuiltinOverrides((prev) => ({ ...prev, [id]: lexiconData }));
+      } else {
+        setRegistry((prev: any) => {
+          const next = { ...prev, [id]: lexiconData };
+          saveRegistryToStorage(wsId, next);
+          return next;
+        });
+      }
+      setLexiconMeta((prev) => {
+        const existsIdx = prev.findIndex((m: any) => m.id === id);
+        const nextEntry = {
+          id,
+          name: lexiconData._meta_name || id,
+          badge: lexiconData._meta_badge || "Sanctuary",
+          version: lexiconData._meta_version || 1,
+          lang: lexiconData._meta_lang || "English",
+          is_default: Boolean(lexiconData._meta_default),
+        };
+        if (existsIdx >= 0) {
+          const copy = [...prev];
+          copy[existsIdx] = { ...copy[existsIdx], ...nextEntry };
+          return copy;
+        }
+        return [...prev, nextEntry];
+      });
+    };
+    window.addEventListener("sanctuary-lexicon-updated", handleLiveLexiconUpdate);
+    return () => window.removeEventListener("sanctuary-lexicon-updated", handleLiveLexiconUpdate);
+  }, [wsId]);
+
+  // Sync Core OS Title Area & Brand Config from Keepers Hub (supabaseAuth) — isolated from Lexicons
+  useEffect(() => {
+    const syncCoreTitleAreaFromHub = async () => {
+      try {
+        if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') return;
+        const client = supabaseAuth || supabase;
+        const { data } = await client
+          .from('keeper_system_broadcasts')
+          .select('message, created_at')
+          .eq('category', 'CoreTitleAreaConfig')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data && data.message) {
+          const parsed = JSON.parse(data.message);
+          const nextConfig: CoreTitleAreaConfig = {
+            logoUrl: typeof parsed?.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl.trim() : '/icon.png',
+            appTitle: typeof parsed?.appTitle === 'string' && parsed.appTitle.trim() ? parsed.appTitle.trim() : 'Sanctuary OS',
+            subtitles: Array.isArray(parsed?.subtitles) && parsed.subtitles.length > 0
+              ? parsed.subtitles.map((s: any) => String(s || '').trim()).filter(Boolean)
+              : [...DEFAULT_TITLE_AREA_SUBTITLES],
+            lockedStrings: parsed?.lockedStrings && typeof parsed.lockedStrings === 'object' ? { ...parsed.lockedStrings } : {},
+            updatedAt: parsed?.updatedAt || data.created_at,
+          };
+          setTitleAreaConfig(nextConfig);
+          try {
+            localStorage.setItem(CORE_TITLE_AREA_STORAGE_KEY, JSON.stringify(nextConfig));
+          } catch {}
+        }
+      } catch {
+        // Fallback to cached/default Title Area config
+      }
+    };
+    syncCoreTitleAreaFromHub();
+
+    const handleTitleAreaEvent = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail && typeof detail === 'object') {
+        setTitleAreaConfig(detail as CoreTitleAreaConfig);
+      } else {
+        setTitleAreaConfig(readCoreTitleAreaConfig());
+      }
+    };
+    window.addEventListener('sanctuary-title-area-updated', handleTitleAreaEvent);
+    return () => window.removeEventListener('sanctuary-title-area-updated', handleTitleAreaEvent);
+  }, []);
+
+  const saveTitleAreaConfig = async (updates: Partial<CoreTitleAreaConfig>): Promise<CoreTitleAreaConfig> => {
+    const current = readCoreTitleAreaConfig();
+    const cleanedSubtitles = Array.isArray(updates.subtitles)
+      ? updates.subtitles.map((s) => String(s || '').trim()).filter(Boolean)
+      : current.subtitles;
+    const nextConfig: CoreTitleAreaConfig = {
+      logoUrl: updates.logoUrl !== undefined ? (String(updates.logoUrl || '').trim() || '/icon.png') : current.logoUrl,
+      appTitle: updates.appTitle !== undefined ? (String(updates.appTitle || '').trim() || 'Sanctuary OS') : current.appTitle,
+      subtitles: cleanedSubtitles.length > 0 ? cleanedSubtitles : [...DEFAULT_TITLE_AREA_SUBTITLES],
+      lockedStrings: updates.lockedStrings !== undefined ? { ...updates.lockedStrings } : { ...current.lockedStrings },
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTitleAreaConfig(nextConfig);
+    try {
+      localStorage.setItem(CORE_TITLE_AREA_STORAGE_KEY, JSON.stringify(nextConfig));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('sanctuary-title-area-updated', { detail: nextConfig }));
+
+    try {
+      const client = supabaseAuth || supabase;
+      const payloadStr = JSON.stringify(nextConfig);
+      const { data: existing } = await client
+        .from('keeper_system_broadcasts')
+        .select('id')
+        .eq('category', 'CoreTitleAreaConfig')
+        .limit(1)
+        .maybeSingle();
+
+      if (existing?.id) {
+        await client
+          .from('keeper_system_broadcasts')
+          .update({
+            title: 'CORE_OS_TITLE_AREA_CONFIG',
+            message: payloadStr,
+            target_audience: 'Internal_TitleArea',
+            is_active: false,
+            is_pinned: false,
+          })
+          .eq('id', existing.id);
+      } else {
+        await client.from('keeper_system_broadcasts').insert([
+          {
+            title: 'CORE_OS_TITLE_AREA_CONFIG',
+            category: 'CoreTitleAreaConfig',
+            message: payloadStr,
+            target_audience: 'Internal_TitleArea',
+            is_active: false,
+            is_pinned: false,
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to sync Core Title Area config to Hub:', err);
+    }
+
+    return nextConfig;
+  };
 
 
   useEffect(() => {
@@ -277,9 +733,25 @@ export const LexiconProvider = ({ children }: any) => {
                   hasChanges = true;
                 }
               }
+              for (const key in row.lexicon_data) {
+                if (!key.startsWith('_meta') && !(key in localData)) {
+                  delete row.lexicon_data[key];
+                  hasChanges = true;
+                }
+              }
 
               if (hasChanges) {
                 if (hasOSAccess) {
+                  if (row.id === 'en-default' || row.id === 'en-sanctuary') {
+                    await supabaseAuth.from('sanctuary_lexicons').upsert({
+                      id: row.id,
+                      name: row.name || row.id,
+                      badge: row.badge || 'Sanctuary',
+                      version: row.version || 1,
+                      lexicon_data: row.lexicon_data,
+                      updated_at: new Date().toISOString(),
+                    } as any);
+                  }
                   const token = useStore.getState().session?.access_token;
                   if (token) {
                     await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
@@ -328,29 +800,34 @@ export const LexiconProvider = ({ children }: any) => {
               setActiveLangState(resolvedDefault);
             }
           }
-
-          // If in local development, automatically sync cloud lexicons back to the source code files
-          if (import.meta.env.DEV && hasOSAccess) {
-            for (const row of data) {
-              fetch('/__update-lexicon', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: row.id, content: row.lexicon_data })
-              }).catch(() => { });
-            }
-          }
         }
       } catch (err) {
         console.error("Failed to sync master lexicons:", err);
       }
     };
     syncMasterLexicons();
-  }, [wsId]);
+  }, [wsId, osRoleFromStore]);
 
   const emojiRegex = /[\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{2328}\u{23CF}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{24C2}]/u;
 
   const t = (key: string, fallback?: string) => {
-    if (!key) return fallback || "";
+    if (!key) return fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : "";
+
+    // 1. Dedicated Core Title Area System (ONLY Title & Subtitles are isolated from Lexicon files & locked from Spokes)
+    if (key === "sidebar_app_title") {
+      return titleAreaConfig.appTitle || "Sanctuary OS";
+    }
+    if (key.startsWith("sidebar_app_subtitle_")) {
+      if (previewSubtitleText) return previewSubtitleText;
+      const list =
+        Array.isArray(titleAreaConfig.subtitles) && titleAreaConfig.subtitles.length > 0
+          ? titleAreaConfig.subtitles
+          : DEFAULT_TITLE_AREA_SUBTITLES;
+      const num = parseInt(key.replace("sidebar_app_subtitle_", ""), 10);
+      const idx = Number.isFinite(num) && num > 0 ? (num - 1) % list.length : 0;
+      return list[idx] || DEFAULT_TITLE_AREA_SUBTITLES[0];
+    }
+
     let val = dictionary[key];
 
     if (val === undefined || val === "") {
@@ -364,13 +841,24 @@ export const LexiconProvider = ({ children }: any) => {
     }
 
     if (val !== undefined && val !== "") {
+      if (key === "wf_hub_title" && val === "Dev Operations") {
+        val = "Wayfinder Operations";
+      } else if (key === "sidebar_wayfinder_tools" && (val === "Dev" || val === "Dev Tools")) {
+        val = "Wayfinder";
+      } else if (key === "supporter_keepers_title" && (val === "Sanctuary OS (Keepers Core)" || val === "Sanctuary Foundry (Keepers Core)")) {
+        val = "Sanctuary Foundry";
+      }
       if (emojiRegex.test(val) && (key.includes('icon') || key.startsWith('emote_'))) {
         return "";
       }
-      return val;
+      return typeof val === "string" ? interpolateGlossaryTokens(val, dictionary, activeLangState) : val;
     }
-    if (key.includes('icon') || key.startsWith('emote_')) return fallback && !emojiRegex.test(fallback) ? fallback : "";
-    return fallback || `[${key}]`;
+    if (key.includes('icon') || key.startsWith('emote_')) {
+      if (fallback && !emojiRegex.test(fallback)) return fallback;
+      if (key.startsWith('icon_')) return key.slice(5);
+      return "";
+    }
+    return fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : `[${key}]`;
   };
 
   const importLexicon = (json: any, langCode: string) => {
@@ -411,8 +899,27 @@ export const LexiconProvider = ({ children }: any) => {
     })();
   };
 
+  const osLogoUrl = titleAreaConfig.logoUrl || '/icon.png';
+
   return (
-    <LexiconContext.Provider value={{ t, activeLang: activeLangState, setActiveLang, importLexicon, deleteLexicon, registry, lexiconMeta, useGlobalLexicon: useGlobalLexiconState, setUseGlobalLexicon }}>
+    <LexiconContext.Provider
+      value={{
+        t,
+        activeLang: activeLangState,
+        setActiveLang,
+        importLexicon,
+        deleteLexicon,
+        registry,
+        lexiconMeta,
+        useGlobalLexicon: useGlobalLexiconState,
+        setUseGlobalLexicon,
+        osLogoUrl,
+        titleAreaConfig,
+        saveTitleAreaConfig,
+        previewSubtitleText,
+        setPreviewSubtitleText,
+      }}
+    >
       {children}
     </LexiconContext.Provider>
   );
@@ -430,7 +937,12 @@ export const useLexicon = () => {
       registry: {},
       lexiconMeta: [],
       useGlobalLexicon: false,
-      setUseGlobalLexicon: () => {}
+      setUseGlobalLexicon: () => {},
+      osLogoUrl: '/icon.png',
+      titleAreaConfig: DEFAULT_CORE_TITLE_AREA_CONFIG,
+      saveTitleAreaConfig: async () => DEFAULT_CORE_TITLE_AREA_CONFIG,
+      previewSubtitleText: null,
+      setPreviewSubtitleText: () => {},
     };
   }
   return ctx;

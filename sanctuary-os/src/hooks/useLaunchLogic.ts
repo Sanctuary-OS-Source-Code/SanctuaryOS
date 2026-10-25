@@ -23,10 +23,10 @@ export function useLaunchLogic(
       if (!hasBackedUp && !interceptShown) {
         if (pref === 2) {
           const confirmLoneWolf = await askCustom(
-            t("defcon_lonewolf_warning"),
+            t("defcon_lonewolf_warning", "Game patch detected.\n\nYou have 'Lone Wolf' mode enabled. Are you SURE you want to launch without backing up?"),
             false,
-            t("defcon_btn_launch_danger"),
-            t("nav_cancel"),
+            t("defcon_btn_launch_danger", "Launch (Danger)"),
+            t("cancel", "Cancel"),
             true,
             "DEFCON 1 INTERCEPT!",
           );
@@ -34,26 +34,26 @@ export function useLaunchLogic(
           localStorage.setItem("sanctuary_defcon_intercept_shown", "true");
         } else if (pref === 1) {
           const confirmAlert = await askCustom(
-            t("defcon_prompt_intercept_launch"),
+            t("defcon_prompt_intercept_launch", "A Game Patch is Active.\n\nWould you like to run an emergency backup before launching?"),
             false,
-            t("defcon_btn_backup_launch"),
-            t("defcon_btn_launch_danger"),
+            t("defcon_btn_backup_launch", "Backup & Launch"),
+            t("defcon_btn_launch_danger", "Launch (Danger)"),
             true,
             "DEFCON 1 INTERCEPT!",
           );
           localStorage.setItem("sanctuary_defcon_intercept_shown", "true");
           if (confirmAlert) {
             setStatus(
-              `${t("icon_block")} Intercept: Forcing emergency backup before ignition...`,
+              `${t("icon_block", "block")} Intercept: Forcing emergency backup before ignition...`,
             );
             await triggerPrePatchSnapshot();
             localStorage.setItem("sanctuary_defcon_backup_done", "true");
           } else {
             const proceedAnyway = await askCustom(
-              t("defcon_prompt_confirm_danger"),
+              t("defcon_prompt_confirm_danger", "Are you sure you want to proceed WITHOUT a backup?"),
               false,
-              t("defcon_btn_launch_danger"),
-              t("nav_cancel"),
+              t("defcon_btn_launch_danger", "Launch (Danger)"),
+              t("cancel", "Cancel"),
               true,
               "CONFIRM DANGER",
             );
@@ -61,10 +61,10 @@ export function useLaunchLogic(
           }
         } else {
           const confirm = await askCustom(
-            t("defcon_launch_intercept"),
+            t("defcon_launch_intercept", "Game update detected. Forcing emergency backup before launch. Proceed?"),
             false,
-            t("defcon_btn_launch_danger"),
-            t("nav_cancel"),
+            t("defcon_btn_launch_danger", "Launch (Danger)"),
+            t("cancel", "Cancel"),
             true,
             "DEFCON 1 INTERCEPT!",
           );
@@ -88,7 +88,7 @@ export function useLaunchLogic(
       });
       setStatus(t(msg as string) || (msg as string));
     } catch (err) {
-      setStatus(`${t("status_launch_failed")}: ${t(err as string) || err}`);
+      setStatus(`${t("status_launch_failed", "error LAUNCH FAILED")}: ${t(err as string) || err}`);
     }
   };
 

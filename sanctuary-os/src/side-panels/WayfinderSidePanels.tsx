@@ -10,7 +10,7 @@ import {
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown
+  fetchAllPaginated, CustomTierDropdown, VAULT_CHIP_CLASS
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -153,26 +153,35 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
             title={t("wf_stat_server_nominal", "ONLINE")}
             description={t("keepers_hub_schema_label", "Active Hub Node: Sanctuary Core OS")}
             badge={t("auto_synchronized", "SYNCHRONIZED")}
+            badgeIcon={t("icon_check_circle", "check_circle")}
             variant="success"
           >
             <div className="grid grid-cols-2 gap-3 w-full">
               <StatBox
                 label={t("keepers_hub_latency_label", "Central Hub Latency")}
                 value={`${hubLatency !== null ? hubLatency : (stats?.networkLatency || 18)} ${t("icon_ms", "ms")}`}
+                icon={t("icon_speed", "speed")}
+                iconColorClass="text-[var(--accent)]"
                 colorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("keepers_hub_db_sync_label", "Core Hub DB Sync")}
                 value={t("auto_synchronized", "SYNCHRONIZED")}
+                icon={t("icon_cloud_done", "cloud_done")}
+                iconColorClass="text-[var(--success)]"
                 colorClass="text-[var(--success)]"
               />
               <StatBox
                 label={t("ui_active_games", "Active Workspaces")}
                 value={stats?.activeGames ?? stats?.activeGamesCount ?? spokeList.filter((s: any) => s.is_active !== false).length}
+                icon={t("icon_view_quilt", "view_quilt")}
+                iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("citizen_oversight", "Citizen Oversight")}
+                label={t("citizen_oversight", "{Citizen} Management")}
                 value={stats?.citizens ?? stats?.citizensCount ?? 0}
+                icon={t("icon_group", "group")}
+                iconColorClass="text-[var(--accent)]"
               />
             </div>
           </SidePanelHeroCard>
@@ -200,8 +209,17 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
             title={t("keepers_spokes_network_title", "Federated Spoke Nodes")}
             icon={t("icon_dns", "dns")}
             headerActions={
-              <span className="text-[10px] font-mono font-black text-[var(--accent)] px-2.5 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
-                {spokeList.length}
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--accent)",
+                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  {t("icon_dns", "dns")}
+                </span>
+                <span>{spokeList.length}</span>
               </span>
             }
           >
@@ -218,11 +236,18 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
                       className="glass-surface rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
+                        <div
+                          className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                          style={{
+                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                          }}
+                        >
                           {spoke.icon && spoke.icon.startsWith("http") ? (
                             <img src={spoke.icon} alt="" className="w-5 h-5 object-contain" />
                           ) : (
-                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">sports_esports</span>
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                              {t("icon_sports_esports", "sports_esports")}
+                            </span>
                           )}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -235,13 +260,24 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
                         </div>
                       </div>
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest shrink-0 bg-transparent border ${
-                          isOnline
-                            ? "text-emerald-400 border-emerald-500/35"
-                            : "text-amber-400 border-amber-500/35"
-                        }`}
+                        className={`${VAULT_CHIP_CLASS} shrink-0`}
+                        style={{
+                          color: isOnline ? "var(--success)" : "var(--warning)",
+                          borderColor: isOnline
+                            ? "color-mix(in srgb, var(--success) 35%, var(--border))"
+                            : "color-mix(in srgb, var(--warning) 35%, var(--border))",
+                        }}
                       >
-                        {isOnline ? t("keepers_spoke_online", "ONLINE") : t("keepers_spoke_offline", "OFFLINE")}
+                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          {isOnline
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_schedule", "schedule")}
+                        </span>
+                        <span>
+                          {isOnline
+                            ? t("keepers_spoke_online", "ONLINE")
+                            : t("keepers_spoke_offline", "OFFLINE")}
+                        </span>
                       </span>
                     </div>
                   );
@@ -277,11 +313,15 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
             <StatBox
               label={t("wf_uplink_schema_label", "Active Schema ID")}
               value={activeWs?.schema_id || activeWorkspaceId || "--"}
+              icon={t("icon_schema", "schema")}
+              iconColorClass="text-[var(--accent)]"
               colorClass="text-[var(--accent)]"
             />
             <StatBox
               label={t("wf_latency", "Latency")}
               value={`${stats?.networkLatency || '--'} ${t("icon_ms", "ms")}`}
+              icon={t("icon_speed", "speed")}
+              iconColorClass="text-[var(--accent)]"
             />
           </div>
         </SidePanelHeroCard>
@@ -303,9 +343,17 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
               <span className="text-[9px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-60">
                 {t("wf_db_sync", "Database Uplink")}
               </span>
-              <span className="text-xs font-black text-emerald-400 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-md animate-pulse"></span>
-                {t("auto_synchronized", "SYNCHRONIZED")}
+              <span
+                className={VAULT_CHIP_CLASS}
+                style={{
+                  color: "var(--success)",
+                  borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                }}
+              >
+                <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  {t("icon_check_circle", "check_circle")}
+                </span>
+                <span>{t("auto_synchronized", "SYNCHRONIZED")}</span>
               </span>
             </div>
           </div>
@@ -707,11 +755,15 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
             <StatBox
               label={t("keepers_github_live_stable_label", "Live Stable Release")}
               value={`v${liveStableVer.replace(/^v/i, "")}`}
+              icon={t("icon_verified", "verified")}
+              iconColorClass="text-[var(--accent)]"
               colorClass="text-[var(--accent)]"
             />
             <StatBox
               label={t("keepers_github_live_dev_label", "Live Daily Dev Build")}
               value={hasLiveDev ? `v${liveDevVer.replace(/^v/i, "")}` : "--"}
+              icon={t("icon_bolt", "bolt")}
+              iconColorClass="text-[var(--success)]"
               colorClass="text-[var(--success)]"
             />
           </div>
@@ -806,18 +858,36 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
               {/* LIVE DAILY DEV BUILD */}
               <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
-                      {t("icon_bolt", "bolt")}
-                    </span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--success)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--success) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t("icon_bolt", "bolt")}
+                      </span>
+                    </div>
                     <span className="text-xs font-black text-[var(--text)] truncate">
                       {t("keepers_github_live_dev_label", "Live Daily Dev Build (GitHub)")}
                     </span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[10px] font-mono font-bold text-[var(--success)] shrink-0">
-                    {hasLiveDev
-                      ? `v${liveDevVer.replace(/^v/i, "")}${liveDevDate ? ` • ${new Date(liveDevDate).toLocaleDateString()}` : ""}`
-                      : t("keepers_github_not_published", "No dev-latest release published yet")}
+                  <span
+                    className={`${VAULT_CHIP_CLASS} shrink-0`}
+                    style={{
+                      color: "var(--success)",
+                      borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      {t("icon_tag", "tag")}
+                    </span>
+                    <span>
+                      {hasLiveDev
+                        ? `v${liveDevVer.replace(/^v/i, "")}${liveDevDate ? ` • ${new Date(liveDevDate).toLocaleDateString()}` : ""}`
+                        : t("keepers_github_not_published", "No dev-latest release published yet")}
+                    </span>
                   </span>
                 </div>
                 {hasLiveDev && liveDevNotes && (
@@ -843,16 +913,34 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
               {/* LIVE STABLE RELEASE */}
               <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                      {t("icon_verified", "verified")}
-                    </span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
+                      }}
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t("icon_verified", "verified")}
+                      </span>
+                    </div>
                     <span className="text-xs font-black text-[var(--text)] truncate">
                       {t("keepers_github_live_stable_label", "Live Stable Release (GitHub)")}
                     </span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[10px] font-mono font-bold text-[var(--accent)] shrink-0">
-                    {`v${liveStableVer.replace(/^v/i, "")}${liveStableDate ? ` • ${new Date(liveStableDate).toLocaleDateString()}` : ""}`}
+                  <span
+                    className={`${VAULT_CHIP_CLASS} shrink-0`}
+                    style={{
+                      color: "var(--accent)",
+                      borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
+                    }}
+                  >
+                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      {t("icon_tag", "tag")}
+                    </span>
+                    <span>
+                      {`v${liveStableVer.replace(/^v/i, "")}${liveStableDate ? ` • ${new Date(liveStableDate).toLocaleDateString()}` : ""}`}
+                    </span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">

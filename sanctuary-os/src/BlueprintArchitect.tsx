@@ -1,27 +1,69 @@
 import { useState, useMemo, useEffect } from "react";
-import { formatDisplayName, ViewHeader, CustomDropdown, mapDlcCode, isVersionMatch, SidePanel, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getHighestVersion, getExtensionRegex, HoverTooltip, ActionButton, parseStringArray } from "./shared";
+import {
+  formatDisplayName,
+  CustomDropdown,
+  SidePanel,
+  SidePanelHeroCard,
+  SidePanelTitleInput,
+  UniversalGroup,
+  StatBox,
+  getExtensionRegex,
+  HoverTooltip,
+  EmptyState,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionPill,
+  InlineFilterGroup,
+  getModIcon,
+  DashboardStatTile,
+  handleOpenUrl,
+  VAULT_CHIP_CLASS,
+} from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { UniversalCard } from "./components/universal/UniversalCard";
-import { IncompatibleModCard, evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
+import {
+  evaluateModIssues,
+  groupBrokenMods,
+  renderGroupedIncompatibleSections,
+  extractValidCreator,
+} from "./side-panels/CommandIncompatiblePanel";
+import { groupUpdateMods, UpdateModCard } from "./side-panels/CommandCenterSidePanels";
 
-export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, toggleInActiveSet, allow_write, vaultPath, onRefreshMods, renamePlaySet }: any) {
+export default function BlueprintArchitect({
+  isOpen,
+  onClose,
+  playSet,
+  modList,
+  toggleInActiveSet,
+  allow_write,
+  vaultPath,
+  onRefreshMods,
+  renamePlaySet,
+  initialTab,
+}: any) {
   const { t } = useLexicon();
-  const ownedDLC = useStore((state) => state.ownedDLC);
-  const maskedDLC = useStore((state) => state.maskedDLC);
-  const selectedVersion = useStore((state) => state.selectedVersion);
-  const playSets = useStore((state) => state.playSets);
-  const activePlaySetIndex = useStore((state) => state.activePlaySetIndex);
-  const setPlaySets = useStore((state) => state.setPlaySets);
-  const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const ignoredGlobal = useStore((state) => state.ignoredGlobal);
+  const ownedDLC = useStore((state: any) => state.ownedDLC);
+  const maskedDLC = useStore((state: any) => state.maskedDLC);
+  const selectedVersion = useStore((state: any) => state.selectedVersion);
+  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+  const ignoredGlobal = useStore((state: any) => state.ignoredGlobal);
+  const showImages = useStore((state: any) => state.showImages);
+
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"updates" | "alerts" | "critical">("critical");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [nameInput, setNameInput] = useState("");
 
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [newNameInput, setNewNameInput] = useState("");
+  useEffect(() => {
+    if (playSet?.name) {
+      setNameInput(playSet.name);
+    }
+  }, [playSet?.name, isOpen]);
 
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
@@ -33,24 +75,25 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
     for (const m of safeList) {
       if (!m.name) continue;
-      const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
+      const exactKey = m.name.toLowerCase().replace(/\\/g, "/");
       exactMatchMap.set(exactKey, m);
 
-      const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
       if (baseKey && !baseMatchMap.has(baseKey)) {
         baseMatchMap.set(baseKey, m);
       }
     }
 
     return safeMods.map((rawMod: any) => {
-      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
-      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
+      const modName =
+        typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
+      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, "");
+      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, "/");
 
       const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
-      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
 
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
@@ -58,46 +101,6 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
   }, [playSet?.mods, modList, extRegex]);
-
-  const renderSubtitle = () => {
-    if (isEditingName) {
-      return (
-        <span className="flex items-center gap-2">
-          {t("bp_subtitle")}
-          <input
-            autoFocus
-            type="text"
-            className="bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded px-3 py-1 outline-none text-[var(--text)] font-black capitalize text-[10px] w-64"
-            value={newNameInput}
-            onChange={(e) => setNewNameInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                if (renamePlaySet) renamePlaySet(playSet.name, newNameInput);
-                setIsEditingName(false);
-              } else if (e.key === 'Escape') {
-                setIsEditingName(false);
-              }
-            }}
-            onBlur={() => {
-              if (renamePlaySet && newNameInput.trim() !== "" && newNameInput !== playSet.name) {
-                renamePlaySet(playSet.name, newNameInput);
-              }
-              setIsEditingName(false);
-            }}
-          />
-        </span>
-      );
-    }
-    return (
-      <span
-        className="flex items-center gap-2 group cursor-pointer hover:text-[var(--text)] transition-colors"
-        onClick={() => { setIsEditingName(true); setNewNameInput(playSet.name); }}
-      >
-        {t("bp_subtitle")} {playSet.name} ({activeMods.length} {t("items")})
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px] ml-1">{t("icon_edit")}</span>
-      </span>
-    );
-  };
 
   const activeConflicts = useMemo(() => {
     const conflicts: any[] = [];
@@ -110,22 +113,34 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
 
           const modAMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
-            const cleanN = String(em.name || '').toUpperCase();
-            const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modA || lc.mod_a || '').toUpperCase();
-            return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
+            const cleanN = String(em.name || "").toUpperCase();
+            const cleanDisp = String(em.displayName || "").toUpperCase();
+            const targetClean = String(lc.modA || lc.mod_a || "").toUpperCase();
+            return (
+              cleanN.includes(targetClean) ||
+              cleanDisp.includes(targetClean) ||
+              targetClean.includes(cleanN)
+            );
           });
           const modBMatch = activeMods.find((em: any) => {
             if (em.isFallback) return false;
-            const cleanN = String(em.name || '').toUpperCase();
-            const cleanDisp = String(em.displayName || '').toUpperCase();
-            const targetClean = String(lc.modB || lc.mod_b || '').toUpperCase();
-            return cleanN.includes(targetClean) || cleanDisp.includes(targetClean) || targetClean.includes(cleanN);
+            const cleanN = String(em.name || "").toUpperCase();
+            const cleanDisp = String(em.displayName || "").toUpperCase();
+            const targetClean = String(lc.modB || lc.mod_b || "").toUpperCase();
+            return (
+              cleanN.includes(targetClean) ||
+              cleanDisp.includes(targetClean) ||
+              targetClean.includes(cleanN)
+            );
           });
 
           if (modAMatch && modBMatch) {
-            const isWinnerA = modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modAMatch.name?.toLowerCase().startsWith("sanctuary");
-            const isWinnerB = modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") || modBMatch.name?.toLowerCase().startsWith("sanctuary");
+            const isWinnerA =
+              modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") ||
+              modAMatch.name?.toLowerCase().startsWith("sanctuary");
+            const isWinnerB =
+              modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") ||
+              modBMatch.name?.toLowerCase().startsWith("sanctuary");
             if (isWinnerA || isWinnerB) return;
 
             conflicts.push({
@@ -134,19 +149,25 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
               modB: modBMatch,
               conflict: {
                 severity_rank: lc.severity_rank,
-                resolution_note: lc.resolution_note || "Local Scan Detects Tuning Overlap",
+                resolution_note: lc.resolution_note || t("tier3_conflict", "Tuning Overlap"),
               },
             });
           }
         });
       }
-    } catch (e) { }
+    } catch (e) {}
 
     return conflicts;
-  }, [activeMods, ignoredGlobal]);
+  }, [activeMods, ignoredGlobal, t]);
 
-  const brokenMods = useMemo(() => {
-    const rawBroken = activeMods
+  const rawUpdates = useMemo(() => {
+    return activeMods.filter((m: any) => !m.isFallback && Boolean(m.hasUpdate && m.newVersion));
+  }, [activeMods]);
+
+  const groupedUpdates = useMemo(() => groupUpdateMods(rawUpdates), [rawUpdates]);
+
+  const rawBrokenMods = useMemo(() => {
+    return activeMods
       .map((mod: any) =>
         evaluateModIssues(mod, {
           activeMods,
@@ -159,15 +180,54 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       )
       .filter(Boolean)
       .sort((a: any, b: any) => {
-        if (a._alert_type === 'red' && b._alert_type === 'amber') return -1;
-        if (a._alert_type === 'amber' && b._alert_type === 'red') return 1;
+        if (a._alert_type === "red" && b._alert_type === "amber") return -1;
+        if (a._alert_type === "amber" && b._alert_type === "red") return 1;
         return 0;
       });
-    return groupBrokenMods(rawBroken);
   }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
-  const redMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'red'), [brokenMods]);
-  const amberMods = useMemo(() => brokenMods.filter((m: any) => m._alert_type === 'amber'), [brokenMods]);
+  const groupedBrokenMods = useMemo(() => groupBrokenMods(rawBrokenMods), [rawBrokenMods]);
+
+  const groupedRedMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "red"),
+    [groupedBrokenMods]
+  );
+  const groupedAmberMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "amber"),
+    [groupedBrokenMods]
+  );
+
+  const criticalConflicts = useMemo(
+    () => activeConflicts.filter((c: any) => c.conflict.severity_rank == 4),
+    [activeConflicts]
+  );
+  const warningConflicts = useMemo(
+    () => activeConflicts.filter((c: any) => c.conflict.severity_rank != 4),
+    [activeConflicts]
+  );
+
+  const updatesCount = groupedUpdates.length;
+  const alertsCount = groupedAmberMods.length + warningConflicts.length;
+  const criticalCount = groupedRedMods.length + criticalConflicts.length;
+  const totalAllIssues = updatesCount + alertsCount + criticalCount;
+
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery("");
+      setCategoryFilter("all");
+      if (initialTab && ["updates", "alerts", "critical"].includes(initialTab)) {
+        setActiveTab(initialTab);
+      } else if (criticalCount > 0) {
+        setActiveTab("critical");
+      } else if (alertsCount > 0) {
+        setActiveTab("alerts");
+      } else if (updatesCount > 0) {
+        setActiveTab("updates");
+      } else {
+        setActiveTab("critical");
+      }
+    }
+  }, [isOpen, initialTab, criticalCount, alertsCount, updatesCount]);
 
   const { applyConflictOverride } = usePlaySetLogic();
 
@@ -181,8 +241,9 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
       }
     }
     return (
-      <div className="w-full mt-3">
-        <CustomDropdown disableTint={true}
+      <div className="w-full mt-2">
+        <CustomDropdown
+          disableTint={true}
           value={currentPriority}
           onChange={async (newPrio: string) => {
             try {
@@ -193,290 +254,577 @@ export default function BlueprintArchitect({ isOpen, onClose, playSet, modList, 
             }
           }}
           options={[
-            { id: "", label: t("bp_priority_default") },
-            { id: "!Sanctuary", label: t("bp_priority_sanctuary") },
-            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2") },
-            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3") }
+            { id: "", label: t("bp_priority_default", "Standard Priority") },
+            { id: "!Sanctuary", label: t("bp_priority_sanctuary", "Priority 1") },
+            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2", "Priority 2") },
+            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3", "Priority 3") },
           ]}
         />
       </div>
     );
   };
 
+  const filteredUpdates = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return groupedUpdates;
+    return groupedUpdates.filter((u: any) => {
+      const title = String(u._groupedTitle || u.displayName || u.name || "").toLowerCase();
+      const author = String(u.author || "").toLowerCase();
+      return title.includes(q) || author.includes(q);
+    });
+  }, [groupedUpdates, searchQuery]);
+
+  const currentTabBrokenMods = activeTab === "critical" ? groupedRedMods : groupedAmberMods;
+  const currentTabConflicts = activeTab === "critical" ? criticalConflicts : warningConflicts;
+
+  const filteredBrokenMods = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return currentTabBrokenMods.filter((mod: any) => {
+      const cats: string[] = Array.isArray(mod._categories)
+        ? mod._categories
+        : [mod._alert_category];
+
+      if (categoryFilter === "corrupted") {
+        if (!cats.includes("corrupted")) return false;
+      } else if (categoryFilter === "version_mismatch") {
+        if (!cats.includes("version_mismatch")) return false;
+      } else if (categoryFilter === "missing_reqs") {
+        if (!cats.includes("missing_dlc") && !cats.includes("missing_deps")) {
+          return false;
+        }
+      } else if (categoryFilter === "unstable") {
+        if (!cats.includes("unstable") && mod._alert_type !== "amber") return false;
+      }
+
+      if (!q) return true;
+      const title = String(mod._groupedTitle || mod.displayName || mod.name || "").toLowerCase();
+      const author = String(mod.author || "").toLowerCase();
+      const reason = String(mod._alert_reason || "").toLowerCase();
+      return title.includes(q) || author.includes(q) || reason.includes(q);
+    });
+  }, [currentTabBrokenMods, searchQuery, categoryFilter]);
+
+  const filteredConflicts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return currentTabConflicts;
+    return currentTabConflicts.filter((ac: any) => {
+      const nameA = String(ac.modA?.displayName || ac.modA?.name || "").toLowerCase();
+      const nameB = String(ac.modB?.displayName || ac.modB?.name || "").toLowerCase();
+      const note = String(ac.conflict?.resolution_note || "").toLowerCase();
+      return nameA.includes(q) || nameB.includes(q) || note.includes(q);
+    });
+  }, [currentTabConflicts, searchQuery]);
+
   if (!playSet) return null;
+
+  const rawRedMods = rawBrokenMods.filter((m: any) => m._alert_type === "red");
+  const rawAmberMods = rawBrokenMods.filter((m: any) => m._alert_type === "amber");
+
+  const heroVariant: "danger" | "warning" | "accent" | "success" =
+    criticalCount > 0
+      ? "danger"
+      : alertsCount > 0
+        ? "warning"
+        : updatesCount > 0
+          ? "accent"
+          : "success";
+
+  const heroIcon =
+    criticalCount > 0
+      ? t("icon_gpp_bad", "gpp_bad")
+      : alertsCount > 0
+        ? t("icon_gpp_maybe", "gpp_maybe")
+        : updatesCount > 0
+          ? t("icon_update", "update")
+          : t("icon_verified_user", "verified_user");
 
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("bp_title")}
-      subtitle={renderSubtitle()}
-      icon={t("icon_warning_amber")}
-      iconColorClass="text-[var(--accent)]"
-      widthClass="w-[1100px] max-w-[95vw]"
-      noScroll={true}
-      noPadding={true}
-    >
-      <div className="flex-1 min-h-0 flex gap-8 px-6 py-2 pb-12 w-full">
-        <div className="flex-[5] flex flex-col min-h-0 min-w-0">
-          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-4">
-            {(() => {
-              const tier4Count = activeConflicts.filter(c => c.conflict.severity_rank == 4).length;
-              const tier3Count = activeConflicts.length - tier4Count;
-              return (
-                <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-                  <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                    <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("bp_load_order_conflicts")}</h3>
-                    <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                      <span>{activeConflicts.length} {t("items")}</span>
-                      {(tier4Count > 0 || tier3Count > 0) && <span className="opacity-50">•</span>}
-                      {tier4Count > 0 && <span className="text-red-400 font-bold">{tier4Count} {t("bp_pill_fatal")}</span>}
-                      {(tier4Count > 0 && tier3Count > 0) && <span className="opacity-30">|</span>}
-                      {tier3Count > 0 && <span className="text-amber-400 font-bold">{tier3Count} {t("bp_pill_overlaps")}</span>}
-                      {activeConflicts.length === 0 && <span className="text-[var(--success)]">• {t("bp_no_conflicts_detected")}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className={activeConflicts.length === 0 ? "flex flex-col flex-1" : "flex flex-col gap-6 pb-24"}>
-              {activeConflicts.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative">
-                  <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] transition-all duration-700">
-                    <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
-                    <span className="material-symbols-outlined text-[var(--success)] drop-shadow-[0_0_10px_rgba(var(--success-rgb),0.5)] transition-transform duration-500">{t("icon_security")}</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-[14px] font-black tracking-[0.2em] capitalize text-[var(--text)] text-center transition-colors">{t("bp_no_conflicts_detected")}</p>
-                  </div>
-                </div>
-              ) : (
-                activeConflicts.map((ac) => {
-                  const isIgnored = ignoredConflicts.has(ac.pairId);
-                  const isTier4 = ac.conflict.severity_rank == 4;
-
-                  const prefixA = (ac.modA._originalSetName || ac.modA.name)?.split(/[/\\]/).slice(0, -1).join("/") || "";
-                  const prefixB = (ac.modB._originalSetName || ac.modB.name)?.split(/[/\\]/).slice(0, -1).join("/") || "";
-                  const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-                  const isWinnerB = prefixB.toLowerCase() === "sanctuary";
-
-                  const textClass = isTier4 ? "text-red-500" : "text-amber-500";
-                  const iconName = isTier4 ? t("icon_crisis_alert") : t("icon_tune");
-
-                  return (
-                    <UniversalCard
-                      key={ac.pairId}
-                      layout="vertical"
-                      isGhosted={isIgnored}
-                      statusColor={isIgnored ? "border-[color-mix(in_srgb,var(--text)_5%,transparent)]" : isTier4 ? "theme-border-danger" : "border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"}
-                      className={`w-full ${isIgnored ? "bg-[color-mix(in_srgb,var(--text)_2%,transparent)]" : isTier4 ? "bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]" : "bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"}`}
-                      title={
-                        <div className="flex items-center gap-2">
-                          <span className={`material-symbols-outlined !text-[16px] ${isIgnored ? "text-[var(--text)] opacity-30" : textClass}`}>
-                            {iconName}
-                          </span>
-                          <span className={`text-[10px] font-black capitalize tracking-widest ${isIgnored ? "text-[var(--text)] opacity-30" : textClass}`}>
-                            {isTier4 ? t("fatal_conflict") : t("tier3_conflict")}
-                          </span>
-                        </div>
-                      }
-                      subtitle={ac.conflict.resolution_note || "Local Scan Detects Tuning Overlap"}
-                      actions={
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            const newSet = new Set(ignoredConflicts);
-                            if (isIgnored) newSet.delete(ac.pairId);
-                            else newSet.add(ac.pairId);
-                            setIgnoredConflicts(newSet);
-                          }}
-                          className="w-7 h-7 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all active:scale-95 flex items-center justify-center shrink-0 group relative"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">
-                            {isIgnored ? "visibility" : "visibility_off"}
-                          </span>
-                          <HoverTooltip title={isIgnored ? t("bp_restore_alert") : t("btn_ignore")} variant="default" />
-                        </button>
-                      }
-                    >
-                      <div className={`flex flex-col gap-2 w-full ${isIgnored ? "opacity-30 pointer-events-none" : ""}`}>
-                        {/* Mod A */}
-                        <div className={`flex items-center gap-3 p-3 rounded-xl border ${isWinnerA && !isTier4 ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]" : "bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className={`text-[10px] font-black truncate capitalize ${isWinnerA && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{formatDisplayName(ac.modA.name)}</span>
-                            <span className="text-[8px] font-mono text-cyan-400 tracking-widest opacity-80 mt-0.5">{ac.modA.version || "v.Local"}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {ac.conflict.severity_rank == 4 ? (
-                              allow_write && (
-                                <button onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-500 transition-all flex items-center justify-center group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                  <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
-                                </button>
-                              )
-                            ) : ac.conflict.severity_rank == 3 ? (
-                              isWinnerA ? (
-                                <div className="w-7 h-7 rounded bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)] group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_star")}</span>
-                                  <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
-                                </div>
-                              ) : isWinnerB ? (
-                                <div className="w-7 h-7 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_block")}</span>
-                                  <HoverTooltip title={t("bp_overridden_by_winner")} variant="default" />
-                                </div>
-                              ) : (
-                                allow_write && playSet?.name && (
-                                  <button onClick={() => applyConflictOverride(ac.modA._originalSetName || ac.modA.name, ac.pairId, playSet.name)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] transition-all flex items-center justify-center group relative">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>
-                                    <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
-                                  </button>
-                                )
-                              )
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <div className="w-28">{getPriorityDrop(ac.modA)}</div>
-                                {allow_write && (
-                                  <button onClick={() => toggleInActiveSet(ac.modA._originalSetName || ac.modA.name, true, true)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-500 transition-all flex items-center justify-center group relative">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                    <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Mod B */}
-                        <div className={`flex items-center gap-3 p-3 rounded-xl border ${isWinnerB && !isTier4 ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)]" : "bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className={`text-[10px] font-black truncate capitalize ${isWinnerB && !isTier4 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{formatDisplayName(ac.modB.name)}</span>
-                            <span className="text-[8px] font-mono text-cyan-400 tracking-widest opacity-80 mt-0.5">{ac.modB.version || "v.Local"}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {ac.conflict.severity_rank == 4 ? (
-                              allow_write && (
-                                <button onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-500 transition-all flex items-center justify-center group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                  <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
-                                </button>
-                              )
-                            ) : ac.conflict.severity_rank == 3 ? (
-                              isWinnerB ? (
-                                <div className="w-7 h-7 rounded bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] flex items-center justify-center shadow-[0_0_10px_rgba(var(--success-rgb),0.3)] group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_star")}</span>
-                                  <HoverTooltip title={t("bp_winning_artifact")} variant="default" />
-                                </div>
-                              ) : isWinnerA ? (
-                                <div className="w-7 h-7 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] opacity-60 flex items-center justify-center group relative">
-                                  <span className="material-symbols-outlined !text-[14px]">{t("icon_block")}</span>
-                                  <HoverTooltip title={t("bp_overridden_by_winner")} variant="default" />
-                                </div>
-                              ) : (
-                                allow_write && playSet?.name && (
-                                  <button onClick={() => applyConflictOverride(ac.modB._originalSetName || ac.modB.name, ac.pairId, playSet.name)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--success)_20%,transparent)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)] transition-all flex items-center justify-center group relative">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_check_circle")}</span>
-                                    <HoverTooltip title={t("bp_select_winning_artifact")} variant="default" />
-                                  </button>
-                                )
-                              )
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <div className="w-28">{getPriorityDrop(ac.modB)}</div>
-                                {allow_write && (
-                                  <button onClick={() => toggleInActiveSet(ac.modB._originalSetName || ac.modB.name, true, true)} className="w-7 h-7 rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] text-red-500 transition-all flex items-center justify-center group relative">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_delete")}</span>
-                                    <HoverTooltip title={t("bp_yeet_artifact")} variant="danger" />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </UniversalCard>
+      title={t("bp_title", "{Blueprint} Alerts")}
+      subtitle={`${playSet.name} • ${activeMods.length} ${t("term_mods", "Items")}`}
+      icon={heroIcon}
+      iconColorClass={
+        criticalCount > 0
+          ? "text-[var(--danger)]"
+          : alertsCount > 0
+            ? "text-[var(--warning)]"
+            : "text-[var(--accent)]"
+      }
+      widthClass="w-[90vw] md:w-[760px]"
+      headerActions={
+        allow_write && (rawRedMods.length > 0 || rawAmberMods.length > 0) ? (
+          <PanelHeaderGroup>
+            {rawRedMods.length > 0 && (
+              <PanelHeaderButton
+                icon={t("icon_delete_sweep", "delete_sweep")}
+                tooltip={t("bp_purge_corrupted", "Purge {0} Corrupted").replace(
+                  "{0}",
+                  String(groupedRedMods.length)
+                )}
+                variant="danger"
+                onClick={() => {
+                  rawRedMods.forEach((m: any) =>
+                    toggleInActiveSet(m._originalSetName || m.name, true, true)
                   );
-                })
-              )}
-            </div>
+                }}
+              />
+            )}
+            {rawAmberMods.length > 0 && (
+              <PanelHeaderButton
+                icon={t("icon_delete_sweep", "delete_sweep")}
+                tooltip={t("bp_purge_unstable", "Purge {0} Unstable").replace(
+                  "{0}",
+                  String(groupedAmberMods.length)
+                )}
+                variant="default"
+                onClick={() => {
+                  rawAmberMods.forEach((m: any) =>
+                    toggleInActiveSet(m._originalSetName || m.name, true, true)
+                  );
+                }}
+              />
+            )}
+          </PanelHeaderGroup>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={heroIcon}
+          overline={t("bp_title", "{Blueprint} Alerts")}
+          title={playSet.name}
+          description={`${activeMods.length} ${t("term_mods", "Items")} ${t("active", "Active")}`}
+          badge={
+            totalAllIssues === 0
+              ? t("bp_no_conflicts_detected", "All Clear")
+              : `${totalAllIssues} ${t("term_mods", "Items")}`
+          }
+          badgeIcon={heroIcon}
+          variant={heroVariant}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <StatBox
+              label={t("updates_modal_title", "Updates")}
+              value={updatesCount}
+              icon={t("icon_update", "update")}
+              iconColorClass="text-[var(--accent)]"
+            />
+            <StatBox
+              label={t("system_alerts_title", "Alerts")}
+              value={alertsCount}
+              icon={t("icon_gpp_maybe", "gpp_maybe")}
+              iconColorClass={alertsCount > 0 ? "text-[var(--warning)]" : "text-[var(--subtext)]"}
+            />
+            <StatBox
+              label={t("critical_alerts", "Critical Alerts")}
+              value={criticalCount}
+              icon={t("icon_gpp_bad", "gpp_bad")}
+              iconColorClass={criticalCount > 0 ? "text-[var(--danger)]" : "text-[var(--subtext)]"}
+            />
           </div>
+        </SidePanelHeroCard>
+
+        {renamePlaySet && (
+          <SidePanelTitleInput
+            label={t("term_blueprint", "{Blueprint}")}
+            value={nameInput}
+            onChange={setNameInput}
+            onBlur={() => {
+              if (nameInput.trim() && nameInput.trim() !== playSet.name) {
+                renamePlaySet(playSet.name, nameInput.trim());
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nameInput.trim() && nameInput.trim() !== playSet.name) {
+                renamePlaySet(playSet.name, nameInput.trim());
+              }
+            }}
+            placeholder={t("draft_placeholder", "{Blueprint} Name...")}
+          />
+        )}
+
+        {/* 3-Tab Switcher: Updates / Alerts / Critical Alerts */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_update", "update")}
+            label={t("updates_modal_title", "Updates")}
+            number={updatesCount}
+            colorClass="text-[var(--accent)]"
+            isActive={activeTab === "updates"}
+            onClick={() => {
+              setActiveTab("updates");
+              setCategoryFilter("all");
+            }}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_gpp_maybe", "gpp_maybe")}
+            label={t("system_alerts_title", "Alerts")}
+            number={alertsCount}
+            colorClass="text-[var(--warning)]"
+            isActive={activeTab === "alerts"}
+            onClick={() => {
+              setActiveTab("alerts");
+              setCategoryFilter("all");
+            }}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_gpp_bad", "gpp_bad")}
+            label={t("critical_alerts", "Critical Alerts")}
+            number={criticalCount}
+            colorClass="text-[var(--danger)]"
+            isActive={activeTab === "critical"}
+            onClick={() => {
+              setActiveTab("critical");
+              setCategoryFilter("all");
+            }}
+          />
         </div>
 
-        <div className="flex-[5] flex flex-col min-h-0 min-w-0">
-          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-4">
-            <div className="px-1 py-2 shrink-0 flex flex-col gap-4 relative mb-4">
-              <div className="flex items-center justify-between w-full relative z-10 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4">
-                <h3 className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-[0.2em] opacity-80">{t("bp_compatibility_scanner")}</h3>
-                <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                  <span>{brokenMods.length} {t("items")}</span>
-                  {(redMods.length > 0 || amberMods.length > 0) && <span className="opacity-50">•</span>}
-                  {redMods.length > 0 && <span className="text-red-400 font-bold">{redMods.length} {t("bp_pill_corrupted")}</span>}
-                  {(redMods.length > 0 && amberMods.length > 0) && <span className="opacity-30">|</span>}
-                  {amberMods.length > 0 && <span className="text-amber-400 font-bold">{amberMods.length} {t("bp_pill_unstable")}</span>}
-                  {brokenMods.length === 0 && <span className="text-[var(--success)]">• {t("auto_0")} {t("items")}</span>}
-                </div>
-              </div>
-            </div>
+        {/* Search & Filter Bar */}
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchPlaceholder={t("nav_search", "Search...")}
+          primaryPopover={
+            activeTab !== "updates"
+              ? {
+                  icon: t("icon_tune", "tune"),
+                  label: t("filters", "Filters"),
+                  content: (
+                    <div className="flex flex-col gap-4 w-[280px] p-3">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                          {t("status", "Status")}
+                        </span>
+                        <InlineFilterGroup
+                          value={categoryFilter}
+                          onChange={(v: string) => setCategoryFilter(v)}
+                          options={[
+                            { id: "all", label: t("filter_all", "All") },
+                            { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                            {
+                              id: "version_mismatch",
+                              label: t("modal_version_mismatch", "Version Mismatch"),
+                            },
+                            {
+                              id: "missing_reqs",
+                              label: t("badge_missing_dep", "Missing Dependency"),
+                            },
+                            { id: "unstable", label: t("label_unstable", "Unstable") },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  ),
+                }
+              : undefined
+          }
+        />
 
-            {allow_write && brokenMods.length > 0 && (
-              <div className="flex gap-2 w-full pb-4">
-                {redMods.length > 0 && (
-                  <button onClick={() => {
-                    redMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
-                  }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[10px] font-black capitalize tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
-                    {(t("bp_purge_corrupted")).replace("{0}", String(redMods.length))}
-                  </button>
-                )}
-                {amberMods.length > 0 && (
-                  <button onClick={() => {
-                    amberMods.forEach((m: any) => toggleInActiveSet(m._originalSetName || m.name, true, true));
-                  }} className={`flex-1 py-3 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-amber-500 hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[10px] font-black capitalize tracking-widest relative z-10 flex items-center justify-center gap-2 transition-all active:scale-95`}>
-                    <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep")}</span>
-                    {(t("bp_purge_unstable")).replace("{0}", String(amberMods.length))}
-                  </button>
-                )}
+        {/* Tab 1: Updates */}
+        {activeTab === "updates" && (
+          <>
+            {filteredUpdates.length > 0 ? (
+              <UniversalGroup
+                title={`${t("updates_avail", "Updates Available")} (${filteredUpdates.length})`}
+                icon={t("icon_update", "update")}
+              >
+                <div className="flex flex-col gap-3 w-full">
+                  {filteredUpdates.map((update: any) => (
+                    <UpdateModCard
+                      key={update._groupedTitle || update.hash || update.name}
+                      update={update}
+                      handleOpenUrl={handleOpenUrl}
+                      t={t}
+                      activeGameSchema={activeGameSchema}
+                    />
+                  ))}
+                </div>
+              </UniversalGroup>
+            ) : (
+              <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <EmptyState
+                  icon={t("icon_check_circle", "check_circle")}
+                  title={t("no_updates", "All Mods Up to Date")}
+                />
               </div>
             )}
-            <div className={brokenMods.length === 0 ? "flex flex-col flex-1" : "grid grid-flow-row-dense grid-cols-1 sm:grid-cols-2 gap-3.5 items-start pb-24"}>
-              {brokenMods.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center space-y-6 py-12 relative">
-                  <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[0_0_30px_rgba(var(--success-rgb),0.2)] transition-all duration-700">
-                    <div className="absolute inset-0 rounded-[inherit]  border border-[color-mix(in_srgb,var(--success)_30%,transparent)] animate-[ping_3s_ease-in-out_infinite] opacity-20" />
-                    <span className="material-symbols-outlined text-[var(--success)] drop-shadow-[0_0_10px_rgba(var(--success-rgb),0.5)] transition-transform duration-500">{t("icon_check_circle")}</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-[14px] font-black tracking-[0.2em] capitalize text-[var(--text)] text-center transition-colors">{t("bp_no_broken_mods_detected")}</p>
-                  </div>
+          </>
+        )}
+
+        {/* Tab 2 & 3: Alerts / Critical Alerts */}
+        {activeTab !== "updates" && (
+          <>
+            {filteredConflicts.length > 0 && (
+              <UniversalGroup
+                title={`${t("bp_load_order_conflicts", "Conflicts Detected")} (${filteredConflicts.length})`}
+                icon={t("icon_crisis_alert", "crisis_alert")}
+              >
+                <div className="flex flex-col gap-4">
+                  {filteredConflicts.map((ac: any) => {
+                    const isIgnored = ignoredConflicts.has(ac.pairId);
+                    const isTier4 = ac.conflict.severity_rank == 4;
+
+                    const prefixA =
+                      (ac.modA._originalSetName || ac.modA.name)
+                        ?.split(/[/\\]/)
+                        .slice(0, -1)
+                        .join("/") || "";
+                    const prefixB =
+                      (ac.modB._originalSetName || ac.modB.name)
+                        ?.split(/[/\\]/)
+                        .slice(0, -1)
+                        .join("/") || "";
+                    const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+                    const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+
+                    const iconName = isTier4
+                      ? t("icon_crisis_alert", "crisis_alert")
+                      : t("icon_tune", "tune");
+
+                    const imageA =
+                      showImages &&
+                      (ac.modA.image_url || ac.modA.imageUrl) &&
+                      String(ac.modA.image_url || ac.modA.imageUrl) !== "null"
+                        ? ac.modA.image_url || ac.modA.imageUrl
+                        : undefined;
+                    const imageB =
+                      showImages &&
+                      (ac.modB.image_url || ac.modB.imageUrl) &&
+                      String(ac.modB.image_url || ac.modB.imageUrl) !== "null"
+                        ? ac.modB.image_url || ac.modB.imageUrl
+                        : undefined;
+
+                    const conflictTitle =
+                      ac.conflict.resolution_note ||
+                      (isTier4
+                        ? t(
+                            "conflict_sev4_desc",
+                            "Fatal Collision — Cannot be installed together"
+                          )
+                        : t(
+                            "conflict_sev3_desc",
+                            "Tuning Overlap — Load order override or minor feature overlap"
+                          ));
+
+                    const severityBadgeClass = isTier4
+                      ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`
+                      : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]`;
+
+                    const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]`;
+
+                    const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
+
+                    return (
+                      <UniversalCard
+                        key={ac.pairId}
+                        layout="horizontal"
+                        isGhosted={isIgnored}
+                        icon={iconName}
+                        title={conflictTitle}
+                        badges={
+                          <div className={severityBadgeClass}>
+                            <span
+                              className={`material-symbols-outlined !text-[12px] ${
+                                isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                              }`}
+                            >
+                              {iconName}
+                            </span>
+                            <span>
+                              {isTier4
+                                ? t("fatal_conflict", "Fatal Conflict")
+                                : t("tier3_conflict", "Tuning Overlap")}
+                            </span>
+                          </div>
+                        }
+                        actions={
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const newSet = new Set(ignoredConflicts);
+                              if (isIgnored) newSet.delete(ac.pairId);
+                              else newSet.add(ac.pairId);
+                              setIgnoredConflicts(newSet);
+                            }}
+                            className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 transition-all cursor-pointer shrink-0"
+                          >
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {isIgnored
+                                ? t("icon_visibility", "visibility")
+                                : t("icon_visibility_off", "visibility_off")}
+                            </span>
+                            <HoverTooltip
+                              className="z-[100] !right-0 !translate-x-0 !left-auto"
+                              title={
+                                isIgnored
+                                  ? t("bp_restore_alert", "Restore Alert")
+                                  : t("btn_ignore", "Ignore")
+                              }
+                              icon={
+                                isIgnored
+                                  ? t("icon_visibility", "visibility")
+                                  : t("icon_visibility_off", "visibility_off")
+                              }
+                            />
+                          </button>
+                        }
+                      >
+                        <div
+                          className={`grid grid-cols-1 sm:grid-cols-2 gap-3 w-full ${
+                            isIgnored ? "pointer-events-none" : ""
+                          }`}
+                        >
+                          {[
+                            { mod: ac.modA, image: imageA, isWinner: isWinnerA, isLoser: isWinnerB },
+                            { mod: ac.modB, image: imageB, isWinner: isWinnerB, isLoser: isWinnerA },
+                          ].map((slot, sIdx) => {
+                            const mTitle = formatDisplayName(
+                              slot.mod.displayName || slot.mod.name
+                            );
+                            const mAuthor = extractValidCreator(slot.mod);
+                            const mIcon = getModIcon(slot.mod, activeGameSchema, t);
+                            return (
+                              <UniversalCard
+                                key={`${ac.pairId}-${sIdx}`}
+                                layout="compact"
+                                isActive={slot.isWinner && !isTier4}
+                                image={slot.image}
+                                icon={!slot.image ? mIcon : undefined}
+                                title={mTitle}
+                                subtitle={mAuthor || undefined}
+                                actions={
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {ac.conflict.severity_rank == 4 ? (
+                                      allow_write && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            toggleInActiveSet(
+                                              slot.mod._originalSetName || slot.mod.name,
+                                              true,
+                                              true
+                                            )
+                                          }
+                                          className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                                        >
+                                          <span className="material-symbols-outlined !text-[16px]">
+                                            {t("icon_close", "close")}
+                                          </span>
+                                          <HoverTooltip
+                                            className="z-[100] !right-0 !translate-x-0 !left-auto"
+                                            title={t("btn_remove", "{Remove}")}
+                                            icon={t("icon_delete", "delete")}
+                                            variant="danger"
+                                          />
+                                        </button>
+                                      )
+                                    ) : ac.conflict.severity_rank == 3 ? (
+                                      slot.isWinner ? (
+                                        <div className={winnerBadgeClass}>
+                                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                                            {t("icon_check_circle", "check_circle")}
+                                          </span>
+                                          <span>{t("winner", "WINNING {MOD}")}</span>
+                                        </div>
+                                      ) : slot.isLoser ? (
+                                        <div className={loserBadgeClass}>
+                                          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                            {t("icon_block", "block")}
+                                          </span>
+                                          <span>{t("bp_overridden_by_winner", "Overridden")}</span>
+                                        </div>
+                                      ) : (
+                                        allow_write &&
+                                        playSet?.name && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              applyConflictOverride(
+                                                slot.mod._originalSetName || slot.mod.name,
+                                                ac.pairId,
+                                                playSet.name
+                                              )
+                                            }
+                                            className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] transition-all cursor-pointer"
+                                          >
+                                            <span className="material-symbols-outlined !text-[16px]">
+                                              {t("icon_check_circle", "check_circle")}
+                                            </span>
+                                            <HoverTooltip
+                                              className="z-[100] !right-0 !translate-x-0 !left-auto"
+                                              title={t("bp_select_winning_artifact", "Select Winner")}
+                                              icon={t("icon_check_circle", "check_circle")}
+                                              variant="accent"
+                                            />
+                                          </button>
+                                        )
+                                      )
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-28">{getPriorityDrop(slot.mod)}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              />
+                            );
+                          })}
+                        </div>
+                      </UniversalCard>
+                    );
+                  })}
                 </div>
-              ) : (
-                brokenMods.map((mod: any) => (
-                  <IncompatibleModCard
-                    key={mod.name}
-                    mod={mod}
-                    isIgnored={ignoredBroken.has(mod.name)}
-                    isAmber={mod._alert_type === 'amber'}
-                    setIgnoredBroken={setIgnoredBroken}
-                    ignoredBroken={ignoredBroken}
-                    toggleInActiveSet={toggleInActiveSet}
-                    allow_write={allow_write}
-                    t={t}
-                    activeGameSchema={activeGameSchema}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+              </UniversalGroup>
+            )}
+
+            {filteredBrokenMods.length === 0 && filteredConflicts.length === 0 ? (
+              <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <EmptyState
+                  icon={t("icon_check_circle", "check_circle")}
+                  title={t(
+                    "bp_no_broken_mods_detected",
+                    "All active {mods} passed compliance checks."
+                  )}
+                />
+              </div>
+            ) : filteredBrokenMods.length > 0 ? (
+              <UniversalGroup
+                title={`${
+                  activeTab === "critical"
+                    ? t("critical_alerts", "Critical Alerts")
+                    : t("system_alerts_title", "Alerts")
+                } (${filteredBrokenMods.length})`}
+                icon={
+                  activeTab === "critical"
+                    ? t("icon_gpp_bad", "gpp_bad")
+                    : t("icon_gpp_maybe", "gpp_maybe")
+                }
+              >
+                {renderGroupedIncompatibleSections({
+                  groupedBrokenMods: filteredBrokenMods,
+                  ignoredBroken,
+                  setIgnoredBroken,
+                  toggleInActiveSet,
+                  allow_write,
+                  t,
+                  activeGameSchema,
+                })}
+              </UniversalGroup>
+            ) : null}
+          </>
+        )}
       </div>
     </SidePanel>
   );
 }
-
-
-
-
-
-

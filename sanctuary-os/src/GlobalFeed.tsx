@@ -232,7 +232,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45"));
+    if (!userId) return useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active"));
     const session = useStore.getState().session;
 
     const { error } = await supabase.rpc('secure_upsert_cloud_file', {
@@ -265,14 +265,14 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
     return (
       <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 gap-6">
         <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
-        <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title")}</h2>
-        <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc")}</p>
+        <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title", "Offline Mode")}</h2>
+        <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc", "This module requires a secure network connection. Please restore your connection or disable Local Network Only mode in preferences.")}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
           <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
-          {t("offline_mode_refresh")}
+          {t("offline_mode_refresh", "Refresh Connection")}
         </button>
       </div>
     );
@@ -281,9 +281,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in duration-300">
       <ViewHeader
-        title={t("feed_title")}
-        subtitle={t("feed_subtitle")}
-        icon={t("icon_satellite_alt")}
+        title={t("feed_title", "Community Feed")}
+        subtitle={t("feed_subtitle", "Platform updates, announcements, and community posts")}
+        icon={t("icon_satellite_alt", "satellite_alt")}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         shape="circle"
         breadcrumb={activeTab !== "OVERVIEW" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
@@ -294,22 +294,22 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
             <ActionPill
               searchQuery={searchQuery || ""}
               setSearchQuery={setSearchQuery}
-              searchPlaceholder={t("mason_search_placeholder") || "Search..."}
+              searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...") || "Search..."}
               primaryPopover={{
                 icon: "tune",
-                label: t("filters") || "Filters",
+                label: t("filters", "Filters") || "Filters",
                 content: (
                   <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
                     <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by") || "Sort By"}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("sort_by", "Sort By") || "Sort By"}</span>
                       <CustomDropdown
                         flat={true}
                         variant="pill"
                         disableTint={true}
                         value={activeSort}
                         options={[
-                          { id: "NEWEST", label: t("sort_newest") || "Newest" },
-                          { id: "TOP", label: t("sort_top") || "Top" }
+                          { id: "NEWEST", label: t("sort_newest", "Newest") || "Newest" },
+                          { id: "TOP", label: t("sort_top", "Top Rated") || "Top" }
                         ]}
                         onChange={(val: any) => setActiveSort(Array.isArray(val) ? val[0] : val)}
                       />
@@ -318,19 +318,19 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
                     
                     <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range") || "Date Range"}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("date_range", "Date Range") || "Date Range"}</span>
                       <div className="flex flex-col gap-2">
                         <CustomDatePicker
                           flat={true}
                           value={startDate}
                           onChange={setStartDate}
-                          placeholder={t("filter_start_date") || "Start Date"}
+                          placeholder={t("filter_start_date", "Start Date") || "Start Date"}
                         />
                         <CustomDatePicker
                           flat={true}
                           value={endDate}
                           onChange={setEndDate}
-                          placeholder={t("filter_end_date") || "End Date"}
+                          placeholder={t("filter_end_date", "End Date") || "End Date"}
                         />
                       </div>
                     </div>
@@ -338,7 +338,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                     {(startDate || endDate || activeSort !== "NEWEST") && (
                       <ActionButton 
                         icon="close" 
-                        label={t("btn_clear") || "Clear Filters"} 
+                        label={t("btn_clear", "Clear Filters") || "Clear Filters"} 
                         onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
                         className="w-full mt-2" 
                         variant="danger"
@@ -351,11 +351,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           </div>
         )}
         </ViewHeader>
-      <div className="flex flex-col w-full gap-3 mb-6 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+      <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
         <StatTileCarousel>
-          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
-          <DashboardStatTile variant="tab" icon="explore" label={t("tab_discover")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
-          <DashboardStatTile variant="tab" icon="diversity_1" label={t("tab_following")} number={overviewStats.followingPosts} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "FOLLOWING"} />
+          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_overview", "Overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
+          <DashboardStatTile variant="tab" icon="explore" label={t("tab_discover", "Network Feed")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
+          <DashboardStatTile variant="tab" icon="diversity_1" label={t("tab_following", "Subscribed Channels")} number={overviewStats.followingPosts} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "FOLLOWING"} />
         </StatTileCarousel>
       </div>
 
@@ -364,16 +364,16 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           <CommandScreenLayout>
             <CommandScreenBody>
               <CommandScreenMain>
-                <div className="flex flex-col gap-6 w-full">
+                <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
-                    title={t("feed_sub_feed")}
+                    title={t("feed_sub_feed", "Subscription Feed")}
                     icon="diversity_1"
                   />
 
                   {loading ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
+                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
                   ) : filteredPosts.length === 0 ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts")}</div>
+                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts", "No Community Posts Found")}</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
                       {filteredPosts.map((p, index) => (
@@ -391,13 +391,13 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("feed_quick_actions")} icon="explore">
-                  <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover")} subtitle={`${overviewStats.posts} ${t("tab_posts") || "Posts"}`} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
+              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="explore">
+                  <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover", "Discover")} subtitle={`${overviewStats.posts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
                   {masonProfileId && (
-                    <CommandScreenQuickLink icon={t("icon_favorite") || "favorite"} title={t("feed_stat_activity") || "Interactions"} subtitle={`${overviewStats.likes + overviewStats.replies} ${t("tab_interactions") || "Total"}`} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-amber-500 shadow-md" textColorClass="text-amber-500" hoverTextColorClass="group-hover:text-amber-400" iconShadowClass="drop-shadow-md text-amber-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+                    <CommandScreenQuickLink icon={t("icon_favorite", "favorite") || "favorite"} title={t("feed_stat_activity", "Interactions") || "Interactions"} subtitle={`${overviewStats.likes + overviewStats.replies} ${t("tab_interactions", "Total Interactions") || "Total"}`} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-amber-500 shadow-md" textColorClass="text-amber-500" hoverTextColorClass="group-hover:text-amber-400" iconShadowClass="drop-shadow-md text-amber-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                   )}
-                  <CommandScreenQuickLink icon="diversity_1" title={t("feed_stat_following") || "Following Feed"} subtitle={`${overviewStats.followingPosts} ${t("tab_posts") || "Posts"}`} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md text-emerald-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-                  <CommandScreenQuickLink icon="group" title={t("feed_stat_network") || "Your Network"} subtitle={`${overviewStats.followingMasons} ${t("tab_masons") || "Following"}`} onClick={() => setFollowingPanelOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md text-purple-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon="diversity_1" title={t("feed_stat_following", "Following (Past 30 Days)") || "Following Feed"} subtitle={`${overviewStats.followingPosts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md text-emerald-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon="group" title={t("feed_stat_network", "Your Network") || "Your Network"} subtitle={`${overviewStats.followingMasons} ${t("tab_masons", "Following") || "Following"}`} onClick={() => setFollowingPanelOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md text-purple-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>
@@ -405,11 +405,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       ) : (
         <div className="flex-1 pr-4 pb-32">
           {loading ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
           ) : activeTab === "FOLLOWING" && !userId ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("login_required")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("login_required", "Login Required To Reply")}</div>
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts")}</div>
+            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts", "No Community Posts Found")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
               {filteredPosts.map((p, index) => {

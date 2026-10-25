@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { SidePanel, CustomDropdown, EmptyState } from "../shared";
+import { CustomDropdown } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
+import SASupportSettings from "./SASupportSettings";
 
 interface Ticket {
   id: string;
@@ -24,16 +25,42 @@ interface Ticket {
   onEditMetadata?: (hash: string) => void;
 }
 
-export default function ArchitectSupportTickets({ userRole = "architect", masonProfileId, onEditMetadata, setStatus }: { userRole?: string, masonProfileId?: string, onEditMetadata?: (hash: string) => void, setStatus?: any }) {
+const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+export default function ArchitectSupportTickets({
+  userRole = "architect",
+  masonProfileId,
+  onEditMetadata,
+  setStatus,
+  initialTab
+}: {
+  userRole?: string;
+  masonProfileId?: string;
+  onEditMetadata?: (hash: string) => void;
+  setStatus?: any;
+  initialTab?: "overview" | "new" | "pending" | "closed" | "settings";
+}) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed">("overview");
+  const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed" | "settings">(initialTab || "overview");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
+  const [settingsCount, setSettingsCount] = useState<number>(0);
+  const [settingsTypeFilter, setSettingsTypeFilter] = useState<"all" | "categories" | "log_sources">("all");
+  const [settingsStatusFilter, setSettingsStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const openCatRef = useRef<(() => void) | null>(null);
+  const openSourceRef = useRef<(() => void) | null>(null);
   const currentUserId = useStore(state => state.session?.user?.id);
+  const showSettings = userRole === "oversight" || userRole === "wayfinder";
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveFilter(initialTab);
+    }
+  }, [initialTab]);
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -41,7 +68,6 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       .from('sanctuary_tickets')
       .select('*')
       .order('created_at', { ascending: false });
-
 
     if (userRole === "mason" && masonProfileId) {
       query = query.eq('author_id', masonProfileId);
@@ -65,7 +91,11 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
         author_username: profileMap[t.author_id] || t.author_id?.substring(0, 8).toUpperCase() || 'SYSTEM'
       }));
 
-      const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
+      const [{ data: catData }, { count: sourcesCount }] = await Promise.all([
+        supabase.from('sanctuary_support_categories').select('*'),
+        supabase.from('sanctuary_telemetry_sources').select('*', { count: 'exact', head: true })
+      ]);
+      setSettingsCount((catData?.length || 0) + (sourcesCount || 0));
 
       const targetModIds = [...new Set(mergedTickets.map(t => t.target_mod_id || t.metadata?.target_mod_id).filter(Boolean))];
       const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -131,7 +161,6 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
             effectiveTierIndex += escalationTiers;
           }
 
-
           effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
           let dest = tiers[effectiveTierIndex];
 
@@ -176,7 +205,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
 
       const uniqueCats = [...new Set(finalTickets.map(t => t.ticket_type || t.category || "GENERAL"))];
       const dynamicOptions = [
-        { id: "all", label: t("ui_tab_all_types") },
+        { id: "all", label: t("all_types", "All Types") },
         ...uniqueCats.map(c => ({ id: c, label: c.replace(/_/g, ' ') }))
       ];
       setCategoryOptions(dynamicOptions);
@@ -219,11 +248,11 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
       .eq('id', selectedTicket.id);
 
     if (error) {
-      useStore.getState().pushStatus("Failed to update ticket: " + error.message, "error");
+      useStore.getState().pushStatus(t("err_save_failed", "Save failed:") + " " + error.message, "error");
       return;
     }
 
-    useStore.getState().pushStatus(t("auto_ticket_status_updated_39"), "success");
+    useStore.getState().pushStatus(t("auto_ticket_status_updated_39", "Ticket status updated."), "success");
 
     if (userRole === "architect") {
       logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);
@@ -239,7 +268,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     if (!error) {
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
-      useStore.getState().pushStatus(t("ticket_claim") || "Ticket Claimed", "success");
+      useStore.getState().pushStatus(t("ticket_claim", "Claim Ticket") || "Ticket Claimed", "success");
     }
   };
 
@@ -251,7 +280,7 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     if (!error) {
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
-      useStore.getState().pushStatus(t("ticket_release") || "Ticket Released", "success");
+      useStore.getState().pushStatus(t("ticket_release", "Release Ticket") || "Ticket Released", "success");
     }
   };
 
@@ -262,82 +291,143 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
   const tabs = [
     {
       id: "overview",
-      label: t("landing_overview") || "Overview",
-      icon: "dashboard",
+      label: t("overview", "Overview") || "Overview",
+      icon: t("icon_dashboard", "dashboard"),
       number: tickets.length.toString(),
     },
     {
       id: "new",
-      label: t("ui_tab_new") || "New",
-      icon: "new_releases",
+      label: t("badge_new", "NEW") || "New",
+      icon: t("icon_new_releases", "new_releases"),
       number: newCount.toString(),
       colorClass: "text-[var(--danger)]",
     },
     {
       id: "pending",
-      label: t("ticket_tab_claimed") || t("pending") || "Pending",
-      icon: "pending_actions",
+      label: t("ticket_tab_claimed", "Claimed") || t("pending", "Pending") || "Pending",
+      icon: t("icon_pending_actions", "pending_actions"),
       number: pendingCount.toString(),
       colorClass: "text-[var(--warning)]",
     },
     {
       id: "closed",
-      label: t("ui_tab_closed") || "Closed",
-      icon: "check_circle",
+      label: t("filter_closed", "Closed") || "Closed",
+      icon: t("icon_check_circle", "check_circle"),
       number: closedCount.toString(),
       colorClass: "text-[var(--success)]",
-    }
+    },
+    ...(showSettings
+      ? [
+          {
+            id: "settings",
+            label: t("settings", "Settings") || "Settings",
+            icon: t("icon_settings", "settings"),
+            number: settingsCount.toString(),
+          },
+        ]
+      : [])
   ];
 
   const renderTicketCard = (ticket: Ticket) => {
     const statusLower = ticket.status?.toLowerCase() || 'new';
     const isNew = statusLower === 'new' || statusLower === 'open';
-    const isClosed = statusLower === 'closed' || statusLower === 'resolved' || statusLower === 'rejected';
+    const isResolved = statusLower === 'closed' || statusLower === 'resolved';
+    const isRejected = statusLower === 'rejected';
     const isPending = statusLower === 'investigating' || statusLower === 'pending';
     const isEscalated = statusLower === 'escalated';
+
+    const statusIconColor = isResolved
+      ? "text-[var(--success)]"
+      : isEscalated || isRejected
+        ? "text-[var(--danger)]"
+        : isPending
+          ? "text-[var(--warning)]"
+          : "text-[var(--accent)]";
+
+    const statusIcon = isResolved
+      ? t("icon_check_circle", "check_circle")
+      : isRejected
+        ? t("icon_cancel", "cancel")
+        : isEscalated
+          ? t("icon_priority_high", "priority_high")
+          : isPending
+            ? t("icon_schedule", "schedule")
+            : t("icon_confirmation_number", "confirmation_number");
+
+    const statusLabel = isNew
+      ? t("ticket_status_open", "Open")
+      : isResolved
+        ? t("ticket_status_resolved", "Resolved")
+        : isRejected
+          ? t("ticket_status_rejected", "Rejected")
+          : isEscalated
+            ? t("ticket_status_escalated", "Escalated")
+            : isPending
+              ? t("ticket_status_pending", "Pending")
+              : t(`ticket_status_${statusLower}`, ticket.status || "Open");
 
     return (
       <UniversalCard
         key={ticket.id}
         onClick={() => setSelectedTicket(ticket)}
         layout="vertical"
-        icon={isNew ? 'support_agent' : isClosed ? 'done_all' : isPending ? 'warning' : isEscalated ? 'priority_high' : 'bug_report'}
-        title={ticket.title}
-        statusColor={
-          isNew ? 'border-[color-mix(in_srgb,var(--danger)_50%,transparent)]' :
-            isClosed ? 'border-[color-mix(in_srgb,var(--success)_50%,transparent)]' :
-              isPending ? 'border-[color-mix(in_srgb,var(--warning)_50%,transparent)]' :
-                isEscalated ? 'border-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : undefined
+        isGhosted={isResolved || isRejected}
+        icon={t("icon_support_agent", "support_agent")}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                {statusIcon}
+              </span>
+              <span>{statusLabel}</span>
+            </div>
+            {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                  {t("icon_bolt", "bolt")}
+                </span>
+                <span>{t("urgent", "Urgent")}</span>
+              </div>
+            )}
+          </div>
         }
-        badges={[
-          <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner transition-colors
-              ${isNew ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : ''}
-              ${isClosed ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] text-[var(--success)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]' : ''}
-              ${isPending ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : ''}
-              ${isEscalated ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
-              ${!isNew && !isClosed && !isPending && !isEscalated ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : ''}
-          `}>
-            {isNew ? (t("ui_tab_new") || "New") : (t(`ticket_status_${statusLower}`) || ticket.status || "NEW")}
-          </span>,
-          (ticket.ticket_type || ticket.category) && (
-            <span key="category" className="px-2 py-1 rounded bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[color-mix(in_srgb,var(--text)_60%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[8px] font-black capitalize tracking-widest whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all">
-              {(ticket.ticket_type || ticket.category || "").replace(/_/g, ' ')}
-            </span>
-          )
-        ].filter(Boolean)}
+        title={ticket.title}
+        subtitle={ticket.author_username ? `${ticket.author_username} • #${ticket.id.slice(0, 8)}` : `#${ticket.id.slice(0, 8)}`}
+        badges={
+          <>
+            {(ticket.ticket_type || ticket.category) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_local_activity", "local_activity")}
+                </span>
+                <span>{(ticket.ticket_type || ticket.category || "").replace(/_/g, " ")}</span>
+              </div>
+            )}
+            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                  {t("icon_extension", "extension")}
+                </span>
+                <span className="truncate max-w-[140px]">
+                  {String(ticket.target_mod_id || ticket.metadata?.target_mod_id).slice(0, 12)}
+                </span>
+              </div>
+            )}
+          </>
+        }
         footer={
           <div className="flex justify-between items-center w-full">
             <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today")}</span>
+              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
               {new Date(ticket.created_at).toLocaleDateString()}
             </span>
-            <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0">
-              {t("btn_view")} <span className="text-lg leading-none">&rarr;</span>
-            </button>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
+              {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+            </span>
           </div>
         }
       >
-        <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity mt-4">
+        <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
           {ticket.description}
         </p>
       </UniversalCard>
@@ -351,23 +441,23 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          title={t("recent_new_reports") || "Recent New"}
-          icon="new_releases"
+          title={t("recent_new_reports", "Recent New Reports") || "Recent New"}
+          icon={t("icon_new_releases", "new_releases")}
           iconColorClass="text-[var(--danger)]"
           isEmpty={newTickets.length === 0}
-          emptyIcon="support_agent"
-          emptyTitle={t("no_bug_reports") || "No New Tickets"}
+          emptyIcon={t("icon_support_agent", "support_agent")}
+          emptyTitle={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") || "No New Tickets"}
         >
           {newTickets.slice(0, 6).map(renderTicketCard)}
         </HubOverviewSection>
 
         <HubOverviewSection
-          title={t("recent_pending") || "Recent Pending"}
-          icon="pending_actions"
+          title={t("recent_pending", "Recent Pending") || "Recent Pending"}
+          icon={t("icon_pending_actions", "pending_actions")}
           iconColorClass="text-[var(--warning)]"
           isEmpty={pendingTickets.length === 0}
-          emptyIcon="done_all"
-          emptyTitle={t("no_tickets") || "No Pending Tickets"}
+          emptyIcon={t("icon_done_all", "done_all")}
+          emptyTitle={t("no_tickets", "No Support Tickets") || "No Pending Tickets"}
         >
           {pendingTickets.slice(0, 6).map(renderTicketCard)}
         </HubOverviewSection>
@@ -405,42 +495,125 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     <ElevatedHubLayout
       search={searchQuery}
       onSearchChange={setSearchQuery}
-      searchPlaceholder={t("ui_placeholder_search") as string}
+      searchPlaceholder={t("nav_search", "Search...") as string}
       hideSearch={activeFilter === 'overview'}
       activeTab={activeFilter}
       onTabChange={(id) => setActiveFilter(id as any)}
       tabs={tabs}
-      primaryPopover={activeFilter !== 'overview' ? {
-        icon: "tune",
-        label: t("filters") || "Filters",
-        content: (
-          <div className="flex flex-col w-[300px] p-4 text-left">
-            <div className="flex flex-col mb-5 w-full">
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                {t("category") || "Category"}
-              </div>
-              <CustomDropdown
-                flat={true}
-                variant="pill"
-                value={activeCategory}
-                onChange={(v: string[]) => setActiveCategory(v[0])}
-                options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("ui_tab_all_types") }]}
-                disableTint={true}
-              />
-            </div>
-          </div>
-        )
-      } : undefined}
+      primaryPopover={
+        activeFilter === 'settings'
+          ? {
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters") || "Filters",
+              content: (
+                <div className="flex flex-col w-[300px] p-4 text-left gap-4">
+                  <div className="flex flex-col w-full gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+                      {t("filter_type", "Type") || "Type"}
+                    </div>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      value={settingsTypeFilter}
+                      onChange={(v: string[]) => setSettingsTypeFilter((v[0] as any) || "all")}
+                      options={[
+                        { id: "all", label: t("all_types", "All Types") },
+                        { id: "categories", label: t("active_categories", "Categories") },
+                        { id: "log_sources", label: t("active_log_sources", "Log Sources") }
+                      ]}
+                      disableTint={true}
+                    />
+                  </div>
+                  <div className="flex flex-col w-full gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+                      {t("status", "Status") || "Status"}
+                    </div>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      value={settingsStatusFilter}
+                      onChange={(v: string[]) => setSettingsStatusFilter((v[0] as any) || "all")}
+                      options={[
+                        { id: "all", label: t("all", "All") },
+                        { id: "active", label: t("support_active_only", "Active Only") },
+                        { id: "inactive", label: t("support_inactive_only", "Inactive Only") }
+                      ]}
+                      disableTint={true}
+                    />
+                  </div>
+                </div>
+              )
+            }
+          : activeFilter !== 'overview'
+            ? {
+                icon: t("icon_tune", "tune"),
+                label: t("filters", "Filters") || "Filters",
+                content: (
+                  <div className="flex flex-col w-[300px] p-4 text-left">
+                    <div className="flex flex-col mb-5 w-full">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                        {t("category", "Category") || "Category"}
+                      </div>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        value={activeCategory}
+                        onChange={(v: string[]) => setActiveCategory(v[0])}
+                        options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("all_types", "All Types") }]}
+                        disableTint={true}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            : undefined
+      }
+      actions={
+        activeFilter === 'settings'
+          ? [
+              ...(settingsTypeFilter !== "log_sources"
+                ? [
+                    {
+                      id: "add_cat",
+                      icon: t("icon_add", "add"),
+                      label: t("support_add_cat", "Add Category"),
+                      onClick: () => openCatRef.current?.()
+                    }
+                  ]
+                : []),
+              ...(settingsTypeFilter !== "categories"
+                ? [
+                    {
+                      id: "add_source",
+                      icon: t("icon_post_add", "post_add"),
+                      label: t("telemetry_add_source", "Add Source"),
+                      onClick: () => openSourceRef.current?.()
+                    }
+                  ]
+                : [])
+            ]
+          : undefined
+      }
     >
-      {isLoading ? (
-        <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting")}</div>
+      {activeFilter === 'settings' ? (
+        <SASupportSettings
+          embedded={true}
+          externalSearch={searchQuery}
+          typeFilter={settingsTypeFilter}
+          statusFilter={settingsStatusFilter}
+          openCatRef={openCatRef}
+          openSourceRef={openSourceRef}
+          onCountsChange={setSettingsCount}
+        />
+      ) : isLoading ? (
+        <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting {Dispatches}...")}</div>
       ) : activeFilter === 'overview' ? (
         renderLanding()
       ) : (
         <HubListGrid
           isEmpty={filteredTickets.length === 0}
-          emptyIcon={searchQuery ? "search_off" : t("icon_celebration")}
-          emptyTitle={searchQuery ? t("no_matches") : (activeFilter === 'new' ? t("no_bug_reports") : t("no_tickets"))}
+          emptyIcon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")}
+          emptyTitle={searchQuery ? t("no_matches", "No matches found") : (activeFilter === 'new' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))}
         >
           {filteredTickets.map(renderTicketCard)}
         </HubListGrid>
@@ -465,7 +638,3 @@ export default function ArchitectSupportTickets({ userRole = "architect", masonP
     </ElevatedHubLayout>
   );
 }
-
-
-
-

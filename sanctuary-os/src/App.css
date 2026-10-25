@@ -570,11 +570,11 @@ body,
     border-radius: var(--radius, 1.5rem);
     border-style: solid;
     border-width: 1px;
-    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.38));
-    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.25));
-    border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.15));
-    border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.20));
-    background-color: var(--glass-base-fill, rgba(4, 6, 12, 0.12));
+    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.24));
+    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.16));
+    border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.08));
+    border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.12));
+    background-color: transparent;
   }
 
   .glass-surface {
@@ -583,53 +583,30 @@ body,
     border-radius: max(0px, calc(var(--radius) - 6px));
     border-style: solid;
     border-width: 1px;
-    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.34));
-    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.22));
-    border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.16));
-    border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.18));
-    background-color: var(--glass-surface-fill, rgba(4, 6, 12, 0.08));
-  }
-
-  nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
-  .sa-side-panel-window .glass-panel:not(.portal-glass-fix),
-  .sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
-  .glass-panel .glass-panel:not(.portal-glass-fix) {
-    background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.032));
-  }
-
-  nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
-  .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
-  .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
-  .glass-panel .glass-surface:not(.portal-glass-fix),
-  .glass-surface .glass-surface:not(.portal-glass-fix) {
-    background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.024));
+    border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.22));
+    border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.14));
+    border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.08));
+    border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.10));
+    background-color: transparent;
   }
 }
 
 .glass-panel {
   overflow: hidden;
   color: var(--text);
-  border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.38));
-  border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.25));
-  border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.15));
-  border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.20));
+  border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.34));
+  border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.22));
+  border-right-color: var(--glass-border-right, rgba(255, 255, 255, 0.10));
+  border-bottom-color: var(--glass-border-bottom, rgba(255, 255, 255, 0.14));
+  background-color: transparent;
+  background-image: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, 0.065) 100%)),
-    var(--glass-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.03) 16%, transparent 28%, transparent 84%, rgba(255, 255, 255, 0.048) 100%)),
-    linear-gradient(0deg, var(--glass-base-fill, rgba(4, 6, 12, 0.12)), var(--glass-base-fill, rgba(4, 6, 12, 0.12))),
-    var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, 0 0 !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, fixed !important;
   transition-property: color, background-color, border-color, box-shadow, opacity !important;
   transition-duration: 250ms;
   box-shadow:
     var(--glass-outer-shadow, 0 20px 44px -10px rgba(0, 0, 0, 0.52)),
-    var(--glass-inset-highlight, inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.64), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.35), inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.23), inset -1.5px 0 1px 0 rgba(255, 255, 255, 0.17), inset 0 3px 7px -1px rgba(255, 255, 255, 0.14), inset 0 -3px 7px -1px rgba(255, 255, 255, 0.08));
+    var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.44), inset 1px 0 0 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 0 rgba(255, 255, 255, 0.14));
 }
 
 .glass-panel.rounded-\[inherit\] {
@@ -637,7 +614,10 @@ body,
 }
 
 .glass-panel::before,
-.glass-panel::after {
+.glass-panel::after,
+.glass-surface::before,
+.glass-surface::after,
+nav.firefox-safe-glass::before {
   content: none !important;
   display: none !important;
 }
@@ -645,37 +625,23 @@ body,
 .glass-surface {
   overflow: hidden;
   color: var(--text);
-  border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.34));
-  border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.22));
-  border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.16));
-  border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.18));
+  border-top-color: var(--glass-border-top, rgba(255, 255, 255, 0.28));
+  border-left-color: var(--glass-border-left, rgba(255, 255, 255, 0.18));
+  border-right-color: var(--glass-surface-border, rgba(255, 255, 255, 0.12));
+  border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.14));
+  background-color: transparent !important;
+  background-image: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, 0.065) 100%)),
-    var(--glass-surface-sheen, linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 18%, transparent 32%, transparent 86%, rgba(255, 255, 255, 0.035) 100%)),
-    linear-gradient(0deg, var(--glass-surface-fill, rgba(4, 6, 12, 0.08)), var(--glass-surface-fill, rgba(4, 6, 12, 0.08))),
-    var(--glass-refracted-wallpaper, none);
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, 0 0 !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, fixed !important;
-  transition-property: color, background-color, border-color, box-shadow, opacity !important;
+  transition-property: color, border-color, box-shadow, opacity !important;
   transition-duration: 250ms;
   box-shadow:
     var(--glass-surface-outer-shadow, 0 8px 18px -4px rgba(0, 0, 0, 0.28)),
-    var(--glass-surface-inset-highlight, inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.52), inset 1px 0 0.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0.5px 0 rgba(255, 255, 255, 0.16));
+    var(--glass-surface-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.34), inset 1px 0 0 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 0 rgba(255, 255, 255, 0.10));
 }
 
 .glass-surface.rounded-\[inherit\] {
   border-radius: max(0px, calc(var(--radius, 1.5rem) * 0.65));
-}
-
-.glass-surface::before,
-.glass-surface::after {
-  content: none !important;
-  display: none !important;
 }
 
 textarea.glass-surface,
@@ -690,44 +656,22 @@ pre.glass-panel,
 }
 
 nav.firefox-safe-glass {
+  background-color: transparent !important;
+  background-image: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-color: var(--glass-sidebar-bg) !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, 0.065) 100%)),
-    var(--glass-sidebar-sheen, var(--glass-sheen)),
-    linear-gradient(0deg, var(--glass-sidebar-bg), var(--glass-sidebar-bg)),
-    var(--glass-refracted-wallpaper, none) !important;
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, 0 0 !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, fixed !important;
-  transition-property: color, background-color, border-color, box-shadow, opacity, width, min-width !important;
+  transition-property: color, border-color, box-shadow, opacity, width, min-width !important;
 }
 
 .sa-side-panel-window {
+  isolation: isolate;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-color: var(--glass-drawer-bg, rgba(4, 6, 12, 0.22)) !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, 0.065) 100%)),
-    var(--glass-drawer-sheen, var(--glass-sheen)),
-    linear-gradient(0deg, var(--glass-drawer-bg, rgba(4, 6, 12, 0.22)), var(--glass-drawer-bg, rgba(4, 6, 12, 0.22))),
-    var(--glass-refracted-wallpaper, none) !important;
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, right top !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, scroll !important;
+  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+  background-image: none !important;
 }
 
-.sa-side-panel-window.sa-panel-left {
-  background-position: 0 0, 0 0, 0 0, left top !important;
-}
-
-/* Nested glass elements inside Sidebar, SidePanels, Modals, or parent cards sit over an already-blurred glass surface:
-   skip redundant backdrop readbacks and use raised 3D Liquid Glass bevels & specular sheens */
+/* Nested glass elements inside Sidebar, SidePanels, Modals, or parent cards sit as clean frosted containers on top of the parent's continuous WebGL2 Liquid Glass slab */
 nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
 .sa-side-panel-window .glass-panel:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
@@ -735,14 +679,10 @@ nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
 .glass-surface .glass-panel:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-image:
-    var(--glass-meniscus-top),
-    var(--glass-nested-sheen, var(--glass-sheen)) !important;
-  background-size: 100% 100%, 100% 100% !important;
-  background-position: 0 0, 0 0 !important;
-  background-attachment: scroll, scroll !important;
+  background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.05)) !important;
+  background-image: var(--glass-nested-sheen, none) !important;
   box-shadow:
-    var(--glass-nested-shadow, 0 12px 28px -6px rgba(0, 0, 0, 0.36)),
+    var(--glass-nested-shadow, 0 14px 30px -6px rgba(0, 0, 0, 0.45)),
     var(--glass-inset-highlight) !important;
 }
 
@@ -753,19 +693,24 @@ nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .glass-surface .glass-surface:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  background-image:
-    var(--glass-meniscus-top),
-    var(--glass-surface-sheen) !important;
-  background-size: 100% 100%, 100% 100% !important;
-  background-position: 0 0, 0 0 !important;
-  background-attachment: scroll, scroll !important;
+  background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.035)) !important;
+  background-image: var(--glass-surface-sheen, none) !important;
   box-shadow:
     var(--glass-surface-outer-shadow),
     var(--glass-surface-inset-highlight) !important;
 }
 
+/* When a glass-surface badge floats inside imageOverlay over an opaque card banner <img>,
+   keep it as a sheer translucent liquid-glass lens so it matches non-banner cards */
+.glass-panel .sa-card-has-banner-img .glass-surface:not(.portal-glass-fix) {
+  background-color: var(--glass-surface-fill, rgba(255, 255, 255, 0.06)) !important;
+  background-image: var(--glass-surface-sheen) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+}
+
 /* Prevent any nested Tailwind `backdrop-blur-*` badge, pill, or tooltip inside a glass card
-   from creating a secondary Chromium RenderPass that splits/tears the parent card's backdrop quad */
+   from creating a secondary Chromium RenderPass that splits/tears the parent card's quad */
 nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 .sa-side-panel-window [class*="backdrop-blur"]:not(.portal-glass-fix),
 .sanctuary-modal-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
@@ -778,18 +723,10 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 #root .portal-glass-fix,
 #sa-portals .portal-glass-fix,
 .portal-glass-fix {
-  background-color: var(--glass-portal-bg, rgba(4, 6, 12, 0.26)) !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 6%, transparent 13%, transparent 90%, rgba(255, 255, 255, 0.065) 100%)),
-    var(--glass-portal-sheen, var(--glass-sheen)),
-    linear-gradient(0deg, var(--glass-portal-bg, rgba(4, 6, 12, 0.26)), var(--glass-portal-bg, rgba(4, 6, 12, 0.26))),
-    var(--glass-refracted-wallpaper, none) !important;
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, 0 0 !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, fixed !important;
-  transition-property: color, background-color, border-color, box-shadow, opacity, margin-bottom !important;
+  isolation: isolate;
+  background-color: var(--glass-portal-bg, rgba(8, 12, 20, 0.88)) !important;
+  background-image: none !important;
+  transition-property: color, border-color, box-shadow, opacity, margin-bottom !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   border-top-color: var(--glass-border-top) !important;
@@ -803,20 +740,108 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 #root .portal-glass-fix.portal-glass-modal,
 #sa-portals .portal-glass-fix.portal-glass-modal,
 .portal-glass-fix.portal-glass-modal {
-  background-color: var(--glass-drawer-bg, rgba(24, 30, 42, 0.48)) !important;
-  background-image:
-    var(--glass-meniscus-top, linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 16%, transparent 40%, rgba(255, 255, 255, 0.015) 86%, rgba(255, 255, 255, 0.06) 100%)),
-    var(--glass-drawer-sheen, var(--glass-sheen)),
-    linear-gradient(0deg, var(--glass-drawer-bg, rgba(24, 30, 42, 0.48)), var(--glass-drawer-bg, rgba(24, 30, 42, 0.48))),
-    var(--glass-refracted-wallpaper, none) !important;
-  background-size: 100% 100%, 100% 100%, 100% 100%, var(--sanctuary-vw, 100vw) var(--sanctuary-vh, 100vh) !important;
-  background-position: 0 0, 0 0, 0 0, 0 0 !important;
-  background-origin: border-box, border-box, border-box, border-box !important;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat !important;
-  background-attachment: scroll, scroll, scroll, fixed !important;
+  isolation: isolate;
+  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+  background-image: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   box-shadow: var(--glass-drawer-shadow) !important;
+}
+
+#root .portal-glass-fix.sa-dropdown-popover,
+#sa-portals .portal-glass-fix.sa-dropdown-popover,
+.portal-glass-fix.sa-dropdown-popover,
+.sa-dropdown-popover {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-top-color: var(--glass-border-top) !important;
+  border-left-color: var(--glass-border-left) !important;
+  border-right-color: var(--glass-border-right) !important;
+  border-bottom-color: var(--glass-border-bottom) !important;
+  border-radius: max(12px, calc(var(--radius, 1.25rem) * 0.78)) !important;
+  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow:
+    var(--glass-portal-shadow, var(--glass-outer-shadow)) !important;
+  color: var(--text) !important;
+  font-family: var(--fontFamily, inherit) !important;
+}
+
+#root .sa-dropdown-popover::before,
+#sa-portals .sa-dropdown-popover::before,
+.sa-dropdown-popover::before,
+#root .sa-dropdown-popover::after,
+#sa-portals .sa-dropdown-popover::after,
+.sa-dropdown-popover::after {
+  content: none !important;
+  display: none !important;
+}
+
+.sa-dropdown-popover .glass-surface,
+.sa-dropdown-popover .sa-dropdown-search,
+.sa-dropdown-popover .sa-dropdown-action-chip {
+  position: relative;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-top-color: var(--glass-border-top) !important;
+  border-left-color: var(--glass-border-left) !important;
+  border-right-color: var(--glass-border-right) !important;
+  border-bottom-color: var(--glass-border-bottom) !important;
+  background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.03)) !important;
+  background-image: var(--glass-surface-sheen) !important;
+  box-shadow:
+    var(--glass-surface-outer-shadow),
+    var(--glass-surface-inset-highlight) !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-search {
+  border-radius: max(8px, calc(var(--radius, 1.25rem) * 0.55)) !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-action-chip {
+  border-radius: max(6px, calc(var(--radius, 1.25rem) * 0.45)) !important;
+  color: var(--subtext) !important;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-action-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+  color: var(--accent) !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-item {
+  position: relative;
+  background: transparent !important;
+  border-radius: max(10px, calc(var(--radius, 1.25rem) * 0.62)) !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+  opacity: 0.72;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-item:hover:not(.is-selected) {
+  background-color: color-mix(in srgb, var(--text) 6%, transparent) !important;
+  border-color: transparent !important;
+  color: var(--text) !important;
+  opacity: 1;
+}
+
+.sa-dropdown-popover .sa-dropdown-item.is-selected {
+  background-color: var(--glass-nav-active-bg) !important;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
+  border-top: 1px solid var(--glass-border-top, rgba(255, 255, 255, 0.22)) !important;
+  border-left: 1px solid var(--glass-border-left, rgba(255, 255, 255, 0.14)) !important;
+  border-right: 1px solid var(--glass-border-right, rgba(255, 255, 255, 0.06)) !important;
+  border-bottom: 1px solid var(--glass-border-bottom, rgba(255, 255, 255, 0.05)) !important;
+  color: var(--text) !important;
+  opacity: 1;
 }
 
 .portal-glass-fix .custom-scrollbar,
@@ -834,7 +859,8 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   background: color-mix(in srgb, var(--text) 28%, transparent);
 }
 
-/* Prevent `.animate-in` or hover transforms on glass elements from creating a local containing block for fixed background refraction */
+/* Guarantee `background-attachment: fixed` on glass panels never falls back to element-bounds squishing
+   due to hover/active transforms or `.animate-in` page wrapper animations */
 .animate-in,
 .glass-panel,
 .glass-panel:hover,
@@ -844,26 +870,11 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 .glass-surface:active,
 nav.firefox-safe-glass,
 .portal-glass-fix {
-  transform: var(--sanctuary-no-transform, none) !important;
-  translate: var(--sanctuary-no-transform, none) !important;
-  scale: var(--sanctuary-no-transform, none) !important;
-}
-
-/* Mobile Performance & Optical Legibility Optimizations (strictly small screens, not desktop touchscreens) */
-@media (max-width: 768px) {
-  #root .glass-panel:not(.portal-glass-fix):not(.glass-panel .glass-panel):not(.glass-surface .glass-panel) {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  #root .glass-surface:not(.portal-glass-fix):not(.glass-panel .glass-surface):not(.glass-surface .glass-surface) {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  .sa-side-panel-window {
-    background-position: 0 0, 0 0, 0 0, center top !important;
-  }
+  animation: none !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  filter: none !important;
 }
 
 .glass-panel.sanctuary-glass-intense {

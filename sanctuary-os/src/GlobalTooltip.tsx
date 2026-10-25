@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTooltipStore } from './store/tooltipStore';
+export { useTooltipStore };
 
 export function GlobalTooltip() {
   const tooltip = useTooltipStore((state) => state.tooltip);

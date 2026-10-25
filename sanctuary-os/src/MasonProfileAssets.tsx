@@ -1,5 +1,11 @@
 import { stripMarkdown, EmptyState, ActionButton } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
+import {
+  DynamicThemePreviewBanner,
+  DynamicLexiconPreviewBanner,
+  DynamicBlueprintPreviewBanner,
+  DynamicTemplatePreviewBanner,
+} from './chameleon-components/ThemeCard';
 
 export default function MasonProfileAssets({ 
   activeView, 
@@ -23,6 +29,7 @@ export default function MasonProfileAssets({
   hidePaid,
   hideEarlyAccess
 }: any) {
+  const showImages = useStore((state: any) => state.showImages);
   if (activeView === 'BLUEPRINTS') {
     const filteredBlueprints = marketAssets.filter((a: any) => {
       if (a.asset_type !== 'blueprint') return false;
@@ -36,22 +43,23 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredBlueprints.length === 0 && <EmptyState icon={t("icon_map")} title={t("no_blueprints")} minHeightClass="min-h-[400px]" />}
+        {filteredBlueprints.length === 0 && <EmptyState icon={t("icon_map", "map")} title={t("no_blueprints", "No {blueprints} found.")} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredBlueprints.map((asset: any) => (
             <UniversalCard
               key={asset.id}
               layout="vertical"
-              image={asset.image_url ? asset.image_url : undefined}
-              icon={!asset.image_url ? t("icon_map") : undefined}
+              image={showImages !== false && asset.image_url ? asset.image_url : undefined}
+              icon={!asset.image_url ? t("icon_map", "map") : undefined}
+              customIcon={<DynamicBlueprintPreviewBanner data={asset} heightClass="h-full" />}
               title={asset.name}
-              subtitle={`${mason.name || t("unknown_mason", "Unknown Creator")}`}
+              subtitle={`${mason.name || t("unknown_mason", "Unknown {Mason}")}`}
               onClick={() => setSelectedBlueprint(asset)}
               badges={
                 <>
                   <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_map", "map")}</span>
-                    <span>{t("type_blueprint", "Blueprint")}</span>
+                    <span>{t("blueprint", "{Blueprint}")}</span>
                   </div>
                   {asset.is_early_access && (
                     <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
@@ -77,7 +85,7 @@ export default function MasonProfileAssets({
                         <span>+{(asset.json_data?.artifacts?.length || 0)} {t("badge_modules_count", "Modules")}</span>
                       </div>
                     )}
-                    <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                    <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("sort_downloads", "DL")}</span>
                   </div>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
@@ -120,27 +128,28 @@ export default function MasonProfileAssets({
     });
     return (
       <>
-        {filteredLexicons.length === 0 && <EmptyState icon={t("icon_translate", "translate")} title={t("no_lexicons", "No Lexicons Found")} minHeightClass="min-h-[400px]" />}
+        {filteredLexicons.length === 0 && <EmptyState icon={t("icon_translate", "translate")} title={t("no_lexicons", "No {lexicons} deployed.")} minHeightClass="min-h-[400px]" />}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
           {filteredLexicons.map((asset: any) => (
             <UniversalCard
               key={asset.id}
               layout="vertical"
-              image={asset.image_url ? asset.image_url : undefined}
+              image={showImages !== false && asset.image_url ? asset.image_url : undefined}
               icon={!asset.image_url ? t("icon_translate", "translate") : undefined}
+              customIcon={<DynamicLexiconPreviewBanner data={asset} heightClass="h-full" />}
               title={asset.name}
-              subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
+              subtitle={mason.name || t("unknown_mason", "Unknown {Mason}")}
               onClick={() => setActiveAsset({ type: 'lexicon', id: asset.id })}
               badges={
                 <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                   <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_translate", "translate")}</span>
-                  <span>{t("auto_lexicon", "Lexicon")} {asset.language || "Custom"}</span>
+                  <span>{t("auto_lexicon", "{Lexicon} -")} {asset.language || "Custom"}</span>
                 </div>
               }
               className="w-full h-full"
               footer={
                 <div className="flex items-center justify-between w-full pt-1">
-                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("sort_downloads", "DL")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
                       onClick={(e) => {
@@ -186,21 +195,32 @@ export default function MasonProfileAssets({
             <UniversalCard
               key={asset.id}
               layout="vertical"
-              image={asset.image_url ? asset.image_url : undefined}
+              image={showImages !== false && asset.image_url ? asset.image_url : undefined}
               icon={!asset.image_url ? t("icon_palette", "palette") : undefined}
+              customIcon={
+                <DynamicThemePreviewBanner
+                  data={{
+                    ...asset,
+                    ...(typeof asset.json_data === 'object' ? asset.json_data : {}),
+                    name: asset.name,
+                    previewImage: showImages !== false ? (asset.image_url || asset.json_data?.previewImage) : undefined,
+                  }}
+                  heightClass="h-full"
+                />
+              }
               title={asset.name}
-              subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
+              subtitle={mason.name || t("unknown_mason", "Unknown {Mason}")}
               onClick={() => setActiveAsset({ type: 'chameleon', id: asset.id })}
               badges={
                 <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                   <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_palette", "palette")}</span>
-                  <span>{t("masonhub_asset_type_chameleon", "Chameleon")}</span>
+                  <span>{t("chameleon", "Chameleon")}</span>
                 </div>
               }
               className="w-full h-full"
               footer={
                 <div className="flex items-center justify-between w-full pt-1">
-                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("sort_downloads", "DL")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
                       onClick={async (e) => {
@@ -244,21 +264,22 @@ export default function MasonProfileAssets({
             <UniversalCard
               key={asset.id}
               layout="vertical"
-              image={asset.image_url ? asset.image_url : undefined}
+              image={showImages !== false && asset.image_url ? asset.image_url : undefined}
               icon={!asset.image_url ? t("icon_draw", "draw") : undefined}
+              customIcon={<DynamicTemplatePreviewBanner data={asset} heightClass="h-full" />}
               title={asset.name}
-              subtitle={mason.name || t("unknown_mason", "Unknown Creator")}
+              subtitle={mason.name || t("unknown_mason", "Unknown {Mason}")}
               onClick={() => setActiveAsset({ type: 'workbench_template', id: asset.id })}
               badges={
                 <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                   <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_draw", "draw")}</span>
-                  <span>{t("masonhub_asset_type_workbench_template", "Template")}</span>
+                  <span>{t("workbench_template", "Template")}</span>
                 </div>
               }
               className="w-full h-full"
               footer={
                 <div className="flex items-center justify-between w-full pt-1">
-                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("auto_dl", "DL")}</span>
+                  <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{asset.downloads || 0} {t("sort_downloads", "DL")}</span>
                   <div className="flex gap-2 relative z-40">
                     <ActionButton
                       onClick={async (e) => {

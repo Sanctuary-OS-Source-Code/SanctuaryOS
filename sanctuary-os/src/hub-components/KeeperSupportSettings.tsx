@@ -4,8 +4,12 @@ import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import { ViewHeader, SidePanel, CustomDropdown, standardButtonClass, standardDangerButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, EmptyState, ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { UniversalInput, UniversalTextArea, UniversalToggle } from "../components/universal/UniversalLayout";
-import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
+import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
+import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
+
+const VAULT_CHIP_CLASS =
+    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 interface CustomField {
     id: string;
@@ -33,7 +37,21 @@ interface SupportCategory {
     custom_fields: CustomField[];
 }
 
-export default function KeeperSupportSettings() {
+export interface KeeperSupportSettingsProps {
+    embedded?: boolean;
+    externalSearch?: string;
+    statusFilter?: "all" | "active" | "inactive";
+    openCatRef?: React.MutableRefObject<(() => void) | null>;
+    onCountsChange?: (count: number) => void;
+}
+
+export default function KeeperSupportSettings({
+    embedded = false,
+    externalSearch = "",
+    statusFilter = "all",
+    openCatRef,
+    onCountsChange
+}: KeeperSupportSettingsProps = {}) {
     const { t } = useLexicon();
     const [categories, setCategories] = useState<SupportCategory[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,6 +69,16 @@ export default function KeeperSupportSettings() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (openCatRef) openCatRef.current = () => openEditor();
+    });
+
+    useEffect(() => {
+        if (onCountsChange) {
+            onCountsChange(categories.length);
+        }
+    }, [categories.length]);
 
     const openEditor = (cat?: SupportCategory) => {
         if (cat) {
@@ -77,66 +105,119 @@ export default function KeeperSupportSettings() {
     const tabs = [
         {
             id: "overview",
-            label: t("landing_overview") || "Overview",
+            label: t("overview", "Overview") || "Overview",
             icon: "dashboard",
             number: categories.length.toString(),
         },
         {
             id: "ACTIVE",
-            label: t("support_active_only") || "Active",
+            label: t("support_active_only", "Active Only") || "Active",
             icon: "category",
             number: categories.filter(c => c.is_active).length.toString(),
         },
         {
             id: "INACTIVE",
-            label: t("support_inactive_only") || "Inactive",
+            label: t("support_inactive_only", "Inactive Only") || "Inactive",
             icon: "block",
             number: categories.filter(c => !c.is_active).length.toString(),
         }
     ];
 
-    const filteredCategories = categories.filter(c => {
-        if (filter === "ACTIVE" && !c.is_active) return false;
-        if (filter === "INACTIVE" && c.is_active) return false;
-        if (searchQuery && !c.category_name.toLowerCase().includes(searchQuery.toLowerCase()) && !c.category_code.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-        return true;
-    });
+    const effectiveSearch = embedded ? externalSearch : searchQuery;
+
+    const filteredCategories = categories
+        .filter(c => {
+            if (embedded) {
+                if (statusFilter === "active" && !c.is_active) return false;
+                if (statusFilter === "inactive" && c.is_active) return false;
+            } else {
+                if (filter === "ACTIVE" && !c.is_active) return false;
+                if (filter === "INACTIVE" && c.is_active) return false;
+            }
+            if (effectiveSearch && !c.category_name.toLowerCase().includes(effectiveSearch.toLowerCase()) && !c.category_code.toLowerCase().includes(effectiveSearch.toLowerCase())) return false;
+            return true;
+        })
+        .sort((a, b) => {
+            if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+            return (a.category_name || "").localeCompare(b.category_name || "");
+        });
 
     const renderCategoryCard = (cat: SupportCategory) => (
         <UniversalCard
             key={cat.id || cat.category_code}
             onClick={() => openEditor(cat)}
             layout="vertical"
-            icon={cat.is_active ? "category" : "block"}
+            isGhosted={!cat.is_active}
+            icon={cat.is_active ? t("icon_category", "category") : t("icon_block", "block")}
             title={cat.category_name}
             subtitle={cat.category_code}
-            statusColor={cat.is_active ? undefined : "border-[var(--danger)]"}
-            badges={[
-                <span key="status" className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest capitalize border shadow-inner shrink-0 transition-colors
-                    ${cat.is_active ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] theme-text-accent border-[color-mix(in_srgb,var(--accent)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]'}
-                `}>
-                    {cat.is_active ? (t("status_active")) : (t("status_inactive"))}
-                </span>
-            ]}
-            footer={
-                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] shadow-inner">{cat.ticket_destination?.replace('_', ' ') || 'ARCHITECT'}</span>
-                    <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] rounded-full bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] shadow-inner">{cat.escalation_path || 'STANDARD'}</span>
-                    {(cat.requires_target_mod || cat.requires_target_user) && (
-                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-inner">
-                            {cat.requires_target_mod && cat.requires_target_user ? "MOD+USER" : cat.requires_target_mod ? "MOD" : "USER"}
+            statusColor={cat.is_active ? undefined : "border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"}
+            imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                    <div className={VAULT_CHIP_CLASS}>
+                        <span className={`material-symbols-outlined !text-[12px] ${cat.is_active ? "text-[var(--success)]" : "text-[var(--subtext)]"}`}>
+                            {cat.is_active ? t("icon_check_circle", "check_circle") : t("icon_cancel", "cancel")}
                         </span>
+                        <span>{cat.is_active ? t("status_active", "Active") : t("tab_inactive", "Inactive")}</span>
+                    </div>
+                </div>
+            }
+            badges={
+                <>
+                    <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_hub", "hub")}
+                        </span>
+                        <span>{cat.ticket_destination?.replace(/_/g, " ") || t("wayfinder", "Wayfinder")}</span>
+                    </div>
+                    <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                            {t("icon_schedule", "schedule")}
+                        </span>
+                        <span>{cat.escalation_path || t("standard", "Standard")}</span>
+                    </div>
+                    {(cat.requires_target_mod || cat.requires_target_user) && (
+                        <div className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                {cat.requires_target_mod ? t("icon_extension", "extension") : t("icon_person", "person")}
+                            </span>
+                            <span>
+                                {cat.requires_target_mod && cat.requires_target_user
+                                    ? `${t("term_mod", "{Mod}")} + ${t("term_citizen", "{Citizen}")}`
+                                    : cat.requires_target_mod
+                                      ? t("term_mod", "{Mod}")
+                                      : t("term_citizen", "{Citizen}")}
+                            </span>
+                        </div>
                     )}
                     {cat.custom_fields && cat.custom_fields.length > 0 && (
-                        <span className="text-[9px] font-black capitalize tracking-widest px-3 py-1.5 border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] rounded-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-inner">
-                            {cat.custom_fields.length} {t("support_custom_fields_count")}
-                        </span>
+                        <div className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                {t("icon_tune", "tune")}
+                            </span>
+                            <span>
+                                {cat.custom_fields.length} {t("support_custom_fields_count", "Custom Fields")}
+                            </span>
+                        </div>
                     )}
+                </>
+            }
+            footer={
+                <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    <span className="flex items-center gap-1.5 truncate pr-2 font-mono">
+                        <span className="material-symbols-outlined !text-[12px] opacity-70">
+                            {t("icon_tag", "tag")}
+                        </span>
+                        {cat.category_code}
+                    </span>
+                    <span className="text-[var(--text)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 shrink-0">
+                        {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+                    </span>
                 </div>
             }
         >
             {cat.description && (
-                <p className="text-xs text-[var(--subtext)] line-clamp-3 leading-relaxed font-bold opacity-70 group-hover:opacity-100 transition-opacity flex-1 mt-4">
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
                     {cat.description}
                 </p>
             )}
@@ -150,21 +231,21 @@ export default function KeeperSupportSettings() {
         return (
             <HubOverviewLanding>
                 <HubOverviewSection
-                    title={t("recent_active_categories") || "Recent Active"}
+                    title={t("recent_active_categories", "Recent Active Categories") || "Recent Active"}
                     icon="category"
                     iconColorClass="text-[var(--accent)]"
                     isEmpty={activeCats.length === 0}
-                    emptyState={<EmptyState icon="category" title={t("support_no_cats") || "No Active Categories"} className="py-8" />}
+                    emptyState={<EmptyState icon="category" title={t("support_no_cats", "No categories found") || "No Active Categories"} className="py-8" />}
                 >
                     {activeCats.slice(0, 4).map(renderCategoryCard)}
                 </HubOverviewSection>
 
                 <HubOverviewSection
-                    title={t("recent_inactive_categories") || "Recent Inactive"}
+                    title={t("recent_inactive_categories", "Recent Inactive Categories") || "Recent Inactive"}
                     icon="block"
                     iconColorClass="text-[var(--danger)]"
                     isEmpty={inactiveCats.length === 0}
-                    emptyState={<EmptyState icon="block" title={t("support_no_cats") || "No Inactive Categories"} className="py-8" />}
+                    emptyState={<EmptyState icon="block" title={t("support_no_cats", "No categories found") || "No Inactive Categories"} className="py-8" />}
                 >
                     {inactiveCats.slice(0, 4).map(renderCategoryCard)}
                 </HubOverviewSection>
@@ -172,15 +253,36 @@ export default function KeeperSupportSettings() {
         );
     };
 
+    if (embedded) {
+        return (
+            <>
+                <HubListGrid
+                    isEmpty={!loading && filteredCategories.length === 0}
+                    emptyIcon={t("icon_category", "category")}
+                    emptyTitle={t("support_no_cats", "No categories found")}
+                >
+                    {filteredCategories.map(renderCategoryCard)}
+                </HubListGrid>
+
+                <CategoryEditorPanel
+                    cat={editingCat}
+                    isOpen={!!editingCat}
+                    onClose={() => setEditingCat(null)}
+                    onSaved={fetchData}
+                />
+            </>
+        );
+    }
+
     return (
         <ElevatedHubLayout
-            headerTitle={t("support_settings") || "Support Settings"}
-            headerSubtitle={t("support_settings_desc") || "Manage ticket categories and custom fields."}
+            headerTitle={t("tab_support", "Support Settings") || "Support Settings"}
+            headerSubtitle={t("support_settings_desc", "Manage ticket categories and custom fields.") || "Manage ticket categories and custom fields."}
             headerIcon="category"
             headerIconColorClass="theme-text-accent"
             search={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder={t("support_search") as string}
+            searchPlaceholder={t("support_search", "Search categories...") as string}
             hideSearch={filter === 'overview' || filter === 'ALL'}
 
             tabs={tabs}
@@ -190,11 +292,11 @@ export default function KeeperSupportSettings() {
             primaryPopover={
                 filter !== 'overview' && filter !== 'ALL' ? {
                     icon: "tune",
-                    label: t("filters") || "Filters",
+                    label: t("filters", "Filters") || "Filters",
                     content: (
                         <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
                             <div className="flex flex-col gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_status") || "Status"}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("registry_label_status", "Global Status") || "Status"}</span>
                                 <CustomDropdown
                                     flat={true}
                                     variant="pill"
@@ -202,9 +304,9 @@ export default function KeeperSupportSettings() {
                                     value={filter === "overview" ? "ALL" : filter}
                                     onChange={(v: string[]) => setFilter(v[0] === "ALL" ? "overview" : v[0])}
                                     options={[
-                                        { id: "ALL", label: t("all_classes") },
-                                        { id: "ACTIVE", label: t("support_active_only") },
-                                        { id: "INACTIVE", label: t("support_inactive_only") }
+                                        { id: "ALL", label: t("all_classes", "All Categories") },
+                                        { id: "ACTIVE", label: t("support_active_only", "Active Only") },
+                                        { id: "INACTIVE", label: t("support_inactive_only", "Inactive Only") }
                                     ]}
                                 />
                             </div>
@@ -216,8 +318,8 @@ export default function KeeperSupportSettings() {
                 filter !== 'overview' && filter !== 'ALL' ? [
                     {
                         id: "add",
-                        icon: t("icon_add") || "add",
-                        label: t("support_add_cat") || "Add Category",
+                        icon: t("icon_add", "add") || "add",
+                        label: t("support_add_cat", "Add Category") || "Add Category",
                         onClick: () => openEditor()
                     }
                 ] : undefined
@@ -229,7 +331,7 @@ export default function KeeperSupportSettings() {
                         {filteredCategories.map(renderCategoryCard)}
                     </div>
                     {!loading && filteredCategories.length === 0 && (
-                        <EmptyState icon={t("icon_inventory_2")} title={t("support_no_cats")} className="py-8" />
+                        <EmptyState icon={t("icon_inventory_2", "inventory_2")} title={t("support_no_cats", "No categories found")} className="py-8" />
                     )}
                 </div>
             )}
@@ -261,11 +363,29 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
             if (draft.id) {
                 const { error } = await supabase.from('keeper_support_categories').update(draft).eq('id', draft.id);
                 if (error) throw error;
+                await logArchitectAction(
+                    "Updated Keeper Support Category",
+                    "keeper_support_categories",
+                    draft.category_name,
+                    "Updated via Keepers Core Support Settings",
+                    "Keepers Core",
+                    true,
+                    computeAuditDiff(cat, draft)
+                );
             } else {
                 const { error } = await supabase.from('keeper_support_categories').insert([draft]);
                 if (error) throw error;
+                await logArchitectAction(
+                    "Created Keeper Support Category",
+                    "keeper_support_categories",
+                    draft.category_name,
+                    "Created via Keepers Core Support Settings",
+                    "Keepers Core",
+                    true,
+                    computeAuditDiff(null, draft)
+                );
             }
-            useStore.getState().pushStatus(t("support_saved_msg"), "success");
+            useStore.getState().pushStatus(t("support_saved_msg", "Category saved successfully"), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -281,7 +401,16 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         try {
             const { error } = await supabase.from('keeper_support_categories').delete().eq('id', draft.id);
             if (error) throw error;
-            useStore.getState().pushStatus(t("auto_category_deleted_successfully_34"), "success");
+            await logArchitectAction(
+                "Deleted Keeper Support Category",
+                "keeper_support_categories",
+                draft.category_name,
+                "Deleted via Keepers Core Support Settings",
+                "Keepers Core",
+                true,
+                computeAuditDiff(draft, null)
+            );
+            useStore.getState().pushStatus(t("auto_category_deleted_successfully_34", "Category deleted successfully."), "success");
             onSaved();
             onClose();
         } catch (e: any) {
@@ -294,7 +423,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
     const addField = () => {
         setDraft({
             ...draft,
-            custom_fields: [...(draft.custom_fields || []), { id: `field_${Date.now()}`, label: t("support_new_field"), type: "TEXT INPUT", required: false }]
+            custom_fields: [...(draft.custom_fields || []), { id: `field_${Date.now()}`, label: t("support_new_field", "New Field"), type: "TEXT INPUT", required: false }]
         });
     };
 
@@ -313,53 +442,77 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         <SidePanel
             isOpen={isOpen}
             onClose={onClose}
-            title={draft.id ? (t("support_edit_cat")) : (t("support_new_cat"))}
-            subtitle={t("support_sidepanel_subtitle")}
-            icon="category"
-            widthClass="w-[600px]"
+            title={draft.id ? t("support_edit_cat", "Edit Category") : t("support_new_cat", "New Category")}
+            subtitle={t("support_sidepanel_subtitle", "Configure support category routing & fields")}
+            icon={t("icon_category", "category")}
+            iconColorClass="text-[var(--accent)]"
+            widthClass="w-[90vw] md:w-[680px]"
             backdropZ="z-[100]"
             panelZ="z-[105]"
             headerActions={
                 <PanelHeaderGroup>
                     {draft.id && (
-                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge")} onClick={handleDelete} disabled={isSaving} />
+                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge", "Delete")} onClick={handleDelete} disabled={isSaving} />
                     )}
-                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : (t("save"))} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} />
+                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : t("save", "Save")} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} />
                 </PanelHeaderGroup>
             }
         >
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+                <SidePanelHeroCard
+                    icon={t("icon_category", "category")}
+                    overline={t("tab_support", "Keeper Support Settings")}
+                    title={draft.category_name || (draft.id ? t("support_edit_cat", "Edit Category") : t("support_new_cat", "New Category"))}
+                    description={t("support_sidepanel_subtitle", "Configure escalation routing, custom fields, and attachment rules.")}
+                    badge={draft.is_active ? t("status_active", "Active") : t("tab_inactive", "Inactive")}
+                    variant={draft.is_active ? "accent" : "warning"}
+                >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <StatBox
+                            label={t("support_destination", "Destination")}
+                            value="WAYFINDER"
+                            icon={t("icon_hub", "hub")}
+                        />
+                        <StatBox
+                            label={t("support_escalation", "Escalation")}
+                            value={String(draft.escalation_path || "standard").toUpperCase()}
+                            icon={t("icon_schedule", "schedule")}
+                        />
+                    </div>
+                </SidePanelHeroCard>
+
                 <SidePanelTitleInput
-                    label={t("registry_label_name")}
+                    label={t("registry_label_name", "Category Name")}
                     value={draft.category_name}
                     onChange={(val) => setDraft({ ...draft, category_name: val })}
-                    placeholder={t("support_name_ph")}
+                    placeholder={t("support_name_ph", "Category Name...")}
                 />
 
                 <SidePanelPillToggle
-                    label={t("support_active_status")}
+                    label={t("support_active_status", "Category Active")}
                     icon="category"
                     checked={draft.is_active}
                     onChange={(checked) => setDraft({ ...draft, is_active: checked })}
                 />
 
+                <UniversalGroup title={t("support_destination", "Routing & Details")} icon={t("icon_route", "route")}>
                 <UniversalInput
-                    label={t("support_system_code")}
+                    label={t("support_system_code", "System Code")}
                     value={draft.category_code}
                     onChange={(val) => setDraft({ ...draft, category_code: val })}
-                    placeholder={t("support_code_ph")}
+                    placeholder={t("support_code_ph", "e.g. BUG_REPORT")}
                     className="font-mono"
                 />
 
                 <div className="flex gap-4 w-full">
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
-                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_destination")}</label>
+                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_destination", "Destination")}</label>
                         <div className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--subtext)] text-sm font-bold font-mono capitalize opacity-50 select-none">
                             WAYFINDER
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
-                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_escalation")}</label>
+                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_escalation", "Escalation")}</label>
                         <CustomDropdown disableTint={true}
                             value={draft.escalation_path || 'standard'}
                             onChange={(val: string[]) => setDraft({ ...draft, escalation_path: val[0] as any })}
@@ -373,17 +526,18 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 </div>
 
                 <UniversalTextArea
-                    label={t("upload_desc")}
+                    label={t("upload_desc", "Description")}
                     value={draft.description}
                     onChange={(val) => setDraft({ ...draft, description: val })}
-                    placeholder={t("support_desc_ph")}
+                    placeholder={t("support_desc_ph", "Describe this support category...")}
                     className="h-24"
                 />
+                </UniversalGroup>
 
                 <div className="flex flex-col gap-4 mt-4">
                     <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
-                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_custom_fields")}</span>
-                        <button onClick={addField} className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field")}</button>
+                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_custom_fields", "Custom Fields (Json)")}</span>
+                        <button onClick={addField} className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field", "Add Field")}</button>
                     </div>
 
                     <div className="flex flex-col gap-4">
@@ -396,7 +550,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                                         value={field.label}
                                         onChange={e => updateField(idx, { label: e.target.value })}
                                         className="flex-1 bg-transparent border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] outline-none text-sm font-bold py-1"
-                                        placeholder={t("support_field_label_ph")}
+                                        placeholder={t("support_field_label_ph", "Field Label")}
                                     />
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -405,19 +559,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                                             value={field.type}
                                             onChange={(val: string[]) => updateField(idx, { type: val[0] as any })}
                                             options={[
-                                                { id: "TEXT INPUT", label: t("color_text") },
-                                                { id: "TEXTAREA", label: t("support_type_textarea") },
-                                                { id: "DROPDOWN", label: t("support_type_dropdown") },
-                                                { id: "CHECKBOX", label: t("support_type_checkbox") }
+                                                { id: "TEXT INPUT", label: t("color_text", "Primary Text") },
+                                                { id: "TEXTAREA", label: t("support_type_textarea", "Textarea") },
+                                                { id: "DROPDOWN", label: t("support_type_dropdown", "Dropdown") },
+                                                { id: "CHECKBOX", label: t("support_type_checkbox", "Checkbox") }
                                             ]}
                                         />
                                     </div>
-                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>{t("req_short")}</button>
-                                    <button onClick={() => removeField(idx)} className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-[var(--danger)] font-bold p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
+                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>{t("req_short", "REQ")}</button>
+                                    <button onClick={() => removeField(idx)} className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-[var(--danger)] font-bold p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close", "close")}</span></button>
                                 </div>
                                 {(field.type === "CHECKBOX" || field.type === "DROPDOWN") && (
                                     <div className="flex flex-col gap-2 pl-6 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2">
-                                        <span className="text-[8px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_options")}</span>
+                                        <span className="text-[8px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_options", "Options")}</span>
                                         {(field.options || []).map((opt, oIdx) => (
                                             <div key={oIdx} className="flex items-center gap-2">
                                                 <UniversalInput
@@ -427,22 +581,22 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                                                         newOpts[oIdx] = val;
                                                         updateField(idx, { options: newOpts });
                                                     }}
-                                                    placeholder={t("support_option_ph")}
+                                                    placeholder={t("support_option_ph", "Option text...")}
                                                     wrapperClassName="flex-1"
                                                 />
                                                 <button onClick={() => {
                                                     const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                     updateField(idx, { options: newOpts });
-                                                }} className="text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close")}</span></button>
+                                                }} className="text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close", "close")}</span></button>
                                             </div>
                                         ))}
-                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 capitalize tracking-widest mt-1">{t("support_add_option")}</button>
+                                        <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 capitalize tracking-widest mt-1">{t("support_add_option", "Add Option")}</button>
 
                                         <div className="mt-2 pr-2">
                                             <UniversalToggle
                                                 checked={field.allow_multi_select || false}
                                                 onChange={(val) => updateField(idx, { allow_multi_select: val })}
-                                                label={t("support_allow_multi")}
+                                                label={t("support_allow_multi", "Allow Multi-select")}
                                                 layout="horizontal-reverse"
                                                 className="scale-75 origin-right"
                                             />
@@ -456,37 +610,37 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     <SidePanelPillToggle
-                        label={t("support_req_target_mod")}
+                        label={t("support_req_target_mod", "Requires Target {Mod} Uuid")}
                         icon="extension"
                         checked={draft.requires_target_mod || false}
                         onChange={val => setDraft({...draft, requires_target_mod: val})}
                     />
                     <SidePanelPillToggle
-                        label={t("support_req_target_user")}
+                        label={t("support_req_target_user", "Requires Target User Uuid")}
                         icon="person"
                         checked={draft.requires_target_user || false}
                         onChange={val => setDraft({...draft, requires_target_user: val})}
                     />
                     <SidePanelPillToggle
-                        label={t("support_show_title")}
+                        label={t("support_show_title", "Show Title Box")}
                         icon="title"
                         checked={draft.show_title_box || false}
                         onChange={val => setDraft({...draft, show_title_box: val})}
                     />
                     <SidePanelPillToggle
-                        label={t("support_show_desc")}
+                        label={t("support_show_desc", "Show Description Box")}
                         icon="description"
                         checked={draft.show_description_box || false}
                         onChange={val => setDraft({...draft, show_description_box: val})}
                     />
                     <SidePanelPillToggle
-                        label={t("support_show_logs")}
+                        label={t("support_show_logs", "Show Logs")}
                         icon="history"
                         checked={draft.show_logs_box || false}
                         onChange={val => setDraft({...draft, show_logs_box: val})}
                     />
                     <SidePanelPillToggle
-                        label={t("support_attach_blueprints")}
+                        label={t("support_attach_blueprints", "Attach {Blueprints}")}
                         icon="architecture"
                         checked={draft.attach_blueprints || false}
                         onChange={val => setDraft({...draft, attach_blueprints: val})}

@@ -32,8 +32,8 @@ export function LocalFolderModal({
       isOpen={localFolderModal}
       onClose={() => setLocalFolderModal(false)}
       title={t("local_folder_title", "Create Local Folder")}
-      subtitle={t("local_folder_desc", "Group selected Vault artifacts together")}
-      icon="create_new_folder"
+      subtitle={t("local_folder_desc", "Group these {mods} locally. This does not affect the global database.")}
+      icon={t("icon_create_new_folder", "create_new_folder")}
       iconColorClass={isCollection ? "text-[var(--accent)]" : "text-[var(--success)]"}
       widthClass="w-[90vw] md:w-[680px]"
       backdropZ="z-[115000]"
@@ -41,7 +41,7 @@ export function LocalFolderModal({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon="folder_open"
+            icon={t("icon_folder_open", "folder_open")}
             tooltip={t("btn_create_folder", "Create Folder")}
             onClick={createLocalFolder}
             variant="success"
@@ -51,18 +51,19 @@ export function LocalFolderModal({
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
-          icon={isCollection ? "category" : "create_new_folder"}
+          icon={
+            isCollection
+              ? t("icon_category", "category")
+              : t("icon_create_new_folder", "create_new_folder")
+          }
           overline={
             isCollection
               ? t("collection", "Collection")
               : t("folder", "Local Folder")
           }
           title={t("local_folder_title", "Organize Selected Artifacts")}
-          description={t(
-            "local_folder_desc",
-            "Bundle multiple Vault packages into a collapsible folder or Custom Content collection."
-          )}
-          badge={`${selectedMods.length} ${t("items", "Items")}`}
+          description={t("local_folder_desc", "Group these {mods} locally. This does not affect the global database.")}
+          badge={`${selectedMods.length} ${t("term_mods", "Items")}`}
           badgeIcon={t("icon_inventory_2", "inventory_2")}
           variant={isCollection ? "accent" : "success"}
         />
@@ -71,7 +72,7 @@ export function LocalFolderModal({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon="folder"
+            icon={t("icon_folder", "folder")}
             label={t("local_folder_title", "Container Type")}
             value={t("folder", "Folder")}
             isActive={!isCollection}
@@ -80,7 +81,7 @@ export function LocalFolderModal({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon="category"
+            icon={t("icon_category", "category")}
             label={t("local_folder_title", "Container Type")}
             value={t("collection", "Collection")}
             isActive={isCollection}
@@ -94,12 +95,18 @@ export function LocalFolderModal({
               ? t("ph_collection_name", "Collection Name")
               : t("ph_folder_name", "Folder Name")
           }
-          icon={isCollection ? "category" : "folder"}
+          icon={
+            isCollection
+              ? t("icon_category", "category")
+              : t("icon_folder", "folder")
+          }
         >
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px] pointer-events-none">
-                {isCollection ? "category" : "folder"}
+                {isCollection
+                  ? t("icon_category", "category")
+                  : t("icon_folder", "folder")}
               </span>
               <input
                 autoFocus
@@ -117,7 +124,7 @@ export function LocalFolderModal({
             </div>
             <ActionButton
               variant="glass"
-              icon="create_new_folder"
+              icon={t("icon_create_new_folder", "create_new_folder")}
               label={t("btn_create_folder", "Create")}
               disabled={!localFolderName?.trim()}
               onClick={createLocalFolder}
@@ -127,7 +134,7 @@ export function LocalFolderModal({
         </UniversalGroup>
 
         <UniversalGroup
-          title={`${t("artifacts_linked", "Linked Artifacts")} (${selectedMods.length})`}
+          title={`${t("artifacts_linked", "{Mods} Linked")} (${selectedMods.length})`}
           icon={t("icon_inventory_2", "inventory_2")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
@@ -140,15 +147,24 @@ export function LocalFolderModal({
                   key={i}
                   className="glass-surface px-3.5 py-2.5 rounded-xl flex items-center gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                 >
-                  <span
-                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                  <div
+                    className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
                       isCollection
                         ? "text-[var(--accent)]"
                         : "text-[var(--success)]"
                     }`}
+                    style={{
+                      borderColor: isCollection
+                        ? "color-mix(in srgb, var(--accent) 25%, var(--border))"
+                        : "color-mix(in srgb, var(--success) 25%, var(--border))",
+                    }}
                   >
-                    {isCollection ? "category" : "folder"}
-                  </span>
+                    <span className="material-symbols-outlined !text-[18px]">
+                      {isCollection
+                        ? t("icon_category", "category")
+                        : t("icon_folder", "folder")}
+                    </span>
+                  </div>
                   <span className="text-xs font-bold text-[var(--text)] truncate">
                     {displayName}
                   </span>

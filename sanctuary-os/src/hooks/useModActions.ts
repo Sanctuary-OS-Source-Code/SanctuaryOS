@@ -35,36 +35,36 @@ export function useModActions(
     } else {
       openUrl(targetUrl);
     }
-    setStatus(`${t("status_intel_request")}${cleanName}`);
+    setStatus(`${t("status_intel_request", "SYSTEM: Intel request sent to default browser for")}${cleanName}`);
   }
 
   async function runSanitization() {
     try {
-      setStatus(t("status_sanitizing"));
+      setStatus(t("status_sanitizing", "CLEANING: Reorganizing {Vault} Lanes..."));
       const config: any = await invoke("get_saved_coordinates");
       const msg = await invoke<string>("sanitize_vault", {
         vaultPath: config.vault_path,
       });
-      setStatus(`${t("icon_check_circle")} ${t("backend_sanitize_prefix")} ${msg} ${t("backend_sanitize_suffix")}`);
+      setStatus(`${t("icon_check_circle", "check_circle")} ${t("backend_sanitize_prefix", "Cleanup Complete:")} ${msg} ${t("backend_sanitize_suffix", "files reorganized into strict Folders.")}`);
       await runRadarSweep(false);
     } catch (err) {
-      setStatus(`${t("status_sanitize_error")}${err}`);
+      setStatus(`${t("status_sanitize_error", "Cleanup Error:")}${err}`);
     }
   }
 
   async function triggerShelter(active: boolean) {
-    setStatus(active ? t("status_evacuating") : t("status_restoring_bunker"));
+    setStatus(active ? t("status_evacuating", "Evacuating...") : t("status_restoring_bunker", "Restoring..."));
     try {
       if (active) {
         let msg = await invoke("wipe_symlinks");
         setStatus(t(msg as string) || (msg as string));
       } else {
         if (activeSetName) await equipPlaySet(activeSetName);
-        setStatus(t("status_bunker_reclaimed"));
+        setStatus(t("status_bunker_reclaimed", "Loadout Reclaimed"));
       }
       setShelterActive(active);
     } catch (err) {
-      setStatus(`${t("status_shelter_error")}${err}`);
+      setStatus(`${t("status_shelter_error", "Shelter Error:")}${err}`);
     }
   }
 
@@ -76,7 +76,7 @@ export function useModActions(
 
   function purgeMod(filename: string) {
     setConfirmDialog({
-      message: `${t("purge")}${filename}${t("confirm_delete_file_suffix")}`,
+      message: `${t("purge", "Purge")}${filename}${t("confirm_delete_file_suffix", "?")}`,
       action: async () => {
         setConfirmDialog(null);
         await invoke("purge_quarantined_file", { filename });

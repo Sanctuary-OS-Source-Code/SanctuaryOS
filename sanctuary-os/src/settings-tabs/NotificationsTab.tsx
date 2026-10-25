@@ -11,6 +11,9 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   EmptyState,
+  SidePanelHeroCard,
+  UniversalGroup,
+  StatBox,
 } from '../shared';
 import { supabase } from '../supabase';
 import { useStore } from '../store';
@@ -327,7 +330,7 @@ export default function NotificationsTab() {
     {
       id: 'new_posts',
       title: t('btn_new_posts', 'Comm-Link Posts'),
-      subtitle: t('notify_new_posts_desc', 'New posts and broadcasts from creators you follow.'),
+      subtitle: t('notify_new_posts_desc', "Notify when followed {Masons} publish new posts."),
       icon: t('icon_post_add', 'post_add'),
     },
     {
@@ -467,8 +470,8 @@ export default function NotificationsTab() {
           />
 
           <UniversalCard
-            title={t('notif_per_mason', 'Creator Alerts')}
-            subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
+            title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+            subtitle={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
             icon={t('icon_notifications_active', 'notifications_active')}
             onClick={() => setShowMasonPanel(true)}
             actions={
@@ -485,7 +488,7 @@ export default function NotificationsTab() {
             <ActionButton
               variant="glass"
               icon={t('icon_tune', 'tune')}
-              label={t('notif_per_mason_btn', 'Manage Creator Alerts')}
+              label={t('notif_per_mason_btn', "Manage {Mason} Alerts")}
               className="w-full pointer-events-none mt-2"
             />
           </UniversalCard>
@@ -495,11 +498,11 @@ export default function NotificationsTab() {
       <SidePanel
         isOpen={showMasonPanel}
         onClose={() => setShowMasonPanel(false)}
-        title={t('notif_per_mason', 'Creator Alerts')}
-        subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
+        title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+        subtitle={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
         icon={t('icon_notifications_active', 'notifications_active')}
         iconColorClass="theme-text-accent"
-        widthClass="w-full md:w-[760px]"
+        widthClass="w-[90vw] md:w-[760px]"
         headerActions={
           followedMasons.length > 0 ? (
             <PanelHeaderGroup>
@@ -517,11 +520,35 @@ export default function NotificationsTab() {
           ) : undefined
         }
       >
-        <div className="flex flex-col gap-6 relative z-10 w-full">
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t('icon_notifications_active', 'notifications_active')}
+            overline={t('tab_notifs', 'Notifications')}
+            title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+            description={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
+            badge={`${enabledMasonCount} / ${followedMasons.length}`}
+            variant="accent"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <StatBox
+                icon={t('icon_group', 'group')}
+                iconColorClass="text-[var(--accent)]"
+                label={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+                value={followedMasons.length}
+              />
+              <StatBox
+                icon={t('icon_notifications_active', 'notifications_active')}
+                iconColorClass="text-[var(--success)]"
+                label={t('comp_enabled', 'Alerts Enabled')}
+                value={enabledMasonCount}
+              />
+            </div>
+          </SidePanelHeroCard>
+
           <ActionPill
             searchQuery={masonSearchQuery}
             setSearchQuery={setMasonSearchQuery}
-            searchPlaceholder={t('ui_placeholder_search', 'Search...')}
+            searchPlaceholder={t('nav_search', 'Search...')}
             primaryPopover={{
               icon: t('icon_tune', 'tune'),
               label: t('filters', 'Filters'),
@@ -560,55 +587,62 @@ export default function NotificationsTab() {
             }}
           />
 
-          {filteredFollowedMasons.length === 0 ? (
-            <div className="glass-panel rounded-3xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-8">
-              <EmptyState
-                icon={t('icon_person_search', 'person_search')}
-                title={t('settings_no_masons', 'No creators followed yet.')}
-                subtitle={t('notif_per_mason_desc', 'Manage notifications for individual creators you follow.')}
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              {filteredFollowedMasons.map((m) => {
-                const isAlertEnabled = Boolean(masonAlerts[m.id]);
-                return (
-                  <UniversalCard
-                    key={m.id}
-                    image={m.avatar_url || undefined}
-                    icon={t('icon_person', 'person')}
-                    isActive={isAlertEnabled}
-                    title={
-                      <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
-                        <span className="truncate">{m.name}</span>
-                        {m.is_verified && (
-                          <span className="relative inline-flex items-center shrink-0 cursor-default">
-                            <span className="material-symbols-outlined !text-[16px] text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]">
-                              {t('icon_verified_user', 'verified_user')}
+          <UniversalGroup
+            title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+            icon={t('icon_group', 'group')}
+            headerAction={
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)]">
+                {filteredFollowedMasons.length}
+              </span>
+            }
+          >
+            {filteredFollowedMasons.length === 0 ? (
+              <div className="py-6">
+                <EmptyState
+                  icon={t('icon_person_search', 'person_search')}
+                  title={t('settings_no_masons', "No {Masons} Followed")}
+                  subtitle={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                {filteredFollowedMasons.map((m) => {
+                  const isAlertEnabled = Boolean(masonAlerts[m.id]);
+                  return (
+                    <UniversalCard
+                      key={m.id}
+                      image={m.avatar_url || undefined}
+                      icon={t('icon_person', 'person')}
+                      isActive={isAlertEnabled}
+                      title={
+                        <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">
+                          <span className="truncate">{m.name}</span>
+                          {m.is_verified && (
+                            <span className="relative inline-flex items-center shrink-0 cursor-default">
+                              <span className="material-symbols-outlined !text-[16px] text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]">
+                                {t('icon_verified_user', 'verified_user')}
+                              </span>
+                              <HoverTooltip
+                                title={t('verified', 'Verified')}
+                                icon={t('icon_verified_user', 'verified_user')}
+                                variant="success"
+                              />
                             </span>
-                            <HoverTooltip
-                              title={t('verified', 'Verified')}
-                              icon={t('icon_verified_user', 'verified_user')}
-                              variant="success"
-                            />
-                          </span>
-                        )}
-                      </span>
-                    }
-                    subtitle={
-                      m.tagline ||
-                      t(
-                        'notif_per_mason_card_fallback_sub',
-                        'Receive notifications when this creator publishes new posts or updates.'
-                      )
-                    }
-                    onClick={() => toggleMasonAlert(m.id)}
-                    actions={<SettingsToggle checked={isAlertEnabled} />}
-                  />
-                );
-              })}
-            </div>
-          )}
+                          )}
+                        </span>
+                      }
+                      subtitle={
+                        m.tagline ||
+                        t('notif_per_mason_card_fallback_sub', "Receive notifications when this {mason} publishes new {dispatches} or updates.")
+                      }
+                      onClick={() => toggleMasonAlert(m.id)}
+                      actions={<SettingsToggle checked={isAlertEnabled} />}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </UniversalGroup>
         </div>
       </SidePanel>
     </>

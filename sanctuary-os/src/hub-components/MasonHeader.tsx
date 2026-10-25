@@ -19,7 +19,7 @@ export default function MasonHeader({
          <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_ph") as string}
+            searchPlaceholder={t("search_ph", "Search {mods}...") as string}
             leftContent={
                <div className="w-max min-w-[160px] max-w-xs shrink-0 relative z-50 h-10 border-r border-[color-mix(in_srgb,var(--text)_6%,transparent)] pr-4 mr-4 flex items-center">
                   {isCloudMode ? (
@@ -45,7 +45,7 @@ export default function MasonHeader({
                         ]}
                         value={fileTypeFilter}
                         onChange={(val: string[]) => setFileTypeFilter(val[0])}
-                        placeholder={t("filter_all")}
+                        placeholder={t("filter_all", "All")}
                         triggerClassName="!border-none !shadow-none !bg-transparent !px-0"
                      />
                   )}
@@ -59,15 +59,15 @@ export default function MasonHeader({
                            onClick={() => setIsCreatePanelOpen(true)}
                            className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
-                           <span className="material-symbols-outlined !text-[18px]">{t("icon_add")}</span>
-                           <HoverTooltip title={t("ql_add") as string} />
+                           <span className="material-symbols-outlined !text-[18px]">{t("icon_add", "add")}</span>
+                           <HoverTooltip title={t("ql_add", "Add") as string} />
                         </button>
                         <button
                            onClick={handleImport}
                            className="h-9 w-9 rounded-md flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] relative group"
                         >
-                           <span className="material-symbols-outlined !text-[18px]">{t("icon_upload_file")}</span>
-                           <HoverTooltip title={t("btn_import") as string} />
+                           <span className="material-symbols-outlined !text-[18px]">{t("icon_upload_file", "upload_file")}</span>
+                           <HoverTooltip title={t("btn_import", "Import") as string} />
                         </button>
                      </>
                   )}

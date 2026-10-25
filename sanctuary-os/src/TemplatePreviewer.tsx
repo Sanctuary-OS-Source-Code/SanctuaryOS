@@ -14,10 +14,10 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
       return (
           <div className="flex-1 flex flex-col items-center justify-center py-20 gap-8 min-h-[400px]">
              <div className="w-24 h-24 rounded-full glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-40 shadow-inner">
-                <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("icon_visibility_off")}</span>
+                <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("icon_visibility_off", "visibility_off")}</span>
              </div>
              <div className="flex flex-col items-center gap-3 text-center opacity-60">
-                <span className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)]">{t("no_visual_template")}</span>
+                <span className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)]">{t("no_visual_template", "No Visual Template Available")}</span>
              </div>
           </div>
       );
@@ -40,7 +40,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                        <div className="flex flex-wrap items-center gap-3">
                           <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
                           {setting.risk === "advanced" && (
-                             <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge")}</span>
+                             <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge", "Advanced")}</span>
                           )}
                        </div>
                        <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium leading-relaxed max-w-2xl">{resolveText(setting.desc_key, "No description provided.")}</span>
@@ -54,11 +54,11 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                        {setting.type === "number" && (
              <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                              <button type="button" className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)]">
-                                <span className="material-symbols-outlined !text-[16px]">{t("icon_remove")}</span>
+                                <span className="material-symbols-outlined !text-[16px]">{t("icon_remove", "remove")}</span>
                              </button>
                              <input type="number" value={val || 0} readOnly className="w-16 bg-transparent text-[12px] font-black text-[var(--text)] text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                              <button type="button" className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)]">
-                                <span className="material-symbols-outlined !text-[16px]">{t("icon_add")}</span>
+                                <span className="material-symbols-outlined !text-[16px]">{t("icon_add", "add")}</span>
                              </button>
                           </div>
                        )}
@@ -70,7 +70,7 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                        {setting.type === "options" && (
                           <div className="glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl h-10 px-4 text-[12px] font-bold text-[var(--text)] flex items-center justify-start w-48">
                              <span className="truncate">{val || "Select option..."}</span>
-                             <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_expand_more")}</span>
+                             <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_expand_more", "expand_more")}</span>
                           </div>
                        )}
                     </div>

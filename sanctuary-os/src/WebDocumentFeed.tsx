@@ -13,6 +13,7 @@ import {
 } from "./shared";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { SidePanelHeroCard, UniversalGroup } from "./components/layouts/ElevatedHubLayout";
 import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
 import { StructuredReleaseNotesView } from "./components/ReleaseNotesShowcase";
 import bundledCitizenGuide from "../../Citizen Guide.md?raw";
@@ -223,10 +224,7 @@ export default function WebDocumentFeed() {
           "sd_guide_s1_desc",
           "On first boot, the Cartographer maps your machine's file system and extracts your genuine game engine version directly from the binary executable (.exe) using an in-process Rust PE parser (pelite)."
         ),
-        tip: t(
-          "sd_guide_s1_tip",
-          "Click the Cloud Auto-Detect icon during setup to automatically locate your Game Bin and Mods directories for the active workspace."
-        ),
+        tip: t("sd_guide_s1_tip", "Click the Cloud Auto-Detect icon during setup to automatically locate your Game Bin and {Mods} directories for the active workspace."),
         cards: [
           {
             icon: t("icon_terminal", "terminal"),
@@ -238,19 +236,13 @@ export default function WebDocumentFeed() {
           },
           {
             icon: t("icon_folder_open", "folder_open"),
-            title: t("sd_guide_s1_c2_title", "Active Mods Folder (Symlink Target)"),
-            desc: t(
-              "sd_guide_s1_c2_desc",
-              "Your game's live Mods folder. Never drop files here manually—Sanctuary projects high-speed symlinks into this directory from your isolated Vault."
-            ),
+            title: t("sd_guide_s1_c2_title", "Active {Mods} Folder (Symlink Target)"),
+            desc: t("sd_guide_s1_c2_desc", "Your game's live {Mods} folder. Never drop files here manually—Sanctuary projects high-speed symlinks into this directory from your isolated {Vault}."),
           },
           {
             icon: t("icon_inventory_2", "inventory_2"),
-            title: t("sd_guide_s1_c3_title", "Isolated Vault Folder (Deep Storage)"),
-            desc: t(
-              "sd_guide_s1_c3_desc",
-              "Your airgapped archive containing Mods/, Blueprints/, Backups/World, Backups/Engine, Quarantine/, and Data/Cache (.sanctuary_cache.db)."
-            ),
+            title: t("sd_guide_s1_c3_title", "Isolated {Vault} Folder (Deep Storage)"),
+            desc: t("sd_guide_s1_c3_desc", "Your airgapped archive containing {Mods}/, {Blueprints}/, Backups/World, Backups/Engine, Quarantine/, and Data/Cache (.sanctuary_cache.db)."),
           },
           {
             icon: t("icon_verified_user", "verified_user"),
@@ -267,69 +259,42 @@ export default function WebDocumentFeed() {
         title: t("sd_guide_s2_title", "The Command Center & Live Telemetry"),
         badge: t("sd_guide_s2_badge", "SYSTEM DASHBOARD • 4 HEALTH STATES"),
         icon: t("icon_space_dashboard", "space_dashboard"),
-        desc: t(
-          "sd_guide_s2_desc",
-          "Your high-level glassmorphic mission control. Monitors the health of your active Blueprint, surfaces creator updates and system dispatches, and provides 1-click access to Radar Sweeps and Vault Lockdown."
-        ),
-        tip: t(
-          "sd_guide_s2_tip",
-          "Use the global SystemStatusBar at the bottom of the window to trigger a Radar Sweep or instant Vault Lockdown from any screen in the OS."
-        ),
+        desc: t("sd_guide_s2_desc", "Your high-level glassmorphic mission control. Monitors the health of your active {Blueprint}, surfaces {mason} updates and system dispatches, and provides 1-click access to Radar Sweeps and {Vault} Lockdown."),
+        tip: t("sd_guide_s2_tip", "Use the global SystemStatusBar at the bottom of the window to trigger a Radar Sweep or instant {Vault} Lockdown from any screen in the OS."),
         cards: [
           {
             icon: t("icon_check_circle", "check_circle"),
             colorClass: "text-[var(--success)]",
             title: t("sd_guide_s2_c1_title", "System Stable (Green State)"),
-            desc: t(
-              "sd_guide_s2_c1_desc",
-              "All equipped artifacts match your active game version, all required DLCs and dependencies are satisfied, and zero unmitigated collisions exist."
-            ),
+            desc: t("sd_guide_s2_c1_desc", "All equipped {mods} match your active game version, all required DLCs and dependencies are satisfied, and zero unmitigated collisions exist."),
           },
           {
             icon: t("icon_system_update_alt", "system_update_alt"),
             colorClass: "text-[var(--info)]",
-            title: t("sd_guide_s2_c2_title", "Artifact Updates Available (Blue State)"),
-            desc: t(
-              "sd_guide_s2_c2_desc",
-              "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized creator manifest.json endpoints."
-            ),
+            title: t("sd_guide_s2_c2_title", "{Mod} Updates Available (Blue State)"),
+            desc: t("sd_guide_s2_c2_desc", "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized {mason} manifest.json endpoints."),
           },
           {
             icon: t("icon_warning", "warning"),
             colorClass: "text-[var(--warning)]",
-            title: t(
-              "sd_guide_s2_c3_title",
-              "Citizen Action Recommended (Amber State)"
-            ),
-            desc: t(
-              "sd_guide_s2_c3_desc",
-              "An equipped mod is flagged as Unstable or has an unresolved Severity 3 Tuning Overlap awaiting a Load Order winner."
-            ),
+            title: t("sd_guide_s2_c3_title", "{Citizen} Action Recommended (Amber State)"),
+            desc: t("sd_guide_s2_c3_desc", "An equipped {mod} is flagged as Unstable or has an unresolved Severity 3 Tuning Overlap awaiting a Load Order winner."),
           },
           {
             icon: t("icon_error", "error"),
             colorClass: "text-[var(--danger)]",
             title: t("sd_guide_s2_c4_title", "Critical Failure Detected (Red State)"),
-            desc: t(
-              "sd_guide_s2_c4_desc",
-              "An equipped artifact is Corrupted, incompatible with your Game Patch, missing a mandatory dependency/DLC, or locked in a Severity 4 Fatal Clash."
-            ),
+            desc: t("sd_guide_s2_c4_desc", "An equipped {mod} is Corrupted, incompatible with your Game Patch, missing a mandatory dependency/DLC, or locked in a Severity 4 Fatal Clash."),
           },
         ],
       },
       {
-        short: t("sd_guide_s3_short", "3. Your Vault"),
-        title: t("sd_guide_s3_title", "Your Vault & Symlink Airgap 2.5"),
+        short: t("sd_guide_s3_short", "3. Your {Vault}"),
+        title: t("sd_guide_s3_title", "Your {Vault} & Symlink Airgap 2.5"),
         badge: t("sd_guide_s3_badge", "ISOLATED STORAGE • SHA-256 DNA"),
         icon: t("icon_inventory_2", "inventory_2"),
-        desc: t(
-          "sd_guide_s3_desc",
-          "Your local library and secured asset bunker. The game engine never touches your Vault directly—files are ingested, hashed via SHA-256, sanitized, and projected via symlinks."
-        ),
-        tip: t(
-          "sd_guide_s3_tip",
-          "Your Local Mod Dossier is decoupled from the cloud—you can freely customize mod titles, creator URLs, cover images, and tags locally."
-        ),
+        desc: t("sd_guide_s3_desc", "Your local {vault} and secured asset bunker. The game engine never touches your {Vault} directly—files are ingested, hashed via SHA-256, sanitized, and projected via symlinks."),
+        tip: t("sd_guide_s3_tip", "Your Local {Mod} Dossier is decoupled from the cloud—you can freely customize {mod} titles, creator URLs, cover images, and tags locally."),
         cards: [
           {
             icon: t("icon_fingerprint", "fingerprint"),
@@ -345,10 +310,7 @@ export default function WebDocumentFeed() {
               "sd_guide_s3_c2_title",
               "Decentralized Static Edge (override.json)"
             ),
-            desc: t(
-              "sd_guide_s3_c2_desc",
-              "When a mod archive includes a creator's override.json, Sanctuary binds its SHA-256 lineage to the creator's static manifest.json URL for serverless update alerts and atomic rules."
-            ),
+            desc: t("sd_guide_s3_c2_desc", "When a {mod} archive includes a {mason}'s override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static manifest.json URL for serverless update alerts and atomic rules."),
           },
           {
             icon: t("icon_delete_sweep", "delete_sweep"),
@@ -361,34 +323,22 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_visibility_off", "visibility_off"),
             title: t("sd_guide_s3_c4_title", "Ghosted Diagnostic States"),
-            desc: t(
-              "sd_guide_s3_c4_desc",
-              "Incompatible or broken mods automatically enter a translucent Ghosted state with hover tooltips detailing Missing DLC, Version Mismatches, or Collisions."
-            ),
+            desc: t("sd_guide_s3_c4_desc", "Incompatible or broken {mods} automatically enter a translucent Ghosted state with hover tooltips detailing Missing DLC, Version Mismatches, or Collisions."),
           },
         ],
       },
       {
-        short: t("sd_guide_s4_short", "4. Blueprints"),
-        title: t("sd_guide_s4_title", "Blueprints & Tactical Loadouts"),
+        short: t("sd_guide_s4_short", "4. {Blueprints}"),
+        title: t("sd_guide_s4_title", "{Blueprints} & Tactical Loadouts"),
         badge: t("sd_guide_s4_badge", "INSTANT HOT-SWAP • CLOUD & OFFLINE"),
         icon: t("icon_map", "map"),
-        desc: t(
-          "sd_guide_s4_desc",
-          "Replace manual folder shuffling with Blueprints. Switch between completely different mod loadouts in seconds without duplicating files on your hard drive."
-        ),
-        tip: t(
-          "sd_guide_s4_tip",
-          "Use 'Snapshot Active Blueprint' anytime to clone your currently deployed loadout into an experimental profile before adding new mods."
-        ),
+        desc: t("sd_guide_s4_desc", "Replace manual folder shuffling with {Blueprints}. Switch between completely different {mod} loadouts in seconds without duplicating files on your hard drive."),
+        tip: t("sd_guide_s4_tip", "Use 'Snapshot Active {Blueprint}' anytime to clone your currently deployed loadout into an experimental profile before adding new {mods}."),
         cards: [
           {
             icon: t("icon_swap_horiz", "swap_horiz"),
-            title: t("sd_guide_s4_c1_title", "1-Click Blueprint Hot-Swap"),
-            desc: t(
-              "sd_guide_s4_c1_desc",
-              "Switch active loadouts directly from the Vault header or Blueprints view. Sanctuary instantly re-projects the exact symlinks and load order for that profile."
-            ),
+            title: t("sd_guide_s4_c1_title", "1-Click {Blueprint} Hot-Swap"),
+            desc: t("sd_guide_s4_c1_desc", "Switch active loadouts directly from the {Vault} header or {Blueprints} view. Sanctuary instantly re-projects the exact symlinks and load order for that profile."),
           },
           {
             icon: t("icon_tag", "tag"),
@@ -401,18 +351,12 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_data_object", "data_object"),
             title: t("sd_guide_s4_c3_title", "Offline JSON Import/Export with modMeta"),
-            desc: t(
-              "sd_guide_s4_c3_desc",
-              "Export portable JSON blueprints that embed your custom Local Dossier metadata (author links, custom names) and workspace ID for 100% offline preservation."
-            ),
+            desc: t("sd_guide_s4_c3_desc", "Export portable JSON {blueprints} that embed your custom Local Dossier metadata (author links, custom names) and workspace ID for 100% offline preservation."),
           },
           {
             icon: t("icon_install_mobile", "install_mobile"),
             title: t("sd_guide_s4_c4_title", "Remote Mobile/Web Queue Staging"),
-            desc: t(
-              "sd_guide_s4_c4_desc",
-              "Browse The Nexus on your phone or tablet, stage a modpack queue encrypted in the cloud, and approve it in one click when you sit down at your PC."
-            ),
+            desc: t("sd_guide_s4_c4_desc", "Browse The Nexus on your phone or tablet, stage a {blueprint} queue encrypted in the cloud, and approve it in one click when you sit down at your PC."),
           },
         ],
       },
@@ -421,10 +365,7 @@ export default function WebDocumentFeed() {
         title: t("sd_guide_s5_title", "The Nexus & Integrated Side Browser"),
         badge: t("sd_guide_s5_badge", "METADATA REGISTRY • ZERO-TAX DISCOVERY"),
         icon: t("icon_hub", "hub"),
-        desc: t(
-          "sd_guide_s5_desc",
-          "Discover verified Artifacts, Blueprints, Lexicons, Chameleons, and Workbench Templates—and download directly from creator pages using the built-in Side Browser."
-        ),
+        desc: t("sd_guide_s5_desc", "Discover verified {Mods}, {Blueprints}, Lexicons, Chameleons, and Workbench Templates—and download directly from creator pages using the built-in Side Browser."),
         tip: t(
           "sd_guide_s5_tip",
           "You can toggle the Integrated Side Browser on or off anytime in System Preferences -> Network depending on whether you prefer in-app or external browsing."
@@ -441,26 +382,17 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_download", "download"),
             title: t("sd_guide_s5_c2_title", "Automatic Download Interception"),
-            desc: t(
-              "sd_guide_s5_c2_desc",
-              "Clicking download on a creator's page inside the Integrated Side Browser automatically intercepts the archive and routes it straight into your Vault."
-            ),
+            desc: t("sd_guide_s5_c2_desc", "Clicking download on a creator's page inside the Integrated Side Browser automatically intercepts the archive and routes it straight into your {Vault}."),
           },
           {
             icon: t("icon_verified", "verified"),
-            title: t("sd_guide_s5_c3_title", "Creator Profiles & Direct Attribution"),
-            desc: t(
-              "sd_guide_s5_c3_desc",
-              "Follow your favorite Masons to see their posts in your Comm-Link feed. Sanctuary takes 0% platform tax and links directly to creator Patreon, Ko-fi, and websites."
-            ),
+            title: t("sd_guide_s5_c3_title", "{Mason} Profiles & Direct Attribution"),
+            desc: t("sd_guide_s5_c3_desc", "Follow your favorite {Masons} to see their posts in your Comm-Link feed. Sanctuary takes 0% platform tax and links directly to {mason} Patreon, Ko-fi, and websites."),
           },
           {
             icon: t("icon_radar", "radar"),
             title: t("sd_guide_s5_c4_title", "Crowd-Sourced Scout Queue"),
-            desc: t(
-              "sd_guide_s5_c4_desc",
-              "Unidentified local mods can be submitted via the Scout Dossier or marked 'Flag as Local' to permanently exclude private files from cloud lookups."
-            ),
+            desc: t("sd_guide_s5_c4_desc", "Unidentified local {mods} can be submitted via the Scout Dossier or marked 'Flag as Local' to permanently exclude private files from cloud lookups."),
           },
         ],
       },
@@ -481,10 +413,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_emoji_events", "emoji_events"),
             title: t("sd_guide_s6_c1_title", "Casual Mode: 1-Click 'Pick a Winner'"),
-            desc: t(
-              "sd_guide_s6_c1_desc",
-              "For Severity 3 Tuning Overlaps, simply click the mod you want to win. Sanctuary automatically compiles the priority rules and routes the winner into the top override tier."
-            ),
+            desc: t("sd_guide_s6_c1_desc", "For Severity 3 Tuning Overlaps, simply click the {mod} you want to win. Sanctuary automatically compiles the priority rules and routes the winner into the top override tier."),
           },
           {
             icon: t("icon_rule", "rule"),
@@ -503,10 +432,7 @@ export default function WebDocumentFeed() {
               "sd_guide_s6_c3_title",
               "Severity 4 (Fatal) vs. Severity 3 (Tuning)"
             ),
-            desc: t(
-              "sd_guide_s6_c3_desc",
-              "Severity 4 indicates a hard binary/script clash where only one mod can remain enabled. Severity 3 indicates a tuning overlap solvable via Load Order priority."
-            ),
+            desc: t("sd_guide_s6_c3_desc", "Severity 4 indicates a hard binary/script clash where only one {mod} can remain enabled. Severity 3 indicates a tuning overlap solvable via Load Order priority."),
           },
           {
             icon: t("icon_layers", "layers"),
@@ -523,14 +449,8 @@ export default function WebDocumentFeed() {
         title: t("sd_guide_s7_title", "Homestead Lab & 100% Nuke Isolation"),
         badge: t("sd_guide_s7_badge", "AIRGAPPED SANDBOX • LIVE CRASH CAPTURE"),
         icon: t("icon_science", "science"),
-        desc: t(
-          "sd_guide_s7_desc",
-          "Test unverified mods or pit two conflicting artifacts against each other in an airgapped sandbox without risking your real save files or main loadout."
-        ),
-        tip: t(
-          "sd_guide_s7_tip",
-          "Passing a timed Homestead Lab playtest and saving in-game automatically verifies your Sandbox artifact for publishing!"
-        ),
+        desc: t("sd_guide_s7_desc", "Test unverified {mods} or pit two conflicting {mods} against each other in an airgapped sandbox without risking your real save files or main loadout."),
+        tip: t("sd_guide_s7_tip", "Passing a timed Homestead Lab playtest and saving in-game automatically verifies your Sandbox {mod} for publishing!"),
         cards: [
           {
             icon: t("icon_bolt", "bolt"),
@@ -559,26 +479,17 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_compare_arrows", "compare_arrows"),
             title: t("sd_guide_s7_c4_title", "1v1 Conflict Stability Protocol"),
-            desc: t(
-              "sd_guide_s7_c4_desc",
-              "Pit two suspected conflicting mods together in isolation to verify compatibility and submit telemetry directly to Architects."
-            ),
+            desc: t("sd_guide_s7_c4_desc", "Pit two suspected conflicting {mods} together in isolation to verify compatibility and submit telemetry directly to Architects."),
           },
         ],
       },
       {
-        short: t("sd_guide_s8_short", "8. Time Capsule & IDE"),
-        title: t("sd_guide_s8_title", "Time Capsule & Citizen's Workbench"),
+        short: t("sd_guide_s8_short", "8. {Backups} & IDE"),
+        title: t("sd_guide_s8_title", "{Backups} & {Citizen}'s Workbench"),
         badge: t("sd_guide_s8_badge", "HARDLINK SNAPSHOTS • VISUAL CONFIG IDE"),
         icon: t("icon_history", "history"),
-        desc: t(
-          "sd_guide_s8_desc",
-          "Protect your saves and game binaries with zero-duplication hardlink backups, and fine-tune mod configuration files using visual sliders or the built-in Monaco IDE."
-        ),
-        tip: t(
-          "sd_guide_s8_tip",
-          "When DEFCON 1 is declared for an incoming game patch, Sanctuary automatically prompts to seal a Pre-Patch Time Capsule before launching."
-        ),
+        desc: t("sd_guide_s8_desc", "Protect your saves and game binaries with zero-duplication hardlink backups, and fine-tune {mod} configuration files using visual sliders or the built-in Monaco IDE."),
+        tip: t("sd_guide_s8_tip", "When DEFCON 1 is declared for an incoming game patch, Sanctuary automatically prompts to seal a Pre-Patch {Backups} before launching."),
         cards: [
           {
             icon: t("icon_archive", "archive"),
@@ -605,21 +516,12 @@ export default function WebDocumentFeed() {
               "sd_guide_s8_c3_title",
               "Differential Rollback & Surgical Extraction"
             ),
-            desc: t(
-              "sd_guide_s8_c3_desc",
-              "Restore an entire snapshot via fast differential sync, or browse inside any Time Capsule to surgically extract a single household save slot."
-            ),
+            desc: t("sd_guide_s8_c3_desc", "Restore an entire snapshot via fast differential sync, or browse inside any {Backups} to surgically extract a single household save slot."),
           },
           {
             icon: t("icon_construction", "construction"),
-            title: t(
-              "sd_guide_s8_c4_title",
-              "Citizen's Workbench & Open Mason Workshop"
-            ),
-            desc: t(
-              "sd_guide_s8_c4_desc",
-              "Edit mod .json/.ini/.cfg files with safe visual toggles and sliders synced live with a Monaco Raw Code Diff editor—plus full local Sandbox & Export Release tools for all Citizens."
-            ),
+            title: t("sd_guide_s8_c4_title", "{Citizen}'s Workbench & Open {Mason} Workshop"),
+            desc: t("sd_guide_s8_c4_desc", "Edit {mod} .json/.ini/.cfg files with safe visual toggles and sliders synced live with a Monaco Raw Code Diff editor—plus full local Sandbox & Export Release tools for all {Citizens}."),
           },
         ],
       },
@@ -695,10 +597,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_menu", "menu"),
             name: t("dir_walk_s1_c1_name", "Left Sidebar (Context-Aware)"),
-            desc: t(
-              "dir_walk_s1_c1_desc",
-              "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 Citizen modules, unlocked Command Hubs, and the Quick Launch button."
-            ),
+            desc: t("dir_walk_s1_c1_desc", "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 {Citizen} modules, unlocked Command Hubs, and the Quick Launch button."),
           },
           {
             icon: t("icon_sports_esports", "sports_esports"),
@@ -711,10 +610,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_dock_to_bottom", "dock_to_bottom"),
             name: t("dir_walk_s1_c3_name", "Bottom Morphing Status Pill"),
-            desc: t(
-              "dir_walk_s1_c3_desc",
-              "Houses 1-Click Radar Sweep, Vault Lockdown, Blueprint Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."
-            ),
+            desc: t("dir_walk_s1_c3_desc", "Houses 1-Click Radar Sweep, {Vault} Lockdown, {Blueprint} Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."),
           },
         ],
       },
@@ -724,10 +620,7 @@ export default function WebDocumentFeed() {
         icon: t("icon_explore", "explore"),
         title: t("dir_walk_s2_title", "Mounting a Workspace & Cartographer"),
         sub: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE Ripper"),
-        desc: t(
-          "dir_walk_s2_desc",
-          "Selecting a workspace on the Landing Page launches The Cartographer to link your game binary, live Mods directory, and airgapped Vault storage."
-        ),
+        desc: t("dir_walk_s2_desc", "Selecting a workspace on the Landing Page launches The Cartographer to link your game binary, live {Mods} directory, and airgapped {Vault} storage."),
         controls: [
           {
             icon: t("icon_terminal", "terminal"),
@@ -739,32 +632,23 @@ export default function WebDocumentFeed() {
           },
           {
             icon: t("icon_folder_open", "folder_open"),
-            name: t("dir_walk_s2_c2_name", "Mods Folder (Symlink Target)"),
-            desc: t(
-              "dir_walk_s2_c2_desc",
-              "Your live game Mods folder. Keep this untouched—Sanctuary projects active mods here via zero-copy OS symlinks."
-            ),
+            name: t("dir_walk_s2_c2_name", "{Mods} Folder (Symlink Target)"),
+            desc: t("dir_walk_s2_c2_desc", "Your live game {Mods} folder. Keep this untouched—Sanctuary projects active {mods} here via zero-copy OS symlinks."),
           },
           {
             icon: t("icon_inventory_2", "inventory_2"),
-            name: t("dir_walk_s2_c3_name", "Vault Folder (Deep Archive)"),
-            desc: t(
-              "dir_walk_s2_c3_desc",
-              "Your isolated storage directory where Sanctuary builds Mods/, Blueprints/, Backups/World/, Backups/Engine/, Quarantine/, and Data/Cache/."
-            ),
+            name: t("dir_walk_s2_c3_name", "{Vault} Folder (Deep Archive)"),
+            desc: t("dir_walk_s2_c3_desc", "Your isolated storage directory where Sanctuary builds {Mods}/, {Blueprints}/, Backups/World/, Backups/Engine/, Quarantine/, and Data/Cache/."),
           },
         ],
       },
       {
         num: 3,
-        short: t("dir_walk_s3_short", "3. Vault & Cards"),
+        short: t("dir_walk_s3_short", "3. {Vault} & Cards"),
         icon: t("icon_inventory_2", "inventory_2"),
-        title: t("dir_walk_s3_title", "Your Vault, Mod Cards & ActionPill"),
+        title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & ActionPill"),
         sub: t("dir_walk_s3_sub", "Drag-and-Drop Ingestion, Suite Grouping & Dossiers"),
-        desc: t(
-          "dir_walk_s3_desc",
-          "Every mod you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Dual-Tier Heuristic Engine, and indexed in Your Vault."
-        ),
+        desc: t("dir_walk_s3_desc", "Every {mod} you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Dual-Tier Heuristic Engine, and indexed in Your {Vault}."),
         controls: [
           {
             icon: t("icon_tune", "tune"),
@@ -777,14 +661,11 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_toggle_on", "toggle_on"),
             name: t("dir_walk_s3_c2_name", "Parent Suite Card & Equip Toggle"),
-            desc: t(
-              "dir_walk_s3_c2_desc",
-              "Toggles symlinks in milliseconds. Multi-part mod suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."
-            ),
+            desc: t("dir_walk_s3_c2_desc", "Toggles symlinks in milliseconds. Multi-part {mod} suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."),
           },
           {
             icon: t("icon_menu_book", "menu_book"),
-            name: t("dir_walk_s3_c3_name", "Mod Dossier SidePanel"),
+            name: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
             desc: t(
               "dir_walk_s3_c3_desc",
               "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static manifest.json URL, or inspect package files."
@@ -794,9 +675,9 @@ export default function WebDocumentFeed() {
       },
       {
         num: 4,
-        short: t("dir_walk_s4_short", "4. Blueprints"),
+        short: t("sd_guide_s4_short", "4. {Blueprints}"),
         icon: t("icon_map", "map"),
-        title: t("dir_walk_s4_title", "Blueprints & Loadout Hot-Swapping"),
+        title: t("dir_walk_s4_title", "{Blueprints} & Loadout Hot-Swapping"),
         sub: t("dir_walk_s4_sub", "Zero-Copy Profile Switching & SNCXXX Cloud Uplinks"),
         desc: t(
           "dir_walk_s4_desc",
@@ -805,11 +686,8 @@ export default function WebDocumentFeed() {
         controls: [
           {
             icon: t("icon_swap_horiz", "swap_horiz"),
-            name: t("dir_walk_s4_c1_name", "Blueprint Hot-Swap Dropdown"),
-            desc: t(
-              "dir_walk_s4_c1_desc",
-              "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the Vault header or Bottom Dock."
-            ),
+            name: t("dir_walk_s4_c1_name", "{Blueprint} Hot-Swap Dropdown"),
+            desc: t("dir_walk_s4_c1_desc", "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the {Vault} header or Bottom Dock."),
           },
           {
             icon: t("icon_data_object", "data_object"),
@@ -822,10 +700,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_tag", "tag"),
             name: t("dir_walk_s4_c3_name", "6-Digit Cloud Uplink (SNCXXX)"),
-            desc: t(
-              "dir_walk_s4_c3_desc",
-              "Generates a 6-character share code (SNCXXX) or publishes your Blueprint to The Nexus while auto-stripping flagged Tier 1–4 hashes."
-            ),
+            desc: t("dir_walk_s4_c3_desc", "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–4 hashes."),
           },
         ],
       },
@@ -835,18 +710,12 @@ export default function WebDocumentFeed() {
         icon: t("icon_radar", "radar"),
         title: t("dir_walk_s5_title", "Conflict Radar & Homestead Lab"),
         sub: t("dir_walk_s5_sub", "Pick-a-Winner Load Order & 100% Nuke Proving Grounds"),
-        desc: t(
-          "dir_walk_s5_desc",
-          "Resolve tuning overlaps before launching the game, or isolate suspect mods in a sterile crash-monitored sandbox."
-        ),
+        desc: t("dir_walk_s5_desc", "Resolve tuning overlaps before launching the game, or isolate suspect {mods} in a sterile crash-monitored sandbox."),
         controls: [
           {
             icon: t("icon_emoji_events", "emoji_events"),
             name: t("dir_walk_s5_c1_name", "Casual Mode (Pick a Winner)"),
-            desc: t(
-              "dir_walk_s5_c1_desc",
-              "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning mod into a higher priority tier and dynamic Resource.cfg."
-            ),
+            desc: t("dir_walk_s5_c1_desc", "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning {mod} into a higher priority tier and dynamic Resource.cfg."),
           },
           {
             icon: t("icon_rule", "rule"),
@@ -859,10 +728,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_science", "science"),
             name: t("dir_walk_s5_c3_name", "Homestead 100% Nuke & 1v1 Test"),
-            desc: t(
-              "dir_walk_s5_c3_desc",
-              "Strips your main loadout and boots the game with only the test mod (or 2 conflicting mods) while harvesting lastException.txt logs."
-            ),
+            desc: t("dir_walk_s5_c3_desc", "Strips your main loadout and boots the game with only the test {mod} (or 2 conflicting {mods}) while harvesting lastException.txt logs."),
           },
         ],
       },
@@ -870,12 +736,9 @@ export default function WebDocumentFeed() {
         num: 6,
         short: t("dir_walk_s6_short", "6. IDE & Backups"),
         icon: t("icon_construction", "construction"),
-        title: t("dir_walk_s6_title", "Workbench, Timeline Diff & Time Capsule"),
+        title: t("dir_walk_s6_title", "Workbench, Timeline Diff & {Backups}"),
         sub: t("dir_walk_s6_sub", "2-Column Visual Config Studio & Hardlink Backups"),
-        desc: t(
-          "dir_walk_s6_desc",
-          "Edit 430+ setting mod config files visually at 60 FPS and safeguard your saves and game binaries with zero-bloat snapshots."
-        ),
+        desc: t("dir_walk_s6_desc", "Edit 430+ setting {mod} config files visually at 60 FPS and safeguard your saves and game binaries with zero-bloat snapshots."),
         controls: [
           {
             icon: t("icon_tune", "tune"),
@@ -895,7 +758,7 @@ export default function WebDocumentFeed() {
           },
           {
             icon: t("icon_history", "history"),
-            name: t("dir_walk_s6_c3_name", "Time Capsule (World & Engine)"),
+            name: t("dir_walk_s6_c3_name", "{Backups} (World & Engine)"),
             desc: t(
               "dir_walk_s6_c3_desc",
               "Uses OS hardlinks so unchanged files consume 0 extra bytes, paired with differential rollback restoration."
@@ -908,27 +771,18 @@ export default function WebDocumentFeed() {
         short: t("dir_walk_s7_short", "7. Hubs & Security"),
         icon: t("icon_shield", "shield"),
         title: t("dir_walk_s7_title", "Open Workshop, Passkeys & Lockdown"),
-        sub: t("dir_walk_s7_sub", "Citizen Creator Inheritance & Full-OS Security Gates"),
-        desc: t(
-          "dir_walk_s7_desc",
-          "Every Citizen inherits the local Mason Workshop, while hardware FIDO2 Passkeys and full-OS Quarantine Lockdowns protect the ecosystem."
-        ),
+        sub: t("dir_walk_s7_sub", "{Citizen} Creator Inheritance & Full-OS Security Gates"),
+        desc: t("dir_walk_s7_desc", "Every {Citizen} inherits the local {Mason} Workshop, while hardware FIDO2 Passkeys and full-OS Quarantine Lockdowns protect the ecosystem."),
         controls: [
           {
             icon: t("icon_handyman", "handyman"),
-            name: t("dir_walk_s7_c1_name", "Open Mason Workshop (Citizen Tier)"),
-            desc: t(
-              "dir_walk_s7_c1_desc",
-              "All Citizens can use Dev Sandbox, Mason IDE, 3-Tile Artifact Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
-            ),
+            name: t("dir_walk_s7_c1_name", "Open {Mason} Workshop ({Citizen} Tier)"),
+            desc: t("dir_walk_s7_c1_desc", "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."),
           },
           {
             icon: t("icon_passkey", "passkey"),
-            name: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP Vault"),
-            desc: t(
-              "dir_walk_s7_c2_desc",
-              "Elevated clearances (Verified Mason through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security Vault SidePanel."
-            ),
+            name: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
+            desc: t("dir_walk_s7_c2_desc", "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} SidePanel."),
           },
           {
             icon: t("icon_gpp_bad", "gpp_bad"),
@@ -948,53 +802,41 @@ export default function WebDocumentFeed() {
   const elevatedRoles = useMemo(
     () => [
       {
-        short: t("dir_proto_r1_role", "Citizen"),
+        short: t("role_citizen", "{Citizen}"),
         icon: t("icon_person", "person"),
-        title: t("dir_proto_r1_role", "Citizen"),
+        title: t("role_citizen", "{Citizen}"),
         badge: t("dir_proto_r1_tier", "Tier 1 • Base + Open Workshop"),
-        desc: t(
-          "dir_proto_r1_scope",
-          "All 9 Citizen Modules (Vault, Nexus, Blueprints, Conflict Radar, Homestead Lab, Workbench, Time Capsule) + Inherited Open Mason Workshop (Sandbox, Mason IDE, 3-Tile Artifact Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions."
-        ),
+        desc: t("dir_proto_r1_scope", "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions."),
         requiresPasskey: false,
       },
       {
-        short: t("dir_proto_r2_role", "Verified Mason"),
+        short: t("dir_proto_r2_role", "Verified {Mason}"),
         icon: t("icon_construction", "construction"),
-        title: t("dir_proto_r2_role", "Verified Mason"),
+        title: t("dir_proto_r2_role", "Verified {Mason}"),
         badge: t("dir_proto_r2_tier", "Tier 2 • Verified Creator"),
-        desc: t(
-          "dir_proto_r2_scope",
-          "Inherits all Citizen & Open Workshop tools + FIDO2 Passkey Vault gate, Direct Nexus Artifact Publishing, Verified Mason Queue Fast-Lane (bypasses Scout threshold), Public Mason Profile Showcase, Creator Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."
-        ),
+        desc: t("dir_proto_r2_scope", "Inherits all {Citizen} & Open Workshop tools + FIDO2 Passkey {Vault} gate, Direct Nexus {Mod} Publishing, Verified {Mason} Queue Fast-Lane (bypasses Scout threshold), Public {Mason} Profile Showcase, {Mason} Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."),
         requiresPasskey: true,
       },
       {
-        short: t("dir_proto_r3_role", "Architect"),
+        short: t("architect", "Architect"),
         icon: t("icon_architecture", "architecture"),
-        title: t("dir_proto_r3_role", "Architect"),
+        title: t("architect", "Architect"),
         badge: t("dir_proto_r3_tier", "Tier 3 • Spoke Moderator"),
-        desc: t(
-          "dir_proto_r3_scope",
-          "Unlocks Architect Console: Global Registry curation (3-Tile Artifact Studio), Verified Mason & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable Citizen Support Desk tickets."
-        ),
+        desc: t("dir_proto_r3_scope", "Unlocks Architect Console: Global Registry curation (3-Tile {Mod} Studio), Verified {Mason} & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable {Citizen} Support Desk tickets."),
         requiresPasskey: true,
       },
       {
-        short: t("dir_proto_r4_role", "Oversight"),
+        short: t("role_oversight", "Oversight"),
         icon: t("icon_admin_panel_settings", "admin_panel_settings"),
-        title: t("dir_proto_r4_role", "Oversight"),
+        title: t("role_oversight", "Oversight"),
         badge: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
-        desc: t(
-          "dir_proto_r4_scope",
-          "Unlocks Oversight Command: Spoke Heuristic Signatures authoring, Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, Mason Linker, and Spoke Identity Matrix (up to Architect)."
-        ),
+        desc: t("dir_proto_r4_scope", "Unlocks Oversight Command: Spoke Heuristic Signatures authoring, Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."),
         requiresPasskey: true,
       },
       {
-        short: t("dir_proto_r5_role", "Wayfinder"),
+        short: t("role_wayfinder", "Wayfinder"),
         icon: t("icon_explore", "explore"),
-        title: t("dir_proto_r5_role", "Wayfinder"),
+        title: t("role_wayfinder", "Wayfinder"),
         badge: t("dir_proto_r5_tier", "Tier 5 • Spoke Sovereign"),
         desc: t(
           "dir_proto_r5_scope",
@@ -1029,14 +871,11 @@ export default function WebDocumentFeed() {
           "sd_roadmap_p12_title",
           "Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA"
         ),
-        sub: t("sd_roadmap_p12_focus", "Citizens Workbench / Mason IDE, Lexicon Revamp, Sanctuary Partners, V6 Theme Overhaul & Website V2"),
-        desc: t(
-          "sd_roadmap_p12_summary",
-          "The culminating evolution of Sanctuary OS: Dual-Vision Mason IDE & Lexicon Cloud Schemas (Completed), Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section OS Revamp, and the unified Website V2 / Mobile PWA."
-        ),
+        sub: t("sd_roadmap_p12_focus", "{Citizens} Workbench / {Mason} IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2"),
+        desc: t("sd_roadmap_p12_summary", "Dual-Vision {Mason} IDE & Cloud Lexicons (Completed), Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA."),
         milestones: [
           {
-            title: t("sd_roadmap_p12_m5_title", "Citizens Workbench & Mason IDE 2.0"),
+            title: t("sd_roadmap_p12_m5_title", "{Citizens} Workbench & {Mason} IDE 2.0"),
             desc: t("sd_roadmap_p12_m5_desc", "Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder."),
             pending: false,
           },
@@ -1052,7 +891,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p12_m8_title", "Sanctuary V6 & Liquid Glass Engine"),
-            desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner Theme, and Chameleon Theme Forge 2.0."),
+            desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner {Chameleon}, and Chameleon {Chameleon} Forge 2.0."),
             pending: true,
           },
           {
@@ -1062,7 +901,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p12_m9_title", "Website V2, Mobile PWA & Remote Queuing"),
-            desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC Blueprint queuing."),
+            desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."),
             pending: true,
           },
           {
@@ -1071,7 +910,7 @@ export default function WebDocumentFeed() {
             pending: false,
           },
           {
-            title: t("sd_roadmap_p12_m12_title", "FIDO2 Passkey Vault & Quarantine Lockdown"),
+            title: t("sd_roadmap_p12_m12_title", "FIDO2 Passkey {Vault} & Quarantine Lockdown"),
             desc: t("sd_roadmap_p12_m12_desc", "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine SidePanel Lockdown, Silent Updater, and Bilateral Directives Sync."),
             pending: false,
           },
@@ -1082,39 +921,33 @@ export default function WebDocumentFeed() {
         status: "completed" as const,
         icon: t("icon_public", "public"),
         code: t("sd_roadmap_p11_period", "PHASE 11 • MAY 17 – JULY 13, 2026"),
-        title: t(
-          "sd_roadmap_p11_title",
-          "Technical Debt Repayment, Citizens Workbench & The Agnostic Sprint"
-        ),
-        sub: t("sd_roadmap_p11_focus", "Native Intake & Support, Citizens Workbench & Game-Agnostic Kernel"),
-        desc: t(
-          "sd_roadmap_p11_summary",
-          "Integrated Mason & Architect intake forms, native Bug Reports & Support Ticket Dossiers, Citizens Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI maintenance sweep, and the Agnostic Sprint extracting hardcoded Sims 4 logic into Master JSON Schemas."
-        ),
+        title: t("sd_roadmap_p11_title", "Technical Debt Repayment, {Citizens} Workbench & The Agnostic Sprint"),
+        sub: t("sd_roadmap_p11_focus", "Native Intake & Support Desk, {Citizens} Workbench 1.0 & Game-Agnostic Kernel"),
+        desc: t("sd_roadmap_p11_summary", "Integrated {Mason} & Architect intake forms, native Bug Reports & Support Ticket Dossiers, {Citizens} Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI sweep, and the Agnostic Sprint."),
         milestones: [
           {
             title: t("sd_roadmap_p11_m5_title", "Native Intake Forms & Support Desk"),
-            desc: t("sd_roadmap_p11_m5_desc", "Integrated Mason UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App."),
+            desc: t("sd_roadmap_p11_m5_desc", "Integrated {Mason} UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App."),
           },
           {
-            title: t("sd_roadmap_p11_m6_title", "Citizens Workbench 1.0 & Sanctuary Templates"),
-            desc: t("sd_roadmap_p11_m6_desc", "Automatic .cfg, .ini, and .json detection in the Vault with an embedded Monaco IDE and visual slider/toggle Schema Mapping."),
+            title: t("sd_roadmap_p11_m6_title", "{Citizens} Workbench 1.0 & Sanctuary Templates"),
+            desc: t("sd_roadmap_p11_m6_desc", "Automatic .cfg, .ini, and .json detection in the {Vault} with an embedded Monaco IDE and visual slider/toggle Schema Mapping."),
           },
           {
             title: t("sd_roadmap_p11_m7_title", "The Agnostic Sprint & Master Schemas"),
             desc: t("sd_roadmap_p11_m7_desc", "Extracted all hardcoded Sims 4 (.package / .ts4script) checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas."),
           },
           {
-            title: t("sd_roadmap_p11_m8_title", "Integrated Side Browser & Vault Intercept"),
-            desc: t("sd_roadmap_p11_m8_desc", "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the Vault."),
+            title: t("sd_roadmap_p11_m8_title", "Integrated Side Browser & {Vault} Intercept"),
+            desc: t("sd_roadmap_p11_m8_desc", "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the {Vault}."),
           },
           {
             title: t("sd_roadmap_p11_m9_title", "Full-Stack Security & Forensic Audit"),
             desc: t("sd_roadmap_p11_m9_desc", "Hardened Rust path-traversal guards (is_safe_user_file_path), Supabase Row-Level Security (RLS) policies, and immutable append-only audit logs."),
           },
           {
-            title: t("sd_roadmap_p11_m10_title", "Oversight Mason Linker & Lexicon Sweep"),
-            desc: t("sd_roadmap_p11_m10_desc", "Deployed the Oversight Mason Linker, automatic Unregistered Vault syncing on Nexus verification, and a full 11-section Lexicon/UI sweep."),
+            title: t("sd_roadmap_p11_m10_title", "Oversight {Mason} Linker & Lexicon Sweep"),
+            desc: t("sd_roadmap_p11_m10_desc", "Deployed the Oversight {Mason} Linker, automatic Unregistered {Vault} syncing on Nexus verification, and a full 11-section Lexicon/UI sweep."),
           },
         ],
       },
@@ -1128,18 +961,15 @@ export default function WebDocumentFeed() {
           "Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update"
         ),
         sub: t("sd_roadmap_p10_focus", "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage"),
-        desc: t(
-          "sd_roadmap_p10_summary",
-          "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus discovery registry, and the Chameleon Theme Forge."
-        ),
+        desc: t("sd_roadmap_p10_summary", "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus registry, and Chameleon {Chameleon} Forge."),
         milestones: [
           {
             title: t("sd_roadmap_p10_m5_title", "Isolated Dev Sandbox & Sync to Network"),
-            desc: t("sd_roadmap_p10_m5_desc", "Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP mods, paired with 1-click 'Sync to Network' release promotion."),
+            desc: t("sd_roadmap_p10_m5_desc", "Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP {mods}, paired with 1-click 'Sync to Network' release promotion."),
           },
           {
             title: t("sd_roadmap_p10_m6_title", "Visual Protocol & Folder Structure Builder"),
-            desc: t("sd_roadmap_p10_m6_desc", "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize Vault."),
+            desc: t("sd_roadmap_p10_m6_desc", "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize {Vault}."),
           },
           {
             title: t("sd_roadmap_p10_m7_title", "Senior Architect Mass Update & Filters"),
@@ -1147,7 +977,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p10_m8_title", "The Nexus Discovery Registry"),
-            desc: t("sd_roadmap_p10_m8_desc", "Global metadata catalog for Artifacts, Blueprints, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering."),
+            desc: t("sd_roadmap_p10_m8_desc", "Global metadata catalog for {Mods}, {Blueprints}, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering."),
           },
           {
             title: t("sd_roadmap_p10_m9_title", "Chameleon Theme Forge & Holo Sandbox"),
@@ -1180,7 +1010,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p9_m6_title", "Five Elevated Command Hubs"),
-            desc: t("sd_roadmap_p9_m6_desc", "Dedicated ElevatedHubLayout command centers for Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core."),
+            desc: t("sd_roadmap_p9_m6_desc", "Dedicated ElevatedHubLayout command centers for {Mason} Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core."),
           },
           {
             title: t("sd_roadmap_p9_m7_title", "Claimable Support Desk Ticket Dossiers"),
@@ -1188,7 +1018,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p9_m8_title", "Florida Compliance Tiers 1–4"),
-            desc: t("sd_roadmap_p9_m8_desc", "Automated public feed scrubbing and Cloud Blueprint hash purge triggers protecting public discovery while preserving local Vault freedom."),
+            desc: t("sd_roadmap_p9_m8_desc", "Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom."),
           },
         ],
       },
@@ -1202,10 +1032,7 @@ export default function WebDocumentFeed() {
           "Standardized Lexicons, Dynamic Engine Recognition & DEFCON Shield"
         ),
         sub: t("sd_roadmap_p8_focus", "Rust Rip Protocol, Auto-Sanitization Launch & DEFCON 1 Shield"),
-        desc: t(
-          "sd_roadmap_p8_summary",
-          "Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the Blueprint Architect Load Order UI, and the real-time DEFCON 1 patch shield."
-        ),
+        desc: t("sd_roadmap_p8_summary", "Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the {Blueprint} Architect Load Order UI, and the real-time DEFCON 1 patch shield."),
         milestones: [
           {
             title: t("sd_roadmap_p8_m5_title", "Rust 'Rip Protocol' & Auto-Sanitization"),
@@ -1217,11 +1044,11 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p8_m7_title", "DEFCON 1 Pre-Patch Network Shield"),
-            desc: t("sd_roadmap_p8_m7_desc", "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup."),
+            desc: t("sd_roadmap_p8_m7_desc", "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup."),
           },
           {
             title: t("sd_roadmap_p8_m8_title", "Tier 5 Malware Scanner & Secure Shred"),
-            desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, Citizen-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
+            desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, {Citizen}-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
           },
         ],
       },
@@ -1230,26 +1057,20 @@ export default function WebDocumentFeed() {
         status: "completed" as const,
         icon: t("icon_construction", "construction"),
         code: t("sd_roadmap_p7_period", "PHASE 7 • MAY 6, 2026"),
-        title: t(
-          "sd_roadmap_p7_title",
-          "Core Architecture, Time Capsule Compression & Windows MSI Pipeline"
-        ),
-        sub: t("sd_roadmap_p7_focus", "Nested Vault Taxonomy, 78GB→24GB Compression & MSI Pipeline"),
-        desc: t(
-          "sd_roadmap_p7_summary",
-          "Deployed the nested Vault directory hierarchy, optimized Time Capsule Engine Core compression (78GB → 24GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar."
-        ),
+        title: t("sd_roadmap_p7_title", "Core Architecture, {Backups} Compression & Windows MSI Pipeline"),
+        sub: t("sd_roadmap_p7_focus", "Nested {Vault} Taxonomy, 78 GB → 24 GB Engine Compression & Automated MSI Builds"),
+        desc: t("sd_roadmap_p7_summary", "Deployed the nested {Vault} directory hierarchy, optimized {Backups} Engine Core compression (78 GB → 24 GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar."),
         milestones: [
           {
-            title: t("sd_roadmap_p7_m5_title", "Nested Vault Taxonomy & 24 GB Compression"),
-            desc: t("sd_roadmap_p7_m5_desc", "Self-healing Vault hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks."),
+            title: t("sd_roadmap_p7_m5_title", "Nested {Vault} Taxonomy & 24 GB Compression"),
+            desc: t("sd_roadmap_p7_m5_desc", "Self-healing {Vault} hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks."),
           },
           {
             title: t("sd_roadmap_p7_m6_title", "Schema-Driven Visual Config Workbench"),
-            desc: t("sd_roadmap_p7_m6_desc", "Visual configuration studio rendering raw mod settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor."),
+            desc: t("sd_roadmap_p7_m6_desc", "Visual configuration studio rendering raw {mod} settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor."),
           },
           {
-            title: t("sd_roadmap_p7_m7_title", "Mason Workshop & Collections Orchestrator"),
+            title: t("sd_roadmap_p7_m7_title", "{Mason} Workshop & Collections Orchestrator"),
             desc: t("sd_roadmap_p7_m7_desc", "Creator suite featuring an isolated Dev Sandbox, Collections Builder, and relational Protocol Orchestrator for Twins, Flavors, and Dependencies."),
           },
           {
@@ -1279,11 +1100,11 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p6_m6_title", "100% Nuke Injection Sandbox"),
-            desc: t("sd_roadmap_p6_m6_desc", "Temporarily strips active Vault symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies."),
+            desc: t("sd_roadmap_p6_m6_desc", "Temporarily strips active {Vault} symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies."),
           },
           {
             title: t("sd_roadmap_p6_m7_title", "1v1 Conflict Stability Arena"),
-            desc: t("sd_roadmap_p6_m7_desc", "Pits two suspected colliding mods head-to-head in an airgapped test environment while monitoring real-time engine stability."),
+            desc: t("sd_roadmap_p6_m7_desc", "Pits two suspected colliding {mods} head-to-head in an airgapped test environment while monitoring real-time engine stability."),
           },
           {
             title: t("sd_roadmap_p6_m8_title", "Automated Crash Log Harvester & Scrubber"),
@@ -1296,23 +1117,17 @@ export default function WebDocumentFeed() {
         status: "completed" as const,
         icon: t("icon_history", "history"),
         code: t("sd_roadmap_p5_period", "PHASE 5 • MAY 1 – MAY 3, 2026"),
-        title: t(
-          "sd_roadmap_p5_title",
-          "Defensive Protocols, Symlink Airgap 2.1 & Mason Protocol Manager"
-        ),
+        title: t("sd_roadmap_p5_title", "Defensive Protocols, Symlink Airgap 2.1 & {Mason} Protocol Manager"),
         sub: t("sd_roadmap_p5_focus", "Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule"),
-        desc: t(
-          "sd_roadmap_p5_summary",
-          "Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, Mason Protocol Manager 1.0, intelligent Google Search fallback, and hardlink Time Capsule snapshots."
-        ),
+        desc: t("sd_roadmap_p5_summary", "Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, {Mason} Protocol Manager 1.0, intelligent Google Search fallback, and hardlink {Backups} snapshots."),
         milestones: [
           {
             title: t("sd_roadmap_p5_m5_title", "Real-Time Airgap Watcher & DNA Intercept"),
-            desc: t("sd_roadmap_p5_m5_desc", "Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop."),
+            desc: t("sd_roadmap_p5_m5_desc", "Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the {Vault}, plus SHA-256 duplicate interception on drop."),
           },
           {
-            title: t("sd_roadmap_p5_m6_title", "Dual-State Time Capsule Architecture"),
-            desc: t("sd_roadmap_p5_m6_desc", "Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or mod tests."),
+            title: t("sd_roadmap_p5_m6_title", "Dual-State {Backups} Architecture"),
+            desc: t("sd_roadmap_p5_m6_desc", "Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."),
           },
           {
             title: t("sd_roadmap_p5_m7_title", "Zero-Bloat OS Hardlink Snapshot Engine"),
@@ -1329,19 +1144,13 @@ export default function WebDocumentFeed() {
         status: "completed" as const,
         icon: t("icon_radar", "radar"),
         code: t("sd_roadmap_p4_period", "PHASE 4 • APRIL 28 – MAY 1, 2026"),
-        title: t(
-          "sd_roadmap_p4_title",
-          "The Global Network, Radiant Light Mode & Cloud Blueprints"
-        ),
+        title: t("sd_roadmap_p4_title", "The Global Network, Radiant Light Mode & Cloud {Blueprints}"),
         sub: t("sd_roadmap_p4_focus", "Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar"),
-        desc: t(
-          "sd_roadmap_p4_summary",
-          "Pivoted from dark-only Bunker to Radiant Light Mode with real-time ThemeProvider profile switching, launched 6-digit Cloud Blueprint transmissions (SNC-XXXXX), added the Architect Signature confirmation gate, and established Conflict Radar Severity 1–4."
-        ),
+        desc: t("sd_roadmap_p4_summary", "Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud {Blueprint} transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4."),
         milestones: [
           {
             title: t("sd_roadmap_p4_m5_title", "Radiant Mode, ThemeProvider & Signature Gate"),
-            desc: t("sd_roadmap_p4_m5_desc", "Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud Blueprint codes, and the Architect Signature gate."),
+            desc: t("sd_roadmap_p4_m5_desc", "Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud {Blueprint} codes, and the Architect Signature gate."),
           },
           {
             title: t("sd_roadmap_p4_m6_title", "Severity 1–4 Collision Matrix"),
@@ -1367,10 +1176,7 @@ export default function WebDocumentFeed() {
           "System Rip, Deep Yeet 2.0 & Logic Intelligence"
         ),
         sub: t("sd_roadmap_p3_focus", "Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot"),
-        desc: t(
-          "sd_roadmap_p3_summary",
-          "Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual Citizen signature."
-        ),
+        desc: t("sd_roadmap_p3_summary", "Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual {Citizen} signature."),
         milestones: [
           {
             title: t("sd_roadmap_p3_m5_title", "Deep Yeet 2.0 & UTF-16 Version Ripper"),
@@ -1378,15 +1184,15 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p3_m6_title", "Atomic Logic Triumvirate"),
-            desc: t("sd_roadmap_p3_m6_desc", "Relational mod rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies."),
+            desc: t("sd_roadmap_p3_m6_desc", "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies."),
           },
           {
             title: t("sd_roadmap_p3_m7_title", "Orphaned Addon Cascade Protection"),
-            desc: t("sd_roadmap_p3_m7_desc", "Intercepts master library removal and halts for the Citizen's manual signature before cleanly unequipping or removing dependent child add-ons."),
+            desc: t("sd_roadmap_p3_m7_desc", "Intercepts master library removal and halts for the {Citizen}'s manual signature before cleanly unequipping or removing dependent child add-ons."),
           },
           {
-            title: t("sd_roadmap_p3_m8_title", "SNCXXX Cloud Blueprints & Ghosted States"),
-            desc: t("sd_roadmap_p3_m8_desc", "6-character alphanumeric Cloud Blueprint share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics."),
+            title: t("sd_roadmap_p3_m8_title", "SNCXXX Cloud {Blueprints} & Ghosted States"),
+            desc: t("sd_roadmap_p3_m8_desc", "6-character alphanumeric Cloud {Blueprint} share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics."),
           },
         ],
       },
@@ -1411,15 +1217,15 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p2_m6_title", "Symlink Airgap 2.5 Projection Engine"),
-            desc: t("sd_roadmap_p2_m6_desc", "Projects active mods from the isolated Vault into the live game directory via zero-copy OS symlinks in milliseconds."),
+            desc: t("sd_roadmap_p2_m6_desc", "Projects active {mods} from the isolated {Vault} into the live game directory via zero-copy OS symlinks in milliseconds."),
           },
           {
             title: t("sd_roadmap_p2_m7_title", "Sub-Second SQLite Delta Scanner"),
-            desc: t("sd_roadmap_p2_m7_desc", "Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ mod Vaults in sub-second sweeps."),
+            desc: t("sd_roadmap_p2_m7_desc", "Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ {mod} Vaults in sub-second sweeps."),
           },
           {
-            title: t("sd_roadmap_p2_m8_title", "Self-Healing Vault Sanitizer & Profiles"),
-            desc: t("sd_roadmap_p2_m8_desc", "Automatically maintains the isolated Vault directory structure and powers instant local Blueprint loadout switching."),
+            title: t("sd_roadmap_p2_m8_title", "Self-Healing {Vault} Sanitizer & Profiles"),
+            desc: t("sd_roadmap_p2_m8_desc", "Automatically maintains the isolated {Vault} directory structure and powers instant local {Blueprint} loadout switching."),
           },
         ],
       },
@@ -1433,14 +1239,11 @@ export default function WebDocumentFeed() {
           "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing"
         ),
         sub: t("sd_roadmap_p1_focus", "First-Boot Cartographer Recon & Millisecond Delta Caching"),
-        desc: t(
-          "sd_roadmap_p1_summary",
-          "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Mods directories, and engineered SHA-256 DNA delta caching."
-        ),
+        desc: t("sd_roadmap_p1_summary", "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching."),
         milestones: [
           {
             title: t("sd_roadmap_p1_m5_title", "Cartographer Recon & Millisecond Delta Cache"),
-            desc: t("sd_roadmap_p1_m5_desc", "Automated first-boot drive reconnaissance locating Game Bin & Mods folders, paired with SHA-256 delta caching for instant startup."),
+            desc: t("sd_roadmap_p1_m5_desc", "Automated first-boot drive reconnaissance locating Game Bin & {Mods} folders, paired with SHA-256 delta caching for instant startup."),
           },
           {
             title: t("sd_roadmap_p1_m6_title", "Tauri v2 + Rust + React 18 Kernel"),
@@ -1448,7 +1251,7 @@ export default function WebDocumentFeed() {
           },
           {
             title: t("sd_roadmap_p1_m7_title", "Automated Coordinate Discovery Wizard"),
-            desc: t("sd_roadmap_p1_m7_desc", "Guided first-launch Cartographer setup linking Game Binaries, live Mods folders, and airgapped Bunker Vault coordinates."),
+            desc: t("sd_roadmap_p1_m7_desc", "Guided first-launch Cartographer setup linking Game Binaries, live {Mods} folders, and airgapped Bunker {Vault} coordinates."),
           },
           {
             title: t("sd_roadmap_p1_m8_title", "Streaming SHA-256 DNA & Archive Inspector"),
@@ -1522,10 +1325,7 @@ export default function WebDocumentFeed() {
     switch (activeModule) {
       case "guide":
         return {
-          title: t(
-            "sd_card_guide_title",
-            "Interactive Citizen Guide & OS Walkthrough"
-          ),
+          title: t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
           subtitle: t(
             "sd_card_guide_sub",
             "Guided OS Tour • Citizen & Elevated Clearances"
@@ -2008,7 +1808,7 @@ export default function WebDocumentFeed() {
                             </span>
                             <div className="flex flex-col gap-1 min-w-0">
                               <span className="text-sm font-bold text-[var(--text)] leading-snug">
-                                {t("sd_guide_pro_tip_label", "Citizen Pro Tip")}
+                                {t("sd_guide_pro_tip_label", "{Citizen} Pro Tip")}
                               </span>
                               <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                                 {step.tip}
@@ -2130,7 +1930,7 @@ export default function WebDocumentFeed() {
                           </span>
                           {role.requiresPasskey
                             ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                            : t("dir_proto_r1_role", "Citizen")}
+                            : t("role_citizen", "{Citizen}")}
                         </span>
                         <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                           <span className="material-symbols-outlined !text-[16px]">
@@ -2185,7 +1985,7 @@ export default function WebDocumentFeed() {
                               </span>
                               {role.requiresPasskey
                                 ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                                : t("dir_proto_r1_role", "Citizen")}
+                                : t("role_citizen", "{Citizen}")}
                             </span>
                             <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                               <span className="material-symbols-outlined !text-[16px]">
@@ -2392,7 +2192,7 @@ export default function WebDocumentFeed() {
                         </span>
                         {isActivePhase
                           ? t("sd_roadmap_status_active", "ACTIVE PHASE")
-                          : t("sd_roadmap_status_completed", "COMPLETED")}
+                          : t("status_completed", "COMPLETED")}
                       </span>
                       <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
@@ -2459,7 +2259,7 @@ export default function WebDocumentFeed() {
                             </span>
                             {isActivePhase
                               ? t("sd_roadmap_status_active", "ACTIVE PHASE")
-                              : t("sd_roadmap_status_completed", "COMPLETED")}
+                              : t("status_completed", "COMPLETED")}
                           </span>
                           <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                             <span className="material-symbols-outlined !text-[16px]">
@@ -2619,7 +2419,7 @@ export default function WebDocumentFeed() {
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_verified", "verified")}
                 </span>
-                {t("workspace_badge_active", "Active")}
+                {t("active", "Active")}
               </span>
             </div>
 
@@ -2740,10 +2540,7 @@ export default function WebDocumentFeed() {
                   </h4>
                 </div>
                 <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_cord_keeper_desc",
-                    "Sanctuary OS takes 0% of creator Patreon/Ko-fi revenue and 0% of community donations. Export your SANCTUARY-UPLINK:// bundle before severing to paste directly into a standalone fork."
-                  )}
+                  {t("sd_fork_cord_keeper_desc", "Sanctuary OS takes 0% of {mason} Patreon/Ko-fi revenue and 0% of community donations. Export your SANCTUARY-UPLINK:// bundle before severing to paste directly into a standalone fork.")}
                 </p>
               </div>
             </div>
@@ -2825,7 +2622,7 @@ export default function WebDocumentFeed() {
                       : t("icon_storage", "storage")}
                   </span>
                   {forkModeIdx === 0
-                    ? t("workspace_badge_active", "Active")
+                    ? t("active", "Active")
                     : t("dir_fk_t2_val", "1-File Fork")}
                 </span>
               </div>
@@ -2907,7 +2704,7 @@ export default function WebDocumentFeed() {
                         }
                       >
                         {copiedId === "supabase_cfg_manual"
-                          ? t("sd_btn_copied", "Copied to Clipboard!")
+                          ? t("alert_copied", "Copied to Clipboard!")
                           : t("sd_btn_copy_snippet", "Copy Code Snippet")}
                       </ActionButton>
                     </div>
@@ -2991,7 +2788,7 @@ export default function WebDocumentFeed() {
                       : t("icon_hub", "hub")}
                   </span>
                   {forkModeIdx === 1
-                    ? t("workspace_badge_active", "Active")
+                    ? t("active", "Active")
                     : t("dir_ar_t2_val", "Hub & Spokes")}
                 </span>
               </div>
@@ -3109,7 +2906,7 @@ export default function WebDocumentFeed() {
                         }
                       >
                         {copiedId === "supabase_cfg_hub"
-                          ? t("sd_btn_copied", "Copied to Clipboard!")
+                          ? t("alert_copied", "Copied to Clipboard!")
                           : t("sd_btn_copy_snippet", "Copy Code Snippet")}
                       </ActionButton>
                     </div>
@@ -3455,10 +3252,7 @@ export default function WebDocumentFeed() {
       },
       p3: {
         icon: t("icon_inventory_2", "inventory_2"),
-        badge: t(
-          "dir_arch_p3_badge",
-          "ARCHITECTURE PILLAR 3 • VAULT, AIRGAP & DEFENSE"
-        ),
+        badge: t("dir_arch_p3_badge", "ARCHITECTURE PILLAR 3 • {VAULT}, AIRGAP & DEFENSE"),
         heading: t(
           "dir_arch_p3_heading",
           "Symlink Airgap 2.5, Topological Compiler, FIDO2 & Malware Lockdown"
@@ -3474,10 +3268,7 @@ export default function WebDocumentFeed() {
               "sd_arch_vault_c2_title",
               "Symlink Airgap 2.5 & Dynamic Config Watcher"
             ),
-            desc: t(
-              "dir_arch_p3_b1",
-              "Symlink Airgap 2.5 projects mods from Vault/Mods/ into the live game folder, grouping multi-file mod suites into expandable Parent Cards"
-            ),
+            desc: t("dir_arch_p3_b1", "Symlink Airgap 2.5 projects {mods} from {Vault}/{Mods}/ into the live game folder, grouping multi-file {mod} suites into expandable Parent Cards"),
           },
           {
             icon: t("icon_layers", "layers"),
@@ -3492,14 +3283,8 @@ export default function WebDocumentFeed() {
           },
           {
             icon: t("icon_construction", "construction"),
-            title: t(
-              "sd_roadmap_p7_title",
-              "Citizen's Workbench & Open Mason Workshop"
-            ),
-            desc: t(
-              "dir_arch_p3_b3",
-              "Reimagined 2-Column Citizen's Workbench (430+ settings at 60 FPS), No-Code Visual Template Builder, 2-Column Timeline Diff & Unified 3-Tile Artifact Studio"
-            ),
+            title: t("sd_roadmap_p7_title", "Core Architecture, {Backups} Compression & Windows MSI Pipeline"),
+            desc: t("dir_arch_p3_b3", "Reimagined 2-Column {Citizen}'s Workbench (430+ settings at 60 FPS), No-Code Visual Template Builder, 2-Column Timeline Diff & Unified 3-Tile {Mod} Studio"),
           },
           {
             icon: t("icon_science", "science"),
@@ -3507,18 +3292,12 @@ export default function WebDocumentFeed() {
               "sd_arch_logic_c3_title",
               "Homestead Lab 100% Nuke & 1v1 Stability"
             ),
-            desc: t(
-              "dir_arch_p3_b4",
-              "Homestead 100% Nuke & 1v1 Stability Lab + Time Capsule incremental NTFS/POSIX hardlink snapshots (.tar.zst) with differential rollback"
-            ),
+            desc: t("dir_arch_p3_b4", "Homestead 100% Nuke & 1v1 Stability Lab + {Backups} incremental NTFS/POSIX hardlink snapshots (.tar.zst) with differential rollback"),
           },
           {
             icon: t("icon_passkey", "passkey"),
-            title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP Vault"),
-            desc: t(
-              "dir_arch_p4_b2",
-              "FIDO2 Passkey & TOTP Security Vault SidePanel locks Elevated Hubs until verified via Windows Hello, Touch ID, YubiKey, or Authenticator"
-            ),
+            title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
+            desc: t("dir_arch_p4_b2", "FIDO2 Passkey & TOTP Security {Vault} SidePanel locks Elevated Hubs until verified via Windows Hello, Touch ID, YubiKey, or Authenticator"),
           },
           {
             icon: t("icon_gpp_bad", "gpp_bad"),
@@ -3526,10 +3305,7 @@ export default function WebDocumentFeed() {
               "dir_walk_s7_c3_name",
               "Quarantine SidePanel OS Lockdown"
             ),
-            desc: t(
-              "dir_arch_p4_b4",
-              "Full-OS Quarantine SidePanel Lockdown queues multi-file drops without freezing, shows Triggered By & Detection Source diagnostics, and enforces Citizen-signed Secure Shred"
-            ),
+            desc: t("dir_arch_p4_b4", "Full-OS Quarantine SidePanel Lockdown queues multi-file drops without freezing, shows Triggered By & Detection Source diagnostics, and enforces {Citizen}-signed Secure Shred"),
           },
         ],
       },
@@ -3580,7 +3356,7 @@ export default function WebDocumentFeed() {
             variant="filter"
             icon={t("icon_shield", "shield")}
             label={t("dir_ar_t3_lbl", "PILLAR 3")}
-            number={t("dir_ar_t3_val", "Vault & Lab")}
+            number={t("dir_ar_t3_val", "{Vault} & Lab")}
             colorClass="text-[var(--accent)]"
             isActive={archTab === "p3"}
             onClick={() => setArchTab("p3")}
@@ -3600,7 +3376,7 @@ export default function WebDocumentFeed() {
               <span className="material-symbols-outlined !text-[12px]">
                 {activePillar.icon}
               </span>
-              {t("workspace_badge_active", "Active")}
+              {t("active", "Active")}
             </span>
           </div>
 
@@ -3647,10 +3423,7 @@ export default function WebDocumentFeed() {
       {
         badge: t("sd_proto_tier0_badge", "TIER 0 • PUBLIC SAFE"),
         title: t("sd_proto_tier0_title", "Standard Verified & General Audience"),
-        desc: t(
-          "sd_proto_tier0_desc",
-          "Eligible for full public indexing across The Nexus, shared Cloud Blueprints (SNCXXX), and public Mason Profiles. Full Citizen Support Desk access."
-        ),
+        desc: t("sd_proto_tier0_desc", "Eligible for full public indexing across The Nexus, shared Cloud {Blueprints} (SNCXXX), and public {Mason} Profiles. Full {Citizen} Support Desk access."),
         colorClass:
           "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]",
         textColor: "text-[var(--success)]",
@@ -3662,10 +3435,7 @@ export default function WebDocumentFeed() {
           "sd_proto_tier12_title",
           "Adult (NSFW) & Illicit Themes — Local Allowed, Public Scrubbed"
         ),
-        desc: t(
-          "sd_proto_tier12_desc",
-          "Permitted in local Vaults and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from public Cloud Blueprints (trg_purge_flagged_hash_from_blueprints). Eligible for Support Desk with automated 'Dirty Log' sanitization."
-        ),
+        desc: t("sd_proto_tier12_desc", "Permitted in local Vaults and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Eligible for Support Desk with automated 'Dirty Log' sanitization."),
         colorClass:
           "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-[var(--info)]",
         textColor: "text-[var(--info)]",
@@ -3673,14 +3443,8 @@ export default function WebDocumentFeed() {
       },
       {
         badge: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
-        title: t(
-          "sd_proto_tier34_title",
-          "Extreme Violence & Taboo Content — Triggers Vault Lock"
-        ),
-        desc: t(
-          "sd_proto_tier34_desc",
-          "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and Cloud Blueprints. Equipping or storing Tier 3–4 artifacts engages a Vault Lock that restricts Citizen Support Desk ticket submissions until removed."
-        ),
+        title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
+        desc: t("sd_proto_tier34_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and Cloud {Blueprints}. Equipping or storing Tier 3–4 {mods} engages a {Vault} Lock that restricts {Citizen} Support Desk ticket submissions until removed."),
         colorClass:
           "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
         textColor: "text-[var(--warning)]",
@@ -3755,10 +3519,7 @@ export default function WebDocumentFeed() {
           {
             icon: t("icon_explore", "explore"),
             title: t("sd_proto_d1_r1_title", "The Cartographer (First-Boot Recon)"),
-            desc: t(
-              "sd_proto_d1_r1_desc",
-              "Automated first-boot reconnaissance scanner that locates the Game Bin, live Mods directory, and external Vault archive path."
-            ),
+            desc: t("sd_proto_d1_r1_desc", "Automated first-boot reconnaissance scanner that locates the Game Bin, live {Mods} directory, and external {Vault} archive path."),
           },
           {
             icon: t("icon_hub", "hub"),
@@ -3820,22 +3581,13 @@ export default function WebDocumentFeed() {
       {
         icon: t("icon_inventory_2", "inventory_2"),
         badge: t("sd_proto_d2_badge", "DOMAIN 2 • 6 PROTOCOLS"),
-        title: t(
-          "sd_proto_d2_title",
-          "Vault Airgap, Static Edge & Mod Management"
-        ),
-        desc: t(
-          "sd_proto_d2_desc",
-          "Zero-copy symlink projection, decentralized creator manifest polling, multi-file parent suite grouping, 3-Tile Artifact Studio, and the 2-column Citizen's Workbench."
-        ),
+        title: t("sd_proto_d2_title", "{Vault} Airgap, Static Edge & {Mod} Management"),
+        desc: t("sd_proto_d2_desc", "Zero-copy symlink projection, decentralized creator manifest polling, multi-file parent suite grouping, 3-Tile {Mod} Studio, and the 2-column {Citizen}'s Workbench."),
         rules: [
           {
             icon: t("icon_inventory_2", "inventory_2"),
             title: t("sd_proto_d2_r1_title", "Symlink Airgap 2.5"),
-            desc: t(
-              "sd_proto_d2_r1_desc",
-              "Projects active mods from the isolated Vault/Mods/ archive into the live game directory via zero-copy OS symlinks in milliseconds."
-            ),
+            desc: t("sd_proto_d2_r1_desc", "Projects active {mods} from the isolated {Vault}/{Mods}/ archive into the live game directory via zero-copy OS symlinks in milliseconds."),
           },
           {
             icon: t("icon_cloud_done", "cloud_done"),
@@ -3843,33 +3595,21 @@ export default function WebDocumentFeed() {
               "sd_proto_d2_r2_title",
               "Decentralized Static Edge Polling"
             ),
-            desc: t(
-              "sd_proto_d2_r2_desc",
-              "Binds a mod's SHA-256 lineage in .sanctuary_cache.db and polls creator manifest.json & override.json endpoints directly via HTTP GET during Radar Sweeps."
-            ),
+            desc: t("sd_proto_d2_r2_desc", "Binds a {mod}'s SHA-256 lineage in .sanctuary_cache.db and polls creator manifest.json & override.json endpoints directly via HTTP GET during Radar Sweeps."),
           },
           {
             icon: t("icon_folder_open", "folder_open"),
-            title: t("sd_proto_d2_r3_title", "Mod Suite Parent Grouping"),
-            desc: t(
-              "sd_proto_d2_r3_desc",
-              "Automatically groups multi-file mod suites and .package + .ts4script companions into one clean Parent Card with an expandable Linked Modules drawer."
-            ),
+            title: t("sd_proto_d2_r3_title", "{Mod} Suite Parent Grouping"),
+            desc: t("sd_proto_d2_r3_desc", "Automatically groups multi-file {mod} suites and .package + .ts4script companions into one clean Parent Card with an expandable Linked Modules drawer."),
           },
           {
             icon: t("icon_view_quilt", "view_quilt"),
-            title: t("sd_proto_d2_r4_title", "Unified 3-Tile Artifact Studio"),
-            desc: t(
-              "sd_proto_d2_r4_desc",
-              "Standardized 3-step publishing workflow (Details & Versions, Files & Folders, Rules & Upload) shared across Mason Workshop and Architect Console."
-            ),
+            title: t("sd_proto_d2_r4_title", "Unified 3-Tile {Mod} Studio"),
+            desc: t("sd_proto_d2_r4_desc", "Standardized 3-step publishing workflow (Details & Versions, Files & Folders, Rules & Upload) shared across {Mason} Workshop and Architect Console."),
           },
           {
             icon: t("icon_construction", "construction"),
-            title: t(
-              "sd_proto_d2_r5_title",
-              "2-Column Citizen's Workbench & Timeline Diff"
-            ),
+            title: t("sd_proto_d2_r5_title", "2-Column {Citizen}'s Workbench & Timeline Diff"),
             desc: t(
               "sd_proto_d2_r5_desc",
               "60 FPS Visual Config Editor with category pills, Min/Max range steppers, No-Code Template Builder, and side-by-side Visual + Raw Monaco Timeline Diff."
@@ -3881,10 +3621,7 @@ export default function WebDocumentFeed() {
               "sd_proto_d2_r6_title",
               "Integrated Side Browser Interception"
             ),
-            desc: t(
-              "sd_proto_d2_r6_desc",
-              "Intercepts .zip, .rar, .7z, .package, .ts4script, and override.json downloads inside the built-in browser and routes them straight into the Vault scanner."
-            ),
+            desc: t("sd_proto_d2_r6_desc", "Intercepts .zip, .rar, .7z, .package, .ts4script, and override.json downloads inside the built-in browser and routes them straight into the {Vault} scanner."),
           },
         ],
       },
@@ -3892,10 +3629,7 @@ export default function WebDocumentFeed() {
         icon: t("icon_radar", "radar"),
         badge: t("sd_proto_d3_badge", "DOMAIN 3 • 7 PROTOCOLS"),
         title: t("sd_proto_d3_title", "Stability, Load Order & Atomic Logic"),
-        desc: t(
-          "sd_proto_d3_desc",
-          "Schema-driven topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander flavors, Twin bonds, Deep Yeet 2.0 cascades, Homestead Lab, and Time Capsule hardlinks."
-        ),
+        desc: t("sd_proto_d3_desc", "Schema-driven topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander flavors, Twin bonds, Deep Yeet 2.0 cascades, Homestead Lab, and {Backups} hardlinks."),
         rules: [
           {
             icon: t("icon_layers", "layers"),
@@ -3936,10 +3670,7 @@ export default function WebDocumentFeed() {
               "sd_proto_d3_r4_title",
               "Chain-Link Dependencies & Deep Yeet 2.0"
             ),
-            desc: t(
-              "sd_proto_d3_r4_desc",
-              "Auto-equips required master mods when enabling an add-on, and halts for Citizen confirmation to cleanly cascade-unequip orphaned child mods on removal."
-            ),
+            desc: t("sd_proto_d3_r4_desc", "Auto-equips required master {mods} when enabling an add-on, and halts for {Citizen} confirmation to cleanly cascade-unequip orphaned child {mods} on removal."),
           },
           {
             icon: t("icon_science", "science"),
@@ -3947,17 +3678,11 @@ export default function WebDocumentFeed() {
               "sd_proto_d3_r5_title",
               "Homestead Lab (100% Nuke & 1v1 Arena)"
             ),
-            desc: t(
-              "sd_proto_d3_r5_desc",
-              "Strips active symlinks to test suspect mods or 1v1 conflicts in an isolated sandbox save while harvesting and PII-scrubbing crash logs."
-            ),
+            desc: t("sd_proto_d3_r5_desc", "Strips active symlinks to test suspect {mods} or 1v1 conflicts in an isolated sandbox save while harvesting and PII-scrubbing crash logs."),
           },
           {
             icon: t("icon_history", "history"),
-            title: t(
-              "sd_proto_d3_r6_title",
-              "Hardlink Time Capsule & Differential Rollback"
-            ),
+            title: t("sd_proto_d3_r6_title", "Hardlink {Backups} & Differential Rollback"),
             desc: t(
               "sd_proto_d3_r6_desc",
               "Snapshots World State (Saves/Settings) and Engine Core (Binaries) using zero-bloat OS hardlinks and restores modified bytes via differential comparison."
@@ -3979,14 +3704,8 @@ export default function WebDocumentFeed() {
         rules: [
           {
             icon: t("icon_passkey", "passkey"),
-            title: t(
-              "sd_proto_d4_r1_title",
-              "FIDO2 Passkey & TOTP Security Vault"
-            ),
-            desc: t(
-              "sd_proto_d4_r1_desc",
-              "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified Mason through Keeper) inside the right-hand Security Vault SidePanel."
-            ),
+            title: t("sd_proto_d4_r1_title", "FIDO2 Passkey & TOTP Security {Vault}"),
+            desc: t("sd_proto_d4_r1_desc", "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified {Mason} through Keeper) inside the right-hand Security {Vault} SidePanel."),
           },
           {
             icon: t("icon_security", "security"),
@@ -4005,10 +3724,7 @@ export default function WebDocumentFeed() {
               "sd_proto_d4_r3_title",
               "Full-OS Quarantine Lockdown & Secure Shred"
             ),
-            desc: t(
-              "sd_proto_d4_r3_desc",
-              "Confirmed Tier 5 Malware locks the OS shell, displays Triggered By & Detection Source attribution, and requires a Citizen signature for multi-pass Secure Shredding."
-            ),
+            desc: t("sd_proto_d4_r3_desc", "Confirmed Tier 5 Malware locks the OS shell, displays Triggered By & Detection Source attribution, and requires a {Citizen} signature for multi-pass Secure Shredding."),
           },
           {
             icon: t("icon_visibility_off", "visibility_off"),
@@ -4016,10 +3732,7 @@ export default function WebDocumentFeed() {
               "sd_proto_d4_r4_title",
               "Florida Compliance Tiers 1–4 & Auto-Purge"
             ),
-            desc: t(
-              "sd_proto_d4_r4_desc",
-              "Permits Tiers 1–4 in local Vaults while scrubbing public Nexus feeds and stripping flagged hashes from Cloud Blueprints automatically."
-            ),
+            desc: t("sd_proto_d4_r4_desc", "Permits Tiers 1–4 in local Vaults while scrubbing public Nexus feeds and stripping flagged hashes from Cloud {Blueprints} automatically."),
           },
           {
             icon: t("icon_cell_tower", "cell_tower"),
@@ -4027,10 +3740,7 @@ export default function WebDocumentFeed() {
               "sd_proto_d4_r5_title",
               "DEFCON 1 Pre-Patch Network Shield"
             ),
-            desc: t(
-              "sd_proto_d4_r5_desc",
-              "Real-time listener on global_network_status that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup."
-            ),
+            desc: t("sd_proto_d4_r5_desc", "Real-time listener on global_network_status that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup."),
           },
           {
             icon: t("icon_policy", "policy"),
@@ -4230,7 +3940,7 @@ export default function WebDocumentFeed() {
                         </span>
                         {role.requiresPasskey
                           ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                          : t("dir_proto_r1_role", "Citizen")}
+                          : t("role_citizen", "{Citizen}")}
                       </span>
                       <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
@@ -4638,10 +4348,7 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_school", "school")}
-          title={t(
-            "sd_card_guide_title",
-            "Interactive Citizen Guide & OS Walkthrough"
-          )}
+          title={t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")}
           subtitle={buildDirectiveSubtitle(
             t("sd_card_guide_sub", "Walkthrough")
           )}
@@ -4675,10 +4382,7 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t(
-              "sd_card_guide_desc",
-              "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink Vault & Load Order compilation, to Homestead Lab testing, Time Capsule snapshots, and Elevated Clearances."
-            )}
+            {t("sd_card_guide_desc", "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, and Elevated Clearances.")}
           </p>
         </UniversalCard>
 
@@ -4768,10 +4472,7 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t(
-              "sd_card_fork_desc",
-              "Interactive blueprint for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Dynamic Game Schemas and Cut the Cord."
-            )}
+            {t("sd_card_fork_desc", "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Dynamic Game Schemas and Cut the Cord.")}
           </p>
         </UniversalCard>
 
@@ -4928,8 +4629,6 @@ export default function WebDocumentFeed() {
         widthClass="w-[62vw] max-w-5xl"
         panelZ="z-[50001]"
         backdropZ="z-[50000]"
-        noPadding={true}
-        noScroll={true}
         panelClass="!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
         headerActions={
           <PanelHeaderGroup>
@@ -4951,56 +4650,40 @@ export default function WebDocumentFeed() {
           </PanelHeaderGroup>
         }
       >
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative">
-          <div className="px-4 sm:px-8 md:px-10 pb-36 pt-8 gap-6 flex flex-col flex-1 relative z-20">
-            {/* Author Identity Header matching ReleaseNotesShowcase */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3.5 relative z-20">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--accent)_15%,var(--surface))] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-inner">
-                  <span className="material-symbols-outlined !text-[20px]">
-                    {t("icon_memory", "memory")}
-                  </span>
-                </div>
+        <div className="flex flex-col gap-6 pb-24 w-full">
+          <SidePanelHeroCard
+            title={activePanelMeta.title}
+            subtitle={activePanelMeta.subtitle}
+            label={t("author_sanctuary_team", "Sanctuary Foundry")}
+            icon={activePanelMeta.icon}
+            variant="accent"
+            badges={[
+              {
+                icon: t("icon_verified", "verified"),
+                label: t("verified", "Verified"),
+                colorClass:
+                  "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+              },
+            ]}
+          />
 
-                <div className="flex flex-col gap-0.5 z-20 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base sm:text-lg font-black capitalize tracking-tight text-[var(--text)] leading-tight">
-                      {t("author_sanctuary_team", "Sanctuary Foundry")}
-                    </span>
-                    <span className="relative inline-flex items-center cursor-default">
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-                        {t("icon_verified", "verified")}
-                      </span>
-                      <HoverTooltip
-                        title={t("verified", "Verified")}
-                        icon={t("icon_verified", "verified")}
-                        variant="default"
-                      />
-                    </span>
-                  </div>
-                  <span className="text-xs font-medium text-[var(--subtext)] opacity-85">
-                    {t(
-                      "sd_panel_author_sub",
-                      "Core System Directives & Interactive Documentation"
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {showRawDoc ? (
+          {showRawDoc ? (
+            <UniversalGroup
+              title={activePanelMeta.title}
+              icon={t("icon_menu_book", "menu_book")}
+            >
               <StructuredReleaseNotesView content={activeReferenceMarkdown} />
-            ) : (
-              <>
-                {activeModule === "guide" && renderInteractiveGuide()}
-                {activeModule === "roadmap" && renderInteractiveRoadmap()}
-                {activeModule === "forking" && renderInteractiveForking()}
-                {activeModule === "architecture" &&
-                  renderInteractiveArchitecture()}
-                {activeModule === "protocols" && renderInteractiveProtocols()}
-              </>
-            )}
-          </div>
+            </UniversalGroup>
+          ) : (
+            <>
+              {activeModule === "guide" && renderInteractiveGuide()}
+              {activeModule === "roadmap" && renderInteractiveRoadmap()}
+              {activeModule === "forking" && renderInteractiveForking()}
+              {activeModule === "architecture" &&
+                renderInteractiveArchitecture()}
+              {activeModule === "protocols" && renderInteractiveProtocols()}
+            </>
+          )}
         </div>
       </SidePanel>
 

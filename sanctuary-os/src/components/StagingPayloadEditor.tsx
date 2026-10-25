@@ -15,10 +15,12 @@ import {
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
+  StatBox,
   ViewHeader,
   cleanSearchName,
   getModIcon,
 } from "../shared";
+import { SidePanelHeroCard, UniversalGroup } from "./layouts/ElevatedHubLayout";
 import {
   CommandScreenLayout,
   CommandScreenBody,
@@ -259,7 +261,7 @@ export default function StagingPayloadEditor({
     useStore
       .getState()
       .pushStatus(
-        t("status_draft_sorted_by_tier", "Load order automatically sorted by Priority Tier."),
+        t("status_draft_sorted_by_tier", "{Blueprint} sorted by Priority Tier sequence."),
         "info"
       );
   };
@@ -326,7 +328,7 @@ export default function StagingPayloadEditor({
         useStore
           .getState()
           .pushStatus(
-            `${t("status_deps_resolved_prefix", "Resolved")} ${addedCount} ${t(
+            `${t("resolved", "Resolved")} ${addedCount} ${t(
               "status_deps_resolved_suffix",
               "child dependencies."
             )}`,
@@ -348,7 +350,7 @@ export default function StagingPayloadEditor({
         useStore
           .getState()
           .pushStatus(
-            `${t("status_deps_resolved_prefix", "Resolved")} ${addedCount} ${t(
+            `${t("resolved", "Resolved")} ${addedCount} ${t(
               "status_deps_resolved_suffix",
               "child dependencies."
             )}`,
@@ -387,8 +389,8 @@ export default function StagingPayloadEditor({
       const payloadName =
         stagingDraftName.trim() ||
         (stagingDraftMode === "blueprint"
-          ? t("staging_mode_blueprint", "Curated Blueprint")
-          : t("staging_mode_mod_queue", "Mod Download Queue"));
+          ? t("staging_mode_blueprint", "Curated {Blueprint}")
+          : t("staging_mode_mod_queue", "{Mod} Download Queue"));
 
       const modTiers: Record<string, string> = {};
       indexedItems.forEach((item) => {
@@ -519,13 +521,13 @@ export default function StagingPayloadEditor({
     {
       id: "INCLUDED" as const,
       icon: t("icon_inventory_2", "inventory_2"),
-      label: t("staging_tab_included", "Included Mods"),
+      label: t("blueprint_included", "Included {Mods}"),
       count: stagingDraftItems.length,
     },
     {
       id: "SETTINGS" as const,
       icon: t("icon_tune", "tune"),
-      label: t("staging_tab_settings", "Modpack Settings"),
+      label: t("staging_tab_settings", "{Blueprint} Settings"),
       count: stagingDraftMode === "blueprint" ? 4 : 2,
     },
     {
@@ -547,11 +549,8 @@ export default function StagingPayloadEditor({
       {showHeader ? (
         <>
           <ViewHeader
-            title={t("playsets_title", "Blueprints")}
-            subtitle={t(
-              "staging_subtitle",
-              "Curate mods or blueprints on web/PWA and push an encrypted staging payload to your desktop client"
-            )}
+            title={t("playsets_title", "{Blueprints}")}
+            subtitle={t("staging_subtitle", "Curate {mods} or {blueprints} on web/PWA and push an encrypted staging payload to your desktop client")}
             icon={t("icon_map", "map")}
             iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
             shape="circle"
@@ -567,7 +566,7 @@ export default function StagingPayloadEditor({
                 <ActionPill
                   searchQuery={searchFilter}
                   setSearchQuery={setSearchFilter}
-                  searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
+                  searchPlaceholder={t("search_ph", "Search {mods}...")}
                 />
               </div>
             )}
@@ -643,8 +642,8 @@ export default function StagingPayloadEditor({
                           <span className="text-sm sm:text-base font-black text-[var(--text)] truncate">
                             {stagingDraftName.trim() ||
                               (stagingDraftMode === "blueprint"
-                                ? t("staging_mode_blueprint", "Curated Blueprint")
-                                : t("staging_mode_mod_queue", "Mod Download Queue"))}
+                                ? t("staging_mode_blueprint", "Curated {Blueprint}")
+                                : t("staging_mode_mod_queue", "{Mod} Download Queue"))}
                           </span>
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-[8.5px] font-black text-emerald-400 uppercase tracking-widest">
                             <span className="material-symbols-outlined !text-[11px]">
@@ -654,10 +653,10 @@ export default function StagingPayloadEditor({
                           </span>
                         </div>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-70">
-                          {stagingDraftItems.length} {t("items", "Items")} •{" "}
+                          {stagingDraftItems.length} {t("term_mods", "Items")} •{" "}
                           {stagingDraftMode === "blueprint"
-                            ? t("staging_mode_blueprint", "Curated Blueprint")
-                            : t("staging_mode_mod_queue", "Mod Download Queue")}
+                            ? t("staging_mode_blueprint", "Curated {Blueprint}")
+                            : t("staging_mode_mod_queue", "{Mod} Download Queue")}
                         </span>
                       </div>
                     </div>
@@ -665,7 +664,7 @@ export default function StagingPayloadEditor({
                     <ActionButton
                       onClick={() => setActiveSubTab("SETTINGS")}
                       icon={t("icon_tune", "tune")}
-                      label={t("staging_tab_settings", "Modpack Settings")}
+                      label={t("staging_tab_settings", "{Blueprint} Settings")}
                       variant="default"
                       className="shrink-0 !px-3.5 !py-2 !text-[9.5px] whitespace-nowrap"
                     />
@@ -682,7 +681,7 @@ export default function StagingPayloadEditor({
                     <ActionButton
                       onClick={goToNexusMods}
                       icon={t("icon_add_circle", "add_circle")}
-                      label={t("staging_catalog_drawer_title", "Build & Add Mods")}
+                      label={t("staging_catalog_drawer_title", "Build & Add {Mods}")}
                       variant="accent"
                       className="w-full !px-3.5 !py-2.5 !text-[10px] whitespace-nowrap"
                     />
@@ -718,7 +717,7 @@ export default function StagingPayloadEditor({
                         </span>
                       </div>
                       <h3 className="text-sm sm:text-base font-black text-[var(--text)] uppercase tracking-wider">
-                        {t("blueprint_included", "Included Artifacts")} ({stagingDraftItems.length})
+                        {t("blueprint_included", "Included {Mods}")} ({stagingDraftItems.length})
                       </h3>
                     </div>
 
@@ -766,10 +765,7 @@ export default function StagingPayloadEditor({
                           {t("staging_empty_title", "No Items in Staging Draft")}
                         </h3>
                         <p className="text-xs font-bold text-[var(--subtext)] opacity-70 leading-relaxed">
-                          {t(
-                            "staging_empty_desc",
-                            "Browse Mods or Play Sets in the Nexus and click Stage to build your encrypted desktop queue."
-                          )}
+                          {t("staging_empty_desc", "Browse {Mods} or {Blueprints} in the Nexus and click Stage to build your encrypted desktop queue.")}
                         </p>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-md mt-2 items-stretch">
@@ -783,7 +779,7 @@ export default function StagingPayloadEditor({
                         <ActionButton
                           onClick={goToNexusBlueprints}
                           icon={t("icon_collections_bookmark", "collections_bookmark")}
-                          label={t("staging_catalog_tab_blueprints", "Remix Blueprint")}
+                          label={t("staging_catalog_tab_blueprints", "Remix {Blueprint}")}
                           variant="default"
                           className="w-full !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
                         />
@@ -877,7 +873,7 @@ export default function StagingPayloadEditor({
 
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest truncate">
-                                    {resolveKnownAuthor(item, t("unknown_mason", "Unknown Creator"))}
+                                    {resolveKnownAuthor(item, t("unknown_mason", "Unknown {Mason}"))}
                                   </span>
                                   {item.dependencyOf && (
                                     <span className="text-[8px] font-bold text-cyan-400/80 capitalize tracking-wider">
@@ -944,7 +940,7 @@ export default function StagingPayloadEditor({
                                   {t("icon_close", "close")}
                                 </span>
                                 <HoverTooltip
-                                  title={t("btn_remove", "Remove")}
+                                  title={t("btn_remove", "{Remove}")}
                                   variant="danger"
                                   className="group-hover/btn:flex z-[200]"
                                 />
@@ -972,7 +968,7 @@ export default function StagingPayloadEditor({
                       </div>
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <h2 className="text-base sm:text-xl font-black text-[var(--text)] capitalize tracking-tight leading-snug">
-                          {t("staging_tab_settings", "Modpack Settings")}
+                          {t("staging_tab_settings", "{Blueprint} Settings")}
                         </h2>
                         <span className="inline-flex w-max items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-[8.5px] font-black text-emerald-400 uppercase tracking-widest">
                           <span className="material-symbols-outlined !text-[11px]">
@@ -997,12 +993,12 @@ export default function StagingPayloadEditor({
                       {
                         id: "blueprint" as const,
                         icon: t("icon_map", "map"),
-                        label: t("staging_mode_blueprint", "Curated Blueprint"),
+                        label: t("staging_mode_blueprint", "Curated {Blueprint}"),
                       },
                       {
                         id: "mod_queue" as const,
                         icon: t("icon_download", "download"),
-                        label: t("staging_mode_mod_queue", "Mod Download Queue"),
+                        label: t("staging_mode_mod_queue", "{Mod} Download Queue"),
                       },
                     ].map((opt) => {
                       const isSelected = stagingDraftMode === opt.id;
@@ -1030,7 +1026,7 @@ export default function StagingPayloadEditor({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-black text-[var(--subtext)] opacity-65 uppercase tracking-widest ml-1">
-                      {t("staging_payload_name_label", "Blueprint / Payload Designation")}
+                      {t("staging_payload_name_label", "Payload / {Blueprint} Name")}
                     </label>
                     <input
                       type="text"
@@ -1083,13 +1079,10 @@ export default function StagingPayloadEditor({
                         </div>
                         <div className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] leading-snug">
-                            {t("staging_auto_equip_title", "Auto-Deploy Owned Mods on Approval")}
+                            {t("staging_auto_equip_title", "Auto-Deploy Owned {Mods} on Approval")}
                           </span>
                           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-65 leading-snug">
-                            {t(
-                              "staging_auto_equip_desc",
-                              "Immediately equip and symlink already-owned mods when you sign on desktop."
-                            )}
+                            {t("staging_auto_equip_desc", "Immediately equip and symlink already-owned {mods} when you sign on desktop.")}
                           </span>
                         </div>
                       </div>
@@ -1135,7 +1128,7 @@ export default function StagingPayloadEditor({
                             },
                             {
                               id: "numeric_prefix",
-                              label: t("staging_strategy_numeric", "Numeric Tier Prefix"),
+                              label: t("lo_strategy_prefix", "Numeric Tier Prefix"),
                             },
                             {
                               id: "loadorder_txt",
@@ -1152,7 +1145,7 @@ export default function StagingPayloadEditor({
                   <ActionButton
                     onClick={() => setActiveSubTab("INCLUDED")}
                     icon={t("icon_inventory_2", "inventory_2")}
-                    label={`${t("staging_tab_included", "Included Mods")} (${stagingDraftItems.length})`}
+                    label={`${t("blueprint_included", "Included {Mods}")} (${stagingDraftItems.length})`}
                     variant="accent"
                     className="w-full !px-3.5 !py-2.5 !text-[10px] whitespace-nowrap"
                   />
@@ -1183,10 +1176,10 @@ export default function StagingPayloadEditor({
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-black text-[var(--text)] truncate">
                           {stagingDraftName.trim() ||
-                            t("staging_mode_blueprint", "Curated Blueprint")}
+                            t("staging_mode_blueprint", "Curated {Blueprint}")}
                         </span>
                         <span className="text-[10px] font-bold text-[var(--subtext)] opacity-70">
-                          {stagingDraftItems.length} {t("items", "Items")}
+                          {stagingDraftItems.length} {t("term_mods", "Items")}
                         </span>
                       </div>
                     </div>
@@ -1235,7 +1228,7 @@ export default function StagingPayloadEditor({
                                 {draft.name}
                               </span>
                               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-65">
-                                {(draft.items || []).length} {t("items", "Items")} •{" "}
+                                {(draft.items || []).length} {t("term_mods", "Items")} •{" "}
                                 {draft.code || "LOCAL"}
                               </span>
                             </div>
@@ -1261,7 +1254,7 @@ export default function StagingPayloadEditor({
                               setInspectingPack({ type: "draft", data: draft });
                             }}
                             icon={t("icon_visibility", "visibility")}
-                            label={t("staging_btn_view_contents", "Inspect")}
+                            label={t("staging_btn_view_contents", "View {Mods}")}
                             variant="default"
                             className="w-full !px-3 !py-2.5 !text-[10px] whitespace-nowrap"
                           />
@@ -1272,7 +1265,7 @@ export default function StagingPayloadEditor({
                               setActiveSubTab("INCLUDED");
                             }}
                             icon={t("icon_download", "download")}
-                            label={t("staging_btn_use_short", "Load")}
+                            label={t("staging_btn_use_short", "Use {Blueprint}")}
                             variant="accent"
                             className="w-full !px-3 !py-2.5 !text-[10px] whitespace-nowrap"
                           />
@@ -1308,7 +1301,7 @@ export default function StagingPayloadEditor({
                     <ActionButton
                       onClick={() => setActiveSubTab("INCLUDED")}
                       icon={t("icon_inventory_2", "inventory_2")}
-                      label={t("staging_tab_included", "Included Mods")}
+                      label={t("blueprint_included", "Included {Mods}")}
                       variant="accent"
                       className="!px-5 !py-2.5 !text-[10px] whitespace-nowrap mt-1"
                     />
@@ -1330,10 +1323,10 @@ export default function StagingPayloadEditor({
                             {activeCloud.payload.blueprintName}
                           </h3>
                           <span className="text-[10px] font-bold text-[var(--subtext)] opacity-70">
-                            {(activeCloud.resolvedItems || []).length} {t("items", "Items")} •{" "}
+                            {(activeCloud.resolvedItems || []).length} {t("term_mods", "Items")} •{" "}
                             {activeCloud.payload.mode === "blueprint"
-                              ? t("staging_mode_blueprint", "Curated Blueprint")
-                              : t("staging_mode_mod_queue", "Mod Download Queue")}
+                              ? t("staging_mode_blueprint", "Curated {Blueprint}")
+                              : t("staging_mode_mod_queue", "{Mod} Download Queue")}
                           </span>
                         </div>
                       </div>
@@ -1399,7 +1392,7 @@ export default function StagingPayloadEditor({
                                 )}
                               </div>
                               <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 truncate">
-                                {resolveKnownAuthor(mod, t("unknown_mason", "Unknown Creator"))}
+                                {resolveKnownAuthor(mod, t("unknown_mason", "Unknown {Mason}"))}
                               </span>
                             </div>
                           </div>
@@ -1447,7 +1440,7 @@ export default function StagingPayloadEditor({
                       {stagingDraftItems.length}
                     </span>
                     <span className="text-[8px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t("items", "Items")}
+                      {t("term_mods", "Items")}
                     </span>
                   </div>
                   <div className="glass-surface p-2.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col items-center">
@@ -1504,7 +1497,7 @@ export default function StagingPayloadEditor({
                       {t("staging_active_cloud_title", "Awaiting Desktop Signature")}
                     </span>
                     <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[9px] font-black text-[var(--text)]">
-                      {activeCloud.resolvedItems?.length || 0} {t("items", "Items")}
+                      {activeCloud.resolvedItems?.length || 0} {t("term_mods", "Items")}
                     </span>
                   </div>
 
@@ -1514,8 +1507,8 @@ export default function StagingPayloadEditor({
                     </span>
                     <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-widest">
                       {activeCloud.payload.mode === "blueprint"
-                        ? t("staging_mode_blueprint", "Curated Blueprint")
-                        : t("staging_mode_mod_queue", "Mod Download Queue")}
+                        ? t("staging_mode_blueprint", "Curated {Blueprint}")
+                        : t("staging_mode_mod_queue", "{Mod} Download Queue")}
                     </span>
                   </div>
 
@@ -1572,12 +1565,9 @@ export default function StagingPayloadEditor({
             title={
               inspectingPack.data?.displayName ||
               inspectingPack.data?.name ||
-              t("staging_inspector_title", "Modpack Contents")
+              t("staging_inspector_title", "{Blueprint} Contents")
             }
-            subtitle={t(
-              "staging_inspector_subtitle",
-              "Review and filter included mods before loading into the builder"
-            )}
+            subtitle={t("staging_inspector_subtitle", "Review and filter included {mods} before loading into the builder")}
             icon={t("icon_bookmark", "bookmark")}
             widthClass="w-full max-w-3xl"
             backdropZ="z-[100000]"
@@ -1599,37 +1589,41 @@ export default function StagingPayloadEditor({
           >
             <div className="flex flex-col gap-5 pb-10">
               {/* Top Summary & 1-Tap CTA */}
-              <div className="glass-panel p-4 md:p-5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-lg">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_bookmark", "bookmark")}
-                    </span>
+              <SidePanelHeroCard
+                title={inspectingPack.data?.displayName || inspectingPack.data?.name || t("staging_inspector_title", "{Blueprint} Contents")}
+                subtitle={t("staging_inspector_subtitle", "Review and filter included {mods} before loading into the builder")}
+                label={inspectingPack.data?.code || "LOCAL"}
+                icon={t("icon_bookmark", "bookmark")}
+                variant="accent"
+              >
+                <div className="flex flex-col gap-3 w-full">
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <StatBox
+                      label={t("term_mods", "Items")}
+                      value={inspectedAllItems.length}
+                      icon={t("icon_inventory_2", "inventory_2")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    <StatBox
+                      label={t("staging_btn_added", "Added")}
+                      value={inspectedAllItems.filter((m: any) => isSingleModStaged(m)).length}
+                      icon={t("icon_check_circle", "check_circle")}
+                      iconColorClass="text-[var(--success)]"
+                    />
                   </div>
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-sm md:text-base font-black text-[var(--text)] leading-snug break-words">
-                      {inspectingPack.data?.displayName || inspectingPack.data?.name}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75">
-                        {inspectedAllItems.length} {t("items", "Items")}
-                      </span>
-                    </div>
-                  </div>
+                  <ActionButton
+                    onClick={() => {
+                      loadSavedLocalDraft(inspectingPack.data.id);
+                      setInspectingPack(null);
+                      setActiveSubTab("INCLUDED");
+                    }}
+                    icon={t("icon_download", "download")}
+                    label={t("staging_btn_load_template", "Use This Modpack")}
+                    variant="accent"
+                    className="w-full !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
+                  />
                 </div>
-
-                <ActionButton
-                  onClick={() => {
-                    loadSavedLocalDraft(inspectingPack.data.id);
-                    setInspectingPack(null);
-                    setActiveSubTab("INCLUDED");
-                  }}
-                  icon={t("icon_download", "download")}
-                  label={t("staging_btn_load_template", "Use This Modpack")}
-                  variant="accent"
-                  className="shrink-0 !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
-                />
-              </div>
+              </SidePanelHeroCard>
 
               {/* Search & Filter Row */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -1637,7 +1631,7 @@ export default function StagingPayloadEditor({
                   <ActionPill
                     searchQuery={inspectSearchQuery}
                     setSearchQuery={setInspectSearchQuery}
-                    searchPlaceholder={t("search_artifacts", "Query Artifacts...")}
+                    searchPlaceholder={t("search_ph", "Search {mods}...")}
                   />
                 </div>
                 <GlassSegmentedControl
@@ -1648,7 +1642,7 @@ export default function StagingPayloadEditor({
                   options={[
                     {
                       id: "ALL",
-                      label: `${t("sig_queue_filter_all", "All")} (${inspectedAllItems.length})`,
+                      label: `${t("filter_all", "All")} (${inspectedAllItems.length})`,
                     },
                     {
                       id: "STAGED",
@@ -1670,108 +1664,113 @@ export default function StagingPayloadEditor({
               </div>
 
               {/* Included Mods List */}
-              {inspectedFilteredItems.length === 0 ? (
-                <div className="glass-panel p-8 rounded-2xl text-center text-xs font-bold text-[var(--subtext)] opacity-65">
-                  {t("no_results", "No matching mods found.")}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {inspectedFilteredItems
-                    .slice(0, inspectVisibleCount)
-                    .map((mod: any, idx: number) => {
-                      const staged = isSingleModStaged(mod);
-                      return (
-                        <div
-                          key={`${mod.id || mod.hash || mod.name}_${idx}`}
-                          onClick={() =>
-                            onOpenDossier?.({ ...mod, isNexusView: true })
-                          }
-                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                            staged
-                              ? "bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                              : "glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono font-black text-[var(--accent)] shrink-0">
-                              #{String(idx + 1).padStart(3, "0")}
-                            </span>
-                            <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                              <span className="material-symbols-outlined !text-[18px]">
-                                {getModIcon(mod, activeGameSchema, t)}
+              <UniversalGroup
+                title={`${t("blueprint_included", "Included {Mods}")} (${inspectedFilteredItems.length})`}
+                icon={t("icon_inventory_2", "inventory_2")}
+              >
+                {inspectedFilteredItems.length === 0 ? (
+                  <div className="glass-surface p-8 rounded-2xl text-center text-xs font-bold text-[var(--subtext)] opacity-65">
+                    {t("no_results", "No matching mods found.")}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {inspectedFilteredItems
+                      .slice(0, inspectVisibleCount)
+                      .map((mod: any, idx: number) => {
+                        const staged = isSingleModStaged(mod);
+                        return (
+                          <div
+                            key={`${mod.id || mod.hash || mod.name}_${idx}`}
+                            onClick={() =>
+                              onOpenDossier?.({ ...mod, isNexusView: true })
+                            }
+                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                              staged
+                                ? "bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                                : "glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono font-black text-[var(--accent)] shrink-0">
+                                #{String(idx + 1).padStart(3, "0")}
                               </span>
-                            </div>
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-black text-[var(--text)] truncate">
-                                  {cleanSearchName(
-                                    mod.displayName || mod.name,
-                                    activeGameSchema
+                              <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                                <span className="material-symbols-outlined !text-[18px]">
+                                  {getModIcon(mod, activeGameSchema, t)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-black text-[var(--text)] truncate">
+                                    {cleanSearchName(
+                                      mod.displayName || mod.name,
+                                      activeGameSchema
+                                    )}
+                                  </span>
+                                  {mod.is_early_access && (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-transparent border border-purple-500/35 text-[8px] font-black text-purple-400 uppercase tracking-widest">
+                                      {t("badge_early_access", "Early Access")}
+                                    </span>
+                                  )}
+                                  {mod.is_paid && (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-transparent border border-amber-500/35 text-[8px] font-black text-amber-400 uppercase tracking-widest">
+                                      {t("badge_paid", "Paid")}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 truncate">
+                                  {resolveKnownAuthor(
+                                    mod,
+                                    resolveKnownAuthor(
+                                      inspectingPack?.data,
+                                      t("unknown_mason", "Unknown {Mason}")
+                                    )
                                   )}
                                 </span>
-                                {mod.is_early_access && (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/35 text-[8px] font-black text-purple-400 uppercase tracking-widest">
-                                    {t("badge_early_access", "Early Access")}
-                                  </span>
-                                )}
-                                {mod.is_paid && (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/35 text-[8px] font-black text-amber-400 uppercase tracking-widest">
-                                    {t("badge_paid", "Paid")}
-                                  </span>
-                                )}
                               </div>
-                              <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 truncate">
-                                {resolveKnownAuthor(
-                                  mod,
-                                  resolveKnownAuthor(
-                                    inspectingPack?.data,
-                                    t("unknown_mason", "Unknown Creator")
-                                  )
-                                )}
-                              </span>
+                            </div>
+
+                            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                              <ActionButton
+                                onClick={() =>
+                                  handleStageModWithAutoDeps({ ...mod, _stageSingle: true })
+                                }
+                                icon={
+                                  staged
+                                    ? t("icon_check", "check")
+                                    : t("icon_add", "add")
+                                }
+                                label={
+                                  staged
+                                    ? t("staging_btn_added", "Added")
+                                    : t("staging_btn_add_mod", "Add")
+                                }
+                                variant={staged ? "success" : "accent"}
+                                className="!px-3 !py-2 !text-[9px] whitespace-nowrap"
+                              />
                             </div>
                           </div>
+                        );
+                      })}
 
-                          <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                            <ActionButton
-                              onClick={() =>
-                                handleStageModWithAutoDeps({ ...mod, _stageSingle: true })
-                              }
-                              icon={
-                                staged
-                                  ? t("icon_check", "check")
-                                  : t("icon_add", "add")
-                              }
-                              label={
-                                staged
-                                  ? t("staging_btn_added", "Added")
-                                  : t("staging_btn_add_mod", "Add")
-                              }
-                              variant={staged ? "success" : "accent"}
-                              className="!px-3 !py-2 !text-[9px] whitespace-nowrap"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {inspectedFilteredItems.length > inspectVisibleCount && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setInspectVisibleCount((prev) => prev + 100)
-                      }
-                      className="w-full py-3 mt-1 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {t("icon_expand_more", "expand_more")}
-                      </span>
-                      {t("load_more_artifacts", "Load More Artifacts")} (
-                      {inspectedFilteredItems.length - inspectVisibleCount})
-                    </button>
-                  )}
-                </div>
-              )}
+                    {inspectedFilteredItems.length > inspectVisibleCount && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setInspectVisibleCount((prev) => prev + 100)
+                        }
+                        className="w-full py-3 mt-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t("icon_expand_more", "expand_more")}
+                        </span>
+                        {t("load_more_artifacts", "Load More Artifacts")} (
+                        {inspectedFilteredItems.length - inspectVisibleCount})
+                      </button>
+                    )}
+                  </div>
+                )}
+              </UniversalGroup>
             </div>
           </SidePanel>,
           document.body
