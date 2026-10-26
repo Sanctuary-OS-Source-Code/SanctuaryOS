@@ -24,12 +24,31 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       return false;
     }
 
+    setDroppedFiles(paths);
+    if (typeof useModalStore.getState().setDroppedFiles === "function") {
+      useModalStore.getState().setDroppedFiles(paths);
+    }
     setDropzoneState("ingesting");
     setStatus(
       `${t("status_mass_ingestion_prefix", "MASS INGESTION: Unifying")}${paths.length}${t("status_mass_ingestion_suffix", "unique identities...")}`,
     );
     let hasMalware = false;
     try {
+      try {
+        const cachedVerified: string[] = JSON.parse(
+          localStorage.getItem("sanctuary_verified_hashes") || "[]"
+        );
+        const cachedMalware: string[] = JSON.parse(
+          localStorage.getItem("sanctuary_malware_hashes") || "[]"
+        );
+        await invoke("sync_security_definitions", {
+          malware: cachedMalware,
+          tier2: cachedVerified,
+        }).catch(() => {});
+      } catch {}
+
+      const moveOriginal =
+        (localStorage.getItem("sanctuary_ingest_file_mode") || "copy") === "move";
       let needsSweep = false;
       
       let groupFolder: string | undefined = undefined;
@@ -53,7 +72,12 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       for (let i = 0; i < paths.length; i++) {
         setIngestProgress({ active: true, current: i + 1, total: paths.length });
         try {
-          await invoke("ingest_dropped_file", { path: paths[i], forceReplace: false, targetFolder: groupFolder });
+          await invoke("ingest_dropped_file", {
+            path: paths[i],
+            forceReplace: false,
+            targetFolder: groupFolder,
+            moveOriginal,
+          });
           needsSweep = true;
           successCount++;
         } catch (err) {

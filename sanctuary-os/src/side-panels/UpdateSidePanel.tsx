@@ -431,7 +431,7 @@ export function UpdateSidePanel() {
   const canAutoInstall = isDesktop() || !updatePayload.isExternalDownload;
 
   const activeChannelShort = isDevUpdate
-    ? t("sidebar_wayfinder_tools", "Dev")
+    ? t("release_notes_meta_channel_dev", "Dev")
     : t("release_notes_meta_channel_public", "Public");
 
   const installStatusText = (() => {

@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { useModalStore } from '../store/modalStore';
-import { supabase, getActiveGameClient } from '../supabase';
+import { getActiveGameClient } from '../supabase';
 import { HoverTooltip } from '../shared';
-import { TabContainer, SettingsGrid, SettingsToggle } from './shared';
+import { TabContainer, SettingsGrid, SettingsToggle, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
-export default function ClientTab() {
+export default function ClientTab({ config, updateConfig }: any) {
   const { t } = useLexicon();
   const showImages = useStore((state) => state.showImages);
   const setShowImages = useStore((state) => state.setShowImages);
@@ -16,6 +16,31 @@ export default function ClientTab() {
 
   const [localOnly, setLocalOnly] = useState(localStorage.getItem("sanctuary_local_only") === "true");
   const [shareMalwareReports, setShareMalwareReports] = useState(localStorage.getItem("sanctuary_share_malware_reports") === "true");
+  const [ingestFileMode, setIngestFileMode] = useState<"copy" | "move">(() => {
+    const saved = localStorage.getItem("sanctuary_ingest_file_mode");
+    if (saved === "move" || saved === "copy") return saved;
+    if (config?.ingest_file_mode === "move" || config?.ingest_file_mode === "copy") {
+      return config.ingest_file_mode;
+    }
+    return "copy";
+  });
+
+  useEffect(() => {
+    if (config?.ingest_file_mode && !localStorage.getItem("sanctuary_ingest_file_mode")) {
+      const mode = config.ingest_file_mode === "move" ? "move" : "copy";
+      setIngestFileMode(mode);
+      localStorage.setItem("sanctuary_ingest_file_mode", mode);
+    }
+  }, [config?.ingest_file_mode]);
+
+  const handleIngestFileModeChange = (val: "copy" | "move") => {
+    const mode = val === "move" ? "move" : "copy";
+    setIngestFileMode(mode);
+    localStorage.setItem("sanctuary_ingest_file_mode", mode);
+    if (typeof updateConfig === "function") {
+      updateConfig("ingest_file_mode", mode);
+    }
+  };
 
   const session = useStore((state) => state.session);
   const [isBanned, setIsBanned] = useState(false);
@@ -41,12 +66,36 @@ export default function ClientTab() {
   };
 
   return (
-    <TabContainer title={t("tab_preferences", "Preferences")} icon="tune">
+    <TabContainer title={t("tab_preferences", "Preferences")} icon={t("icon_tune", "tune")}>
       <SettingsGrid>
+        <UniversalCard
+          title={t("settings_ingest_file_mode_title", "Drag & Drop File Behavior")}
+          subtitle={t(
+            "settings_ingest_file_mode_desc",
+            "Choose whether dragged and dropped {mod} files and archives are copied into your {Vault} or moved (automatically cleaning up the original source file after import)."
+          )}
+          icon={t("icon_drive_file_move", "drive_file_move")}
+        >
+          <CustomSettingsDropdown
+            value={ingestFileMode}
+            onChange={(val: any) => handleIngestFileModeChange(val)}
+            options={[
+              {
+                id: "copy",
+                label: t("settings_ingest_mode_copy", "Copy Original (Keep Source File)"),
+              },
+              {
+                id: "move",
+                label: t("settings_ingest_mode_move", "Move Original (Auto-Clean Source)"),
+              },
+            ]}
+          />
+        </UniversalCard>
+
         <UniversalCard 
           title={t("local_only", "Local Network Only")} 
           subtitle={t("local_only_desc", "Block external uploads/downloads. Strict offline mode.")} 
-          icon="wifi_off"
+          icon={t("icon_wifi_off", "wifi_off")}
           onClick={toggleLocalOnly}
           actions={<SettingsToggle checked={localOnly} />}
         />

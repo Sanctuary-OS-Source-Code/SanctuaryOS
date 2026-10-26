@@ -10,6 +10,7 @@ import enSanctuaryRaw from "../lexicons/en-sanctuary.json";
 import {
   ActionButton,
   EmptyState,
+  HoverTooltip,
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
@@ -261,11 +262,9 @@ export default function KeepersTitleAreaStudio({
       >
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <label
-              className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider truncate"
-              title={humanizeKey(key)}
-            >
+            <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider truncate">
               {humanizeKey(key)}
+              <HoverTooltip title={humanizeKey(key)} />
             </label>
             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-55 truncate">
               {key}
@@ -278,9 +277,9 @@ export default function KeepersTitleAreaStudio({
                 type="button"
                 onClick={() => handleResetKey(key)}
                 className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_18%,transparent)] bg-transparent text-[9px] font-black text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
-                title={String(defaultBaseline)}
               >
                 {t("reset", "Reset")}
+                <HoverTooltip title={String(defaultBaseline)} />
               </button>
             )}
           </div>

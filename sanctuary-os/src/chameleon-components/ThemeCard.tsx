@@ -3,6 +3,7 @@ import { useLexicon } from '../LexiconContext';
 import { getLuminance } from './ChameleonShared';
 import { DEFAULT_CORE_THEMES } from '../ThemeContext';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { HoverTooltip } from '../shared';
 
 const VAULT_CHIP_CLASS =
   'px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0';
@@ -63,13 +64,20 @@ export function DynamicThemePreviewBanner({
   const radiusVal = data?.radius || '1.25rem';
 
   const hasCustomPreview = Boolean(data?.previewImage && String(data.previewImage).trim() !== '');
+  const isPassthrough =
+    !hasCustomPreview &&
+    (!data?.bgImage || String(data.bgImage).trim() === '') &&
+    (data?.bg === 'transparent' || Boolean(data?.transparentWindow));
   const bgImageUrl = hasCustomPreview
     ? data.previewImage
     : data?.bgImage && String(data.bgImage).trim() !== ''
       ? data.bgImage
-      : null;
-  const bgGradient =
-    !bgImageUrl && data?.bgGradient && data.bgGradient !== 'none' && data.bgGradient !== 'transparent'
+      : data?.image_url && String(data.image_url).trim() !== '' && !String(data.image_url).includes('placeholder')
+        ? data.image_url
+        : null;
+  const bgGradient = isPassthrough
+    ? `radial-gradient(circle at 20% 20%, ${accentHex}38 0%, transparent 55%), radial-gradient(circle at 80% 80%, ${successHex}28 0%, transparent 55%), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%, rgba(255,255,255,0.04)), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%, rgba(255,255,255,0.04))`
+    : !bgImageUrl && data?.bgGradient && data.bgGradient !== 'none' && data.bgGradient !== 'transparent'
       ? data.bgGradient
       : `radial-gradient(circle at 80% 20%, ${accentHex}33 0%, transparent 60%), radial-gradient(circle at 20% 85%, ${successHex}24 0%, transparent 55%)`;
 
@@ -80,8 +88,14 @@ export function DynamicThemePreviewBanner({
     <div
       className={`w-full ${heightClass} relative overflow-hidden select-none`}
       style={{
-        backgroundColor: bgHex,
+        backgroundColor: isPassthrough ? 'rgba(6, 11, 20, 0.32)' : bgHex,
         backgroundImage: bgGradient,
+        ...(isPassthrough
+          ? {
+              backgroundPosition: '0 0, 0 0, 0 0, 8px 8px',
+              backgroundSize: '100% 100%, 100% 100%, 16px 16px, 16px 16px',
+            }
+          : {}),
         fontFamily: data?.fontFamily || 'Inter, sans-serif',
       }}
     >
@@ -848,27 +862,66 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
   const isDarkMode = getLuminance(resolvedData.bg || "#060b14") < 0.5;
   const modeLabel = isDarkMode ? t("mode_dark", "Dark") : t("mode_light", "Light");
   const badgeLabel = getThemeBadge(id, resolvedData);
+  const cardSwatches = [
+    resolvedData.bg || "#000000",
+    resolvedData.sidebar || resolvedData.bg || "#050914",
+    resolvedData.accent || "#38bdf8",
+    resolvedData.text || "#f8fafc",
+    resolvedData.success || "#10b981",
+  ];
+
+  const commitCardRename = () => {
+    if (
+      newThemeName &&
+      newThemeName.trim() !== "" &&
+      newThemeName.trim() !== resolvedData.name &&
+      renameTheme
+    ) {
+      renameTheme(id, newThemeName.trim());
+    }
+    setEditingThemeId?.(null);
+  };
 
   const titleNode = editingThemeId === id && setNewThemeName ? (
-    <input
-      autoFocus
-      value={newThemeName}
-      onChange={e => setNewThemeName(e.target.value)}
+    <div
       onClick={e => e.stopPropagation()}
-      onKeyDown={e => {
-        if (e.key === 'Enter') {
-          if (newThemeName.trim() !== "" && newThemeName !== resolvedData.name && renameTheme) renameTheme(id, newThemeName.trim());
-          setEditingThemeId(null);
-        } else if (e.key === 'Escape') {
-          setEditingThemeId(null);
-        }
-      }}
-      onBlur={() => {
-        if (newThemeName.trim() !== "" && newThemeName !== resolvedData.name && renameTheme) renameTheme(id, newThemeName.trim());
-        setEditingThemeId(null);
-      }}
-      className="w-full bg-[color-mix(in_srgb,var(--text)_5%,var(--bg))] border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-lg px-2 py-1 text-xs font-black tracking-wide outline-none shadow-inner transition-all text-[var(--text)] focus:border-[var(--accent)]"
-    />
+      className="w-full glass-surface rounded-xl px-2.5 py-1 flex items-center gap-2 border border-[color-mix(in_srgb,var(--accent)_48%,rgba(255,255,255,0.34))] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.32),0_4px_12px_rgba(0,0,0,0.22)] transition-all"
+    >
+      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+        {t("icon_edit", "edit")}
+      </span>
+      <input
+        autoFocus
+        value={newThemeName}
+        onChange={e => setNewThemeName(e.target.value)}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitCardRename();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            setEditingThemeId(null);
+          }
+        }}
+        onBlur={commitCardRename}
+        className="flex-1 min-w-0 bg-transparent border-none p-0 text-xs font-black tracking-tight outline-none focus:ring-0 text-[var(--text)] selection:bg-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+      />
+      <button
+        type="button"
+        onMouseDown={e => {
+          e.preventDefault();
+          e.stopPropagation();
+          commitCardRename();
+        }}
+        className="w-5 h-5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--success)_45%,rgba(255,255,255,0.3))] flex items-center justify-center shrink-0 text-[var(--success)] hover:brightness-125 transition-all cursor-pointer"
+      >
+        <span className="material-symbols-outlined !text-[12px]">
+          {t("icon_check", "check")}
+        </span>
+      </button>
+    </div>
   ) : (
     <span className={isActive ? "text-[var(--accent)]" : ""}>{resolvedData.name}</span>
   );
@@ -885,6 +938,17 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
       }}
       badges={
         <>
+          <div className={VAULT_CHIP_CLASS}>
+            <div className="flex items-center gap-1">
+              {cardSwatches.map((hex, idx) => (
+                <span
+                  key={idx}
+                  className="w-2.5 h-2.5 rounded-full border border-white/30 shadow-xs"
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+          </div>
           <div className={VAULT_CHIP_CLASS}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_palette", "palette")}
@@ -925,22 +989,27 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
               <div className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                 {!isDev && toggleFavoriteTheme && (
                   <button
+                    type="button"
                     onClick={e => { e.stopPropagation(); toggleFavoriteTheme(id, e); }}
                     className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] cursor-pointer shadow-sm ${isFav ? 'text-[var(--accent)] border-[var(--accent)]' : 'text-[var(--subtext)] hover:text-[var(--text)]'}`}
                   >
                     <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}>{t("icon_star", "star")}</span>
+                    <HoverTooltip title={t("favorite", "Favorite")} variant="accent" vAlign="bottom" />
                   </button>
                 )}
                 {handleExportTheme && (
                   <button
+                    type="button"
                     onClick={e => { e.stopPropagation(); handleExportTheme(e, resolvedData, isDev); }}
                     className="relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] hover:text-[var(--text)] text-[var(--subtext)] cursor-pointer shadow-sm"
                   >
                     <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_save", "save")}</span>
+                    <HoverTooltip title={t("btn_export", "Export")} variant="accent" vAlign="bottom" />
                   </button>
                 )}
                 {(handleOpenThemeEditor || onClick) && (
                   <button
+                    type="button"
                     onClick={e => {
                       e.stopPropagation();
                       if (handleOpenThemeEditor) handleOpenThemeEditor(e, id, resolvedData);
@@ -949,25 +1018,30 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
                     className="relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] theme-text-accent cursor-pointer shadow-sm"
                   >
                     <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_tune", "tune")}</span>
+                    <HoverTooltip title={t("btn_open_theme_forge", "Open Theme Forge")} variant="accent" vAlign="bottom" />
                   </button>
                 )}
                 {(!CORE_THEMES || !CORE_THEMES[id]) && (
                   <>
                     {setNewThemeName && setEditingThemeId && (
                       <button
+                        type="button"
                         onClick={e => { e.stopPropagation(); setNewThemeName(resolvedData.name); setEditingThemeId(id); }}
                         className="relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] hover:text-[var(--text)] text-[var(--subtext)] cursor-pointer shadow-sm"
                       >
                         <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit", "edit")}</span>
+                        <HoverTooltip title={t("edit", "Edit")} variant="accent" vAlign="bottom" />
                       </button>
                     )}
                     {!isCloud && resolvedDelete && setConfirmDelete && (
                       <button
+                        type="button"
                         onClick={e => { e.stopPropagation(); if (confirmDelete === id) { resolvedDelete(id); setConfirmDelete(false); } else setConfirmDelete(id); }}
                         onMouseLeave={() => setConfirmDelete(false)}
                         className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] cursor-pointer shadow-sm ${confirmDelete === id ? 'border-[var(--danger)] text-[var(--danger)] scale-105' : 'hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
                       >
                         <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning", "warning") : t("icon_delete", "delete")}</span>
+                        <HoverTooltip title={t("delete", "Delete")} variant="danger" vAlign="bottom" />
                       </button>
                     )}
                   </>

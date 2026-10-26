@@ -671,6 +671,34 @@ nav.firefox-safe-glass {
   background-image: none !important;
 }
 
+.sa-side-panel-window.sa-panel-right {
+  top: 0px !important;
+  bottom: 0px !important;
+  right: 0px !important;
+  border-right: none !important;
+  border-top-right-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+  border-top-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+  border-bottom-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+}
+
+.sa-side-panel-window.sa-panel-left {
+  top: 0px !important;
+  bottom: 0px !important;
+  border-left: none !important;
+  border-top-left-radius: 0px !important;
+  border-bottom-left-radius: 0px !important;
+  border-top-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+  border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+}
+
+@media (max-width: 767px) {
+  .sa-side-panel-window.sa-panel-right,
+  .sa-side-panel-window.sa-panel-left {
+    border-radius: 0px !important;
+  }
+}
+
 /* Nested glass elements inside Sidebar, SidePanels, Modals, or parent cards sit as clean frosted containers on top of the parent's continuous WebGL2 Liquid Glass slab */
 nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
 .sa-side-panel-window .glass-panel:not(.portal-glass-fix),
@@ -724,52 +752,61 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 #sa-portals .portal-glass-fix,
 .portal-glass-fix {
   isolation: isolate;
-  background-color: var(--glass-portal-bg, rgba(8, 12, 20, 0.88)) !important;
-  background-image: none !important;
+  background-color: var(--glass-portal-bg, rgba(8, 12, 20, 0.82)) !important;
+  background-image: var(--glass-portal-sheen, none) !important;
   transition-property: color, border-color, box-shadow, opacity, margin-bottom !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  -webkit-backdrop-filter: blur(28px) saturate(var(--glassSaturation, 185%)) !important;
+  backdrop-filter: blur(28px) saturate(var(--glassSaturation, 185%)) !important;
   border-top-color: var(--glass-border-top) !important;
   border-left-color: var(--glass-border-left) !important;
   border-right-color: var(--glass-border-right) !important;
   border-bottom-color: var(--glass-border-bottom) !important;
   box-shadow:
-    var(--glass-portal-shadow, var(--glass-outer-shadow)) !important;
+    var(--glass-portal-shadow, var(--glass-outer-shadow)),
+    var(--glass-inset-highlight) !important;
 }
 
 #root .portal-glass-fix.portal-glass-modal,
 #sa-portals .portal-glass-fix.portal-glass-modal,
 .portal-glass-fix.portal-glass-modal {
   isolation: isolate;
-  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
-  background-image: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  box-shadow: var(--glass-drawer-shadow) !important;
+  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.90)) !important;
+  background-image: var(--glass-drawer-sheen, none) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(var(--glassSaturation, 190%)) !important;
+  backdrop-filter: blur(36px) saturate(var(--glassSaturation, 190%)) !important;
+  box-shadow:
+    var(--glass-drawer-shadow),
+    var(--glass-inset-highlight) !important;
 }
 
 #root .portal-glass-fix.sa-dropdown-popover,
 #sa-portals .portal-glass-fix.sa-dropdown-popover,
 .portal-glass-fix.sa-dropdown-popover,
-.sa-dropdown-popover {
+.sa-dropdown-popover,
+.sa-tooltip-glass {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-style: solid !important;
   border-width: 1px !important;
-  border-top-color: var(--glass-border-top) !important;
-  border-left-color: var(--glass-border-left) !important;
-  border-right-color: var(--glass-border-right) !important;
-  border-bottom-color: var(--glass-border-bottom) !important;
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-border-right, var(--glass-border-right)) !important;
+  border-bottom-color: var(--glass-dropdown-border-bottom, var(--glass-border-bottom)) !important;
   border-radius: max(12px, calc(var(--radius, 1.25rem) * 0.78)) !important;
-  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
-  background-image: none !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  box-shadow:
-    var(--glass-portal-shadow, var(--glass-outer-shadow)) !important;
+  background-color: var(--glass-dropdown-bg) !important;
+  background-image: var(--glass-dropdown-gradient) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(var(--glassSaturation, 190%)) !important;
+  backdrop-filter: blur(32px) saturate(var(--glassSaturation, 190%)) !important;
+  box-shadow: var(--glass-dropdown-shadow, var(--glass-portal-shadow)) !important;
   color: var(--text) !important;
   font-family: var(--fontFamily, inherit) !important;
+}
+
+.sa-tooltip-glass > canvas.sa-webgl-overlay-canvas,
+.sa-dropdown-popover > canvas.sa-webgl-overlay-canvas,
+.portal-glass-fix > canvas.sa-webgl-overlay-canvas {
+  display: none !important;
 }
 
 #root .sa-dropdown-popover::before,
@@ -788,11 +825,11 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   position: relative;
   border-style: solid !important;
   border-width: 1px !important;
-  border-top-color: var(--glass-border-top) !important;
-  border-left-color: var(--glass-border-left) !important;
-  border-right-color: var(--glass-border-right) !important;
-  border-bottom-color: var(--glass-border-bottom) !important;
-  background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.03)) !important;
+  border-top-color: var(--glass-dropdown-input-border, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-input-border, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-input-border, var(--glass-border-right)) !important;
+  border-bottom-color: var(--glass-dropdown-input-border, var(--glass-border-bottom)) !important;
+  background-color: var(--glass-dropdown-input-bg, var(--glass-nested-surface-bg)) !important;
   background-image: var(--glass-surface-sheen) !important;
   box-shadow:
     var(--glass-surface-outer-shadow),
@@ -810,8 +847,8 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 }
 
 .sa-dropdown-popover .sa-dropdown-action-chip:hover {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
-  color: var(--accent) !important;
+  border-color: var(--glass-dropdown-item-active-border, var(--glass-border-top)) !important;
+  color: var(--text) !important;
 }
 
 .sa-dropdown-popover .sa-dropdown-item {
@@ -826,22 +863,26 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 }
 
 .sa-dropdown-popover .sa-dropdown-item:hover:not(.is-selected) {
-  background-color: color-mix(in srgb, var(--text) 6%, transparent) !important;
+  background-color: var(--glass-dropdown-item-hover) !important;
   border-color: transparent !important;
   color: var(--text) !important;
   opacity: 1;
 }
 
-.sa-dropdown-popover .sa-dropdown-item.is-selected {
+.sa-dropdown-popover .sa-dropdown-item.is-selected,
+.sa-glass-active {
   background-color: var(--glass-nav-active-bg) !important;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%) !important;
+  background-image: var(--glass-nav-active-sheen) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
-  border-top: 1px solid var(--glass-border-top, rgba(255, 255, 255, 0.22)) !important;
-  border-left: 1px solid var(--glass-border-left, rgba(255, 255, 255, 0.14)) !important;
-  border-right: 1px solid var(--glass-border-right, rgba(255, 255, 255, 0.06)) !important;
-  border-bottom: 1px solid var(--glass-border-bottom, rgba(255, 255, 255, 0.05)) !important;
+  border-top: 1px solid var(--glass-nav-active-border-top, var(--glass-border-top)) !important;
+  border-left: 1px solid var(--glass-nav-active-border-left, var(--glass-border-left)) !important;
+  border-right: 1px solid var(--glass-nav-active-border-right, var(--glass-border-right)) !important;
+  border-bottom: 1px solid var(--glass-nav-active-border-bottom, var(--glass-border-bottom)) !important;
+  opacity: 1 !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-item.is-selected {
   color: var(--text) !important;
-  opacity: 1;
 }
 
 .portal-glass-fix .custom-scrollbar,
@@ -1551,4 +1592,314 @@ section:has(.monaco-diff-editor),
   line-height: 1.5;
   font-weight: 500;
   color: var(--subtext);
+}
+
+/* ---- LIQUID GLASS SLIDERS, SWATCHES, TOGGLES & ACTIVE PILLS ---- */
+.sanctuary-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  background: transparent !important;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.sanctuary-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.24) 0%,
+      rgba(255, 255, 255, 0.02) 48%,
+      rgba(0, 0, 0, 0.20) 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.22)) 0%,
+      color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.34)) var(--slider-percent, 0%),
+      color-mix(in srgb, var(--text) 7%, rgba(0, 0, 0, 0.24)) var(--slider-percent, 0%),
+      color-mix(in srgb, var(--text) 5%, rgba(0, 0, 0, 0.30)) 100%
+    );
+  border-radius: 9999px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow:
+    inset 0 1.5px 3px rgba(0, 0, 0, 0.44),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.20),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sanctuary-slider:hover::-webkit-slider-runnable-track {
+  border-color: color-mix(in srgb, var(--accent) 42%, rgba(255, 255, 255, 0.32));
+  box-shadow:
+    inset 0 1.5px 3px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 1.5px rgba(255, 255, 255, 0.28),
+    0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.sanctuary-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 14px;
+  border-radius: 9999px;
+  margin-top: -4px;
+  background:
+    radial-gradient(
+      115% 95% at 30% 24%,
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(255, 255, 255, 0.36) 44%,
+      transparent 74%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.54) 0%,
+      color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.22)) 58%,
+      rgba(15, 23, 42, 0.34) 100%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.48),
+    0 0 10px color-mix(in srgb, var(--accent) 32%, transparent),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.92),
+    inset 0 -1.5px 2.5px rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(8px) saturate(160%);
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.sanctuary-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.08);
+  border-color: #ffffff;
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.54),
+    0 0 14px color-mix(in srgb, var(--accent) 55%, transparent),
+    inset 0 1.5px 2.5px #ffffff,
+    inset 0 -1.5px 2.5px rgba(0, 0, 0, 0.28);
+}
+
+.sanctuary-slider:active::-webkit-slider-thumb {
+  transform: scale(0.96);
+}
+
+.sanctuary-slider::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.24) 0%,
+      rgba(255, 255, 255, 0.02) 48%,
+      rgba(0, 0, 0, 0.20) 100%
+    ),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.22)) 0%,
+      color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.34)) var(--slider-percent, 0%),
+      color-mix(in srgb, var(--text) 7%, rgba(0, 0, 0, 0.24)) var(--slider-percent, 0%),
+      color-mix(in srgb, var(--text) 5%, rgba(0, 0, 0, 0.30)) 100%
+    );
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow:
+    inset 0 1.5px 3px rgba(0, 0, 0, 0.44),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.20);
+}
+
+.sanctuary-slider::-moz-range-thumb {
+  appearance: none;
+  width: 22px;
+  height: 14px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      115% 95% at 30% 24%,
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(255, 255, 255, 0.36) 44%,
+      transparent 74%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.54) 0%,
+      color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.22)) 58%,
+      rgba(15, 23, 42, 0.34) 100%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.48),
+    0 0 10px color-mix(in srgb, var(--accent) 32%, transparent),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.92),
+    inset 0 -1.5px 2.5px rgba(0, 0, 0, 0.30);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Clean Color Swatch Well */
+.sa-glass-swatch {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* 3D Liquid Glass Toggle Switch */
+.sa-glass-toggle {
+  position: relative;
+  width: 2.5rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  padding: 0.125rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.28) 0%,
+      rgba(255, 255, 255, 0.04) 100%
+    ),
+    color-mix(in srgb, var(--text) 8%, rgba(0, 0, 0, 0.25));
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.48),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.16);
+}
+
+.sa-glass-toggle.is-on {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.18) 100%
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 44%, rgba(255, 255, 255, 0.14)) 0%,
+      color-mix(in srgb, var(--accent) 68%, rgba(255, 255, 255, 0.24)) 100%
+    );
+  border-top: 1px solid rgba(255, 255, 255, 0.42);
+  border-left: 1px solid rgba(255, 255, 255, 0.32);
+  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.24));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.30));
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.38),
+    inset 0 -1.5px 3px rgba(0, 0, 0, 0.32),
+    0 0 12px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.sa-glass-toggle-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  background:
+    radial-gradient(
+      115% 95% at 30% 24%,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(255, 255, 255, 0.42) 48%,
+      rgba(255, 255, 255, 0.18) 100%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1.5px #ffffff,
+    inset 0 -1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.sa-glass-toggle.is-on .sa-glass-toggle-thumb {
+  transform: translateX(1.22rem);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 8px rgba(255, 255, 255, 0.45),
+    inset 0 1px 1.5px #ffffff,
+    inset 0 -1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* Clean Liquid Glass Active Pill & Card State (Crisp Accent Rim, Zero Glow or Fill) */
+.sa-glass-pill-active,
+html[data-webgl-glass="ready"] .sa-glass-pill-active {
+  background-color: transparent !important;
+  background-image: none !important;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.32)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, 0.24)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.16)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.18)) !important;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
+    inset 1px 0 0 0 rgba(255, 255, 255, 0.16) !important;
+  color: var(--accent) !important;
+}
+
+/* Chameleon Theme Engine: Global Text Caps Case (ALL CAPS / Title Case / lowercase) */
+html[data-text-case="uppercase"] body,
+html[data-text-case="uppercase"] h1,
+html[data-text-case="uppercase"] h2,
+html[data-text-case="uppercase"] h3,
+html[data-text-case="uppercase"] h4,
+html[data-text-case="uppercase"] h5,
+html[data-text-case="uppercase"] h6,
+html[data-text-case="uppercase"] p,
+html[data-text-case="uppercase"] span:not(.material-symbols-outlined):not(.material-symbols-rounded),
+html[data-text-case="uppercase"] button,
+html[data-text-case="uppercase"] label,
+html[data-text-case="uppercase"] .capitalize,
+html[data-text-case="uppercase"] .lowercase,
+html[data-text-case="uppercase"] .sanctuary-title,
+html[data-text-case="uppercase"] .sanctuary-subtitle,
+[data-sandbox-preview-root="true"][data-text-case="uppercase"] h1,
+[data-sandbox-preview-root="true"][data-text-case="uppercase"] p,
+[data-sandbox-preview-root="true"][data-text-case="uppercase"] span:not(.material-symbols-outlined):not(.material-symbols-rounded) {
+  text-transform: uppercase !important;
+}
+
+html[data-text-case="lowercase"] body,
+html[data-text-case="lowercase"] h1,
+html[data-text-case="lowercase"] h2,
+html[data-text-case="lowercase"] h3,
+html[data-text-case="lowercase"] h4,
+html[data-text-case="lowercase"] h5,
+html[data-text-case="lowercase"] h6,
+html[data-text-case="lowercase"] p,
+html[data-text-case="lowercase"] span:not(.material-symbols-outlined):not(.material-symbols-rounded),
+html[data-text-case="lowercase"] button,
+html[data-text-case="lowercase"] label,
+html[data-text-case="lowercase"] .uppercase,
+html[data-text-case="lowercase"] .capitalize,
+html[data-text-case="lowercase"] .sanctuary-title,
+html[data-text-case="lowercase"] .sanctuary-subtitle,
+[data-sandbox-preview-root="true"][data-text-case="lowercase"] h1,
+[data-sandbox-preview-root="true"][data-text-case="lowercase"] p,
+[data-sandbox-preview-root="true"][data-text-case="lowercase"] span:not(.material-symbols-outlined):not(.material-symbols-rounded) {
+  text-transform: lowercase !important;
+}
+
+html[data-text-case="capitalize"] h1,
+html[data-text-case="capitalize"] h2,
+html[data-text-case="capitalize"] h3,
+html[data-text-case="capitalize"] h4,
+html[data-text-case="capitalize"] .uppercase:not(code),
+html[data-text-case="capitalize"] .lowercase:not(code),
+html[data-text-case="capitalize"] .sanctuary-title,
+html[data-text-case="capitalize"] .sanctuary-subtitle,
+[data-sandbox-preview-root="true"][data-text-case="capitalize"] h1,
+[data-sandbox-preview-root="true"][data-text-case="capitalize"] .uppercase:not(code) {
+  text-transform: capitalize !important;
+}
+
+/* Protect Material Symbol Ligatures, Code Blocks, and Monaco Editor from Text Case Transforms */
+.material-symbols-outlined,
+.material-symbols-rounded,
+pre,
+code,
+.monaco-editor,
+.monaco-editor * {
+  text-transform: none !important;
 }

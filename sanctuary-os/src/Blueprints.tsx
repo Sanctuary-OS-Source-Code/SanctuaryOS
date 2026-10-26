@@ -29,6 +29,11 @@ import {
 } from "./hub-components/SharedCommandScreenLayout";
 import BlueprintMatrix from "./BlueprintMatrix";
 import BlueprintArchitect from "./BlueprintArchitect";
+import {
+  evaluateModIssues,
+  groupBrokenMods,
+  resolveBlueprintConflicts,
+} from "./side-panels/CommandIncompatiblePanel";
 import { GhostStringsModal } from "./side-panels/GhostStringsModal";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicBlueprintPreviewBanner } from "./chameleon-components/ThemeCard";
@@ -67,7 +72,7 @@ export default function Blueprints({
   purgeMissingString,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema } = useStore();
+  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal } = useStore();
   const setIsBlueprintSwapOpen = useModalStore((state: any) => state.setIsBlueprintSwapOpen);
   const [activeTab, setActiveTab] = useState("LANDING");
   const [selectedUplinkBlueprint, setSelectedUplinkBlueprint] = useState<any>(null);
@@ -157,12 +162,12 @@ export default function Blueprints({
     return { map, fallbackArr };
   }, [modList, extRegex]);
 
-  const localConflicts = useMemo(() => {
-    try {
-      const stored = null;
-      if (stored) return JSON.parse(stored);
-    } catch (e) {}
-    return [];
+  const [radarCacheTick, setRadarCacheTick] = useState(0);
+  useEffect(() => {
+    const handleRadarCacheUpdate = () => setRadarCacheTick((c) => c + 1);
+    window.addEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
+    return () =>
+      window.removeEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
   }, []);
 
   const getBlueprintAlertCount = (set: any) => {
@@ -177,8 +182,6 @@ export default function Blueprints({
         return {
           ...exactMatch,
           _originalSetName: modName,
-          _cleanN: String(exactMatch.name || "").toUpperCase(),
-          _cleanDisp: String(exactMatch.displayName || "").toUpperCase(),
         };
 
       const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, "");
@@ -191,120 +194,46 @@ export default function Blueprints({
         return {
           ...fallbackMatch,
           _originalSetName: modName,
-          _cleanN: String(fallbackMatch.name || "").toUpperCase(),
-          _cleanDisp: String(fallbackMatch.displayName || "").toUpperCase(),
         };
 
       return {
         name: modName,
         isFallback: true,
         _originalSetName: modName,
-        _cleanN: "",
-        _cleanDisp: "",
       };
     });
 
-    for (const mod of activeMods) {
-      if (mod.isFallback) continue;
-
-      let isBroken = false;
-      let isUnstable = false;
-      let isMismatch = false;
-      let isMissingDLC = false;
-
-      if (typeof mod.status === "string" && mod.status.toLowerCase() === "broken")
-        isBroken = true;
-      if (typeof mod.status === "string" && mod.status.toLowerCase() === "unstable")
-        isUnstable = true;
-      if (
-        mod.compatible_versions &&
-        selectedVersion &&
-        !isVersionMatch(mod.compatible_versions, selectedVersion)
+    const evaluatedBroken = activeMods
+      .map((mod: any) =>
+        evaluateModIssues(mod, {
+          activeMods,
+          selectedVersion,
+          ownedDLC,
+          maskedDLC,
+          t,
+          activeGameSchema,
+        })
       )
-        isMismatch = true;
-      if (mod.requiredDLC) {
-        let rawDLC: string[] = [];
-        if (typeof mod.requiredDLC === "string")
-          rawDLC = mod.requiredDLC.split(",").map((s: string) => s.trim());
-        else if (Array.isArray(mod.requiredDLC)) rawDLC = [...mod.requiredDLC];
-        const activeDLC = ownedDLC.filter((d: string) => !maskedDLC.includes(d));
-        const missing = rawDLC.filter((req) => !activeDLC.includes(req.toUpperCase().trim()));
-        if (missing.length > 0) isMissingDLC = true;
-      }
+      .filter(Boolean);
 
-      let hasAlert = false;
-      if (isBroken || isMismatch || isMissingDLC) {
-        res.broken++;
-        hasAlert = true;
-      } else if (isUnstable) {
-        res.unstable++;
-        hasAlert = true;
-      }
-
-      if (mod.conflicts && Array.isArray(mod.conflicts)) {
-        for (const c of mod.conflicts) {
-          const enemyActive = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
-            if (c.enemy_name) {
-              const targetClean = String(c.enemy_name)
-                .replace(/\.[^/.]+$/i, "")
-                .toUpperCase();
-              if (em._cleanN.includes(targetClean) || em._cleanDisp.includes(targetClean))
-                return true;
-            }
-            return false;
-          });
-          if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
-            hasAlert = true;
-            if (c.severity_rank == 4) res.tier4++;
-            else if (c.severity_rank == 3) res.tier3++;
-            else res.broken++;
-          }
-        }
-      }
-
-      if (mod.compliance_tier === 4) {
-        res.tier4++;
-        hasAlert = true;
-      } else if (mod.compliance_tier === 3 || mod.compliance_tier === 5) {
-        res.tier3++;
-        hasAlert = true;
-      }
-
-      if (hasAlert) res.total++;
+    const groupedBroken = groupBrokenMods(evaluatedBroken);
+    for (const gm of groupedBroken) {
+      if (gm._alert_type === "red") res.broken++;
+      else res.unstable++;
     }
 
-    localConflicts.forEach((lc: any) => {
-      const targetA = String(lc.modA).toUpperCase();
-      const targetB = String(lc.modB).toUpperCase();
+    const resolvedConflicts = resolveBlueprintConflicts(
+      set.name,
+      activeMods,
+      ignoredGlobal,
+      t
+    );
+    for (const c of resolvedConflicts) {
+      if (Number(c.conflict?.severity_rank) === 4) res.tier4++;
+      else res.tier3++;
+    }
 
-      const modAMatch = activeMods.find((em: any) => {
-        if (em.isFallback) return false;
-        return (
-          em._cleanN.includes(targetA) ||
-          em._cleanDisp.includes(targetA) ||
-          targetA.includes(em._cleanN)
-        );
-      });
-      const modBMatch = activeMods.find((em: any) => {
-        if (em.isFallback) return false;
-        return (
-          em._cleanN.includes(targetB) ||
-          em._cleanDisp.includes(targetB) ||
-          targetB.includes(em._cleanN)
-        );
-      });
-
-      if (modAMatch && modBMatch && modAMatch.name !== modBMatch.name) {
-        if (lc.severity_rank == 4) res.tier4++;
-        else if (lc.severity_rank == 3) res.tier3++;
-        else res.broken++;
-
-        res.total++;
-      }
-    });
-
+    res.total = res.broken + res.unstable + res.tier4 + res.tier3;
     return res;
   };
 
@@ -330,11 +259,14 @@ export default function Blueprints({
   }, [
     playSets,
     optimizedModList,
-    localConflicts,
     extRegex,
     selectedVersion,
     ownedDLC,
     maskedDLC,
+    ignoredGlobal,
+    activeGameSchema,
+    t,
+    radarCacheTick,
   ]);
 
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
@@ -1498,11 +1430,9 @@ export default function Blueprints({
                             </span>
                           </div>
                           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                            <span
-                              className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate"
-                              title={displayName}
-                            >
+                            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
                               {displayName}
+                              <HoverTooltip title={displayName} />
                             </span>
                             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
                               <span className="truncate">

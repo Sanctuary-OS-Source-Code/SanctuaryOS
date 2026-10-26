@@ -2226,7 +2226,6 @@ export default function KeepersWebDirectivesEditor({
                                         }
                                   )
                                 }
-                                title={t("visual_editor_pick_icon", "Pick Icon")}
                                 className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <span className="material-symbols-outlined !text-[18px]">
@@ -2238,6 +2237,7 @@ export default function KeepersWebDirectivesEditor({
                                 <span className="material-symbols-outlined !text-[14px] opacity-70">
                                   {t("icon_expand_more", "expand_more")}
                                 </span>
+                                <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                               </button>
                               {iconPickerTarget?.type === "card" &&
                                 iconPickerTarget.tabIdx ===
@@ -2613,7 +2613,6 @@ export default function KeepersWebDirectivesEditor({
                                                     }
                                               )
                                             }
-                                            title={t("visual_editor_pick_icon", "Pick Icon")}
                                             className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
                                           >
                                             <span className="material-symbols-outlined !text-[18px]">
@@ -2629,6 +2628,7 @@ export default function KeepersWebDirectivesEditor({
                                             <span className="material-symbols-outlined !text-[14px] opacity-70">
                                               {t("icon_expand_more", "expand_more")}
                                             </span>
+                                            <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                                           </button>
                                           {iconPickerTarget?.type ===
                                             "subcard" &&

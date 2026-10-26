@@ -384,7 +384,10 @@ export function PushTemplateSidePanel({
                         !m.isVirtual &&
                         !m.name?.startsWith("FOLDER_") &&
                         !m.name?.startsWith("SET_") &&
-                        !m.name?.startsWith("LOCAL_SET_")
+                        !m.name?.startsWith("LOCAL_SET_") &&
+                        Boolean(m.isSynced && m.dbId) &&
+                        Number(m.compliance_tier || 0) === 0 &&
+                        String(m.status || "").toLowerCase() !== "unverified"
                     )
                     .map((mod: any) => ({
                       id: mod.name || mod.id,

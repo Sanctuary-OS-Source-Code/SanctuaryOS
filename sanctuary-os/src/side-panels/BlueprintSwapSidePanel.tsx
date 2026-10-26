@@ -9,7 +9,6 @@ import {
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { VAULT_CHIP_CLASS } from "../Cards";
 
 interface BlueprintSwapSidePanelProps {
   isOpen: boolean;
@@ -44,14 +43,18 @@ export default function BlueprintSwapSidePanel({
       });
   }, [playSets, searchQuery]);
 
+  const activePlaySet = playSets?.[activePlaySetIndex];
+  const activeModCount = Array.isArray(activePlaySet?.mods)
+    ? activePlaySet.mods.length
+    : 0;
+
   const activeSetName = useMemo(() => {
-    const active = playSets?.[activePlaySetIndex];
-    if (!active?.name) return t("none", "None");
+    if (!activePlaySet?.name) return t("none", "None");
     return (
-      String(active.name).replace(/\s*\(imported\)\s*$/i, "").trim() ||
-      String(active.name)
+      String(activePlaySet.name).replace(/\s*\(imported\)\s*$/i, "").trim() ||
+      String(activePlaySet.name)
     );
-  }, [playSets, activePlaySetIndex, t]);
+  }, [activePlaySet, t]);
 
   return (
     <SidePanel
@@ -66,10 +69,10 @@ export default function BlueprintSwapSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_map", "map")}
-          overline={t("playsets_title", "{Blueprints}")}
+          overline={t("stat_blueprints", "Active {Blueprint}")}
           title={activeSetName}
-          description={t("bp_available_blueprints", "Available {Blueprints}")}
-          badge={`${(playSets || []).length} ${t("term_mods", "Items")}`}
+          description={`${activeModCount} ${t("term_mods", "Items")}`}
+          badge={`${(playSets || []).length} ${t("playsets_title", "{Blueprints}")}`}
           badgeIcon={t("icon_layers", "layers")}
           variant="accent"
         />
@@ -94,7 +97,7 @@ export default function BlueprintSwapSidePanel({
             title={`${t("bp_available_blueprints", "Available {Blueprints}")} (${indexedPlaySets.length})`}
             icon={t("icon_map", "map")}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {indexedPlaySets.map(({ bp, index }) => {
                 const isActive = activePlaySetIndex === index;
                 const rawName = String(bp.name || "");
@@ -106,59 +109,46 @@ export default function BlueprintSwapSidePanel({
                   <div
                     key={bp.name}
                     onClick={() => handleSelect(index)}
-                    className={`glass-surface rounded-xl p-4 flex items-center gap-3.5 transition-all duration-200 cursor-pointer border ${
+                    className={`glass-panel rounded-2xl p-3.5 flex items-center justify-between gap-3.5 transition-all duration-200 cursor-pointer border h-full ${
                       isActive
                         ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
                         : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                     }`}
                   >
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
-                      style={{
-                        color: isActive ? "var(--success)" : "var(--accent)",
-                        borderColor: isActive
-                          ? "color-mix(in srgb, var(--success) 25%, var(--border))"
-                          : "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {isActive
-                          ? t("icon_verified_user", "verified_user")
-                          : t("icon_map", "map")}
-                      </span>
-                    </div>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                          isActive
+                            ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                            : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {isActive
+                            ? t("icon_verified_user", "verified_user")
+                            : t("icon_map", "map")}
+                        </span>
+                      </div>
 
-                    <div className="flex flex-col min-w-0 flex-1 gap-1.5">
-                      <span className="text-sm font-bold text-[var(--text)] tracking-tight truncate leading-snug">
-                        {cleanName}
-                      </span>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={VAULT_CHIP_CLASS}
-                          style={{
-                            color: "var(--subtext)",
-                            borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
-                            {t("icon_inventory_2", "inventory_2")}
+                      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                        <div className="relative group/bptitle flex items-center min-w-0 w-fit max-w-full">
+                          <span className="text-sm font-black text-[var(--text)] tracking-tight truncate leading-snug">
+                            {cleanName}
                           </span>
+                          <HoverTooltip
+                            className="z-[100]"
+                            title={cleanName}
+                            icon={
+                              isActive
+                                ? t("icon_verified_user", "verified_user")
+                                : t("icon_map", "map")
+                            }
+                            variant={isActive ? "success" : "accent"}
+                          />
+                        </div>
+                        <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-85 truncate">
                           {itemCount} {t("term_mods", "Items")}
                         </span>
-                        {isActive && (
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: "var(--success)",
-                              borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
-                              {t("icon_check_circle", "check_circle")}
-                            </span>
-                            {t("active", "Active")}
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -168,7 +158,7 @@ export default function BlueprintSwapSidePanel({
                         e.stopPropagation();
                         handleSelect(index);
                       }}
-                      className={`relative group/actionbtn w-9 h-9 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                      className={`relative group/actionbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                         isActive
                           ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                           : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"

@@ -95,12 +95,21 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
         const cleanName = lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName;
         const mod = byExact.get(modName) || byCleanLower.get(cleanName.toLowerCase());
-        return { name: modName, hash: mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "", url: mod?.url || targetSet.modMeta?.[modName]?.url || "", author: mod?.author || targetSet.modMeta?.[modName]?.author || "Unknown", compliance_tier: mod?.compliance_tier || 0, isVirtual: mod?.isVirtual };
+        return {
+          name: modName,
+          hash: mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "",
+          url: mod?.url || targetSet.modMeta?.[modName]?.url || "",
+          author: mod?.author || targetSet.modMeta?.[modName]?.author || "Unknown",
+          compliance_tier: Number(mod?.compliance_tier || 0),
+          isSynced: Boolean(mod?.isSynced && mod?.dbId && String(mod?.status || "").toLowerCase() !== "unverified"),
+          isVirtual: mod?.isVirtual,
+        };
       }).filter((m: any) => {
         if (m.isVirtual || m.name.startsWith("FOLDER_") || m.name.startsWith("SET_") || m.name.startsWith("LOCAL_SET_")) return false;
+        if (!m.isSynced || (m.compliance_tier >= 1 && m.compliance_tier <= 5)) return false;
         const lower = m.name.toLowerCase();
         if (lower.includes("customchallenge_")) return true;
-        return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix") && m.compliance_tier !== 1 && m.compliance_tier !== 2;
+        return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix");
       }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
     })();
 

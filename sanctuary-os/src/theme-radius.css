@@ -1,9 +1,16 @@
-.rounded-sm { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.35)) !important; }
-.rounded-md { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.45)) !important; }
-.rounded-lg { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.55)) !important; }
-.rounded-xl { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.65)) !important; }
-.rounded-2xl { border-radius: max(0px, var(--radius, 1.25rem)) !important; }
-.rounded-3xl { border-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; }
+.rounded-sm, .\!rounded-sm { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.35)) !important; }
+.rounded-md, .\!rounded-md { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.45)) !important; }
+.rounded-lg, .\!rounded-lg { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.55)) !important; }
+.rounded-xl, .\!rounded-xl { border-radius: max(0px, calc(var(--radius, 1.25rem) * 0.65)) !important; }
+.rounded-2xl, .\!rounded-2xl { border-radius: max(0px, var(--radius, 1.25rem)) !important; }
+.rounded-3xl, .\!rounded-3xl { border-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; }
+
+@media (min-width: 768px) {
+  .md\:rounded-l-3xl, .md\:\!rounded-l-3xl { border-top-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; border-bottom-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; }
+  .md\:rounded-r-3xl, .md\:\!rounded-r-3xl { border-top-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; }
+  .md\:rounded-l-none, .md\:\!rounded-l-none { border-top-left-radius: 0px !important; border-bottom-left-radius: 0px !important; }
+  .md\:rounded-r-none, .md\:\!rounded-r-none { border-top-right-radius: 0px !important; border-bottom-right-radius: 0px !important; }
+}
 
 .rounded-t-sm { border-top-left-radius: max(0px, calc(var(--radius, 1.25rem) * 0.35)) !important; border-top-right-radius: max(0px, calc(var(--radius, 1.25rem) * 0.35)) !important; }
 .rounded-t-md { border-top-left-radius: max(0px, calc(var(--radius, 1.25rem) * 0.45)) !important; border-top-right-radius: max(0px, calc(var(--radius, 1.25rem) * 0.45)) !important; }
@@ -60,3 +67,24 @@
 .rounded-br-xl { border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 0.65)) !important; }
 .rounded-br-2xl { border-bottom-right-radius: max(0px, var(--radius, 1.25rem)) !important; }
 .rounded-br-3xl { border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important; }
+
+.sa-side-panel-window.sa-panel-right {
+  border-top-right-radius: 0px !important;
+  border-bottom-right-radius: 0px !important;
+  border-top-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+  border-bottom-left-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+}
+
+.sa-side-panel-window.sa-panel-left {
+  border-top-left-radius: 0px !important;
+  border-bottom-left-radius: 0px !important;
+  border-top-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+  border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+}
+
+@media (max-width: 767px) {
+  .sa-side-panel-window.sa-panel-right,
+  .sa-side-panel-window.sa-panel-left {
+    border-radius: 0px !important;
+  }
+}

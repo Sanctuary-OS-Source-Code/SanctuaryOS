@@ -394,10 +394,10 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsDnaModalOpen(!isDnaModalOpen);
                       }}
-                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--warning)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative ${
                         isDnaModalOpen
-                          ? 'bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
+                          ? 'sa-glass-active opacity-100'
+                          : 'opacity-85 hover:opacity-100'
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_radar", "radar") || "radar"}</span>
@@ -417,10 +417,10 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsSignatureQueueOpen(!isSignatureQueueOpen);
                       }}
-                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--success)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative ${
                         isSignatureQueueOpen
-                          ? 'bg-[color-mix(in_srgb,var(--success)_14%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
+                          ? 'sa-glass-active opacity-100'
+                          : 'opacity-85 hover:opacity-100'
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_phonelink_ring", "phonelink_ring") || "phonelink_ring"}</span>
@@ -440,10 +440,10 @@ export function SystemStatusBar({
                         e.stopPropagation();
                         setIsScoutPanelOpen(!isScoutPanelOpen);
                       }}
-                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] group/btn relative ${
+                      className={`h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative ${
                         isScoutPanelOpen
-                          ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] opacity-100'
-                          : 'opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]'
+                          ? 'sa-glass-active opacity-100'
+                          : 'opacity-85 hover:opacity-100'
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_biotech", "biotech") || "biotech"}</span>
@@ -542,10 +542,10 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsConflictRadarOpen(!isConflictRadarOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isConflictRadarOpen
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-85 hover:opacity-100'
+                        ? 'sa-glass-active text-[var(--text)] opacity-100'
+                        : 'opacity-85 hover:opacity-100'
                     }`}
                   >
                     <span className={`material-symbols-outlined !text-[18px] ${radarIconColor}`}>
@@ -566,10 +566,10 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsBlueprintSwapOpen(!isBlueprintSwapOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isBlueprintSwapOpen
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
+                        ? 'sa-glass-active text-[var(--text)] opacity-100'
+                        : 'text-[var(--text)] opacity-75 hover:opacity-100'
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[18px]">{t("icon_map", "map") || "map"}</span>
@@ -588,10 +588,10 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsSystemStatusOpen((prev: boolean) => !prev);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isSystemStatusOpen
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
+                        ? 'sa-glass-active text-[var(--text)] opacity-100'
+                        : 'text-[var(--text)] opacity-75 hover:opacity-100'
                     } ${
                       isErrorStatus
                         ? '!text-[var(--danger)] !opacity-100'
@@ -645,10 +645,10 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsLogExpanded(!isLogExpanded);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isLogExpanded
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
+                        ? 'sa-glass-active text-[var(--text)] opacity-100'
+                        : 'text-[var(--text)] opacity-75 hover:opacity-100'
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[18px]">{t("icon_terminal", "terminal") || "terminal"}</span>
@@ -667,10 +667,10 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsSideBrowserOpen(!isSideBrowserOpen);
                     }}
-                    className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isSideBrowserOpen
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
+                        ? 'sa-glass-active text-[var(--text)] opacity-100'
+                        : 'text-[var(--text)] opacity-75 hover:opacity-100'
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[18px] transition-transform duration-500 group-hover/btn:scale-110">
@@ -695,12 +695,12 @@ export function SystemStatusBar({
                       e.stopPropagation();
                       setIsNotificationSidebarOpen(!isNotificationSidebarOpen);
                     }}
-                    className={`flex items-center justify-center h-8 ${
-                      notifCount > 0 ? 'px-2 gap-1.5 text-[var(--accent)]' : 'w-8'
-                    } rounded-xl shrink-0 cursor-pointer transition-all group/btn relative ${
+                    className={`flex items-center justify-center h-7 ${
+                      notifCount > 0 ? 'px-2 gap-1.5 text-[var(--accent)]' : 'w-7 text-[var(--text)]'
+                    } rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                       isNotificationSidebarOpen
-                        ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                        : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-80 hover:opacity-100'
+                        ? 'sa-glass-active opacity-100'
+                        : 'opacity-80 hover:opacity-100'
                     }`}
                   >
                     <span
@@ -738,10 +738,10 @@ export function SystemStatusBar({
                     e.stopPropagation();
                     setView('settings');
                   }}
-                  className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 cursor-pointer transition-all group/btn relative ${
+                  className={`flex items-center justify-center w-7 h-7 rounded-xl shrink-0 cursor-pointer transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] group/btn relative ${
                     view === 'settings'
-                      ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)] opacity-100'
-                      : 'hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100'
+                      ? 'sa-glass-active text-[var(--text)] opacity-100'
+                      : 'text-[var(--text)] opacity-75 hover:opacity-100'
                   }`}
                 >
                   <span className="material-symbols-outlined !text-[18px] transition-opacity">

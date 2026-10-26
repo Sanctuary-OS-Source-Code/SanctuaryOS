@@ -20,6 +20,7 @@ import {
   normalizeModGroupTitle,
   extractValidCreator,
   formatAddonModuleName,
+  formatCleanModTitle,
 } from "./CommandIncompatiblePanel";
 
 export function groupUpdateMods(rawList: any[]): any[] {
@@ -173,7 +174,8 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
       ? update._groupedMods
       : [update];
 
-  const title = update._groupedTitle || formatDisplayName(update.displayName || update.name);
+  const rawTitle = update._groupedTitle || formatDisplayName(update.displayName || update.name);
+  const title = formatCleanModTitle(rawTitle) || rawTitle;
   const resolvedFallbackUrl = getModFallbackUrl(
     title || update.name || "",
     update.hash,
@@ -229,10 +231,12 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
   return (
     <div
       onClick={openUpdateTarget}
-      className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
+        isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
+      }`}
     >
-      {/* Top Row: Boxed Mod Icon + Title & Subtitle on Left | Version Badge + Update Button on Right */}
-      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+      {/* Top Tier: Icon Well + Title/Creator Identity + Quick Action Button */}
+      <div className="flex items-start justify-between gap-2.5">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {image ? (
             <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
@@ -244,87 +248,55 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
             </div>
           )}
 
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <span
-              className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate"
-              title={title}
-            >
-              {title}
-            </span>
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="relative group/updtitle flex items-center min-w-0 w-fit max-w-full">
+              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                {title}
+              </span>
+              <HoverTooltip
+                className="z-[100]"
+                title={title}
+                icon={modIcon}
+              />
+            </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0 flex-wrap">
-              <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
-              {groupedMods.length > 1 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className={`relative group/modpill ${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer`}
-                >
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t("icon_inventory_2", "inventory_2")}
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+              {validCreator && (
+                <>
+                  <span className="truncate opacity-85">
+                    {formatCleanModTitle(validCreator)}
                   </span>
-                  <span>
-                    {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined !text-[12px] opacity-75 transition-transform duration-300 ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
-                  >
-                    {t("icon_expand_more", "expand_more")}
-                  </span>
-
-                    {!isExpanded && (
-                      <HoverTooltip
-                        align="left"
-                        vAlign="bottom"
-                        content={
-                          <div className="glass-panel rounded-2xl p-3.5 min-w-[230px] max-w-[300px] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl flex flex-col gap-2 pointer-events-none">
-                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                                {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              {groupedMods.slice(0, 14).map((gm: any, gIdx: number) => {
-                                const gmName =
-                                  formatAddonModuleName(gm, activeGameSchema) ||
-                                  formatDisplayName(gm.displayName || gm.name);
-                                const isScript = /\.ts4script$/i.test(
-                                  String(gm?.name || gm?._originalSetName || "")
-                                );
-                                return (
-                                  <div
-                                    key={`${gm.name || gIdx}-${gIdx}`}
-                                    className="flex items-center justify-between gap-3 text-[11px]"
-                                  >
-                                    <span className="font-bold text-[var(--text)] truncate">
-                                      {gmName}
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
-                                      {isScript
-                                        ? t("type_script", "Script")
-                                        : t("type_package", "Package")}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        }
-                      />
-                    )}
-                </button>
+                  <span className="opacity-40 shrink-0">•</span>
+                </>
               )}
+              <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)] font-mono`}>
+        <button
+          type="button"
+          onClick={openUpdateTarget}
+          className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
+        >
+          <span className="material-symbols-outlined !text-[15px]">
+            {t("icon_open_in_new", "open_in_new")}
+          </span>
+          <HoverTooltip
+            className="z-[100] !right-0 !translate-x-0 !left-auto"
+            title={t("category_update", "Update")}
+            icon={t("icon_update", "update")}
+            variant="accent"
+          />
+        </button>
+      </div>
+
+      {/* Bottom Telemetry & Version Bar */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)] font-mono`}
+          >
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_new_releases", "new_releases")}
             </span>
@@ -341,59 +313,56 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
               <span>{t("category_update", "Update")}</span>
             )}
           </span>
+        </div>
 
-          <button
-            type="button"
-            onClick={openUpdateTarget}
-            className="px-3.5 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
-          >
-            <span>{t("category_update", "Update")}</span>
-            <span className="text-xs leading-none">&rarr;</span>
-          </button>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {groupedMods.length > 1 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`${VAULT_CHIP_CLASS} transition-all cursor-pointer ${
+                isExpanded
+                  ? "!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)]"
+                  : "hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <span>
+                {groupedMods.length} {t("badge_modules_count", "Modules")}
+              </span>
+              <span
+                className={`material-symbols-outlined !text-[13px] opacity-80 transition-transform duration-200 ${
+                  isExpanded ? "rotate-180 text-[var(--accent)]" : ""
+                }`}
+              >
+                {t("icon_expand_more", "expand_more")}
+              </span>
+            </button>
+          ) : highestGameVer && highestGameVer !== "Unknown" ? (
+            <span className="relative group/gamever font-mono text-[10px] font-semibold text-[var(--subtext)] opacity-80 truncate max-w-[130px]">
+              {highestGameVer}
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${t("required_version", "Required Game Version")}: ${highestGameVer}`}
+                icon={t("icon_sports_esports", "sports_esports")}
+              />
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* Optional Footer Row: Target Game Version */}
-      {highestGameVer && highestGameVer !== "Unknown" && (
-        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-xs">
-          <span className="text-[11px] font-bold text-[var(--subtext)] opacity-85 truncate">
-            {t("required_version", "Required Game Version")}
-          </span>
-          <span className="font-mono text-[11px] font-bold text-[var(--text)] shrink-0">
-            {highestGameVer}
-          </span>
-        </div>
-      )}
-
-      {/* Expanded Linked Modules Drawer inside the card */}
+      {/* Compact Recessed Linked Modules Tray */}
       {isExpanded && groupedMods.length > 1 && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200 cursor-default"
+          className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in fade-in slide-in-from-top-1 duration-200 cursor-default"
         >
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_extension", "extension")}
-                </span>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
-                {groupedMods.length} {t("card_files_linked", "Linked Files")}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsExpanded(false)}
-              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer shrink-0"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_close", "close")}
-              </span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[196px] overflow-y-auto custom-scrollbar pr-1">
             {groupedMods.map((gm: any, gIdx: number) => {
               const gmName =
                 formatAddonModuleName(gm, activeGameSchema) ||
@@ -404,26 +373,32 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2.5"
+                  className="glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2"
                 >
-                  <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[15px]">
-                      {getModIcon(gm, activeGameSchema, t)}
+                  <div className="relative group/gmtitle flex items-center gap-2 min-w-0 flex-1">
+                    <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                      {isScript
+                        ? t("icon_terminal", "terminal")
+                        : t("icon_deployed_code", "deployed_code")}
                     </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span
-                      className="text-xs font-bold text-[var(--text)] truncate"
-                      title={gmName}
-                    >
+                    <span className="text-xs font-bold text-[var(--text)] truncate">
                       {gmName}
                     </span>
-                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75">
-                      {isScript
-                        ? t("type_script", "Script")
-                        : t("type_package", "Package")}
-                    </span>
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={gmName}
+                      icon={
+                        isScript
+                          ? t("icon_terminal", "terminal")
+                          : t("icon_deployed_code", "deployed_code")
+                      }
+                    />
                   </div>
+                  <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70 shrink-0">
+                    {isScript
+                      ? t("type_script", "Script")
+                      : t("type_package", "Package")}
+                  </span>
                 </div>
               );
             })}
@@ -509,7 +484,7 @@ export function UpdatesSidePanel({
             title={`${t("updates_avail", "Updates Available")} (${filteredUpdates.length})`}
             icon={t("icon_update", "update")}
           >
-            <div className="flex flex-col gap-3 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               {filteredUpdates.map((update: any) => (
                 <UpdateModCard
                   key={update._groupedTitle || update.hash || update.name}

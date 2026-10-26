@@ -5,7 +5,7 @@ import { useTheme } from "../ThemeContext";
 import { ChameleonControlDashboard } from "../chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "../chameleon-components/ChameleonSandboxPreview";
 import {
-  autoHarmonizeThemeColors,
+  analyzeAndHarmonizeTheme,
   exportThemeWithAssets,
   importThemeWithAssets,
 } from "../chameleon-components/ChameleonShared";
@@ -43,13 +43,13 @@ export function ChameleonEditorPanel({
           <PanelHeaderButton
             icon={t("icon_contrast", "contrast")}
             tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
-            onClick={() => {
-              const harmonized = autoHarmonizeThemeColors(currentTheme);
+            onClick={async () => {
+              const harmonized = await analyzeAndHarmonizeTheme(currentTheme);
               handleUpdateTheme(harmonized);
               pushStatus?.(
                 t(
                   "forge_status_harmonized",
-                  "Text & surface contrast automatically harmonized."
+                  "Liquid Glass optics, surfaces & text contrast harmonized to active background."
                 )
               );
             }}

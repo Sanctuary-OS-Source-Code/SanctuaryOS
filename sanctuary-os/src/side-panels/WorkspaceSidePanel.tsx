@@ -140,9 +140,9 @@ export function WorkspaceSidePanel({
     onClose();
 
     if (isDesktop()) {
-      setTimeout(() => window.location.reload(), 300);
+      setTimeout(() => window.location.reload(), 30);
     } else {
-      setTimeout(() => (window.location.href = "/" + safeActiveId), 300);
+      setTimeout(() => (window.location.href = "/" + safeActiveId), 30);
     }
   };
 

@@ -182,7 +182,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
          <div className={`flex ${isInlineControl ? 'items-center justify-between gap-2.5' : 'flex-col gap-2'} relative z-10 w-full`}>
             <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                  <span className="text-[12px] font-black tracking-wide text-[var(--text)] leading-snug" title={label}>
+                  <span className="text-[12px] font-black tracking-wide text-[var(--text)] leading-snug"><HoverTooltip title={label} />
                      {label}
                   </span>
                   {setting.risk === "advanced" && (

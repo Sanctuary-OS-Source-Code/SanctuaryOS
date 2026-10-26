@@ -386,18 +386,16 @@ export function CustomDropdown({
             ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100"
             : isPill
               ? `h-10 px-4 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                  isActive
-                    ? "bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                    : "glass-surface text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                  isOpen || isActive
+                    ? "glass-surface sa-glass-active text-[var(--text)]"
+                    : "glass-surface text-[var(--text)]"
                 }`
               : `${
                   className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
                 } rounded-xl text-xs font-bold ${
-                  isOpen
-                    ? "glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]"
-                    : isActive
-                      ? "bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                      : "glass-surface text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                  isOpen || isActive
+                    ? "glass-surface sa-glass-active text-[var(--text)]"
+                    : "glass-surface text-[var(--text)]"
                 }`
         } ${buttonClassName || ""}`}
       >
@@ -550,9 +548,7 @@ export function GameVersionMultiSelect({
           variant === "pill"
             ? "flex items-center justify-between gap-2 bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none min-w-[160px] px-2 h-full cursor-pointer"
             : `w-full h-11 px-4 rounded-xl glass-surface ${
-                isOpen
-                  ? "border border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                  : "hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+                isOpen ? "sa-glass-active" : ""
               } text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2 transition-all cursor-pointer`
         }
       >
@@ -959,12 +955,12 @@ export function CustomDatePicker({
                         key={d}
                         type="button"
                         onClick={() => handleSelect(d)}
-                        className={`h-8 w-8 mx-auto flex items-center justify-center text-xs rounded-lg transition-all ${
+                        className={`sa-dropdown-item h-8 w-8 mx-auto flex items-center justify-center text-xs rounded-lg transition-all ${
                           isSelected
-                            ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] font-extrabold"
+                            ? "is-selected font-extrabold"
                             : isToday
-                              ? "border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] font-bold bg-transparent"
-                              : "border border-transparent text-[var(--text)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] font-semibold"
+                              ? "text-[var(--accent)] font-bold"
+                              : "font-semibold"
                         }`}
                       >
                         {d}
@@ -1391,7 +1387,7 @@ export function CustomTierDropdown({ value, onChange }: any) {
                         onChange(opt.id);
                         setIsOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? opt.activeBg + " " + opt.color : "border border-transparent text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-85 hover:opacity-100"}`}
+                      className={`sa-dropdown-item w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? "is-selected " + opt.color : ""}`}
                     >
                       <span className={`material-symbols-outlined !text-[16px] shrink-0 ${opt.color}`}>
                         {opt.icon}

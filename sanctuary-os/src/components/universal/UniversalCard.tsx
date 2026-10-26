@@ -59,8 +59,11 @@ export function UniversalCard({
   style,
   ...restProps
 }: UniversalCardComponentProps) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const [imageError, setImageError] = React.useState(false);
+  const resolvedTitle = typeof title === "string" && td ? td(title) : title;
+  const resolvedSubtitle = typeof subtitle === "string" && td ? td(subtitle) : subtitle;
+  const resolvedDescription = typeof description === "string" && td ? td(description) : description;
 
   // Base classes for the container
   let layoutClasses = "";
@@ -98,7 +101,7 @@ export function UniversalCard({
 
   const cleanStatusColor = statusColor ? statusColor.split(' ').filter((c: string) => !c.startsWith('border-') && !c.startsWith('theme-border-')).join(' ') : "";
   const activeClasses = isActive
-    ? "!border-[var(--accent)] outline outline-2 -outline-offset-1 outline-[color-mix(in_srgb,var(--accent)_80%,transparent)] z-10"
+    ? "!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.24))] z-10"
     : `${cleanStatusColor}`;
 
   // For ghosted or disabled states (keep filter off the .glass-panel host so fixed background attachment never breaks)
@@ -346,9 +349,9 @@ export function UniversalCard({
           {/* Title & Subtitle */}
           <div className={`flex flex-col gap-1.5 w-full min-w-0 ${layout === 'stat' ? 'items-center' : ''}`}>
 
-            {subtitle && layout === 'stat' && (
+            {resolvedSubtitle && layout === 'stat' && (
               <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed">
-                {subtitle}
+                {resolvedSubtitle}
               </div>
             )}
 
@@ -356,22 +359,22 @@ export function UniversalCard({
               {/* Removed large inline icon since it now renders in the banner */}
 
               <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
-                {title}
+                {resolvedTitle}
               </span>
               {/* layout !== 'stat' && typeof title === 'string' && (
                 <HoverTooltip title={title} variant="default" noIcon={true} align="center" vAlign="top" className="!hidden group-hover/title:!flex z-[200]" />
               ) */}
             </div>
 
-            {subtitle && layout !== 'stat' && (
+            {resolvedSubtitle && layout !== 'stat' && (
               <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 relative group/subtitle w-full">
-                {subtitle}
+                {resolvedSubtitle}
               </div>
             )}
 
-            {description && layout !== 'stat' && (
+            {resolvedDescription && layout !== 'stat' && (
               <div className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 w-full">
-                {description}
+                {resolvedDescription}
               </div>
             )}
           </div>

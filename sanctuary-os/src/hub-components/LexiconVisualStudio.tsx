@@ -732,11 +732,9 @@ export default function LexiconVisualStudio({
                 {t("icon_lock", "lock")}
               </span>
             )}
-            <label
-              className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider truncate"
-              title={humanizeKey(key)}
-            >
+            <label className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider truncate">
               {humanizeKey(key)}
+              <HoverTooltip title={humanizeKey(key)} />
             </label>
             <span className="text-[9px] font-mono text-[var(--subtext)] opacity-55 truncate">
               {key}
@@ -752,9 +750,9 @@ export default function LexiconVisualStudio({
                   type="button"
                   onClick={() => handleUpdateKey(key, sancVal)}
                   className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-transparent text-[9px] font-black text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all cursor-pointer"
-                  title={String(sancVal)}
                 >
                   {t("lex_studio_preset_sanctuary", "Sanctuary")}
+                  <HoverTooltip title={String(sancVal)} />
                 </button>
               )}
             {!isLockedField && isCustomized && (
@@ -762,9 +760,9 @@ export default function LexiconVisualStudio({
                 type="button"
                 onClick={() => handleResetKey(key)}
                 className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_18%,transparent)] bg-transparent text-[9px] font-black text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
-                title={String(refVal)}
               >
                 {t("reset", "Reset")}
+                <HoverTooltip title={String(refVal)} />
               </button>
             )}
           </div>
@@ -928,11 +926,11 @@ export default function LexiconVisualStudio({
                               type="button"
                               onClick={() => handleResetKey(term.key)}
                               className="text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer flex items-center"
-                              title={String(refVal)}
                             >
                               <span className="material-symbols-outlined !text-[13px]">
                                 {t("icon_restart_alt", "restart_alt")}
                               </span>
+                              <HoverTooltip title={String(refVal)} />
                             </button>
                           )}
                         </div>

@@ -105,7 +105,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           subtitle={t("mason_hub_subtitle", "Creator Studio & Asset Management") || "Creator Studio & Asset Management"}
           icon={t("icon_construction", "construction") || "construction"}
           iconColorClass="text-[var(--accent)]"
-          breadcrumb={masonActiveTab !== "command_center" ? masonActiveTab.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") : undefined}
+          breadcrumb={masonActiveTab !== "command_center" ? (masonActiveTab === "chameleons" ? (t("tab_aesthetics", "Aesthetics") || "Aesthetics") : masonActiveTab.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")) : undefined}
           onTitleClick={() => setMasonActiveTab("command_center")}
           hubActions={[
             ...(isVerifiedMason ? [{
@@ -169,7 +169,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             <VerticalTabButton id="sandbox" icon={isVerifiedMason ? (t("icon_deployed_code", "deployed_code") || "deployed_code") : (t("icon_handyman", "handyman") || "handyman")} label={(isVerifiedMason ? (t("term_mods", "Mods") || "Mods") : (t("filter_dev", "Sandbox") || "Sandbox")).replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab === "registry" ? "sandbox" : masonActiveTab} setTab={setMasonActiveTab} />
             <VerticalTabButton id="nexus" icon={t("icon_hub", "hub") || "hub"} label={(t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
             {isDesktop() && (
-              <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={(t("tab_chameleons", "Chameleons") || "Chameleons").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
+              <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={(t("tab_aesthetics", "Aesthetics") || "Aesthetics").replace(/^[^\w]*/, "").trim()} activeTab={masonActiveTab} setTab={setMasonActiveTab} />
             )}
 
             {isVerifiedMason && (

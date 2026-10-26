@@ -35,11 +35,15 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Pr
 
 async function fetchVault() {
     if (!isDesktop()) return;
-    const rawQList = await invoke<string[]>("get_quarantine_list");
+    const [rawQList, sList] = await Promise.all([
+      invoke<string[]>("get_quarantine_list").catch(() => []),
+      invoke<string[]>("get_shelter_list").catch(() => []),
+    ]);
     const qList = (rawQList || []).filter(
       (q) => q && !q.startsWith(".shredding_") && !recentlyShreddedSet.has(q)
     );
     setQuarantineList(qList);
+    setShelterContents(sList || []);
     
     if (qList.length > 0) {
       let vaultPath = useStore.getState().vaultPath;
@@ -52,19 +56,38 @@ async function fetchVault() {
 
       const enrichedItems = await Promise.all(
         qList.map(async (q) => {
+          let volatileOrig: string | null = null;
+          try {
+            volatileOrig = await invoke<string | null>("get_volatile_original_path", {
+              hash: "",
+              filename: q,
+            });
+          } catch {}
           if (vaultPath) {
             try {
               const sep = vaultPath.includes("/") ? "/" : "\\";
-              const manifestPath = `${vaultPath.replace(/[\\/]+$/, "")}${sep}Quarantine${sep}${q}.manifest.json`;
+              const cleanVaultRoot = vaultPath
+                .replace(/[\\/]+$/, "")
+                .replace(/[\\/]Mods$/i, "");
+              const manifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.manifest.json`;
               const rawJson = await invoke<string>("read_config_file", { path: manifestPath });
               if (rawJson) {
                 const parsed = JSON.parse(rawJson);
+                if (!volatileOrig && parsed.detected_hash) {
+                  try {
+                    volatileOrig = await invoke<string | null>("get_volatile_original_path", {
+                      hash: parsed.detected_hash,
+                      filename: q,
+                    });
+                  } catch {}
+                }
                 return {
                   hash: parsed.detected_hash || q,
                   name: q,
                   displayName: parsed.artifact_name || q,
                   matched_signature: parsed.signature || undefined,
                   original_path: parsed.original_path || undefined,
+                  volatile_original_path: volatileOrig || undefined,
                   original_exists: Boolean(parsed.original_exists),
                   original_shredded: Boolean(parsed.original_shredded),
                   quarantine_path: parsed.quarantine_path || undefined,
@@ -78,6 +101,7 @@ async function fetchVault() {
             hash: q,
             name: q,
             displayName: q,
+            volatile_original_path: volatileOrig || undefined,
             status: "QUARANTINED",
             compliance_tier: 5,
           };
@@ -90,7 +114,14 @@ async function fetchVault() {
           const match = enrichedItems.find(
             (e) => e.name === item.name || (e.hash && e.hash === item.hash)
           );
-          return match ? { ...item, ...match } : item;
+          return match
+            ? {
+                ...item,
+                ...match,
+                volatile_original_path:
+                  match.volatile_original_path || item.volatile_original_path,
+              }
+            : item;
         });
         const newItems = enrichedItems.filter(
           (e) =>
@@ -114,9 +145,6 @@ async function fetchVault() {
         return updatedExisting;
       });
     }
-
-    const sList = await invoke<string[]>("get_shelter_list");
-    setShelterContents(sList);
   }
 
 async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
@@ -145,24 +173,45 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
     }
     try {
       const config: any = await invoke("get_saved_coordinates");
-      await fetchVault();
-      
+      const isOfflineMode = !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
+
+      let currentOwnedDLC = ownedDLC;
+      let currentMaskedDLC = maskedDLC;
+
+      // Immediately prime Rust security definitions from localStorage cache (0ms network wait) before scanning disk
+      try {
+        const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
+        const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
+        await invoke("sync_security_definitions", { malware: cachedMalware, tier2: cachedVerified }).catch(() => {});
+      } catch {}
+
       try {
         await invoke("sanitize_vault", { vaultPath: config.vault_path });
       } catch (e) {
         console.error("Failed to sanitize vault during radar sweep:", e);
       }
 
-      let currentOwnedDLC = ownedDLC;
-      let currentMaskedDLC = maskedDLC;
-      if (!quickScan) {
+      // Start global metadata + security signature refresh in parallel with disk scan
+      const globalMetadataPromise = !isOfflineMode
+        ? Promise.all([
+            supabase.from("collection_members").select("set_id, mod_id"),
+            supabase.from("collections").select("*, masons(name)"),
+            supabase.from("logical_conflicts").select("*"),
+          ]).catch((err) => {
+            console.error("Global metadata prefetch error:", err);
+            return [{ data: [] }, { data: [] }, { data: [] }];
+          })
+        : Promise.resolve([{ data: [] }, { data: [] }, { data: [] }]);
+
+      const backgroundMaintenancePromise = (async () => {
+        if (quickScan) return;
         try {
           const physicalDLC = await invoke<string[]>("scan_installed_dlc", {
             livePath: config.live_path,
           });
           setOwnedDLC(physicalDLC);
           currentOwnedDLC = physicalDLC;
-          
+
           if (config.launch_args) {
             const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
             if (maskMatch?.[1]) {
@@ -177,53 +226,46 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           console.error("DLC scan failed during sweep", e);
         }
 
-        try {
-          const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
-          let malwareHashes: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
-          if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
-            const { data: malwareData } = await supabase
-              .from("mod_versions")
-              .select("dna_hash, mods!inner(compliance_tier)")
-              .eq("mods.compliance_tier", 5);
-            if (malwareData) {
-              malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
-              localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
-            }
-          }
-          await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified });
-
-          if (navigator.onLine && localStorage.getItem("sanctuary_local_only") !== "true") {
-
-            const [{ data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
+        if (!isOfflineMode) {
+          try {
+            const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
+            const [{ data: malwareData }, { data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
+              supabase.from("mod_versions").select("dna_hash, mods!inner(compliance_tier)").eq("mods.compliance_tier", 5),
               supabaseAuth.from("keeper_heuristic_signatures").select("*"),
-              supabase.from("heuristic_signatures").select("*")
+              supabase.from("heuristic_signatures").select("*"),
             ]);
+            if (malwareData) {
+              const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
+              localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
+              await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified });
+            }
             const mergedMap = new Map<string, any>();
             (coreHeuristics || []).forEach((s: any) => mergedMap.set(`core_${s.id}`, { ...s, source: s.source || "keepers_core" }));
             (spokeHeuristics || []).forEach((s: any) => mergedMap.set(`spoke_${s.id}`, { ...s, source: s.source || "spoke_oversight" }));
             if (mergedMap.size > 0 && config.vault_path) {
               await invoke("save_heuristic_signatures", {
                 vaultPath: config.vault_path,
-                signatures: Array.from(mergedMap.values())
+                signatures: Array.from(mergedMap.values()),
               });
             }
+          } catch (err) {
+            console.error("Malware sync failed", err);
           }
-        } catch (err) {
-          console.error("Malware sync failed", err);
         }
-      }
+      })();
 
-      const rawLocalMods = await invoke<any[]>("scan_bunker", {
-        vaultPath: config.vault_path,
-        shelterActive: true,
-      });
-
-      let sandboxMods: any[] = [];
-      try {
-        sandboxMods = await invoke<any[]>("scan_sandbox", { vaultPath: config.vault_path });
-      } catch (e) {
-        console.error("Failed to scan sandbox:", e);
-      }
+      const [, rawLocalMods, sandboxMods] = await Promise.all([
+        fetchVault(),
+        invoke<any[]>("scan_bunker", {
+          vaultPath: config.vault_path,
+          shelterActive: true,
+        }),
+        invoke<any[]>("scan_sandbox", { vaultPath: config.vault_path }).catch((e) => {
+          console.error("Failed to scan sandbox:", e);
+          return [];
+        }),
+        backgroundMaintenancePromise,
+      ]);
 
       const allLocalMods = [...rawLocalMods, ...sandboxMods];
       updateProgress(52, t("scan_identifying", "IDENTIFYING FILES..."));
@@ -275,23 +317,32 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       }));
       setModList((prev) => {
         if (prev.length > 0) {
+          const flatPrev = prev.flatMap((p: any) => (Array.isArray(p?.flavors) ? [...p.flavors, p] : [p]));
           const prevByHash = new Map(
-            prev.filter((p) => p.hash).map((p) => [p.hash, p]),
+            flatPrev.filter((p) => p?.hash && !p?.isVirtual).map((p) => [p.hash, p]),
           );
           const prevByName = new Map(
-            prev.filter((p) => p.name).map((p) => [p.name, p]),
+            flatPrev.filter((p) => p?.name && !p?.isVirtual).map((p) => [p.name, p]),
           );
           const cachedVirtuals = prev.filter((p) => p.isVirtual);
           const updatedPhysical = initialList.map((m) => {
             const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
             if (existing) {
               const isSameHash = existing.hash === m.hash;
+              if (isSameHash) {
+                return {
+                  ...existing,
+                  name: m.name,
+                  hash: m.hash,
+                  displayName: existing.displayName || m.displayName,
+                };
+              }
               return {
                 ...existing,
                 ...m,
                 displayName: existing.displayName || m.displayName,
-                status: isSameHash && existing.status && existing.status !== t("status_identifying", "Identifying...") ? existing.status : m.status,
-                color: isSameHash && existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
+                status: existing.status && existing.status !== t("status_identifying", "Identifying...") ? existing.status : m.status,
+                color: existing.color && existing.color !== "var(--text-secondary)" ? existing.color : m.color,
               };
             }
             return m;
@@ -303,7 +354,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       await yieldToMain();
       const hashes = [...new Set(localMods.map((m) => m.hash).filter((h) => !!h))];
       let allCloudData: any[] = [];
-      const isOfflineMode = !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
+      let flavorData: any[] = [],
+        flavorGroupNames: Record<string, string> = {};
+      let communityData: any[] = [],
+        communityGroupNames: Record<string, string> = {};
       
         const runInBatches = async (items: any[], chunkSize: number, concurrency: number, processor: (chunk: any[]) => Promise<void>) => {
          const chunks = [];
@@ -311,16 +365,27 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
          await Promise.all(chunks.map(chunk => processor(chunk)));
         };
 
-        if (hashes.length > 0) {
+        if (hashes.length > 0 && !isOfflineMode) {
           const totalChunks = Math.ceil(hashes.length / 200);
           let completedChunks = 0;
           await runInBatches(hashes, 200, 0, async (chunk) => {
-            let { data, error } = await supabase
-              .from("mod_versions")
-              .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
-              .in("dna_hash", chunk);
-            
-            if (error) {
+            const [verRes, fRes, cRes] = await Promise.all([
+              supabase
+                .from("mod_versions")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .in("dna_hash", chunk),
+              supabase
+                .from("flavor_group_members")
+                .select("group_id, mod_hash")
+                .in("mod_hash", chunk),
+              supabase
+                .from("community_group_members")
+                .select("group_id, mod_hash")
+                .in("mod_hash", chunk),
+            ]);
+
+            let data = verRes.data;
+            if (verRes.error) {
               console.warn("Schema mismatch detected, falling back to safe query...");
               const fallback = await supabase
                 .from("mod_versions")
@@ -329,6 +394,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               data = fallback.data as any;
             }
             allCloudData.push(...((data as any[]) || []));
+            flavorData.push(...((fRes.data as any[]) || []));
+            communityData.push(...((cRes.data as any[]) || []));
             completedChunks++;
             updateProgress(55 + Math.floor((completedChunks / totalChunks) * 20), t("scan_identifying", "IDENTIFYING FILES..."));
           });
@@ -337,11 +404,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
+      const isCloudMetadataRestricted = (dbM: any) => {
+        if (!dbM) return true;
+        const tier = Number(dbM.compliance_tier ?? 0);
+        if (tier >= 1 && tier <= 4) return true;
+        if (String(dbM.status || "").toLowerCase() === "unverified") return true;
+        return false;
+      };
       try {
         const verifiedCloudHashes = allCloudData
           .filter((c) => {
             const dbMod = getDbMod(c);
-            return c?.dna_hash && dbMod && Number(dbMod.compliance_tier ?? 0) !== 5;
+            return c?.dna_hash && dbMod && !isCloudMetadataRestricted(dbMod) && Number(dbMod.compliance_tier ?? 0) !== 5;
           })
           .map((c) => c.dna_hash);
         if (verifiedCloudHashes.length > 0) {
@@ -355,81 +429,61 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         console.warn("Failed to sync verified Registry hashes:", e);
       }
       const identifiedIds = [...new Set(allCloudData
+        .filter((c) => !isCloudMetadataRestricted(getDbMod(c)))
         .map((c) => getDbMod(c)?.id)
         .filter(Boolean))];
       let allRels: any[] = [],
         allDeps: any[] = [],
         parentNameMap: Record<string, any> = {};
-      let flavorData: any[] = [],
-        flavorGroupNames: Record<string, string> = {};
-      let communityData: any[] = [],
-        communityGroupNames: Record<string, string> = {};
       let setMembership: any[] = [],
         collectionsMetadata: any[] = [],
         globalConflicts: any[] = [];
       try {
         if (!isOfflineMode) {
           updateProgress(78, t("scan_fetching", "FETCHING METADATA..."));
-          const { data: members } = await supabase
-          .from("collection_members")
-          .select("set_id, mod_id");
-        const { data: sets } = await supabase.from("collections").select("*, masons(name)");
-        const { data: rawConflicts } = await supabase.from("logical_conflicts").select("*");
-        setMembership = members || [];
-        collectionsMetadata = sets || [];
-        globalConflicts = rawConflicts || [];
-        if (hashes.length > 0) {
-          await runInBatches(hashes, 200, 0, async (chunk) => {
-            const { data } = await supabase
-                .from("flavor_group_members")
-                .select("group_id, mod_hash")
-                .in("mod_hash", chunk);
-            flavorData.push(...((data as any[]) || []));
+          const [membersRes, setsRes, conflictsRes] = await globalMetadataPromise;
+          setMembership = membersRes?.data || [];
+          collectionsMetadata = setsRes?.data || [];
+          globalConflicts = conflictsRes?.data || [];
+          if (hashes.length > 0) {
+            const uniqueGroupIds = [
+              ...new Set(flavorData.map((f) => f.group_id)),
+            ];
+            const uniqueCommunityGroupIds = [
+              ...new Set(communityData.map((f) => f.group_id)),
+            ];
+            if (uniqueGroupIds.length > 0 || uniqueCommunityGroupIds.length > 0) {
+              let gResults: any[] = [];
+              let cgResults: any[] = [];
+              let pResults: any[] = [];
+              await runInBatches([...new Set([...uniqueGroupIds, ...uniqueCommunityGroupIds])], 200, 0, async (chunk) => {
+                const [gRes, cgRes, pRes] = await Promise.all([
+                  supabase.from("flavor_groups").select("id, name").in("id", chunk),
+                  supabase.from("community_groups").select("id, name").in("id", chunk),
+                  supabase.from("mods").select("id, name, master_author, mason_id, image_url, url").in("id", chunk)
+                ]);
+                gResults.push(...((gRes.data as any[]) || []));
+                cgResults.push(...((cgRes.data as any[]) || []));
+                pResults.push(...((pRes.data as any[]) || []));
+              });
 
-            const { data: cData } = await supabase
-                .from("community_group_members")
-                .select("group_id, mod_hash")
-                .in("mod_hash", chunk);
-            communityData.push(...((cData as any[]) || []));
-          });
-          const uniqueGroupIds = [
-            ...new Set(flavorData.map((f) => f.group_id)),
-          ];
-          const uniqueCommunityGroupIds = [
-            ...new Set(communityData.map((f) => f.group_id)),
-          ];
-          if (uniqueGroupIds.length > 0 || uniqueCommunityGroupIds.length > 0) {
-            let gResults: any[] = [];
-            let cgResults: any[] = [];
-            let pResults: any[] = [];
-            await runInBatches([...new Set([...uniqueGroupIds, ...uniqueCommunityGroupIds])], 200, 0, async (chunk) => {
-              const [gRes, cgRes, pRes] = await Promise.all([
-                supabase.from("flavor_groups").select("id, name").in("id", chunk),
-                supabase.from("community_groups").select("id, name").in("id", chunk),
-                supabase.from("mods").select("id, name, master_author, mason_id, image_url, url").in("id", chunk)
-              ]);
-              gResults.push(...((gRes.data as any[]) || []));
-              cgResults.push(...((cgRes.data as any[]) || []));
-              pResults.push(...((pRes.data as any[]) || []));
-            });
-
-            gResults.forEach((g: any) => {
-              flavorGroupNames[String(g.id)] = g.name;
-            });
-            cgResults.forEach((g: any) => {
-              communityGroupNames[String(g.id)] = g.name;
-            });
-            pResults.flat().forEach((pm: any) => {
-              parentNameMap[String(pm.id)] = {
-                name: pm.name,
-                author: pm.master_author || "Unknown",
-                mason_id: pm.mason_id,
-                image_url: pm.image_url,
-                url: pm.url,
-              };
-            });
+              gResults.forEach((g: any) => {
+                flavorGroupNames[String(g.id)] = g.name;
+              });
+              cgResults.forEach((g: any) => {
+                communityGroupNames[String(g.id)] = g.name;
+              });
+              pResults.flat().forEach((pm: any) => {
+                parentNameMap[String(pm.id)] = {
+                  name: pm.name,
+                  author: pm.master_author || "Unknown",
+                  mason_id: pm.mason_id,
+                  image_url: pm.image_url,
+                  url: pm.url,
+                };
+              });
+            }
           }
-        }
         }
       } catch (err) {
         console.error("Bridge Error:", err);
@@ -492,6 +546,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const dbVersionMap = new Map<string, string[]>();
       allCloudData.forEach(c => {
           const dbM = getDbMod(c);
+          if (isCloudMetadataRestricted(dbM)) return;
           const dbId = dbM?.id ? String(dbM.id) : null;
           const v = c.game_version || dbM?.compatible_versions;
           if (dbId && v) {
@@ -523,9 +578,12 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const bossVersionMap = new Map();
       
       localMods.forEach(m => {
-        const cm = cloudMap.get(String(m.hash));
-        const dbM = getDbMod(cm);
-        const f = flavorMap.get(String(m.hash));
+        const rawCm = cloudMap.get(String(m.hash));
+        const rawDbM = getDbMod(rawCm);
+        const isRestricted = isCloudMetadataRestricted(rawDbM);
+        const cm = isRestricted ? null : rawCm;
+        const dbM = isRestricted ? null : rawDbM;
+        const f = isRestricted ? undefined : flavorMap.get(String(m.hash));
         
         const dbId = dbM?.id ? String(dbM.id) : null;
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
@@ -655,38 +713,80 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                   row.target_hash,
                   ...(Array.isArray(row.archive_hashes) ? row.archive_hashes : []),
                   parsedMeta?.payload?.sha256,
+                  ...(Array.isArray(parsedMeta?.current_hashes) ? parsedMeta.current_hashes : []),
+                  ...(Array.isArray(parsedMeta?.modules)
+                    ? parsedMeta.modules.map((m: any) => m?.sha256)
+                    : []),
                   ...(Array.isArray(parsedMeta?.previous_hashes) ? parsedMeta.previous_hashes : []),
                   ...(Array.isArray(parsedMeta?.atomic_logic?.flavors) ? parsedMeta.atomic_logic.flavors : []),
                 ].filter(Boolean),
               ),
             );
 
+            const lowerFamSet = new Set(familyHashes.map((fh: any) => String(fh).toLowerCase()));
+            const matchingInstalledCount = localMods.filter(
+              (lm: any) => lm?.hash && lowerFamSet.has(String(lm.hash).toLowerCase()),
+            ).length;
+            const isMultiModule =
+              matchingInstalledCount > 1 ||
+              (Array.isArray(parsedMeta?.modules) && parsedMeta.modules.length > 1) ||
+              (Array.isArray(parsedMeta?.current_hashes) && parsedMeta.current_hashes.length > 1);
+
+            const edgeFamilyKey = `edge_family_${row.artifact_id}`;
+            if (row.artifact_id) {
+              parentNameMap[edgeFamilyKey] = {
+                name: parsedMeta?.artifact?.name || row.artifact_id,
+                author: parsedMeta?.artifact?.author || row.mason_id || "Unknown",
+                url: parsedMeta?.payload?.download_url || row.manifest_url || null,
+              };
+            }
+
             for (const h of familyHashes) {
               if (row.manifest_url && (!earlyLocalOvr[h] || !earlyLocalOvr[h].manifest_url)) {
-                earlyLocalOvr[h] = {
-                  ...(earlyLocalOvr[h] || {}),
-                  displayName: parsedMeta?.artifact?.name || earlyLocalOvr[h]?.displayName || row.artifact_id || undefined,
-                  author: parsedMeta?.artifact?.author || earlyLocalOvr[h]?.author || row.mason_id || "Unknown",
-                  version: parsedMeta?.artifact?.version || earlyLocalOvr[h]?.version || undefined,
-                  url: parsedMeta?.payload?.download_url || earlyLocalOvr[h]?.url || row.manifest_url,
-                  manifest_url: row.manifest_url,
-                  requiredDLC: parsedMeta?.atomic_logic?.required_dlc || earlyLocalOvr[h]?.requiredDLC,
-                  compatible_versions: parsedMeta?.artifact?.game_version
-                    ? [parsedMeta.artifact.game_version]
-                    : earlyLocalOvr[h]?.compatible_versions,
-                };
+                if (earlyLocalOvr[h]?.is_user_dossier) {
+                  earlyLocalOvr[h] = {
+                    ...earlyLocalOvr[h],
+                    manifest_url: earlyLocalOvr[h].manifest_url || row.manifest_url,
+                  };
+                } else {
+                  const canonicalName = parsedMeta?.artifact?.name || row.artifact_id || undefined;
+                  earlyLocalOvr[h] = {
+                    ...(earlyLocalOvr[h] || {}),
+                    ...(isMultiModule
+                      ? { parentName: canonicalName }
+                      : { displayName: earlyLocalOvr[h]?.displayName || canonicalName }),
+                    author: earlyLocalOvr[h]?.author || parsedMeta?.artifact?.author || row.mason_id || "Unknown",
+                    version: earlyLocalOvr[h]?.version || parsedMeta?.artifact?.version || undefined,
+                    url: earlyLocalOvr[h]?.url || parsedMeta?.payload?.download_url || row.manifest_url,
+                    manifest_url: row.manifest_url,
+                    requiredDLC: earlyLocalOvr[h]?.requiredDLC || parsedMeta?.atomic_logic?.required_dlc,
+                    compatible_versions: earlyLocalOvr[h]?.compatible_versions || (parsedMeta?.artifact?.game_version
+                      ? [parsedMeta.artifact.game_version]
+                      : undefined),
+                  };
+                }
                 ovrChanged = true;
               }
-              if (parsedMeta?.atomic_logic) {
+              if (parsedMeta?.atomic_logic || row.manifest_url) {
                 edgeLogic[h] = {
-                  ...parsedMeta.atomic_logic,
+                  ...(edgeLogic[h] || {}),
+                  ...(parsedMeta?.atomic_logic || {}),
                   manifest_url: row.manifest_url,
-                  artifact_id: row.artifact_id,
-                  version: parsedMeta.artifact?.version,
-                  game_version: parsedMeta.artifact?.game_version,
-                  download_url: parsedMeta.payload?.download_url,
-                  sha256: parsedMeta.payload?.sha256,
-                  changelog: parsedMeta.changelog || [],
+                  artifact_id: parsedMeta?.artifact?.id || row.artifact_id,
+                  name: parsedMeta?.artifact?.name || row.artifact_id,
+                  author: parsedMeta?.artifact?.author || row.mason_id,
+                  version: parsedMeta?.artifact?.version,
+                  game_version: parsedMeta?.artifact?.game_version,
+                  download_url: parsedMeta?.payload?.download_url,
+                  sha256: parsedMeta?.payload?.sha256 || row.target_hash,
+                  current_hashes: Array.isArray(parsedMeta?.current_hashes)
+                    ? parsedMeta.current_hashes
+                    : [],
+                  previous_hashes: Array.isArray(parsedMeta?.previous_hashes)
+                    ? parsedMeta.previous_hashes
+                    : [],
+                  modules: Array.isArray(parsedMeta?.modules) ? parsedMeta.modules : [],
+                  changelog: parsedMeta?.changelog || [],
                 };
                 edgeChanged = true;
               }
@@ -710,16 +810,28 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const item = edgeLogic[hash];
           if (item?.conflicts && Array.isArray(item.conflicts)) {
             item.conflicts.forEach((c: any) => {
-              const targetRef = c.hash || c.name;
+              const targetRef =
+                typeof c === "string"
+                  ? c.trim()
+                  : String(c?.hash || c?.id || c?.name || "").trim();
               if (!targetRef) return;
+              const targetLabel =
+                typeof c === "string"
+                  ? c.trim()
+                  : String(c?.name || c?.id || c?.hash || targetRef).trim();
               globalConflicts.push({
                 id: `edge_${hash}_${targetRef}`,
                 mod_a_id: hash,
                 mod_b_id: targetRef,
                 mod_a: hash,
-                mod_b: c.name || c.hash,
-                severity_rank: c.severity || c.tier || 3,
-                resolution_note: c.description || "Edge Network Override Conflict",
+                mod_b: targetLabel,
+                severity_rank:
+                  typeof c === "object" && (c?.severity || c?.tier)
+                    ? Number(c.severity || c.tier)
+                    : 3,
+                resolution_note:
+                  (typeof c === "object" && c?.description) ||
+                  "Edge Network Override Conflict",
               });
             });
           }
@@ -727,23 +839,37 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       } catch (e) {}
 
       const localByHash = new Map<string, any>();
+      const localByNormName = new Map<string, any>();
+      const extRegex = getExtensionRegex(activeGameSchema);
+      const normModKey = (s: string) =>
+        String(s || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(extRegex, "")
+          .replace(/[^a-z0-9]/gi, "")
+          .toLowerCase() || "";
       localMods.forEach((m: any) => {
         if (m.hash) localByHash.set(String(m.hash), m);
+        const nk = normModKey(m.name);
+        if (nk) localByNormName.set(nk, m);
       });
 
-      const extRegex = getExtensionRegex(activeGameSchema);
       await yieldToMain();
 
       const physicalMods = localMods.map((mod) => {
-        const cloudMatch = cloudMap.get(String(mod.hash));
-        const dbMod = getDbMod(cloudMatch);
+        const rawCloudMatch = cloudMap.get(String(mod.hash));
+        const rawDbMod = getDbMod(rawCloudMatch);
+        const detectedComplianceTier = Number(rawDbMod?.compliance_tier ?? mod.compliance_tier ?? 0);
+        const isRestrictedCloud = isCloudMetadataRestricted(rawDbMod);
+        const cloudMatch = isRestrictedCloud ? null : rawCloudMatch;
+        const dbMod = isRestrictedCloud ? null : rawDbMod;
         const dbId = dbMod?.id ? String(dbMod.id) : null;
         const modEdgeLogic = mod.hash ? edgeLogic[String(mod.hash)] : null;
         const modLocalOvr = mod.hash ? earlyLocalOvr[String(mod.hash)] : null;
         
         const mySetRel = dbId ? setRelMap.get(dbId) : undefined;
-        const myFlavor = flavorMap.get(String(mod.hash));
-        const myCommunityGroup = communityMap.get(String(mod.hash));
+        const myFlavor = isRestrictedCloud ? undefined : flavorMap.get(String(mod.hash));
+        const myCommunityGroup = isRestrictedCloud ? undefined : communityMap.get(String(mod.hash));
         
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
         const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
@@ -770,12 +896,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const edgeDeps = [
           ...(Array.isArray(modEdgeLogic?.dependencies)
             ? modEdgeLogic.dependencies.map((d: any) => {
-                const depHash = typeof d === "string" ? d : d.hash;
-                const matchedLocal = depHash ? localByHash.get(String(depHash)) : null;
+                const depRef =
+                  typeof d === "string"
+                    ? d.trim()
+                    : String(d?.hash || d?.id || d?.name || "").trim();
+                const matchedLocal = depRef
+                  ? localByHash.get(depRef) || localByNormName.get(normModKey(depRef))
+                  : null;
                 return {
-                  id: String(depHash),
-                  hash: String(depHash),
-                  name: matchedLocal?.name?.split(/[\\/]/).pop() || String(depHash),
+                  id: String(matchedLocal?.hash || depRef),
+                  hash: String(matchedLocal?.hash || depRef),
+                  name:
+                    matchedLocal?.name?.split(/[\\/]/).pop() ||
+                    (typeof d === "object" && (d?.name || d?.id)) ||
+                    String(depRef),
                   min_version: typeof d === "object" ? d.min_version : undefined,
                   url: null,
                 };
@@ -783,10 +917,12 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             : []),
           ...(Array.isArray(modEdgeLogic?.addons)
             ? modEdgeLogic.addons.map((addonHash: string) => {
-                const matchedLocal = localByHash.get(String(addonHash));
+                const matchedLocal =
+                  localByHash.get(String(addonHash)) ||
+                  localByNormName.get(normModKey(String(addonHash)));
                 return {
-                  id: String(addonHash),
-                  hash: String(addonHash),
+                  id: String(matchedLocal?.hash || addonHash),
+                  hash: String(matchedLocal?.hash || addonHash),
                   name: matchedLocal?.name?.split(/[\\/]/).pop() || String(addonHash),
                   url: null,
                 };
@@ -796,19 +932,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
         const edgeTwins = Array.isArray(modEdgeLogic?.twins)
           ? modEdgeLogic.twins.map((twinHash: string) => {
-              const matchedLocal = localByHash.get(String(twinHash));
+              const matchedLocal =
+                localByHash.get(String(twinHash)) ||
+                localByNormName.get(normModKey(String(twinHash)));
               return {
-                id: String(twinHash),
-                hash: String(twinHash),
+                id: String(matchedLocal?.hash || twinHash),
+                hash: String(matchedLocal?.hash || twinHash),
                 name: matchedLocal?.name?.split(/[\\/]/).pop() || String(twinHash),
                 url: null,
               };
             })
           : [];
 
-        let rawDLC = dbMod?.requiredDLC || modEdgeLogic?.required_dlc || modLocalOvr?.requiredDLC || [];
+        // Local Dossier takes top priority for requiredDLC
+        let rawDLC = modLocalOvr?.requiredDLC !== undefined
+          ? modLocalOvr.requiredDLC
+          : (dbMod?.requiredDLC || modEdgeLogic?.required_dlc || []);
         if (typeof rawDLC === 'string') rawDLC = rawDLC.split(',').map((s: string) => s.trim()).filter(Boolean);
-        if (Array.isArray(modEdgeLogic?.required_dlc) && modEdgeLogic.required_dlc.length > 0) {
+        if (!modLocalOvr?.is_user_dossier && Array.isArray(modEdgeLogic?.required_dlc) && modEdgeLogic.required_dlc.length > 0) {
           rawDLC = Array.from(new Set([...(Array.isArray(rawDLC) ? rawDLC : []), ...modEdgeLogic.required_dlc]));
         }
         const isDlcMissing = rawDLC.some(
@@ -841,6 +982,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           myBossId = String(myFlavor.group_id);
         } else if (modEdgeLogic?.artifact_id && Array.isArray(modEdgeLogic?.flavors) && modEdgeLogic.flavors.length > 0) {
           myBossId = `edge_flavor_${modEdgeLogic.artifact_id}`;
+          flavorGroupNames[myBossId] =
+            modEdgeLogic.name ||
+            modLocalOvr?.parentName ||
+            modLocalOvr?.displayName ||
+            modEdgeLogic.artifact_id;
+        } else if (modEdgeLogic?.artifact_id) {
+          myBossId = `edge_family_${modEdgeLogic.artifact_id}`;
+          if (!parentNameMap[myBossId]) {
+            parentNameMap[myBossId] = {
+              name:
+                modEdgeLogic.name ||
+                modLocalOvr?.parentName ||
+                modLocalOvr?.displayName ||
+                modEdgeLogic.artifact_id,
+              author: modEdgeLogic.author || modLocalOvr?.author || "Unknown",
+              url: modEdgeLogic.download_url || modEdgeLogic.manifest_url || null,
+            };
+          }
         }
 
         let isTracingBoss2 = true;
@@ -888,21 +1047,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                             myChildRels.some((r: any) => r.relationship_type === "twin") ||
                             edgeTwins.length > 0;
                             
-        if (!myBossId && !hasOwnTwins && dirData && dirData.bossId) {
+        if (!myBossId && !hasOwnTwins && dirData && dirData.bossId && !isRestrictedCloud) {
             myBossId = dirData.bossId;
         }
         
         let effectiveCloudMatch = cloudMatch;
         let effectiveDbMod = dbMod;
         
-        if (!dbId && dirData && myBossId === dirData.bossId) {
+        if (!dbId && !isRestrictedCloud && dirData && myBossId === dirData.bossId && !isCloudMetadataRestricted(dirData.dbMod)) {
             effectiveCloudMatch = dirData.cloudMatch;
             effectiveDbMod = dirData.dbMod || dbMod;
         }
 
         let unifiedVersion = null;
 
-        if (!unifiedVersion && myBossId) {
+        if (!unifiedVersion && myBossId && !isRestrictedCloud) {
             const isDirBossValid = dirData && (dirData.bossId === myBossId || myParentRels.some((r: any) => String(r.parent_id) === String(dirData.bossId)));
             if (isDirBossValid && dirData.cloudMatch?.version_label) {
                 unifiedVersion = dirData.cloudMatch.version_label;
@@ -911,12 +1070,12 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             }
         }
 
-        let finalVersion = effectiveCloudMatch?.version_label || modLocalOvr?.version || modEdgeLogic?.version || "v.Local";
-        if (unifiedVersion) {
-            finalVersion = unifiedVersion; 
-        }
+        // Local Dossier takes priority if overwritten
+        let finalVersion = modLocalOvr?.version || unifiedVersion || effectiveCloudMatch?.version_label || modEdgeLogic?.version || "v.Local";
 
-        const compVerRaw = effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || modLocalOvr?.compatible_versions || (modEdgeLogic?.game_version ? [modEdgeLogic.game_version] : []);
+        const compVerRaw = (modLocalOvr?.compatible_versions && modLocalOvr.compatible_versions.length > 0)
+          ? modLocalOvr.compatible_versions
+          : (effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || (modEdgeLogic?.game_version ? [modEdgeLogic.game_version] : []));
         const compVerArray = Array.isArray(compVerRaw) ? compVerRaw : (typeof compVerRaw === 'string' ? compVerRaw.split(',').map((s: string) => s.trim()) : []);
         if (myBossId && myBossId !== dbId && myBossId !== `local_${mod.hash}`) {
             const myVersionsRaw = effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions;
@@ -968,9 +1127,16 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           ...edgeTwins,
         ];
 
+        const resolvedImageUrl = modLocalOvr?.image_url !== undefined
+          ? modLocalOvr.image_url
+          : (modLocalOvr?.imageUrl !== undefined ? modLocalOvr.imageUrl : effectiveDbMod?.image_url);
+
         return {
           ...mod,
+          ...(modLocalOvr || {}),
           physical_path: mod.name,
+          name: mod.name,
+          hash: mod.hash,
           dbId,
           hasChildren: myChildRels.length > 0,
           setId: mySetRel ? String(mySetRel.set_id) : null,
@@ -986,14 +1152,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           communityGroupName: myCommunityGroup
             ? communityGroupNames[String(myCommunityGroup.group_id)]
             : null,
-          created_at: effectiveCloudMatch?.created_at || effectiveDbMod?.created_at || mod.created_at || null,
-          updated_at: effectiveCloudMatch?.updated_at || effectiveDbMod?.updated_at || mod.updated_at || null,
+          created_at: modLocalOvr?.created_at || effectiveCloudMatch?.created_at || effectiveDbMod?.created_at || mod.created_at || null,
+          updated_at: modLocalOvr?.updated_at || effectiveCloudMatch?.updated_at || effectiveDbMod?.updated_at || mod.updated_at || null,
           requiredDLC: rawDLC,
-          category_override: effectiveDbMod?.category_override,
-          sub_type: effectiveDbMod?.sub_type,
-          image_url: effectiveDbMod?.image_url,
+          category_override: modLocalOvr?.category_override || effectiveDbMod?.category_override,
+          sub_type: modLocalOvr?.sub_type || effectiveDbMod?.sub_type,
+          image_url: resolvedImageUrl,
+          imageUrl: resolvedImageUrl,
+          description: modLocalOvr?.description !== undefined ? modLocalOvr.description : (effectiveDbMod?.description || mod.description),
           folder_structure: effectiveDbMod?.folder_structure,
           file_extension:
+            modLocalOvr?.file_extension ||
             effectiveDbMod?.file_extension ||
             dbMod?.file_extension ||
             mod.file_extension ||
@@ -1001,14 +1170,15 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               const extMatch = (mod.name || "").match(/\.([a-z0-9]{2,12})$/i);
               return extMatch ? extMatch[1].toLowerCase() : undefined;
             })(),
-          url: effectiveCloudMatch?.download_url || effectiveDbMod?.url || modLocalOvr?.url || modEdgeLogic?.download_url || mod.url || null,
+          url: modLocalOvr?.url || effectiveCloudMatch?.download_url || effectiveDbMod?.url || modEdgeLogic?.download_url || mod.url || null,
           manifest_url: modLocalOvr?.manifest_url || modEdgeLogic?.manifest_url || mod.manifest_url || undefined,
           author:
+            modLocalOvr?.author ||
+            modEdgeLogic?.author ||
             (Array.isArray(effectiveDbMod?.masons)
               ? effectiveDbMod.masons[0]?.name
               : effectiveDbMod?.masons?.name) ||
             effectiveDbMod?.master_author ||
-            modLocalOvr?.author ||
             mod.author,
           version: finalVersion,
           compatible_versions: compVerArray,
@@ -1018,19 +1188,22 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,
           requirements: mergedRequirements.length > 0 ? mergedRequirements : undefined,
+          dependencies: mergedRequirements.length > 0 ? mergedRequirements : undefined,
           twins: mergedTwins.length > 0 ? mergedTwins : undefined,
           interchangeableIds: [
             ...myParentRels.filter((r: any) => r.relationship_type === "beta" || r.relationship_type === "twin").map((r: any) => String(r.parent_id)),
             ...myChildRels.filter((r: any) => r.relationship_type === "beta" || r.relationship_type === "twin").map((r: any) => String(r.child_id)),
             ...edgeTwins.map((t: any) => String(t.id)),
           ],
-          displayName: (() => {
+          displayName: modLocalOvr?.displayName || effectiveDbMod?.name || (() => {
             const rawName = mod.name.split(/[\\/]/).pop() || "";
             const base = rawName.replace(extRegex, "").replace(/_/g, " ");
             return base.toUpperCase();
           })(),
-          allow_write: dbMod?.allow_write || false,
-          compliance_tier: dbMod?.compliance_tier || 0,
+          allow_write: modLocalOvr?.allow_write !== undefined ? modLocalOvr.allow_write : (dbMod?.allow_write || false),
+          is_paid: modLocalOvr?.is_paid !== undefined ? modLocalOvr.is_paid : (effectiveDbMod?.is_paid || false),
+          is_early_access: modLocalOvr?.is_early_access !== undefined ? modLocalOvr.is_early_access : (effectiveDbMod?.is_early_access || false),
+          compliance_tier: detectedComplianceTier,
           mason_id: dbMod?.mason_id || null,
           status: dbMod
             ? dbMod.status === "stable"
@@ -1038,8 +1211,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               : dbMod.status === "unverified"
                 ? t("unverified", "Unverified")
                 : dbMod.status
-            : mod.status?.includes("EXPLICIT LOCAL") ? "🚫 EXPLICIT LOCAL" : t("badge_local", "Local"),
-          isSynced: !!dbMod,
+            : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
+              ? "🚫 EXPLICIT LOCAL"
+              : (modEdgeLogic || modLocalOvr?.manifest_url)
+                ? t("status_stable", "STABLE")
+                : t("badge_local", "Local"),
+          color: dbMod
+            ? mod.color
+            : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
+              ? mod.color
+              : (modEdgeLogic || modLocalOvr?.manifest_url)
+                ? "var(--success)"
+                : mod.color,
+          isSynced: !!(dbMod || modEdgeLogic || modLocalOvr?.manifest_url),
+          isLocalOverride: !!modLocalOvr,
           isVirtual: false,
           isGhosted: isDlcMissing || isVersionMismatch,
           ghostReason: isDlcMissing ? "MISSING_DLC" : (isVersionMismatch ? "VERSION_MISMATCH" : null),
@@ -1067,7 +1252,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         }
       );
       const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
-      if (unidentified.length > 0 && !isSilent && !isOfflineMode && session && !isBanned) {
+      if (!isOfflineMode && session && !isBanned) {
         setScoutQueue(unidentified);
       }
       const virtualCards: any[] = [];
@@ -1144,7 +1329,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
-          const safeName = pData.name || t("status_unknown_folder", "Unknown Folder");
+        const virtualOvr = earlyLocalOvr["virtual_" + fId];
+        const dossierMember =
+          familyMembers.find((fm: any) => fm.isLocalOverride && fm.is_user_dossier) ||
+          familyMembers.find((fm: any) => fm.isLocalOverride);
+          const safeName = virtualOvr?.displayName || pData.name || t("status_unknown_folder", "Unknown Folder");
           const brokenCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
           const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
           const stableCount = familyMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
@@ -1201,9 +1390,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             name: "FOLDER_" + fId,
             dbId: String(fId),
             baseFamilyId: String(baseFId),
-            displayName: safeName.toUpperCase(),
-            author: pData.author,
+            displayName: (virtualOvr?.displayName || safeName).toUpperCase(),
+            author: virtualOvr?.author || dossierMember?.author || pData.author,
+            url: virtualOvr?.url || dossierMember?.url || pData.url || familyMembers[0]?.url || null,
+            image_url: virtualOvr?.image_url ?? dossierMember?.image_url ?? pData.image_url ?? familyMembers[0]?.image_url,
+            description: virtualOvr?.description ?? dossierMember?.description,
+            category_override: virtualOvr?.category_override || dossierMember?.category_override || familyMembers[0]?.category_override,
+            compatible_versions: virtualOvr?.compatible_versions || dossierMember?.compatible_versions || familyMembers[0]?.compatible_versions,
+            requiredDLC: virtualOvr?.requiredDLC || dossierMember?.requiredDLC || familyMembers[0]?.requiredDLC,
             version:
+              virtualOvr?.version ||
+              dossierMember?.version ||
               familyMembers.find((fm: any) => fm.version && fm.version !== "v.Local")?.version ||
               familyMembers[0]?.version ||
               "v.Local",
@@ -1211,6 +1408,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             status: folderStatus,
             color: isFlavorFolder ? "var(--warning)" : "var(--accent)",
             isSynced: true,
+            isLocalOverride: !!(virtualOvr || dossierMember),
             isVirtual: true,
             isParent: true,
             isFlavorFolder: isFlavorFolder,
@@ -1337,54 +1535,116 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
+        const hydratedDetectedMalware = await Promise.all(
+          detectedMalware.map(async (m: any) => {
+            if (m.volatile_original_path) return m;
+            try {
+              const filename = (m.path || m.name || "").split(/[/\\]/).pop() || m.name || "";
+              const volatileOrig = await invoke<string | null>("get_volatile_original_path", {
+                hash: m.hash || "",
+                filename,
+              });
+              if (volatileOrig) {
+                return { ...m, volatile_original_path: volatileOrig };
+              }
+            } catch {}
+            return m;
+          })
+        );
+
+        setMalwareAlert((prev: any[]) => {
+          if (!prev) return hydratedDetectedMalware;
+          const updatedPrev = prev.map((p: any) => {
+            const match = hydratedDetectedMalware.find(
+              (m: any) => (m.hash && p.hash === m.hash) || (m.dbId && p.dbId === m.dbId)
+            );
+            return match && match.volatile_original_path && !p.volatile_original_path
+              ? { ...p, volatile_original_path: match.volatile_original_path }
+              : p;
+          });
+          const newAlerts = hydratedDetectedMalware.filter(
+            (m: any) => !updatedPrev.some((p: any) => p.hash === m.hash || (p.dbId && p.dbId === m.dbId))
+          );
+          return [...updatedPrev, ...newAlerts];
+        });
+
+        notifyOS("Radar Sweep Alert", `Sanctuary OS has detected ${hydratedDetectedMalware.length} dangerous artifacts during the radar sweep.`, 'MALWARE_ALERT');
+
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
-          for (const m of detectedMalware) {
+          for (const m of hydratedDetectedMalware) {
             await submitThreatManifestToSpoke(m, {
               isAuto: true,
               defaultSignature: "Radar Sweep Detection",
             });
           }
         }
-
-        notifyOS("Radar Sweep Alert", `Sanctuary OS has detected ${detectedMalware.length} dangerous artifacts during the radar sweep.`, 'MALWARE_ALERT');
-
-        setMalwareAlert((prev: any[]) => {
-          if (!prev) return detectedMalware;
-          const newAlerts = detectedMalware.filter((m: any) => !prev.some((p: any) => p.hash === m.hash || p.dbId === m.dbId));
-          return [...prev, ...newAlerts];
-        });
       }
 
       const prevList = useStore.getState().modList;
-      const prevByHash = new Map(prevList.filter((p: any) => p.hash).map((p: any) => [p.hash, p]));
-      const prevByName = new Map(prevList.filter((p: any) => p.name).map((p: any) => [p.name, p]));
-      
-      const finalMasterList = masterList.map((m: any) => {
-        const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
-        if (existing) {
-           const isSameHash = existing.hash === m.hash;
-           const cleanMVer = String(m.version || "").toLowerCase().replace(/^v/, '').trim();
-           const cleanNewVer = String(existing.newVersion || "").toLowerCase().replace(/^v/, '').trim();
-           const isStillOutdated = isSameHash && (cleanMVer !== cleanNewVer && !!cleanNewVer);
+      const flatPrevList = prevList.flatMap((p: any) => (Array.isArray(p?.flavors) ? [...p.flavors, p] : [p]));
+      const prevByHash = new Map(flatPrevList.filter((p: any) => p?.hash).map((p: any) => [p.hash, p]));
+      const prevByName = new Map(flatPrevList.filter((p: any) => p?.name).map((p: any) => [p.name, p]));
+      const cachedNetUpdates = useStore.getState().networkUpdates;
+      const netUpdated = Array.isArray(cachedNetUpdates?.updated) ? cachedNetUpdates.updated : [];
+      const netBroken = Array.isArray(cachedNetUpdates?.broken) ? cachedNetUpdates.broken : [];
+      const netObsolete = Array.isArray(cachedNetUpdates?.obsolete) ? cachedNetUpdates.obsolete : [];
 
-           return {
-             ...existing,
-             ...m,
-             conflicts: m.conflicts,
-             isVirtual: m.isVirtual !== undefined ? m.isVirtual : existing.isVirtual,
-             isLocalVirtual: m.isLocalVirtual !== undefined ? m.isLocalVirtual : existing.isLocalVirtual,
-             flavors: m.flavors !== undefined ? m.flavors : existing.flavors,
-             hasUpdate: isStillOutdated ? existing.hasUpdate : undefined,
-             newVersion: isStillOutdated ? existing.newVersion : undefined,
-             newGameVersion: isStillOutdated ? existing.newGameVersion : undefined,
-             download_url: isSameHash ? existing.download_url : m.download_url,
-             status: m.status !== t("status_identifying", "Identifying...") ? m.status : (existing.status || m.status),
-             isSynced: m.isSynced !== undefined ? m.isSynced : existing.isSynced,
-             color: m.color !== "var(--text-secondary)" ? m.color : (existing.color || m.color),
-           };
+      const preserveModState = (m: any): any => {
+        const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
+        const netUpd = netUpdated.find((u: any) => (u.hash && u.hash === m.hash) || (u.name && u.name === m.name));
+        const isNetBroken = netBroken.some((b: any) => (b.hash && b.hash === m.hash) || (b.name && b.name === m.name));
+        const isNetObsolete = netObsolete.some((b: any) => (b.hash && b.hash === m.hash) || (b.name && b.name === m.name));
+
+        let nextFlavors = m.flavors;
+        if (Array.isArray(m.flavors)) {
+          nextFlavors = m.flavors.map(preserveModState);
+        }
+
+        if (existing) {
+          const isSameHash = existing.hash === m.hash;
+          const cleanMVer = String(m.version || "").toLowerCase().replace(/^v/, '').trim();
+          const candidateNewVer = existing.newVersion || netUpd?.newVersion;
+          const cleanNewVer = String(candidateNewVer || "").toLowerCase().replace(/^v/, '').trim();
+          const isStillOutdated = (isSameHash || !!netUpd) && (cleanMVer !== cleanNewVer && !!cleanNewVer);
+
+          let resolvedStatus = m.status !== t("status_identifying", "Identifying...") ? m.status : (existing.status || m.status);
+          if (isNetBroken) resolvedStatus = 'broken';
+          else if (isNetObsolete) resolvedStatus = 'obsolete';
+
+          return {
+            ...existing,
+            ...m,
+            conflicts: m.conflicts,
+            isVirtual: m.isVirtual !== undefined ? m.isVirtual : existing.isVirtual,
+            isLocalVirtual: m.isLocalVirtual !== undefined ? m.isLocalVirtual : existing.isLocalVirtual,
+            flavors: nextFlavors !== undefined ? nextFlavors : existing.flavors,
+            hasUpdate: isStillOutdated ? (existing.hasUpdate || !!netUpd) : undefined,
+            newVersion: isStillOutdated ? candidateNewVer : undefined,
+            newGameVersion: isStillOutdated ? (existing.newGameVersion || netUpd?.newGameVersion) : undefined,
+            download_url: isStillOutdated ? (existing.download_url || netUpd?.download_url || m.download_url) : m.download_url,
+            status: resolvedStatus,
+            isSynced: m.isSynced !== undefined ? m.isSynced : existing.isSynced,
+            color: m.color !== "var(--text-secondary)" ? m.color : (existing.color || m.color),
+          };
+        }
+
+        if (netUpd || isNetBroken || isNetObsolete || nextFlavors !== m.flavors) {
+          return {
+            ...m,
+            ...(nextFlavors !== undefined ? { flavors: nextFlavors } : {}),
+            ...(netUpd ? {
+              hasUpdate: true,
+              newVersion: netUpd.newVersion,
+              newGameVersion: netUpd.newGameVersion,
+              download_url: netUpd.download_url || m.download_url,
+            } : {}),
+            ...(isNetBroken ? { status: 'broken' } : isNetObsolete ? { status: 'obsolete' } : {}),
+          };
         }
         return m;
-      });
+      };
+
+      const finalMasterList = masterList.map(preserveModState);
 
       await yieldToMain();
       setModList(finalMasterList);

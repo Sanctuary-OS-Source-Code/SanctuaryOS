@@ -10,7 +10,7 @@ import {
   HubTabButton, ModSearchDropdown, EmptyState, ActionButton,
   standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
   standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton,
-  SidePanelHeroCard, SidePanelTitleInput, UniversalGroup, StatBox,
+  SidePanelHeroCard, SidePanelTitleInput, UniversalGroup, StatBox, HoverTooltip,
   extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
 } from "../shared";
 import { UniversalTextArea } from "../components/universal/UniversalLayout";
@@ -524,15 +524,17 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                       </div>
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-bold text-[var(--text)] truncate" title={item.path}>
+                          <span className="text-xs font-bold text-[var(--text)] truncate">
                             {item.path.split(/[/\\]/).pop()}
+                            <HoverTooltip title={item.path} />
                           </span>
                           <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 shrink-0">
                             {new Date(item.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] truncate max-w-[240px]" title={item.hash}>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] truncate max-w-[240px]">
                           {item.hash}
+                          <HoverTooltip title={item.hash} />
                         </span>
                       </div>
                     </div>

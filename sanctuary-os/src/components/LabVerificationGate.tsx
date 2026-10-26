@@ -125,14 +125,22 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
       }
     }
 
-    // Also record in Supabase homestead_lab_logs if version exists
+    // Also record in Supabase homestead_lab_logs ONLY if version exists and mod is verified Tier 0
     const { data: verData } = await supabase
       .from("mod_versions")
-      .select("id, mod_id")
+      .select("id, mod_id, mods(compliance_tier, status)")
       .eq("dna_hash", cert.dna_hash)
       .maybeSingle();
 
-    if (verData) {
+    const verMod = Array.isArray((verData as any)?.mods)
+      ? (verData as any).mods[0]
+      : (verData as any)?.mods;
+    if (
+      verData &&
+      verMod &&
+      Number(verMod.compliance_tier || 0) === 0 &&
+      String(verMod.status || "").toLowerCase() !== "unverified"
+    ) {
       await supabase.from("homestead_lab_logs").insert([
         {
           mod_id: verData.mod_id,

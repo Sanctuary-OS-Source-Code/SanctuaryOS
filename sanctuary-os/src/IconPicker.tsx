@@ -1579,6 +1579,7 @@ export const ICON_CATEGORIES = [
 ];
 
 import { createPortal } from 'react-dom';
+import { HoverTooltip } from './shared';
 
 export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: string) => void, onClose: () => void }) {
   const [search, setSearch] = useState('');
@@ -1591,7 +1592,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
       const targetEl = anchorRef.current?.parentElement || anchorRef.current;
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
-        const pickerWidth = Math.min(360, window.innerWidth - 24);
+        const pickerWidth = Math.min(368, window.innerWidth - 24);
         const spaceBelow = window.innerHeight - rect.bottom;
         const shouldDropUp = spaceBelow < 360 && rect.top > 360;
         const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - pickerWidth - 12));
@@ -1629,7 +1630,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
       {coords && portalRoot && createPortal(
         <>
           <div
-            className="!fixed inset-0 pointer-events-auto"
+            className="!fixed inset-0 pointer-events-auto bg-transparent"
             style={{ zIndex: 100000000 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -1644,11 +1645,11 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
               bottom: coords.isDropUp ? window.innerHeight - coords.top + 8 : "auto",
               left: coords.left,
             }}
-            className="!fixed rounded-2xl glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto w-[360px] max-w-[calc(100vw-24px)] animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)]"
+            className="!fixed !rounded-2xl sa-dropdown-popover pointer-events-auto w-[368px] max-w-[calc(100vw-24px)] flex flex-col text-[var(--text)]"
           >
             <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] text-sm">
+              <div className="sa-dropdown-search flex items-center gap-2.5 px-3 h-9 !rounded-xl">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] opacity-85 shrink-0">
                   {t("icon_search", "search")}
                 </span>
                 <input
@@ -1656,39 +1657,55 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
                   placeholder={t("search", "Search icons...")}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-[var(--text)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all placeholder:text-[color-mix(in_srgb,var(--subtext)_50%,transparent)]"
+                  className="w-full bg-transparent border-none text-xs font-semibold text-[var(--text)] focus:outline-none placeholder:text-[var(--subtext)] placeholder:opacity-60"
                   autoFocus
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_close", "close")}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="p-3.5 max-h-[300px] overflow-y-auto custom-scrollbar">
+            <div className="p-3.5 max-h-[310px] overflow-y-auto custom-scrollbar">
               {filteredCategories.length === 0 ? (
-                <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-50">
+                <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-60">
                   {t("no_icons", "No matching icons found")}
                 </div>
               ) : (
-                <div className="flex flex-col gap-5">
-                  {filteredCategories.map(cat => (
-                    <div key={cat.name} className="flex flex-col gap-2">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60 ml-1">
-                        {cat.name}
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {cat.icons.map(icon => (
-                          <button
-                            key={icon}
-                            type="button"
-                            onClick={() => onSelect(icon)}
-                            title={icon}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_55%,transparent)] text-[var(--text)] hover:text-[var(--accent)] transition-all hover:scale-105 cursor-pointer shrink-0"
-                          >
-                            <span className="material-symbols-outlined !text-[19px]">{icon}</span>
-                          </button>
-                        ))}
+                <div className="flex flex-col gap-4">
+                  {filteredCategories.map(cat => {
+                    const catKey = `icon_cat_${cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+                    return (
+                      <div key={cat.name} className="flex flex-col gap-2">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-0.5">
+                          {t(catKey, cat.name)}
+                        </h4>
+                        <div className="grid grid-cols-8 gap-1.5">
+                          {cat.icons.map(icon => (
+                            <button
+                              key={icon}
+                              type="button"
+                              onClick={() => onSelect(icon)}
+                              className="relative w-full aspect-square flex items-center justify-center !rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_60%,transparent)] text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] transition-all hover:scale-105 cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[18px]">
+                                {t(`icon_${icon}`, icon)}
+                              </span>
+                              <HoverTooltip title={icon} noIcon />
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -826,10 +826,20 @@ function renderCleanInlineText(text: string): React.ReactNode {
   });
 }
 
-export function StructuredReleaseNotesView({ content }: { content: string }) {
-  const { t } = useLexicon();
+export function StructuredReleaseNotesView({
+  content,
+  forceTranslate,
+}: {
+  content: string;
+  forceTranslate?: boolean;
+}) {
+  const { t, td } = useLexicon();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
-  const parsed = useMemo(() => parseMarkdownIntoReleaseSections(content), [content]);
+  const translatedContent = td ? td(content || "", { forceTranslate }) : (content || "");
+  const parsed = useMemo(
+    () => parseMarkdownIntoReleaseSections(translatedContent),
+    [translatedContent]
+  );
 
   const resolveSectionIcon = (title: string, explicitIcon?: string) => {
     if (explicitIcon) {
@@ -1064,11 +1074,11 @@ export function StructuredReleaseNotesView({ content }: { content: string }) {
                               navigator.clipboard.writeText(card.codeBlock || "")
                             }
                             className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] opacity-0 group-hover/code:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                            title={t("btn_copy", "Copy")}
                           >
                             <span className="material-symbols-outlined !text-[14px]">
                               {t("icon_content_copy", "content_copy")}
                             </span>
+                            <HoverTooltip title={t("btn_copy", "Copy")} />
                           </button>
                           <pre className="font-mono text-xs text-[var(--accent)] whitespace-pre-wrap break-words m-0 pr-8">
                             <code>{card.codeBlock}</code>
@@ -1793,7 +1803,7 @@ export function ReleaseNotesShowcase({
   const activeDateStr = isDevActive ? devDateDisplay : stableDateDisplay;
   const activePlatformStr = isDevActive ? devPlatformDisplay : stablePlatformDisplay;
   const activeChannelShort = isDevActive
-    ? t("sidebar_wayfinder_tools", "Dev")
+    ? t("release_notes_meta_channel_dev", "Dev")
     : t("release_notes_meta_channel_public", "Public");
   const activeChannelBadge = isDevActive
     ? t("release_notes_dev_channel_badge", "Daily Dev Build")
@@ -1847,7 +1857,7 @@ export function ReleaseNotesShowcase({
           label={t("release_notes_meta_channel", "Channel")}
           value={
             isDevChan
-              ? t("sidebar_wayfinder_tools", "Dev")
+              ? t("release_notes_meta_channel_dev", "Dev")
               : t("release_notes_meta_channel_public", "Public")
           }
           tooltipSubtitle={
@@ -1936,7 +1946,7 @@ export function ReleaseNotesShowcase({
                   <span className="material-symbols-outlined !text-[12px]">
                     {t("icon_bolt", "bolt")}
                   </span>
-                  {t("sidebar_wayfinder_tools", "Dev")} &bull; v{devVersion}
+                  {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
                 </span>
               </div>
               <div className="flex flex-col gap-0.5">
@@ -2029,7 +2039,7 @@ export function ReleaseNotesShowcase({
                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                     {t("icon_bolt", "bolt")}
                   </span>
-                  {t("sidebar_wayfinder_tools", "Dev")} &bull; v{devVersion}
+                  {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
                 </span>
               </div>
             }
@@ -2248,7 +2258,7 @@ export function ReleaseNotesShowcase({
                   icon={
                     <span className="material-symbols-outlined">{t("icon_bolt", "bolt")}</span>
                   }
-                  label={t("sidebar_wayfinder_tools", "Dev")}
+                  label={t("release_notes_meta_channel_dev", "Dev")}
                   number={t("release_notes_dev_post_label", "Dev Channel Post")}
                   isActive={editorChannel === "dev"}
                   onClick={() => populateDraftForChannel("dev")}

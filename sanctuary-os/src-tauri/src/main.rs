@@ -92,6 +92,7 @@ fn main() {
         .manage(SecurityState {
             malware_hashes: std::sync::Mutex::new(Vec::new()),
             tier2_hashes: std::sync::Mutex::new(Vec::new()),
+            volatile_original_paths: std::sync::Mutex::new(HashMap::new()),
         })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -142,6 +143,10 @@ fn main() {
             get_quarantine_list,
             purge_quarantined_file,
             purge_external_file,
+            shred_external_file,
+            check_file_exists,
+            get_volatile_original_path,
+            clear_volatile_original_path,
             restore_quarantined_file,
             trigger_emp,
             move_to_lab,
@@ -208,6 +213,7 @@ fn main() {
             fetch_and_sync_edge_manifest,
             get_all_edge_manifests,
             export_edge_release,
+            push_static_edge_manifest,
             get_local_supporter_state,
             toggle_local_mason_follow,
             sync_mason_supporter_bridge,

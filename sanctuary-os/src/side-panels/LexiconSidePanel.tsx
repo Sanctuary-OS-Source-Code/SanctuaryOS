@@ -13,6 +13,7 @@ import {
   PanelHeaderButton,
   ActionPill,
   VAULT_CHIP_CLASS,
+  HoverTooltip,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { DynamicLexiconPreviewBanner } from "../chameleon-components/ThemeCard";
@@ -34,6 +35,8 @@ export default function LexiconSidePanel({
     lexiconMeta,
     useGlobalLexicon,
     setUseGlobalLexicon,
+    autoTranslateDynamic,
+    setAutoTranslateDynamic,
   } = useLexicon();
   const setView = useStore((state) => state.setView);
   const setMarketTab = useStore((state) => state.setMarketTab);
@@ -240,6 +243,7 @@ export default function LexiconSidePanel({
               onClick={(e) => e.stopPropagation()}
             >
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFavoriteLexicon(code, e);
@@ -258,10 +262,12 @@ export default function LexiconSidePanel({
                 >
                   {t("icon_star", "star")}
                 </span>
+                <HoverTooltip title={t("favorite", "Favorite")} variant="accent" vAlign="bottom" />
               </button>
 
               {canDelete && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (confirmDelete === code) {
@@ -283,6 +289,7 @@ export default function LexiconSidePanel({
                       ? t("icon_warning", "warning")
                       : t("icon_delete", "delete")}
                   </span>
+                  <HoverTooltip title={t("delete", "Delete")} variant="danger" vAlign="bottom" />
                 </button>
               )}
             </div>
@@ -395,19 +402,32 @@ export default function LexiconSidePanel({
                     </span>
                   </div>
                   <div
-                    className={`w-10 h-5 shrink-0 rounded-full p-0.5 flex items-center border transition-all duration-300 ${
-                      useGlobalLexicon
-                        ? "bg-transparent border-[var(--accent)]"
-                        : "bg-transparent border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+                    className={`sa-glass-toggle shrink-0 ${
+                      useGlobalLexicon ? "is-on" : ""
                     }`}
                   >
-                    <div
-                      className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                        useGlobalLexicon
-                          ? "bg-[var(--accent)] translate-x-[18px]"
-                          : "bg-[var(--subtext)] translate-x-0"
-                      }`}
-                    />
+                    <div className="sa-glass-toggle-thumb" />
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setAutoTranslateDynamic(!autoTranslateDynamic)}
+                  className="flex items-center justify-between px-4 glass-surface h-12 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] cursor-pointer transition-all w-full group"
+                >
+                  <div className="flex flex-col gap-1 pr-2">
+                    <span className="text-[10px] font-black tracking-widest uppercase text-[var(--text)]">
+                      {t("lex_dynamic_translate_title", "Dynamic {Dispatch} Translation")}
+                    </span>
+                    <span className="text-[8px] text-[var(--subtext)] opacity-70 leading-tight">
+                      {t("lex_dynamic_translate_desc", "Auto-translate database {dispatches}, comments, and {mod} descriptions.")}
+                    </span>
+                  </div>
+                  <div
+                    className={`sa-glass-toggle shrink-0 ${
+                      autoTranslateDynamic ? "is-on" : ""
+                    }`}
+                  >
+                    <div className="sa-glass-toggle-thumb" />
                   </div>
                 </div>
 

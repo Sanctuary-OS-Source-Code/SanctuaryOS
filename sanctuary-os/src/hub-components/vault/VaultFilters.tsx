@@ -1,27 +1,33 @@
 import React from 'react';
 import { isVersionMatch, getHighestVersion, getLowestVersion, ActionPill } from "../../shared";
 
-function FilterSection({ title, options, value, onChange }: any) {
+function FilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;
   return (
     <div className="flex flex-col mb-5 w-full last:mb-0">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
         {title}
         <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-1">
         {options.map((opt: any) => {
           const active = value === opt.id;
           return (
             <button
               key={opt.id}
               onClick={() => onChange(opt.id)}
-              className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border ${active
-                ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
-                : 'border-transparent bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]'
-                }`}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? "is-selected font-bold" : "font-semibold"
+              }`}
             >
-              {opt.label}
+              <span className="truncate flex items-center gap-2 min-w-0">
+                {opt.label}
+              </span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t ? t("icon_check", "check") : ""}
+                </span>
+              )}
             </button>
           );
         })}
@@ -95,6 +101,7 @@ export const VaultFilters = React.memo(function VaultFilters({
     return (
       <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
         <FilterSection
+          t={t}
           title={t("filter_category", "Filter Category")}
           value={activeCategory}
           onChange={(val: string) => { setActiveCategory(val); setActiveSubType("ALL"); }}
@@ -110,6 +117,7 @@ export const VaultFilters = React.memo(function VaultFilters({
 
         {subcats.length > 0 && (
           <FilterSection
+            t={t}
             title={t("filter_subtype", "Subtype")}
             value={activeSubType}
             onChange={(val: string) => setActiveSubType(val)}
@@ -124,6 +132,7 @@ export const VaultFilters = React.memo(function VaultFilters({
         )}
 
         <FilterSection
+          t={t}
           title={t("filter_status", "Filter Status")}
           value={filterStatus}
           onChange={(val: string) => setFilterStatus(val)}
@@ -140,6 +149,7 @@ export const VaultFilters = React.memo(function VaultFilters({
 
         {equipFilter === "ARCHIVES" && (
           <FilterSection
+            t={t}
             title={t("filter_archive_version", "Archive Version")}
             value={activeArchiveVal}
             onChange={(val: string) => setArchiveVersionFilter(val || "")}
@@ -178,7 +188,7 @@ export const VaultFilters = React.memo(function VaultFilters({
         id: "hide_ghosts",
         icon: <span className={`material-symbols-outlined !text-[20px] sm:!text-[20px] !text-[18px] ${hideGhostCards ? 'text-[var(--success)]' : ''}`}>{hideGhostCards ? t("icon_visibility_off", "visibility_off") : t("icon_visibility", "visibility")}</span>,
         label: t("btn_hide_ghosts", "Only Show Eligible"),
-        activeClassName: hideGhostCards ? 'text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : '',
+        activeClassName: hideGhostCards ? 'sa-glass-active !text-[var(--success)] !opacity-100' : '',
         onClick: () => setHideGhostCards(!hideGhostCards)
       });
     }

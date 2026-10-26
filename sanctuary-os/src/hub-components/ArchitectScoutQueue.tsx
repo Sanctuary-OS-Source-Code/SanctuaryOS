@@ -110,31 +110,191 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
   useEffect(() => { setVisibleCount(100); }, [searchTerm, filterTab]);
 
+  const minScoutSubmissions = Math.max(
+    1,
+    Number(
+      activeGameSchema?.min_scout_submissions ??
+        activeGameSchema?.scout_min_submissions ??
+        3
+    ) || 3
+  );
+
+  type FieldCandidate = {
+    norm: string;
+    display: string;
+    rawValue: any;
+    count: number;
+    percent: number;
+  };
+
+  const computeFieldCandidates = (
+    rows: any[],
+    extractor: (row: any) => any,
+    normalizer?: (val: any) => { norm: string; display: string; rawValue: any } | null
+  ): FieldCandidate[] => {
+    const total = Math.max(1, rows.length);
+    const map = new Map<string, { display: string; rawValue: any; count: number }>();
+    rows.forEach((r) => {
+      const raw = extractor(r);
+      if (raw === undefined || raw === null) return;
+      let parsed: { norm: string; display: string; rawValue: any } | null = null;
+      if (normalizer) {
+        parsed = normalizer(raw);
+      } else {
+        const str = String(raw).trim();
+        if (!str) return;
+        parsed = { norm: str.toLowerCase(), display: str, rawValue: str };
+      }
+      if (!parsed || !parsed.norm) return;
+      const existing = map.get(parsed.norm);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(parsed.norm, {
+          display: parsed.display,
+          rawValue: parsed.rawValue,
+          count: 1,
+        });
+      }
+    });
+    return Array.from(map.entries())
+      .map(([norm, info]) => ({
+        norm,
+        display: info.display,
+        rawValue: info.rawValue,
+        count: info.count,
+        percent: Math.round((info.count / total) * 100),
+      }))
+      .sort((a, b) => b.count - a.count);
+  };
+
+  const buildConsensusGroup = (dnaHash: string, rows: any[]) => {
+    const sortedRows = [...rows].sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    const primary = sortedRows[0] || rows[0];
+    const fields = {
+      name: computeFieldCandidates(rows, (r) =>
+        r.suggested_name ? String(r.suggested_name).replace(/_/g, " ").trim() : ""
+      ),
+      author: computeFieldCandidates(rows, (r) => r.suggested_author),
+      type: computeFieldCandidates(rows, (r) => r.suggested_type),
+      sub_type: computeFieldCandidates(rows, (r) => r.suggested_sub_type),
+      version: computeFieldCandidates(rows, (r) => r.suggested_version),
+      url: computeFieldCandidates(rows, (r) => r.suggested_url),
+      image_url: computeFieldCandidates(rows, (r) => r.image_url),
+      description: computeFieldCandidates(rows, (r) => r.description),
+      game_versions: computeFieldCandidates(
+        rows,
+        (r) => r.suggested_game_versions,
+        (raw) => {
+          const arr = Array.isArray(raw)
+            ? raw.map((v: any) => String(v).trim()).filter(Boolean)
+            : typeof raw === "string"
+              ? raw
+                  .split(",")
+                  .map((v) => v.trim())
+                  .filter(Boolean)
+              : [];
+          if (arr.length === 0) return null;
+          const sorted = [...new Set(arr)].sort();
+          return {
+            norm: sorted.join("|").toLowerCase(),
+            display: sorted.join(", "),
+            rawValue: sorted,
+          };
+        }
+      ),
+      compliance_tier: computeFieldCandidates(
+        rows,
+        (r) => r.compliance_tier ?? 0,
+        (raw) => {
+          const n = Number(raw ?? 0);
+          return {
+            norm: String(n),
+            display: `${t("stat_tier", "Tier")} ${n}`,
+            rawValue: n,
+          };
+        }
+      ),
+    };
+
+    const topPcts = [
+      fields.name[0]?.percent,
+      fields.author[0]?.percent,
+      fields.type[0]?.percent,
+      fields.version[0]?.percent,
+    ].filter((n): n is number => typeof n === "number");
+    const avgConfidence =
+      topPcts.length > 0
+        ? Math.round(topPcts.reduce((a, b) => a + b, 0) / topPcts.length)
+        : 100;
+
+    return {
+      ...primary,
+      dna_hash: dnaHash,
+      suggested_name: fields.name[0]?.display || primary?.suggested_name || dnaHash,
+      suggested_author: fields.author[0]?.display || primary?.suggested_author || "",
+      suggested_type: fields.type[0]?.display || primary?.suggested_type || "Script",
+      suggested_sub_type: fields.sub_type[0]?.display || primary?.suggested_sub_type || "",
+      suggested_version: fields.version[0]?.display || primary?.suggested_version || "v.Scout",
+      suggested_url: fields.url[0]?.display || primary?.suggested_url || "",
+      image_url: fields.image_url[0]?.display || primary?.image_url || "",
+      description: fields.description[0]?.display || primary?.description || "",
+      suggested_game_versions:
+        fields.game_versions[0]?.rawValue || primary?.suggested_game_versions || [],
+      compliance_tier:
+        fields.compliance_tier[0]?.rawValue ?? primary?.compliance_tier ?? 0,
+      submission_count: rows.length,
+      consensus_confidence: avgConfidence,
+      all_submissions: sortedRows,
+      consensus_fields: fields,
+    };
+  };
+
+  const applyConsensusToForm = (scoutGroup: any) => {
+    if (!scoutGroup) return;
+    const fields = scoutGroup.consensus_fields;
+    const bestAuthor = fields?.author?.[0]?.display || scoutGroup.suggested_author || "";
+    const possibleMason = masonsList.find(
+      (m: any) =>
+        (bestAuthor && String(m.name || "").toLowerCase() === bestAuthor.toLowerCase()) ||
+        m.id === scoutGroup.suggested_mason_id
+    );
+    let st = fields?.sub_type?.[0]?.display || scoutGroup.suggested_sub_type || "";
+    let fe = "";
+    if (isSupportedExtension(st, useStore.getState().activeGameSchema)) {
+      fe = "." + st.toLowerCase().replace(/^\./, "");
+      st = "";
+    }
+    const bestVer = fields?.version?.[0]?.display || scoutGroup.suggested_version || "v.Scout";
+    setEditForm({
+      name: (fields?.name?.[0]?.display || scoutGroup.suggested_name || "").replace(/_/g, " "),
+      mason_id: possibleMason ? possibleMason.id : "",
+      category_override: fields?.type?.[0]?.display || scoutGroup.suggested_type || "Script",
+      sub_type: st,
+      file_extension: fe,
+      description: fields?.description?.[0]?.display || scoutGroup.description || "",
+      image_url: fields?.image_url?.[0]?.display || scoutGroup.image_url || "",
+      latest_version: bestVer,
+      url: fields?.url?.[0]?.display || scoutGroup.suggested_url || "",
+      compliance_tier: Number(
+        fields?.compliance_tier?.[0]?.rawValue ?? scoutGroup.compliance_tier ?? 0
+      ),
+      compatible_versions: Array.isArray(fields?.game_versions?.[0]?.rawValue)
+        ? fields.game_versions[0].rawValue
+        : Array.isArray(scoutGroup.suggested_game_versions)
+          ? scoutGroup.suggested_game_versions
+          : [],
+      hash_version: bestVer,
+    });
+  };
+
   useEffect(() => {
     if (activeScout) {
       setLineageId("");
-      const possibleMason = masonsList.find((m: any) => m.name === activeScout.suggested_author || m.id === activeScout.suggested_mason_id);
-      let st = activeScout.suggested_sub_type || "";
-      let fe = "";
-      if (isSupportedExtension(st, useStore.getState().activeGameSchema)) {
-        fe = "." + st.toLowerCase();
-        st = "";
-      }
-
-      setEditForm({
-        name: (activeScout.suggested_name || "").replace(/_/g, " "),
-        mason_id: possibleMason ? possibleMason.id : "",
-        category_override: activeScout.suggested_type || "Script",
-        sub_type: st,
-        file_extension: fe,
-        description: "",
-        image_url: "",
-        latest_version: "",
-        url: activeScout.suggested_url || "",
-        compliance_tier: 0,
-        compatible_versions: [],
-        hash_version: activeScout.suggested_version || "v.Scout"
-      });
+      applyConsensusToForm(activeScout);
     } else {
       setEditForm({
         name: "", mason_id: "", category_override: "", sub_type: "", file_extension: "", description: "", image_url: "", latest_version: "", url: "", compliance_tier: 0, compatible_versions: [], hash_version: ""
@@ -243,42 +403,41 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(false);
   };
 
-  const minScoutSubmissions = Math.max(1, Number(activeGameSchema?.min_scout_submissions ?? 5) || 5);
-
   const pendingRaw = submissions.filter((s: any) => s.status === 'pending');
   const completedRaw = submissions.filter((s: any) => s.status !== 'pending');
 
-  const pendingHashCounts = new Map<string, number>();
+  const pendingGroupsMap = new Map<string, any[]>();
   pendingRaw.forEach((s: any) => {
-    if (s.dna_hash) {
-      pendingHashCounts.set(s.dna_hash, (pendingHashCounts.get(s.dna_hash) || 0) + 1);
-    }
+    if (!s.dna_hash) return;
+    const key = String(s.dna_hash);
+    if (!pendingGroupsMap.has(key)) pendingGroupsMap.set(key, []);
+    pendingGroupsMap.get(key)!.push(s);
   });
 
-  const seenPendingHashes = new Set<string>();
-  const pendingSubmissions = pendingRaw.filter((s: any) => {
-    if (!s.dna_hash) return false;
-    if ((pendingHashCounts.get(s.dna_hash) || 0) < minScoutSubmissions) return false;
-    if (seenPendingHashes.has(s.dna_hash)) return false;
-    seenPendingHashes.add(s.dna_hash);
-    return true;
+  const pendingSubmissions = Array.from(pendingGroupsMap.entries())
+    .filter(([, rows]) => rows.length >= minScoutSubmissions)
+    .map(([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows));
+
+  const completedGroupsMap = new Map<string, any[]>();
+  completedRaw.forEach((s: any) => {
+    const key = String(s.dna_hash || s.id);
+    if (!completedGroupsMap.has(key)) completedGroupsMap.set(key, []);
+    completedGroupsMap.get(key)!.push(s);
   });
 
-  const seenCompletedHashes = new Set<string>();
-  const completedSubmissions = completedRaw.filter((s: any) => {
-    if (!s.dna_hash) return true;
-    if (seenCompletedHashes.has(s.dna_hash)) return false;
-    seenCompletedHashes.add(s.dna_hash);
-    return true;
-  });
+  const completedSubmissions = Array.from(completedGroupsMap.entries()).map(
+    ([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows)
+  );
 
   const activeSubmissions = filterTab === 'pending' ? pendingSubmissions : completedSubmissions;
 
   const filteredSubmissions = activeSubmissions.filter((s: any) => {
+    const q = searchTerm.toLowerCase();
     return (
-      s.suggested_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.dna_hash?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.id?.toLowerCase().includes(searchTerm.toLowerCase())
+      s.suggested_name?.toLowerCase().includes(q) ||
+      s.suggested_author?.toLowerCase().includes(q) ||
+      s.dna_hash?.toLowerCase().includes(q) ||
+      s.id?.toLowerCase().includes(q)
     );
   });
 
@@ -303,9 +462,27 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
     }
   ];
 
-  const renderScoutCard = (mod: any) => (
-    <ArtifactCard key={mod.id} mod={{ ...mod, name: mod.suggested_name, category_override: mod.suggested_type || t("scout_queue", "Scout Queue") }} onClick={() => setActiveScout(mod)} masonsList={masonsList} overrideActionLabel={t("btn_view", "View")} />
-  );
+  const renderScoutCard = (mod: any) => {
+    const subCount = Number(mod.submission_count || 1);
+    return (
+      <ArtifactCard
+        key={mod.dna_hash || mod.id}
+        mod={{
+          ...mod,
+          name: mod.suggested_name,
+          displayName: mod.suggested_name,
+          master_author: mod.suggested_author,
+          author: mod.suggested_author,
+          latest_version: mod.suggested_version,
+          version: mod.suggested_version,
+          category_override: mod.suggested_type || t("scout_queue", "Scout Queue"),
+        }}
+        onClick={() => setActiveScout(mod)}
+        masonsList={masonsList}
+        overrideActionLabel={`${subCount} ${t("scout_submissions_badge", "Submissions")}`}
+      />
+    );
+  };
 
   const renderLanding = () => (
     <HubOverviewLanding>
@@ -417,7 +594,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               badgeIcon={activeScout.status === "approved" ? t("icon_verified", "verified") : t("icon_pending_actions", "pending_actions")}
               variant={activeScout.status === "approved" ? "success" : "accent"}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
                 <StatBox
                   label={t("dna_hash", "DNA Hash")}
                   value={activeScout.dna_hash ? `${String(activeScout.dna_hash).substring(0, 12)}...` : t("oversight_na", "N/A")}
@@ -434,8 +611,300 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                   icon={t("icon_architecture", "architecture")}
                   iconColorClass="text-[var(--accent)]"
                 />
+                <StatBox
+                  label={t("scout_submissions_badge", "Submissions")}
+                  value={`${activeScout.submission_count || 1} / ${minScoutSubmissions}`}
+                  icon={t("icon_group", "group")}
+                  iconColorClass="text-[var(--success)]"
+                />
+                <StatBox
+                  label={t("scout_consensus_confidence", "Consensus Match")}
+                  value={`${activeScout.consensus_confidence ?? 100}%`}
+                  icon={t("icon_verified", "verified")}
+                  iconColorClass={
+                    (activeScout.consensus_confidence ?? 100) >= 65
+                      ? "text-[var(--success)]"
+                      : "text-[var(--warning)]"
+                  }
+                />
               </div>
             </SidePanelHeroCard>
+
+            {/* Most Likely True Metadata — Field-by-Field Consensus Comparison */}
+            <UniversalGroup
+              title={t("scout_consensus_matrix_title", "Most Likely True Metadata (Consensus Comparison)")}
+              icon={t("icon_analytics", "analytics")}
+              headerAction={
+                <button
+                  type="button"
+                  onClick={() => applyConsensusToForm(activeScout)}
+                  className="px-3 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <span className="material-symbols-outlined !text-[13px]">
+                    {t("icon_auto_fix_high", "auto_fix_high")}
+                  </span>
+                  <span>{t("scout_btn_apply_consensus", "Apply Top Consensus")}</span>
+                </button>
+              }
+            >
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[11px] font-bold text-[var(--subtext)] opacity-85 px-1">
+                  {t(
+                    "scout_consensus_matrix_desc",
+                    "Compares matching submissions per field across all {0} reports. Click any candidate value below to apply it to the {Mod} record."
+                  ).replace("{0}", String(activeScout.submission_count || 1))}
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  {[
+                    {
+                      key: "name",
+                      label: t("label_modname", "{Mod} Name"),
+                      candidates: activeScout.consensus_fields?.name || [],
+                      currentVal: editForm.name,
+                      onApply: (c: any) => setEditForm((prev) => ({ ...prev, name: c.display })),
+                    },
+                    {
+                      key: "author",
+                      label: t("mason", "{Mason}"),
+                      candidates: activeScout.consensus_fields?.author || [],
+                      currentVal:
+                        masonsList.find((m: any) => m.id === editForm.mason_id)?.name || "",
+                      onApply: (c: any) => {
+                        const matched = masonsList.find(
+                          (m: any) =>
+                            String(m.name || "").toLowerCase() === String(c.display || "").toLowerCase()
+                        );
+                        if (matched) {
+                          setEditForm((prev) => ({ ...prev, mason_id: matched.id }));
+                        } else {
+                          setNewMasonName(c.display);
+                          setIsMasonPanelOpen(true);
+                        }
+                      },
+                    },
+                    {
+                      key: "type",
+                      label: t("category", "Category"),
+                      candidates: activeScout.consensus_fields?.type || [],
+                      currentVal: editForm.category_override,
+                      onApply: (c: any) =>
+                        setEditForm((prev) => ({ ...prev, category_override: c.display })),
+                    },
+                    {
+                      key: "sub_type",
+                      label: t("registry_col_subcat", "Subcategory / Format"),
+                      candidates: activeScout.consensus_fields?.sub_type || [],
+                      currentVal: editForm.sub_type || editForm.file_extension,
+                      onApply: (c: any) => {
+                        const val = String(c.display || "");
+                        if (isSupportedExtension(val, activeGameSchema)) {
+                          setEditForm((prev) => ({
+                            ...prev,
+                            file_extension: "." + val.toLowerCase().replace(/^\./, ""),
+                          }));
+                        } else {
+                          setEditForm((prev) => ({ ...prev, sub_type: val }));
+                        }
+                      },
+                    },
+                    {
+                      key: "version",
+                      label: t("registry_label_version", "Version"),
+                      candidates: activeScout.consensus_fields?.version || [],
+                      currentVal: editForm.latest_version || editForm.hash_version,
+                      onApply: (c: any) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          latest_version: c.display,
+                          hash_version: c.display,
+                        })),
+                    },
+                    {
+                      key: "url",
+                      label: t("ui_url", "Source URL"),
+                      candidates: activeScout.consensus_fields?.url || [],
+                      currentVal: editForm.url,
+                      onApply: (c: any) => setEditForm((prev) => ({ ...prev, url: c.display })),
+                    },
+                    {
+                      key: "game_versions",
+                      label: t("game_versions", "Compatible Game Versions"),
+                      candidates: activeScout.consensus_fields?.game_versions || [],
+                      currentVal: (editForm.compatible_versions || []).join(", "),
+                      onApply: (c: any) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          compatible_versions: Array.isArray(c.rawValue) ? c.rawValue : [],
+                        })),
+                    },
+                    {
+                      key: "image_url",
+                      label: t("cc_cover_url", "Cover Image URL"),
+                      candidates: activeScout.consensus_fields?.image_url || [],
+                      currentVal: editForm.image_url,
+                      onApply: (c: any) =>
+                        setEditForm((prev) => ({ ...prev, image_url: c.display })),
+                    },
+                    {
+                      key: "description",
+                      label: t("upload_desc", "Description"),
+                      candidates: activeScout.consensus_fields?.description || [],
+                      currentVal: editForm.description,
+                      onApply: (c: any) =>
+                        setEditForm((prev) => ({ ...prev, description: c.display })),
+                    },
+                  ]
+                    .filter((row) => row.candidates.length > 0)
+                    .map((row) => {
+                      const totalSubs = Math.max(1, Number(activeScout.submission_count || 1));
+                      return (
+                        <div
+                          key={row.key}
+                          className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                              {row.label}
+                            </span>
+                            {row.candidates[0] && (
+                              <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                                <span className="material-symbols-outlined !text-[11px]">
+                                  {t("icon_verified", "verified")}
+                                </span>
+                                {`${t("scout_most_likely_badge", "Most Likely")}: ${row.candidates[0].count}/${totalSubs} (${row.candidates[0].percent}%)`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {row.candidates.map((cand: any, idx: number) => {
+                              const isSelected =
+                                String(row.currentVal || "").trim().toLowerCase() ===
+                                String(cand.display || "").trim().toLowerCase();
+                              const isTop = idx === 0;
+                              return (
+                                <button
+                                  key={cand.norm + idx}
+                                  type="button"
+                                  onClick={() => row.onApply(cand)}
+                                  className={`px-3 py-1.5 rounded-xl text-left text-xs font-bold border bg-transparent transition-all flex items-center gap-2 cursor-pointer max-w-full ${
+                                    isSelected
+                                      ? "border-[var(--accent)] text-[var(--accent)]"
+                                      : isTop
+                                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--text)] hover:border-[var(--success)]"
+                                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
+                                  }`}
+                                >
+                                  <span className="truncate max-w-[340px]">{cand.display}</span>
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border bg-transparent shrink-0 ${
+                                      isTop
+                                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                                        : "border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)]"
+                                    }`}
+                                  >
+                                    {`${cand.count}/${totalSubs} (${cand.percent}%)`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </UniversalGroup>
+
+            {/* All Individual Submissions Drawer */}
+            {Array.isArray(activeScout.all_submissions) &&
+              activeScout.all_submissions.length > 0 && (
+                <UniversalGroup
+                  title={`${t("scout_all_submissions_title", "All Citizen Submissions")} (${activeScout.all_submissions.length})`}
+                  icon={t("icon_list_alt", "list_alt")}
+                >
+                  <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                    {activeScout.all_submissions.map((sub: any, idx: number) => (
+                      <div
+                        key={sub.id || idx}
+                        className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
+                              {`#${idx + 1}`}
+                            </span>
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {sub.suggested_name || t("unknown", "Unknown")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {sub.created_at && (
+                              <span className="text-[10px] font-mono font-bold text-[var(--subtext)]">
+                                {new Date(sub.created_at).toLocaleDateString()}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matchedMason = masonsList.find(
+                                  (m: any) =>
+                                    String(m.name || "").toLowerCase() ===
+                                    String(sub.suggested_author || "").toLowerCase()
+                                );
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  name: (sub.suggested_name || prev.name || "").replace(/_/g, " "),
+                                  mason_id: matchedMason ? matchedMason.id : prev.mason_id,
+                                  category_override: sub.suggested_type || prev.category_override,
+                                  sub_type: sub.suggested_sub_type || prev.sub_type,
+                                  latest_version: sub.suggested_version || prev.latest_version,
+                                  hash_version: sub.suggested_version || prev.hash_version,
+                                  url: sub.suggested_url || prev.url,
+                                  image_url: sub.image_url || prev.image_url,
+                                  description: sub.description || prev.description,
+                                  compatible_versions: Array.isArray(sub.suggested_game_versions)
+                                    ? sub.suggested_game_versions
+                                    : prev.compatible_versions,
+                                }));
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                            >
+                              {t("scout_btn_use_submission", "Load")}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-bold text-[var(--subtext)]">
+                          <div className="truncate">
+                            <span className="opacity-60">{t("mason", "{Mason}")}: </span>
+                            <span className="text-[var(--text)]">
+                              {sub.suggested_author || t("unknown", "Unknown")}
+                            </span>
+                          </div>
+                          <div className="truncate">
+                            <span className="opacity-60">{t("category", "Category")}: </span>
+                            <span className="text-[var(--text)]">
+                              {sub.suggested_type || t("oversight_na", "N/A")}
+                            </span>
+                          </div>
+                          <div className="truncate">
+                            <span className="opacity-60">{t("version", "Version")}: </span>
+                            <span className="text-[var(--text)]">
+                              {sub.suggested_version || t("oversight_na", "N/A")}
+                            </span>
+                          </div>
+                          <div className="truncate">
+                            <span className="opacity-60">{t("ui_url", "URL")}: </span>
+                            <span className="text-[var(--text)]">
+                              {sub.suggested_url || t("oversight_na", "N/A")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </UniversalGroup>
+              )}
 
             <SidePanelTitleInput
               value={editForm.name}

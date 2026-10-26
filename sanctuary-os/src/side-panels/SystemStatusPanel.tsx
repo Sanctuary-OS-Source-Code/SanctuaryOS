@@ -204,7 +204,7 @@ export function SystemStatusPanel({
                 installedVersion === targetUpdateVersion
                   ? ` (${
                       isDevUpdate
-                        ? t("sidebar_wayfinder_tools", "Dev")
+                        ? t("release_notes_meta_channel_dev", "Dev")
                         : t("release_notes_meta_channel_stable", "Stable")
                     })`
                   : "";

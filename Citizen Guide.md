@@ -143,3 +143,52 @@ Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`
 ## Tier 6: Keeper (Core OS Hub & Sanctuary Foundry Developer)
 - **Scope:** Global Sanctuary OS Hub (`osRole = 'keeper'`). Requires FIDO2 Passkey + TOTP Vault binding.
 - **Capabilities:** Unlocks **Keepers Core**—accessible from both the Foundry Landing Page and any workspace. Governs **Active Game Workspaces & Turnkey `SANCTUARY-UPLINK://` Spoke Onboarding**, **Core Heuristics Oversight (`keeper_heuristic_signatures`)**, **Master Game Schemas (`sanctuary_schemas`)**, **Global Lexicon & Chameleon Registries**, **Foundry News & Release Notes Publishing**, **Bilateral System Directives Editor** (auto-synced two-way with the codebase `.md` files), and the immutable **Global Audit Trail**.
+
+---
+
+# Part 4: Mason Guide — Decentralized Static Edge Polling (`manifest.json` / `catalog.json`) & Lineage Hash Rollover
+
+For **Compliance Tier 1–4** creators and independent **Masons** who distribute outside the public Nexus catalog, Sanctuary OS includes a **$0-cost Decentralized Static Edge Polling & DNA Lineage Engine**. This allows any mod to behave like a fully synced mod—complete with `STABLE` status, automatic update notifications, multi-file family grouping, Required DLC / Dependency / Conflict checks, and in-place file replacement—from a **one-time drag-and-drop**.
+
+*(You can also open this interactive walkthrough at any time inside Sanctuary OS by clicking **Static Polling Guide** in the **Mason Workshop → Sandbox** header or inside the **Rules & Upload** tab of any Sandbox artifact.)*
+
+## Step 1: Stage Your Mod in the Sandbox
+1. Drop your `.package`, `.ts4script`, and optional `.cfg`/`.ini` files into `Vault/Dev/Sandbox/` (or click **Import** inside **Mason Workshop → Sandbox**).
+2. Click your mod card to open the **3-Tile Artifact Studio**:
+   - **Tile 1 (`Details & Versions`):** Enter your mod's **Name**, **Mason Version** (e.g., `1.0.0`), **Safety Tier** (`0` through `4`), **Download URL**, and compatible **Game Versions**.
+   - **Tile 2 (`Files & Folders`):** Link any companion `.ts4script` (**Twin**) or optional `.package` (**Add-on / Flavor**) modules, and attach any `.cfg`/`.ini` files you want preserved across updates.
+   - **Tile 3 (`Rules & Upload`):** Select **Required EA Packs (DLC)**, **Required Mods (Dependencies)**, and **Incompatible Mods (Conflicts)** (by catalog search, SHA-256 hash, or plain mod name).
+
+## Step 2: Choose Your $0 Static Host (`manifest.json` vs. `catalog.json`) & Optional 1-Click Auto-Push
+Paste your raw static URL into **Static Polling Manifest URL (`manifest.json / catalog.json`)** at the bottom of the **Rules & Upload** tab—or select an **Auto-Push Provider** so Sanctuary OS pushes updates directly from your PC in 1 click without opening a browser:
+- **1-Click OS Auto-Push (100% Client-Side, 6 Providers Supported):**
+  - **GitHub Repo / Cloudflare Pages:** Enter `owner/repo` and a scoped GitHub Personal Access Token (`Contents: Read & Write` on 1 repo). Pushing to GitHub also automatically deploys connected Cloudflare Pages / Netlify / Vercel domains!
+  - **GitHub Gist (Zero-Repo Setup):** Enter a GitHub token with `gist` scope and leave Gist ID blank—on your first click of **Export & Auto-Push (.zip)**, Sanctuary OS automatically creates the Gist, grabs its permanent `gist.githubusercontent.com/.../raw/...` URL, and stamps it into your release `.zip`.
+  - **GitLab / Codeberg / Gitea:** Uses a Project Access Token to push directly to GitLab or Codeberg repositories.
+  - **Neocities Site API:** Uploads `manifest.json` or `catalog.json` directly to `https://{sitename}.neocities.org/...` using your Neocities API key.
+  - **Personal Domain (HTTP PUT / WebDAV):** Pushes JSON directly to any custom endpoint with optional Bearer or Basic auth.
+  - **Local Synced Folder (Zero-Token):** Writes `manifest.json` or merges into `catalog.json` inside any local folder (such as a GitHub Desktop clone or synced cloud drive).
+  - *Security Note:* Your API token stays strictly in local storage on your PC (never sent to Sanctuary servers, never included in Blueprints or `.zip` releases), and the Rust backend even absorbs any historical hashes from your existing remote `manifest.json` / `catalog.json` before pushing!
+- **Manual Upload Options:**
+  - **Option A — GitHub Raw (Free, 2-Minute Setup):** Create a public GitHub repo (e.g., `my-mod-manifests`), upload `manifest.json`, click **Raw**, and copy the `https://raw.githubusercontent.com/.../manifest.json` URL.
+  - **Option B — Cloudflare Pages / Personal Domain (Free, Unlimited Bandwidth):** Host `manifest.json` on Cloudflare Pages or your own web server.
+  - **Option C — Single Master `catalog.json` for All Your Mods:** Instead of creating a separate URL for every mod, point all of your mods to a single `https://.../catalog.json` file containing an `"artifacts": [...]` array. Sanctuary OS automatically matches each installed mod inside `catalog.json` by `artifact.id`, `artifact.name`, `current_hashes`, `modules[].sha256`, or `previous_hashes`.
+
+## Step 3: Export Your First Release (`v1.0.0`)
+Click **Export Static Manifest (.zip)** in **Rules & Upload** (or the top-right inbox icon in the Studio header):
+- Sanctuary OS computes the SHA-256 DNA hash of your primary `.package` and every sibling `.package`/`.ts4script` module in the folder (`current_hashes` and `modules[]`).
+- It writes both **`manifest.json`** and **`override.json`** (with your `manifest_url` embedded inside both) into your Sandbox folder and packages **`{ModName}_v1.0.0_SanctuaryRelease.zip`**.
+- Upload the `.zip` to your normal download page (Patreon, Itch.io, CurseForge, SimsFileShare, or personal site) and upload `manifest.json` to your static URL.
+
+## Step 4: Publishing Updates (`v1.1.0+`) & Automatic Lineage Hash Rollover
+When you build a new version (`v1.1.0`):
+1. Drop the updated `.package` / `.ts4script` files into the **same Sandbox folder** (replacing the `v1.0.0` files).
+2. Update the **Mason Version** field to `1.1.0` and click **Export Static Manifest (.zip)**.
+3. **Automatic Lineage Rollover:** Sanctuary OS automatically inspects your previous `manifest.json`, `override.json`, and SQLite `edge_manifests` table before writing the new manifest. Every prior `v1.0.0` SHA-256 hash that changed is automatically rolled into **`previous_hashes`** (`archive_hashes`), while the new `v1.1.0` file hashes become **`current_hashes`**.
+4. Upload the newly generated `manifest.json` to your static URL (and post the new `.zip` on your download page).
+5. **Instant Update Pings:** The next time any Citizen's Sanctuary OS polls your `manifest.json`, it sees their installed `v1.0.0` hash inside `previous_hashes` trailing remote version `1.1.0` and immediately lights up an **Update Available** alert in their Command Center and Vault!
+
+## Step 5: What Citizens Experience (One-Time Drag & Drop Forever)
+- **Zero-Popup Auto-Registration:** The Citizen drags your `.zip` into Sanctuary OS once. Because `manifest.json` / `override.json` is inside the `.zip`, Sanctuary OS silently registers your `manifest_url` and lineage hashes in SQLite with zero confirmation popups.
+- **Full Synced Behavior:** Their mod displays as **`STABLE`**, multi-file suites coalesce under a single parent card (`edge_family_{id}`) while keeping individual module names inside the drawer, and all DLC/Dependency/Conflict rules are enforced automatically.
+- **In-Place Lineage Upgrades:** When the Citizen downloads your `v1.1.0` `.zip` and drops it onto Sanctuary OS, the ingestion engine checks their Vault against `previous_hashes`. Even if you renamed `MyMod_v1.0.package` to `MyMod_v1.1.package`, Sanctuary OS locates the old `v1.0` file by its SHA-256 lineage hash and replaces it in-place inside the exact same subfolder—preventing duplicate mod files forever.

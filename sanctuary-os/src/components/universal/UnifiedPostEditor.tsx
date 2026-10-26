@@ -578,7 +578,6 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro" ? null : "intro"
                           )
                         }
-                        title={t("visual_editor_pick_icon", "Pick Icon")}
                         className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
                       >
                         <span className="material-symbols-outlined !text-[18px]">
@@ -593,6 +592,7 @@ export function UnifiedPostBodyEditor({
                         <span className="material-symbols-outlined !text-[14px] opacity-70">
                           {t("icon_expand_more", "expand_more")}
                         </span>
+                        <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                       </button>
                       {iconPickerFor === "intro" && (
                         <IconPicker
@@ -654,7 +654,6 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro-view" ? null : "intro-view"
                           )
                         }
-                        title={t("visual_editor_pick_icon", "Pick Icon")}
                         className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
                       >
                         <span className="material-symbols-outlined !text-[14px]">
@@ -663,6 +662,7 @@ export function UnifiedPostBodyEditor({
                         <span className="text-[9px] font-black uppercase tracking-wider">
                           {t("visual_editor_icon_btn", "Icon")}
                         </span>
+                        <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                       </button>
                       {iconPickerFor === "intro-view" && (
                         <IconPicker
@@ -688,6 +688,7 @@ export function UnifiedPostBodyEditor({
                       <span className="material-symbols-outlined !text-[14px]">
                         {t("icon_edit", "edit")}
                       </span>
+                      <HoverTooltip title={t("edit", "Edit")} />
                     </button>
                     <button
                       type="button"
@@ -700,6 +701,7 @@ export function UnifiedPostBodyEditor({
                       <span className="material-symbols-outlined !text-[14px]">
                         {t("icon_delete", "delete")}
                       </span>
+                      <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                     </button>
                   </div>
                   <div className="flex items-center gap-2.5 pr-28">
@@ -711,7 +713,6 @@ export function UnifiedPostBodyEditor({
                           iconPickerFor === "intro-view" ? null : "intro-view"
                         );
                       }}
-                      title={t("visual_editor_pick_icon", "Pick Icon")}
                       className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                     >
                       <span className="material-symbols-outlined !text-[17px]">
@@ -720,6 +721,7 @@ export function UnifiedPostBodyEditor({
                           visualDoc.introIcon || "verified"
                         )}
                       </span>
+                      <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                     </button>
                     {visualDoc.introTitle && (
                       <h3 className="text-sm sm:text-base font-black text-[var(--text)]">
@@ -762,7 +764,6 @@ export function UnifiedPostBodyEditor({
                               : secIconPickerKey
                           )
                         }
-                        title={t("visual_editor_pick_icon", "Pick Icon")}
                         className="h-9 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
                       >
                         <span className="material-symbols-outlined !text-[18px]">
@@ -771,6 +772,7 @@ export function UnifiedPostBodyEditor({
                         <span className="material-symbols-outlined !text-[13px] opacity-70">
                           {t("icon_expand_more", "expand_more")}
                         </span>
+                        <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                       </button>
                       {iconPickerFor === secIconPickerKey && (
                         <IconPicker
@@ -803,7 +805,6 @@ export function UnifiedPostBodyEditor({
                             : secIconPickerKey
                         )
                       }
-                      title={t("visual_editor_pick_icon", "Pick Icon")}
                       className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                     >
                       <span className="material-symbols-outlined !text-[14px]">
@@ -812,11 +813,11 @@ export function UnifiedPostBodyEditor({
                       <span className="hidden sm:inline">
                         {t("visual_editor_icon_btn", "Icon")}
                       </span>
+                      <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAddCardToSection(sIdx)}
-                      title={t("visual_editor_add_card", "Add Card")}
                       className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                     >
                       <span className="material-symbols-outlined !text-[14px]">
@@ -825,6 +826,7 @@ export function UnifiedPostBodyEditor({
                       <span className="hidden sm:inline">
                         {t("visual_editor_add_card", "Add Card")}
                       </span>
+                      <HoverTooltip title={t("visual_editor_add_card", "Add Card")} />
                     </button>
                     <button
                       type="button"
@@ -854,6 +856,7 @@ export function UnifiedPostBodyEditor({
                       <span className="material-symbols-outlined !text-[14px]">
                         {t("icon_delete", "delete")}
                       </span>
+                      <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                     </button>
                   </div>
                 </div>
@@ -927,6 +930,7 @@ export function UnifiedPostBodyEditor({
                           <span className="material-symbols-outlined !text-[13px]">
                             {t("icon_edit", "edit")}
                           </span>
+                          <HoverTooltip title={t("edit", "Edit")} />
                         </button>
                         <button
                           type="button"
@@ -941,6 +945,7 @@ export function UnifiedPostBodyEditor({
                           <span className="material-symbols-outlined !text-[13px]">
                             {t("icon_delete", "delete")}
                           </span>
+                          <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                         </button>
                       </div>
                       <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed pr-12">
@@ -1051,7 +1056,6 @@ export function UnifiedPostBodyEditor({
                                       : cardIconKey
                                   )
                                 }
-                                title={t("visual_editor_pick_icon", "Pick Icon")}
                                 className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <span className="material-symbols-outlined !text-[18px]">
@@ -1065,6 +1069,7 @@ export function UnifiedPostBodyEditor({
                                 <span className="material-symbols-outlined !text-[14px] opacity-70">
                                   {t("icon_expand_more", "expand_more")}
                                 </span>
+                                <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                               </button>
                               {iconPickerFor === cardIconKey && (
                                 <IconPicker
@@ -1170,6 +1175,7 @@ export function UnifiedPostBodyEditor({
                                     <span className="material-symbols-outlined !text-[14px]">
                                       {t("icon_close", "close")}
                                     </span>
+                                    <HoverTooltip title={t("remove", "Remove")} variant="danger" />
                                   </button>
                                 </div>
                               ))}
@@ -1201,12 +1207,12 @@ export function UnifiedPostBodyEditor({
                                     : cardIconKey
                                 )
                               }
-                              title={t("visual_editor_pick_icon", "Pick Icon")}
                               className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center cursor-pointer"
                             >
                               <span className="material-symbols-outlined !text-[13px]">
                                 {t("icon_add_reaction", "add_reaction")}
                               </span>
+                              <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                             </button>
                             {iconPickerFor === cardIconKey && (
                               <IconPicker
@@ -1255,6 +1261,7 @@ export function UnifiedPostBodyEditor({
                             <span className="material-symbols-outlined !text-[13px]">
                               {t("icon_edit", "edit")}
                             </span>
+                            <HoverTooltip title={t("edit", "Edit")} />
                           </button>
                           <button
                             type="button"
@@ -1267,6 +1274,7 @@ export function UnifiedPostBodyEditor({
                             <span className="material-symbols-outlined !text-[13px]">
                               {t("icon_delete", "delete")}
                             </span>
+                            <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                           </button>
                         </div>
 
@@ -1283,12 +1291,12 @@ export function UnifiedPostBodyEditor({
                                       : cardIconKey
                                   );
                                 }}
-                                title={t("visual_editor_pick_icon", "Pick Icon")}
                                 className="w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                               >
                                 <span className="material-symbols-outlined !text-[15px]">
                                   {t(`icon_${card.icon}`, card.icon)}
                                 </span>
+                                <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                               </button>
                             )}
                             {card.title && (

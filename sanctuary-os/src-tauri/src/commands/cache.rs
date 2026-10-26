@@ -64,6 +64,7 @@ pub fn resolve_dna_match(
     path: String,
     existing_name: String,
     action: String,
+    move_original: Option<bool>,
 ) -> Result<String, String> {
     let source = Path::new(&path);
     let mut resolved_existing = existing_name.clone();
@@ -71,6 +72,32 @@ pub fn resolve_dna_match(
         resolved_existing = path.replace(".tmp_sanctuary_conflict", "");
     }
     let existing = Path::new(&resolved_existing);
+    let config_opt = Some(get_saved_coordinates());
+    let is_external_source = config_opt
+        .as_ref()
+        .map(|cfg| {
+            let vault_mods = crate::utils::get_vault_mods_lane(&cfg.vault_path);
+            let vault_root = if crate::utils::is_mods_dir(Path::new(&cfg.vault_path)) {
+                Path::new(&cfg.vault_path)
+                    .parent()
+                    .unwrap_or(Path::new(&cfg.vault_path))
+                    .to_path_buf()
+            } else {
+                PathBuf::from(&cfg.vault_path)
+            };
+            !source.starts_with(&vault_root)
+                && !source.starts_with(&vault_mods)
+                && !source.starts_with(&cfg.vault_path)
+        })
+        .unwrap_or(false);
+    let should_move_original = is_external_source
+        && move_original.unwrap_or_else(|| {
+            config_opt
+                .as_ref()
+                .and_then(|cfg| cfg.ingest_file_mode.as_deref())
+                .map(|m| m.eq_ignore_ascii_case("move"))
+                .unwrap_or(false)
+        });
 
     if action == "replace" {
         let s_canon = source
@@ -128,7 +155,11 @@ pub fn resolve_dna_match(
                                     }
                                     current_dir = dir.parent().map(|p| p.to_path_buf());
                                 }
+                            } else if should_move_original && s_canon != n_canon_final {
+                                let _ = std::fs::remove_file(source);
                             }
+                        } else if should_move_original && s_canon != n_canon_final {
+                            let _ = std::fs::remove_file(source);
                         }
                     }
                     Err(e) => {
@@ -148,6 +179,8 @@ pub fn resolve_dna_match(
                     }
                     current_dir = dir.parent().map(|p| p.to_path_buf());
                 }
+            } else if should_move_original && action == "discard" {
+                let _ = std::fs::remove_file(source);
             }
         }
     }

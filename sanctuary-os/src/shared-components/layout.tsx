@@ -277,7 +277,7 @@ export function SidePanel({
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l md:!rounded-r-3xl md:!rounded-l-none" : "right-0 border-t border-b border-l md:!rounded-l-3xl md:!rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l-0 rounded-r-3xl !rounded-l-none" : "right-0 border-t border-b border-l border-r-0 rounded-l-3xl !rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
               pointerEvents: isPanelClosed || isResizing ? "none" : "auto",
@@ -286,6 +286,22 @@ export function SidePanel({
               borderLeftColor: "var(--glass-border-left)",
               borderRightColor: "var(--glass-border-right)",
               borderBottomColor: "var(--glass-border-bottom)",
+              ...(position === "left"
+                ? {
+                    borderLeftWidth: "0px",
+                    borderTopLeftRadius: "0px",
+                    borderBottomLeftRadius: "0px",
+                    borderTopRightRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
+                    borderBottomRightRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
+                  }
+                : {
+                    right: "0px",
+                    borderRightWidth: "0px",
+                    borderTopRightRadius: "0px",
+                    borderBottomRightRadius: "0px",
+                    borderTopLeftRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
+                    borderBottomLeftRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
+                  }),
               backgroundColor: "var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))",
               boxShadow: "var(--glass-drawer-shadow)",
               ...(isResizable
@@ -618,8 +634,10 @@ export function DashboardStatTile({
   disableBgStrip,
   className = "",
   isActive = false,
+  active = false,
   variant = "default",
 }: any) {
+  const resolvedActive = Boolean(isActive || active);
   const displayValue = number !== undefined ? number : value;
   const isStatusRed =
     colorClass?.includes("red") || colorClass?.includes("danger");
@@ -678,11 +696,11 @@ export function DashboardStatTile({
   const isFilter = variant === "filter" || isModal;
 
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
-  const activeStyles = isActive
+  const activeStyles = resolvedActive
     ? isModal
-      ? "!border-[color-mix(in_srgb,currentColor_55%,rgba(255,255,255,0.35))] z-10"
+      ? "!border-[color-mix(in_srgb,currentColor_65%,rgba(255,255,255,0.35))] z-10"
       : isSpecial
-        ? "!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] z-10"
+        ? "sa-glass-pill-active z-10"
         : "!border-[currentColor] z-10"
     : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
 
@@ -707,20 +725,6 @@ export function DashboardStatTile({
     isFilter || isTextSpecial
       ? "!text-[18px] md:!text-[22px]"
       : "!text-[20px] md:!text-[26px]";
-  const activeTint =
-    isActive && isSpecial
-      ? "var(--accent)"
-      : isModal
-        ? isStatusRed
-          ? "var(--danger)"
-          : isStatusYellow
-            ? "var(--warning)"
-            : isStatusGreen
-              ? "var(--success)"
-              : isStatusBlue
-                ? "var(--accent)"
-                : "currentColor"
-        : "currentColor";
 
   const sizeConstraintClass =
     variant === "tab"
@@ -744,24 +748,20 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={mergedStyle}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${isActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${resolvedActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
-      {isActive && (
-        <div
-          className="absolute inset-0 rounded-[inherit] pointer-events-none"
-          style={{
-            background: `linear-gradient(135deg, color-mix(in srgb, ${activeTint} 16%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${activeTint} 4%, transparent) 55%, transparent 100%)`,
-          }}
-        />
-      )}
       <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
 
       {icon && (
         <div
-          className={`${iconSizeClass} rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative transition-all duration-500`}
+          className={`${iconSizeClass} rounded-xl border flex items-center justify-center shrink-0 relative transition-all duration-500 ${
+            resolvedActive
+              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] shadow-[var(--glass-card-icon-shadow)]"
+              : `border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${hasPulse ? textColor : ""}`
+          }`}
         >
           <span
-            className={`material-symbols-outlined ${iconTextClass} ${hasPulse ? "animate-pulse" : ""} transition-opacity`}
+            className={`material-symbols-outlined ${iconTextClass} ${hasPulse ? `${textColor} animate-pulse` : "transition-opacity"}`}
           >
             {icon}
           </span>
@@ -770,13 +770,23 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[10px] mb-0.5 tracking-wider" : "text-xs md:text-sm tracking-widest"} uppercase font-black group-hover:text-current transition-colors duration-500 truncate w-full pr-1 md:pr-0 ${isActive && isSpecial ? "text-[var(--accent)]" : isModal && isActive ? "text-current" : hasValue ? "text-[var(--subtext)]" : "text-[var(--text)] opacity-90"}`}
+          className={`${hasValue ? "text-[10px] mb-0.5 tracking-wider" : "text-xs md:text-sm tracking-widest"} uppercase font-black transition-colors duration-500 truncate w-full pr-1 md:pr-0 ${
+            resolvedActive && isSpecial
+              ? "text-[var(--accent)]"
+              : isModal && resolvedActive
+                ? "text-current"
+                : hasValue
+                  ? "text-[var(--subtext)]"
+                  : "text-[var(--text)] opacity-85 group-hover:opacity-100"
+          }`}
         >
           {label}
         </span>
         {hasValue && (
           <span
-            className={`${sizeClass} font-black tracking-tighter pr-1 md:pr-0 leading-tight truncate w-full`}
+            className={`${sizeClass} font-black tracking-tighter pr-1 md:pr-0 leading-tight truncate w-full ${
+              hasPulse ? `${textColor} animate-pulse` : "text-[var(--text)]"
+            }`}
           >
             {displayValue}
           </span>
@@ -844,7 +854,7 @@ export function InlineFilterGroup({
 }) {
   if (!options || options.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 items-center w-full">
+    <div className="grid grid-cols-2 gap-1 w-full">
       {options.map((opt: any) => {
         const active = value === opt.id;
         return (
@@ -852,10 +862,10 @@ export function InlineFilterGroup({
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
-            className={`flex-1 min-w-[calc(50%-6px)] rounded-xl px-3.5 h-9 transition-all flex items-center justify-center text-[11px] font-bold capitalize tracking-wide border whitespace-nowrap ${
+            className={`sa-dropdown-item rounded-xl px-3.5 h-9 transition-all flex items-center justify-center text-[11px] capitalize tracking-wide whitespace-nowrap ${
               active
-                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] shadow-[0_0_12px_rgba(var(--accent-rgb),0.18)]"
-                : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] hover:text-[var(--text)]"
+                ? "is-selected sa-glass-active font-bold text-[var(--text)]"
+                : "font-semibold text-[var(--subtext)] hover:text-[var(--text)]"
             }`}
           >
             {opt.label}

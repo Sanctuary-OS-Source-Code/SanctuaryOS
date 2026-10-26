@@ -417,8 +417,8 @@ export function ActionPill({
             label={primaryPopover.label}
             variant="inline"
             iconOnly={true}
-            className="shrink-0 h-full"
-            buttonClassName="!h-13 !w-auto px-4 !rounded-none"
+            className="shrink-0 h-full flex items-center px-1.5"
+            buttonClassName="!h-10 !w-10 !rounded-xl"
           >
             {primaryPopover.content}
           </FilterPopover>
@@ -430,16 +430,17 @@ export function ActionPill({
             className={`${isIconsOnly ? "flex" : "hidden sm:flex"} items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0`}
           >
             {mergedActions.map((action) => (
-              <button
-                key={action.id}
-                onClick={action.onClick}
-                className={`h-13 px-4 flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] group relative ${action.activeClassName || ""}`}
-              >
-                <span className="material-symbols-outlined !text-[20px]">
-                  {action.icon}
-                </span>
-                <HoverTooltip title={action.label} />
-              </button>
+              <div key={action.id} className="h-full flex items-center px-1.5">
+                <button
+                  onClick={action.onClick}
+                  className={`h-10 w-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)] group relative ${action.activeClassName || ""}`}
+                >
+                  <span className="material-symbols-outlined !text-[20px]">
+                    {action.icon}
+                  </span>
+                  <HoverTooltip title={action.label} />
+                </button>
+              </div>
             ))}
           </div>
         )}

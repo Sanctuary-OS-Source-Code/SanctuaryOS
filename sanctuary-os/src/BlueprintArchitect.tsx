@@ -1,34 +1,29 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  formatDisplayName,
   CustomDropdown,
   SidePanel,
   SidePanelHeroCard,
   SidePanelTitleInput,
   UniversalGroup,
-  StatBox,
   getExtensionRegex,
-  HoverTooltip,
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
   InlineFilterGroup,
-  getModIcon,
   DashboardStatTile,
   handleOpenUrl,
-  VAULT_CHIP_CLASS,
 } from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
-import { UniversalCard } from "./components/universal/UniversalCard";
 import {
   evaluateModIssues,
   groupBrokenMods,
   renderGroupedIncompatibleSections,
-  extractValidCreator,
+  resolveBlueprintConflicts,
+  ConflictComparisonCard,
 } from "./side-panels/CommandIncompatiblePanel";
 import { groupUpdateMods, UpdateModCard } from "./side-panels/CommandCenterSidePanels";
 
@@ -58,6 +53,14 @@ export default function BlueprintArchitect({
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [nameInput, setNameInput] = useState("");
+  const [radarCacheTick, setRadarCacheTick] = useState(0);
+
+  useEffect(() => {
+    const handleRadarCacheUpdate = () => setRadarCacheTick((c) => c + 1);
+    window.addEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
+    return () =>
+      window.removeEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
+  }, []);
 
   useEffect(() => {
     if (playSet?.name) {
@@ -103,62 +106,8 @@ export default function BlueprintArchitect({
   }, [playSet?.mods, modList, extRegex]);
 
   const activeConflicts = useMemo(() => {
-    const conflicts: any[] = [];
-    try {
-      const stored = null;
-      if (stored) {
-        const localConflicts = JSON.parse(stored);
-        localConflicts.forEach((lc: any) => {
-          if (ignoredGlobal.includes(lc.mod_pair)) return;
-
-          const modAMatch = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            const cleanN = String(em.name || "").toUpperCase();
-            const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modA || lc.mod_a || "").toUpperCase();
-            return (
-              cleanN.includes(targetClean) ||
-              cleanDisp.includes(targetClean) ||
-              targetClean.includes(cleanN)
-            );
-          });
-          const modBMatch = activeMods.find((em: any) => {
-            if (em.isFallback) return false;
-            const cleanN = String(em.name || "").toUpperCase();
-            const cleanDisp = String(em.displayName || "").toUpperCase();
-            const targetClean = String(lc.modB || lc.mod_b || "").toUpperCase();
-            return (
-              cleanN.includes(targetClean) ||
-              cleanDisp.includes(targetClean) ||
-              targetClean.includes(cleanN)
-            );
-          });
-
-          if (modAMatch && modBMatch) {
-            const isWinnerA =
-              modAMatch._originalSetName?.toLowerCase().startsWith("sanctuary") ||
-              modAMatch.name?.toLowerCase().startsWith("sanctuary");
-            const isWinnerB =
-              modBMatch._originalSetName?.toLowerCase().startsWith("sanctuary") ||
-              modBMatch.name?.toLowerCase().startsWith("sanctuary");
-            if (isWinnerA || isWinnerB) return;
-
-            conflicts.push({
-              pairId: lc.mod_pair,
-              modA: modAMatch,
-              modB: modBMatch,
-              conflict: {
-                severity_rank: lc.severity_rank,
-                resolution_note: lc.resolution_note || t("tier3_conflict", "Tuning Overlap"),
-              },
-            });
-          }
-        });
-      }
-    } catch (e) {}
-
-    return conflicts;
-  }, [activeMods, ignoredGlobal, t]);
+    return resolveBlueprintConflicts(playSet?.name, activeMods, ignoredGlobal, t);
+  }, [playSet?.name, activeMods, ignoredGlobal, t, radarCacheTick]);
 
   const rawUpdates = useMemo(() => {
     return activeMods.filter((m: any) => !m.isFallback && Boolean(m.hasUpdate && m.newVersion));
@@ -403,28 +352,7 @@ export default function BlueprintArchitect({
           }
           badgeIcon={heroIcon}
           variant={heroVariant}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-            <StatBox
-              label={t("updates_modal_title", "Updates")}
-              value={updatesCount}
-              icon={t("icon_update", "update")}
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("system_alerts_title", "Alerts")}
-              value={alertsCount}
-              icon={t("icon_gpp_maybe", "gpp_maybe")}
-              iconColorClass={alertsCount > 0 ? "text-[var(--warning)]" : "text-[var(--subtext)]"}
-            />
-            <StatBox
-              label={t("critical_alerts", "Critical Alerts")}
-              value={criticalCount}
-              icon={t("icon_gpp_bad", "gpp_bad")}
-              iconColorClass={criticalCount > 0 ? "text-[var(--danger)]" : "text-[var(--subtext)]"}
-            />
-          </div>
-        </SidePanelHeroCard>
+        />
 
         {renamePlaySet && (
           <SidePanelTitleInput
@@ -537,7 +465,7 @@ export default function BlueprintArchitect({
                 title={`${t("updates_avail", "Updates Available")} (${filteredUpdates.length})`}
                 icon={t("icon_update", "update")}
               >
-                <div className="flex flex-col gap-3 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                   {filteredUpdates.map((update: any) => (
                     <UpdateModCard
                       key={update._groupedTitle || update.hash || update.name}
@@ -568,222 +496,23 @@ export default function BlueprintArchitect({
                 title={`${t("bp_load_order_conflicts", "Conflicts Detected")} (${filteredConflicts.length})`}
                 icon={t("icon_crisis_alert", "crisis_alert")}
               >
-                <div className="flex flex-col gap-4">
-                  {filteredConflicts.map((ac: any) => {
-                    const isIgnored = ignoredConflicts.has(ac.pairId);
-                    const isTier4 = ac.conflict.severity_rank == 4;
-
-                    const prefixA =
-                      (ac.modA._originalSetName || ac.modA.name)
-                        ?.split(/[/\\]/)
-                        .slice(0, -1)
-                        .join("/") || "";
-                    const prefixB =
-                      (ac.modB._originalSetName || ac.modB.name)
-                        ?.split(/[/\\]/)
-                        .slice(0, -1)
-                        .join("/") || "";
-                    const isWinnerA = prefixA.toLowerCase() === "sanctuary";
-                    const isWinnerB = prefixB.toLowerCase() === "sanctuary";
-
-                    const iconName = isTier4
-                      ? t("icon_crisis_alert", "crisis_alert")
-                      : t("icon_tune", "tune");
-
-                    const imageA =
-                      showImages &&
-                      (ac.modA.image_url || ac.modA.imageUrl) &&
-                      String(ac.modA.image_url || ac.modA.imageUrl) !== "null"
-                        ? ac.modA.image_url || ac.modA.imageUrl
-                        : undefined;
-                    const imageB =
-                      showImages &&
-                      (ac.modB.image_url || ac.modB.imageUrl) &&
-                      String(ac.modB.image_url || ac.modB.imageUrl) !== "null"
-                        ? ac.modB.image_url || ac.modB.imageUrl
-                        : undefined;
-
-                    const conflictTitle =
-                      ac.conflict.resolution_note ||
-                      (isTier4
-                        ? t(
-                            "conflict_sev4_desc",
-                            "Fatal Collision — Cannot be installed together"
-                          )
-                        : t(
-                            "conflict_sev3_desc",
-                            "Tuning Overlap — Load order override or minor feature overlap"
-                          ));
-
-                    const severityBadgeClass = isTier4
-                      ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`
-                      : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]`;
-
-                    const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]`;
-
-                    const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
-
-                    return (
-                      <UniversalCard
-                        key={ac.pairId}
-                        layout="horizontal"
-                        isGhosted={isIgnored}
-                        icon={iconName}
-                        title={conflictTitle}
-                        badges={
-                          <div className={severityBadgeClass}>
-                            <span
-                              className={`material-symbols-outlined !text-[12px] ${
-                                isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
-                              }`}
-                            >
-                              {iconName}
-                            </span>
-                            <span>
-                              {isTier4
-                                ? t("fatal_conflict", "Fatal Conflict")
-                                : t("tier3_conflict", "Tuning Overlap")}
-                            </span>
-                          </div>
-                        }
-                        actions={
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              const newSet = new Set(ignoredConflicts);
-                              if (isIgnored) newSet.delete(ac.pairId);
-                              else newSet.add(ac.pairId);
-                              setIgnoredConflicts(newSet);
-                            }}
-                            className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 transition-all cursor-pointer shrink-0"
-                          >
-                            <span className="material-symbols-outlined !text-[16px]">
-                              {isIgnored
-                                ? t("icon_visibility", "visibility")
-                                : t("icon_visibility_off", "visibility_off")}
-                            </span>
-                            <HoverTooltip
-                              className="z-[100] !right-0 !translate-x-0 !left-auto"
-                              title={
-                                isIgnored
-                                  ? t("bp_restore_alert", "Restore Alert")
-                                  : t("btn_ignore", "Ignore")
-                              }
-                              icon={
-                                isIgnored
-                                  ? t("icon_visibility", "visibility")
-                                  : t("icon_visibility_off", "visibility_off")
-                              }
-                            />
-                          </button>
-                        }
-                      >
-                        <div
-                          className={`grid grid-cols-1 sm:grid-cols-2 gap-3 w-full ${
-                            isIgnored ? "pointer-events-none" : ""
-                          }`}
-                        >
-                          {[
-                            { mod: ac.modA, image: imageA, isWinner: isWinnerA, isLoser: isWinnerB },
-                            { mod: ac.modB, image: imageB, isWinner: isWinnerB, isLoser: isWinnerA },
-                          ].map((slot, sIdx) => {
-                            const mTitle = formatDisplayName(
-                              slot.mod.displayName || slot.mod.name
-                            );
-                            const mAuthor = extractValidCreator(slot.mod);
-                            const mIcon = getModIcon(slot.mod, activeGameSchema, t);
-                            return (
-                              <UniversalCard
-                                key={`${ac.pairId}-${sIdx}`}
-                                layout="compact"
-                                isActive={slot.isWinner && !isTier4}
-                                image={slot.image}
-                                icon={!slot.image ? mIcon : undefined}
-                                title={mTitle}
-                                subtitle={mAuthor || undefined}
-                                actions={
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    {ac.conflict.severity_rank == 4 ? (
-                                      allow_write && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            toggleInActiveSet(
-                                              slot.mod._originalSetName || slot.mod.name,
-                                              true,
-                                              true
-                                            )
-                                          }
-                                          className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:text-[var(--danger)] transition-all cursor-pointer"
-                                        >
-                                          <span className="material-symbols-outlined !text-[16px]">
-                                            {t("icon_close", "close")}
-                                          </span>
-                                          <HoverTooltip
-                                            className="z-[100] !right-0 !translate-x-0 !left-auto"
-                                            title={t("btn_remove", "{Remove}")}
-                                            icon={t("icon_delete", "delete")}
-                                            variant="danger"
-                                          />
-                                        </button>
-                                      )
-                                    ) : ac.conflict.severity_rank == 3 ? (
-                                      slot.isWinner ? (
-                                        <div className={winnerBadgeClass}>
-                                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                                            {t("icon_check_circle", "check_circle")}
-                                          </span>
-                                          <span>{t("winner", "WINNING {MOD}")}</span>
-                                        </div>
-                                      ) : slot.isLoser ? (
-                                        <div className={loserBadgeClass}>
-                                          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                                            {t("icon_block", "block")}
-                                          </span>
-                                          <span>{t("bp_overridden_by_winner", "Overridden")}</span>
-                                        </div>
-                                      ) : (
-                                        allow_write &&
-                                        playSet?.name && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              applyConflictOverride(
-                                                slot.mod._originalSetName || slot.mod.name,
-                                                ac.pairId,
-                                                playSet.name
-                                              )
-                                            }
-                                            className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] transition-all cursor-pointer"
-                                          >
-                                            <span className="material-symbols-outlined !text-[16px]">
-                                              {t("icon_check_circle", "check_circle")}
-                                            </span>
-                                            <HoverTooltip
-                                              className="z-[100] !right-0 !translate-x-0 !left-auto"
-                                              title={t("bp_select_winning_artifact", "Select Winner")}
-                                              icon={t("icon_check_circle", "check_circle")}
-                                              variant="accent"
-                                            />
-                                          </button>
-                                        )
-                                      )
-                                    ) : (
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-28">{getPriorityDrop(slot.mod)}</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                }
-                              />
-                            );
-                          })}
-                        </div>
-                      </UniversalCard>
-                    );
-                  })}
+                <div className="flex flex-col gap-3 w-full">
+                  {filteredConflicts.map((ac: any) => (
+                    <ConflictComparisonCard
+                      key={ac.pairId}
+                      ac={ac}
+                      ignoredConflicts={ignoredConflicts}
+                      setIgnoredConflicts={setIgnoredConflicts}
+                      showImages={showImages}
+                      allow_write={allow_write}
+                      toggleInActiveSet={toggleInActiveSet}
+                      applyConflictOverride={applyConflictOverride}
+                      scopeName={playSet?.name}
+                      getPriorityDrop={getPriorityDrop}
+                      activeGameSchema={activeGameSchema}
+                      t={t}
+                    />
+                  ))}
                 </div>
               </UniversalGroup>
             )}

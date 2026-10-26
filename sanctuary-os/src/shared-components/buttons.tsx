@@ -319,15 +319,16 @@ export function PanelHeaderButton({
     "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
 
   if (isActive) {
-    if (resolvedVariant === "accent" || resolvedVariant === "default")
-      colorClass =
-        "!text-[var(--accent)] !opacity-100 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
+    if (resolvedVariant === "accent")
+      colorClass = "sa-glass-active !text-[var(--accent)] !opacity-100";
+    else if (resolvedVariant === "default")
+      colorClass = "sa-glass-active !text-[var(--text)] !opacity-100";
     else if (resolvedVariant === "error" || resolvedVariant === "danger")
-      colorClass =
-        "!text-[var(--danger)] !opacity-100 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--danger)_10%,transparent)]";
+      colorClass = "sa-glass-active !text-[var(--danger)] !opacity-100";
     else if (resolvedVariant === "success")
-      colorClass =
-        "!text-[var(--success)] !opacity-100 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)] shadow-[inset_0_0_10px_color-mix(in_srgb,var(--success)_10%,transparent)]";
+      colorClass = "sa-glass-active !text-[var(--success)] !opacity-100";
+    else if (resolvedVariant === "warning")
+      colorClass = "sa-glass-active !text-[var(--warning)] !opacity-100";
   } else {
     if (resolvedVariant === "error" || resolvedVariant === "danger") {
       colorClass =
@@ -384,4 +385,3 @@ export function PanelHeaderButton({
     </div>
   );
 }
-

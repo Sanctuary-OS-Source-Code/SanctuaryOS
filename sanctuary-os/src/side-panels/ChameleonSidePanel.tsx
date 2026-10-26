@@ -157,6 +157,26 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
     );
   };
 
+  const matchesThemeFilters = (id: string) => {
+    const themeData = allThemes[id];
+    if (!themeData) return false;
+    if (String(themeData.name || "").toLowerCase().includes("performance")) return false;
+    if (selectedCommunity && getThemeBadge(id, themeData) !== selectedCommunity) return false;
+    if (selectedMode && getThemeMode(themeData) !== selectedMode) return false;
+    if (themeSearch.trim()) {
+      const q = themeSearch.toLowerCase().trim();
+      const nameMatch = String(themeData.name || "").toLowerCase().includes(q);
+      const idMatch = id.toLowerCase().includes(q);
+      if (!nameMatch && !idMatch) return false;
+    }
+    return true;
+  };
+
+  const filteredFavoriteIds = favoriteThemes.filter(matchesThemeFilters);
+  const filteredVaultIds = allThemeIds
+    .filter((id) => !favoriteThemes.includes(id))
+    .filter(matchesThemeFilters);
+
   const activeThemeObj = allThemes[activeThemeId];
 
   return (
@@ -220,7 +240,50 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           }
           badgeIcon={t("icon_auto_awesome", "auto_awesome")}
           variant="accent"
-        />
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div className="flex items-center gap-1.5">
+              {[
+                activeThemeObj?.bg || "#000000",
+                activeThemeObj?.sidebar || "#050914",
+                activeThemeObj?.accent || "#38bdf8",
+                activeThemeObj?.text || "#f8fafc",
+                activeThemeObj?.success || "#10b981",
+              ].map((hex, idx) => (
+                <span
+                  key={idx}
+                  className="w-3.5 h-3.5 rounded-full border border-white/30 shadow-xs"
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditorOpen(true)}
+                className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_tune", "tune")}
+                </span>
+                <span>{t("btn_open_theme_forge", "Open Theme Forge")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  createNewTheme();
+                  setIsEditorOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                  {t("icon_add", "add")}
+                </span>
+                <span>{t("btn_create_theme", "Create Theme")}</span>
+              </button>
+            </div>
+          </div>
+        </SidePanelHeroCard>
 
         <ActionPill
           searchQuery={themeSearch}
@@ -312,19 +375,13 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           }}
         />
 
-        {favoriteThemes.length > 0 && (
+        {filteredFavoriteIds.length > 0 && (
           <UniversalGroup
             title={t("installed_themes", "Installed {Chameleons}")}
             icon={t("icon_keep", "keep")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {favoriteThemes
-                .filter(
-                  (id) =>
-                    allThemes[id] &&
-                    !allThemes[id].name.toLowerCase().includes("performance")
-                )
-                .map(renderThemeCard)}
+              {filteredFavoriteIds.map(renderThemeCard)}
             </div>
           </UniversalGroup>
         )}
@@ -334,30 +391,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           icon={t("icon_grid_view", "grid_view")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">
-            {allThemeIds
-              .filter((id) => !favoriteThemes.includes(id))
-              .filter(
-                (id) =>
-                  !selectedCommunity ||
-                  getThemeBadge(id, allThemes[id]) === selectedCommunity
-              )
-              .filter(
-                (id) =>
-                  !selectedMode ||
-                  getThemeMode(allThemes[id]) === selectedMode
-              )
-              .filter(
-                (id) =>
-                  allThemes[id].name
-                    .toLowerCase()
-                    .includes(themeSearch.toLowerCase()) ||
-                  id.toLowerCase().includes(themeSearch.toLowerCase())
-              )
-              .filter(
-                (id) =>
-                  !allThemes[id].name.toLowerCase().includes("performance")
-              )
-              .map(renderThemeCard)}
+            {filteredVaultIds.map(renderThemeCard)}
           </div>
         </UniversalGroup>
 

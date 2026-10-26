@@ -36,32 +36,42 @@ export default function WayfinderSupportSidePanel({
     return modList.filter((ml: any) => ml.compliance_tier >= 3 && ml.compliance_tier <= 5).map((ml: any) => ({ name: ml.displayName || ml.name, tier: ml.compliance_tier }));
   }, [modList, isOpen]);
 
+  const isRestrictedOrUnknownTicketMod = (ml: any) =>
+    !ml?.isVirtual &&
+    ((Number(ml?.compliance_tier || 0) >= 1 && Number(ml?.compliance_tier || 0) <= 4) ||
+      !ml?.isSynced ||
+      !ml?.dbId ||
+      String(ml?.status || "").toLowerCase() === "unverified");
+
   const activeAdultMods = React.useMemo(() => {
     if (!activeSet?.mods || !isOpen) return [];
     
-    const adultModsInDB = modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
-    if (adultModsInDB.length === 0) return [];
+    const restrictedModsInVault = modList.filter(isRestrictedOrUnknownTicketMod);
+    if (restrictedModsInVault.length === 0) return [];
     
-    const activeModsSet = new Set<string>(activeSet.mods);
+    const activeModsSet = new Set<string>(
+      activeSet.mods.map((rm: any) => (typeof rm === "string" ? rm : String(rm?.name || rm?.path || "")))
+    );
     const extRegex = getExtensionRegex(activeGameSchema);
     
     const activeBaseNames = new Set<string>();
-    for (const modName of activeSet.mods) {
+    for (const rawMod of activeSet.mods) {
+       const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
        const base = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
        if (base) activeBaseNames.add(base);
     }
     
     const matchedAdultMods: any[] = [];
     
-    for (const am of adultModsInDB) {
+    for (const am of restrictedModsInVault) {
         if (activeModsSet.has(am.name) || (am.displayName && activeModsSet.has(am.displayName))) {
-             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier });
+             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier || 0 });
              continue;
         }
         
         const mBase = am.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
         if (mBase && activeBaseNames.has(mBase)) {
-             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier });
+             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier || 0 });
         }
     }
     
@@ -125,16 +135,17 @@ export default function WayfinderSupportSidePanel({
       let hasViolations = false;
       let violations: string[] = [];
       if (activeCategory?.requires_target_mod && targetModId) {
-          const m = storeState.modList.find(ml => ml.id === targetModId);
-          if (m && m.compliance_tier >= 1 && m.compliance_tier <= 4) {
+          const m = storeState.modList.find((ml: any) => ml.id === targetModId || ml.dbId === targetModId || ml.hash === targetModId);
+          if (m && isRestrictedOrUnknownTicketMod(m)) {
               hasViolations = true;
               violations.push(m.displayName || m.name);
           }
       }
       if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
-          activeSet.mods.forEach((modName: string) => {
+          activeSet.mods.forEach((rawMod: any) => {
+              const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
               const exactMatch = storeState.modList.find((ml: any) => ml.name === modName || ml.displayName === modName);
-              if (exactMatch && exactMatch.compliance_tier >= 1 && exactMatch.compliance_tier <= 4) {
+              if (exactMatch && isRestrictedOrUnknownTicketMod(exactMatch)) {
                   hasViolations = true;
                   violations.push(exactMatch.displayName || exactMatch.name);
                   return;
@@ -145,7 +156,7 @@ export default function WayfinderSupportSidePanel({
                  const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
                  return mBase && targetBase && mBase === targetBase;
               });
-              if (fallbackMatch && fallbackMatch.compliance_tier >= 1 && fallbackMatch.compliance_tier <= 4) {
+              if (fallbackMatch && isRestrictedOrUnknownTicketMod(fallbackMatch)) {
                   hasViolations = true;
                   violations.push(fallbackMatch.displayName || fallbackMatch.name);
               }
@@ -153,7 +164,17 @@ export default function WayfinderSupportSidePanel({
       }
 
       if (hasViolations && activeCategory?.requires_target_mod) {
-          invoke("write_os_log", { message: "Support ticket submitted with policy violations: " + violations.join(", "), level: "WARNING" }).catch(console.error);
+          const uniqueViolations = [...new Set(violations)];
+          invoke("write_os_log", { message: "Support ticket blocked due to restricted/unverified artifacts: " + uniqueViolations.join(", "), level: "WARNING" }).catch(console.error);
+          throw new Error(
+            (t(
+              "support_err_restricted_active",
+              "Artifact Bug tickets cannot be submitted while Tier 1–4 or unverified {mods} are active in your {Blueprint}: {0}"
+            ) || "Artifact Bug tickets cannot be submitted while Tier 1–4 or unverified artifacts are active: {0}").replace(
+              "{0}",
+              uniqueViolations.slice(0, 4).join(", ")
+            )
+          );
       }
 
       let finalLogs = logs;
@@ -198,11 +219,11 @@ export default function WayfinderSupportSidePanel({
                 if (text) {
                    if (activeCategory?.requires_target_mod) {
                        const store = useStore.getState();
-                       const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier >= 1 && ml.compliance_tier <= 4);
+                       const restrictedModsInDB = store.modList.filter(isRestrictedOrUnknownTicketMod);
                        const extRegex = getExtensionRegex(store.activeGameSchema);
                        const dirtyTraces: string[] = [];
                        const lowerText = text.toLowerCase();
-                       for (const am of adultModsInDB) {
+                       for (const am of restrictedModsInDB) {
                            const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
                            if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
                                dirtyTraces.push(am.displayName || am.name);
@@ -218,7 +239,10 @@ export default function WayfinderSupportSidePanel({
                    finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + text.substring(0, 10000) + "\n";
                 }
             }
-          } catch (e) {
+          } catch (e: any) {
+            if (e?.message && activeCategory?.requires_target_mod && String(e.message).includes("Dirty")) {
+              throw e;
+            }
           }
         }
       }
@@ -274,11 +298,11 @@ export default function WayfinderSupportSidePanel({
         
         if (activeCategory?.requires_target_mod) {
             const store = useStore.getState();
-            const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier >= 1 && ml.compliance_tier <= 4);
+            const restrictedModsInDB = store.modList.filter(isRestrictedOrUnknownTicketMod);
             const extRegex = getExtensionRegex(store.activeGameSchema);
             const dirtyTraces: string[] = [];
             const lowerText = text.toLowerCase();
-            for (const am of adultModsInDB) {
+            for (const am of restrictedModsInDB) {
                 const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
                 if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
                     dirtyTraces.push(am.displayName || am.name);
@@ -518,10 +542,16 @@ export default function WayfinderSupportSidePanel({
             <div className="flex flex-col gap-2 relative z-[60]">
               <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("target_artifact", "Target {Mod}")}</label>
               <ModSearchDropdown
-                modList={modList}
+                modList={modList.filter(
+                  (m: any) =>
+                    !m.isVirtual &&
+                    Boolean(m.isSynced && m.dbId) &&
+                    Number(m.compliance_tier || 0) === 0 &&
+                    String(m.status || "").toLowerCase() !== "unverified"
+                )}
                 placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...")}
-                selectedItem={modList.find((m: any) => m.id === targetModId || m.hash === targetModId) || (targetModId ? { displayName: targetModId } : null)}
-                onSelect={(m: any) => setTargetModId(m.id || m.hash)}
+                selectedItem={modList.find((m: any) => m.id === targetModId || m.dbId === targetModId || m.hash === targetModId) || (targetModId ? { displayName: targetModId } : null)}
+                onSelect={(m: any) => setTargetModId(m.dbId || m.id || m.hash)}
                 onClear={() => setTargetModId("")}
               />
             </div>

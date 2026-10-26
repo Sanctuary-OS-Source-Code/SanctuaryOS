@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useLexicon } from "../../LexiconContext";
+import { useStore } from "../../store";
 import {
   CustomDropdown,
   CustomTierDropdown,
   HoverTooltip,
   ModSearchDropdown,
 } from "../../shared";
+import { StaticPollingGuideSidePanel } from "../../side-panels/StaticPollingGuideSidePanel";
 
 export function ArtifactRulesTab({
   mode,
@@ -74,6 +78,206 @@ export function ArtifactRulesTab({
   const { t } = useLexicon();
 
   const [isDlcDropdownOpen, setIsDlcDropdownOpen] = useState<boolean>(false);
+  const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
+  const [showPushToken, setShowPushToken] = useState<boolean>(false);
+  const [isPushingManifest, setIsPushingManifest] = useState<boolean>(false);
+
+  const [pushConfig, setPushConfig] = useState<{
+    provider: string;
+    target_mode: string;
+    token: string;
+    repo_or_project: string;
+    branch: string;
+    remote_path: string;
+    custom_endpoint: string;
+    local_folder_path: string;
+  }>(() => {
+    try {
+      const globalPush = JSON.parse(
+        localStorage.getItem("sanctuary_edge_autopush_global") || "{}"
+      );
+      const modPush = mod?.edge_push_config || {};
+      return {
+        provider: modPush.provider || globalPush.provider || "manual",
+        target_mode: modPush.target_mode || globalPush.target_mode || "manifest",
+        token: modPush.token || globalPush.token || "",
+        repo_or_project: modPush.repo_or_project || globalPush.repo_or_project || "",
+        branch: modPush.branch || globalPush.branch || "main",
+        remote_path: modPush.remote_path || "",
+        custom_endpoint: modPush.custom_endpoint || globalPush.custom_endpoint || "",
+        local_folder_path: modPush.local_folder_path || globalPush.local_folder_path || "",
+      };
+    } catch {
+      return {
+        provider: "manual",
+        target_mode: "manifest",
+        token: "",
+        repo_or_project: "",
+        branch: "main",
+        remote_path: "",
+        custom_endpoint: "",
+        local_folder_path: "",
+      };
+    }
+  });
+
+  const updatePushConfig = (patch: Partial<typeof pushConfig>) => {
+    const next = { ...pushConfig, ...patch };
+    setPushConfig(next);
+    try {
+      const globalPush = JSON.parse(
+        localStorage.getItem("sanctuary_edge_autopush_global") || "{}"
+      );
+      localStorage.setItem(
+        "sanctuary_edge_autopush_global",
+        JSON.stringify({
+          ...globalPush,
+          provider: next.provider,
+          target_mode: next.target_mode,
+          token: next.token,
+          repo_or_project: next.repo_or_project,
+          branch: next.branch,
+          custom_endpoint: next.custom_endpoint,
+          local_folder_path: next.local_folder_path,
+        })
+      );
+      const modKey = mod?.hash || mod?.id;
+      if (modKey) {
+        const savedAll = JSON.parse(
+          localStorage.getItem("sanctuary_sandbox_configs") || "{}"
+        );
+        savedAll[modKey] = {
+          ...(savedAll[modKey] || {}),
+          edge_push_config: next,
+        };
+        localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedAll));
+      }
+    } catch {}
+  };
+
+  const handleBrowsePushFolder = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (selected && typeof selected === "string") {
+        updatePushConfig({ local_folder_path: selected });
+      }
+    } catch {}
+  };
+
+  const handlePushManifestNow = async () => {
+    if (pushConfig.provider === "manual") return;
+    setIsPushingManifest(true);
+    try {
+      const safeNameSlug = ((mod?.name || "mod").split(/[\\/]/).pop() || "mod")
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+      const versionStr = (mod?.latest_version || "1.0.0").trim();
+      const customManifestUrl = (mod?.static_manifest_url || mod?.manifest_url || "").trim();
+      const customDownloadUrl =
+        (mod?.download_url || mod?.url || "").trim() ||
+        (customManifestUrl
+          ? customManifestUrl.replace(
+              /\/manifest\.json$/i,
+              `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
+            )
+          : `https://example.com/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`);
+
+      const prevHashes = Array.from(
+        new Set(
+          [
+            ...(Array.isArray(mod?.local_versions)
+              ? mod.local_versions
+                  .map((v: any) => v.dna_hash)
+                  .filter((h: string) => h && h !== mod?.hash)
+              : []),
+            ...(Array.isArray(mod?._olderVersions)
+              ? mod._olderVersions.map((ov: any) => ov.hash).filter(Boolean)
+              : []),
+          ].filter(Boolean)
+        )
+      );
+
+      const manifestPayload = {
+        schema_version: "1.0",
+        manifest_url: customManifestUrl || undefined,
+        artifact: {
+          id: mod?.id || safeNameSlug || "unknown",
+          name: ((mod?.name || "Unknown Mod").split(/[\\/]/).pop() || "Unknown Mod").replace(
+            /\.(package|ts4script|zip)$/i,
+            ""
+          ),
+          author: mod?.master_author || "Unknown Author",
+          version: versionStr,
+          game_version: mod?.compatible_versions?.[0] || "",
+          release_date: new Date().toISOString(),
+          game_id: useStore.getState().activeGameSchema?.id || "sims4",
+        },
+        payload: {
+          download_url: customDownloadUrl,
+          sha256: mod?.hash || "",
+          archive_type: "zip",
+        },
+        current_hashes: mod?.hash ? [mod.hash] : [],
+        modules: mod?.hash
+          ? [
+              {
+                name: (mod?.name || "mod.package").split(/[\\/]/).pop() || "mod.package",
+                sha256: mod.hash,
+                role: "core",
+              },
+            ]
+          : [],
+        atomic_logic: {
+          required_dlc: activeDlcIds,
+          dependencies: dependencies.map(
+            (d) => d.mod?.hash || d.mod?.name || d.dependency_name || ""
+          ).filter(Boolean),
+          twins: [],
+          addons: [],
+          conflicts: conflicts.map((c) => ({
+            hash: c.enemyMod?.hash || c.enemyMod?.name || "",
+            id: c.enemyMod?.id || undefined,
+            name: c.enemyMod?.name || undefined,
+            severity: Number(c.severity_rank) || 4,
+            description: c.resolution_note || undefined,
+          })),
+          flavors: [],
+          collections: localCollectionNames,
+        },
+        virtual_filesystem: {
+          overrides: [],
+          injected_folders: [],
+        },
+        changelog: [t("edge_initial_release", "Initial Release")],
+        previous_hashes: prevHashes,
+      };
+
+      const res = await invoke<{
+        resolved_manifest_url: string;
+        provider_ref: string;
+        message: string;
+      }>("push_static_edge_manifest", {
+        manifest: manifestPayload,
+        customUrl: customManifestUrl,
+        pushConfig,
+      });
+
+      if (res?.resolved_manifest_url) {
+        onChangeStaticManifestUrl(res.resolved_manifest_url);
+      }
+      if (pushConfig.provider === "github_gist" && res?.provider_ref && !pushConfig.repo_or_project) {
+        updatePushConfig({ repo_or_project: res.provider_ref });
+      }
+      useStore.getState().pushStatus(res?.message || t("btn_saved", "Saved"), "success");
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    } finally {
+      setIsPushingManifest(false);
+    }
+  };
   const [dlcFilterTab, setDlcFilterTab] = useState<string>("ALL");
   const [dlcSearchQuery, setDlcSearchQuery] = useState<string>("");
   const [dlcAssignedFilter, setDlcAssignedFilter] = useState<string>("");
@@ -588,9 +792,59 @@ export function ArtifactRulesTab({
       {/* Bottom Action Bar: Sandbox Static Manifest / Export / Sync OR Cloud Registry Save */}
       {mode === "sandbox" ? (
         <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                  {t("icon_rocket_launch", "rocket_launch")}
+                </span>
+                <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                  {t(
+                    "studio_static_section_title",
+                    "Decentralized Static Edge Polling (Tier 1–4 & Independent {Mods})"
+                  )}
+                </h4>
+              </div>
+              <p className="text-[11px] font-semibold text-[var(--subtext)] ml-6">
+                {t(
+                  "studio_static_section_sub",
+                  "One-time drag & drop for {Citizens} with automatic lineage hash rollover and $0 static hosting."
+                )}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_savings", "savings")}
+                </span>
+                {t("studio_static_pill_zero_cost", "$0 Static Hosting")}
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_history", "history")}
+                </span>
+                {t("studio_static_pill_lineage", "Auto Lineage Hashes")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsGuideOpen(true)}
+                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer relative group/btn"
+              >
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                  {t("icon_menu_book", "menu_book")}
+                </span>
+                {t("studio_static_guide_btn", "Static Polling Guide")}
+                <HoverTooltip
+                  title={t("edge_guide_title", "Static Polling & Lineage Guide")}
+                />
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
-              {t("edge_manifest_url_label", "Static Polling Manifest URL (manifest.json)")}
+              {t("edge_manifest_url_label", "Static Polling Manifest URL (manifest.json / catalog.json)")}
             </label>
             <input
               value={mod.static_manifest_url || ""}
@@ -603,24 +857,358 @@ export function ArtifactRulesTab({
             />
           </div>
 
+          {/* Multi-Provider 1-Click Auto-Push Engine */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                {t("edge_autopush_provider_label", "Auto-Push Provider (1-Click Remote Update)")}
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                value={pushConfig.provider}
+                onChange={(val: string[]) => {
+                  if (val[0]) updatePushConfig({ provider: val[0] });
+                }}
+                options={[
+                  {
+                    id: "manual",
+                    label: t("edge_autopush_prov_manual", "Manual Upload (Export .zip Only)"),
+                  },
+                  {
+                    id: "github_repo",
+                    label: t(
+                      "edge_autopush_prov_github_repo",
+                      "GitHub Repo / Cloudflare Pages (Auto-Push)"
+                    ),
+                  },
+                  {
+                    id: "github_gist",
+                    label: t(
+                      "edge_autopush_prov_github_gist",
+                      "GitHub Gist (Zero-Repo Auto-Create & Push)"
+                    ),
+                  },
+                  {
+                    id: "gitlab",
+                    label: t("edge_autopush_prov_gitlab", "GitLab / Codeberg / Gitea (Auto-Push)"),
+                  },
+                  {
+                    id: "neocities",
+                    label: t("edge_autopush_prov_neocities", "Neocities Site API (Auto-Push)"),
+                  },
+                  {
+                    id: "custom_http",
+                    label: t(
+                      "edge_autopush_prov_custom_http",
+                      "Personal Domain (HTTP PUT / WebDAV)"
+                    ),
+                  },
+                  {
+                    id: "local_folder",
+                    label: t(
+                      "edge_autopush_prov_local_folder",
+                      "Local Synced Folder (GitHub Desktop / Drive)"
+                    ),
+                  },
+                ]}
+              />
+            </div>
+
+            {pushConfig.provider !== "manual" && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                  {t("edge_autopush_mode_label", "Manifest Target Mode")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={pushConfig.target_mode}
+                  onChange={(val: string[]) => {
+                    if (val[0]) updatePushConfig({ target_mode: val[0] });
+                  }}
+                  options={[
+                    {
+                      id: "manifest",
+                      label: t("edge_autopush_mode_single", "Single-{Mod} manifest.json"),
+                    },
+                    {
+                      id: "catalog",
+                      label: t(
+                        "edge_autopush_mode_catalog",
+                        "Master Creator catalog.json (All {Mods} in 1 File)"
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+
+          {pushConfig.provider !== "manual" && (
+            <div className="p-4 rounded-2xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {(pushConfig.provider === "github_repo" || pushConfig.provider === "gitlab") && (
+                  <>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_repo_label", "Repository (owner/repo)")}
+                      </label>
+                      <input
+                        value={pushConfig.repo_or_project}
+                        onChange={(e) => updatePushConfig({ repo_or_project: e.target.value })}
+                        placeholder={t("edge_autopush_repo_label", "Repository (owner/repo)")}
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_branch_label", "Branch")}
+                      </label>
+                      <input
+                        value={pushConfig.branch}
+                        onChange={(e) => updatePushConfig({ branch: e.target.value })}
+                        placeholder="main"
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_path_label", "Remote File Path")}
+                      </label>
+                      <input
+                        value={pushConfig.remote_path}
+                        onChange={(e) => updatePushConfig({ remote_path: e.target.value })}
+                        placeholder={
+                          pushConfig.target_mode === "catalog"
+                            ? "catalog.json"
+                            : "my_mod/manifest.json"
+                        }
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {pushConfig.provider === "github_gist" && (
+                  <>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t(
+                          "edge_autopush_gist_label",
+                          "Gist ID (Blank = Auto-Create on First Push)"
+                        )}
+                      </label>
+                      <input
+                        value={pushConfig.repo_or_project}
+                        onChange={(e) => updatePushConfig({ repo_or_project: e.target.value })}
+                        placeholder={t(
+                          "edge_autopush_gist_label",
+                          "Gist ID (Blank = Auto-Create on First Push)"
+                        )}
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_path_label", "Remote File Path")}
+                      </label>
+                      <input
+                        value={pushConfig.remote_path}
+                        onChange={(e) => updatePushConfig({ remote_path: e.target.value })}
+                        placeholder={
+                          pushConfig.target_mode === "catalog" ? "catalog.json" : "manifest.json"
+                        }
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {pushConfig.provider === "neocities" && (
+                  <>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_site_label", "Neocities Site Name")}
+                      </label>
+                      <input
+                        value={pushConfig.repo_or_project}
+                        onChange={(e) => updatePushConfig({ repo_or_project: e.target.value })}
+                        placeholder={t("edge_autopush_site_label", "Neocities Site Name")}
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_path_label", "Remote File Path")}
+                      </label>
+                      <input
+                        value={pushConfig.remote_path}
+                        onChange={(e) => updatePushConfig({ remote_path: e.target.value })}
+                        placeholder={
+                          pushConfig.target_mode === "catalog"
+                            ? "catalog.json"
+                            : "manifests/manifest.json"
+                        }
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {(pushConfig.provider === "custom_http" || pushConfig.provider === "gitlab") && (
+                  <div className="flex flex-col gap-1.5 md:col-span-3">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                      {t("edge_autopush_endpoint_label", "Custom Endpoint / Host URL")}
+                    </label>
+                    <input
+                      value={pushConfig.custom_endpoint}
+                      onChange={(e) => updatePushConfig({ custom_endpoint: e.target.value })}
+                      placeholder={
+                        pushConfig.provider === "gitlab"
+                          ? "https://gitlab.com"
+                          : "https://your-domain.com/upload/manifest.json"
+                      }
+                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                    />
+                  </div>
+                )}
+
+                {pushConfig.provider === "local_folder" && (
+                  <>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_folder_label", "Local Synced Folder Path")}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={pushConfig.local_folder_path}
+                          onChange={(e) => updatePushConfig({ local_folder_path: e.target.value })}
+                          placeholder={t("edge_autopush_folder_label", "Local Synced Folder Path")}
+                          className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleBrowsePushFolder}
+                          className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 cursor-pointer shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                            {t("icon_folder_open", "folder_open")}
+                          </span>
+                          {t("edge_autopush_btn_browse", "Browse")}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                        {t("edge_autopush_path_label", "Remote File Path")}
+                      </label>
+                      <input
+                        value={pushConfig.remote_path}
+                        onChange={(e) => updatePushConfig({ remote_path: e.target.value })}
+                        placeholder={
+                          pushConfig.target_mode === "catalog"
+                            ? "catalog.json"
+                            : "my_mod/manifest.json"
+                        }
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {pushConfig.provider !== "local_folder" && (
+                  <div className="flex flex-col gap-1.5 md:col-span-3">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
+                      {t(
+                        "edge_autopush_token_label",
+                        "Scoped API Token / Key (Stored Locally Only)"
+                      )}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type={showPushToken ? "text" : "password"}
+                        value={pushConfig.token}
+                        onChange={(e) => updatePushConfig({ token: e.target.value })}
+                        placeholder={t(
+                          "edge_autopush_token_label",
+                          "Scoped API Token / Key (Stored Locally Only)"
+                        )}
+                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPushToken(!showPushToken)}
+                        className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0 relative group/btn"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {showPushToken
+                            ? t("icon_visibility_off", "visibility_off")
+                            : t("icon_visibility", "visibility")}
+                        </span>
+                        <HoverTooltip
+                          title={t(
+                            "edge_autopush_token_label",
+                            "Scoped API Token / Key (Stored Locally Only)"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] font-semibold text-[var(--subtext)] px-1">
+                <span className="material-symbols-outlined !text-[14px] text-[var(--success)] shrink-0">
+                  {t("icon_verified_user", "verified_user")}
+                </span>
+                <span>
+                  {t(
+                    "edge_autopush_security_note",
+                    "100% Client-Side: Your token stays strictly on this PC and connects directly to your host. Sanctuary servers never see your token or manifest."
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-end gap-3">
+            {pushConfig.provider !== "manual" && (
+              <button
+                type="button"
+                disabled={isCommitting || isPushingManifest}
+                onClick={handlePushManifestNow}
+                className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <span
+                  className={`material-symbols-outlined !text-[16px] text-[var(--accent)] ${
+                    isPushingManifest ? "animate-spin" : ""
+                  }`}
+                >
+                  {isPushingManifest
+                    ? t("icon_refresh", "refresh")
+                    : t("icon_cloud_sync", "cloud_sync")}
+                </span>
+                {t("edge_autopush_btn_push_now", "Push Manifest Now")}
+              </button>
+            )}
             {onExportRelease && (
               <button
                 type="button"
-                disabled={isCommitting}
+                disabled={isCommitting || isPushingManifest}
                 onClick={onExportRelease}
                 className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                   {t("icon_move_to_inbox", "move_to_inbox")}
                 </span>
-                {t("studio_publish_export_btn", "Export Static Manifest (.zip)")}
+                {pushConfig.provider !== "manual"
+                  ? t("edge_autopush_btn_export_and_push", "Export & Auto-Push (.zip)")
+                  : t("studio_publish_export_btn", "Export Static Manifest (.zip)")}
               </button>
             )}
             {isVerifiedMason && onSyncToNetwork && (
               <button
                 type="button"
-                disabled={isCommitting}
+                disabled={isCommitting || isPushingManifest}
                 onClick={onSyncToNetwork}
                 className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_22%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_36%,transparent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all cursor-pointer"
               >
@@ -649,6 +1237,15 @@ export function ArtifactRulesTab({
           </div>
         )
       )}
+
+      <StaticPollingGuideSidePanel
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        mod={mod}
+        activeDlcIds={activeDlcIds}
+        dependencies={dependencies}
+        conflicts={conflicts}
+      />
     </div>
   );
 }

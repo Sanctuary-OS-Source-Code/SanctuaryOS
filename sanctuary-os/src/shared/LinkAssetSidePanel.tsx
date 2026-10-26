@@ -43,17 +43,20 @@ export function LinkAssetSidePanel({
     const fetchAssets = async () => {
       const { data: modsData } = await supabase
         .from("mods")
-        .select("id, name")
+        .select("id, name, compliance_tier, status")
         .eq("compliance_tier", 0)
-        .eq("status", "verified");
+        .in("status", ["verified", "stable"]);
 
       const { data: marketAssetsData } = await supabase
         .from("nexus_assets")
-        .select("id, name, asset_type");
+        .select("id, name, asset_type")
+        .or("is_public.eq.true,is_public.is.null");
 
       const { data: blueprintsData } = await supabase
         .from("blueprints")
-        .select("id, name");
+        .select("id, name, compliance_tier, is_public")
+        .eq("compliance_tier", 0)
+        .eq("is_public", true);
 
       const combinedAssets: Asset[] = [];
       if (modsData)

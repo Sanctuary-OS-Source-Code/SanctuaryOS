@@ -9,7 +9,7 @@ const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function MasonPostCard({ post, index, onPostClick, onToggleLike, isFeatured, isCompact, layout, actions, hasUnsavedEdits }: any) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
 
   const parsePostContent = (p: any) => {
     let content = p.content || p.message || '';
@@ -249,7 +249,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   return (
     <UniversalCard
       layout={layout || (isCompact ? "vertical-compact" : "vertical")}
-      title={post.title}
+      title={td ? td(post.title || "") : post.title}
       subtitle={`${t("by_author", "BY")} ${authorName}`}
       image={showImage ? imageUrl : undefined}
       icon={!showImage ? t("icon_cell_tower", "cell_tower") : undefined}
@@ -263,7 +263,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
       style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 100}ms` }}
     >
       <div className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
-        {renderTextWithIcons(stripMarkdown(description || content))}
+        {renderTextWithIcons(td ? td(stripMarkdown(description || content)) : stripMarkdown(description || content))}
       </div>
     </UniversalCard>
   );

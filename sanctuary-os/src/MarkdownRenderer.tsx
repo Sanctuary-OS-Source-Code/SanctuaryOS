@@ -5,26 +5,32 @@ import remarkBreaks from "remark-breaks";
 import { useLexicon } from "./LexiconContext";
 import { useModalStore } from "./store/modalStore";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { HoverTooltip } from "./shared";
 
 interface MarkdownRendererProps {
   content: string;
   onAssetClick?: (type: string, id: string) => void;
   isAlert?: boolean;
+  forceTranslate?: boolean;
 }
 
 export default function MarkdownRenderer({
   content,
   onAssetClick,
   isAlert,
+  forceTranslate,
 }: MarkdownRendererProps) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } =
     useModalStore();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
-  const processedContent = (content || "")
+  const translatedContent = String(
+    td ? td(content || "", { forceTranslate }) : content || ""
+  );
+  const processedContent = translatedContent
     .replace(
       /(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/([a-zA-Z0-9_-]+)\/([^)]+)\)/gi,
-      (_match, rawLabel, type, id) => {
+      (_match: string, rawLabel: string, type: string, id: string) => {
         const cleanLabel = String(rawLabel || "")
           .replace(/\\?\[ICON:[a-zA-Z0-9_-]+\\?\]/gi, "")
           .replace(
@@ -117,11 +123,11 @@ export default function MarkdownRenderer({
                     navigator.clipboard.writeText(String(children))
                   }
                   className="absolute top-2 right-2 p-2 rounded-lg bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-colors opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer"
-                  title={t("btn_copy", "Copy")}
                 >
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_content_copy", "content_copy")}
                   </span>
+                  <HoverTooltip title={t("btn_copy", "Copy")} />
                 </button>
                 <code
                   className="font-mono text-sm text-[var(--subtext)] block pr-8"
@@ -136,11 +142,9 @@ export default function MarkdownRenderer({
             if (src && src.startsWith("icon://")) {
               const iconName = src.replace("icon://", "").toLowerCase();
               return (
-                <span
-                  className="material-symbols-outlined !text-[inherit] align-middle opacity-90 mx-0.5"
-                  title={alt || iconName}
-                >
+                <span className="material-symbols-outlined !text-[inherit] align-middle opacity-90 mx-0.5">
                   {iconName}
+                  <HoverTooltip title={alt || iconName} />
                 </span>
               );
             }

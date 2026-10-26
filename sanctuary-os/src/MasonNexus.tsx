@@ -24,6 +24,7 @@ import {
   DynamicBlueprintPreviewBanner,
   DynamicTemplatePreviewBanner,
 } from "./chameleon-components/ThemeCard";
+import { uploadThemeAssetsToCloud } from "./chameleon-components/ChameleonShared";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,
@@ -213,12 +214,18 @@ export function MasonNexus({
         finalContent.version = uploadState.version;
         finalContent._meta_version = uploadState.version;
       }
+      let syncedContent = finalContent;
+      if (uploadState.assetType === "chameleon") {
+        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase);
+        syncedContent = themeData;
+      }
+
       const payload = {
         name: uploadState.name,
         version: uploadState.version,
         description: uploadState.description,
         release_notes: uploadState.releaseNotes,
-        json_data: finalContent,
+        json_data: syncedContent,
         asset_type: uploadState.assetType,
         is_public: true,
         language: uploadState.assetType === "lexicon" ? finalLanguage : null,

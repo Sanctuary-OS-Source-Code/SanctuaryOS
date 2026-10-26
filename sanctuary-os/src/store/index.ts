@@ -209,11 +209,95 @@ const loadCwActiveTab = (wsId: string) => {
 
 const loadNetworkUpdates = (wsId: string) => {
   try {
-    const cached = localStorage.getItem(`sanctuary_${wsId}_network_updates`);
+    const cached = localStorage.getItem(`sanctuary_${wsId}_network_updates`) || localStorage.getItem('sanctuary_network_updates');
     if (cached) return JSON.parse(cached);
   } catch (e) {}
   return { broken: [], obsolete: [], updated: [] };
 };
+
+const loadPlaySets = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_playsets`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+const loadActiveConflictCount = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_conflict_count`);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return { total: 0, tier4: 0, tier3: 0 };
+};
+
+const loadActiveBrokenCounts = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_broken_counts`);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return { broken: 0, unstable: 0 };
+};
+
+const loadQuarantineList = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_quarantine_list`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+const loadOwnedDLC = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_owned_dlc`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+const loadMaskedDLC = (wsId: string) => {
+  try {
+    const cached = localStorage.getItem(`sanctuary_${wsId}_masked_dlc`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {}
+  return [];
+};
+
+const loadSelectedVersion = (wsId: string) => {
+  try {
+    return localStorage.getItem(`sanctuary_${wsId}_selected_version`) || '';
+  } catch (e) {}
+  return '';
+};
+
+const trimNetworkUpdateItem = (m: any) => ({
+  hash: m?.hash,
+  name: m?.name,
+  dbId: m?.dbId,
+  displayName: m?.displayName,
+  author: m?.author,
+  version: m?.version,
+  newVersion: m?.newVersion,
+  newGameVersion: m?.newGameVersion,
+  download_url: m?.download_url,
+  url: m?.url,
+  status: m?.status,
+  is_edge_update: m?.is_edge_update,
+  edge_changelog: m?.edge_changelog,
+  image_url: m?.image_url,
+});
 
 const loadWayfinderDrafts = (wsId: string) => {
   try {
@@ -250,7 +334,7 @@ const purgeBloatedLocalStorage = () => {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (!k) continue;
-      if (k === 'network_updates_debug' || k.endsWith('_network_updates') || k === 'sanctuary_network_updates') {
+      if (k === 'network_updates_debug') {
         localStorage.removeItem(k);
         continue;
       }
@@ -451,6 +535,14 @@ interface GlobalState {
   isGameDatabasesSynced: boolean;
 }
 
+const initialBootWorkspaceId = (() => {
+  try {
+    return localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+  } catch {
+    return "sims4";
+  }
+})();
+
 export const useStore = create<GlobalState>((set) => ({
   activeGameSchema: loadActiveGameSchema(),
   setActiveGameSchema: (activeGameSchema) => set({ activeGameSchema }),
@@ -458,6 +550,17 @@ export const useStore = create<GlobalState>((set) => ({
   setIsMobileMenuOpen: (isMobileMenuOpen) => set({ isMobileMenuOpen }),
   isGameDatabasesSynced: false,
   hydrateWorkspaceState: (wsId) => {
+    const cachedSets = loadPlaySets(wsId);
+    const savedActiveSetName = loadActiveSet(wsId);
+    let resolvedSetIdx = 0;
+    let resolvedSetName = savedActiveSetName;
+    if (savedActiveSetName && cachedSets.length > 0) {
+      const idx = cachedSets.findIndex((s: any) => s.name === savedActiveSetName);
+      if (idx !== -1) resolvedSetIdx = idx;
+    } else if (cachedSets.length > 0) {
+      resolvedSetName = cachedSets[0].name;
+      resolvedSetIdx = 0;
+    }
     set({
       ideOpenFiles: loadIdeOpenFiles(wsId),
       ideActiveFileIndex: loadIdeActiveFileIndex(wsId),
@@ -468,16 +571,19 @@ export const useStore = create<GlobalState>((set) => ({
       wayfinderDrafts: loadWayfinderDrafts(wsId),
       masonCommentDrafts: loadMasonCommentDrafts(wsId),
       masonHubDrafts: loadMasonHubDrafts(wsId),
-      playSets: [],
-      playsetsLoaded: false,
-      activeSetName: loadActiveSet(wsId),
-      activePlaySetIndex: 0,
+      playSets: cachedSets,
+      playsetsLoaded: cachedSets.length > 0,
+      activeSetName: resolvedSetName,
+      activePlaySetIndex: resolvedSetIdx,
       modList: [],
-      quarantineList: [],
+      quarantineList: loadQuarantineList(wsId),
       shelterContents: [],
       backupList: [],
-      activeConflictCount: { total: 0, tier4: 0, tier3: 0 },
-      activeBrokenCounts: { broken: 0, unstable: 0 },
+      ownedDLC: loadOwnedDLC(wsId),
+      maskedDLC: loadMaskedDLC(wsId),
+      selectedVersion: loadSelectedVersion(wsId),
+      activeConflictCount: loadActiveConflictCount(wsId),
+      activeBrokenCounts: loadActiveBrokenCounts(wsId),
       scanProgress: { current: 0, total: 0, message: '' },
       defconLevel: 5,
       isPatchDetected: false,
@@ -578,12 +684,25 @@ export const useStore = create<GlobalState>((set) => ({
   setActiveWorkspaceId: (activeWorkspaceId) => set({ activeWorkspaceId }),
   modList: [],
   setModList: (modList) => set((state) => ({ modList: typeof modList === 'function' ? modList(state.modList) : modList })),
-  playSets: [],
-  setPlaySets: (playSets) => set((state) => ({ playSets: typeof playSets === 'function' ? playSets(state.playSets) : playSets })),
-  playsetsLoaded: false,
+  playSets: loadPlaySets(initialBootWorkspaceId),
+  setPlaySets: (playSets) => set((state) => {
+    const nextSets = typeof playSets === 'function' ? playSets(state.playSets) : playSets;
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && Array.isArray(nextSets)) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_playsets`, JSON.stringify(nextSets));
+    }
+    return { playSets: nextSets };
+  }),
+  playsetsLoaded: loadPlaySets(initialBootWorkspaceId).length > 0,
   setPlaysetsLoaded: (loaded) => set({ playsetsLoaded: loaded }),
-  activeSetName: null,
-  setActiveSetName: (activeSetName) => set({ activeSetName }),
+  activeSetName: loadActiveSet(initialBootWorkspaceId),
+  setActiveSetName: (activeSetName) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && activeSetName) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_active_set`, activeSetName);
+    }
+    return { activeSetName };
+  }),
   ignoredGlobal: (() => {
     try {
       const stored = localStorage.getItem('sanctuary_ignored_conflicts');
@@ -594,8 +713,14 @@ export const useStore = create<GlobalState>((set) => ({
   setIgnoredGlobal: (ignored) => set((state) => ({ ignoredGlobal: typeof ignored === 'function' ? ignored(state.ignoredGlobal) : ignored })),
   activePlaySetIndex: 0,
   setActivePlaySetIndex: (activePlaySetIndex) => set({ activePlaySetIndex }),
-  quarantineList: [],
-  setQuarantineList: (quarantineList) => set({ quarantineList }),
+  quarantineList: loadQuarantineList(initialBootWorkspaceId),
+  setQuarantineList: (quarantineList) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && Array.isArray(quarantineList)) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_quarantine_list`, JSON.stringify(quarantineList));
+    }
+    return { quarantineList };
+  }),
   shelterContents: [],
   setShelterContents: (shelterContents) => set({ shelterContents }),
   shelterActive: false,
@@ -604,12 +729,30 @@ export const useStore = create<GlobalState>((set) => ({
   setBackupList: (backupList) => set({ backupList }),
   anarchyRules: { highlander: true, family: true, dependencies: true, intercept: true },
   setAnarchyRules: (anarchyRules) => set({ anarchyRules }),
-  ownedDLC: [],
-  setOwnedDLC: (ownedDLC) => set({ ownedDLC }),
-  maskedDLC: [],
-  setMaskedDLC: (maskedDLC) => set({ maskedDLC }),
-  selectedVersion: '',
-  setSelectedVersion: (selectedVersion) => set({ selectedVersion }),
+  ownedDLC: loadOwnedDLC(initialBootWorkspaceId),
+  setOwnedDLC: (ownedDLC) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && Array.isArray(ownedDLC)) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_owned_dlc`, JSON.stringify(ownedDLC));
+    }
+    return { ownedDLC };
+  }),
+  maskedDLC: loadMaskedDLC(initialBootWorkspaceId),
+  setMaskedDLC: (maskedDLC) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && Array.isArray(maskedDLC)) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_masked_dlc`, JSON.stringify(maskedDLC));
+    }
+    return { maskedDLC };
+  }),
+  selectedVersion: loadSelectedVersion(initialBootWorkspaceId),
+  setSelectedVersion: (selectedVersion) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && selectedVersion) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, selectedVersion);
+    }
+    return { selectedVersion };
+  }),
   detectGameVersion: async () => {
     if (!isDesktop()) return;
     try {
@@ -620,26 +763,70 @@ export const useStore = create<GlobalState>((set) => ({
         livePath: config.live_path,
       });
       const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
-      set({ selectedVersion: cleanVersion, status: `STANDING BY |  v${cleanVersion}` });
+      set((state) => {
+        const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+        if (wsId && cleanVersion) {
+          safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, cleanVersion);
+        }
+        return { selectedVersion: cleanVersion, status: `STANDING BY |  v${cleanVersion}` };
+      });
     } catch (err) {
       console.warn("Version detection failed:", err);
     }
   },
-  networkUpdates: { broken: [], obsolete: [], updated: [] },
-  setNetworkUpdates: (networkUpdates) => {
+  networkUpdates: loadNetworkUpdates(initialBootWorkspaceId),
+  setNetworkUpdates: (networkUpdates) => set((state) => {
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
     try {
       if (networkUpdates) {
-        localStorage.setItem('sanctuary_network_updates', JSON.stringify(networkUpdates));
+        const trimmed = {
+          broken: Array.isArray(networkUpdates.broken) ? networkUpdates.broken.map(trimNetworkUpdateItem) : [],
+          obsolete: Array.isArray(networkUpdates.obsolete) ? networkUpdates.obsolete.map(trimNetworkUpdateItem) : [],
+          updated: Array.isArray(networkUpdates.updated) ? networkUpdates.updated.map(trimNetworkUpdateItem) : [],
+        };
+        const serialized = JSON.stringify(trimmed);
+        safeLocalStorageSetItem('sanctuary_network_updates', serialized);
+        if (wsId) safeLocalStorageSetItem(`sanctuary_${wsId}_network_updates`, serialized);
       } else {
         localStorage.removeItem('sanctuary_network_updates');
+        if (wsId) localStorage.removeItem(`sanctuary_${wsId}_network_updates`);
       }
     } catch (e) {}
-    set({ networkUpdates });
-  },
-  activeConflictCount: { total: 0, tier4: 0, tier3: 0 },
-  setActiveConflictCount: (activeConflictCount) => set({ activeConflictCount }),
-  activeBrokenCounts: { broken: 0, unstable: 0 },
-  setActiveBrokenCounts: (activeBrokenCounts) => set({ activeBrokenCounts }),
+    return { networkUpdates };
+  }),
+  activeConflictCount: loadActiveConflictCount(initialBootWorkspaceId),
+  setActiveConflictCount: (activeConflictCount) => set((state) => {
+    if (
+      state.activeConflictCount &&
+      activeConflictCount &&
+      state.activeConflictCount.total === activeConflictCount.total &&
+      state.activeConflictCount.tier3 === activeConflictCount.tier3 &&
+      state.activeConflictCount.tier4 === activeConflictCount.tier4
+    ) {
+      return state;
+    }
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && activeConflictCount) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_conflict_count`, JSON.stringify(activeConflictCount));
+    }
+    return { activeConflictCount };
+  }),
+  activeBrokenCounts: loadActiveBrokenCounts(initialBootWorkspaceId),
+  setActiveBrokenCounts: (activeBrokenCounts) => set((state) => {
+    if (
+      state.activeBrokenCounts &&
+      activeBrokenCounts &&
+      state.activeBrokenCounts.broken === activeBrokenCounts.broken &&
+      state.activeBrokenCounts.unstable === activeBrokenCounts.unstable
+    ) {
+      return state;
+    }
+    const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+    if (wsId && activeBrokenCounts) {
+      safeLocalStorageSetItem(`sanctuary_${wsId}_broken_counts`, JSON.stringify(activeBrokenCounts));
+    }
+    return { activeBrokenCounts };
+  }),
   scanProgress: { current: 0, total: 0, message: '' },
   setScanProgress: (scanProgress) => set({ scanProgress }),
   defconLevel: 5,

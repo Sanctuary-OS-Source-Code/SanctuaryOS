@@ -13,6 +13,7 @@ import {
   ActionPill,
   GlassSegmentedControl,
   StatBox,
+  HoverTooltip,
 } from "./shared";
 import {
   CommandScreenLayout,
@@ -1830,22 +1831,22 @@ export default function Lab({
                           <button
                             type="button"
                             onClick={handleLinkExternalTool}
-                            title={t("lab_btn_change_tool", "Change Tool")}
                             className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] flex items-center justify-center transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[14px]">
                               {t("icon_folder_open", "folder_open")}
                             </span>
+                            <HoverTooltip title={t("lab_btn_change_tool", "Change Tool")} />
                           </button>
                           <button
                             type="button"
                             onClick={handleUnlinkExternalTool}
-                            title={t("nav_unlink", "Unlink")}
                             className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[14px]">
                               {t("icon_link_off", "link_off")}
                             </span>
+                            <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
                           </button>
                         </div>
                       )}
@@ -2394,6 +2395,20 @@ export default function Lab({
               ? realLogDisplayContent || ""
               : formattedLabReportText || formatHumanReadableLogText(rawLogData) || "";
 
+          const isReportRestrictedFromCloud = [
+            resolvedTargetMod,
+            ...(reportStagedDeps || []),
+            ...(reportConflicts || []),
+          ]
+            .filter(Boolean)
+            .some(
+              (m: any) =>
+                (Number(m.compliance_tier || 0) >= 1 && Number(m.compliance_tier || 0) <= 4) ||
+                !m.isSynced ||
+                !m.dbId ||
+                String(m.status || "").toLowerCase() === "unverified"
+            );
+
           return (
             <SidePanel
               isOpen={true}
@@ -2407,7 +2422,7 @@ export default function Lab({
               widthClass="w-[90vw] md:w-[820px]"
               headerActions={
                 <PanelHeaderGroup>
-                  {isError && submitLabReport && (
+                  {isError && submitLabReport && !isReportRestrictedFromCloud && (
                     <PanelHeaderButton
                       icon={
                         submitCardState === "done"

@@ -1067,11 +1067,9 @@ export default function VersionTimeline({
                         <div className="flex items-start justify-between gap-3 w-full min-w-0">
                           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap min-w-0">
-                              <span
-                                className="text-xs font-black text-[var(--text)] break-words leading-snug"
-                                title={item.label}
-                              >
+                              <span className="text-xs font-black text-[var(--text)] break-words leading-snug">
                                 {item.label}
+                                <HoverTooltip title={item.label} />
                               </span>
                               {item.isChanged && (
                                 <span

@@ -1,9 +1,11 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useLexicon } from './LexiconContext';
 import { useTooltipStore } from './store/tooltipStore';
 export { useTooltipStore };
 
 export function GlobalTooltip() {
+  const { t } = useLexicon();
   const tooltip = useTooltipStore((state) => state.tooltip);
   const tooltipRef = React.useRef<HTMLDivElement>(null);
   const [size, setSize] = React.useState({ width: 0, height: 0 });
@@ -44,26 +46,39 @@ export function GlobalTooltip() {
   const isAccent = variant === 'accent';
   const isWarning = variant === 'warning';
 
-  let borderShadowClass = '';
+  let variantStyle: React.CSSProperties = {};
   let textColorClass = 'text-[var(--text)]';
-  let defaultIconName = 'info';
+  let iconColorClass = 'text-[var(--accent)]';
+  let defaultIconName = t('icon_info', 'info');
 
   if (isDanger) {
-    borderShadowClass = 'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--danger)_50%,transparent)]';
+    variantStyle = {
+      borderColor: 'color-mix(in srgb, var(--danger) 55%, var(--glass-dropdown-border-top, rgba(255,255,255,0.28)))',
+    };
     textColorClass = 'theme-text-danger';
-    defaultIconName = 'error';
+    iconColorClass = 'theme-text-danger';
+    defaultIconName = t('icon_error', 'error');
   } else if (isInfo) {
-    borderShadowClass = 'shadow-[inset_0_0_0_1px_color-mix(in_srgb,#3b82f6_50%,transparent)]';
+    variantStyle = {
+      borderColor: 'color-mix(in srgb, #3b82f6 55%, var(--glass-dropdown-border-top, rgba(255,255,255,0.28)))',
+    };
     textColorClass = 'text-[#3b82f6]';
-    defaultIconName = 'info';
+    iconColorClass = 'text-[#3b82f6]';
+    defaultIconName = t('icon_info', 'info');
   } else if (isAccent) {
-    borderShadowClass = 'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_50%,transparent)]';
-    textColorClass = 'theme-text-accent';
-    defaultIconName = 'star';
+    variantStyle = {
+      borderColor: 'color-mix(in srgb, var(--accent) 55%, var(--glass-dropdown-border-top, rgba(255,255,255,0.28)))',
+    };
+    textColorClass = 'text-[var(--text)]';
+    iconColorClass = 'theme-text-accent';
+    defaultIconName = t('icon_auto_awesome', 'auto_awesome');
   } else if (isWarning) {
-    borderShadowClass = 'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--warning)_50%,transparent)]';
+    variantStyle = {
+      borderColor: 'color-mix(in srgb, var(--warning) 55%, var(--glass-dropdown-border-top, rgba(255,255,255,0.28)))',
+    };
     textColorClass = 'text-[var(--warning)]';
-    defaultIconName = 'warning';
+    iconColorClass = 'text-[var(--warning)]';
+    defaultIconName = t('icon_warning', 'warning');
   }
 
   const iconName = icon || defaultIconName;
@@ -95,10 +110,10 @@ export function GlobalTooltip() {
   const roundedLeft = Math.round(finalLeft);
   const roundedTop = Math.round(finalTop);
 
-  const portalRoot = document.getElementById("sa-portals") || document.body;
+  const portalRoot = document.getElementById('sa-portals') || document.body;
 
   return createPortal(
-    <div className="fixed inset-0 z-[999999] pointer-events-none">
+    <div id="sa-tooltip-portal" className="fixed inset-0 z-[999999] pointer-events-none">
       <div
         className="absolute top-0 left-0 pointer-events-none will-change-transform"
         style={{
@@ -113,26 +128,20 @@ export function GlobalTooltip() {
         ) : (
           <div
             ref={tooltipRef}
-            style={{
-              "--glass-x": `${roundedLeft}px`,
-              "--glass-y": `${roundedTop}px`,
-            } as React.CSSProperties}
-            className={`glass-panel portal-glass-fix flex flex-col items-start justify-center px-3.5 py-2.5 max-w-[380px] w-max border border-[rgba(var(--text-rgb,255,255,255),0.16)] !rounded-xl relative overflow-hidden ${borderShadowClass}`}
+            style={variantStyle}
+            className="sa-tooltip-glass flex flex-col items-start justify-center px-3.5 py-2 max-w-[360px] w-max !rounded-xl relative overflow-hidden"
           >
-            {/* Subtle top specular highlight */}
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_24%,transparent)] to-transparent opacity-80 pointer-events-none z-0" />
-
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
-              <div className={`${normalFont ? 'text-xs font-semibold' : 'text-xs font-bold capitalize tracking-wide'} flex items-start text-left gap-2 whitespace-pre-wrap leading-snug ${textColorClass}`}>
+              <div className={`${normalFont ? 'text-xs font-semibold' : 'text-[11px] font-bold tracking-wide'} flex items-center text-left gap-2 whitespace-pre-wrap leading-snug ${textColorClass}`}>
                 {!noIcon && (
-                  <span className="material-symbols-outlined !text-[15px] shrink-0 mt-[1px] opacity-90">
+                  <span className={`material-symbols-outlined !text-[15px] shrink-0 ${iconColorClass}`}>
                     {iconName}
                   </span>
                 )}
                 <span className="break-words">{title}</span>
               </div>
               {subtitle && (
-                <span className="text-[11px] font-medium text-[color-mix(in_srgb,var(--text)_82%,transparent)] text-left whitespace-pre-line w-full leading-relaxed break-words line-clamp-6">
+                <span className="text-[11px] font-medium text-[var(--subtext)] text-left whitespace-pre-line w-full leading-relaxed break-words line-clamp-6">
                   {subtitle}
                 </span>
               )}

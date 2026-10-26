@@ -137,6 +137,17 @@ export default function AssetPreviewSidebar({
             .eq("id", assetId)
             .single();
           if (mErr) throw mErr;
+          if (
+            Number(mData?.compliance_tier || 0) >= 1 ||
+            String(mData?.status || "").toLowerCase() === "unverified"
+          ) {
+            throw new Error(
+              t(
+                "err_asset_restricted",
+                "This {mod} is restricted or unverified and cannot be previewed on the public network."
+              )
+            );
+          }
           setData(mData);
         } else if (assetType === "blueprint") {
           const { data: bData, error: bErr } = await supabase
@@ -145,6 +156,14 @@ export default function AssetPreviewSidebar({
             .eq("id", assetId)
             .single();
           if (bErr) throw bErr;
+          if (Number(bData?.compliance_tier || 0) >= 1) {
+            throw new Error(
+              t(
+                "err_asset_restricted",
+                "This {mod} is restricted or unverified and cannot be previewed on the public network."
+              )
+            );
+          }
           setData(bData);
         } else if (
           assetType === "lexicon" ||
@@ -323,7 +342,17 @@ export default function AssetPreviewSidebar({
                             .getState()
                             .pushStatus(`Successfully Installed Lexicon: ${data.name}`);
                         } else if (assetType === "chameleon") {
-                          importTheme(data.json_data);
+                          const parsedTheme =
+                            typeof data.json_data === "string"
+                              ? JSON.parse(data.json_data)
+                              : data.json_data || {};
+                          importTheme({
+                            ...parsedTheme,
+                            name: data.name || parsedTheme.name || "Chameleon",
+                            version: data.version || parsedTheme.version || "1.0.0",
+                            author: data.author || parsedTheme.author || "Citizen",
+                            _meta_version: data.version || parsedTheme._meta_version || "1.0.0",
+                          });
                           useStore
                             .getState()
                             .pushStatus(`Successfully Installed Chameleon: ${data.name}`);

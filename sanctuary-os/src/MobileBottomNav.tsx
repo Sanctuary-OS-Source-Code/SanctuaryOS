@@ -153,20 +153,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: 'var(--glass-nav-active-bg)',
-                      backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
-                      boxShadow: 'var(--glass-nav-active-shadow)',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.22)',
-                      borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
-                      borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    }
-                  : undefined
-              }
-              className={`flex flex-col items-center justify-center h-full py-1.5 gap-1 rounded-2xl transition-all duration-300 relative ${isActive ? 'flex-[1.5] shrink-0 px-3 text-[var(--text)] opacity-100' : 'flex-1 min-w-0 px-1 text-[var(--text)] opacity-55 hover:opacity-85'}`}
+              className={`flex flex-col items-center justify-center h-full py-1.5 gap-1 rounded-2xl transition-all duration-300 relative ${isActive ? 'sa-glass-active flex-[1.5] shrink-0 px-3 text-[var(--text)] opacity-100' : 'flex-1 min-w-0 px-1 text-[var(--text)] opacity-55 hover:opacity-85'}`}
             >
               <div className="relative flex items-center justify-center">
                 <span className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 ${isActive ? '!text-[20px] text-[color-mix(in_srgb,var(--text)_78%,var(--accent))]' : '!text-[20px]'}`}>
@@ -304,6 +291,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows") || "desktop_windows", label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
               { id: "registry", icon: t("icon_deployed_code", "deployed_code") || "deployed_code", label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
               { id: "nexus", icon: t("icon_hub", "hub") || "hub", label: (t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, '').trim() },
+              { id: "chameleons", icon: t("icon_palette", "palette") || "palette", label: (t("tab_aesthetics", "Aesthetics") || "Aesthetics").replace(/^[^\w]*/, '').trim() },
               { id: "collections", icon: t("icon_collections_bookmark", "collections_bookmark") || "collections_bookmark", label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
               { id: "protocols", icon: t("icon_link", "link") || "link", label: (t("tab_protocols", "Processes") || "Protocols").replace(/^[^\w]*/, '').trim() },
               { id: "structure", icon: t("icon_architecture", "structure") || "architecture", label: (t("tab_structure", "Structure") || "Structure").replace(/^[^\w]*/, '').trim() },

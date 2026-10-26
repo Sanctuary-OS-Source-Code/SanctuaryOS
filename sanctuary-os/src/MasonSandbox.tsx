@@ -39,6 +39,7 @@ import {
   formatDisplayHash,
   isUuid,
 } from "./components/ArtifactStudioTabs";
+import { StaticPollingGuideSidePanel } from "./side-panels/StaticPollingGuideSidePanel";
 
 export function MasonSandbox({
   masonId,
@@ -92,6 +93,7 @@ export function MasonSandbox({
   );
   const [confirmPurge, setConfirmPurge] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(!!initialSandboxMod);
+  const [isStaticGuideOpen, setIsStaticGuideOpen] = useState(false);
 
   useEffect(() => {
     if (initialViewTab) setHubTab(initialViewTab);
@@ -325,7 +327,19 @@ export function MasonSandbox({
     }
     setIsCommitting(true);
     try {
-      let previousHashes: string[] = parseCsvList(activeMod.previous_hashes_str);
+      let previousHashes: string[] = [
+        ...parseCsvList(activeMod.previous_hashes_str),
+        ...(Array.isArray(activeMod.local_versions)
+          ? activeMod.local_versions
+              .map((v: any) => v.dna_hash)
+              .filter((h: string) => h && h !== activeMod.hash)
+          : []),
+        ...(Array.isArray(activeMod._olderVersions)
+          ? activeMod._olderVersions.map((ov: any) => ov.hash).filter(Boolean)
+          : []),
+      ];
+      previousHashes = Array.from(new Set(previousHashes.filter(Boolean)));
+
       if (activeMod.id && isVerifiedMason) {
         try {
           const { data: verData } = await supabase
@@ -339,13 +353,17 @@ export function MasonSandbox({
         } catch {}
       }
 
-      const safeNameSlug = (activeMod.name || "mod")
+      const safeNameSlug = ((activeMod.name || "mod").split(/[\\/]/).pop() || "mod")
         .replace(/\.[^/.]+$/, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_");
       const versionStr = (activeMod.latest_version || "1.0.0").trim();
-      const customManifestUrl = (activeMod.manifest_url || "").trim();
+      const customManifestUrl = (
+        activeMod.static_manifest_url ||
+        activeMod.manifest_url ||
+        ""
+      ).trim();
       const customDownloadUrl =
-        (activeMod.download_url || "").trim() ||
+        (activeMod.download_url || activeMod.url || "").trim() ||
         (customManifestUrl
           ? customManifestUrl.replace(
               /\/manifest\.json$/i,
@@ -364,12 +382,32 @@ export function MasonSandbox({
       const injectedFolders = parseCsvList(activeMod.injected_folders_str || activeMod.folder_structure);
       const localCollections = parseCsvList(activeMod.collections_str);
       const localFlavors = parseCsvList(activeMod.flavors_str);
+      const requiredDlcList = Array.isArray(activeMod.requiredDLC)
+        ? activeMod.requiredDLC.map((d: any) => String(d).trim()).filter(Boolean)
+        : parseCsvList(activeMod.required_dlc_str);
+
+      const structuredConflicts =
+        Array.isArray(activeMod.local_conflicts) && activeMod.local_conflicts.length > 0
+          ? activeMod.local_conflicts
+              .map((c: any) => ({
+                hash: c.enemyMod?.hash || c.enemyMod?.name || "",
+                id: c.enemyMod?.id || undefined,
+                name: c.enemyMod?.name || undefined,
+                severity: Number(c.severity_rank) || 4,
+                description: c.resolution_note || undefined,
+              }))
+              .filter((c: any) => c.hash || c.name)
+          : parseCsvList(activeMod.conflicts_str);
 
       const manifest = {
         schema_version: "1.0",
+        manifest_url: customManifestUrl || undefined,
         artifact: {
           id: activeMod.id || safeNameSlug || "unknown",
-          name: activeMod.name || "Unknown Mod",
+          name: ((activeMod.name || "Unknown Mod").split(/[\\/]/).pop() || "Unknown Mod").replace(
+            /\.(package|ts4script|zip)$/i,
+            ""
+          ),
           author: masonName || masonId || "Unknown Author",
           version: versionStr,
           game_version: activeMod.compatible_versions?.[0] || "",
@@ -382,11 +420,11 @@ export function MasonSandbox({
           archive_type: "zip",
         },
         atomic_logic: {
-          required_dlc: parseCsvList(activeMod.required_dlc_str),
+          required_dlc: requiredDlcList,
           dependencies: parseCsvList(activeMod.dependencies_str),
           twins: parseCsvList(activeMod.twins_str),
           addons: parseCsvList(activeMod.addons_str),
-          conflicts: parseCsvList(activeMod.conflicts_str),
+          conflicts: structuredConflicts,
           flavors: localFlavors,
           collections: localCollections,
         },
@@ -398,42 +436,105 @@ export function MasonSandbox({
         previous_hashes: previousHashes,
       };
 
+      let pushConfig: any = undefined;
+      try {
+        const globalPush = JSON.parse(
+          localStorage.getItem("sanctuary_edge_autopush_global") || "{}"
+        );
+        const modPush = activeMod.edge_push_config || {};
+        const mergedPush = { ...globalPush, ...modPush };
+        if (mergedPush.provider && mergedPush.provider !== "manual") {
+          pushConfig = {
+            provider: mergedPush.provider || "manual",
+            target_mode: mergedPush.target_mode || "manifest",
+            token: mergedPush.token || "",
+            repo_or_project: mergedPush.repo_or_project || "",
+            branch: mergedPush.branch || "main",
+            remote_path: mergedPush.remote_path || "",
+            custom_endpoint: mergedPush.custom_endpoint || "",
+            local_folder_path: mergedPush.local_folder_path || "",
+          };
+        }
+      } catch {}
+
       const releaseDir = await invoke<string>("export_edge_release", {
         vaultPath,
         sandboxModName: activeMod.physical_path || activeMod.name,
         manifest,
         customUrl: customManifestUrl,
+        pushConfig,
       });
 
-      if (customManifestUrl && activeMod.hash && vaultPath) {
+      if (vaultPath) {
         try {
-          await invoke("register_edge_override", {
-            vaultPath,
-            artifactId: manifest.artifact.id,
-            masonId: manifest.artifact.author,
-            manifestUrl: customManifestUrl,
-            targetHash: activeMod.hash,
-            archiveHashes: previousHashes,
-            gameId: manifest.artifact.game_id,
-          });
+          const allEdgeRows = await invoke<any[]>("get_all_edge_manifests", { vaultPath }).catch(() => []);
+          const exportedRow = (allEdgeRows || []).find(
+            (r: any) => r.artifact_id === manifest.artifact.id,
+          );
+          const resolvedTargetHash = exportedRow?.target_hash || activeMod.hash || "";
+          const resolvedArchiveHashes: string[] = Array.isArray(exportedRow?.archive_hashes)
+            ? exportedRow.archive_hashes
+            : previousHashes;
+          const resolvedLiveUrl = exportedRow?.manifest_url || customManifestUrl || "";
+
+          if (resolvedLiveUrl && resolvedLiveUrl !== customManifestUrl) {
+            setActiveMod((prev: any) =>
+              prev ? { ...prev, static_manifest_url: resolvedLiveUrl, manifest_url: resolvedLiveUrl } : prev
+            );
+            const modKey = activeMod.hash || activeMod.id;
+            if (modKey) {
+              const savedConfigs = JSON.parse(
+                localStorage.getItem("sanctuary_sandbox_configs") || "{}"
+              );
+              savedConfigs[modKey] = {
+                ...(savedConfigs[modKey] || {}),
+                static_manifest_url: resolvedLiveUrl,
+                manifest_url: resolvedLiveUrl,
+              };
+              localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedConfigs));
+            }
+          }
+
           const savedOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-          const allHashes = Array.from(new Set([activeMod.hash, ...previousHashes]));
+          const savedEdgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+          const allHashes = Array.from(
+            new Set([resolvedTargetHash, activeMod.hash, ...resolvedArchiveHashes, ...previousHashes].filter(Boolean)),
+          );
           for (const h of allHashes) {
             savedOverrides[h] = {
               ...(savedOverrides[h] || {}),
               name: manifest.artifact.name,
+              displayName: savedOverrides[h]?.displayName || manifest.artifact.name,
               author: manifest.artifact.author,
               version: manifest.artifact.version,
-              manifest_url: customManifestUrl,
-              url: activeMod.url || customManifestUrl,
+              manifest_url: resolvedLiveUrl || undefined,
+              url: activeMod.url || customDownloadUrl || resolvedLiveUrl,
+              requiredDLC: manifest.atomic_logic.required_dlc,
+              compatible_versions: manifest.artifact.game_version
+                ? [manifest.artifact.game_version]
+                : undefined,
               folder_structure: injectedFolders,
               collections: localCollections,
               flavors: localFlavors,
               conflicts: manifest.atomic_logic.conflicts,
               dependencies: manifest.atomic_logic.dependencies,
             };
+            savedEdgeLogic[h] = {
+              ...(savedEdgeLogic[h] || {}),
+              ...manifest.atomic_logic,
+              manifest_url: resolvedLiveUrl,
+              artifact_id: manifest.artifact.id,
+              name: manifest.artifact.name,
+              author: manifest.artifact.author,
+              version: manifest.artifact.version,
+              game_version: manifest.artifact.game_version,
+              download_url: customDownloadUrl,
+              sha256: resolvedTargetHash,
+              changelog: changelogLines,
+            };
           }
           localStorage.setItem("sanctuary_local_overrides", JSON.stringify(savedOverrides));
+          localStorage.setItem("sanctuary_edge_logic", JSON.stringify(savedEdgeLogic));
         } catch (regErr) {
           console.warn("Failed to auto-register exported manifest locally:", regErr);
         }
@@ -1081,6 +1182,12 @@ export function MasonSandbox({
       hideSearch={hubTab === "overview"}
       actions={[
         {
+          id: "static_polling_guide",
+          icon: t("icon_menu_book", "menu_book"),
+          label: t("studio_static_guide_btn", "Static Polling Guide") as string,
+          onClick: () => setIsStaticGuideOpen(true),
+        },
+        {
           id: "toggle_group_families",
           icon: groupFamilies ? "account_tree" : "view_module",
           label: groupFamilies
@@ -1214,6 +1321,11 @@ export function MasonSandbox({
             <PanelHeaderGroup>
               {editorMode === "sandbox" && (
                 <>
+                  <PanelHeaderButton
+                    icon={t("icon_menu_book", "menu_book")}
+                    onClick={() => setIsStaticGuideOpen(true)}
+                    tooltip={t("studio_static_guide_btn", "Static Polling Guide")}
+                  />
                   <PanelHeaderButton
                     icon="move_to_inbox"
                     onClick={handleExportRelease}
@@ -1450,6 +1562,13 @@ export function MasonSandbox({
           </ArtifactWorkspace>
         </SidePanel>
       )}
+
+      <StaticPollingGuideSidePanel
+        isOpen={isStaticGuideOpen}
+        onClose={() => setIsStaticGuideOpen(false)}
+        mod={activeMod}
+        masonName={masonName}
+      />
     </ElevatedHubLayout>
   );
 }

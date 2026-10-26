@@ -8,6 +8,14 @@ import enSimlish from './lexicons/Simlish.json';
 import enSimsJson from './lexicons/en-sims.json';
 import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
+import {
+  applyThematicGlossaryToProse,
+  getAutoTranslateDynamicPref,
+  setAutoTranslateDynamicPref,
+  getCachedDynamicTranslation,
+  resolveTargetLanguageIso,
+  translatePostedTextAsync,
+} from './utils/translationEngine';
 
 const enSims: Record<string, any> = { ...enSimlish, ...enSimsJson };
 
@@ -829,6 +837,9 @@ export const LexiconProvider = ({ children }: any) => {
     }
 
     let val = dictionary[key];
+    if (typeof val === "string" && val.startsWith("[") && val.endsWith("]")) {
+      val = undefined;
+    }
 
     if (val === undefined || val === "") {
       val = (enDefault as any)[key];
@@ -900,11 +911,75 @@ export const LexiconProvider = ({ children }: any) => {
   };
 
   const osLogoUrl = titleAreaConfig.logoUrl || '/icon.png';
+  const [autoTranslateDynamic, setAutoTranslateDynamicState] = useState<boolean>(() =>
+    getAutoTranslateDynamicPref()
+  );
+  const [, setTranslationTick] = useState(0);
+
+  useEffect(() => {
+    const onTranslationReady = () => {
+      setTranslationTick((v) => v + 1);
+    };
+    window.addEventListener('sanctuary-dynamic-translation-ready', onTranslationReady);
+    return () => window.removeEventListener('sanctuary-dynamic-translation-ready', onTranslationReady);
+  }, []);
+
+  const setAutoTranslateDynamic = (val: boolean) => {
+    setAutoTranslateDynamicState(val);
+    setAutoTranslateDynamicPref(val);
+  };
+
+  const td = (
+    rawText: string,
+    options?: { forceTranslate?: boolean; targetIso?: string }
+  ): string => {
+    if (!rawText || typeof rawText !== 'string') return rawText;
+    const adapted = applyThematicGlossaryToProse(rawText, dictionary, activeLangState);
+    const shouldCloudTranslate = Boolean(options?.forceTranslate || autoTranslateDynamic);
+    if (!shouldCloudTranslate) return adapted;
+
+    const targetIso =
+      options?.targetIso ||
+      resolveTargetLanguageIso(
+        activeLangState,
+        dictionary,
+        lexiconMeta,
+        Boolean(options?.forceTranslate)
+      );
+
+    if (!targetIso || targetIso === 'en') {
+      return adapted;
+    }
+
+    const cached = getCachedDynamicTranslation(adapted, targetIso);
+    if (cached !== null) {
+      return cached;
+    }
+
+    translatePostedTextAsync(adapted, targetIso);
+    return adapted;
+  };
+
+  const translateDynamicAsync = async (
+    rawText: string,
+    targetIso?: string
+  ): Promise<string> => {
+    if (!rawText || typeof rawText !== 'string') return rawText;
+    const adapted = applyThematicGlossaryToProse(rawText, dictionary, activeLangState);
+    const resolvedIso =
+      targetIso || resolveTargetLanguageIso(activeLangState, dictionary, lexiconMeta, true);
+    if (!resolvedIso || resolvedIso === 'en') return adapted;
+    return translatePostedTextAsync(adapted, resolvedIso);
+  };
 
   return (
     <LexiconContext.Provider
       value={{
         t,
+        td,
+        translateDynamicAsync,
+        autoTranslateDynamic,
+        setAutoTranslateDynamic,
         activeLang: activeLangState,
         setActiveLang,
         importLexicon,
@@ -929,7 +1004,15 @@ export const useLexicon = () => {
   const ctx = useContext(LexiconContext);
   if (!ctx) {
     return {
-      t: (key: string) => `[${key}]`,
+      t: (key: string, fallback?: string) =>
+        (enSanctuary as any)[key] ||
+        (enDefault as any)[key] ||
+        fallback ||
+        key.replace(/_/g, ' '),
+      td: (rawText: string) => rawText,
+      translateDynamicAsync: async (rawText: string) => rawText,
+      autoTranslateDynamic: true,
+      setAutoTranslateDynamic: () => {},
       activeLang: 'en-sanctuary',
       setActiveLang: () => {},
       importLexicon: () => {},

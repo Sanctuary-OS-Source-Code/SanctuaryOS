@@ -166,6 +166,12 @@ export default function BlueprintMatrix({
       const mod = modLookup ? modLookup.findMod(modName, cleanName.toLowerCase(), norm) : undefined;
       if (mod?.isVirtual) continue;
 
+      const isUnverifiedOrLocal =
+        !mod ||
+        !mod.isSynced ||
+        !mod.dbId ||
+        String(mod.status || "").toLowerCase() === "unverified";
+
       const entry = {
         name: modName,
         hash: mod?.hash || modHashes?.[modName] || modHashes?.[cleanName] || "",
@@ -173,11 +179,12 @@ export default function BlueprintMatrix({
         author:
           mod?.author || modMeta?.[modName]?.author || modMeta?.[cleanName]?.author || unknownAuthor,
         compliance_tier: mod?.compliance_tier || 0,
+        isUnverified: isUnverifiedOrLocal,
         displayName: mod?.displayName,
         isVirtual: mod?.isVirtual,
       };
 
-      if (entry.compliance_tier >= 1 && entry.compliance_tier <= 5) {
+      if ((entry.compliance_tier >= 1 && entry.compliance_tier <= 5) || isUnverifiedOrLocal) {
         blocked.push(entry);
       } else {
         const lower = modName.toLowerCase();
@@ -454,7 +461,9 @@ export default function BlueprintMatrix({
                           {t("icon_shield", "shield")}
                         </span>
                         <span>
-                          {t("stat_tier", "Tier")} {mod.compliance_tier}
+                          {mod.compliance_tier >= 1
+                            ? `${t("stat_tier", "Tier")} ${mod.compliance_tier}`
+                            : t("unverified", "Unverified")}
                         </span>
                       </span>
                     </div>

@@ -83,6 +83,7 @@ import {
   mapDbNotificationTypeToCategory,
   seedInitialDeliveredNotifications,
   hasDeliveredNotification,
+  fetchUnifiedSanctuaryNotifications,
 } from "./utils/notificationHelper";
 const setupBtnStyle: React.CSSProperties = {
   padding: "12px",
@@ -500,48 +501,90 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
-
-    const getTitleForDbType = (dbType?: string) => {
+    const getTitleForDbType = (dbType?: string, spokeName?: string, isCrossWs?: boolean) => {
+      let baseTitle = t('notify_system_dispatch', 'System Dispatch');
       switch (dbType) {
+        case 'keepers_news':
+          baseTitle = t('notify_keepers_news', 'Keepers News');
+          break;
+        case 'patch_update_logs':
+          baseTitle = t('notify_patch_update_logs', 'Patch Update Logs');
+          break;
+        case 'alert_banner':
+          baseTitle = t('notify_alert_banner', 'Global Alerts (Spoke Wayfinders)');
+          break;
         case 'reply':
-          return t('ui.replies', 'Comm-Link Reply');
+        case 'comment_reply':
+        case 'post_like':
+          baseTitle = t('ui.replies', 'Comm-Link Reply');
+          break;
         case 'support_reply':
-          return t('notify_support', 'Support Alert');
+        case 'ticket_reply':
+        case 'report_resolved':
+          baseTitle = t('notify_support', 'Support Alert');
+          break;
         case 'new_post':
-          return t('btn_new_posts', 'Comm-Link Post');
+          baseTitle = t('btn_new_posts', 'Comm-Link Post');
+          break;
         case 'system_broadcast':
         default:
-          return t('notify_system_dispatch', 'System Dispatch');
+          baseTitle = t('notify_system_dispatch', 'System Dispatch');
+          break;
       }
+      if (isCrossWs && spokeName) {
+        return `${spokeName} • ${baseTitle}`;
+      }
+      return baseTitle;
     };
 
     const fetchUnread = async () => {
-      if (session?.user?.id) {
+      try {
         const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const { data } = await supabase.rpc('secure_fetch_notifications', { p_token: token });
+        const activeSession = sessionData?.session || session;
+
+        const data = await fetchUnifiedSanctuaryNotifications({
+          supabase,
+          supabaseAuth,
+          session: activeSession,
+          activeWorkspaceId: activeWorkspaceId || undefined,
+          workspaces: useStore.getState().workspaces,
+        });
 
         if (data && Array.isArray(data)) {
           // On the very first boot on this device, seed existing notification IDs so historical backlog isn't spammed
-          seedInitialDeliveredNotifications(data.map((n: any) => `notif:${n.id}`));
+          seedInitialDeliveredNotifications(
+            data.flatMap((n: any) => [
+              `notif:${n.id}`,
+              `notif:${n._spokeId || 'global'}:${n.id}`,
+            ])
+          );
 
           const enabledUnread = data.filter((n: any) => {
             if (n.is_read) return false;
-            const cat = mapDbNotificationTypeToCategory(n.type);
-            return getNotificationMode(cat) !== 'NONE';
+            const cat = n._category || mapDbNotificationTypeToCategory(n.type, n.message);
+            return getNotificationMode(cat, n._spokeId) !== 'NONE';
           });
 
-          const gameUnread = enabledUnread.length;
+          const totalUnread = enabledUnread.length;
 
           for (const notif of enabledUnread) {
-            const uniqueId = `notif:${notif.id}`;
-            if (!hasDeliveredNotification(uniqueId)) {
-              const cat = mapDbNotificationTypeToCategory(notif.type);
+            const uniqueId = `notif:${notif._spokeId || 'global'}:${notif.id}`;
+            if (
+              !hasDeliveredNotification(uniqueId) &&
+              !hasDeliveredNotification(`notif:${notif.id}`)
+            ) {
+              const cat =
+                notif._category ||
+                mapDbNotificationTypeToCategory(notif.type, notif.message);
               dispatchSanctuaryNotification({
                 uniqueId,
                 category: cat,
-                title: getTitleForDbType(notif.type),
+                spokeId: notif._spokeId,
+                title: getTitleForDbType(
+                  notif.type,
+                  notif._spokeName,
+                  notif._isCrossWorkspace
+                ),
                 body: notif.message || '',
                 onInApp: () => {
                   setStatus(`notifications_active ${t('tab_notifs', 'Notifications')}`);
@@ -551,17 +594,20 @@ function App() {
                   notificationId: notif.id,
                   referenceId: notif.reference_id,
                   type: notif.type,
+                  spokeId: notif._spokeId,
                 },
               });
             }
           }
 
-          prevUnreadRef.current = gameUnread;
+          prevUnreadRef.current = totalUnread;
           isInitialLoadRef.current = false;
-          setUnreadNotificationCount(gameUnread);
+          setUnreadNotificationCount(totalUnread);
         } else {
           setUnreadNotificationCount(0);
         }
+      } catch (e) {
+        // Ignore transient offline error
       }
     };
 
@@ -569,50 +615,49 @@ function App() {
     let realtimeChannel: any = null;
 
     const setupNetworkFeatures = async () => {
-      if (session) {
-        fetchUnread();
-        if (!interval) {
-          interval = setInterval(fetchUnread, 30000);
-        }
-        if (!realtimeChannel && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
-          realtimeChannel = supabase
-            .channel(`sanctuary_user_notifs_${session.user.id}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'notifications',
-                filter: `user_id=eq.${session.user.id}`,
-              },
-              () => {
-                fetchUnread();
+      fetchUnread();
+      if (!interval) {
+        interval = setInterval(fetchUnread, 30000);
+      }
+      if (session?.user?.id && !realtimeChannel && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
+        realtimeChannel = supabase
+          .channel(`sanctuary_user_notifs_${session.user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${session.user.id}`,
+            },
+            () => {
+              fetchUnread();
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'system_broadcasts',
+            },
+            (payload: any) => {
+              const row = payload?.new;
+              if (row?.id && row?.is_active) {
+                const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
+                dispatchSanctuaryNotification({
+                  uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
+                  category: isUrgent ? 'alert_banner' : 'system_dispatch',
+                  spokeId: activeWorkspaceId || undefined,
+                  title: row.title || t('notify_system_dispatch', 'System Dispatch'),
+                  body: row.message || row.content || '',
+                  data: { broadcastId: row.id, type: 'system_broadcast' },
+                });
               }
-            )
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'system_broadcasts',
-              },
-              (payload: any) => {
-                const row = payload?.new;
-                if (row?.id && row?.is_active) {
-                  const isUrgent = Boolean(row.is_pinned);
-                  dispatchSanctuaryNotification({
-                    uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
-                    category: isUrgent ? 'alert_banner' : 'system_dispatch',
-                    title: row.title || t('notify_system_dispatch', 'System Dispatch'),
-                    body: row.message || row.content || '',
-                    data: { broadcastId: row.id, type: 'system_broadcast' },
-                  });
-                }
-                fetchUnread();
-              }
-            )
-            .subscribe();
-        }
+              fetchUnread();
+            }
+          )
+          .subscribe();
       }
     };
 
@@ -626,6 +671,7 @@ function App() {
     };
 
     window.addEventListener('refresh_notifications', fetchUnread);
+    window.addEventListener('sanctuary_notification_prefs_changed', fetchUnread);
     window.addEventListener('online', handleOnline);
 
     return () => {
@@ -636,6 +682,7 @@ function App() {
         } catch (e) {}
       }
       window.removeEventListener('refresh_notifications', fetchUnread);
+      window.removeEventListener('sanctuary_notification_prefs_changed', fetchUnread);
       window.removeEventListener('online', handleOnline);
     };
   }, [session?.user?.id, activeWorkspaceId]);
@@ -825,6 +872,8 @@ function App() {
           is_early_access: metaIsEarlyAccessInput || false,
           requiredDLC: fetchedManifest?.atomic_logic?.required_dlc || extraOverrides?.requiredDLC || (activeDossier as any).requiredDLC,
           ...(extraOverrides || {}),
+          is_user_dossier: true,
+          updated_at_local: Date.now(),
         };
 
         for (const h of familyHashes) {
@@ -832,13 +881,17 @@ function App() {
             ...(localOvr[h] || {}),
             ...(h === activeDossier.hash
               ? overrides
-              : {
-                  manifest_url: cleanManifestUrl || undefined,
-                  author: overrides.author,
-                  version: overrides.version,
-                  url: overrides.url,
-                  requiredDLC: overrides.requiredDLC,
-                }),
+              : localOvr[h]?.is_user_dossier
+                ? {
+                    manifest_url: localOvr[h].manifest_url || cleanManifestUrl || undefined,
+                  }
+                : {
+                    manifest_url: cleanManifestUrl || undefined,
+                    author: overrides.author,
+                    version: overrides.version,
+                    url: overrides.url,
+                    requiredDLC: overrides.requiredDLC,
+                  }),
           };
           if (fetchedManifest?.atomic_logic) {
             edgeLogic[h] = {
@@ -865,7 +918,23 @@ function App() {
         setModList((prevList: any[]) => prevList.map(m => {
           if (m.hash === activeDossier.hash) return { ...m, ...overrides, isLocalOverride: true };
           if (m.flavors) {
+            const hasMatchingFlavor = m.flavors.some((f: any) => f.hash === activeDossier.hash);
             const updatedFlavors = m.flavors.map((f: any) => f.hash === activeDossier.hash ? { ...f, ...overrides, isLocalOverride: true } : f);
+            if (hasMatchingFlavor) {
+              return {
+                ...m,
+                author: overrides.author || m.author,
+                version: overrides.version || m.version,
+                url: overrides.url || m.url,
+                image_url: overrides.image_url !== undefined ? overrides.image_url : m.image_url,
+                description: overrides.description !== undefined ? overrides.description : m.description,
+                category_override: overrides.category_override || m.category_override,
+                compatible_versions: overrides.compatible_versions || m.compatible_versions,
+                requiredDLC: overrides.requiredDLC || m.requiredDLC,
+                isLocalOverride: true,
+                flavors: updatedFlavors,
+              };
+            }
             return { ...m, flavors: updatedFlavors };
           }
           return m;
@@ -1071,43 +1140,266 @@ function App() {
           });
         }).then((handler) => { unlisten = handler; });
 
-        listen("edge_override_detected", (event: any) => {
-          setEdgeOverrideQueue((prev: any[]) => [...prev, event.payload]);
+        listen("edge_override_detected", async (event: any) => {
           try {
             const payload = event.payload || {};
             const data = payload.override_json ? JSON.parse(payload.override_json) : {};
-            const targetHash = (data.target_hash || "").toLowerCase();
-            const archiveHashes = (Array.isArray(data.archive_hashes) ? data.archive_hashes : []).map((h: string) =>
-              String(h).toLowerCase(),
+            let embeddedManifest: any = null;
+            if (payload.manifest_json) {
+              try {
+                embeddedManifest = JSON.parse(payload.manifest_json);
+              } catch {}
+            } else if (data.last_fetched_metadata) {
+              try {
+                embeddedManifest = JSON.parse(data.last_fetched_metadata);
+              } catch {}
+            } else if (data.artifact || data.atomic_logic) {
+              embeddedManifest = data;
+            }
+
+            const extractedHashes: string[] = Array.isArray(payload.extracted_hashes)
+              ? payload.extracted_hashes.filter(Boolean)
+              : [];
+            const targetHash =
+              data.target_hash ||
+              embeddedManifest?.payload?.sha256 ||
+              extractedHashes[0] ||
+              "";
+            const archiveHashes: string[] = Array.isArray(data.archive_hashes)
+              ? data.archive_hashes.filter(Boolean)
+              : [];
+            const moduleHashes: string[] = Array.isArray(embeddedManifest?.modules)
+              ? embeddedManifest.modules.map((m: any) => m?.sha256).filter(Boolean)
+              : [];
+            const currentHashes: string[] = Array.isArray(embeddedManifest?.current_hashes)
+              ? embeddedManifest.current_hashes.filter(Boolean)
+              : [];
+            const previousHashes: string[] = Array.isArray(embeddedManifest?.previous_hashes)
+              ? embeddedManifest.previous_hashes.filter(Boolean)
+              : [];
+            const flavorHashes: string[] = Array.isArray(embeddedManifest?.atomic_logic?.flavors)
+              ? embeddedManifest.atomic_logic.flavors.filter(Boolean)
+              : [];
+
+            const allCandidateHashes = Array.from(
+              new Set(
+                [
+                  targetHash,
+                  ...extractedHashes,
+                  ...archiveHashes,
+                  ...moduleHashes,
+                  ...currentHashes,
+                  ...previousHashes,
+                  ...flavorHashes,
+                ].filter(Boolean),
+              ),
             );
-            const allCandidateHashes = [targetHash, ...archiveHashes].filter(Boolean);
+            const lowerCandidateSet = new Set(allCandidateHashes.map((h) => String(h).toLowerCase()));
+
             const currentMods = useStore.getState().modList || [];
-            const matchedMod = currentMods.find((m: any) => {
-              const mh = (m.hash || "").toLowerCase();
-              if (mh && allCandidateHashes.includes(mh)) return true;
+            const artifactId =
+              data.artifact_id ||
+              embeddedManifest?.artifact?.id ||
+              embeddedManifest?.artifact?.name ||
+              targetHash ||
+              "edge_artifact";
+            const normSlug = (s: string) =>
+              String(s || "")
+                .split(/[\\/]/)
+                .pop()
+                ?.replace(/\.[^/.]+$/, "")
+                .replace(/[^a-z0-9]/gi, "")
+                .toLowerCase() || "";
+            const targetSlug = normSlug(embeddedManifest?.artifact?.name || artifactId);
+
+            const matchedMods = currentMods.filter((m: any) => {
+              const mh = String(m.hash || "").toLowerCase();
+              if (mh && lowerCandidateSet.has(mh)) return true;
               if (Array.isArray(m.flavors)) {
-                return m.flavors.some((f: any) => f.hash && allCandidateHashes.includes(String(f.hash).toLowerCase()));
+                if (m.flavors.some((f: any) => f.hash && lowerCandidateSet.has(String(f.hash).toLowerCase()))) {
+                  return true;
+                }
+              }
+              if (allCandidateHashes.length === 0 && targetSlug && !m.isVirtual) {
+                return normSlug(m.name) === targetSlug || normSlug(m.displayName) === targetSlug;
               }
               return false;
             });
-            const resolvedHash = matchedMod?.hash || data.target_hash || "";
-            setDnaMatchQueue((prev: any[]) => {
-              const isDuplicate = prev.some(
-                (m) => m.reason === "EDGE_OVERRIDE" && m.override_json === payload.override_json,
-              );
-              if (isDuplicate) return prev;
-              return [
-                ...prev,
-                {
-                  ...payload,
-                  reason: "EDGE_OVERRIDE",
-                  hash: resolvedHash,
-                  matched_mod_name: matchedMod?.displayName || matchedMod?.name || data.artifact_id || "",
-                },
-              ];
+
+            matchedMods.forEach((mm: any) => {
+              if (mm.hash) allCandidateHashes.push(mm.hash);
+              if (Array.isArray(mm.flavors)) {
+                mm.flavors.forEach((f: any) => {
+                  if (f.hash) allCandidateHashes.push(f.hash);
+                });
+              }
             });
+
+            const uniqueFamilyHashes = Array.from(new Set(allCandidateHashes.filter(Boolean)));
+            const resolvedHash = matchedMods[0]?.hash || targetHash || uniqueFamilyHashes[0] || "";
+
+            // Only require manual intervention if Rust flagged a conflicting URL on an existing artifact
+            if (payload.auto_accepted === false) {
+              setEdgeOverrideQueue((prev: any[]) => [...prev, payload]);
+              setDnaMatchQueue((prev: any[]) => {
+                const isDuplicate = prev.some(
+                  (m) => m.reason === "EDGE_OVERRIDE" && m.override_json === payload.override_json,
+                );
+                if (isDuplicate) return prev;
+                return [
+                  ...prev,
+                  {
+                    ...payload,
+                    reason: "EDGE_OVERRIDE",
+                    hash: resolvedHash,
+                    matched_mod_name:
+                      matchedMods[0]?.displayName ||
+                      matchedMods[0]?.name ||
+                      embeddedManifest?.artifact?.name ||
+                      artifactId,
+                  },
+                ];
+              });
+              return;
+            }
+
+            // One-time drag & drop auto-registration: apply metadata, lineage, and edge logic immediately
+            const edgeUrl = (data.manifest_url || embeddedManifest?.manifest_url || "").trim();
+            const masonId = data.mason_id || embeddedManifest?.artifact?.author || "Unknown";
+            const gameId =
+              data.game_id ||
+              embeddedManifest?.artifact?.game_id ||
+              useStore.getState().activeGameSchema?.id ||
+              "sims4";
+            const activeVaultPath = useStore.getState().vaultPath || vaultPath;
+
+            let fetchedManifest: any = embeddedManifest;
+            if (activeVaultPath && (edgeUrl || artifactId)) {
+              try {
+                await invoke("register_edge_override", {
+                  vaultPath: activeVaultPath,
+                  overrideData: {
+                    artifact_id: artifactId,
+                    mason_id: masonId,
+                    game_id: gameId,
+                    manifest_url: edgeUrl,
+                    target_hash: resolvedHash,
+                    archive_hashes: uniqueFamilyHashes.filter((h) => h !== resolvedHash),
+                    last_fetched_hash: resolvedHash || undefined,
+                    last_fetched_metadata: embeddedManifest ? JSON.stringify(embeddedManifest) : undefined,
+                  },
+                });
+                if (
+                  edgeUrl &&
+                  /^https?:\/\//i.test(edgeUrl) &&
+                  !edgeUrl.includes("your-domain.com") &&
+                  !edgeUrl.includes("example.com") &&
+                  navigator.onLine
+                ) {
+                  const synced = await invoke<any>("fetch_and_sync_edge_manifest", {
+                    vaultPath: activeVaultPath,
+                    artifactId,
+                  });
+                  if (synced && synced.artifact) fetchedManifest = synced;
+                }
+              } catch {}
+            }
+
+            if (fetchedManifest) {
+              if (fetchedManifest.payload?.sha256) uniqueFamilyHashes.push(fetchedManifest.payload.sha256);
+              if (Array.isArray(fetchedManifest.modules)) {
+                fetchedManifest.modules.forEach((m: any) => {
+                  if (m?.sha256) uniqueFamilyHashes.push(m.sha256);
+                });
+              }
+              if (Array.isArray(fetchedManifest.current_hashes)) {
+                fetchedManifest.current_hashes.forEach((h: string) => {
+                  if (h) uniqueFamilyHashes.push(h);
+                });
+              }
+              if (Array.isArray(fetchedManifest.previous_hashes)) {
+                fetchedManifest.previous_hashes.forEach((h: string) => {
+                  if (h) uniqueFamilyHashes.push(h);
+                });
+              }
+            }
+
+            const finalHashes = Array.from(new Set(uniqueFamilyHashes.filter(Boolean)));
+            const localOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+            const edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+
+            const activeCurrentHashes = Array.from(
+              new Set(
+                [
+                  ...extractedHashes,
+                  ...(Array.isArray(fetchedManifest?.current_hashes) ? fetchedManifest.current_hashes : []),
+                  ...(Array.isArray(fetchedManifest?.modules)
+                    ? fetchedManifest.modules.map((m: any) => m?.sha256).filter(Boolean)
+                    : []),
+                  fetchedManifest?.payload?.sha256 || targetHash,
+                ].filter(Boolean),
+              ),
+            );
+            const isMultiModule = activeCurrentHashes.length > 1;
+
+            for (const h of finalHashes) {
+              const existingOvr = localOvrMap[h] || {};
+              const isUserDossier = !!existingOvr.is_user_dossier;
+              const modDisplayName = fetchedManifest?.artifact?.name || data.artifact_id || undefined;
+              localOvrMap[h] = {
+                ...existingOvr,
+                ...(isMultiModule
+                  ? { parentName: modDisplayName }
+                  : {
+                      displayName: isUserDossier
+                        ? existingOvr.displayName
+                        : modDisplayName || existingOvr.displayName,
+                    }),
+                author: isUserDossier
+                  ? existingOvr.author
+                  : fetchedManifest?.artifact?.author || masonId || existingOvr.author,
+                version: isUserDossier
+                  ? existingOvr.version
+                  : fetchedManifest?.artifact?.version || existingOvr.version,
+                url: isUserDossier
+                  ? existingOvr.url
+                  : fetchedManifest?.payload?.download_url || existingOvr.url || edgeUrl || undefined,
+                manifest_url: existingOvr.manifest_url || edgeUrl || undefined,
+                requiredDLC: isUserDossier
+                  ? existingOvr.requiredDLC
+                  : fetchedManifest?.atomic_logic?.required_dlc || existingOvr.requiredDLC,
+                compatible_versions: isUserDossier
+                  ? existingOvr.compatible_versions
+                  : fetchedManifest?.artifact?.game_version
+                    ? [fetchedManifest.artifact.game_version]
+                    : existingOvr.compatible_versions,
+              };
+
+              edgeLogicMap[h] = {
+                ...(edgeLogicMap[h] || {}),
+                ...(fetchedManifest?.atomic_logic || {}),
+                manifest_url: edgeUrl || edgeLogicMap[h]?.manifest_url,
+                artifact_id: fetchedManifest?.artifact?.id || artifactId,
+                name: fetchedManifest?.artifact?.name || data.artifact_id || edgeLogicMap[h]?.name,
+                author: fetchedManifest?.artifact?.author || masonId || edgeLogicMap[h]?.author,
+                version: fetchedManifest?.artifact?.version || edgeLogicMap[h]?.version,
+                game_version: fetchedManifest?.artifact?.game_version || edgeLogicMap[h]?.game_version,
+                download_url: fetchedManifest?.payload?.download_url || edgeLogicMap[h]?.download_url,
+                sha256: fetchedManifest?.payload?.sha256 || resolvedHash,
+                current_hashes: activeCurrentHashes,
+                previous_hashes: Array.isArray(fetchedManifest?.previous_hashes)
+                  ? fetchedManifest.previous_hashes
+                  : [],
+                modules: Array.isArray(fetchedManifest?.modules) ? fetchedManifest.modules : [],
+                changelog: fetchedManifest?.changelog || edgeLogicMap[h]?.changelog || [],
+              };
+            }
+
+            localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
+            localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
+            runRadarSweep(true);
           } catch (e) {
-            console.error("Failed to parse edge_override_detected payload", e);
+            console.error("Failed to process edge_override_detected payload", e);
           }
         });
       }
@@ -1122,6 +1414,30 @@ function App() {
         insertingHashes.current.add(debounceKey);
         setTimeout(() => insertingHashes.current.delete(debounceKey), 250);
 
+        setMalwareAlert((prev: any[]) => {
+          if (!prev) return [event.payload];
+          const existingIdx = prev.findIndex((m) => {
+            const mName = (m.name || m.path || "").split(/[/\\]/).pop()?.toLowerCase();
+            const pName = (event.payload.name || event.payload.path || "").split(/[/\\]/).pop()?.toLowerCase();
+            return event.payload.hash
+              ? m.hash === event.payload.hash && (!mName || !pName || mName === pName)
+              : m.path === event.payload.path;
+          });
+          if (existingIdx !== -1) {
+            const existing = prev[existingIdx];
+            if (event.payload.volatile_original_path && !existing.volatile_original_path) {
+              const next = [...prev];
+              next[existingIdx] = {
+                ...existing,
+                volatile_original_path: event.payload.volatile_original_path,
+              };
+              return next;
+            }
+            return prev;
+          }
+          return [...prev, event.payload];
+        });
+
         if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
           try {
             const { submitThreatManifestToSpoke } = await import("./supabase");
@@ -1134,16 +1450,6 @@ function App() {
             console.error("Malware Report Insert Exception (listen):", e);
           }
         }
-
-        setMalwareAlert((prev: any[]) => {
-          if (!prev) return [event.payload];
-          if (prev.some((m) => {
-            const mOrig = m.original_path || m.path || '';
-            const pOrig = event.payload.original_path || event.payload.path || '';
-            return (event.payload.hash ? m.hash === event.payload.hash && mOrig === pOrig : m.path === event.payload.path);
-          })) return prev;
-          return [...prev, event.payload];
-        });
       }).then(unlisten => {
         if (!isMounted) unlisten();
         else unlistenMalware = unlisten;
@@ -1307,6 +1613,38 @@ function App() {
           else resolvedWorkspaceId = 'default_workspace';
         }
 
+        if (resolvedWorkspaceId) {
+          useStore.getState().hydrateWorkspaceState(resolvedWorkspaceId);
+          localStorage.setItem('sanctuary_last_active_workspace', resolvedWorkspaceId);
+        }
+
+        const cachedNetUpdates = useStore.getState().networkUpdates;
+        if (Array.isArray(initialModList) && initialModList.length > 0 && cachedNetUpdates) {
+          const applyNetState = (item: any) => {
+            if (!item) return item;
+            let next = item;
+            const isBroken = cachedNetUpdates.broken?.some((b: any) => (b.hash && b.hash === item.hash) || (b.name && b.name === item.name));
+            const isObsolete = cachedNetUpdates.obsolete?.some((b: any) => (b.hash && b.hash === item.hash) || (b.name && b.name === item.name));
+            const upd = cachedNetUpdates.updated?.find((u: any) => (u.hash && u.hash === item.hash) || (u.name && u.name === item.name));
+            if (isBroken && next.status !== 'broken') next = { ...next, status: 'broken' };
+            else if (isObsolete && next.status !== 'obsolete') next = { ...next, status: 'obsolete' };
+            if (upd) {
+              next = {
+                ...next,
+                hasUpdate: true,
+                newVersion: upd.newVersion || next.newVersion,
+                newGameVersion: upd.newGameVersion || next.newGameVersion,
+                download_url: upd.download_url || next.download_url,
+              };
+            }
+            if (Array.isArray(next.flavors)) {
+              next = { ...next, flavors: next.flavors.map(applyNetState) };
+            }
+            return next;
+          };
+          initialModList = initialModList.map(applyNetState);
+        }
+
         useStore.setState((state) => ({
           // Only fallback to local workspaces if syncGameDatabases failed to populate them
           workspaces: state.workspaces?.length > 0 ? state.workspaces : (globalConfig?.workspaces || []),
@@ -1314,11 +1652,6 @@ function App() {
           modList: initialModList,
           isGlobalConfigLoaded: true
         }));
-
-        if (resolvedWorkspaceId) {
-          useStore.getState().hydrateWorkspaceState(resolvedWorkspaceId);
-          localStorage.setItem('sanctuary_last_active_workspace', resolvedWorkspaceId);
-        }
 
         if (resolvedWorkspaceId && config?.live_path) {
           invoke<string[]>("scan_installed_dlc", {
@@ -1631,10 +1964,9 @@ function App() {
 
           // Defer heavy Vault / Conflict Radar disk scans briefly so workspace preparation & master cache hydration finish with zero I/O contention
           setTimeout(() => {
-            fetchVault();
             runRadarSweep(false);
             fetchCloudLabQueue();
-          }, 60);
+          }, 20);
           invoke("initialize_vault_watch").catch(console.warn);
           const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
           invoke("initialize_airgap_watch", {
@@ -1669,22 +2001,37 @@ function App() {
       const updated: any[] = [];
       let cloudData: any[] = [];
       let hasError = false;
-      const BATCH_SIZE = 40;
-      for (let i = 0; i < syncedMods.length; i += BATCH_SIZE) {
-        const batch = syncedMods.slice(i, i + BATCH_SIZE);
-        const batchIds = batch.map(m => m.dbId).filter(Boolean);
-        const batchNames = batch.filter(m => !m.dbId).map(m => m.name);
+      const BATCH_SIZE = 120;
+      const cloudEligibleMods = syncedMods.filter(
+        (m: any) =>
+          m.isSynced &&
+          m.dbId &&
+          Number(m.compliance_tier || 0) === 0 &&
+          String(m.status || "").toLowerCase() !== "unverified",
+      );
+      const allDbIds = [...new Set(cloudEligibleMods.map((m) => m.dbId).filter(Boolean))];
+      const queryPromises: Promise<void>[] = [];
 
-        if (batchIds.length > 0) {
-          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("id", batchIds).order("created_at", { referencedTable: "mod_versions", ascending: false }).limit(1, { referencedTable: "mod_versions" });
-          if (error) { console.error(error); hasError = true; }
-          if (data) cloudData = [...cloudData, ...data];
-        }
-        if (batchNames.length > 0) {
-          const { data, error } = await supabase.from("mods").select("id, name, status, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)").in("name", batchNames).order("created_at", { referencedTable: "mod_versions", ascending: false }).limit(1, { referencedTable: "mod_versions" });
-          if (error) { console.error(error); hasError = true; }
-          if (data) cloudData = [...cloudData, ...data];
-        }
+      for (let i = 0; i < allDbIds.length; i += BATCH_SIZE) {
+        const batchIds = allDbIds.slice(i, i + BATCH_SIZE);
+        queryPromises.push(
+          Promise.resolve(
+            supabase
+              .from("mods")
+              .select("id, name, status, compliance_tier, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)")
+              .in("id", batchIds)
+              .eq("compliance_tier", 0)
+              .order("created_at", { referencedTable: "mod_versions", ascending: false })
+              .limit(1, { referencedTable: "mod_versions" })
+          ).then(({ data, error }) => {
+            if (error) { console.error(error); hasError = true; }
+            if (data) cloudData.push(...data);
+          })
+        );
+      }
+
+      if (queryPromises.length > 0) {
+        await Promise.all(queryPromises);
       }
 
       // --- DECENTRALIZED STATIC EDGE MANIFEST POLLING ---
@@ -1711,13 +2058,51 @@ function App() {
       };
 
       const currentVaultPath = useStore.getState().vaultPath || vaultPath;
+      let edgeLogicDirty = false;
+      let localOvrDirty = false;
+
       if (isDesktop() && currentVaultPath) {
         try {
           const sqliteRows = await invoke<any[]>("get_all_edge_manifests", { vaultPath: currentVaultPath });
           for (const row of sqliteRows || []) {
             addEdgeBinding(row.manifest_url, row.target_hash, row.artifact_id, row.mason_id);
-            if (Array.isArray(row.archive_hashes)) {
-              row.archive_hashes.forEach((ah: string) => addEdgeBinding(row.manifest_url, ah, row.artifact_id, row.mason_id));
+            const rowHashes = [
+              row.target_hash,
+              ...(Array.isArray(row.archive_hashes) ? row.archive_hashes : []),
+            ].filter(Boolean);
+            rowHashes.forEach((ah: string) =>
+              addEdgeBinding(row.manifest_url, ah, row.artifact_id, row.mason_id),
+            );
+            if (row.last_fetched_metadata) {
+              try {
+                const cachedManifest = JSON.parse(row.last_fetched_metadata);
+                if (cachedManifest && cachedManifest.artifact) {
+                  for (const rh of rowHashes) {
+                    if (!edgeLogicMap[rh]) {
+                      edgeLogicMap[rh] = {
+                        ...(cachedManifest.atomic_logic || {}),
+                        manifest_url: row.manifest_url,
+                        artifact_id: cachedManifest.artifact?.id || row.artifact_id,
+                        name: cachedManifest.artifact?.name || row.artifact_id,
+                        author: cachedManifest.artifact?.author || row.mason_id,
+                        version: cachedManifest.artifact?.version,
+                        game_version: cachedManifest.artifact?.game_version,
+                        download_url: cachedManifest.payload?.download_url,
+                        sha256: cachedManifest.payload?.sha256 || row.target_hash,
+                        current_hashes: Array.isArray(cachedManifest.current_hashes)
+                          ? cachedManifest.current_hashes
+                          : [],
+                        previous_hashes: Array.isArray(cachedManifest.previous_hashes)
+                          ? cachedManifest.previous_hashes
+                          : [],
+                        modules: Array.isArray(cachedManifest.modules) ? cachedManifest.modules : [],
+                        changelog: cachedManifest.changelog || [],
+                      };
+                      edgeLogicDirty = true;
+                    }
+                  }
+                }
+              } catch {}
             }
           }
         } catch (e) {}
@@ -1738,10 +2123,13 @@ function App() {
       let debugLog = "";
 
       if (edgeBindings.size > 0 && navigator.onLine) {
-        let edgeLogicDirty = false;
-        let localOvrDirty = false;
-
         for (const [manifestUrl, binding] of edgeBindings.entries()) {
+          if (
+            manifestUrl.includes("your-domain.com") ||
+            manifestUrl.includes("example.com")
+          ) {
+            continue;
+          }
           try {
             let manifest: any = null;
             if (isDesktop() && currentVaultPath && binding.artifactId) {
@@ -1754,16 +2142,60 @@ function App() {
             }
             if (!manifest) {
               const resp = await fetch(manifestUrl);
-              if (resp.ok) manifest = await resp.json();
+              if (resp.ok) {
+                const rawJson = await resp.json();
+                const candidates = Array.isArray(rawJson)
+                  ? rawJson
+                  : Array.isArray(rawJson?.artifacts)
+                    ? rawJson.artifacts
+                    : Array.isArray(rawJson?.manifests)
+                      ? rawJson.manifests
+                      : null;
+                if (candidates) {
+                  const needle = String(binding.artifactId || "").toLowerCase();
+                  manifest =
+                    candidates.find(
+                      (c: any) =>
+                        String(c?.artifact?.id || "").toLowerCase() === needle ||
+                        String(c?.artifact?.name || "").toLowerCase() === needle,
+                    ) || candidates[0];
+                } else {
+                  manifest = rawJson;
+                }
+              }
             }
             if (!manifest || !manifest.artifact) continue;
 
-            const allFamilyHashes = new Set<string>([
-              ...Array.from(binding.hashes),
-              manifest.payload?.sha256,
-              ...(Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : []),
-              ...(Array.isArray(manifest.atomic_logic?.flavors) ? manifest.atomic_logic.flavors : []),
-            ].filter(Boolean));
+            const currentReleaseHashes = new Set<string>(
+              [
+                manifest.payload?.sha256,
+                ...(Array.isArray(manifest.current_hashes) ? manifest.current_hashes : []),
+                ...(Array.isArray(manifest.modules)
+                  ? manifest.modules.map((m: any) => m?.sha256)
+                  : []),
+              ]
+                .filter(Boolean)
+                .map((h: any) => String(h).toLowerCase().trim()),
+            );
+
+            const previousLineageHashes = new Set<string>(
+              (Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : [])
+                .filter(Boolean)
+                .map((h: any) => String(h).toLowerCase().trim()),
+            );
+
+            const allFamilyHashes = new Set<string>(
+              [
+                ...Array.from(binding.hashes),
+                manifest.payload?.sha256,
+                ...(Array.isArray(manifest.current_hashes) ? manifest.current_hashes : []),
+                ...(Array.isArray(manifest.modules)
+                  ? manifest.modules.map((m: any) => m?.sha256)
+                  : []),
+                ...(Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : []),
+                ...(Array.isArray(manifest.atomic_logic?.flavors) ? manifest.atomic_logic.flavors : []),
+              ].filter(Boolean),
+            );
 
             const lowerFamilyHashes = new Set<string>(Array.from(allFamilyHashes).map((h) => h.toLowerCase()));
             const matchedLocalMods = syncedMods.filter(
@@ -1777,16 +2209,23 @@ function App() {
               if (m.hash) allFamilyHashes.add(m.hash);
             });
 
+            const isMultiModule = currentReleaseHashes.size > 1 || matchedLocalMods.length > 1;
+
             for (const famHash of allFamilyHashes) {
               if (manifest.atomic_logic) {
                 edgeLogicMap[famHash] = {
                   ...manifest.atomic_logic,
                   manifest_url: manifestUrl,
                   artifact_id: manifest.artifact?.id || binding.artifactId,
+                  name: manifest.artifact?.name || binding.artifactId,
+                  author: manifest.artifact?.author || binding.masonId,
                   version: manifest.artifact?.version,
                   game_version: manifest.artifact?.game_version,
                   download_url: manifest.payload?.download_url,
                   sha256: manifest.payload?.sha256,
+                  current_hashes: Array.from(currentReleaseHashes),
+                  previous_hashes: Array.from(previousLineageHashes),
+                  modules: Array.isArray(manifest.modules) ? manifest.modules : [],
                   changelog: manifest.changelog || [],
                 };
                 edgeLogicDirty = true;
@@ -1794,8 +2233,13 @@ function App() {
               if (localOvrMap[famHash]) {
                 localOvrMap[famHash] = {
                   ...localOvrMap[famHash],
-                  manifest_url: manifestUrl,
-                  requiredDLC: manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC,
+                  ...(isMultiModule && manifest.artifact?.name
+                    ? { parentName: manifest.artifact.name }
+                    : {}),
+                  manifest_url: localOvrMap[famHash].manifest_url || manifestUrl,
+                  requiredDLC: localOvrMap[famHash].is_user_dossier
+                    ? localOvrMap[famHash].requiredDLC
+                    : (manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC),
                 };
                 localOvrDirty = true;
               }
@@ -1809,13 +2253,16 @@ function App() {
                 const localHash = String(localMod.hash || "").toLowerCase().trim();
                 const cleanLocalVer = String(localMod.version || "").toLowerCase().replace(/^v/, "").trim();
 
-                const hashDiffers = !!(latestSha && localHash && latestSha !== localHash);
-                const versionDiffers = !!(
+                const isInCurrentRelease = Boolean(localHash && currentReleaseHashes.has(localHash));
+                const isDeprecatedLineageHash = Boolean(localHash && previousLineageHashes.has(localHash));
+                const hashDiffers = isDeprecatedLineageHash || Boolean(latestSha && localHash && !isInCurrentRelease && latestSha !== localHash);
+                const versionDiffers = Boolean(
                   cleanEdgeVer &&
                   cleanLocalVer &&
                   cleanLocalVer !== "local" &&
                   cleanLocalVer !== ".local" &&
-                  cleanEdgeVer !== cleanLocalVer
+                  cleanEdgeVer !== cleanLocalVer &&
+                  !isInCurrentRelease
                 );
 
                 if (hashDiffers || versionDiffers) {
@@ -1836,13 +2283,13 @@ function App() {
             console.warn("Edge manifest poll failed for", manifestUrl, edgeErr);
           }
         }
+      }
 
-        if (edgeLogicDirty) {
-          localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
-        }
-        if (localOvrDirty) {
-          localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
-        }
+      if (edgeLogicDirty) {
+        localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
+      }
+      if (localOvrDirty) {
+        localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
       }
       // ---------------------------------------------------
 
@@ -1901,7 +2348,7 @@ function App() {
 
       setModList((prevList: any[]) => {
         let changed = false;
-        const newList = prevList.map(m => {
+        const applyUpdateToMod = (m: any) => {
           let needsUpdate = false;
           let newMod = { ...m };
 
@@ -1934,12 +2381,26 @@ function App() {
             needsUpdate = true;
           }
 
+          if (Array.isArray(newMod.flavors)) {
+            let flavorChanged = false;
+            const nextFlavors = newMod.flavors.map((fl: any) => {
+              const updatedFl = applyUpdateToMod(fl);
+              if (updatedFl !== fl) flavorChanged = true;
+              return updatedFl;
+            });
+            if (flavorChanged) {
+              newMod.flavors = nextFlavors;
+              needsUpdate = true;
+            }
+          }
+
           if (needsUpdate) {
             changed = true;
             return newMod;
           }
           return m;
-        });
+        };
+        const newList = prevList.map(applyUpdateToMod);
         return changed ? newList : prevList;
       });
     } catch (err) {
@@ -2513,8 +2974,26 @@ function App() {
     const rawSnippet = reportOverride?.logSnippet || testLogSnippet || "";
     const targetSnippet = scrubLogUserData(rawSnippet);
     if (!targetMod) return false;
-    if (targetMod.compliance_tier === 1 || targetMod.compliance_tier === 2) {
-      alert(t("alert_nsfw_no_lab_reports", "NSFW/Explicit {mods} cannot be submitted to the global Testing database."));
+    const isRestrictedOrUnknownMod = (m: any) =>
+      !m ||
+      (Number(m.compliance_tier || 0) >= 1 && Number(m.compliance_tier || 0) <= 4) ||
+      !m.isSynced ||
+      !m.dbId ||
+      String(m.status || "").toLowerCase() === "unverified";
+    const stagedModsForCheck = [
+      targetMod,
+      ...(reportOverride?.stagedExtras || []),
+      ...(associatedMods || []),
+      reportOverride?.conflictTarget || conflictTarget,
+      ...(reportOverride?.conflictExtras || []),
+    ].filter(Boolean);
+    if (stagedModsForCheck.some(isRestrictedOrUnknownMod)) {
+      alert(
+        t(
+          "alert_restricted_no_lab_reports",
+          "Tier 1–4 and unverified/unknown {mods} cannot be submitted to the global Homestead {Lab} database."
+        )
+      );
       return false;
     }
     setIsSubmittingReport(true);
@@ -2615,14 +3094,21 @@ function App() {
         ? t("status_corrupted", "Corrupted")
         : t("verified", "Verified");
       const uiColor = isError ? "var(--danger)" : "var(--success)";
-      try {
-        const { modId } = await ensureSpokeModVersion(targetMod, spokeModStatus);
-        await supabase
-          .from("mods")
-          .update({ status: spokeModStatus })
-          .eq("id", modId);
-      } catch (dbErr) {
-        console.warn("Could not sync concluded test to Spoke DB:", dbErr);
+      const isTargetEligibleForCloudSync =
+        targetMod.isSynced &&
+        targetMod.dbId &&
+        Number(targetMod.compliance_tier || 0) === 0 &&
+        String(targetMod.status || "").toLowerCase() !== "unverified";
+      if (isTargetEligibleForCloudSync) {
+        try {
+          const { modId } = await ensureSpokeModVersion(targetMod, spokeModStatus);
+          await supabase
+            .from("mods")
+            .update({ status: spokeModStatus })
+            .eq("id", modId);
+        } catch (dbErr) {
+          console.warn("Could not sync concluded test to Spoke DB:", dbErr);
+        }
       }
       if (isError && targetMod.name) {
         try {

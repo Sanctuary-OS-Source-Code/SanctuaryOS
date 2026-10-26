@@ -180,9 +180,7 @@ export function FilterPopover({
         : "border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]";
 
   const activeStateClass =
-    effectiveVariant === "inline"
-      ? "!text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-      : "border !border-[var(--accent)] text-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]";
+    "sa-glass-active !text-[var(--text)] !opacity-100";
 
   const showLabelText = Boolean(label && !iconOnly);
 
@@ -191,7 +189,7 @@ export function FilterPopover({
       <button
         ref={btnRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-2 h-12 ${showLabelText ? "px-5" : "w-12"} ${effectiveVariant === "inline" ? "rounded-none" : "rounded-[var(--radius)]"} transition-all duration-300 group relative ${baseBg} ${hoverBg} ${
+        className={`flex items-center justify-center gap-2 h-12 ${showLabelText ? "px-5" : "w-12"} ${effectiveVariant === "inline" ? "rounded-xl" : "rounded-[var(--radius)]"} transition-all duration-300 group relative ${baseBg} ${hoverBg} ${
           isOpen || hasActiveFilter ? activeStateClass : borderClass
         } ${buttonClassName}`}
       >

@@ -11,6 +11,7 @@ import {
   ActionPill,
   InlineFilterGroup,
   EmptyState,
+  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import MasonPostViewer from "./MasonPostViewer";
@@ -333,11 +334,9 @@ export function SanctuaryAlertsSidePanel({
                       {/* Card Content */}
                       <div className="p-4 flex flex-col gap-2.5 flex-1 justify-between">
                         <div className="flex flex-col gap-1.5">
-                          <span
-                            className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1 group-hover:text-[var(--accent)] transition-colors"
-                            title={post.title}
-                          >
+                          <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1 group-hover:text-[var(--accent)] transition-colors">
                             {post.title}
+                            <HoverTooltip title={post.title} />
                           </span>
 
                           <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] opacity-80">

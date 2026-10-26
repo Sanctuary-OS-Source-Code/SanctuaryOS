@@ -509,6 +509,81 @@ export function groupBrokenMods(rawList: any[]): any[] {
   return entries.filter((_, idx) => !mergedOut.has(idx));
 }
 
+const PRESERVED_ACRONYMS = new Set([
+  "MC",
+  "CAS",
+  "UI",
+  "DLC",
+  "HQ",
+  "XML",
+  "NPC",
+  "VIP",
+  "CC",
+  "BB",
+  "EP",
+  "GP",
+  "SP",
+  "FP",
+  "KP",
+  "3D",
+  "2D",
+  "TV",
+  "PC",
+  "OS",
+  "ID",
+  "DIY",
+  "AI",
+  "WW",
+  "MCCC",
+  "NWP",
+]);
+
+export function formatCleanModTitle(rawTitle: string): string {
+  const trimmed = String(rawTitle || "").trim();
+  if (!trimmed) return "";
+
+  const spaced = trimmed
+    .replace(/([\]})])([A-Za-z0-9])/g, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/^mc\s+cmd\s+center$/i.test(spaced) || /^mc\s+command\s+center$/i.test(spaced)) {
+    return "MC Command Center";
+  }
+
+  return spaced
+    .split(" ")
+    .map((token) => {
+      const match = token.match(/^([([{'‘’"“”]*)(.*?)([)\]}'‘’"“”:,.;!?]*)$/);
+      if (!match) return token;
+      const [, prefix, core, suffix] = match;
+      if (!core) return token;
+
+      const upperCore = core.toUpperCase();
+      if (PRESERVED_ACRONYMS.has(upperCore)) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      if (upperCore === "LITTLEMSSAM") {
+        return `${prefix}LittleMsSam${suffix}`;
+      }
+      // Preserve alphanumeric codes like MAX20, V1, EP01
+      if (/[A-Za-z]/.test(core) && /\d/.test(core)) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      if (core.length <= 1) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      // If word is all lowercase or all uppercase, convert to Title Case
+      if (core === core.toLowerCase() || core === core.toUpperCase()) {
+        return `${prefix}${core.charAt(0).toUpperCase()}${core.slice(1).toLowerCase()}${suffix}`;
+      }
+      return `${prefix}${core.charAt(0).toUpperCase()}${core.slice(1)}${suffix}`;
+    })
+    .join(" ");
+}
+
 export function formatAddonModuleName(rawMod: any, activeGameSchema?: any): string {
   const base = formatDisplayName(
     rawMod?.displayName || rawMod?.name || "",
@@ -516,30 +591,181 @@ export function formatAddonModuleName(rawMod: any, activeGameSchema?: any): stri
     activeGameSchema
   ).trim();
   if (!base) return "";
+  return formatCleanModTitle(base);
+}
 
-  const spaced = base
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+export function resolveBlueprintConflicts(
+  scopeName: string | undefined,
+  activeMods: any[],
+  ignoredGlobal: string[] = [],
+  t: (key: string, fallback?: string) => string
+): any[] {
+  const conflicts: any[] = [];
+  const seenCanonicalPairs = new Set<string>();
 
-  if (/^mc\s+cmd\s+center$/i.test(spaced)) {
-    return "MC Command Center";
+  const findMatchingMod = (targetRaw: string) => {
+    const cleanTarget = String(targetRaw || "").trim();
+    if (!cleanTarget) return null;
+    const upperTarget = cleanTarget.toUpperCase();
+    const baseTarget = (cleanTarget.split(/[\\/]/).pop() || cleanTarget)
+      .replace(/\.[^/.]+$/, "")
+      .toUpperCase();
+
+    const matched = (activeMods || []).find((em: any) => {
+      if (!em) return false;
+      const cleanN = String(em.name || em._originalSetName || "").toUpperCase();
+      const cleanDisp = String(em.displayName || "").toUpperCase();
+      const emBase = (String(em.name || em._originalSetName || "").split(/[\\/]/).pop() || "")
+        .replace(/\.[^/.]+$/, "")
+        .toUpperCase();
+      return (
+        cleanN === upperTarget ||
+        cleanDisp === upperTarget ||
+        (emBase && emBase === baseTarget) ||
+        (upperTarget.length > 3 &&
+          (cleanN.includes(upperTarget) ||
+            cleanDisp.includes(upperTarget) ||
+            upperTarget.includes(cleanN)))
+      );
+    });
+
+    if (matched) return matched;
+    return {
+      name: cleanTarget,
+      displayName: formatCleanModTitle(cleanTarget.replace(/\.[^/.]+$/, "")),
+      _originalSetName: cleanTarget,
+    };
+  };
+
+  const makeCanonicalPairKey = (modA: any, modB: any, fallbackA: string, fallbackB: string) => {
+    const idA = (
+      String(modA?.name || modA?._originalSetName || fallbackA)
+        .split(/[\\/]/)
+        .pop() || fallbackA
+    )
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase()
+      .trim();
+    const idB = (
+      String(modB?.name || modB?._originalSetName || fallbackB)
+        .split(/[\\/]/)
+        .pop() || fallbackB
+    )
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase()
+      .trim();
+    if (!idA || !idB || idA === idB) return null;
+    return [idA, idB].sort().join("||");
+  };
+
+  if (scopeName) {
+    try {
+      const cachedRaw = localStorage.getItem(`sanctuary_radar_cache_${scopeName}`);
+      if (cachedRaw) {
+        const parsedCache = JSON.parse(cachedRaw);
+        const fatalList = Array.isArray(parsedCache?.fatal) ? parsedCache.fatal : [];
+        const tuningList = Array.isArray(parsedCache?.tuning) ? parsedCache.tuning : [];
+        const cloneList = Array.isArray(parsedCache?.clone) ? parsedCache.clone : [];
+
+        const combined = [
+          ...fatalList.map((c: any) => ({ ...c, severity_rank: 4 })),
+          ...tuningList.map((c: any) => ({ ...c, severity_rank: c.severity_rank || 3 })),
+          ...cloneList.map((c: any) => ({
+            ...c,
+            severity_rank: 3,
+            resolution_note: c.resolution_note || t("tier3_conflict", "Tuning Overlap"),
+          })),
+        ];
+
+        for (const lc of combined) {
+          const pairParts = String(lc.mod_pair || "").split(
+            /\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS|👻)\s+/
+          );
+          const rawA = String(lc.modA || lc.mod_a || pairParts[0] || "").trim();
+          const rawB = String(
+            lc.modB || lc.mod_b || (pairParts.length > 1 ? pairParts[1] : "") || ""
+          ).trim();
+          const pairId = String(lc.mod_pair || `${rawA} vs ${rawB}`).trim();
+          if (!pairId || !rawA || !rawB) continue;
+          if (Array.isArray(ignoredGlobal) && ignoredGlobal.includes(pairId)) continue;
+
+          const modAMatch = findMatchingMod(rawA);
+          const modBMatch = findMatchingMod(rawB);
+          if (!modAMatch || !modBMatch) continue;
+
+          const canonicalKey = makeCanonicalPairKey(modAMatch, modBMatch, rawA, rawB);
+          if (!canonicalKey || seenCanonicalPairs.has(canonicalKey)) continue;
+          seenCanonicalPairs.add(canonicalKey);
+
+          conflicts.push({
+            pairId,
+            modA: modAMatch,
+            modB: modBMatch,
+            conflict: {
+              severity_rank: Number(lc.severity_rank) === 4 ? 4 : 3,
+              resolution_note:
+                lc.resolution_note ||
+                (Number(lc.severity_rank) === 4
+                  ? t("fatal_conflict", "Fatal Conflict")
+                  : t("tier3_conflict", "Tuning Overlap")),
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse radar conflict cache:", e);
+    }
   }
 
-  const ACRONYMS = new Set(["MC", "CAS", "UI", "DLC", "HQ", "XML", "NPC", "VIP"]);
-  return spaced
-    .split(" ")
-    .map((word) => {
-      const upper = word.toUpperCase();
-      if (ACRONYMS.has(upper)) return upper;
-      if (word.length <= 1) return upper;
-      if (word === word.toLowerCase()) {
-        return word.charAt(0).toUpperCase() + word.slice(1);
+  for (const mod of activeMods || []) {
+    if (!mod || mod.isFallback || !Array.isArray(mod.conflicts)) continue;
+    for (const c of mod.conflicts) {
+      const enemyActive = (activeMods || []).find((em: any) => {
+        if (!em || em.isFallback) return false;
+        if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
+        if (c.enemy_name) {
+          const targetClean = String(c.enemy_name)
+            .replace(/\.[^/.]+$/i, "")
+            .toUpperCase();
+          const cleanN = String(em.name || "").toUpperCase();
+          const cleanDisp = String(em.displayName || "").toUpperCase();
+          if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) return true;
+        }
+        return false;
+      });
+      if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
+        const canonicalKey = makeCanonicalPairKey(
+          mod,
+          enemyActive,
+          String(mod.name),
+          String(enemyActive.name)
+        );
+        if (!canonicalKey || seenCanonicalPairs.has(canonicalKey)) continue;
+
+        const sortedNames = [String(mod.name), String(enemyActive.name)].sort();
+        const pairId = `${sortedNames[0]} vs ${sortedNames[1]}`;
+        if (Array.isArray(ignoredGlobal) && ignoredGlobal.includes(pairId)) continue;
+        seenCanonicalPairs.add(canonicalKey);
+
+        const sevRank = Number(c.severity_rank) === 4 ? 4 : 3;
+        conflicts.push({
+          pairId,
+          modA: mod,
+          modB: enemyActive,
+          conflict: {
+            severity_rank: sevRank,
+            resolution_note:
+              c.resolution_note ||
+              (sevRank === 4
+                ? t("fatal_conflict", "Fatal Conflict")
+                : t("tier3_conflict", "Tuning Overlap")),
+          },
+        });
       }
-      return word;
-    })
-    .join(" ");
+    }
+  }
+
+  return conflicts;
 }
 
 export function IncompatibleModCard({
@@ -569,7 +795,9 @@ export function IncompatibleModCard({
     ignoredBroken instanceof Set ? groupedMods.every((m) => ignoredBroken.has(m.name)) : false;
   const effectiveIgnored = Boolean(isIgnored || allGroupIgnored);
 
-  const title = mod._groupedTitle || formatDisplayName(mod.displayName || mod.name);
+  const rawTitle = mod._groupedTitle || formatDisplayName(mod.displayName || mod.name);
+  const title = formatCleanModTitle(rawTitle) || rawTitle;
+
   const hasRealVersion = Boolean(
     mod.version &&
       String(mod.version).trim() !== "" &&
@@ -641,6 +869,7 @@ export function IncompatibleModCard({
   }[] = stackedIssues.map((iss) => {
     const hasCustomDetail = Boolean(
       iss.detail &&
+        iss.detail.toLowerCase() !== rawTitle.toLowerCase() &&
         iss.detail.toLowerCase() !== title.toLowerCase() &&
         iss.detail.toLowerCase() !== iss.title.toLowerCase()
     );
@@ -679,18 +908,15 @@ export function IncompatibleModCard({
 
   const primaryIssue = issueRows[0];
   const extraIssues = issueRows.slice(1);
-  const hasFooterRow = Boolean(
-    primaryIssue?.detailValue || extraIssues.length > 0 || (hasUpdate && cleanNewVer)
-  );
 
   return (
     <div
-      className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 transition-all duration-300 relative group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
-        effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""
-      }`}
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 relative ${
+        isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
+      } ${effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""}`}
     >
-      {/* Top Row: Boxed Mod Icon + Title & Subtitle on Left | Status Badge + Actions on Right */}
-      <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+      {/* Top Tier: Icon Well + Title/Creator Identity + Quick Action Buttons */}
+      <div className="flex items-start justify-between gap-2.5">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {image ? (
             <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
@@ -708,108 +934,79 @@ export function IncompatibleModCard({
             </div>
           )}
 
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <span
-              className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate"
-              title={title}
-            >
-              {title}
-            </span>
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                {title}
+              </span>
+              <HoverTooltip
+                className="z-[100]"
+                title={title}
+                icon={modIcon}
+              />
+            </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0 flex-wrap">
-              <span className="truncate opacity-85">{validCreator || fallbackTypeLabel}</span>
-              {!hasUpdate && cleanInstalledVer && (
-                <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--subtext)]`}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t("icon_sell", "sell")}
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+              {validCreator && (
+                <>
+                  <span className="truncate opacity-85">
+                    {formatCleanModTitle(validCreator)}
                   </span>
-                  <span>v{cleanInstalledVer}</span>
-                </span>
+                  <span className="opacity-40 shrink-0">•</span>
+                </>
               )}
-              {groupedMods.length > 1 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className={`relative group/modpill ${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer`}
-                >
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t("icon_inventory_2", "inventory_2")}
+              <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
+              {hasUpdate && cleanNewVer ? (
+                <>
+                  <span className="opacity-40 shrink-0">•</span>
+                  <span className="relative group/verinline font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">
+                    ↑ v{cleanNewVer}
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={
+                        cleanInstalledVer
+                          ? `v${cleanInstalledVer} → v${cleanNewVer}`
+                          : `v${cleanNewVer}`
+                      }
+                      icon={t("icon_update", "update")}
+                      variant="accent"
+                    />
                   </span>
-                  <span>
-                    {groupedMods.length} {t("card_files_linked", "Linked Files")}
+                </>
+              ) : cleanInstalledVer ? (
+                <>
+                  <span className="opacity-40 shrink-0">•</span>
+                  <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
+                    v{cleanInstalledVer}
                   </span>
-                  <span
-                    className={`material-symbols-outlined !text-[12px] opacity-75 transition-transform duration-300 ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
-                  >
-                    {t("icon_expand_more", "expand_more")}
-                  </span>
-
-                    {!isExpanded && (
-                      <HoverTooltip
-                        align="left"
-                        vAlign="bottom"
-                        content={
-                          <div className="glass-panel rounded-2xl p-3.5 min-w-[230px] max-w-[300px] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl flex flex-col gap-2 pointer-events-none">
-                            <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                                {groupedMods.length} {t("card_files_linked", "Linked Files")}
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              {groupedMods.slice(0, 14).map((gm: any, gIdx: number) => {
-                                const gmName =
-                                  formatAddonModuleName(gm, activeGameSchema) ||
-                                  formatDisplayName(gm.displayName || gm.name);
-                                const isScript = /\.ts4script$/i.test(
-                                  String(gm?.name || gm?._originalSetName || "")
-                                );
-                                return (
-                                  <div
-                                    key={`${gm.name || gIdx}-${gIdx}`}
-                                    className="flex items-center justify-between gap-3 text-[11px]"
-                                  >
-                                    <span className="font-bold text-[var(--text)] truncate">
-                                      {gmName}
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75 shrink-0">
-                                      {isScript
-                                        ? t("type_script", "Script")
-                                        : t("type_package", "Package")}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        }
-                      />
-                    )}
-                </button>
-              )}
+                </>
+              ) : null}
             </div>
           </div>
         </div>
 
-        {/* Right Side: Primary Issue Badge + Individual Glass Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {primaryIssue && (
-            <span
-              className={`${VAULT_CHIP_CLASS} ${
-                primaryIssue.type === "amber"
-                  ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
-                  : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]"
-              }`}
+        {/* Top-Right Compact Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {hasUpdate && cleanNewVer && (
+            <button
+              type="button"
+              onClick={openModUpdate}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined !text-[12px] shrink-0">
-                {primaryIssue.icon}
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_update", "update")}
               </span>
-              <span>{primaryIssue.issueLabel}</span>
-            </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  cleanInstalledVer
+                    ? `${t("category_update", "Update")} (v${cleanInstalledVer} → v${cleanNewVer})`
+                    : `${t("category_update", "Update")} (v${cleanNewVer})`
+                }
+                icon={t("icon_update", "update")}
+                variant="accent"
+              />
+            </button>
           )}
 
           {setIgnoredBroken && ignoredBroken instanceof Set && (
@@ -825,9 +1022,9 @@ export function IncompatibleModCard({
                 }
                 setIgnoredBroken(next);
               }}
-              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined !text-[16px]">
+              <span className="material-symbols-outlined !text-[15px]">
                 {effectiveIgnored
                   ? t("icon_visibility", "visibility")
                   : t("icon_visibility_off", "visibility_off")}
@@ -857,9 +1054,9 @@ export function IncompatibleModCard({
                   toggleInActiveSet(m._originalSetName || m.name, true, true);
                 });
               }}
-              className="relative group/actionbtn w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined !text-[16px]">
+              <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_delete", "delete")}
               </span>
               <HoverTooltip
@@ -873,105 +1070,87 @@ export function IncompatibleModCard({
         </div>
       </div>
 
-      {/* Optional Footer Row: Issue Details / Extra Stacked Issues / Version Update Bar */}
-      {hasFooterRow && (
-        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2">
-          {primaryIssue?.detailValue && (
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-[11px] font-bold text-[var(--subtext)] opacity-85">
-                {primaryIssue.issueLabel === t("modal_version_mismatch", "Version Mismatch")
-                  ? t("req_game_ver", "Required Game Version")
-                  : t("audit_details_title", "Diagnostic Details")}
+      {/* Bottom Status Bar: Single Status Badge on Left | Modules Toggle or Subtle Detail on Right */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {primaryIssue && (
+            <span
+              className={`relative group/statusbadge ${VAULT_CHIP_CLASS} ${
+                primaryIssue.type === "amber"
+                  ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
+                  : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[12px] shrink-0">
+                {primaryIssue.icon}
               </span>
-              <span
-                className="font-mono text-[11px] font-bold text-[var(--text)] truncate"
-                title={primaryIssue.detailValue}
-              >
-                {primaryIssue.detailValue}
-              </span>
-            </div>
-          )}
-
-          {extraIssues.map((row, idx) => {
-            const isRowAmber = row.type === "amber";
-            const badgeColorClass = isRowAmber
-              ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
-              : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]";
-            return (
-              <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-                <span className={`${VAULT_CHIP_CLASS} ${badgeColorClass} min-w-0`}>
-                  <span className="material-symbols-outlined !text-[12px] shrink-0">
-                    {row.icon}
-                  </span>
-                  <span className="truncate">{row.issueLabel}</span>
-                </span>
-                {row.detailValue && (
-                  <span
-                    className="font-mono text-[11px] font-semibold text-[var(--subtext)] opacity-90 shrink-0 truncate"
-                    title={row.detailValue}
-                  >
-                    {row.detailValue}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-
-          {hasUpdate && cleanNewVer && (
-            <div className="flex items-center justify-between gap-2 pt-0.5">
-              <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--accent)]`}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_new_releases", "new_releases")}
-                </span>
-                {cleanInstalledVer ? (
-                  <>
-                    <span className="text-[var(--subtext)]">v{cleanInstalledVer} &rarr; </span>
-                    <span className="text-[var(--text)]">v{cleanNewVer}</span>
-                  </>
-                ) : (
-                  <span className="text-[var(--text)]">v{cleanNewVer}</span>
-                )}
-              </span>
-
-              <button
-                type="button"
-                onClick={openModUpdate}
-                className="px-3.5 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <span>{t("category_update", "Update")}</span>
-                <span className="text-xs leading-none">&rarr;</span>
-              </button>
-            </div>
+              <span>{primaryIssue.issueLabel}</span>
+              {extraIssues.length > 0 && (
+                <span className="opacity-75">+{extraIssues.length}</span>
+              )}
+              <HoverTooltip
+                className="z-[100]"
+                title={
+                  [primaryIssue, ...extraIssues]
+                    .map((r) =>
+                      r.detailValue ? `${r.issueLabel}: ${r.detailValue}` : r.issueLabel
+                    )
+                    .join(" • ")
+                }
+                icon={primaryIssue.icon}
+              />
+            </span>
           )}
         </div>
-      )}
 
-      {/* Expanded Linked Modules Drawer inside the card */}
-      {isExpanded && groupedMods.length > 1 && (
-        <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_extension", "extension")}
-                </span>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
-                {groupedMods.length} {t("card_files_linked", "Linked Files")}
-              </span>
-            </div>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {groupedMods.length > 1 ? (
             <button
               type="button"
-              onClick={() => setIsExpanded(false)}
-              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`${VAULT_CHIP_CLASS} transition-all cursor-pointer ${
+                isExpanded
+                  ? "!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)]"
+                  : "hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+              }`}
             >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_close", "close")}
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <span>
+                {groupedMods.length} {t("badge_modules_count", "Modules")}
+              </span>
+              <span
+                className={`material-symbols-outlined !text-[13px] opacity-80 transition-transform duration-200 ${
+                  isExpanded ? "rotate-180 text-[var(--accent)]" : ""
+                }`}
+              >
+                {t("icon_expand_more", "expand_more")}
               </span>
             </button>
-          </div>
+          ) : primaryIssue?.detailValue ? (
+            <span className="relative group/issueval font-mono text-[10px] font-semibold text-[var(--subtext)] opacity-80 truncate max-w-[130px]">
+              {primaryIssue.detailValue}
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${primaryIssue.issueLabel}: ${primaryIssue.detailValue}`}
+                icon={primaryIssue.icon}
+              />
+            </span>
+          ) : null}
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {/* Compact Recessed Linked Modules Tray */}
+      {isExpanded && groupedMods.length > 1 && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[196px] overflow-y-auto custom-scrollbar pr-1">
             {groupedMods.map((gm: any, gIdx: number) => {
               const gmName =
                 formatAddonModuleName(gm, activeGameSchema) ||
@@ -985,69 +1164,90 @@ export function IncompatibleModCard({
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className={`glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 transition-all ${
+                  className={`glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex items-center justify-between gap-2 transition-all ${
                     gmIgnored ? "opacity-50 grayscale-[40%]" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[15px]">
-                        {getModIcon(gm, activeGameSchema, t)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span
-                        className="text-xs font-bold text-[var(--text)] truncate"
-                        title={gmName}
-                      >
-                        {gmName}
-                      </span>
-                      <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-75">
-                        {isScript
-                          ? t("type_script", "Script")
-                          : t("type_package", "Package")}
-                      </span>
-                    </div>
+                  <div className="relative group/gmtitle flex items-center gap-2 min-w-0 flex-1">
+                    <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                      {isScript
+                        ? t("icon_terminal", "terminal")
+                        : t("icon_deployed_code", "deployed_code")}
+                    </span>
+                    <span className="text-xs font-bold text-[var(--text)] truncate">
+                      {gmName}
+                    </span>
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={gmName}
+                      icon={
+                        isScript
+                          ? t("icon_terminal", "terminal")
+                          : t("icon_deployed_code", "deployed_code")
+                      }
+                    />
                   </div>
 
-                  {((setIgnoredBroken && ignoredBroken instanceof Set) ||
-                    (allow_write && toggleInActiveSet)) && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      {setIgnoredBroken && ignoredBroken instanceof Set && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const next = new Set(ignoredBroken);
-                            if (gmIgnored) next.delete(gm.name);
-                            else next.add(gm.name);
-                            setIgnoredBroken(next);
-                          }}
-                          className="relative group/actionbtn w-7 h-7 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">
-                            {gmIgnored
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70">
+                      {isScript
+                        ? t("type_script", "Script")
+                        : t("type_package", "Package")}
+                    </span>
+
+                    {setIgnoredBroken && ignoredBroken instanceof Set && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = new Set(ignoredBroken);
+                          if (gmIgnored) next.delete(gm.name);
+                          else next.add(gm.name);
+                          setIgnoredBroken(next);
+                        }}
+                        className="relative group/gmbtn w-6 h-6 rounded-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {gmIgnored
+                            ? t("icon_visibility", "visibility")
+                            : t("icon_visibility_off", "visibility_off")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={
+                            gmIgnored
+                              ? t("bp_restore_alert", "Restore")
+                              : t("btn_ignore", "Ignore")
+                          }
+                          icon={
+                            gmIgnored
                               ? t("icon_visibility", "visibility")
-                              : t("icon_visibility_off", "visibility_off")}
-                          </span>
-                        </button>
-                      )}
-                      {allow_write && toggleInActiveSet && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleInActiveSet(gm._originalSetName || gm.name, true, true);
-                          }}
-                          className="relative group/actionbtn w-7 h-7 rounded-lg hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">
-                            {t("icon_delete", "delete")}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  )}
+                              : t("icon_visibility_off", "visibility_off")
+                          }
+                        />
+                      </button>
+                    )}
+                    {allow_write && toggleInActiveSet && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleInActiveSet(gm._originalSetName || gm.name, true, true);
+                        }}
+                        className="relative group/gmbtn w-6 h-6 rounded-md hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {t("icon_delete", "delete")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={t("btn_remove", "{Remove}")}
+                          icon={t("icon_delete", "delete")}
+                          variant="danger"
+                        />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -1068,7 +1268,7 @@ export function renderGroupedIncompatibleSections({
   activeGameSchema,
 }: any) {
   return (
-    <div className="flex flex-col gap-3 w-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
       {groupedBrokenMods.map((mod: any) => {
         const groupNames: string[] = mod._groupOriginalNames || [mod.name];
         const isGroupIgnored =
@@ -1088,6 +1288,315 @@ export function renderGroupedIncompatibleSections({
           />
         );
       })}
+    </div>
+  );
+}
+
+export function ConflictComparisonCard({
+  ac,
+  ignoredConflicts,
+  setIgnoredConflicts,
+  showImages,
+  allow_write,
+  toggleInActiveSet,
+  applyConflictOverride,
+  scopeName,
+  getPriorityDrop,
+  activeGameSchema,
+  t,
+}: any) {
+  const isIgnored = ignoredConflicts instanceof Set ? ignoredConflicts.has(ac.pairId) : false;
+  const isTier4 = Number(ac.conflict?.severity_rank) === 4;
+
+  const prefixA =
+    String(ac.modA?._originalSetName || ac.modA?.name || "")
+      .split(/[/\\]/)
+      .slice(0, -1)
+      .join("/") || "";
+  const prefixB =
+    String(ac.modB?._originalSetName || ac.modB?.name || "")
+      .split(/[/\\]/)
+      .slice(0, -1)
+      .join("/") || "";
+  const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+  const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+
+  const iconName = isTier4
+    ? t("icon_crisis_alert", "crisis_alert")
+    : t("icon_tune", "tune");
+
+  const imageA =
+    showImages &&
+    (ac.modA?.image_url || ac.modA?.imageUrl) &&
+    String(ac.modA?.image_url || ac.modA?.imageUrl) !== "null"
+      ? ac.modA.image_url || ac.modA.imageUrl
+      : undefined;
+  const imageB =
+    showImages &&
+    (ac.modB?.image_url || ac.modB?.imageUrl) &&
+    String(ac.modB?.image_url || ac.modB?.imageUrl) !== "null"
+      ? ac.modB.image_url || ac.modB.imageUrl
+      : undefined;
+
+  const rawNote = String(ac.conflict?.resolution_note || "").trim();
+  const hasMeaningfulNote =
+    rawNote.length > 0 && rawNote.toLowerCase() !== "test";
+  const conflictTitle = hasMeaningfulNote
+    ? rawNote
+    : isTier4
+      ? t("conflict_sev4_desc", "Fatal Collision — Cannot be installed together")
+      : t("conflict_sev3_desc", "Tuning Overlap — Load order override or minor feature overlap");
+
+  const severityBadgeClass = isTier4
+    ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_45%,transparent)] !text-[var(--danger)]`
+    : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] !text-[var(--warning)]`;
+
+  const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_45%,transparent)] !text-[var(--success)]`;
+  const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
+
+  const slots = [
+    { mod: ac.modA, image: imageA, isWinner: isWinnerA, isLoser: isWinnerB },
+    { mod: ac.modB, image: imageB, isWinner: isWinnerB, isLoser: isWinnerA },
+  ];
+
+  return (
+    <div
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all flex flex-col gap-3 w-full ${
+        isIgnored ? "opacity-50 grayscale-[40%]" : ""
+      }`}
+    >
+      {/* Compact Header Strip */}
+      <div className="flex items-center justify-between gap-2.5 w-full">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className={severityBadgeClass}>
+            <span
+              className={`material-symbols-outlined !text-[12px] ${
+                isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+              }`}
+            >
+              {iconName}
+            </span>
+            <span>
+              {isTier4
+                ? t("fatal_conflict", "Fatal Conflict")
+                : t("tier3_conflict", "Tuning Overlap")}
+            </span>
+          </div>
+
+          <div className="relative group/conflictnote flex items-center min-w-0 flex-1">
+            <span className="text-xs font-bold text-[var(--subtext)] truncate">
+              {conflictTitle}
+            </span>
+            <HoverTooltip
+              className="z-[100]"
+              title={conflictTitle}
+              icon={iconName}
+            />
+          </div>
+        </div>
+
+        {setIgnoredConflicts && ignoredConflicts instanceof Set && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const next = new Set(ignoredConflicts);
+              if (isIgnored) next.delete(ac.pairId);
+              else next.add(ac.pairId);
+              setIgnoredConflicts(next);
+            }}
+            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined !text-[15px]">
+              {isIgnored
+                ? t("icon_visibility", "visibility")
+                : t("icon_visibility_off", "visibility_off")}
+            </span>
+            <HoverTooltip
+              className="z-[100] !right-0 !translate-x-0 !left-auto"
+              title={
+                isIgnored
+                  ? t("bp_restore_alert", "Restore Alert")
+                  : t("btn_ignore", "Ignore")
+              }
+              icon={
+                isIgnored
+                  ? t("icon_visibility", "visibility")
+                  : t("icon_visibility_off", "visibility_off")
+              }
+            />
+          </button>
+        )}
+      </div>
+
+      {/* Head-to-Head VS Clash Grid */}
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2.5 w-full ${
+          isIgnored ? "pointer-events-none" : ""
+        }`}
+      >
+        {slots.map((slot, sIdx) => {
+          if (!slot.mod) return null;
+          const mTitle = formatCleanModTitle(
+            formatDisplayName(slot.mod.displayName || slot.mod.name)
+          );
+          const mAuthor = extractValidCreator(slot.mod);
+          const isScript = /\.ts4script$/i.test(
+            String(slot.mod?.name || slot.mod?._originalSetName || "")
+          );
+          const mTypeLabel = isScript
+            ? t("type_script", "Script")
+            : t("type_package", "Package");
+          const mIcon = getModIcon(slot.mod, activeGameSchema, t);
+
+          const cardElement = (
+            <div
+              key={`${ac.pairId}-slot-${sIdx}`}
+              className={`glass-surface rounded-xl p-3 border transition-all flex items-center justify-between gap-2.5 min-w-0 ${
+                slot.isWinner && !isTier4
+                  ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 overflow-hidden">
+                  {slot.image ? (
+                    <img
+                      src={slot.image}
+                      alt={mTitle}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                      {mIcon}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="relative group/clashmod flex items-center min-w-0 w-fit max-w-full">
+                    <span className="text-xs font-black text-[var(--text)] truncate">
+                      {mTitle}
+                    </span>
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={mTitle}
+                      icon={mIcon}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--subtext)] min-w-0">
+                    {mAuthor && (
+                      <>
+                        <span className="truncate">{formatCleanModTitle(mAuthor)}</span>
+                        <span className="opacity-40 shrink-0">•</span>
+                      </>
+                    )}
+                    <span className="shrink-0">{mTypeLabel}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {isTier4 ? (
+                  allow_write &&
+                  toggleInActiveSet && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleInActiveSet(
+                          slot.mod._originalSetName || slot.mod.name,
+                          true,
+                          true
+                        )
+                      }
+                      className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                    >
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t("icon_delete", "delete")}
+                      </span>
+                      <HoverTooltip
+                        className="z-[100] !right-0 !translate-x-0 !left-auto"
+                        title={t("btn_remove", "{Remove}")}
+                        icon={t("icon_delete", "delete")}
+                        variant="danger"
+                      />
+                    </button>
+                  )
+                ) : Number(ac.conflict?.severity_rank) === 3 ? (
+                  slot.isWinner ? (
+                    <div className={winnerBadgeClass}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                        {t("icon_check_circle", "check_circle")}
+                      </span>
+                      <span>{t("winner", "WINNING {MOD}")}</span>
+                    </div>
+                  ) : slot.isLoser ? (
+                    <div className={loserBadgeClass}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                        {t("icon_block", "block")}
+                      </span>
+                      <span>{t("bp_overridden_by_winner", "Overridden")}</span>
+                    </div>
+                  ) : (
+                    allow_write &&
+                    scopeName &&
+                    applyConflictOverride && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          applyConflictOverride(
+                            slot.mod._originalSetName || slot.mod.name,
+                            ac.pairId,
+                            scopeName
+                          )
+                        }
+                        className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                      >
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={t("bp_select_winning_artifact", "Select Winner")}
+                          icon={t("icon_check_circle", "check_circle")}
+                          variant="accent"
+                        />
+                      </button>
+                    )
+                  )
+                ) : getPriorityDrop ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-28">{getPriorityDrop(slot.mod)}</div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          );
+
+          if (sIdx === 0) {
+            return (
+              <React.Fragment key={`${ac.pairId}-frag-${sIdx}`}>
+                {cardElement}
+                <div className="hidden sm:flex items-center justify-center">
+                  <div
+                    className={`w-7 h-7 rounded-full glass-panel border flex items-center justify-center shrink-0 ${
+                      isTier4
+                        ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
+                        : "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_bolt", "bolt")}
+                    </span>
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          }
+
+          return cardElement;
+        })}
+      </div>
     </div>
   );
 }
@@ -1258,30 +1767,48 @@ export default function CommandIncompatiblePanel({
                 ? "warning"
                 : "success"
           }
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-            <StatBox
-              label={t("citizen_action_incompatible", "Incompatible")}
-              value={groupedBrokenMods.length}
+        />
+
+        {groupedBrokenMods.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
               icon={panelIcon}
-              iconColorClass={
-                redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+              label={t("filter_all", "All")}
+              number={groupedBrokenMods.length}
+              colorClass={redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"}
+              isActive={categoryFilter === "all"}
+              onClick={() => setCategoryFilter("all")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_broken_image", "broken_image")}
+              label={t("status_corrupted", "Corrupted")}
+              number={corruptedCount}
+              colorClass="text-[var(--danger)]"
+              isActive={categoryFilter === "corrupted"}
+              onClick={() =>
+                setCategoryFilter(categoryFilter === "corrupted" ? "all" : "corrupted")
               }
             />
-            <StatBox
-              label={t("status_corrupted", "Corrupted")}
-              value={redMods.length}
-              icon={t("icon_broken_image", "broken_image")}
-              iconColorClass="text-[var(--danger)]"
-            />
-            <StatBox
-              label={t("label_unstable", "Unstable")}
-              value={amberMods.length}
-              icon={t("icon_warning_amber", "warning_amber")}
-              iconColorClass="text-[var(--warning)]"
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_sports_esports", "sports_esports")}
+              label={t("modal_version_mismatch", "Version Mismatch")}
+              number={mismatchCount}
+              colorClass="text-[var(--danger)]"
+              isActive={categoryFilter === "version_mismatch"}
+              onClick={() =>
+                setCategoryFilter(
+                  categoryFilter === "version_mismatch" ? "all" : "version_mismatch"
+                )
+              }
             />
           </div>
-        </SidePanelHeroCard>
+        )}
 
         {groupedBrokenMods.length > 0 && (
           <ActionPill

@@ -1311,9 +1311,14 @@ export function usePlaySetLogic() {
       const missing: any[] = [];
       const rawAvailableMods: string[] = [];
       const nextModHashes: Record<string, string> = {};
-      const nextModMeta: Record<string, { url?: string, author?: string }> = {};
+      const nextModMeta: Record<string, any> = {};
       const nameRemap = new Map<string, string>();
       const extRegex = getExtensionRegex(activeGameSchema);
+      let localOverrides: Record<string, any> = {};
+      let localOverridesDirty = false;
+      try {
+        localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch {}
 
       (parsed.mods || []).forEach((importedMod: any) => {
           let found = null;
@@ -1331,6 +1336,42 @@ export function usePlaySetLogic() {
               }
           }
 
+          if (importedMod && typeof importedMod !== 'string') {
+              const targetHash = importedMod.hash || found?.hash;
+              const extractedMeta: Record<string, any> = {};
+              const metaKeys = [
+                'displayName', 'url', 'manifest_url', 'author', 'version',
+                'description', 'image_url', 'category_override', 'sub_type',
+                'file_extension', 'requiredDLC', 'compatible_versions',
+                'compliance_tier', 'allow_write', 'is_paid', 'is_early_access',
+                'created_at', 'updated_at', 'requirements', 'twins', 'conflicts', 'isLocalOverride'
+              ];
+              metaKeys.forEach((k) => {
+                if (importedMod[k] !== undefined && importedMod[k] !== "") {
+                  extractedMeta[k] = importedMod[k];
+                }
+              });
+              const metaKey = found ? found.name : rawNameToCheck;
+              if (metaKey && Object.keys(extractedMeta).length > 0) {
+                nextModMeta[metaKey] = extractedMeta;
+              }
+              if (targetHash && (importedMod.isLocalOverride || importedMod.displayName || importedMod.manifest_url || importedMod.description)) {
+                const existingOvr = localOverrides[targetHash];
+                if (!existingOvr?.is_user_dossier) {
+                  localOverrides[targetHash] = {
+                    ...(existingOvr || {}),
+                    ...extractedMeta,
+                    displayName: existingOvr?.displayName || extractedMeta.displayName,
+                    author: existingOvr?.author || extractedMeta.author,
+                    version: existingOvr?.version || extractedMeta.version,
+                    url: existingOvr?.url || extractedMeta.url,
+                    manifest_url: existingOvr?.manifest_url || extractedMeta.manifest_url,
+                  };
+                  localOverridesDirty = true;
+                }
+              }
+          }
+
           if (found) {
               const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
               if (cleanImportedFile) {
@@ -1344,12 +1385,15 @@ export function usePlaySetLogic() {
               missing.push(importedMod);
               if (typeof importedMod !== 'string') {
                   if (importedMod.hash) nextModHashes[rawNameToCheck] = importedMod.hash;
-                  if (importedMod.url || importedMod.author) {
-                      nextModMeta[rawNameToCheck] = { url: importedMod.url, author: importedMod.author };
-                  }
               }
           }
       });
+
+      if (localOverridesDirty) {
+        try {
+          localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
+        } catch {}
+      }
 
       const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
         parsed,

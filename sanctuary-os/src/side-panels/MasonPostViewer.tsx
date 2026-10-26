@@ -127,8 +127,9 @@ export default function MasonPostViewer({
   initialFocusCommentId?: string | null;
   hideActions?: boolean;
 }) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
+  const [forceTranslatePost, setForceTranslatePost] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
@@ -678,6 +679,7 @@ export default function MasonPostViewer({
                   >
                     <MarkdownRenderer
                       content={c.content}
+                      forceTranslate={forceTranslatePost}
                       onAssetClick={(type: string, id: string) => {
                         onAssetClick?.(type, id);
                       }}
@@ -760,6 +762,14 @@ export default function MasonPostViewer({
         headerActions={
           !hideActions ? (
             <>
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={t("icon_translate", "translate")}
+                  tooltip={t("lex_translate_post", "Translate {Dispatch}")}
+                  isActive={forceTranslatePost}
+                  onClick={() => setForceTranslatePost((prev) => !prev)}
+                />
+              </PanelHeaderGroup>
               {!userId || isBanned ? (
                 <div className="relative group/flagbtn h-full flex items-center">
                   <HoverTooltip
@@ -854,7 +864,7 @@ export default function MasonPostViewer({
           </div>
 
           <SidePanelHeroCard
-            title={renderTextWithIcons(post.title)}
+            title={renderTextWithIcons(td ? td(post.title || "", { forceTranslate: forceTranslatePost }) : post.title)}
             subtitle={
               isAlert
                 ? t("tile_global_alert", "Global Alert")
@@ -953,12 +963,13 @@ export default function MasonPostViewer({
           >
             <div className="flex flex-col gap-5 min-w-0">
               {viewMode === "ui" ? (
-                <StructuredReleaseNotesView content={content} />
+                <StructuredReleaseNotesView content={content} forceTranslate={forceTranslatePost} />
               ) : (
                 <div className="glass-panel rounded-3xl p-5 sm:p-6 markdown-body text-[var(--text)] opacity-95 leading-relaxed text-sm">
                   <MarkdownRenderer
                     content={cleanPostBodyForViewer(content)}
                     isAlert={isAlert}
+                    forceTranslate={forceTranslatePost}
                     onAssetClick={(type: string, id: string) => {
                       onAssetClick?.(type, id);
                     }}

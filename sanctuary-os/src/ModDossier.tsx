@@ -725,13 +725,14 @@ export default function ModDossier({
                   : getModIcon(mod, activeGameSchema, t);
 
   const resolvedVersion = (() => {
+    if (mod.isLocalOverride && mod.version) return mod.version;
     let v = mod.mod_versions?.[0]?.version_label || mod.version;
     if (!v && mod.isVirtual && mod.flavors) {
       const flavorV = mod.flavors.find(
-        (f: any) => f.mod_versions?.[0]?.version_label || f.version
+        (f: any) => (f.isLocalOverride && f.version) || f.mod_versions?.[0]?.version_label || f.version
       );
       if (flavorV)
-        v = flavorV.mod_versions?.[0]?.version_label || flavorV.version;
+        v = (flavorV.isLocalOverride && flavorV.version) || flavorV.mod_versions?.[0]?.version_label || flavorV.version;
     }
     return v || t("unknown", "Local");
   })();
@@ -820,8 +821,7 @@ export default function ModDossier({
                 )}
                 {isCorrecting &&
                   session &&
-                  mod.compliance_tier !== 1 &&
-                  mod.compliance_tier !== 2 && (
+                  !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) && (
                     <PanelHeaderButton
                       icon={
                         requireScoutLabTest && !isModLabVerified
@@ -873,8 +873,7 @@ export default function ModDossier({
                       disabled={isSaving}
                     />
                   )}
-                {mod.compliance_tier !== 1 &&
-                  mod.compliance_tier !== 2 &&
+                {!(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
                   isDesktop() && (
                     <PanelHeaderButton
                       icon={t("icon_science", "science")}
@@ -924,8 +923,7 @@ export default function ModDossier({
                     }}
                   />
                 )}
-                {mod.compliance_tier !== 1 &&
-                  mod.compliance_tier !== 2 &&
+                {!(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
                   targetDbId &&
                   session &&
                   !isBanned && (

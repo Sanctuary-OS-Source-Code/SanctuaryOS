@@ -25,8 +25,10 @@ import { ChameleonControlDashboard } from "./chameleon-components/ChameleonContr
 import { ChameleonSandboxPreview } from "./chameleon-components/ChameleonSandboxPreview";
 import {
   autoHarmonizeThemeColors,
+  analyzeAndHarmonizeTheme,
   exportThemeWithAssets,
   importThemeWithAssets,
+  uploadThemeAssetsToCloud,
 } from "./chameleon-components/ChameleonShared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import MasonFileBrowser from "./hub-components/MasonFileBrowser";
@@ -296,10 +298,14 @@ export function MasonChameleons({
   const handleUpdateTheme = (updates: any) => {
     if (!editingThemeId) return;
     if (syncedThemes.some((st) => st.id === editingThemeId) && !customThemes[editingThemeId] && !devThemes[editingThemeId]) {
+      const merged = { ...(syncedThemeEdits[editingThemeId] || syncedThemesMap[editingThemeId] || {}), ...updates };
       setSyncedThemeEdits((prev) => ({
         ...prev,
-        [editingThemeId]: { ...(prev[editingThemeId] || syncedThemesMap[editingThemeId] || {}), ...updates },
+        [editingThemeId]: merged,
       }));
+      if (activeThemeId === editingThemeId || livePreview) {
+        updateTheme(editingThemeId, merged);
+      }
     } else {
       updateTheme(editingThemeId, updates);
     }
@@ -457,32 +463,17 @@ export function MasonChameleons({
         return;
       }
 
-      if (finalContent.bgImage && finalContent.bgImage.includes("asset.localhost")) {
-        let localPath = finalContent.bgImage.replace(/^https?:\/\/asset\.localhost\//, "");
-        localPath = decodeURIComponent(localPath);
-        const fileData = await readFile(localPath);
-        const ext = localPath.split(".").pop() || "jpg";
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-
-        useStore.getState().pushStatus("Uploading background image to cloud...");
-        const { error: uploadError } = await supabase.storage
-          .from("backgrounds")
-          .upload(fileName, fileData, {
-            contentType: `image/${ext === "jpg" ? "jpeg" : ext}`,
-            upsert: true,
-          });
-
-        if (uploadError) throw new Error("Failed to upload background image.");
-        const { data: publicUrlData } = supabase.storage.from("backgrounds").getPublicUrl(fileName);
-        finalContent.bgImage = publicUrlData.publicUrl;
-      }
+      const { themeData: syncedThemeContent } = await uploadThemeAssetsToCloud(
+        finalContent,
+        supabase
+      );
 
       const payload: any = {
         name: uploadState.name,
         version: uploadState.version,
         description: uploadState.description,
         release_notes: uploadState.releaseNotes,
-        json_data: finalContent,
+        json_data: syncedThemeContent,
         asset_type: "chameleon",
         is_public: true,
         theme_mode: uploadState.themeMode,
@@ -1115,8 +1106,8 @@ export function MasonChameleons({
 
   return (
     <ElevatedHubLayout
-      headerTitle={t("chameleons_hub_title", "Themes & Lexicons")}
-      headerIcon="palette"
+      headerTitle={t("tab_aesthetics", "Aesthetics")}
+      headerIcon={t("icon_palette", "palette") as string}
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("ui_search_chameleons", "Search {Chameleons}...") as string}
@@ -1187,11 +1178,11 @@ export function MasonChameleons({
               <PanelHeaderButton
                 icon={t("icon_contrast", "contrast")}
                 tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
-                onClick={() => {
-                  const harmonized = autoHarmonizeThemeColors(currentTheme);
+                onClick={async () => {
+                  const harmonized = await analyzeAndHarmonizeTheme(currentTheme);
                   handleUpdateTheme(harmonized);
                   useStore.getState().pushStatus(
-                    t("forge_status_harmonized", "Text & surface contrast automatically harmonized."),
+                    t("forge_status_harmonized", "Liquid Glass optics, surfaces & text contrast harmonized to active background."),
                     "success"
                   );
                 }}

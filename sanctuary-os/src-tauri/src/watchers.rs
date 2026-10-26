@@ -280,7 +280,7 @@ pub async fn start_downloads_watch(
                                     let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string().to_lowercase();
                                     let ext_with_dot = format!(".{}", ext.to_lowercase());
                                     let path_str = path.to_string_lossy().to_string();
-                                    if (extensions.contains(&ext_with_dot) || file_name == "override.json")
+                                    if (extensions.contains(&ext_with_dot) || file_name == "override.json" || file_name == "manifest.json")
                                         && !path_str.ends_with(".crdownload")
                                         && !path_str.ends_with(".part")
                                     {

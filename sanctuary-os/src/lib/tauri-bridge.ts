@@ -12,7 +12,13 @@ export const tauriBridge = {
   saveMasterCache: (vaultPath: string, content: string) => invoke("save_master_cache", { vaultPath, content }),
   initializeVaultWatch: () => invoke("initialize_vault_watch"),
   initializeAirgapWatch: (docsPath: string, vaultPath: string) => invoke("initialize_airgap_watch", { docsPath, vaultPath }),
-  ingestDroppedFile: (path: string, forceReplace: boolean) => invoke("ingest_dropped_file", { path, forceReplace, targetFolder: null }),
+  ingestDroppedFile: (path: string, forceReplace: boolean) =>
+    invoke("ingest_dropped_file", {
+      path,
+      forceReplace,
+      targetFolder: null,
+      moveOriginal: (localStorage.getItem("sanctuary_ingest_file_mode") || "copy") === "move",
+    }),
   scanBunker: (vaultPath: string, shelterActive: boolean) => invoke<any[]>("scan_bunker", { vaultPath, shelterActive }),
   getBackups: (vaultPath: string) => invoke<string[]>("get_backups", { vaultPath }),
   restoreGameData: (docsPath: string, livePath: string, backupName: string) => invoke("restore_game_data", { docsPath, livePath, backupName }),

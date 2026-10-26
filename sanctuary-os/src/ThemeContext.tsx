@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
 import { createClient } from '@supabase/supabase-js';
 import { isDesktop } from './utils/envUtils';
@@ -10,11 +10,11 @@ import { useStore } from './store';
 export const DEFAULT_CORE_THEMES: any = {
   // Flagship Premium Dark — Smoked Obsidian Liquid Glass
   architect: {
-    name: "Architect", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
+    name: "Architect", bg: "#000000", sidebar: "#040812", sidebartext: "#f8fafc", accent: "#38bdf8",
     text: "#f8fafc", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#050914", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.10", glassBlur: "36px", glassSaturation: "185%", glassBorderOpacity: "0.14",
-    glassSpecular: "0.24", glassShadow: "0.42", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.45)",
+    panelTint: "#060d1f", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.14", glassBlur: "40px", glassSaturation: "185%", glassRefraction: "100%", glassBezel: "100%",
+    glassBorderOpacity: "0.16", glassSpecular: "0.26", glassShadow: "0.44", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.45)",
     bgGradient: "transparent",
     bgImage: "/themes/architect.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -24,11 +24,11 @@ export const DEFAULT_CORE_THEMES: any = {
   },
   // Flagship Premium Light — Alabaster Crystal Quartz
   radiant: {
-    name: "Radiant", bg: "#f1f5f9", sidebar: "#f8fafc", sidebartext: "#0f172a", accent: "#0284c7",
+    name: "Radiant", bg: "#f4f6fb", sidebar: "#f8faff", sidebartext: "#0f172a", accent: "#6366f1",
     text: "#0f172a", subtext: "#475569", success: "#059669", warning: "#d97706", danger: "#dc2626",
-    panelTint: "#ffffff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.18", glassBlur: "34px", glassSaturation: "185%", glassBorderOpacity: "0.46",
-    glassSpecular: "0.52", glassShadow: "0.16", radius: "1.25rem", shadowColor: "rgba(15,23,42,0.08)",
+    panelTint: "#f8faff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.22", glassBlur: "42px", glassSaturation: "175%", glassRefraction: "95%", glassBezel: "95%",
+    glassBorderOpacity: "0.48", glassSpecular: "0.54", glassShadow: "0.16", radius: "1.25rem", shadowColor: "rgba(15,23,42,0.08)",
     bgGradient: "transparent",
     bgImage: "/themes/radiant.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -38,11 +38,11 @@ export const DEFAULT_CORE_THEMES: any = {
   },
   // Official Partner Community Light Theme — The Sims 4 ("Plumbob Crystal" — Light Mint & Emerald Quartz)
   sims4: {
-    name: "Plumbob Crystal", badge: "The Sims 4", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#064e3b", accent: "#10b981",
-    text: "#064e3b", subtext: "#047857", success: "#059669", warning: "#d97706", danger: "#e11d48",
-    panelTint: "#ffffff", headerText: "#064e3b", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.18", glassBlur: "32px", glassSaturation: "190%", glassBorderOpacity: "0.48",
-    glassSpecular: "0.54", glassShadow: "0.16", radius: "1.5rem", shadowColor: "rgba(6,78,59,0.08)",
+    name: "Plumbob Crystal", badge: "The Sims 4", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#0f2922", accent: "#10b981",
+    text: "#0f2922", subtext: "#3d6356", success: "#059669", warning: "#d97706", danger: "#e11d48",
+    panelTint: "#f4fdf9", headerText: "#0f2922", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.22", glassBlur: "40px", glassSaturation: "175%", glassRefraction: "95%", glassBezel: "95%",
+    glassBorderOpacity: "0.48", glassSpecular: "0.54", glassShadow: "0.16", radius: "1.5rem", shadowColor: "rgba(6,78,59,0.08)",
     bgGradient: "transparent",
     bgImage: "/themes/sims4.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -52,11 +52,11 @@ export const DEFAULT_CORE_THEMES: any = {
   },
   // Official Partner Community Dark Theme — The Sims 4 ("Plumbob Nocturne" — Deep Emerald & Obsidian Crystal)
   sims4_dark: {
-    name: "Plumbob Nocturne", badge: "The Sims 4", bg: "#020a06", sidebar: "#030e09", sidebartext: "#ecfdf5", accent: "#22c55e",
-    text: "#ecfdf5", subtext: "#6ee7b7", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
-    panelTint: "#05160e", headerText: "#ecfdf5", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.12", glassBlur: "36px", glassSaturation: "195%", glassBorderOpacity: "0.16",
-    glassSpecular: "0.26", glassShadow: "0.44", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.48)",
+    name: "Plumbob Nocturne", badge: "The Sims 4", bg: "#020a06", sidebar: "#030e09", sidebartext: "#ecfdf5", accent: "#10b981",
+    text: "#ecfdf5", subtext: "#86b3a0", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
+    panelTint: "#051910", headerText: "#ecfdf5", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.15", glassBlur: "40px", glassSaturation: "195%", glassRefraction: "105%", glassBezel: "100%",
+    glassBorderOpacity: "0.16", glassSpecular: "0.26", glassShadow: "0.44", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.48)",
     bgGradient: "transparent",
     bgImage: "/themes/sims4_dark.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -68,9 +68,9 @@ export const DEFAULT_CORE_THEMES: any = {
   aurora: {
     name: "Aurora", bg: "#030712", sidebar: "#030712", sidebartext: "#f8fafc", accent: "#06b6d4",
     text: "#f8fafc", subtext: "#94a3b8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#060e1e", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.10", glassBlur: "36px", glassSaturation: "195%", glassBorderOpacity: "0.14",
-    glassSpecular: "0.26", glassShadow: "0.42", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.45)",
+    panelTint: "#061326", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.14", glassBlur: "40px", glassSaturation: "195%", glassRefraction: "110%", glassBezel: "105%",
+    glassBorderOpacity: "0.16", glassSpecular: "0.26", glassShadow: "0.42", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.45)",
     bgGradient: "transparent",
     bgImage: "/themes/aurora.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -81,13 +81,13 @@ export const DEFAULT_CORE_THEMES: any = {
   // Tactical Stealth Matrix
   bunker: {
     name: "Bunker", bg: "#020604", sidebar: "#020604", sidebartext: "#ecfdf5", accent: "#10b981",
-    text: "#ecfdf5", subtext: "#6ee7b7", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
-    panelTint: "#050d08", headerText: "#ecfdf5", fontFamily: "'JetBrains Mono', monospace", fontSizeBase: "16px",
-    glassOpacity: "0.14", glassBlur: "28px", glassSaturation: "180%", glassBorderOpacity: "0.16",
-    glassSpecular: "0.24", glassShadow: "0.48", radius: "0.875rem", shadowColor: "rgba(0,0,0,0.50)",
+    text: "#ecfdf5", subtext: "#7aa892", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
+    panelTint: "#05120b", headerText: "#ecfdf5", fontFamily: "'JetBrains Mono', monospace", fontSizeBase: "16px",
+    glassOpacity: "0.20", glassBlur: "34px", glassSaturation: "165%", glassRefraction: "75%", glassBezel: "85%",
+    glassBorderOpacity: "0.18", glassSpecular: "0.22", glassShadow: "0.52", radius: "0.875rem", shadowColor: "rgba(0,0,0,0.52)",
     bgGradient: "transparent",
     bgImage: "/themes/bunker.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
+    animated: true, ambientOrb: false, ambientNoise: false, scanlines: true,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
@@ -95,10 +95,10 @@ export const DEFAULT_CORE_THEMES: any = {
   // Cyberpunk Neon Outrun
   synthwave: {
     name: "Miami Vice", bg: "#090214", sidebar: "#090214", sidebartext: "#fdf2f8", accent: "#f43f5e",
-    text: "#fdf2f8", subtext: "#d8b4e2", success: "#10b981", warning: "#facc15", danger: "#fb7185",
-    panelTint: "#120622", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.12", glassBlur: "34px", glassSaturation: "205%", glassBorderOpacity: "0.16",
-    glassSpecular: "0.28", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
+    text: "#fdf2f8", subtext: "#c4a3d4", success: "#10b981", warning: "#facc15", danger: "#fb7185",
+    panelTint: "#160729", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.15", glassBlur: "38px", glassSaturation: "205%", glassRefraction: "115%", glassBezel: "105%",
+    glassBorderOpacity: "0.18", glassSpecular: "0.28", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
     bgGradient: "transparent",
     bgImage: "/themes/synthwave.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -110,9 +110,9 @@ export const DEFAULT_CORE_THEMES: any = {
   dracula: {
     name: "Dracula", bg: "#12101b", sidebar: "#12101b", sidebartext: "#f8f8f2", accent: "#c084fc",
     text: "#f8fafc", subtext: "#a5b4fc", success: "#34d399", warning: "#fbbf24", danger: "#f87171",
-    panelTint: "#161224", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.12", glassBlur: "34px", glassSaturation: "190%", glassBorderOpacity: "0.16",
-    glassSpecular: "0.26", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
+    panelTint: "#18122b", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.15", glassBlur: "38px", glassSaturation: "190%", glassRefraction: "105%", glassBezel: "100%",
+    glassBorderOpacity: "0.18", glassSpecular: "0.26", glassShadow: "0.46", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.48)",
     bgGradient: "transparent",
     bgImage: "/themes/dracula.png",
     animated: true, ambientOrb: false, ambientNoise: false,
@@ -120,15 +120,16 @@ export const DEFAULT_CORE_THEMES: any = {
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  // Pure Window-Pane Optical Crystal
+  // Pure Window-Pane Optical Crystal (OS Desktop Passthrough)
   true_glass: {
-    name: "True Glass", bg: "#000000", sidebar: "#000000", sidebartext: "#f8fafc", accent: "#38bdf8",
+    name: "True Glass", bg: "transparent", sidebar: "#050b16", sidebartext: "#f8fafc", accent: "#7dd3fc",
     text: "#ffffff", subtext: "#cbd5e1", success: "#34d399", warning: "#fbbf24", danger: "#f87171",
-    panelTint: "#040812", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.06", glassBlur: "40px", glassSaturation: "200%", glassBorderOpacity: "0.20",
-    glassSpecular: "0.32", glassShadow: "0.38", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.36)",
+    panelTint: "#081224", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
+    glassOpacity: "0.08", glassBlur: "46px", glassSaturation: "205%", glassRefraction: "135%", glassBezel: "115%",
+    glassBorderOpacity: "0.22", glassSpecular: "0.34", glassShadow: "0.38", radius: "1.5rem", shadowColor: "rgba(0,0,0,0.36)",
     bgGradient: "transparent",
-    bgImage: "/themes/architect.png",
+    bgImage: "",
+    transparentWindow: true,
     animated: true, ambientOrb: false, ambientNoise: false,
     volumetricOrbs: [],
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
@@ -220,105 +221,124 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
 
   if (isLight) {
     // 3D Convex Liquid Glass Optical Model for Light Themes:
-    // Clear, glossy water-droplet quartz with curved 3D meniscus cushion
-    const lightPanelAlpha = Math.max(0.08, Math.min(0.62, rawOpacity * 0.78));
-    const lightSurfaceAlpha = Math.max(0.05, Math.min(0.48, lightPanelAlpha * 0.72));
-    const lightShadowScale = Math.max(0.06, Math.min(0.24, shadowOpacity * 0.50));
-    const lightBorderTop = Math.max(0.55, Math.min(0.96, borderOpacity * 1.75));
-    const lightSpecTop = Math.max(0.58, Math.min(0.96, specularOpacity * 1.65));
+    // Crisp Alabaster-Quartz with visible slate-accent perimeter hairline & bright 3D white inner bevel
+    const lightPanelAlpha = Math.max(0.10, Math.min(0.48, rawOpacity * 0.74));
+    const lightSurfaceAlpha = Math.max(0.06, Math.min(0.38, lightPanelAlpha * 0.72));
+    const lightShadowScale = Math.max(0.11, Math.min(0.32, shadowOpacity * 0.72));
+    const lightSpecTop = Math.max(0.58, Math.min(0.94, specularOpacity * 1.55));
+
+    const lBrdR = Math.round(txtR * 0.72 + accR * 0.28);
+    const lBrdG = Math.round(txtG * 0.72 + accG * 0.28);
+    const lBrdB = Math.round(txtB * 0.72 + accB * 0.28);
+
+    const nestedLightR = Math.round(tr * 0.88 + txtR * 0.08 + accR * 0.04);
+    const nestedLightG = Math.round(tg * 0.88 + txtG * 0.08 + accG * 0.04);
+    const nestedLightB = Math.round(tb * 0.88 + txtB * 0.08 + accB * 0.04);
 
     vars['--glass-base-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightPanelAlpha.toFixed(3)})`;
     vars['--glass-surface-fill'] = `rgba(${tr}, ${tg}, ${tb}, ${lightSurfaceAlpha.toFixed(3)})`;
-    vars['--glass-meniscus-top'] = `radial-gradient(125% 90% at 50% -18%, rgba(255, 255, 255, ${(lightSpecTop * 0.62).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.18).toFixed(3)}) 42%, rgba(255, 255, 255, 0) 68%)`;
-    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${(lightSpecTop * 0.52).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.16).toFixed(3)}) 26%, rgba(255, 255, 255, 0) 54%, rgba(255, 255, 255, ${(lightSpecTop * 0.24).toFixed(3)}) 100%)`;
-    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${(lightSpecTop * 0.38).toFixed(3)}) 0%, rgba(255, 255, 255, 0.10) 28%, transparent 56%, rgba(255, 255, 255, ${(lightSpecTop * 0.18).toFixed(3)}) 100%)`;
-    vars['--glass-fresnel-rim'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.28) 28%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.24) 72%, rgba(255, 255, 255, 0.68) 100%)`;
+    vars['--glass-meniscus-top'] = `radial-gradient(125% 90% at 50% -18%, rgba(255, 255, 255, ${(lightSpecTop * 0.64).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.18).toFixed(3)}) 42%, rgba(255, 255, 255, 0) 68%)`;
+    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${(lightSpecTop * 0.50).toFixed(3)}) 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.16).toFixed(3)}) 28%, rgba(${accR}, ${accG}, ${accB}, 0.03) 56%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.04) 100%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${(lightSpecTop * 0.42).toFixed(3)}) 0%, rgba(255, 255, 255, 0.12) 28%, transparent 56%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.035) 100%)`;
+    vars['--glass-fresnel-rim'] = `linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(${accR}, ${accG}, ${accB}, 0.22) 28%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.12) 50%, rgba(${accR}, ${accG}, ${accB}, 0.18) 72%, rgba(255, 255, 255, 0.72) 100%)`;
 
-    // Crisp 4-sided wet-quartz rim (delicate hairline so WebGL2 3D meniscus shines through)
-    vars['--glass-border-top'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.62).toFixed(3)})`;
-    vars['--glass-border-left'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.46).toFixed(3)})`;
-    vars['--glass-border-right'] = `rgba(15, 23, 42, 0.08)`;
-    vars['--glass-border-bottom'] = `rgba(15, 23, 42, 0.11)`;
-    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${(lightBorderTop * 0.38).toFixed(3)})`;
+    // Crisp 4-sided wet-quartz rim (bright specular top-left catchlight + distinct slate bottom-right refraction edge)
+    vars['--glass-border-top'] = `rgba(255, 255, 255, 0.86)`;
+    vars['--glass-border-left'] = `rgba(255, 255, 255, 0.68)`;
+    vars['--glass-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.16)`;
+    vars['--glass-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.22)`;
+    vars['--glass-surface-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.15)`;
 
-    // Delicate 1px 3D Specular Bevel (Light Theme — No Heavy White Inner Fog)
-    vars['--glass-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.72).toFixed(3)}), inset 1px 0 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.46).toFixed(3)}), inset 0 -1px 0 0 rgba(15, 23, 42, 0.06), inset -1px 0 0 0 rgba(15, 23, 42, 0.04)`;
-    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.58).toFixed(3)}), inset 1px 0 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.36).toFixed(3)})`;
+    // Sculpted 3D Pure-White Inner Specular Bevel + Bottom-Right Thickness Crease (Light Theme)
+    vars['--glass-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.74), inset 0 -1.5px 2px 0 rgba(${txtR}, ${txtG}, ${txtB}, 0.10), inset -1px 0 1.5px 0 rgba(${txtR}, ${txtG}, ${txtB}, 0.08)`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.90), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.68), inset 0 -1px 1.5px 0 rgba(${txtR}, ${txtG}, ${txtB}, 0.09)`;
 
     // Pure soft ambient elevation shadows
-    vars['--glass-outer-shadow'] = `0 18px 38px -8px rgba(15, 23, 42, ${(lightShadowScale * 1.35).toFixed(3)}), 0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.75).toFixed(3)})`;
-    vars['--glass-surface-outer-shadow'] = `0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.65).toFixed(3)})`;
+    vars['--glass-outer-shadow'] = `0 18px 38px -8px rgba(15, 23, 42, ${(lightShadowScale * 1.45).toFixed(3)}), 0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.88).toFixed(3)})`;
+    vars['--glass-surface-outer-shadow'] = `0 6px 14px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.74).toFixed(3)})`;
 
-    // Nested Glass inside SidePanels / Modals
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.34)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.24)`;
-    vars['--glass-nested-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.10) 32%, transparent 60%, rgba(255, 255, 255, 0.18) 100%)`;
-    vars['--glass-nested-shadow'] = `0 10px 24px -6px rgba(15, 23, 42, 0.08), 0 3px 8px -2px rgba(15, 23, 42, 0.04)`;
+    // Nested Glass inside Cards / SidePanels / Modals (Raised 3D quartz pills with slate-tinted contrast)
+    vars['--glass-nested-panel-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.18, Math.min(0.46, lightPanelAlpha * 0.85)).toFixed(3)})`;
+    vars['--glass-nested-surface-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.12, Math.min(0.36, lightSurfaceAlpha * 0.88)).toFixed(3)})`;
+    vars['--glass-nested-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.54).toFixed(3)}) 0%, rgba(255, 255, 255, 0.14) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
+    vars['--glass-nested-shadow'] = `0 10px 24px -6px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.85).toFixed(3)}), 0 3px 8px -2px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.52).toFixed(3)})`;
 
     // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
-    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.14, Math.min(0.54, lightPanelAlpha + 0.02)).toFixed(3)})`;
-    vars['--glass-sidebar-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.08) 28%, transparent 58%, rgba(255, 255, 255, 0.14) 100%)`;
-    vars['--glass-sidebar-shadow'] = `0 22px 48px -10px rgba(15, 23, 42, 0.14), 0 6px 18px -4px rgba(15, 23, 42, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.68), inset 1px 0 0 0 rgba(255, 255, 255, 0.44)`;
-    vars['--glass-drawer-bg'] = `rgba(255, 255, 255, ${Math.max(0.20, Math.min(0.58, lightPanelAlpha + 0.04)).toFixed(3)})`;
-    vars['--glass-drawer-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.06) 28%, transparent 58%, rgba(255, 255, 255, 0.14) 100%)`;
-    vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(15, 23, 42, 0.12), 0 20px 50px rgba(15, 23, 42, 0.10)`;
-    vars['--glass-portal-bg'] = `rgba(255, 255, 255, ${Math.max(0.22, Math.min(0.62, lightPanelAlpha + 0.06)).toFixed(3)})`;
-    vars['--glass-portal-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0.10) 28%, transparent 58%, rgba(255, 255, 255, 0.18) 100%)`;
-    vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(15, 23, 42, 0.15), 0 6px 16px -4px rgba(15, 23, 42, 0.09)`;
-    const ddLightR = sbR;
-    const ddLightG = sbG;
-    const ddLightB = sbB;
-    vars['--glass-dropdown-bg'] = `rgba(${ddLightR}, ${ddLightG}, ${ddLightB}, ${Math.max(0.86, Math.min(0.95, 0.82 + rawOpacity * 0.45)).toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.10) 35%, rgba(255, 255, 255, 0) 68%, rgba(255, 255, 255, 0.16) 100%)`;
-    vars['--glass-dropdown-border-top'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.14)`;
-    vars['--glass-dropdown-border-left'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.12)`;
-    vars['--glass-dropdown-border-right'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.10)`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.12)`;
-    vars['--glass-dropdown-shadow'] = `0 20px 44px -8px rgba(15, 23, 42, 0.18), 0 6px 16px -3px rgba(15, 23, 42, 0.10), inset 0 1px 0 0 rgba(255, 255, 255, 0.75)`;
-    vars['--glass-dropdown-input-bg'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.04)`;
-    vars['--glass-dropdown-input-border'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.11)`;
-    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.05)`;
-    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.12)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${accR}, ${accG}, ${accB}, 0.32)`;
-    vars['--glass-backdrop-dim'] = `rgba(15, 23, 42, 0.06)`;
+    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.18, Math.min(0.50, lightPanelAlpha + 0.04)).toFixed(3)})`;
+    vars['--glass-sidebar-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.48).toFixed(3)}) 0%, rgba(255, 255, 255, 0.12) 28%, transparent 58%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.04) 100%)`;
+    vars['--glass-sidebar-shadow'] = `0 22px 48px -10px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.15).toFixed(3)}), 0 6px 18px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.72).toFixed(3)}), inset 0 1.5px 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.92).toFixed(3)}), inset 1.5px 0 0 0 rgba(255, 255, 255, ${(lightSpecTop * 0.72).toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.22, Math.min(0.52, lightPanelAlpha + 0.06)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.46).toFixed(3)}) 0%, rgba(255, 255, 255, 0.10) 28%, transparent 58%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.04) 100%)`;
+    vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.18).toFixed(3)}), 0 20px 50px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.85).toFixed(3)})`;
+    vars['--glass-portal-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.28, Math.min(0.60, lightPanelAlpha + 0.08)).toFixed(3)})`;
+    vars['--glass-portal-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.58).toFixed(3)}) 0%, rgba(255, 255, 255, 0.14) 28%, transparent 58%, rgba(255, 255, 255, 0.22) 100%)`;
+    vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.25).toFixed(3)}), 0 6px 16px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.80).toFixed(3)})`;
+    const ddLightR = Math.round(sbR * 0.55 + tr * 0.45);
+    const ddLightG = Math.round(sbG * 0.55 + tg * 0.45);
+    const ddLightB = Math.round(sbB * 0.55 + tb * 0.45);
+    const ddLightAlpha = Math.max(0.84, Math.min(0.95, 0.78 + lightPanelAlpha * 0.35));
+    vars['--glass-dropdown-bg'] = `rgba(${ddLightR}, ${ddLightG}, ${ddLightB}, ${ddLightAlpha.toFixed(3)})`;
+    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.65).toFixed(3)}) 0%, rgba(255, 255, 255, 0.18) 35%, rgba(255, 255, 255, 0) 68%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.88).toFixed(3)})`;
+    vars['--glass-dropdown-border-left'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.68).toFixed(3)})`;
+    vars['--glass-dropdown-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.10, Math.min(0.24, borderOpacity * 0.95)).toFixed(3)})`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.14, Math.min(0.28, borderOpacity * 1.15)).toFixed(3)})`;
+    vars['--glass-dropdown-shadow'] = `0 20px 44px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.40).toFixed(3)}), 0 6px 16px -3px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.85).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.92).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.68).toFixed(3)})`;
+    vars['--glass-dropdown-input-bg'] = `rgba(${tr}, ${tg}, ${tb}, ${Math.max(0.22, Math.min(0.55, lightSurfaceAlpha * 0.90)).toFixed(3)})`;
+    vars['--glass-dropdown-input-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.10, Math.min(0.24, borderOpacity * 0.90)).toFixed(3)})`;
+    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.055)`;
+    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.10)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.24)`;
+    vars['--glass-backdrop-dim'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.08)`;
     vars['--glass-card-banner-bg'] = `transparent`;
-    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.30)`;
-    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, 0.68)`;
-    vars['--glass-card-icon-shadow'] = `0 8px 18px -4px rgba(15, 23, 42, 0.08), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.82), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.48), inset 0 -1.5px 3px 0 rgba(255, 255, 255, 0.32)`;
-    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.34)`;
-    vars['--glass-nav-active-shadow'] = `0 6px 14px -2px rgba(15, 23, 42, 0.06), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.78), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, 0.44), inset 0 -1.5px 3px 0 rgba(255, 255, 255, 0.28)`;
+    vars['--glass-card-icon-bg'] = `rgba(${tr}, ${tg}, ${tb}, ${Math.max(0.24, Math.min(0.58, lightSurfaceAlpha + 0.08)).toFixed(3)})`;
+    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.82).toFixed(3)})`;
+    vars['--glass-card-icon-shadow'] = `0 8px 18px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.72).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.92).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.65).toFixed(3)}), inset 0 -1px 1.5px 0 rgba(${txtR}, ${txtG}, ${txtB}, 0.06)`;
+    const navLightR = Math.round(tr * 0.86 + accR * 0.14);
+    const navLightG = Math.round(tg * 0.86 + accG * 0.14);
+    const navLightB = Math.round(tb * 0.86 + accB * 0.14);
+    vars['--glass-nav-active-bg'] = `rgba(${navLightR}, ${navLightG}, ${navLightB}, ${Math.max(0.32, Math.min(0.68, lightPanelAlpha + 0.10)).toFixed(3)})`;
+    vars['--glass-nav-active-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${(lightSpecTop * 0.62).toFixed(3)}) 0%, rgba(255, 255, 255, 0.12) 52%, rgba(${accR}, ${accG}, ${accB}, 0.06) 100%)`;
+    vars['--glass-nav-active-border-top'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.90).toFixed(3)})`;
+    vars['--glass-nav-active-border-left'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.72).toFixed(3)})`;
+    vars['--glass-nav-active-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.08, Math.min(0.20, borderOpacity * 0.80)).toFixed(3)})`;
+    vars['--glass-nav-active-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.11, Math.min(0.24, borderOpacity * 0.95)).toFixed(3)})`;
+    vars['--glass-nav-active-shadow'] = `0 6px 14px -2px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.60).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.88).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.58).toFixed(3)}), inset 0 -1px 1.5px 0 rgba(${txtR}, ${txtG}, ${txtB}, 0.05)`;
   } else {
     // 3D Liquid Glass Optical Model for Dark Themes:
-    // Crystal-clear frosted optical glass body with neutral luminance sheen,
-    // crisp 3D Fresnel specular edge catchlights, and zero murky/neon color blotches
+    // Rich smoked-obsidian crystal infused with subtle chromatic accent specular rims & icon wells
     const tintYiq = ((tr * 299) + (tg * 587) + (tb * 114)) / 1000;
     const isBrightTint = tintYiq >= 160;
     const darkPanelAlpha = currentTheme.bg === 'transparent'
-      ? Math.max(0.05, Math.min(0.45, rawOpacity))
+      ? Math.max(0.06, Math.min(0.45, rawOpacity))
       : rawOpacity <= 0.22
-        ? Math.max(0.05, Math.min(0.11, 0.03 + rawOpacity * 0.42))
-        : Math.max(0.11, Math.min(0.50, 0.11 + (rawOpacity - 0.22) * 0.62));
-    const darkSurfaceAlpha = Math.max(0.035, Number((darkPanelAlpha * 0.68).toFixed(3)));
+        ? Math.max(0.06, Math.min(0.14, 0.04 + rawOpacity * 0.45))
+        : Math.max(0.14, Math.min(0.52, 0.14 + (rawOpacity - 0.22) * 0.62));
+    const darkSurfaceAlpha = Math.max(0.04, Number((darkPanelAlpha * 0.70).toFixed(3)));
 
-    const baseR = isBrightTint ? Math.max(10, Math.min(20, bgR + 8)) : Math.round(tr * 0.85);
-    const baseG = isBrightTint ? Math.max(14, Math.min(26, bgG + 11)) : Math.round(tg * 0.85);
-    const baseB = isBrightTint ? Math.max(22, Math.min(36, bgB + 18)) : Math.round(tb * 0.85);
+    const baseR = isBrightTint ? Math.max(10, Math.min(22, bgR + 8)) : Math.round(tr * 0.78 + accR * 0.08);
+    const baseG = isBrightTint ? Math.max(14, Math.min(28, bgG + 11)) : Math.round(tg * 0.78 + accG * 0.08);
+    const baseB = isBrightTint ? Math.max(22, Math.min(38, bgB + 18)) : Math.round(tb * 0.78 + accB * 0.08);
+
+    const dRimR = Math.round(255 * 0.72 + accR * 0.28);
+    const dRimG = Math.round(255 * 0.72 + accG * 0.28);
+    const dRimB = Math.round(255 * 0.72 + accB * 0.28);
 
     const specScale = Math.max(0.6, Math.min(2.2, specularOpacity / 0.24));
-    const sheenTop = Math.max(0.11, Math.min(0.24, 0.16 * specScale));
-    const sheenMid = Math.max(0.025, Math.min(0.065, 0.04 * specScale));
-    const sheenBottom = Math.max(0.035, Math.min(0.095, 0.055 * specScale));
-    const surfaceSheenTop = Math.max(0.08, sheenTop * 0.72);
+    const sheenTop = Math.max(0.12, Math.min(0.25, 0.17 * specScale));
+    const sheenMid = Math.max(0.03, Math.min(0.07, 0.045 * specScale));
+    const sheenBottom = Math.max(0.04, Math.min(0.10, 0.06 * specScale));
+    const surfaceSheenTop = Math.max(0.09, sheenTop * 0.75);
 
-    const topBorderAlpha = Math.max(0.32, Math.min(0.62, borderOpacity * 2.40));
-    const leftBorderAlpha = Math.max(0.20, Math.min(0.44, borderOpacity * 1.60));
+    const topBorderAlpha = Math.max(0.34, Math.min(0.66, borderOpacity * 2.45));
+    const leftBorderAlpha = Math.max(0.22, Math.min(0.46, borderOpacity * 1.65));
     const rightBorderAlpha = Math.max(0.10, Math.min(0.24, borderOpacity * 0.85));
     const bottomBorderAlpha = Math.max(0.14, Math.min(0.32, borderOpacity * 1.15));
-    const outerShadowMain = Math.max(0.28, Math.min(0.64, shadowOpacity * 1.10));
-    const outerShadowAmbient = Math.max(0.16, Math.min(0.42, shadowOpacity * 0.65));
+    const outerShadowMain = Math.max(0.30, Math.min(0.66, shadowOpacity * 1.12));
+    const outerShadowAmbient = Math.max(0.18, Math.min(0.44, shadowOpacity * 0.68));
 
-    const fresnelTopLeft = Math.max(0.42, Math.min(0.76, 0.56 * specScale));
-    const fresnelBottomRight = Math.max(0.20, Math.min(0.44, 0.30 * specScale));
+    const fresnelTopLeft = Math.max(0.44, Math.min(0.78, 0.58 * specScale));
+    const fresnelBottomRight = Math.max(0.22, Math.min(0.46, 0.32 * specScale));
 
     vars['--glass-base-fill'] = isBrightTint
       ? `rgba(255, 255, 255, ${(darkPanelAlpha * 0.62).toFixed(3)})`
@@ -326,68 +346,81 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-surface-fill'] = isBrightTint
       ? `rgba(255, 255, 255, ${(darkSurfaceAlpha * 0.65).toFixed(3)})`
       : `rgba(${baseR}, ${baseG}, ${baseB}, ${darkSurfaceAlpha.toFixed(3)})`;
-    vars['--glass-meniscus-top'] = `none`;
-    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${sheenTop.toFixed(3)}) 0%, rgba(255, 255, 255, ${sheenMid.toFixed(3)}) 30%, rgba(255, 255, 255, 0.008) 56%, rgba(255, 255, 255, ${sheenBottom.toFixed(3)}) 100%)`;
-    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(255, 255, 255, ${surfaceSheenTop.toFixed(3)}) 0%, rgba(255, 255, 255, 0.03) 32%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, ${(sheenBottom * 0.78).toFixed(3)}) 100%)`;
-    vars['--glass-fresnel-rim'] = `linear-gradient(135deg, rgba(255, 255, 255, ${fresnelTopLeft.toFixed(3)}) 0%, rgba(255, 255, 255, 0.18) 28%, rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.12) 76%, rgba(255, 255, 255, ${fresnelBottomRight.toFixed(3)}) 100%)`;
+    vars['--glass-meniscus-top'] = `radial-gradient(120% 85% at 50% -20%, rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.10) 0%, transparent 65%)`;
+    vars['--glass-sheen'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${sheenTop.toFixed(3)}) 0%, rgba(255, 255, 255, ${sheenMid.toFixed(3)}) 30%, rgba(255, 255, 255, 0.008) 56%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.85).toFixed(3)}) 100%)`;
+    vars['--glass-surface-sheen'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${surfaceSheenTop.toFixed(3)}) 0%, rgba(255, 255, 255, 0.03) 32%, rgba(255, 255, 255, 0) 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.65).toFixed(3)}) 100%)`;
+    vars['--glass-fresnel-rim'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${fresnelTopLeft.toFixed(3)}) 0%, rgba(${accR}, ${accG}, ${accB}, 0.20) 28%, rgba(255, 255, 255, 0.04) 52%, rgba(${accR}, ${accG}, ${accB}, 0.14) 76%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${fresnelBottomRight.toFixed(3)}) 100%)`;
 
-    vars['--glass-border-top'] = `rgba(255, 255, 255, ${Math.min(0.24, topBorderAlpha * 0.48).toFixed(3)})`;
-    vars['--glass-border-left'] = `rgba(255, 255, 255, ${Math.min(0.16, leftBorderAlpha * 0.45).toFixed(3)})`;
-    vars['--glass-border-right'] = `rgba(255, 255, 255, ${Math.min(0.07, rightBorderAlpha * 0.42).toFixed(3)})`;
-    vars['--glass-border-bottom'] = `rgba(255, 255, 255, ${Math.min(0.10, bottomBorderAlpha * 0.44).toFixed(3)})`;
-    vars['--glass-surface-border'] = `rgba(255, 255, 255, ${Math.max(0.06, Math.min(0.12, borderOpacity * 0.58)).toFixed(3)})`;
+    vars['--glass-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.28, topBorderAlpha * 0.54).toFixed(3)})`;
+    vars['--glass-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.20, leftBorderAlpha * 0.48).toFixed(3)})`;
+    vars['--glass-border-right'] = `rgba(255, 255, 255, ${Math.min(0.08, rightBorderAlpha * 0.44).toFixed(3)})`;
+    vars['--glass-border-bottom'] = `rgba(255, 255, 255, ${Math.min(0.11, bottomBorderAlpha * 0.46).toFixed(3)})`;
+    vars['--glass-surface-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.09, Math.min(0.16, borderOpacity * 0.70)).toFixed(3)})`;
 
-    // Delicate 3D Liquid Glass Inner Specular Bevel (Dark Theme — No Heavy White Outlines)
-    const specTop = Math.max(0.14, Math.min(0.28, specularOpacity * 0.82));
-    const specLeft = Math.max(0.09, Math.min(0.18, specularOpacity * 0.54));
-    const specBottom = Math.max(0.04, Math.min(0.10, specularOpacity * 0.32));
-    const specRight = Math.max(0.03, Math.min(0.07, specularOpacity * 0.22));
-    vars['--glass-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${specTop.toFixed(3)}), inset 1px 0 0 0 rgba(255, 255, 255, ${specLeft.toFixed(3)}), inset 0 -1px 0 0 rgba(255, 255, 255, ${specBottom.toFixed(3)}), inset -1px 0 0 0 rgba(255, 255, 255, ${specRight.toFixed(3)})`;
-    vars['--glass-surface-inset-highlight'] = `inset 0 1px 0 0 rgba(255, 255, 255, ${(specTop * 0.68).toFixed(3)}), inset 1px 0 0 0 rgba(255, 255, 255, ${(specLeft * 0.62).toFixed(3)})`;
+    // Sculpted 3D Liquid Glass Inner Specular Bevel (Dark Theme)
+    const specTop = Math.max(0.22, Math.min(0.42, specularOpacity * 1.15));
+    const specLeft = Math.max(0.14, Math.min(0.28, specularOpacity * 0.78));
+    const specBottom = Math.max(0.06, Math.min(0.14, specularOpacity * 0.42));
+    const specRight = Math.max(0.04, Math.min(0.10, specularOpacity * 0.28));
+    vars['--glass-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)}), inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.42), inset 0 -1px 0 0 rgba(255, 255, 255, ${specBottom.toFixed(3)}), inset -1px 0 0 0 rgba(255, 255, 255, ${specRight.toFixed(3)})`;
+    vars['--glass-surface-inset-highlight'] = `inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(specTop * 0.82).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(specLeft * 0.72).toFixed(3)}), inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.34)`;
 
     vars['--glass-outer-shadow'] = `0 20px 44px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 8px 20px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
     vars['--glass-surface-outer-shadow'] = `0 8px 18px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.78).toFixed(3)})`;
 
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.042)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.030)`;
-    vars['--glass-nested-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.03) 32%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.035) 100%)`;
-    vars['--glass-nested-shadow'] = `0 10px 24px -6px rgba(0, 0, 0, 0.30), 0 4px 10px -2px rgba(0, 0, 0, 0.18)`;
+    const nestedTintR = isBrightTint ? Math.round(dRimR * 0.78 + baseR * 0.22) : Math.round(tr * 0.65 + accR * 0.35);
+    const nestedTintG = isBrightTint ? Math.round(dRimG * 0.78 + baseG * 0.22) : Math.round(tg * 0.65 + accG * 0.35);
+    const nestedTintB = isBrightTint ? Math.round(dRimB * 0.78 + baseB * 0.22) : Math.round(tb * 0.65 + accB * 0.35);
+    const nestedPanelAlpha = Math.max(0.035, Math.min(0.14, 0.025 + darkPanelAlpha * 0.24));
+    const nestedSurfaceAlpha = Math.max(0.025, Math.min(0.11, 0.018 + darkSurfaceAlpha * 0.24));
+    vars['--glass-nested-panel-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${nestedPanelAlpha.toFixed(3)})`;
+    vars['--glass-nested-surface-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${nestedSurfaceAlpha.toFixed(3)})`;
+    vars['--glass-nested-sheen'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.88).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.85).toFixed(3)}) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.75).toFixed(3)}) 100%)`;
+    vars['--glass-nested-shadow'] = `0 10px 24px -6px rgba(0, 0, 0, ${(outerShadowAmbient * 0.90).toFixed(3)}), 0 4px 10px -2px rgba(0, 0, 0, ${(outerShadowAmbient * 0.55).toFixed(3)})`;
 
-    const sbGlassR = Math.max(8, Math.min(18, sbR + 8));
-    const sbGlassG = Math.max(12, Math.min(24, sbG + 12));
-    const sbGlassB = Math.max(22, Math.min(38, sbB + 22));
-    vars['--glass-sidebar-bg'] = `rgba(${sbGlassR}, ${sbGlassG}, ${sbGlassB}, ${Math.max(0.10, Math.min(0.42, darkPanelAlpha + 0.02)).toFixed(3)})`;
-    vars['--glass-sidebar-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 32%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.04) 100%)`;
-    vars['--glass-sidebar-shadow'] = `0 24px 52px -10px rgba(0, 0, 0, 0.62), 0 8px 22px -4px rgba(0, 0, 0, 0.38), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${specLeft.toFixed(3)}), inset 0 -1px 0.5px 0 rgba(255, 255, 255, ${specBottom.toFixed(3)})`;
-    vars['--glass-drawer-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.18, Math.min(0.52, darkPanelAlpha + 0.10)).toFixed(3)})`;
-    vars['--glass-drawer-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.035) 32%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.04) 100%)`;
-    vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, 0.58), 0 24px 60px rgba(0, 0, 0, 0.46)`;
-    vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.28, Math.min(0.62, darkPanelAlpha + 0.22)).toFixed(3)})`;
-    vars['--glass-portal-sheen'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.038) 32%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.045) 100%)`;
-    vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, 0.62), 0 8px 18px -2px rgba(0, 0, 0, 0.40)`;
-    const ddDarkR = isBrightTint ? Math.max(10, Math.min(20, bgR + 11)) : Math.max(6, Math.min(28, baseR + 2));
-    const ddDarkG = isBrightTint ? Math.max(16, Math.min(28, bgG + 17)) : Math.max(6, Math.min(28, baseG + 2));
-    const ddDarkB = isBrightTint ? Math.max(30, Math.min(46, bgB + 32)) : Math.max(10, Math.min(38, baseB + 4));
-    const ddDarkAlpha = Math.max(0.84, Math.min(0.94, 0.80 + rawOpacity * 0.50));
+    const sbGlassR = Math.max(6, Math.min(36, Math.round(sbR * 0.84 + accR * 0.08 + 4)));
+    const sbGlassG = Math.max(8, Math.min(42, Math.round(sbG * 0.84 + accG * 0.08 + 6)));
+    const sbGlassB = Math.max(12, Math.min(54, Math.round(sbB * 0.84 + accB * 0.08 + 10)));
+    vars['--glass-sidebar-bg'] = `rgba(${sbGlassR}, ${sbGlassG}, ${sbGlassB}, ${Math.max(0.14, Math.min(0.46, darkPanelAlpha + 0.04)).toFixed(3)})`;
+    vars['--glass-sidebar-sheen'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.78).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.78).toFixed(3)}) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.75).toFixed(3)}) 100%)`;
+    vars['--glass-sidebar-shadow'] = `0 24px 52px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.15).toFixed(3)}), 0 8px 22px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)}), inset 0 -1px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specBottom.toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.22, Math.min(0.56, darkPanelAlpha + 0.12)).toFixed(3)})`;
+    vars['--glass-drawer-sheen'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.78).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.78).toFixed(3)}) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.75).toFixed(3)}) 100%)`;
+    vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, ${(outerShadowMain * 1.12).toFixed(3)}), 0 24px 60px rgba(0, 0, 0, ${(outerShadowMain * 0.90).toFixed(3)})`;
+    vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.30, Math.min(0.64, darkPanelAlpha + 0.22)).toFixed(3)})`;
+    vars['--glass-portal-sheen'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.82).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.85).toFixed(3)}) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.80).toFixed(3)}) 100%)`;
+    vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, ${(outerShadowMain * 1.15).toFixed(3)}), 0 8px 18px -2px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
+    const ddDarkR = Math.round(sbGlassR * 0.55 + baseR * 0.45);
+    const ddDarkG = Math.round(sbGlassG * 0.55 + baseG * 0.45);
+    const ddDarkB = Math.round(sbGlassB * 0.55 + baseB * 0.45);
+    const ddDarkAlpha = Math.max(0.82, Math.min(0.94, 0.74 + darkPanelAlpha * 0.45));
     vars['--glass-dropdown-bg'] = `rgba(${ddDarkR}, ${ddDarkG}, ${ddDarkB}, ${ddDarkAlpha.toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.015) 34%, rgba(255, 255, 255, 0) 64%, rgba(255, 255, 255, 0.02) 100%)`;
-    vars['--glass-dropdown-border-top'] = `rgba(${txtR}, ${txtG}, ${txtB}, ${Math.max(0.16, Math.min(0.28, borderOpacity * 1.35)).toFixed(3)})`;
-    vars['--glass-dropdown-border-left'] = `rgba(${txtR}, ${txtG}, ${txtB}, ${Math.max(0.13, Math.min(0.22, borderOpacity * 1.10)).toFixed(3)})`;
-    vars['--glass-dropdown-border-right'] = `rgba(${txtR}, ${txtG}, ${txtB}, ${Math.max(0.09, Math.min(0.16, borderOpacity * 0.80)).toFixed(3)})`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(${txtR}, ${txtG}, ${txtB}, ${Math.max(0.11, Math.min(0.18, borderOpacity * 0.95)).toFixed(3)})`;
-    vars['--glass-dropdown-shadow'] = `0 22px 48px -10px rgba(0, 0, 0, 0.72), 0 8px 20px -4px rgba(0, 0, 0, 0.48), inset 0 1px 0 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 0 rgba(255, 255, 255, 0.06)`;
-    vars['--glass-dropdown-input-bg'] = `rgba(255, 255, 255, 0.035)`;
-    vars['--glass-dropdown-input-border'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.12)`;
+    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.85).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.72).toFixed(3)}) 34%, transparent 64%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.75).toFixed(3)}) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.32, topBorderAlpha * 0.58).toFixed(3)})`;
+    vars['--glass-dropdown-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.24, leftBorderAlpha * 0.52).toFixed(3)})`;
+    vars['--glass-dropdown-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.12, rightBorderAlpha * 0.50).toFixed(3)})`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.15, bottomBorderAlpha * 0.52).toFixed(3)})`;
+    vars['--glass-dropdown-shadow'] = `0 22px 48px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.22).toFixed(3)}), 0 8px 20px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 1.05).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)})`;
+    vars['--glass-dropdown-input-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.03, nestedSurfaceAlpha * 0.90).toFixed(3)})`;
+    vars['--glass-dropdown-input-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.09, Math.min(0.18, borderOpacity * 0.72)).toFixed(3)})`;
     vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.055)`;
-    vars['--glass-dropdown-item-active'] = `linear-gradient(135deg, rgba(${accR}, ${accG}, ${accB}, 0.18) 0%, rgba(${accR}, ${accG}, ${accB}, 0.06) 65%, rgba(${accR}, ${accG}, ${accB}, 0.02) 100%)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${accR}, ${accG}, ${accB}, 0.36)`;
-    vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.20)`;
+    vars['--glass-dropdown-item-active'] = `linear-gradient(135deg, rgba(${accR}, ${accG}, ${accB}, 0.16) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.05) 65%, rgba(${accR}, ${accG}, ${accB}, 0.02) 100%)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.28, topBorderAlpha * 0.54).toFixed(3)})`;
+    vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.22)`;
     vars['--glass-card-banner-bg'] = `transparent`;
-    vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.055)`;
-    vars['--glass-card-icon-border'] = `rgba(255, 255, 255, ${Math.max(0.10, Math.min(0.18, borderOpacity * 0.75)).toFixed(3)})`;
-    vars['--glass-card-icon-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.36), inset 0 1px 0 0 rgba(255, 255, 255, 0.18), inset 1px 0 0 0 rgba(255, 255, 255, 0.10)`;
-    vars['--glass-nav-active-bg'] = `rgba(255, 255, 255, 0.065)`;
-    vars['--glass-nav-active-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, 0.34), inset 0 1px 0 0 rgba(255, 255, 255, 0.20), inset 1px 0 0 0 rgba(255, 255, 255, 0.10)`;
+    vars['--glass-card-icon-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.04, Math.min(0.14, nestedSurfaceAlpha * 1.25)).toFixed(3)})`;
+    vars['--glass-card-icon-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.16, Math.min(0.28, borderOpacity * 1.05)).toFixed(3)})`;
+    vars['--glass-card-icon-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.95).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)}), inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.32)`;
+    const navDarkR = Math.round(nestedTintR * 0.65 + accR * 0.35);
+    const navDarkG = Math.round(nestedTintG * 0.65 + accG * 0.35);
+    const navDarkB = Math.round(nestedTintB * 0.65 + accB * 0.35);
+    vars['--glass-nav-active-bg'] = `rgba(${navDarkR}, ${navDarkG}, ${navDarkB}, ${Math.max(0.07, Math.min(0.22, 0.05 + darkPanelAlpha * 0.35)).toFixed(3)})`;
+    vars['--glass-nav-active-sheen'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.85).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.55).toFixed(3)}) 52%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.85).toFixed(3)}) 100%)`;
+    vars['--glass-nav-active-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.28, topBorderAlpha * 0.54).toFixed(3)})`;
+    vars['--glass-nav-active-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.20, leftBorderAlpha * 0.48).toFixed(3)})`;
+    vars['--glass-nav-active-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.08, rightBorderAlpha * 0.44).toFixed(3)})`;
+    vars['--glass-nav-active-border-bottom'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.11, bottomBorderAlpha * 0.46).toFixed(3)})`;
+    vars['--glass-nav-active-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.90).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)})`;
   }
 
   return vars;
@@ -539,7 +572,54 @@ export function generateRefractedWallpaperDataUrl(
   return generateRefractedWallpaperPair(bgImage, blurPx, saturation, fallbackBg, vw, vh).then((p) => p.bodyUrl);
 }
 
-const GLASS_OPTICS_REV = "rev_44";
+const GLASS_OPTICS_REV = "rev_49";
+
+export function applyThemeCssVarsToRoot(themeObj: any) {
+  if (!themeObj || typeof document === 'undefined') return;
+  const root = document.documentElement;
+  Object.entries(themeObj).forEach(([key, val]) => {
+    if (key !== 'name' && val !== undefined && val !== null) {
+      let finalVal = String(val);
+      if (key === 'glassOpacity' && finalVal.endsWith('%')) {
+        finalVal = (parseFloat(finalVal) / 100).toString();
+      }
+      if (key !== 'bgGradient') {
+        if (key === 'glassOpacity') {
+          const parsedVal = parseFloat(finalVal);
+          if (!String(finalVal).endsWith('%') && parsedVal <= 1.0) {
+            finalVal = `${parsedVal * 100}%`;
+          }
+          root.style.setProperty(`--glassOpacityPercent`, finalVal);
+          root.style.setProperty(`--${key}`, finalVal);
+        } else {
+          root.style.setProperty(`--${key}`, finalVal);
+        }
+      }
+    }
+  });
+
+  const opticalVars = computeGlassOpticalVars(themeObj);
+  Object.entries(opticalVars).forEach(([k, v]) => {
+    root.style.setProperty(k, v);
+  });
+  const resolvedTextCase = themeObj.textCase || 'capitalize';
+  root.style.setProperty('--textCase', resolvedTextCase);
+  root.setAttribute('data-text-case', resolvedTextCase);
+
+  const isTransparentPassthrough =
+    !themeObj.bgImage &&
+    (themeObj.bg === 'transparent' || Boolean(themeObj.transparentWindow));
+  root.style.backgroundColor = isTransparentPassthrough ? 'transparent' : (themeObj.bg || '#000000');
+  if (document.body) {
+    document.body.style.backgroundColor = isTransparentPassthrough ? 'transparent' : 'var(--bg, #000000)';
+  }
+
+  const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10));
+  const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
+  root.style.colorScheme = yiq >= 128 ? 'light' : 'dark';
+}
 
 const ThemeContext = createContext<any>(null);
 
@@ -714,18 +794,66 @@ export const ThemeProvider = ({ children }: any) => {
   const allThemes = { ...mergedCoreThemes, ...gameThemes, ...devThemes, ...customThemes };
   const resolvedThemeId = activeThemeIdState === 'theme_1788994757269' ? 'sims4_dark' : activeThemeIdState;
   const currentThemeRaw = allThemes[resolvedThemeId] || DEFAULT_CORE_THEMES.architect;
-  const currentTheme = { ...currentThemeRaw };
+
+  const sanitizeSemanticChannel = (key: 'success' | 'warning' | 'danger', hex: string) => {
+    const defaults = { success: '#10b981', warning: '#f59e0b', danger: '#ef4444' };
+    if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return defaults[key];
+    const [r, g, b] = parseHexToRgb(hex, [0, 0, 0]);
+    if (key === 'success') {
+      return g > r * 1.15 && g >= b * 0.9 && g >= 80 ? hex : defaults.success;
+    }
+    if (key === 'warning') {
+      return r >= 160 && g >= 80 && r >= g * 0.9 && b < g * 0.75 ? hex : defaults.warning;
+    }
+    if (key === 'danger') {
+      return r >= 150 && r > g * 1.35 && g < 180 ? hex : defaults.danger;
+    }
+    return defaults[key];
+  };
+
+  const currentTheme = {
+    ...currentThemeRaw,
+    success: sanitizeSemanticChannel('success', currentThemeRaw.success),
+    warning: sanitizeSemanticChannel('warning', currentThemeRaw.warning),
+    danger: sanitizeSemanticChannel('danger', currentThemeRaw.danger),
+    textCase: currentThemeRaw.textCase || 'capitalize',
+  };
 
   // Migrate stale auto-forked custom themes that were created from the old navy #091326 / #081121 defaults
   useEffect(() => {
-    const legacyTints = new Set(['#091326', '#081121', '#1a0628', '#151126', '#0e1116', '#211d1a', '#061524', '#081020']);
+    const legacyTints = new Set([
+      '#091326', '#081121', '#1a0628', '#151126', '#0e1116', '#211d1a', '#061524', '#081020',
+      '#050914', '#05160e', '#060e1e', '#050d08', '#120622', '#161224', '#040812',
+    ]);
     let hasChanges = false;
     const nextCustoms: Record<string, any> = { ...customThemes };
 
     Object.entries(nextCustoms).forEach(([id, th]: [string, any]) => {
       if (!th || typeof th !== 'object') return;
       const tint = String(th.panelTint || '').toLowerCase();
-      if (id.startsWith('custom_') && legacyTints.has(tint)) {
+      const cleanSuccess = sanitizeSemanticChannel('success', th.success);
+      const cleanWarning = sanitizeSemanticChannel('warning', th.warning);
+      const cleanDanger = sanitizeSemanticChannel('danger', th.danger);
+      const hasSemanticDrift =
+        (th.success && th.success !== cleanSuccess) ||
+        (th.warning && th.warning !== cleanWarning) ||
+        (th.danger && th.danger !== cleanDanger);
+
+      if (id.startsWith('custom_true_glass_') && th.bgImage === '/themes/architect.png' && th.bg === '#000000') {
+        nextCustoms[id] = {
+          ...th,
+          bg: 'transparent',
+          sidebar: '#050b16',
+          panelTint: '#081224',
+          bgImage: '',
+          bgGradient: 'transparent',
+          transparentWindow: true,
+          success: cleanSuccess,
+          warning: cleanWarning,
+          danger: cleanDanger,
+        };
+        hasChanges = true;
+      } else if (id.startsWith('custom_') && legacyTints.has(tint)) {
         const baseMatch = id.match(/^custom_([a-z0-9]+)_/i);
         const baseId = baseMatch ? baseMatch[1] : 'architect';
         const baseCore = DEFAULT_CORE_THEMES[baseId] || DEFAULT_CORE_THEMES.architect;
@@ -740,6 +868,17 @@ export const ThemeProvider = ({ children }: any) => {
           glassBorderOpacity: baseCore.glassBorderOpacity,
           glassSpecular: baseCore.glassSpecular,
           glassShadow: baseCore.glassShadow,
+          success: cleanSuccess,
+          warning: cleanWarning,
+          danger: cleanDanger,
+        };
+        hasChanges = true;
+      } else if (hasSemanticDrift) {
+        nextCustoms[id] = {
+          ...th,
+          success: cleanSuccess,
+          warning: cleanWarning,
+          danger: cleanDanger,
         };
         hasChanges = true;
       }
@@ -769,6 +908,45 @@ export const ThemeProvider = ({ children }: any) => {
         let hasCustomUpdates = false;
         let hasDevUpdates = false;
 
+        const resolveCompanionWallpaper = async (dirPath: string, parsedTheme: any) => {
+          if (!parsedTheme || typeof parsedTheme !== 'object') return parsedTheme;
+          const rawBgImg = typeof parsedTheme.bgImage === 'string' ? parsedTheme.bgImage.trim() : '';
+          const companionFile =
+            typeof parsedTheme.bgImageFile === 'string' && parsedTheme.bgImageFile.trim()
+              ? parsedTheme.bgImageFile.trim()
+              : rawBgImg &&
+                  !rawBgImg.startsWith('data:') &&
+                  !rawBgImg.startsWith('http://') &&
+                  !rawBgImg.startsWith('https://') &&
+                  !rawBgImg.startsWith('blob:') &&
+                  !rawBgImg.startsWith('/themes/') &&
+                  !rawBgImg.includes('/') &&
+                  !rawBgImg.includes('\\')
+                ? rawBgImg
+                : '';
+
+          if (companionFile && (!rawBgImg.startsWith('data:') && !rawBgImg.startsWith('http'))) {
+            const candidatePath = `${dirPath}\\${companionFile}`;
+            if (await exists(candidatePath)) {
+              try {
+                const rawBytes = await readFile(candidatePath);
+                const bytes = rawBytes instanceof Uint8Array ? rawBytes : new Uint8Array(rawBytes);
+                let binary = '';
+                const chunkSize = 0x8000;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                  binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+                }
+                const ext = companionFile.split('.').pop()?.toLowerCase() || 'webp';
+                const mime = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/webp';
+                parsedTheme.bgImage = `data:${mime};base64,${btoa(binary)}`;
+              } catch {
+                // ignore companion read error
+              }
+            }
+          }
+          return parsedTheme;
+        };
+
         if (await exists(themesDir)) {
           const entries = await readDir(themesDir);
           for (const entry of entries) {
@@ -776,7 +954,7 @@ export const ThemeProvider = ({ children }: any) => {
               const themeId = entry.name.replace('.json', '');
               if (!updatedCustoms[themeId] && !CORE_THEMES[themeId]) {
                 const content = await readTextFile(`${themesDir}\\${entry.name}`);
-                updatedCustoms[themeId] = JSON.parse(content);
+                updatedCustoms[themeId] = await resolveCompanionWallpaper(themesDir, JSON.parse(content));
                 hasCustomUpdates = true;
               }
             }
@@ -790,7 +968,7 @@ export const ThemeProvider = ({ children }: any) => {
               const themeId = entry.name.replace('.json', '');
               if (!updatedDevs[themeId]) {
                 const content = await readTextFile(`${devThemesDir}\\${entry.name}`);
-                updatedDevs[themeId] = JSON.parse(content);
+                updatedDevs[themeId] = await resolveCompanionWallpaper(devThemesDir, JSON.parse(content));
                 hasDevUpdates = true;
               }
             }
@@ -823,7 +1001,7 @@ export const ThemeProvider = ({ children }: any) => {
     }
   }, [customThemes, activeThemeIdState, wsId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     Object.entries(currentTheme).forEach(([key, val]) => {
       if (key !== 'name') {
@@ -853,6 +1031,22 @@ export const ThemeProvider = ({ children }: any) => {
     Object.entries(opticalVars).forEach(([k, v]) => {
       root.style.setProperty(k, v);
     });
+    const resolvedTextCase = currentTheme.textCase || 'capitalize';
+    root.style.setProperty('--textCase', resolvedTextCase);
+    root.setAttribute('data-text-case', resolvedTextCase);
+    (window as any).__sanctuaryRenderWebGLGlass?.(true);
+
+    const isTransparentPassthrough =
+      !currentTheme.bgImage &&
+      (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
+    root.style.backgroundColor = isTransparentPassthrough ? 'transparent' : (currentTheme.bg || '#000000');
+    if (document.body) {
+      document.body.style.backgroundColor = isTransparentPassthrough ? 'transparent' : 'var(--bg, #000000)';
+    }
+    const rootMount = document.getElementById('root');
+    if (rootMount) {
+      rootMount.style.backgroundColor = 'transparent';
+    }
 
     const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
     const blurPx = parseFloat(String(currentTheme.glassBlur || '28px')) || 28;
@@ -968,9 +1162,9 @@ export const ThemeProvider = ({ children }: any) => {
       localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(newCustoms));
       saveThemeToVault(newId, newTheme, false);
     } else {
-      const currentTheme = customThemes[id];
-      if (!currentTheme) return;
-      const updatedTheme = { ...currentTheme, ...updates };
+      const baseTheme = customThemes[id] || allThemes[id] || currentTheme;
+      if (!baseTheme) return;
+      const updatedTheme = { ...baseTheme, ...updates };
       const updated = { ...customThemes, [id]: updatedTheme };
       setCustomThemes(updated);
       localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
@@ -1073,7 +1267,17 @@ export const ThemeProvider = ({ children }: any) => {
   };
 
   const renameTheme = (id: string, newName: string) => {
-    if (CORE_THEMES[id]) return;
+    if (CORE_THEMES[id]) {
+      const baseTheme = CORE_THEMES[id];
+      const newId = `custom_${id}_${Date.now()}`;
+      const forkedTheme = { ...baseTheme, name: newName };
+      const updated = { ...customThemes, [newId]: forkedTheme };
+      setCustomThemes(updated);
+      setActiveThemeId(newId);
+      localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(updated));
+      saveThemeToVault(newId, forkedTheme, false);
+      return;
+    }
     const isDev = id.startsWith('dev_');
     if (isDev) {
       if (!devThemes[id]) return;
@@ -1097,7 +1301,16 @@ export const ThemeProvider = ({ children }: any) => {
       activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES: mergedCoreThemes, setCoreThemes, customThemes, devThemes, gameThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
-      importTheme: (json: any) => {
+      importTheme: (rawJson: any) => {
+        let json = rawJson;
+        if (typeof rawJson === 'string') {
+          try {
+            json = JSON.parse(rawJson);
+          } catch {
+            return;
+          }
+        }
+        if (!json || typeof json !== 'object') return;
         const id = `import_${Date.now()}`;
         const nextCustoms = { ...customThemes, [id]: json };
         setCustomThemes(nextCustoms);

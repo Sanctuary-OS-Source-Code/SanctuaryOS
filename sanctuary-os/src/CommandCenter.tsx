@@ -143,6 +143,9 @@ export default function CommandCenter({
     return () => clearInterval(interval);
   }, [hasSymlinkPerms]);
 
+  const cachedStoreBrokenCounts = useStore((state) => state.activeBrokenCounts);
+  const cachedStoreConflictCount = useStore((state) => state.activeConflictCount);
+
   const activeBlueprintMods = React.useMemo(() => {
     if (!activePlaySet) return [];
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
@@ -151,20 +154,44 @@ export default function CommandCenter({
     const exactMatchMap = new Map();
     const baseMatchMap = new Map();
 
-    // Build O(1) lookup maps once
-    for (const m of safeList) {
-      if (!m.name) continue;
+    // Build O(1) lookup maps once (including virtual folder flavors)
+    const flatMods = safeList.flatMap((m: any) => (Array.isArray(m?.flavors) ? [...m.flavors, m] : [m]));
+    for (const m of flatMods) {
+      if (!m?.name) continue;
       const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
       exactMatchMap.set(exactKey, m);
 
       const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
       if (baseKey) {
-        // Only map the first occurrence to match the behavior of .find()
         if (!baseMatchMap.has(baseKey)) {
           baseMatchMap.set(baseKey, m);
         }
       }
     }
+
+    const netUpdated = Array.isArray(networkUpdates?.updated) ? networkUpdates.updated : [];
+    const netBroken = Array.isArray(networkUpdates?.broken) ? networkUpdates.broken : [];
+    const netObsolete = Array.isArray(networkUpdates?.obsolete) ? networkUpdates.obsolete : [];
+
+    const enrichWithNetState = (matched: any) => {
+      let res = matched;
+      const upd = netUpdated.find((u: any) => (u.hash && u.hash === res.hash) || (u.name && u.name === res.name));
+      if (upd && !res.hasUpdate) {
+        res = {
+          ...res,
+          hasUpdate: true,
+          newVersion: upd.newVersion || res.newVersion,
+          newGameVersion: upd.newGameVersion || res.newGameVersion,
+          download_url: upd.download_url || res.download_url,
+        };
+      }
+      if (netBroken.some((b: any) => (b.hash && b.hash === res.hash) || (b.name && b.name === res.name)) && res.status !== 'broken') {
+        res = { ...res, status: 'broken' };
+      } else if (netObsolete.some((b: any) => (b.hash && b.hash === res.hash) || (b.name && b.name === res.name)) && res.status !== 'obsolete') {
+        res = { ...res, status: 'obsolete' };
+      }
+      return res;
+    };
 
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
@@ -172,18 +199,33 @@ export default function CommandCenter({
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
 
       const exactMatch = exactMatchMap.get(modNameLow);
-      if (exactMatch) return { ...exactMatch, _originalSetName: modName };
+      if (exactMatch) return { ...enrichWithNetState(exactMatch), _originalSetName: modName };
 
       const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
 
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
-      if (baseMatch) return { ...baseMatch, _originalSetName: modName };
+      if (baseMatch) return { ...enrichWithNetState(baseMatch), _originalSetName: modName };
 
       return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
     });
-  }, [activePlaySet, modList, activeGameSchema]);
+  }, [activePlaySet, modList, activeGameSchema, networkUpdates]);
 
   const activeUpdates = React.useMemo(() => {
+    const hasLoadedMods = Array.isArray(modList) && modList.length > 0;
+    if (!hasLoadedMods && Array.isArray(networkUpdates?.updated) && networkUpdates.updated.length > 0 && activePlaySet) {
+      const safeModNames = new Set(
+        (Array.isArray(activePlaySet.mods) ? activePlaySet.mods : []).map((rm: any) => {
+          const n = typeof rm === 'string' ? rm : String(rm?.name || rm?.path || '');
+          return n.replace(/^(sanctuary[/\\])+/i, '').toLowerCase().replace(/\\/g, '/');
+        })
+      );
+      const matchedCachedUpdates = networkUpdates.updated.filter((u: any) => {
+        if (!u?.name) return false;
+        const cleanU = String(u.name).replace(/^(sanctuary[/\\])+/i, '').toLowerCase().replace(/\\/g, '/');
+        return safeModNames.has(cleanU);
+      });
+      return groupUpdateMods(matchedCachedUpdates);
+    }
     const rawUpdates = activeBlueprintMods
       .filter((m: any) => m.hasUpdate)
       .map((m: any) => ({
@@ -191,9 +233,13 @@ export default function CommandCenter({
         dbId: m.dbId,
       }));
     return groupUpdateMods(rawUpdates);
-  }, [activeBlueprintMods]);
+  }, [activeBlueprintMods, modList, networkUpdates, activePlaySet]);
   const { applyConflictOverride } = usePlaySetLogic();
   const activeBrokenCounts = React.useMemo(() => {
+    const hasLoadedMods = Array.isArray(modList) && modList.length > 0;
+    if (!hasLoadedMods && cachedStoreBrokenCounts && (cachedStoreBrokenCounts.broken > 0 || cachedStoreBrokenCounts.unstable > 0)) {
+      return cachedStoreBrokenCounts;
+    }
     const evaluated = activeBlueprintMods
       .map((mod: any) =>
         evaluateModIssues(mod, {
@@ -216,7 +262,7 @@ export default function CommandCenter({
       },
       { broken: 0, unstable: 0 }
     );
-  }, [activeBlueprintMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
+  }, [activeBlueprintMods, modList, cachedStoreBrokenCounts, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
   const [radarCacheTick, setRadarCacheTick] = React.useState(0);
   React.useEffect(() => {
@@ -279,12 +325,16 @@ export default function CommandCenter({
   }, [activeBlueprintMods, ignoredGlobal, activeSetName, radarCacheTick]);
 
   React.useEffect(() => {
-    useStore.getState().setActiveConflictCount(activeConflictCount);
-  }, [activeConflictCount]);
+    if (Array.isArray(modList) && modList.length > 0) {
+      useStore.getState().setActiveConflictCount(activeConflictCount);
+    }
+  }, [activeConflictCount.total, activeConflictCount.tier3, activeConflictCount.tier4, modList]);
 
   React.useEffect(() => {
-    useStore.getState().setActiveBrokenCounts(activeBrokenCounts);
-  }, [activeBrokenCounts]);
+    if (Array.isArray(modList) && modList.length > 0) {
+      useStore.getState().setActiveBrokenCounts(activeBrokenCounts);
+    }
+  }, [activeBrokenCounts.broken, activeBrokenCounts.unstable, modList]);
 
   const radarUpdatesCount = activeUpdates.length || 0;
   const radarTier4Count = activeConflictCount.tier4 || 0;
@@ -474,7 +524,7 @@ export default function CommandCenter({
                           localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
                           setDismissedBroadcastId(String(urgentBroadcast.id));
                         }}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] cursor-pointer shadow-md"
+                        className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] cursor-pointer shadow-md"
                       >
                         <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
                         <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>

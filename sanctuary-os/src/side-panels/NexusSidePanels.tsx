@@ -23,6 +23,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "../utils/envUtils";
 import { DynamicThemePreviewBanner } from "../chameleon-components/ThemeCard";
+import { importThemeWithAssets, getLuminance } from "../chameleon-components/ChameleonShared";
 
 export function MarketUploadPanel({
   uploadState,
@@ -131,61 +132,84 @@ export function MarketUploadPanel({
                   {uploadState.fileName ||
                     t("no_file_selected", "No file selected")}
                 </div>
-                {!(
-                  uploadState.id &&
-                  ["TEMPLATES", "templates", "CHAMELEONS", "chameleons"].includes(
-                    marketTab
-                  )
-                ) &&
-                  marketTab !== "LEXICONS" &&
-                  marketTab !== "lexicons" &&
-                  marketTab !== "CHAMELEONS" &&
-                  marketTab !== "TEMPLATES" && (
-                    <ActionButton
-                      variant="glass"
-                      icon={t("icon_upload_file", "upload_file")}
-                      label={
-                        uploadState.fileName
-                          ? t("ui_btn_replace", "Replace")
-                          : t("btn_import", "Import")
-                      }
-                      onClick={async () => {
-                        try {
-                          const filters = [{ name: "JSON", extensions: ["json"] }];
-                          const vaultPath = useStore.getState().vaultPath;
-                          const defaultPath = vaultPath
-                            ? `${vaultPath}/Data`
-                            : undefined;
-                          const selected = await open({ filters, defaultPath });
-                          if (!selected) return;
-                          const content = await readTextFile(selected as string);
-                          let parsed;
-                          try {
-                            parsed = JSON.parse(content);
-                          } catch {
-                            parsed = content;
-                          }
-                          let newVersion = "1.0.0";
-                          if (parsed.version) newVersion = parsed.version;
-                          else if (parsed._meta_version)
-                            newVersion = parsed._meta_version;
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_upload_file", "upload_file")}
+                  label={
+                    uploadState.fileName
+                      ? t("ui_btn_replace", "Replace")
+                      : t("btn_import", "Import")
+                  }
+                  onClick={async () => {
+                    try {
+                      if (marketTab === "CHAMELEONS" || marketTab === "chameleons") {
+                        const res = await importThemeWithAssets({
+                          t,
+                          pushStatus: useStore.getState().pushStatus,
+                        });
+                        if (!res) return;
+                        if (res.imageOnlyDataUrl) {
                           setUploadState((s: any) => ({
                             ...s,
-                            fileContent: parsed,
-                            fileName: selected as string,
-                            name: s.name || parsed.name || "Unknown",
-                            version: newVersion,
+                            fileContent: {
+                              ...(s.fileContent || {}),
+                              bgImage: res.imageOnlyDataUrl,
+                            },
                           }));
-                        } catch (err: any) {
-                          useStore
-                            .getState()
-                            .pushStatus(
-                              `${t("alert_import_failed", "Import failed:")} ${err.message || err}`
-                            );
+                          return;
                         }
-                      }}
-                    />
-                  )}
+                        if (res.theme) {
+                          const imported = res.theme;
+                          const newVersion =
+                            imported.version || imported._meta_version || uploadState.version || "1.0.0";
+                          const mode =
+                            getLuminance(imported.bg || "#050914") < 0.5 ? "Dark" : "Light";
+                          setUploadState((s: any) => ({
+                            ...s,
+                            fileContent: imported,
+                            fileName: `${imported.name || s.name || "Theme"}.json`,
+                            name: s.name || imported.name || "Custom Theme",
+                            version: String(newVersion),
+                            themeMode: mode,
+                          }));
+                        }
+                        return;
+                      }
+
+                      const filters = [{ name: "JSON", extensions: ["json"] }];
+                      const vaultPath = useStore.getState().vaultPath;
+                      const defaultPath = vaultPath
+                        ? `${vaultPath}/Data`
+                        : undefined;
+                      const selected = await open({ filters, defaultPath });
+                      if (!selected) return;
+                      const content = await readTextFile(selected as string);
+                      let parsed;
+                      try {
+                        parsed = JSON.parse(content);
+                      } catch {
+                        parsed = content;
+                      }
+                      let newVersion = "1.0.0";
+                      if (parsed.version) newVersion = parsed.version;
+                      else if (parsed._meta_version)
+                        newVersion = parsed._meta_version;
+                      setUploadState((s: any) => ({
+                        ...s,
+                        fileContent: parsed,
+                        fileName: selected as string,
+                        name: s.name || parsed.name || parsed._meta_name || "Unknown",
+                        version: newVersion,
+                      }));
+                    } catch (err: any) {
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          `${t("alert_import_failed", "Import failed:")} ${err.message || err}`
+                        );
+                    }
+                  }}
+                />
               </div>
             </div>
 
@@ -505,7 +529,6 @@ export function MarketReportPanel({
               required
               value={reportState.reason}
               placeholder={t("report_placeholder", "Describe the issue...")}
-              title={t("report_placeholder", "Describe the issue...")}
               onChange={(e) =>
                 setReportState({ ...reportState, reason: e.target.value })
               }
@@ -759,12 +782,12 @@ export function MarketBlueprintPanel({
                   color: "var(--accent)",
                   borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
                 }}
-                title={t("badge_early_access", "Early Access")}
               >
                 <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_science", "science")}
                 </span>
                 <span>{t("badge_early_access", "Early Access")}</span>
+                <HoverTooltip title={t("badge_early_access", "Early Access")} />
               </span>
             )}
             {mod.is_paid && (
@@ -774,12 +797,12 @@ export function MarketBlueprintPanel({
                   color: "var(--warning)",
                   borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
                 }}
-                title={t("badge_paid", "Paid")}
               >
                 <span className="material-symbols-rounded !text-[12px] shrink-0">
                   {t("icon_monetization_on", "monetization_on")}
                 </span>
                 <span>{t("badge_paid", "Paid")}</span>
+                <HoverTooltip title={t("badge_paid", "Paid")} variant="warning" />
               </span>
             )}
           </div>

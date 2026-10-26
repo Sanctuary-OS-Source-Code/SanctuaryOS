@@ -203,7 +203,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
           {activeTab === 'SUPPORTER' && <SupporterTab />}
           {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
-          {activeTab === 'CLIENT' && <ClientTab />}
+          {activeTab === 'CLIENT' && <ClientTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'NOTIFICATIONS' && <NotificationsTab />}
           {activeTab === 'AESTHETICS' && <AestheticsTab config={config} />}
           {activeTab === 'LOGIC' && <LogicTab anarchyRules={anarchyRules} setAnarchyRules={setAnarchyRules} />}

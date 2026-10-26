@@ -13,6 +13,7 @@ import {
   PanelHeaderButton,
   DashboardStatTile,
   EmptyState,
+  HoverTooltip,
 } from "../shared";
 import {
   ElevatedHubLayout,
@@ -677,12 +678,12 @@ export default function WayfinderMasterSchemas({
               e.stopPropagation();
               handleCopyUplinkBundle();
             }}
-            title={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
             className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
           >
             <span className="material-symbols-outlined !text-[14px]">
               {t("icon_content_copy", "content_copy")}
             </span>
+            <HoverTooltip title={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")} />
           </button>
         }
         footer={
@@ -807,12 +808,12 @@ export default function WayfinderMasterSchemas({
             e.stopPropagation();
             handleCopySpokeSql();
           }}
-          title={t("wf_btn_copy_spoke_sql", "Copy schema.sql")}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
         >
           <span className="material-symbols-outlined !text-[14px]">
             {t("icon_database", "database")}
           </span>
+          <HoverTooltip title={t("wf_btn_copy_spoke_sql", "Copy schema.sql")} />
         </button>
       }
       footer={
@@ -1091,24 +1092,24 @@ export default function WayfinderMasterSchemas({
                       }
                       setRenamingFile(file.path);
                     }}
-                    title={t("rename_file", "Rename")}
                     className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_edit", "edit")}
                     </span>
+                    <HoverTooltip title={t("rename_file", "Rename")} />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeleteConfirmPath(file.path);
                     }}
-                    title={t("delete_file", "Delete")}
                     className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_delete", "delete")}
                     </span>
+                    <HoverTooltip title={t("delete_file", "Delete")} variant="danger" />
                   </button>
                 </div>
               )}

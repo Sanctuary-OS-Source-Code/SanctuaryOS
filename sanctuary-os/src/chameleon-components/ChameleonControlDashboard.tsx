@@ -1,21 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLexicon } from '../LexiconContext';
+import { useTheme, applyThemeCssVarsToRoot } from '../ThemeContext';
 import {
   HexToRGB,
   RGBToHex,
   PRESET_COLORS,
   SEMANTIC_SHADES,
-  themeKeys,
+  sanitizeSemanticStatusColor,
   GLASS_MATERIAL_PRESETS,
   CURATED_COLOR_PALETTES,
   BUILTIN_WALLPAPERS,
+  FONT_OPTIONS,
+  getLuminance,
   autoHarmonizeThemeColors,
+  analyzeAndHarmonizeTheme,
 } from './ChameleonShared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { Slider } from '../components/universal/Slider';
 import { DashboardStatTile } from '../hub-components/SharedCommandScreenLayout';
-import { UniversalGroup, VAULT_CHIP_CLASS } from '../shared';
+import { UniversalGroup, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
 import { useStore } from '../store';
 
 interface ChameleonControlDashboardProps {
@@ -32,21 +36,26 @@ export function ChameleonControlDashboard({
   renameTheme,
 }: ChameleonControlDashboardProps) {
   const { t } = useLexicon();
+  const { currentTheme: osActiveTheme } = useTheme();
+  const osActiveThemeRef = useRef<any>(osActiveTheme);
+  osActiveThemeRef.current = osActiveTheme;
   const pushStatus = useStore((state) => state.pushStatus);
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
   const [pickerCoords, setPickerCoords] = useState<{ top?: number; left?: number; right?: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'presets' | 'optics' | 'typography' | 'backgrounds'>('presets');
+  const [syncPaletteWallpaper, setSyncPaletteWallpaper] = useState(false);
 
   const [bgBuilderType, setBgBuilderType] = useState<'solid' | 'linear' | 'radial'>('linear');
   const [bgBuilderAngle, setBgBuilderAngle] = useState(135);
   const [bgBuilderColor1, setBgBuilderColor1] = useState('#1e1b4b');
   const [bgBuilderColor2, setBgBuilderColor2] = useState('#020617');
 
-  // Drive the live WebGL2 SDF Liquid Glass Engine in real time even when editing cloud/sandbox theme objects
+  // Drive the live WebGL2 SDF Liquid Glass Engine AND :root CSS variables in real time even when editing cloud/sandbox theme objects
   const prevTexKeyRef = useRef<string>('');
   useEffect(() => {
     (window as any).__sanctuaryPreviewTheme = currentTheme;
-    const texKey = `${currentTheme?.bgImage || ''}::${currentTheme?.bg || ''}::${currentTheme?.glassBlur || ''}::${currentTheme?.glassSaturation || ''}::${currentTheme?.ambientOrb ?? true}`;
+    applyThemeCssVarsToRoot(currentTheme);
+    const texKey = `${currentTheme?.bgImage || ''}::${currentTheme?.bg || ''}::${Boolean(currentTheme?.transparentWindow)}::${currentTheme?.glassBlur || ''}::${currentTheme?.glassSaturation || ''}::${currentTheme?.ambientOrb ?? true}`;
     if (prevTexKeyRef.current && prevTexKeyRef.current !== texKey) {
       (window as any).__sanctuaryRebuildWebGLGlass?.();
     } else {
@@ -58,6 +67,9 @@ export function ChameleonControlDashboard({
   useEffect(() => {
     return () => {
       (window as any).__sanctuaryPreviewTheme = null;
+      if (osActiveThemeRef.current) {
+        applyThemeCssVarsToRoot(osActiveThemeRef.current);
+      }
       (window as any).__sanctuaryRebuildWebGLGlass?.();
       (window as any).__sanctuaryRenderWebGLGlass?.(true);
     };
@@ -128,7 +140,11 @@ export function ChameleonControlDashboard({
     const file = e.target.files?.[0];
     if (!file) return;
     compressUploadedImage(file, 1920, 1080, (dataUrl) => {
-      handleUpdateTheme({ bgImage: dataUrl });
+      handleUpdateTheme({
+        bgImage: dataUrl,
+        transparentWindow: false,
+        ...(currentTheme.bg === 'transparent' ? { bg: '#050914' } : {}),
+      });
     });
   };
 
@@ -149,7 +165,76 @@ export function ChameleonControlDashboard({
     }
   };
 
-  const allEditableColorKeys = [...themeKeys, 'panelTint'];
+  const handleAutoHarmonize = async () => {
+    const harmonized = await analyzeAndHarmonizeTheme(currentTheme);
+    handleUpdateTheme(harmonized);
+    pushStatus?.(
+      t(
+        'forge_status_harmonized',
+        'Liquid Glass optics, surfaces & text contrast harmonized to active background.'
+      )
+    );
+  };
+
+  const handleAutoTuneGlassOnly = async () => {
+    const tunedGlass = await analyzeAndHarmonizeTheme(currentTheme, { glassOnly: true });
+    handleUpdateTheme(tunedGlass);
+    pushStatus?.(
+      t(
+        'forge_status_glass_tuned',
+        'Liquid Glass optics calibrated to active wallpaper & background.'
+      )
+    );
+  };
+
+  const isDarkMode = getLuminance(currentTheme?.bg || '#060b14') < 0.5;
+
+  const handleToggleThemeMode = async () => {
+    const nextMode = isDarkMode ? 'light' : 'dark';
+    const harmonized = await analyzeAndHarmonizeTheme(currentTheme, { targetMode: nextMode });
+    handleUpdateTheme(harmonized);
+    pushStatus?.(
+      t(
+        'forge_status_harmonized',
+        'Liquid Glass optics, surfaces & text contrast harmonized to active background.'
+      )
+    );
+  };
+
+  const COLOR_CHANNEL_GROUPS = [
+    {
+      id: 'surfaces',
+      title: t('forge_colors_surfaces', 'Core Surfaces & Accent'),
+      icon: t('icon_layers', 'layers'),
+      items: [
+        { key: 'accent', label: t('color_accent', 'Accent') },
+        { key: 'bg', label: t('color_bg', 'Background') },
+        { key: 'sidebar', label: t('color_sidebar', 'Sidebar') },
+        { key: 'panelTint', label: t('forge_color_panel_tint', 'Glass Surface Tint') },
+      ],
+    },
+    {
+      id: 'typography',
+      title: t('forge_colors_typography', 'Typography & Contrast'),
+      icon: t('icon_text_fields', 'text_fields'),
+      items: [
+        { key: 'headerText', label: t('color_headerText', 'Header Text') },
+        { key: 'text', label: t('color_text', 'Primary Text') },
+        { key: 'subtext', label: t('color_subtext', 'Subtext') },
+        { key: 'sidebartext', label: t('color_sidebartext', 'Sidebar Text') },
+      ],
+    },
+    {
+      id: 'semantic',
+      title: t('forge_colors_semantic', 'Semantic Status Channels'),
+      icon: t('icon_verified', 'verified'),
+      items: [
+        { key: 'success', label: t('color_success', 'Success') },
+        { key: 'warning', label: t('color_warning', 'Warning') },
+        { key: 'danger', label: t('color_danger', 'Danger') },
+      ],
+    },
+  ];
 
   const toPercentInt = (rawVal: any, fallbackPercent: number) => {
     if (rawVal === undefined || rawVal === null || rawVal === '') return fallbackPercent;
@@ -190,17 +275,17 @@ export function ChameleonControlDashboard({
               </span>
             </div>
             <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 px-2.5 py-0.5 -ml-2.5 rounded-xl border border-transparent hover:glass-surface hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus-within:glass-surface focus-within:border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.32))] transition-all w-fit max-w-full">
                 <input
                   type="text"
                   value={currentTheme.name || ''}
                   onChange={(e) => canRename && renameTheme && editingThemeId && renameTheme(editingThemeId, e.target.value)}
-                  className="w-full max-w-[280px] bg-transparent border-b border-transparent hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:theme-border-accent outline-none text-base font-black text-[var(--text)] tracking-tight transition-colors py-0.5 truncate"
+                  className="w-full max-w-[260px] bg-transparent border-none outline-none text-base font-black text-[var(--text)] tracking-tight py-0.5 truncate"
                   placeholder={t('forge_theme_name_placeholder', 'Enter Theme Name...')}
                   disabled={!canRename}
                 />
                 {canRename && (
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)] opacity-50 shrink-0">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] opacity-75 shrink-0">
                     {t('icon_edit', 'edit')}
                   </span>
                 )}
@@ -212,30 +297,36 @@ export function ChameleonControlDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-            <span className={VAULT_CHIP_CLASS}>
+            <button
+              type="button"
+              onClick={handleToggleThemeMode}
+              className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
+            >
               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_deployed_code', 'deployed_code')}
+                {isDarkMode ? t('icon_dark_mode', 'dark_mode') : t('icon_light_mode', 'light_mode')}
               </span>
-              <span>{t('forge_engine_badge', 'WebGL2 SDF Engine')}</span>
-            </span>
-            <span className={VAULT_CHIP_CLASS}>
+              <span>{isDarkMode ? t('mode_dark', 'Dark') : t('mode_light', 'Light')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleAutoHarmonize}
+              className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
+            >
               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_opacity', 'opacity')}
+                {t('icon_contrast', 'contrast')}
               </span>
-              <span className="font-mono">{`${opacityPct}%`}</span>
-            </span>
-            <span className={VAULT_CHIP_CLASS}>
+              <span>{t('forge_btn_auto_contrast', 'Auto-Harmonize')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyThemeJson}
+              className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
+            >
               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_blur_on', 'blur_on')}
+                {t('icon_content_copy', 'content_copy')}
               </span>
-              <span className="font-mono">{`${resolvedBlurPx}px`}</span>
-            </span>
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_lens_blur', 'lens_blur')}
-              </span>
-              <span className="font-mono">{`${refractionPct}%`}</span>
-            </span>
+              <span>{t('forge_btn_copy_json', 'Copy JSON')}</span>
+            </button>
           </div>
         </div>
 
@@ -303,19 +394,10 @@ export function ChameleonControlDashboard({
                       onClick={() => handleUpdateTheme(preset.values)}
                       className={`glass-panel p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 group relative overflow-hidden cursor-pointer ${
                         isCurrentMaterial
-                          ? '!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] z-10'
+                          ? 'sa-glass-pill-active z-10'
                           : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                       }`}
                     >
-                      {isCurrentMaterial && (
-                        <div
-                          className="absolute inset-0 rounded-[inherit] pointer-events-none"
-                          style={{
-                            background:
-                              'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 55%, transparent 100%)',
-                          }}
-                        />
-                      )}
                       <div className="relative z-10 flex items-start justify-between gap-2.5 w-full">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
@@ -324,7 +406,7 @@ export function ChameleonControlDashboard({
                             </span>
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <span className={`text-xs font-black tracking-tight truncate ${isCurrentMaterial ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
+                            <span className={`text-xs font-black tracking-tight leading-snug ${isCurrentMaterial ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
                               {t(preset.labelKey, preset.fallbackLabel)}
                             </span>
                             <span className="text-[10px] text-[var(--subtext)] opacity-80 line-clamp-1">
@@ -341,40 +423,18 @@ export function ChameleonControlDashboard({
                         )}
                       </div>
 
-                      {/* 2x2 Optical Material Telemetry Grid (Refracted via WebGL2 SDF Engine) */}
-                      <div className="grid grid-cols-2 gap-1.5 w-full">
-                        <div className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75">
-                            {t('forge_metric_opacity', 'Opacity')}
-                          </span>
-                          <span className="text-[9.5px] font-mono font-black text-[var(--text)]">
-                            {`${presetOpacityPct}%`}
-                          </span>
+                      {/* Sleek Single-Line Optical Summary Pill */}
+                      <div className="relative z-10 w-full px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-[9.5px] font-mono font-bold text-[var(--text)]">
+                          <span>{`${presetOpacityPct}%`}</span>
+                          <span className="text-[var(--subtext)] opacity-50">·</span>
+                          <span>{preset.values.glassBlur}</span>
+                          <span className="text-[var(--subtext)] opacity-50">·</span>
+                          <span className="text-[var(--accent)]">{preset.values.glassRefraction}</span>
                         </div>
-                        <div className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75">
-                            {t('forge_metric_blur', 'Blur')}
-                          </span>
-                          <span className="text-[9.5px] font-mono font-black text-[var(--text)]">
-                            {preset.values.glassBlur}
-                          </span>
-                        </div>
-                        <div className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75">
-                            {t('forge_metric_refract', 'Refract')}
-                          </span>
-                          <span className="text-[9.5px] font-mono font-black text-[var(--accent)]">
-                            {preset.values.glassRefraction}
-                          </span>
-                        </div>
-                        <div className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75">
-                            {t('forge_metric_glare', 'Glare')}
-                          </span>
-                          <span className="text-[9.5px] font-mono font-black text-[var(--accent)]">
-                            {`${presetSpecPct}%`}
-                          </span>
-                        </div>
+                        <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-80">
+                          {`${t('forge_metric_glare', 'Glare')} ${presetSpecPct}%`}
+                        </span>
                       </div>
                     </button>
                   );
@@ -385,8 +445,26 @@ export function ChameleonControlDashboard({
             <UniversalGroup
               icon={t('icon_palette', 'palette')}
               title={t('forge_color_palettes_title', 'Curated Color Harmony Palettes')}
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setSyncPaletteWallpaper(!syncPaletteWallpaper)}
+                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    syncPaletteWallpaper
+                      ? 'sa-glass-pill-active'
+                      : 'glass-surface border-transparent text-[var(--subtext)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                    {syncPaletteWallpaper
+                      ? t('icon_check_box', 'check_box')
+                      : t('icon_check_box_outline_blank', 'check_box_outline_blank')}
+                  </span>
+                  <span>{t('forge_sync_wallpaper', 'Apply Suggested Wallpaper')}</span>
+                </button>
+              }
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {CURATED_COLOR_PALETTES.map((palette) => {
                   const isActivePalette =
                     currentTheme.accent?.toLowerCase() === palette.colors.accent.toLowerCase() &&
@@ -400,27 +478,21 @@ export function ChameleonControlDashboard({
                       onClick={() =>
                         handleUpdateTheme({
                           ...palette.colors,
+                          transparentWindow: false,
                           glassOpacity: isLightPalette ? '0.20' : '0.10',
-                          ...(palette.suggestedWallpaper ? { bgImage: palette.suggestedWallpaper } : {}),
+                          ...(syncPaletteWallpaper && palette.suggestedWallpaper
+                            ? { bgImage: palette.suggestedWallpaper }
+                            : {}),
                         })
                       }
                       className={`glass-panel p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 group relative overflow-hidden cursor-pointer ${
                         isActivePalette
-                          ? '!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] z-10'
+                          ? 'sa-glass-pill-active z-10'
                           : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                       }`}
                     >
-                      {isActivePalette && (
-                        <div
-                          className="absolute inset-0 rounded-[inherit] pointer-events-none"
-                          style={{
-                            background:
-                              'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 55%, transparent 100%)',
-                          }}
-                        />
-                      )}
                       <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-                        <span className={`text-xs font-black tracking-tight truncate ${isActivePalette ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
+                        <span className={`text-xs font-black tracking-tight leading-snug ${isActivePalette ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
                           {t(palette.labelKey, palette.fallbackLabel)}
                         </span>
                         {isActivePalette && (
@@ -480,30 +552,42 @@ export function ChameleonControlDashboard({
               icon={t('icon_tune', 'tune')}
               title={t('forge_section_optics', 'Liquid Glass Optics')}
               actions={
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleUpdateTheme({
-                      glassOpacity: '0.10',
-                      glassBlur: '36px',
-                      glassSaturation: '185%',
-                      glassRefraction: '100%',
-                      glassBezel: '100%',
-                      glassBorderOpacity: '0.14',
-                      glassSpecular: '0.24',
-                      glassShadow: '0.42',
-                    })
-                  }
-                  className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
-                    {t('icon_restart_alt', 'restart_alt')}
-                  </span>
-                  {t('forge_reset_glass', 'Reset Optics')}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoTuneGlassOnly}
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t('icon_auto_awesome', 'auto_awesome')}
+                    </span>
+                    {t('forge_auto_tune_glass', 'Auto-Tune Glass')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateTheme({
+                        glassOpacity: '0.10',
+                        glassBlur: '36px',
+                        glassSaturation: '185%',
+                        glassRefraction: '100%',
+                        glassBezel: '100%',
+                        glassBorderOpacity: '0.14',
+                        glassSpecular: '0.24',
+                        glassShadow: '0.42',
+                      })
+                    }
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t('icon_restart_alt', 'restart_alt')}
+                    </span>
+                    {t('forge_reset_glass', 'Reset Optics')}
+                  </button>
+                </div>
               }
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
                 {[
                   {
                     key: 'glassOpacity',
@@ -606,17 +690,17 @@ export function ChameleonControlDashboard({
                     key={ctrl.key}
                     className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)] mt-0.5">
                           <span className="material-symbols-outlined !text-[16px]">{ctrl.icon}</span>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-black text-[var(--text)] truncate">{ctrl.title}</span>
-                          <span className="text-[9px] text-[var(--subtext)] opacity-75 line-clamp-1">{ctrl.desc}</span>
+                        <div className="flex flex-col min-w-0 gap-0.5">
+                          <span className="text-xs font-black text-[var(--text)] leading-snug">{ctrl.title}</span>
+                          <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">{ctrl.desc}</span>
                         </div>
                       </div>
-                      <span className={VAULT_CHIP_CLASS}>
+                      <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
                         <span className="font-mono text-[var(--accent)]">{ctrl.display}</span>
                       </span>
                     </div>
@@ -632,231 +716,335 @@ export function ChameleonControlDashboard({
               </div>
             </UniversalGroup>
 
-            {/* Section 2: Full Chromatic Matrix (Including Panel Tint & Status Colors) */}
+            {/* Section 2: Full Chromatic Matrix (Grouped into Core Surfaces, Typography & Semantic Status) */}
             <UniversalGroup
               icon={t('icon_colorize', 'colorize')}
               title={t('forge_tab_colors', 'Chromatic Channels & Glass Tint')}
               actions={
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleUpdateTheme({
-                      success: '#10b981',
-                      warning: '#f59e0b',
-                      danger: '#f43f5e',
-                    })
-                  }
-                  className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
-                    {t('icon_restart_alt', 'restart_alt')}
-                  </span>
-                  {t('forge_btn_reset_status', 'Reset Status Colors')}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoHarmonize}
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t('icon_contrast', 'contrast')}
+                    </span>
+                    {t('forge_btn_auto_contrast', 'Auto-Harmonize')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateTheme({
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#f43f5e',
+                      })
+                    }
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t('icon_restart_alt', 'restart_alt')}
+                    </span>
+                    {t('forge_btn_reset_status', 'Reset Status Colors')}
+                  </button>
+                </div>
               }
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                {allEditableColorKeys.map((key) => {
-                  const swatchVal = currentTheme[key] || (key === 'panelTint' ? currentTheme.sidebar || '#0b1528' : '#000000');
-                  const isPickerOpen = activeColorPicker === key;
-                  return (
-                    <div key={key} className="relative">
-                      <div
-                        className={`flex items-center justify-between w-full glass-panel rounded-2xl p-3.5 text-[var(--text)] transition-all border cursor-pointer active:scale-[0.99] group/swatch ${
-                          isPickerOpen
-                            ? '!border-[var(--accent)] outline outline-2 -outline-offset-1 outline-[color-mix(in_srgb,var(--accent)_80%,transparent)]'
-                            : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
-                        }`}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (activeColorPicker === key) {
-                            setActiveColorPicker(null);
-                          } else {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setPickerCoords({
-                              top: Math.min(rect.bottom + 10, window.innerHeight - 460),
-                              left: Math.min(rect.left, window.innerWidth - 440),
-                            });
-                            setActiveColorPicker(key);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className="w-9 h-9 rounded-xl border-2 border-white/25 shadow-md shrink-0 group-hover/swatch:scale-105 transition-transform"
-                            style={{ backgroundColor: swatchVal }}
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider truncate">
-                              {key === 'panelTint'
-                                ? t('forge_color_panel_tint', 'Glass Surface Tint')
-                                : t(`color_${key}`, key.toUpperCase())}
-                            </span>
-                            <code className="text-[10px] font-mono font-bold text-[var(--subtext)] uppercase truncate">
-                              {String(swatchVal).toUpperCase()}
-                            </code>
-                          </div>
-                        </div>
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/swatch:text-[var(--accent)] transition-colors">
-                          {t('icon_colorize', 'colorize')}
-                        </span>
-                      </div>
-
-                      {isPickerOpen &&
-                        createPortal(
-                          <>
-                            <div
-                              className="fixed inset-0"
-                              style={{ zIndex: 999998 }}
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                setActiveColorPicker(null);
-                              }}
-                            />
-                            <div
-                              className="fixed p-6 glass-panel backdrop-blur-3xl rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_24px_60px_rgba(0,0,0,0.65)] w-[25rem] animate-in fade-in zoom-in-95 duration-200"
-                              style={{ zIndex: 999999, ...pickerCoords }}
-                            >
-                              <div className="flex items-center gap-3 mb-5">
-                                <label className="relative w-11 h-11 rounded-xl border border-white/25 overflow-hidden shrink-0 cursor-pointer shadow-inner">
-                                  <input
-                                    type="color"
-                                    value={swatchVal.startsWith('#') && swatchVal.length === 7 ? swatchVal : '#38bdf8'}
-                                    onChange={(e) => handleUpdateTheme({ [key]: e.target.value })}
-                                    className="absolute -inset-2 w-16 h-16 cursor-pointer opacity-0"
-                                  />
-                                  <div className="w-full h-full" style={{ backgroundColor: swatchVal }} />
-                                </label>
-
-                                <input
-                                  type="text"
-                                  value={swatchVal}
-                                  onChange={(e) => handleUpdateTheme({ [key]: e.target.value })}
-                                  className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl px-4 py-3 text-xs font-mono font-bold text-[var(--text)] uppercase tracking-widest outline-none focus:theme-border-accent transition-colors shadow-inner"
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() => toggleFavColor(swatchVal)}
-                                  className="w-11 h-11 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shrink-0 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
-                                  title={t('color_favs', 'Favorite Colors')}
-                                >
-                                  <span
-                                    className={`material-symbols-outlined !text-[18px] ${
-                                      favColors.includes(swatchVal) ? 'text-amber-400' : 'text-[var(--subtext)] opacity-60'
-                                    }`}
-                                  >
-                                    {favColors.includes(swatchVal) ? t('icon_star', 'star') : t('icon_star_border', 'star_border')}
-                                  </span>
-                                </button>
-                              </div>
-
-                              <div className="grid grid-cols-8 gap-2.5 mb-5">
-                                {(SEMANTIC_SHADES[key] || PRESET_COLORS).map((color) => (
-                                  <button
-                                    key={color}
-                                    type="button"
-                                    onClick={() => handleUpdateTheme({ [key]: color })}
-                                    className={`w-7 h-7 rounded-lg border hover:scale-115 transition-all shadow-sm ${
-                                      swatchVal?.toLowerCase() === color.toLowerCase()
-                                        ? 'theme-border-accent scale-110 shadow-[0_0_12px_var(--accent)]'
-                                        : 'border-white/15 hover:border-white/40'
-                                    }`}
-                                    style={{ backgroundColor: color }}
-                                  />
-                                ))}
-                              </div>
-
-                              {favColors.length > 0 && (
-                                <div className="mb-5 pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                  <h4 className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2.5">
-                                    {t('color_favs', 'Saved Swatches')}
-                                  </h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {favColors.map((color) => (
-                                      <button
-                                        key={color}
-                                        type="button"
-                                        onClick={() => handleUpdateTheme({ [key]: color })}
-                                        className={`w-6 h-6 rounded-lg border hover:scale-115 transition-all shadow-sm ${
-                                          swatchVal?.toLowerCase() === color.toLowerCase()
-                                            ? 'theme-border-accent scale-110'
-                                            : 'border-white/15'
-                                        }`}
-                                        style={{ backgroundColor: color }}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="flex flex-col gap-3 pt-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black w-4 text-center text-red-400">{t('color_r', 'R')}</span>
-                                  <Slider
-                                    min={0}
-                                    max={255}
-                                    value={HexToRGB(swatchVal).r}
-                                    onChange={(e) =>
-                                      handleUpdateTheme({
-                                        [key]: RGBToHex(
-                                          parseInt(e.target.value),
-                                          HexToRGB(swatchVal).g,
-                                          HexToRGB(swatchVal).b
-                                        ),
-                                      })
-                                    }
-                                    className="flex-1"
-                                    style={{ '--accent': '#ef4444' } as React.CSSProperties}
-                                  />
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black w-4 text-center text-emerald-400">{t('color_g', 'G')}</span>
-                                  <Slider
-                                    min={0}
-                                    max={255}
-                                    value={HexToRGB(swatchVal).g}
-                                    onChange={(e) =>
-                                      handleUpdateTheme({
-                                        [key]: RGBToHex(
-                                          HexToRGB(swatchVal).r,
-                                          parseInt(e.target.value),
-                                          HexToRGB(swatchVal).b
-                                        ),
-                                      })
-                                    }
-                                    className="flex-1"
-                                    style={{ '--accent': '#10b981' } as React.CSSProperties}
-                                  />
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black w-4 text-center text-sky-400">{t('color_b', 'B')}</span>
-                                  <Slider
-                                    min={0}
-                                    max={255}
-                                    value={HexToRGB(swatchVal).b}
-                                    onChange={(e) =>
-                                      handleUpdateTheme({
-                                        [key]: RGBToHex(
-                                          HexToRGB(swatchVal).r,
-                                          HexToRGB(swatchVal).g,
-                                          parseInt(e.target.value)
-                                        ),
-                                      })
-                                    }
-                                    className="flex-1"
-                                    style={{ '--accent': '#38bdf8' } as React.CSSProperties}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </>,
-                          document.getElementById('sa-portals') || document.body
-                        )}
+              <div className="flex flex-col gap-5">
+                {COLOR_CHANNEL_GROUPS.map((group) => (
+                  <div key={group.id} className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2 px-1">
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                        {group.icon}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {group.title}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className={`grid grid-cols-1 ${group.items.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3.5`}>
+                      {group.items.map(({ key, label }) => {
+                        const rawSwatchVal =
+                          currentTheme[key] ||
+                          (key === 'panelTint' ? currentTheme.sidebar || '#0b1528' : '#000000');
+                        const isSemanticChannel = Boolean(SEMANTIC_SHADES[key]);
+                        const swatchVal = isSemanticChannel
+                          ? sanitizeSemanticStatusColor(key, rawSwatchVal)
+                          : rawSwatchVal;
+                        const isPickerOpen = activeColorPicker === key;
+                        return (
+                          <div key={key} className="relative">
+                            <div
+                              className={`flex items-center justify-between w-full glass-panel rounded-2xl p-3.5 text-[var(--text)] transition-all border cursor-pointer active:scale-[0.99] group/swatch ${
+                                isPickerOpen
+                                  ? 'sa-glass-pill-active z-10'
+                                  : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
+                              }`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (activeColorPicker === key) {
+                                  setActiveColorPicker(null);
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const popW = 344;
+                                  const popH = isSemanticChannel ? 215 : favColors.length > 0 ? 410 : 340;
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const shouldDropUp = spaceBelow < popH + 16 && rect.top > popH + 16;
+                                  const topPos = shouldDropUp
+                                    ? Math.max(16, rect.top - popH - 8)
+                                    : Math.max(16, Math.min(rect.bottom + 8, window.innerHeight - popH - 16));
+                                  const leftPos = Math.max(16, Math.min(rect.left, window.innerWidth - popW - 16));
+                                  setPickerCoords({
+                                    top: topPos,
+                                    left: leftPos,
+                                  });
+                                  setActiveColorPicker(key);
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className="w-9 h-9 !rounded-xl sa-glass-swatch shrink-0 group-hover/swatch:scale-105 transition-transform"
+                                  style={{ backgroundColor: swatchVal === 'transparent' ? '#050b16' : swatchVal }}
+                                />
+                                <div className="flex flex-col min-w-0 gap-0.5">
+                                  <span className="text-[10px] font-black text-[var(--text)] uppercase tracking-wider leading-snug">
+                                    {label}
+                                  </span>
+                                  <code className="text-[10px] font-mono font-bold text-[var(--subtext)] uppercase truncate">
+                                    {String(swatchVal).toUpperCase()}
+                                  </code>
+                                </div>
+                              </div>
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/swatch:text-[var(--accent)] transition-colors shrink-0">
+                                {t('icon_colorize', 'colorize')}
+                              </span>
+                            </div>
+
+                            {isPickerOpen &&
+                              createPortal(
+                                <>
+                                  <div
+                                    className="!fixed inset-0 pointer-events-auto bg-transparent"
+                                    style={{ zIndex: 100000000 }}
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation();
+                                      setActiveColorPicker(null);
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveColorPicker(null);
+                                    }}
+                                  />
+                                  <div
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="!fixed pointer-events-auto p-4 sa-dropdown-popover !rounded-2xl w-[21.5rem] max-w-[calc(100vw-24px)]"
+                                    style={{
+                                      zIndex: 100000001,
+                                      ...pickerCoords,
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between gap-2 pb-3 mb-3.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                                          {t('icon_palette', 'palette')}
+                                        </span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] truncate">
+                                          {label}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveColorPicker(null)}
+                                        className="w-7 h-7 !rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                                      >
+                                        <span className="material-symbols-outlined !text-[14px]">
+                                          {t('icon_close', 'close')}
+                                        </span>
+                                      </button>
+                                    </div>
+
+                                    {isSemanticChannel ? (
+                                      <div className="flex items-center justify-between gap-2.5 mb-3.5 px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <div
+                                            className="w-7 h-7 !rounded-lg sa-glass-swatch shrink-0"
+                                            style={{ backgroundColor: swatchVal }}
+                                          />
+                                          <code className="text-xs font-mono font-bold text-[var(--text)] uppercase tracking-widest">
+                                            {String(swatchVal).toUpperCase()}
+                                          </code>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1 shrink-0">
+                                          <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                                            {t('icon_lock', 'lock')}
+                                          </span>
+                                          <span>{t('forge_semantic_locked', 'Locked Spectrum')}</span>
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2.5 mb-3.5">
+                                        <label className="relative w-10 h-10 !rounded-xl sa-glass-swatch shrink-0 cursor-pointer group/native">
+                                          <input
+                                            type="color"
+                                            value={swatchVal.startsWith('#') && swatchVal.length === 7 ? swatchVal : '#38bdf8'}
+                                            onChange={(e) => handleUpdateTheme({ [key]: e.target.value })}
+                                            className="absolute -inset-2 w-14 h-14 cursor-pointer opacity-0 z-10"
+                                          />
+                                          <div className="w-full h-full" style={{ backgroundColor: swatchVal }} />
+                                          <span className="material-symbols-outlined !text-[12px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] absolute bottom-1 right-1 opacity-75 group-hover/native:opacity-100 pointer-events-none">
+                                            {t('icon_colorize', 'colorize')}
+                                          </span>
+                                        </label>
+
+                                        <input
+                                          type="text"
+                                          value={swatchVal}
+                                          onChange={(e) => handleUpdateTheme({ [key]: e.target.value })}
+                                          className="flex-1 h-10 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] uppercase tracking-widest outline-none focus:border-[var(--accent)] transition-colors"
+                                        />
+
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleFavColor(swatchVal)}
+                                          className="relative w-10 h-10 !rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shrink-0 flex items-center justify-center cursor-pointer hover:border-[var(--accent)] transition-all"
+                                        >
+                                          <span
+                                            className={`material-symbols-outlined !text-[17px] ${
+                                              favColors.includes(swatchVal) ? 'text-amber-400' : 'text-[var(--subtext)] opacity-70'
+                                            }`}
+                                          >
+                                            {favColors.includes(swatchVal) ? t('icon_star', 'star') : t('icon_star_border', 'star_border')}
+                                          </span>
+                                          <HoverTooltip title={t('color_favs', 'Favorite Colors')} variant="accent" vAlign="bottom" />
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    <div className={`grid grid-cols-8 gap-2 ${isSemanticChannel ? '' : 'mb-3.5'}`}>
+                                      {(SEMANTIC_SHADES[key] || PRESET_COLORS).map((color) => {
+                                        const isSwatchSelected = swatchVal?.toLowerCase() === color.toLowerCase();
+                                        return (
+                                          <button
+                                            key={color}
+                                            type="button"
+                                            onClick={() => handleUpdateTheme({ [key]: color })}
+                                            className={`w-full aspect-square !rounded-lg sa-glass-swatch hover:scale-105 transition-all cursor-pointer flex items-center justify-center ${
+                                              isSwatchSelected
+                                                ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg,#050b16)] scale-105 z-10'
+                                                : ''
+                                            }`}
+                                            style={{ backgroundColor: color }}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+
+                                    {!isSemanticChannel && favColors.length > 0 && (
+                                      <div className="mb-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] mb-2">
+                                          {t('color_favs', 'Saved Swatches')}
+                                        </h4>
+                                        <div className="grid grid-cols-8 gap-2">
+                                          {favColors.map((color) => (
+                                            <button
+                                              key={color}
+                                              type="button"
+                                              onClick={() => handleUpdateTheme({ [key]: color })}
+                                              className={`w-full aspect-square !rounded-lg sa-glass-swatch hover:scale-105 transition-all cursor-pointer ${
+                                                swatchVal?.toLowerCase() === color.toLowerCase()
+                                                  ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg,#050b16)] scale-105'
+                                                  : ''
+                                              }`}
+                                              style={{ backgroundColor: color }}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {!isSemanticChannel && (
+                                      <div className="flex flex-col gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="text-[10px] font-black w-4 text-center text-red-400">{t('color_r', 'R')}</span>
+                                          <Slider
+                                            min={0}
+                                            max={255}
+                                            value={HexToRGB(swatchVal).r}
+                                            onChange={(e) =>
+                                              handleUpdateTheme({
+                                                [key]: RGBToHex(
+                                                  parseInt(e.target.value),
+                                                  HexToRGB(swatchVal).g,
+                                                  HexToRGB(swatchVal).b
+                                                ),
+                                              })
+                                            }
+                                            className="flex-1"
+                                            style={{ '--accent': '#ef4444' } as React.CSSProperties}
+                                          />
+                                          <code className="text-[10px] font-mono font-bold text-[var(--text)] opacity-85 w-8 text-right">
+                                            {HexToRGB(swatchVal).r}
+                                          </code>
+                                        </div>
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="text-[10px] font-black w-4 text-center text-emerald-400">{t('color_g', 'G')}</span>
+                                          <Slider
+                                            min={0}
+                                            max={255}
+                                            value={HexToRGB(swatchVal).g}
+                                            onChange={(e) =>
+                                              handleUpdateTheme({
+                                                [key]: RGBToHex(
+                                                  HexToRGB(swatchVal).r,
+                                                  parseInt(e.target.value),
+                                                  HexToRGB(swatchVal).b
+                                                ),
+                                              })
+                                            }
+                                            className="flex-1"
+                                            style={{ '--accent': '#10b981' } as React.CSSProperties}
+                                          />
+                                          <code className="text-[10px] font-mono font-bold text-[var(--text)] opacity-85 w-8 text-right">
+                                            {HexToRGB(swatchVal).g}
+                                          </code>
+                                        </div>
+                                        <div className="flex items-center gap-2.5">
+                                          <span className="text-[10px] font-black w-4 text-center text-sky-400">{t('color_b', 'B')}</span>
+                                          <Slider
+                                            min={0}
+                                            max={255}
+                                            value={HexToRGB(swatchVal).b}
+                                            onChange={(e) =>
+                                              handleUpdateTheme({
+                                                [key]: RGBToHex(
+                                                  HexToRGB(swatchVal).r,
+                                                  HexToRGB(swatchVal).g,
+                                                  parseInt(e.target.value)
+                                                ),
+                                              })
+                                            }
+                                            className="flex-1"
+                                            style={{ '--accent': '#38bdf8' } as React.CSSProperties}
+                                          />
+                                          <code className="text-[10px] font-mono font-bold text-[var(--text)] opacity-85 w-8 text-right">
+                                            {HexToRGB(swatchVal).b}
+                                          </code>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </>,
+                                document.getElementById('sa-portals') || document.body
+                              )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </UniversalGroup>
           </div>
@@ -893,6 +1081,32 @@ export function ChameleonControlDashboard({
                     value={parseFloat(currentTheme.radius || '1.25') || 0}
                     onChange={(e) => handleUpdateTheme({ radius: `${e.target.value}rem` })}
                   />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {[
+                      { val: '0.5rem', label: t('forge_radius_sharp', 'Sharp') },
+                      { val: '0.875rem', label: t('forge_radius_tactical', 'Tactical') },
+                      { val: '1.25rem', label: t('forge_radius_standard', 'Standard') },
+                      { val: '1.5rem', label: t('forge_radius_sculpted', 'Sculpted') },
+                      { val: '2rem', label: t('forge_radius_pill', 'Pill') },
+                    ].map((preset) => {
+                      const isRadActive =
+                        Math.abs((parseFloat(currentTheme.radius || '1.25') || 1.25) - parseFloat(preset.val)) < 0.05;
+                      return (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => handleUpdateTheme({ radius: preset.val })}
+                          className={`flex-1 min-w-fit px-2.5 py-1.5 rounded-xl text-[8.5px] font-black uppercase tracking-wider border transition-all cursor-pointer text-center ${
+                            isRadActive
+                              ? 'sa-glass-pill-active'
+                              : 'glass-surface border-transparent text-[var(--subtext)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3">
@@ -918,6 +1132,112 @@ export function ChameleonControlDashboard({
                     value={parseInt(currentTheme.sidebarWidth || '260', 10) || 260}
                     onChange={(e) => handleUpdateTheme({ sidebarWidth: `${e.target.value}px` })}
                   />
+                  <div className="grid grid-cols-4 gap-1.5 pt-1">
+                    {['220px', '260px', '300px', '340px'].map((wVal) => {
+                      const isWidthActive = (currentTheme.sidebarWidth || '260px') === wVal;
+                      return (
+                        <button
+                          key={wVal}
+                          type="button"
+                          onClick={() => handleUpdateTheme({ sidebarWidth: wVal })}
+                          className={`px-2 py-1.5 rounded-xl text-[8.5px] font-mono font-black border transition-all cursor-pointer ${
+                            isWidthActive
+                              ? 'sa-glass-pill-active'
+                              : 'glass-surface border-transparent text-[var(--subtext)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          {wVal}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3 md:col-span-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t('icon_text_fields', 'text_fields')}
+                        </span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-black text-[var(--text)]">
+                          {t('forge_text_case', 'Text Caps Case')}
+                        </span>
+                        <span className="text-[10px] text-[var(--subtext)] opacity-80">
+                          {t('forge_text_case_desc', 'Global typographic casing across headers, navigation, and interface labels.')}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="font-mono text-[var(--accent)]">
+                        {(currentTheme.textCase || 'capitalize') === 'uppercase'
+                          ? t('forge_case_upper', 'ALL CAPS')
+                          : (currentTheme.textCase || 'capitalize') === 'lowercase'
+                            ? t('forge_case_lower', 'lowercase')
+                            : t('forge_case_title', 'Title Case')}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2.5 pt-1">
+                    {[
+                      {
+                        val: 'uppercase',
+                        glyph: 'AA',
+                        label: t('forge_case_upper', 'ALL CAPS'),
+                        transform: 'uppercase' as const,
+                      },
+                      {
+                        val: 'capitalize',
+                        glyph: 'Aa',
+                        label: t('forge_case_title', 'Title Case'),
+                        transform: 'capitalize' as const,
+                      },
+                      {
+                        val: 'lowercase',
+                        glyph: 'aa',
+                        label: t('forge_case_lower', 'lowercase'),
+                        transform: 'lowercase' as const,
+                      },
+                    ].map((caseOpt) => {
+                      const isCaseActive = (currentTheme.textCase || 'capitalize') === caseOpt.val;
+                      return (
+                        <button
+                          key={caseOpt.val}
+                          type="button"
+                          onClick={() => handleUpdateTheme({ textCase: caseOpt.val })}
+                          className={`px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                            isCaseActive
+                              ? 'sa-glass-pill-active'
+                              : 'glass-surface border-transparent text-[var(--subtext)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`text-sm font-black font-mono shrink-0 ${
+                                isCaseActive ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-80'
+                              }`}
+                              style={{ textTransform: 'none' }}
+                            >
+                              {caseOpt.glyph}
+                            </span>
+                            <span
+                              className="text-[10px] font-black tracking-wider truncate"
+                              style={{ textTransform: caseOpt.transform }}
+                            >
+                              {caseOpt.label}
+                            </span>
+                          </div>
+                          {isCaseActive && (
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                              {t('icon_check_circle', 'check_circle')}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </UniversalGroup>
@@ -926,64 +1246,49 @@ export function ChameleonControlDashboard({
               icon={t('icon_font_download', 'font_download')}
               title={t('forge_font_family', 'Primary Typeface')}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-                {[
-                  'Inter, sans-serif',
-                  "'Space Mono', monospace",
-                  "'Orbitron', sans-serif",
-                  "'Fira Code', monospace",
-                  "'Rajdhani', sans-serif",
-                  "'Share Tech Mono', monospace",
-                  "'VT323', monospace",
-                  'Courier New, monospace',
-                ].map((font) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {FONT_OPTIONS.map((font) => {
                   const isActive =
-                    currentTheme.fontFamily === font || (!currentTheme.fontFamily && font.includes('Inter'));
-                  const fontName = font.split(',')[0].replace(/'/g, '');
+                    currentTheme.fontFamily === font.value ||
+                    (!currentTheme.fontFamily && font.value.includes('Inter'));
                   return (
                     <button
-                      key={font}
+                      key={font.value}
                       type="button"
-                      onClick={() => handleUpdateTheme({ fontFamily: font })}
-                      className={`glass-panel w-full flex flex-col items-center justify-center p-4 rounded-2xl gap-2 transition-all group relative overflow-hidden cursor-pointer ${
+                      onClick={() => handleUpdateTheme({ fontFamily: font.value })}
+                      className={`glass-panel w-full flex flex-col justify-between p-4 rounded-2xl gap-2.5 text-left transition-all group relative overflow-hidden cursor-pointer ${
                         isActive
-                          ? '!border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] z-10'
+                          ? 'sa-glass-pill-active z-10'
                           : 'hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] border-[color-mix(in_srgb,var(--text)_8%,transparent)]'
                       }`}
                     >
-                      {isActive && (
-                        <div
-                          className="absolute inset-0 rounded-[inherit] pointer-events-none"
-                          style={{
-                            background:
-                              'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 55%, transparent 100%)',
-                          }}
-                        />
-                      )}
-                      <span
-                        className={`relative z-10 text-2xl transition-colors ${
-                          isActive
-                            ? 'theme-text-accent'
-                            : 'text-[var(--text)] opacity-75 group-hover:opacity-100'
-                        }`}
-                        style={{ fontFamily: font }}
-                      >
-                        Ag
-                      </span>
-                      <span
-                        className={`relative z-10 text-[9px] font-black tracking-widest uppercase transition-colors ${
-                          isActive ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'
-                        }`}
-                      >
-                        {fontName}
-                      </span>
-                      {isActive && (
-                        <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center text-[var(--accent)] z-10">
-                          <span className="material-symbols-outlined !text-[13px]">
-                            {t('icon_check_circle', 'check_circle')}
-                          </span>
-                        </div>
-                      )}
+                      <div className="relative z-10 flex items-center justify-between gap-2 w-full">
+                        <span
+                          className={`text-2xl font-bold transition-colors ${
+                            isActive
+                              ? 'theme-text-accent'
+                              : 'text-[var(--text)] opacity-85 group-hover:opacity-100'
+                          }`}
+                          style={{ fontFamily: font.value }}
+                        >
+                          Ag
+                        </span>
+                        {isActive && (
+                          <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                            <span className="material-symbols-outlined !text-[13px]">
+                              {t('icon_check_circle', 'check_circle')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative z-10 flex flex-col gap-0.5 min-w-0">
+                        <span className={`text-[10px] font-black tracking-wider uppercase leading-snug ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
+                          {t(font.labelKey, font.fallbackLabel)}
+                        </span>
+                        <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">
+                          {t(font.descKey, font.fallbackDesc)}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
@@ -994,26 +1299,80 @@ export function ChameleonControlDashboard({
               icon={t('icon_format_size', 'format_size')}
               title={t('forge_tab_fonts', 'Typographic Scale Hierarchy')}
               actions={
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleUpdateTheme({
-                      fontSizeHeader: '1.875rem',
-                      fontSizeSubheader: '1.5rem',
-                      fontSizeTitle: '1.25rem',
-                      fontSizeSubtitle: '1.125rem',
-                      fontSizeText: '1rem',
-                      fontSizeSubtext: '0.75rem',
-                      fontSizeSidebar: '10px',
-                    })
-                  }
-                  className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
-                    {t('icon_restart_alt', 'restart_alt')}
-                  </span>
-                  {t('forge_reset_type', 'Reset Typography')}
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    {
+                      id: 'compact',
+                      label: t('forge_scale_compact', 'Compact'),
+                      values: {
+                        fontSizeHeader: '1.625rem',
+                        fontSizeSubheader: '1.35rem',
+                        fontSizeTitle: '1.125rem',
+                        fontSizeSubtitle: '1rem',
+                        fontSizeText: '0.875rem',
+                        fontSizeSubtext: '0.6875rem',
+                        fontSizeSidebar: '9px',
+                      },
+                    },
+                    {
+                      id: 'default',
+                      label: t('forge_scale_default', 'Default'),
+                      values: {
+                        fontSizeHeader: '1.875rem',
+                        fontSizeSubheader: '1.5rem',
+                        fontSizeTitle: '1.25rem',
+                        fontSizeSubtitle: '1.125rem',
+                        fontSizeText: '1rem',
+                        fontSizeSubtext: '0.75rem',
+                        fontSizeSidebar: '10px',
+                      },
+                    },
+                    {
+                      id: 'comfortable',
+                      label: t('forge_scale_comfortable', 'Comfortable'),
+                      values: {
+                        fontSizeHeader: '2.125rem',
+                        fontSizeSubheader: '1.65rem',
+                        fontSizeTitle: '1.375rem',
+                        fontSizeSubtitle: '1.25rem',
+                        fontSizeText: '1.0625rem',
+                        fontSizeSubtext: '0.8125rem',
+                        fontSizeSidebar: '11px',
+                      },
+                    },
+                    {
+                      id: 'large',
+                      label: t('forge_scale_large', 'Large'),
+                      values: {
+                        fontSizeHeader: '2.375rem',
+                        fontSizeSubheader: '1.85rem',
+                        fontSizeTitle: '1.5rem',
+                        fontSizeSubtitle: '1.35rem',
+                        fontSizeText: '1.125rem',
+                        fontSizeSubtext: '0.875rem',
+                        fontSizeSidebar: '12px',
+                      },
+                    },
+                  ].map((scalePreset) => {
+                    const isScaleActive =
+                      (currentTheme.fontSizeText || '1rem') === scalePreset.values.fontSizeText &&
+                      (currentTheme.fontSizeHeader || '1.875rem') === scalePreset.values.fontSizeHeader;
+                    return (
+                      <button
+                        key={scalePreset.id}
+                        type="button"
+                        onClick={() => handleUpdateTheme(scalePreset.values)}
+                        className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                          isScaleActive
+                            ? 'sa-glass-pill-active'
+                            : 'glass-surface border-transparent text-[var(--subtext)] hover:text-[var(--text)]'
+                        }`}
+                      >
+                        {scalePreset.label}
+                      </button>
+                    );
+                  })}
+                </div>
               }
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
@@ -1063,60 +1422,148 @@ export function ChameleonControlDashboard({
               icon={t('icon_wallpaper', 'wallpaper')}
               title={t('forge_builtin_wallpapers_title', 'Built-In Sanctuary Wallpapers')}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-                {BUILTIN_WALLPAPERS.map((wp) => {
-                  const isSelected = (currentTheme.bgImage || '') === wp.path;
+              <div className="flex flex-col gap-3.5">
+                {/* OS Desktop Passthrough (True Glass) Toggle Banner */}
+                {(() => {
+                  const isPassthrough =
+                    !currentTheme.bgImage &&
+                    (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
                   return (
                     <button
-                      key={wp.id}
                       type="button"
-                      onClick={() => handleUpdateTheme({ bgImage: wp.path || null })}
-                      className={`group relative h-24 rounded-2xl overflow-hidden border transition-all flex flex-col justify-end p-3 text-left cursor-pointer ${
-                        isSelected
-                          ? '!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.4))] z-10'
+                      onClick={() => {
+                        if (isPassthrough) {
+                          handleUpdateTheme({
+                            transparentWindow: false,
+                            bg: '#050914',
+                            bgImage: '/themes/architect.png',
+                          });
+                        } else {
+                          handleUpdateTheme({
+                            transparentWindow: true,
+                            bg: 'transparent',
+                            bgImage: '',
+                            bgGradient: 'transparent',
+                          });
+                        }
+                      }}
+                      className={`glass-panel p-4 rounded-2xl border text-left transition-all flex items-center justify-between gap-4 cursor-pointer relative overflow-hidden ${
+                        isPassthrough
+                          ? 'sa-glass-pill-active z-10'
                           : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                       }`}
                     >
-                      {wp.path ? (
-                        <img
-                          src={wp.path}
-                          alt={t(wp.labelKey, wp.fallbackLabel)}
-                          className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                        />
-                      ) : (
-                        <div
-                          className="absolute inset-0 w-full h-full"
-                          style={{ background: currentTheme.bgGradient || currentTheme.bg || '#050914' }}
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                      <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-white truncate">
-                          {t(wp.labelKey, wp.fallbackLabel)}
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {t('icon_flip_to_back', 'flip_to_back')}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-xs font-black text-[var(--text)] leading-snug">
+                            {t('forge_wp_desktop_passthrough', 'Desktop Passthrough')}
+                          </span>
+                          <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">
+                            {t(
+                              'forge_wp_desktop_passthrough_desc',
+                              'Removes the app wallpaper and reveals your OS desktop behind Liquid Glass surfaces.'
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border shrink-0 flex items-center gap-1.5 ${
+                          isPassthrough
+                            ? 'sa-glass-pill-active'
+                            : 'glass-surface border-transparent text-[var(--subtext)]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                          {isPassthrough
+                            ? t('icon_check_circle', 'check_circle')
+                            : t('icon_radio_button_unchecked', 'radio_button_unchecked')}
                         </span>
-                        {isSelected && (
-                          <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                            <span className="material-symbols-outlined !text-[13px]">
-                              {t('icon_check_circle', 'check_circle')}
-                            </span>
-                          </div>
-                        )}
+                        <span>{isPassthrough ? t('active', 'Active') : t('disabled', 'Disabled')}</span>
                       </div>
                     </button>
                   );
-                })}
+                })()}
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                  {BUILTIN_WALLPAPERS.map((wp) => {
+                    const isPassthrough =
+                      !currentTheme.bgImage &&
+                      (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
+                    const isSelected = !isPassthrough && (currentTheme.bgImage || '') === wp.path;
+                    return (
+                      <button
+                        key={wp.id}
+                        type="button"
+                        onClick={() =>
+                          handleUpdateTheme({
+                            bgImage: wp.path || null,
+                            transparentWindow: false,
+                            ...(currentTheme.bg === 'transparent' ? { bg: '#050914' } : {}),
+                          })
+                        }
+                        className={`group relative h-24 rounded-2xl overflow-hidden border transition-all flex flex-col justify-end p-3 text-left cursor-pointer ${
+                          isSelected
+                            ? 'sa-glass-pill-active z-10'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
+                        }`}
+                      >
+                        {wp.path ? (
+                          <img
+                            src={wp.path}
+                            alt={t(wp.labelKey, wp.fallbackLabel)}
+                            className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                          />
+                        ) : (
+                          <div
+                            className="absolute inset-0 w-full h-full"
+                            style={{ background: currentTheme.bgGradient || currentTheme.bg || '#050914' }}
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                        <div className="relative z-10 flex items-center justify-between gap-2 w-full">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-white leading-snug">
+                            {t(wp.labelKey, wp.fallbackLabel)}
+                          </span>
+                          {isSelected && (
+                            <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                              <span className="material-symbols-outlined !text-[13px]">
+                                {t('icon_check_circle', 'check_circle')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </UniversalGroup>
 
             {/* Section 2: Custom Wallpaper & Nexus Preview Banner Uploads */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                      {t('forge_wallpaper_engine', 'Custom Desktop Wallpaper')}
-                    </span>
-                    <span className="text-[10px] text-[var(--subtext)] opacity-75">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                        {t('forge_wallpaper_engine', 'Custom Desktop Wallpaper')}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[8px] font-black uppercase tracking-wider">
+                        {!currentTheme.bgImage && (currentTheme.bg === 'transparent' || currentTheme.transparentWindow)
+                          ? t('forge_wp_desktop_passthrough', 'Desktop Passthrough')
+                          : String(currentTheme.bgImage || '').startsWith('http')
+                            ? t('forge_wp_source_cloud', 'Cloud CDN Wallpaper')
+                            : String(currentTheme.bgImage || '').startsWith('data:')
+                              ? t('forge_wp_source_embedded', 'Portable WebP Asset')
+                              : t('forge_wp_source_builtin', 'Built-In Wallpaper')}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">
                       {t('forge_bg_upload_desc', 'Auto-compressed to 1080p WebP for real-time glass refraction.')}
                     </span>
                   </div>
@@ -1124,9 +1571,9 @@ export function ChameleonControlDashboard({
                     <button
                       type="button"
                       onClick={() => handleUpdateTheme({ bgImage: null })}
-                      className="px-2.5 py-1 rounded-lg bg-transparent border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest hover:border-red-400 transition-all cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-transparent border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest hover:border-red-400 transition-all cursor-pointer shrink-0"
                     >
-                      {t('forge_bg_remove', 'Clear')}
+                      {t('clear', 'Clear')}
                     </button>
                   )}
                 </div>
@@ -1156,6 +1603,13 @@ export function ChameleonControlDashboard({
                     </>
                   )}
                 </label>
+
+                <span className="text-[9px] text-[var(--subtext)] opacity-75 leading-relaxed">
+                  {t(
+                    'forge_wp_cloud_sync_hint',
+                    'Custom wallpapers are automatically compressed as portable WebP in local JSON exports and uploaded to Cloud Storage when published to The {Nexus}.'
+                  )}
+                </span>
               </div>
 
               <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
@@ -1174,7 +1628,7 @@ export function ChameleonControlDashboard({
                       onClick={() => handleUpdateTheme({ previewImage: undefined })}
                       className="px-2.5 py-1 rounded-lg bg-transparent border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest hover:border-red-400 transition-all cursor-pointer"
                     >
-                      {t('forge_bg_remove', 'Clear')}
+                      {t('clear', 'Clear')}
                     </button>
                   )}
                 </div>
@@ -1232,7 +1686,7 @@ export function ChameleonControlDashboard({
                         onClick={() => handleUpdateTheme({ bgGradient: preset.id })}
                         className={`h-16 rounded-xl border transition-all flex items-center justify-center p-2 relative overflow-hidden group shadow-md cursor-pointer ${
                           isGradActive
-                            ? '!border-[var(--accent)] outline outline-2 -outline-offset-1 outline-[color-mix(in_srgb,var(--accent)_80%,transparent)]'
+                            ? 'sa-glass-pill-active z-10'
                             : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'
                         }`}
                       >
@@ -1279,7 +1733,7 @@ export function ChameleonControlDashboard({
                           }}
                           className={`px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
                             bgBuilderType === mode
-                              ? 'bg-transparent text-[var(--accent)] border-[var(--accent)]'
+                              ? 'sa-glass-pill-active'
                               : 'glass-surface text-[var(--subtext)] border-transparent hover:text-[var(--text)]'
                           }`}
                         >
@@ -1312,7 +1766,7 @@ export function ChameleonControlDashboard({
                     )}
 
                     <div className="flex items-center gap-3 shrink-0">
-                      <label className="relative w-9 h-9 rounded-xl border border-white/25 overflow-hidden cursor-pointer shadow-md">
+                      <label className="relative w-9 h-9 rounded-xl sa-glass-swatch cursor-pointer">
                         <input
                           type="color"
                           value={bgBuilderColor1}
@@ -1320,7 +1774,7 @@ export function ChameleonControlDashboard({
                             setBgBuilderColor1(e.target.value);
                             applyBgBuilder(bgBuilderType, bgBuilderAngle, e.target.value, bgBuilderColor2);
                           }}
-                          className="absolute -inset-2 w-14 h-14 opacity-0 cursor-pointer"
+                          className="absolute -inset-2 w-14 h-14 opacity-0 cursor-pointer z-10"
                         />
                         <div className="w-full h-full" style={{ backgroundColor: bgBuilderColor1 }} />
                       </label>
@@ -1329,7 +1783,7 @@ export function ChameleonControlDashboard({
                           <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-60">
                             {t('icon_arrow_forward', 'arrow_forward')}
                           </span>
-                          <label className="relative w-9 h-9 rounded-xl border border-white/25 overflow-hidden cursor-pointer shadow-md">
+                          <label className="relative w-9 h-9 rounded-xl sa-glass-swatch cursor-pointer">
                             <input
                               type="color"
                               value={bgBuilderColor2}
@@ -1337,7 +1791,7 @@ export function ChameleonControlDashboard({
                                 setBgBuilderColor2(e.target.value);
                                 applyBgBuilder(bgBuilderType, bgBuilderAngle, bgBuilderColor1, e.target.value);
                               }}
-                              className="absolute -inset-2 w-14 h-14 opacity-0 cursor-pointer"
+                              className="absolute -inset-2 w-14 h-14 opacity-0 cursor-pointer z-10"
                             />
                             <div className="w-full h-full" style={{ backgroundColor: bgBuilderColor2 }} />
                           </label>
@@ -1356,17 +1810,11 @@ export function ChameleonControlDashboard({
                     actions={
                       <label className="flex items-center gap-2 cursor-pointer mt-1">
                         <div
-                          className={`w-8 h-4 rounded-full p-0.5 transition-colors ${
-                            currentTheme.ambientNoise !== false
-                              ? 'bg-[var(--accent)]'
-                              : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                          className={`sa-glass-toggle ${
+                            currentTheme.ambientNoise !== false ? 'is-on' : ''
                           }`}
                         >
-                          <div
-                            className={`w-3 h-3 rounded-full bg-white transition-transform shadow-sm ${
-                              currentTheme.ambientNoise !== false ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
+                          <div className="sa-glass-toggle-thumb" />
                         </div>
                         <input
                           type="checkbox"
@@ -1390,17 +1838,11 @@ export function ChameleonControlDashboard({
                     actions={
                       <label className="flex items-center gap-2 cursor-pointer mt-1">
                         <div
-                          className={`w-8 h-4 rounded-full p-0.5 transition-colors ${
-                            currentTheme.ambientOrb !== false
-                              ? 'bg-[var(--accent)]'
-                              : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                          className={`sa-glass-toggle ${
+                            currentTheme.ambientOrb !== false ? 'is-on' : ''
                           }`}
                         >
-                          <div
-                            className={`w-3 h-3 rounded-full bg-white transition-transform shadow-sm ${
-                              currentTheme.ambientOrb !== false ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
+                          <div className="sa-glass-toggle-thumb" />
                         </div>
                         <input
                           type="checkbox"
@@ -1424,17 +1866,11 @@ export function ChameleonControlDashboard({
                     actions={
                       <label className="flex items-center gap-2 cursor-pointer mt-1">
                         <div
-                          className={`w-8 h-4 rounded-full p-0.5 transition-colors ${
-                            Boolean(currentTheme.scanlines)
-                              ? 'bg-[var(--accent)]'
-                              : 'bg-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                          className={`sa-glass-toggle ${
+                            Boolean(currentTheme.scanlines) ? 'is-on' : ''
                           }`}
                         >
-                          <div
-                            className={`w-3 h-3 rounded-full bg-white transition-transform shadow-sm ${
-                              Boolean(currentTheme.scanlines) ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
+                          <div className="sa-glass-toggle-thumb" />
                         </div>
                         <input
                           type="checkbox"

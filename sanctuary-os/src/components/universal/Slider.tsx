@@ -8,7 +8,7 @@ interface SliderProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const Slider: React.FC<SliderProps> = ({ value, min = 0, max = 100, className = '', ...props }) => {
+export const Slider: React.FC<SliderProps> = ({ value, min = 0, max = 100, className = '', style, ...props }) => {
   // Clamp value between min and max to prevent percent from going out of bounds
   const clampedValue = Math.min(Math.max(value, min), max);
   const percent = ((clampedValue - min) / (max - min)) * 100;
@@ -21,8 +21,8 @@ export const Slider: React.FC<SliderProps> = ({ value, min = 0, max = 100, class
       value={clampedValue}
       className={`sanctuary-slider ${className}`}
       style={{
+        ...style,
         '--slider-percent': `${percent}%`,
-        ...props.style
       } as React.CSSProperties}
       {...props}
     />

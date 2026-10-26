@@ -32,6 +32,8 @@ pub struct WorkspaceConfig {
     pub vault_capacity_gb: Option<u32>,
     pub timeline_retention_copies: Option<u32>,
     pub timeline_retention_size_mb: Option<u32>,
+    #[serde(default)]
+    pub ingest_file_mode: Option<String>,
     pub supabase_url: Option<String>,
     pub supabase_anon_key: Option<String>,
 }
@@ -103,6 +105,7 @@ pub type BunkerCache = HashMap<String, CacheEntry>;
 pub struct SecurityState {
     pub malware_hashes: std::sync::Mutex<Vec<String>>,
     pub tier2_hashes: std::sync::Mutex<Vec<String>>,
+    pub volatile_original_paths: std::sync::Mutex<HashMap<String, String>>,
 }
 
 #[derive(Serialize)]

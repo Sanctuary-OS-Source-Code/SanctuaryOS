@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, ActionPill } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -22,6 +22,7 @@ import {
   DynamicTemplatePreviewBanner,
   DynamicArtifactPreviewBanner,
 } from "./chameleon-components/ThemeCard";
+import { uploadThemeAssetsToCloud } from "./chameleon-components/ChameleonShared";
 
 
 
@@ -260,7 +261,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             const parentIdsToFetch = relationsAsChild?.map(r => r.parent_id).filter(id => !modIds.includes(id as any)) || [];
             let fetchedParents: any[] = [];
             if (parentIdsToFetch.length > 0) {
-              const { data: pMods } = await supabase.from('mods').select(selectFields).in('id', parentIdsToFetch);
+              const { data: pMods } = await supabase
+                .from('mods')
+                .select(selectFields)
+                .in('id', parentIdsToFetch)
+                .eq('compliance_tier', 0)
+                .neq('status', 'unverified');
               if (pMods) fetchedParents = pMods;
             }
 
@@ -529,7 +535,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           { data: allAssets, error: assetError },
           { data: masonData }
         ] = await Promise.all([
-          supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).order('created_at', { ascending: false }).limit(1000),
+          supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(1000),
           supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
           supabase.from('masons').select('id, name, is_verified')
         ]);
@@ -680,33 +686,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
       const finalContent = { ...uploadState.fileContent, version: uploadState.version, _meta_version: uploadState.version };
 
-      if (marketTab === 'CHAMELEONS' && finalContent.bgImage && finalContent.bgImage.includes('asset.localhost')) {
-        try {
-          let localPath = finalContent.bgImage.replace(/^https?:\/\/asset\.localhost\//, '');
-          localPath = decodeURIComponent(localPath);
-          const fileData = await readFile(localPath);
-          const ext = localPath.split('.').pop() || 'jpg';
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-
-          onSetStatus('Uploading background image to cloud...');
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from('backgrounds')
-            .upload(fileName, fileData, {
-              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-              upsert: true
-            });
-
-          if (uploadError) {
-            console.error('Image Upload Error:', uploadError);
-            throw new Error('Failed to upload background image.');
-          }
-
-          const { data: publicUrlData } = supabase.storage.from('backgrounds').getPublicUrl(fileName);
-          finalContent.bgImage = publicUrlData.publicUrl;
-        } catch (e: any) {
-          console.error('Local Image Processing Error:', e);
-          throw new Error('Failed to process and upload local background image: ' + e.message);
-        }
+      let syncedContent = finalContent;
+      if (marketTab === 'CHAMELEONS') {
+        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase);
+        syncedContent = themeData;
       }
 
       const payload: any = {
@@ -717,7 +700,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         author_id: session?.user?.id,
         description: uploadState.description,
         release_notes: uploadState.releaseNotes,
-        json_data: finalContent,
+        json_data: syncedContent,
         language: marketTab === 'LEXICONS' ? finalLanguage : null,
         lexicon_type: marketTab === 'LEXICONS' ? uploadState.lexiconType : null,
         theme_mode: marketTab === 'CHAMELEONS' ? uploadState.themeMode : null
@@ -1434,11 +1417,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     if (!options || options.length === 0) return null;
     return (
       <div className="flex flex-col mb-5 w-full last:mb-0">
-        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
           {title}
           <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-1">
           {options.map((opt: any) => {
             const active = multiSelect ? (value || []).includes(opt.id) : value === opt.id;
             return (
@@ -1452,12 +1435,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     onChange(opt.id);
                   }
                 }}
-                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border ${active
-                  ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.2)]'
-                  : 'border-[color-mix(in_srgb,var(--text)_15%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:text-[var(--text)]'
-                  }`}
+                className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                  active ? "is-selected font-bold" : "font-semibold"
+                }`}
               >
-                {opt.label}
+                <span className="truncate flex items-center gap-2 min-w-0">
+                  {opt.label}
+                </span>
+                {active && (
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                    {t("icon_check", "check")}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -2174,13 +2163,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         : t("status_staging_item_added", "Added to Remote Staging Queue.")
                                     );
                                   }}
-                                  title={
-                                    isModOrSuiteStaged
-                                      ? t("staging_btn_unstage_mod", "Remove from Staging")
-                                      : isFolder
-                                        ? t("staging_btn_stage_suite", "Stage Suite")
-                                        : t("staging_btn_stage_mod", "Stage to PC")
-                                  }
                                   className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all pointer-events-auto z-20 ${
                                     isModOrSuiteStaged
                                       ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-sm'
@@ -2199,6 +2181,15 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         ? t("staging_btn_stage_suite", "Stage Suite")
                                         : t("staging_btn_stage_mod", "Stage to PC")}
                                   </span>
+                                  <HoverTooltip
+                                    title={
+                                      isModOrSuiteStaged
+                                        ? t("staging_btn_unstage_mod", "Remove from Staging")
+                                        : isFolder
+                                          ? t("staging_btn_stage_suite", "Stage Suite")
+                                          : t("staging_btn_stage_mod", "Stage to PC")
+                                    }
+                                  />
                                 </button>
                               );
                             })()}

@@ -160,24 +160,31 @@ export function DnaMatchQueueSidePanel({
       const hashes = Array.from(familySet).filter(Boolean);
       if (edgeUrl && hashes.length > 0) {
         for (const h of hashes) {
+          const existingOvr = localOverrides[h];
+          const isUserDossier = !!existingOvr?.is_user_dossier;
           localOverrides[h] = {
-            ...(localOverrides[h] || {}),
-            displayName:
-              fetchedManifest?.artifact?.name ||
-              localOverrides[h]?.displayName ||
-              data.artifact_id ||
-              undefined,
-            author: fetchedManifest?.artifact?.author || masonId,
-            version:
-              fetchedManifest?.artifact?.version || localOverrides[h]?.version || undefined,
-            url:
-              fetchedManifest?.payload?.download_url || localOverrides[h]?.url || edgeUrl,
+            ...(existingOvr || {}),
+            displayName: isUserDossier && existingOvr?.displayName
+              ? existingOvr.displayName
+              : (fetchedManifest?.artifact?.name || existingOvr?.displayName || data.artifact_id || undefined),
+            author: isUserDossier && existingOvr?.author
+              ? existingOvr.author
+              : (fetchedManifest?.artifact?.author || masonId),
+            version: isUserDossier && existingOvr?.version
+              ? existingOvr.version
+              : (fetchedManifest?.artifact?.version || existingOvr?.version || undefined),
+            url: isUserDossier && existingOvr?.url
+              ? existingOvr.url
+              : (fetchedManifest?.payload?.download_url || existingOvr?.url || edgeUrl),
             manifest_url: edgeUrl,
-            requiredDLC:
-              fetchedManifest?.atomic_logic?.required_dlc || localOverrides[h]?.requiredDLC,
-            compatible_versions: fetchedManifest?.artifact?.game_version
-              ? [fetchedManifest.artifact.game_version]
-              : localOverrides[h]?.compatible_versions,
+            requiredDLC: isUserDossier && existingOvr?.requiredDLC
+              ? existingOvr.requiredDLC
+              : (fetchedManifest?.atomic_logic?.required_dlc || existingOvr?.requiredDLC),
+            compatible_versions: isUserDossier && existingOvr?.compatible_versions
+              ? existingOvr.compatible_versions
+              : (fetchedManifest?.artifact?.game_version
+                ? [fetchedManifest.artifact.game_version]
+                : existingOvr?.compatible_versions),
             timestamp: Date.now(),
           };
           if (fetchedManifest?.atomic_logic) {
@@ -223,10 +230,13 @@ export function DnaMatchQueueSidePanel({
       try {
         if (action === "ignore") ignoredHashesRef.current.add(match.hash || match.path);
         if (match.path) {
+          const moveOriginal =
+            (localStorage.getItem("sanctuary_ingest_file_mode") || "copy") === "move";
           await invoke("resolve_dna_match", {
             path: match.path,
             existingName: match.existing_name || "",
             action,
+            moveOriginal,
           });
         }
 

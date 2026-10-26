@@ -289,8 +289,37 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setDnaMatchQueue: (dnaMatchQueue) => set((state) => ({ dnaMatchQueue: typeof dnaMatchQueue === 'function' ? dnaMatchQueue(state.dnaMatchQueue) : dnaMatchQueue })),
   edgeOverrideQueue: [],
   setEdgeOverrideQueue: (edgeOverrideQueue) => set((state) => ({ edgeOverrideQueue: typeof edgeOverrideQueue === 'function' ? edgeOverrideQueue(state.edgeOverrideQueue) : edgeOverrideQueue })),
-  scoutQueue: [],
-  setScoutQueue: (scoutQueue) => set((state) => ({ scoutQueue: typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue })),
+  scoutQueue: (() => {
+    try {
+      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+      const cached = localStorage.getItem(`sanctuary_${wsId}_scout_queue`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  })(),
+  setScoutQueue: (scoutQueue) => set((state) => {
+    const nextQueue = typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue;
+    try {
+      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+      if (wsId && Array.isArray(nextQueue)) {
+        const lean = nextQueue.map((m: any) => ({
+          name: m?.name,
+          hash: m?.hash,
+          displayName: m?.displayName,
+          status: m?.status,
+          color: m?.color,
+          isSynced: m?.isSynced,
+          physical_path: m?.physical_path,
+          file_extension: m?.file_extension,
+        }));
+        localStorage.setItem(`sanctuary_${wsId}_scout_queue`, JSON.stringify(lean));
+      }
+    } catch {}
+    return { scoutQueue: nextQueue };
+  }),
   isScoutPanelOpen: false,
   setIsScoutPanelOpen: (isScoutPanelOpen) => set({ isScoutPanelOpen }),
   dnaMatches: [],

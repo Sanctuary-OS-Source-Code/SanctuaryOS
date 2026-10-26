@@ -559,9 +559,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
                     if (view === 'KeepersCore' && fnName !== 'secure_sync_spoke_profile' && fnName !== 'secure_update_spoke_profile' && fnName !== 'secure_sever_spoke_cord' && fnName !== 'secure_update_spoke_uplink') {
                         if (fnName.includes('notifications')) {
-                            return { data: [], error: null };
+                            if (!args?.p_game_id && (activeWsId === 'default_workspace' || !activeWs)) {
+                                return { data: [], error: null };
+                            }
+                        } else {
+                            return supabaseAuth.rpc(fnName, args);
                         }
-                        return supabaseAuth.rpc(fnName, args);
                     }
 
                     let targetGameId = args?.p_game_id || activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
@@ -681,42 +684,86 @@ export const supabase = new Proxy({} as SupabaseClient, {
     }
 });
 
-async function resolveFallbackSpokeClient(): Promise<SupabaseClient | null> {
-    const direct = getActiveGameClient();
-    if (direct) return direct;
+const spokeCredentialsCache = new Map<string, { id: string; schema_id: string; supabase_url: string; supabase_anon_key: string }>();
+
+export async function getSpokeClientById(targetSpokeId?: string): Promise<SupabaseClient | null> {
+    if (isStandaloneFork) {
+        return rawAuthClient;
+    }
+
+    const state = useStore.getState();
+    const wsId = String(targetSpokeId || state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || '').trim();
+    if (!wsId || wsId === 'default_workspace' || wsId === 'global') {
+        return null;
+    }
+
+    if (wsId === state.activeWorkspaceId) {
+        const direct = getActiveGameClient();
+        if (direct) return direct;
+    }
+
     try {
-        const state = useStore.getState();
-        const wsId = state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || 'sims4';
-        if (!wsId || wsId === 'default_workspace') return null;
+        const localMatch = (state.workspaces || []).find(
+            (w: any) => (w?.id === wsId || w?.schema_id === wsId) && w?.supabase_url && w?.supabase_anon_key
+        );
 
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wsId);
-        let query = supabaseAuth
-            .from('sanctuary_games')
-            .select('id, schema_id, supabase_url, supabase_anon_key');
-        query = isUuid ? query.eq('id', wsId) : query.eq('schema_id', wsId);
-        const { data: game } = await query.maybeSingle();
+        let creds = localMatch
+            ? {
+                  id: String(localMatch.id || wsId),
+                  schema_id: String(localMatch.schema_id || wsId),
+                  supabase_url: String(localMatch.supabase_url),
+                  supabase_anon_key: String(localMatch.supabase_anon_key),
+              }
+            : spokeCredentialsCache.get(wsId) || null;
 
-        if (game?.supabase_url && game?.supabase_anon_key) {
-            const cleanUrl = String(game.supabase_url).trim().replace(/\/+$/, '');
-            const cacheKey = `${cleanUrl}::${String(game.supabase_anon_key).slice(0, 16)}`;
+        if (!creds) {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wsId);
+            let query = supabaseAuth
+                .from('sanctuary_games')
+                .select('id, schema_id, supabase_url, supabase_anon_key');
+            query = isUuid ? query.eq('id', wsId) : query.eq('schema_id', wsId);
+            const { data: game } = await query.maybeSingle();
+            if (game?.supabase_url && game?.supabase_anon_key) {
+                creds = {
+                    id: String(game.id || wsId),
+                    schema_id: String(game.schema_id || wsId),
+                    supabase_url: String(game.supabase_url),
+                    supabase_anon_key: String(game.supabase_anon_key),
+                };
+                spokeCredentialsCache.set(wsId, creds);
+                if (creds.schema_id) spokeCredentialsCache.set(creds.schema_id, creds);
+                if (creds.id) spokeCredentialsCache.set(creds.id, creds);
+            }
+        }
+
+        if (creds?.supabase_url && creds?.supabase_anon_key) {
+            const cleanUrl = String(creds.supabase_url).trim().replace(/\/+$/, '');
+            if (cleanUrl === authUrl.trim().replace(/\/+$/, '')) {
+                return rawAuthClient;
+            }
+            const cacheKey = `${cleanUrl}::${String(creds.supabase_anon_key).slice(0, 16)}`;
             if (spokeClientCache.has(cacheKey)) {
                 return spokeClientCache.get(cacheKey)!;
             }
-            const client = createClient(cleanUrl, String(game.supabase_anon_key).trim(), {
+            const client = createClient(cleanUrl, String(creds.supabase_anon_key).trim(), {
                 auth: {
                     persistSession: false,
                     autoRefreshToken: false,
                     detectSessionInUrl: false,
-                    storageKey: `sb-spoke-fallback-${game.id || wsId}`,
-                }
+                    storageKey: `sb-spoke-client-${creds.schema_id || wsId}`,
+                },
             });
             spokeClientCache.set(cacheKey, client);
             return client;
         }
     } catch (e) {
-        console.warn('Fallback Spoke client resolution warning:', e);
+        console.warn('Spoke client resolution warning:', e);
     }
     return null;
+}
+
+async function resolveFallbackSpokeClient(): Promise<SupabaseClient | null> {
+    return getSpokeClientById();
 }
 
 export async function submitThreatManifestToSpoke(

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { EmptyState, SidePanel, StatBox } from './shared';
+import { EmptyState, SidePanel, StatBox, HoverTooltip } from './shared';
 import { SidePanelHeroCard, SidePanelTitleInput } from './components/layouts/ElevatedHubLayout';
 import { UniversalGroup, UniversalInput, UniversalTextArea } from './components/universal/UniversalLayout';
 
@@ -118,8 +118,9 @@ export function HeuristicsReadOnlyList({
                 </div>
 
                 <div className="flex flex-col relative z-10 mt-1">
-                  <h3 className="text-lg font-black text-[var(--text)] tracking-tighter leading-none mb-2.5 truncate" title={sig.signature}>
+                  <h3 className="text-lg font-black text-[var(--text)] tracking-tighter leading-none mb-2.5 truncate">
                     {sig.signature}
+                    <HoverTooltip title={sig.signature} />
                   </h3>
                   <div className="flex items-center gap-2">
                     <span className={`text-[9px] font-black ${sColor} capitalize tracking-widest`}>{sig.severity}</span>

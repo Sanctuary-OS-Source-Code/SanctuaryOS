@@ -24,6 +24,84 @@ use std::time::SystemTime;
 use tauri::{Emitter, Manager};
 
 #[tauri::command]
+pub fn check_file_exists(file_path: String) -> bool {
+    let trimmed = file_path.trim();
+    if trimmed.is_empty() || trimmed.contains("••••••") {
+        return false;
+    }
+    Path::new(trimmed).exists()
+}
+
+#[tauri::command]
+pub fn get_volatile_original_path(
+    state: tauri::State<'_, SecurityState>,
+    hash: String,
+    filename: String,
+) -> Option<String> {
+    if let Ok(map) = state.volatile_original_paths.lock() {
+        let hash_key = hash.trim().to_lowercase();
+        if !hash_key.is_empty() {
+            if let Some(p) = map.get(&hash_key) {
+                return Some(p.clone());
+            }
+        }
+        let base_name = Path::new(&filename)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| filename.clone());
+        if !base_name.is_empty() {
+            if let Some(p) = map.get(&base_name) {
+                return Some(p.clone());
+            }
+            if let Some(p) = map.get(&base_name.to_lowercase()) {
+                return Some(p.clone());
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+pub fn clear_volatile_original_path(
+    state: tauri::State<'_, SecurityState>,
+    hash: String,
+    filename: String,
+) {
+    if let Ok(mut map) = state.volatile_original_paths.lock() {
+        let hash_key = hash.trim().to_lowercase();
+        if !hash_key.is_empty() {
+            map.remove(&hash_key);
+        }
+        let base_name = Path::new(&filename)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| filename.clone());
+        if !base_name.is_empty() {
+            map.remove(&base_name);
+            map.remove(&base_name.to_lowercase());
+        }
+    }
+}
+
+#[tauri::command]
+pub fn shred_external_file(
+    state: tauri::State<'_, SecurityState>,
+    file_path: String,
+    hash: Option<String>,
+    filename: Option<String>,
+) -> Result<String, String> {
+    let hash_str = hash.unwrap_or_default();
+    let fname_str = filename.unwrap_or_else(|| {
+        Path::new(&file_path)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default()
+    });
+    clear_volatile_original_path(state, hash_str.clone(), fname_str.clone());
+    purge_external_file(file_path, hash_str, fname_str)
+}
+
+#[tauri::command]
 pub fn purge_external_file(
     path: String,
     _hash: String,
@@ -34,42 +112,78 @@ pub fn purge_external_file(
         return Err("Refusing to purge protected or unsafe path.".into());
     }
     let config = get_saved_coordinates();
+    let norm_p = p.to_string_lossy().replace('\\', "/").to_lowercase();
+    let norm_vault = config.vault_path.replace('\\', "/").to_lowercase();
+    if !norm_vault.is_empty() && norm_p.starts_with(&norm_vault) {
+        return Err("Refusing to purge Vault internal path as external file.".into());
+    }
     let safe_filename = std::path::Path::new(&filename)
         .file_name()
         .and_then(|n| n.to_str())
-        .ok_or_else(|| "Invalid filename.".to_string())?;
+        .unwrap_or(&filename)
+        .to_string();
     let manifest_path = std::path::PathBuf::from(&config.vault_path)
         .join("Quarantine")
         .join(format!("{}.manifest.json", safe_filename));
 
     if p.exists() {
         tauri::async_runtime::spawn_blocking(move || {
-            if let Ok(mut perms) = p.metadata().map(|m| m.permissions()) {
-                if perms.readonly() {
-                    perms.set_readonly(false);
-                    let _ = std::fs::set_permissions(&p, perms);
-                }
-            }
-            if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&p) {
-                if let Ok(meta) = f.metadata() {
-                    let zeros = vec![0u8; 1024 * 1024];
-                    let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
-                    while remaining > 0 {
-                        let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                        if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err()
-                        {
-                            break;
+            if p.is_dir() {
+                for entry in walkdir::WalkDir::new(&p).into_iter().filter_map(|e| e.ok()) {
+                    let ep = entry.path();
+                    if ep.is_file() {
+                        if let Ok(mut perms) = ep.metadata().map(|m| m.permissions()) {
+                            if perms.readonly() {
+                                perms.set_readonly(false);
+                                let _ = std::fs::set_permissions(ep, perms);
+                            }
                         }
-                        remaining -= write_size;
+                        if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(ep) {
+                            if let Ok(meta) = f.metadata() {
+                                let zeros = vec![0u8; 1024 * 1024];
+                                let mut remaining = std::cmp::min(meta.len(), 32 * 1024 * 1024);
+                                while remaining > 0 {
+                                    let write_size = std::cmp::min(remaining, zeros.len() as u64);
+                                    if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                                        break;
+                                    }
+                                    remaining -= write_size;
+                                }
+                                let _ = f.sync_all();
+                            }
+                        }
                     }
-                    let _ = f.sync_all();
                 }
+                let _ = std::fs::remove_dir_all(&p);
+            } else {
+                if let Ok(mut perms) = p.metadata().map(|m| m.permissions()) {
+                    if perms.readonly() {
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(&p, perms);
+                    }
+                }
+                if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&p) {
+                    if let Ok(meta) = f.metadata() {
+                        let zeros = vec![0u8; 1024 * 1024];
+                        let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
+                        while remaining > 0 {
+                            let write_size = std::cmp::min(remaining, zeros.len() as u64);
+                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err()
+                            {
+                                break;
+                            }
+                            remaining -= write_size;
+                        }
+                        let _ = f.sync_all();
+                    }
+                }
+                let _ = std::fs::remove_file(&p);
             }
-            let _ = std::fs::remove_file(&p);
 
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
                 if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
                     manifest.original_shredded = true;
+                    manifest.original_exists = false;
                     if let Ok(json) = serde_json::to_string_pretty(&manifest) {
                         let _ = std::fs::write(&manifest_path, json);
                     }
@@ -326,14 +440,36 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
     let mut cache = load_cache(&config.vault_path);
     let mut cache_updated = false;
 
-    let paths_to_check = vec![
+    let base_name = Path::new(&filename)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| filename.clone());
+
+    let mut paths_to_check = vec![
         PathBuf::from(&config.vault_path)
             .join(".sanctuary_quarantine")
-            .join(&filename),
+            .join(&base_name),
         PathBuf::from(&config.vault_path)
             .join("Quarantine")
-            .join(format!("{}.json", filename)),
+            .join(format!("{}.json", base_name)),
     ];
+
+    let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
+    let direct_mod_path = mods_lane.join(&filename);
+    if direct_mod_path.exists() && direct_mod_path.is_file() {
+        paths_to_check.push(direct_mod_path);
+    } else if !base_name.is_empty() {
+        for entry in walkdir::WalkDir::new(&mods_lane).into_iter().filter_map(|e| e.ok()) {
+            let ep = entry.path();
+            if ep.is_file() {
+                if let Some(fname) = ep.file_name().and_then(|n| n.to_str()) {
+                    if fname.eq_ignore_ascii_case(&base_name) {
+                        paths_to_check.push(ep.to_path_buf());
+                    }
+                }
+            }
+        }
+    }
 
     for q_path in paths_to_check {
         let path_str = q_path.to_string_lossy().to_string();
@@ -357,6 +493,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                 q_path.clone()
             };
             let q_path_clone = active_shred_path;
+            let vault_root = PathBuf::from(&config.vault_path);
             tauri::async_runtime::spawn_blocking(move || {
                 if let Ok(mut perms) = q_path_clone.metadata().map(|m| m.permissions()) {
                     if perms.readonly() {
@@ -382,11 +519,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
                 }
                 let _ = std::fs::remove_file(&q_path_clone);
 
-                let manifest_path = q_path_clone
-                    .parent()
-                    .unwrap()
-                    .parent()
-                    .unwrap()
+                let manifest_path = vault_root
                     .join("Quarantine")
                     .join(format!("{}.manifest.json", orig_file_name));
                 if let Ok(content) = std::fs::read_to_string(&manifest_path) {

@@ -617,6 +617,7 @@ pub fn ingest_dropped_file(
     path: String,
     force_replace: bool,
     target_folder: Option<String>,
+    move_original: Option<bool>,
 ) -> Result<String, String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
     let config = get_saved_coordinates();
@@ -628,6 +629,37 @@ pub fn ingest_dropped_file(
     if !source.exists() {
         return Err("FILE_NOT_FOUND".into());
     }
+
+    let source_full_str = source.to_string_lossy().to_string();
+    let norm_source = source_full_str.replace('\\', "/").to_lowercase();
+    let norm_vault = config.vault_path.replace('\\', "/").to_lowercase();
+    let is_external_source = !norm_vault.is_empty()
+        && !norm_source.starts_with(&norm_vault)
+        && crate::utils::is_safe_user_file_path(source);
+    let should_move_original = move_original.unwrap_or_else(|| {
+        config
+            .ingest_file_mode
+            .as_deref()
+            .map(|m| m.eq_ignore_ascii_case("move"))
+            .unwrap_or(false)
+    }) && is_external_source;
+
+    let record_volatile_origin = |hash_str: &str, name_str: &str, origin_path: &str| {
+        if !is_external_source || origin_path.trim().is_empty() {
+            return;
+        }
+        if let Ok(mut map) = state.volatile_original_paths.lock() {
+            let h_low = hash_str.trim().to_lowercase();
+            if !h_low.is_empty() {
+                map.insert(h_low, origin_path.to_string());
+            }
+            let n_trim = name_str.trim();
+            if !n_trim.is_empty() {
+                map.insert(n_trim.to_string(), origin_path.to_string());
+                map.insert(n_trim.to_lowercase(), origin_path.to_string());
+            }
+        }
+    };
 
     let mut exists = false;
     let mut existing_name = String::new();
@@ -641,17 +673,139 @@ pub fn ingest_dropped_file(
         .to_lowercase();
 
     let supported = crate::game_logic::get_supported_extensions(&game_schema);
-    let is_override = source.file_name().unwrap_or_default().to_string_lossy().to_string().to_lowercase() == "override.json";
+    let fname_lower = source
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string()
+        .to_lowercase();
+    let is_override = fname_lower == "override.json" || fname_lower == "manifest.json";
     if !source.is_dir() && ext != "zip" && ext != "rar" && ext != "7z" && !supported.contains(&ext) && !is_override {
         return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
     }
 
+    if is_override && source.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&source) {
+            if let Some((ovr, manifest_opt, auto_accepted)) =
+                crate::commands::edge_network::auto_ingest_edge_json(&config.vault_path, &content, &[])
+            {
+                let _ = app.emit(
+                    "edge_override_detected",
+                    serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": serde_json::to_string(&ovr).unwrap_or(content.clone()),
+                        "manifest_json": manifest_opt.as_ref().and_then(|m| serde_json::to_string(m).ok()),
+                        "extracted_hashes": Vec::<String>::new(),
+                        "auto_accepted": auto_accepted,
+                    }),
+                );
+                if should_move_original {
+                    let _ = std::fs::remove_file(source);
+                }
+                return Ok(serde_json::to_string(&vec![fname_lower]).unwrap_or_default());
+            } else {
+                let _ = app.emit(
+                    "edge_override_detected",
+                    serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": content,
+                        "auto_accepted": true,
+                    }),
+                );
+                if should_move_original {
+                    let _ = std::fs::remove_file(source);
+                }
+                return Ok(serde_json::to_string(&vec![fname_lower]).unwrap_or_default());
+            }
+        }
+    }
+
     if !source.is_dir() {
         let source_file_name = source.file_name().unwrap_or_default();
+        let source_file_name_str = source_file_name.to_string_lossy().to_string();
+
+        // For single supported mod files, run Malware DNA + Heuristics check FIRST before duplicate checks
+        // so malicious files are immediately intercepted and their source path is captured in volatile memory.
+        if supported.contains(&ext) {
+            let file_hash = calculate_hash(&source).unwrap_or_default();
+            hash = file_hash.clone();
+            record_volatile_origin(&file_hash, &source_file_name_str, &source_full_str);
+
+            let heuristic_sigs =
+                get_heuristic_signatures(config.vault_path.clone()).unwrap_or_else(|_| vec![]);
+            let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+            let mut is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                m.contains(&file_hash)
+            } else {
+                false
+            };
+            let is_verified = state
+                .tier2_hashes
+                .lock()
+                .map(|v| v.contains(&file_hash))
+                .unwrap_or(false);
+            if !is_malware && !is_verified {
+                if let Some(sig) = check_heuristic_malware(source, &heuristic_sigs) {
+                    is_malware = true;
+                    matched_sig = sig;
+                }
+            }
+
+            if is_malware {
+                let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                let _ = std::fs::create_dir_all(&q_dir);
+                let _ = std::fs::create_dir_all(&reports_dir);
+                let q_target = q_dir.join(&source_file_name);
+                let _ = std::fs::copy(source, &q_target);
+
+                let manifest = QuarantineManifest {
+                    artifact_name: source_file_name_str.clone(),
+                    detected_hash: file_hash.clone(),
+                    signature: matched_sig,
+                    quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                    original_path: Some(obscure_username(&source_full_str)),
+                    original_hash_at_import: Some(file_hash.clone()),
+                    original_exists: true,
+                    original_shredded: false,
+                    quarantined_file_shredded: false,
+                    detected_at: chrono::Local::now().to_rfc3339(),
+                };
+                let manifest_path =
+                    reports_dir.join(format!("{}.manifest.json", source_file_name_str));
+                if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                    let _ = fs::write(manifest_path, json);
+                }
+
+                let _ = app.emit(
+                    "malware_detected",
+                    serde_json::json!({
+                        "path": q_target.to_string_lossy().to_string(),
+                        "name": source_file_name_str,
+                        "hash": file_hash,
+                        "status": "QUARANTINED",
+                        "isLocalOverride": false,
+                        "isVirtual": false,
+                        "compliance_tier": 5,
+                        "original_exists": manifest.original_exists,
+                        "original_shredded": manifest.original_shredded,
+                        "original_path": manifest.original_path,
+                        "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
+                        "quarantine_path": manifest.quarantine_path,
+                        "matched_signature": manifest.signature
+                    }),
+                );
+                return Err("MALWARE".into());
+            }
+        }
+
         let cache = load_cache(&config.vault_path);
         let mut needs_hash = true;
 
-        for (k, _) in cache.iter() {
+        for (k, v) in cache.iter() {
+            if v.quarantined || k.contains(".sanctuary_quarantine") {
+                continue;
+            }
             if let Some(cached_name) = Path::new(k).file_name() {
                 if cached_name.to_string_lossy().to_lowercase()
                     == source_file_name.to_string_lossy().to_lowercase()
@@ -667,8 +821,14 @@ pub fn ingest_dropped_file(
         }
 
         if needs_hash {
-            hash = calculate_hash(&source).unwrap_or_default();
+            if hash.is_empty() {
+                hash = calculate_hash(&source).unwrap_or_default();
+            }
+            record_volatile_origin(&hash, &source_file_name_str, &source_full_str);
             for (k, v) in cache.iter() {
+                if v.quarantined || k.contains(".sanctuary_quarantine") {
+                    continue;
+                }
                 if v.dna_hash == hash && !hash.is_empty() && Path::new(k).exists() {
                     exists = true;
                     existing_name = k.clone();
@@ -744,7 +904,145 @@ pub fn ingest_dropped_file(
     }
 
     if source.is_dir() {
-        let _ = deploy_air_gap(source, &target);
+        let heuristic_sigs =
+            get_heuristic_signatures(config.vault_path.clone()).unwrap_or_else(|_| vec![]);
+        for entry in walkdir::WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
+            let sp = entry.path();
+            if sp.is_file() {
+                if let Some(e_str) = sp.extension().and_then(|s| s.to_str()) {
+                    if supported.contains(&e_str.to_lowercase()) {
+                        let sp_hash = calculate_hash(sp).unwrap_or_default();
+                        let sp_name = sp.file_name().unwrap_or_default().to_string_lossy().to_string();
+                        let sp_full = sp.to_string_lossy().to_string();
+                        record_volatile_origin(&sp_hash, &sp_name, &sp_full);
+
+                        let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                        let mut is_malware = if let Ok(m) = state.malware_hashes.lock() {
+                            m.contains(&sp_hash)
+                        } else {
+                            false
+                        };
+                        let is_verified = state
+                            .tier2_hashes
+                            .lock()
+                            .map(|v| v.contains(&sp_hash))
+                            .unwrap_or(false);
+                        if !is_malware && !is_verified {
+                            if let Some(sig) = check_heuristic_malware(sp, &heuristic_sigs) {
+                                is_malware = true;
+                                matched_sig = sig;
+                            }
+                        }
+                        if is_malware {
+                            let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                            let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                            let _ = std::fs::create_dir_all(&q_dir);
+                            let _ = std::fs::create_dir_all(&reports_dir);
+                            let q_target = q_dir.join(&sp_name);
+                            let _ = std::fs::copy(sp, &q_target);
+
+                            let manifest = QuarantineManifest {
+                                artifact_name: sp_name.clone(),
+                                detected_hash: sp_hash.clone(),
+                                signature: matched_sig,
+                                quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                                original_path: Some(obscure_username(&sp_full)),
+                                original_hash_at_import: Some(sp_hash.clone()),
+                                original_exists: true,
+                                original_shredded: false,
+                                quarantined_file_shredded: false,
+                                detected_at: chrono::Local::now().to_rfc3339(),
+                            };
+                            let manifest_path = reports_dir.join(format!("{}.manifest.json", sp_name));
+                            if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                                let _ = fs::write(manifest_path, json);
+                            }
+                            let _ = app.emit(
+                                "malware_detected",
+                                serde_json::json!({
+                                    "path": q_target.to_string_lossy().to_string(),
+                                    "name": sp_name,
+                                    "hash": sp_hash,
+                                    "status": "QUARANTINED",
+                                    "isLocalOverride": false,
+                                    "isVirtual": false,
+                                    "compliance_tier": 5,
+                                    "original_exists": manifest.original_exists,
+                                    "original_shredded": manifest.original_shredded,
+                                    "original_path": manifest.original_path,
+                                    "volatile_original_path": if is_external_source { Some(sp_full) } else { None },
+                                    "quarantine_path": manifest.quarantine_path,
+                                    "matched_signature": manifest.signature
+                                }),
+                            );
+                            return Err("MALWARE".into());
+                        }
+                    }
+                }
+            }
+        }
+
+        for entry in walkdir::WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
+            let sp = entry.path();
+            if let Ok(rel) = sp.strip_prefix(source) {
+                let dest = target.join(rel);
+                if sp.is_dir() {
+                    let _ = std::fs::create_dir_all(&dest);
+                } else if sp.is_file() {
+                    let fname_low = sp.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                    if fname_low == ".sanctuary_cache.json" || fname_low == "desktop.ini" || fname_low == "default.ini" {
+                        continue;
+                    }
+                    if let Some(parent) = dest.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    let _ = std::fs::copy(sp, &dest);
+                }
+            }
+        }
+        let mut dir_hashes = Vec::new();
+        let mut dir_edge_json: Option<String> = None;
+        for entry in walkdir::WalkDir::new(&target).into_iter().filter_map(|e| e.ok()) {
+            let p = entry.path();
+            if p.is_file() {
+                let fn_lower = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                if fn_lower == "manifest.json" || fn_lower == "override.json" {
+                    if let Ok(c) = std::fs::read_to_string(p) {
+                        if dir_edge_json.is_none() || fn_lower == "manifest.json" {
+                            dir_edge_json = Some(c);
+                        }
+                    }
+                    let _ = std::fs::remove_file(p);
+                } else if let Some(e_str) = p.extension().and_then(|s| s.to_str()) {
+                    if supported.contains(&e_str.to_lowercase()) {
+                        if let Ok(h) = calculate_hash(p) {
+                            if !h.is_empty() && !dir_hashes.contains(&h) {
+                                dir_hashes.push(h);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(edge_raw) = dir_edge_json {
+            if let Some((ovr, manifest_opt, auto_accepted)) =
+                crate::commands::edge_network::auto_ingest_edge_json(&config.vault_path, &edge_raw, &dir_hashes)
+            {
+                let _ = app.emit(
+                    "edge_override_detected",
+                    serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": serde_json::to_string(&ovr).unwrap_or(edge_raw),
+                        "manifest_json": manifest_opt.as_ref().and_then(|m| serde_json::to_string(m).ok()),
+                        "extracted_hashes": dir_hashes,
+                        "auto_accepted": auto_accepted,
+                    }),
+                );
+            }
+        }
+        if should_move_original {
+            let _ = std::fs::remove_dir_all(source);
+        }
         return Ok(
             serde_json::to_string(&vec![file_name.to_string_lossy().to_string()])
                 .unwrap_or_default(),
@@ -772,16 +1070,51 @@ pub fn ingest_dropped_file(
             let cache = load_cache(&config.vault_path);
             
             let mut zip_override_json: Option<String> = None;
+            let mut zip_manifest_json: Option<String> = None;
+            let mut extracted_mod_hashes: Vec<String> = Vec::new();
             for i in 0..archive.len() {
                 if let Ok(mut zf) = archive.by_index(i) {
                     let Some(enclosed) = zf.enclosed_name() else {
                         continue;
                     };
-                    if zf.is_file() && enclosed.file_name().unwrap_or_default() == "override.json" {
-                        let mut buf = String::new();
-                        use std::io::Read;
-                        if zf.read_to_string(&mut buf).is_ok() {
-                            zip_override_json = Some(buf);
+                    if zf.is_file() {
+                        let zf_fname = enclosed.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                        if zf_fname == "override.json" {
+                            let mut buf = String::new();
+                            use std::io::Read;
+                            if zf.read_to_string(&mut buf).is_ok() {
+                                zip_override_json = Some(buf);
+                            }
+                        } else if zf_fname == "manifest.json" {
+                            let mut buf = String::new();
+                            use std::io::Read;
+                            if zf.read_to_string(&mut buf).is_ok() {
+                                if buf.contains("\"artifact\"") || buf.contains("\"manifest_url\"") || buf.contains("\"atomic_logic\"") {
+                                    zip_manifest_json = Some(buf);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            let mut lineage_known_hashes: Vec<String> = Vec::new();
+            for raw_opt in [&zip_manifest_json, &zip_override_json] {
+                if let Some(raw_str) = raw_opt {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(raw_str) {
+                        for key in ["previous_hashes", "archive_hashes", "current_hashes"] {
+                            if let Some(arr) = val.get(key).and_then(|v| v.as_array()) {
+                                for item in arr {
+                                    if let Some(s) = item.as_str() {
+                                        lineage_known_hashes.push(s.to_lowercase());
+                                    }
+                                }
+                            }
+                        }
+                        if let Some(t_hash) = val.get("target_hash").and_then(|v| v.as_str()) {
+                            lineage_known_hashes.push(t_hash.to_lowercase());
+                        }
+                        if let Some(p_hash) = val.get("payload").and_then(|p| p.get("sha256")).and_then(|v| v.as_str()) {
+                            lineage_known_hashes.push(p_hash.to_lowercase());
                         }
                     }
                 }
@@ -822,7 +1155,10 @@ pub fn ingest_dropped_file(
                                     .map(|list| list.contains(&zf_ext_with_dot))
                                     .unwrap_or(false);
 
-                                for (k, _) in cache.iter() {
+                                for (k, v) in cache.iter() {
+                                    if v.quarantined || k.contains(".sanctuary_quarantine") {
+                                        continue;
+                                    }
                                     if Path::new(k).file_name() == Some(zf_file_name)
                                         && Path::new(k).exists()
                                     {
@@ -836,10 +1172,22 @@ pub fn ingest_dropped_file(
                                     found_existing = true;
                                 }
 
+                                let is_lineage_upgrade = if found_existing && !lineage_known_hashes.is_empty() {
+                                    if let Some(cached_entry) = cache.get(&resolution_existing_name) {
+                                        lineage_known_hashes.contains(&cached_entry.dna_hash.to_lowercase())
+                                    } else if let Ok(existing_h) = calculate_hash(Path::new(&resolution_existing_name)) {
+                                        lineage_known_hashes.contains(&existing_h.to_lowercase())
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                };
+
                                 if found_existing {
                                     if is_setting_file {
                                         needs_resolution = true;
-                                    } else if force_replace {
+                                    } else if force_replace || is_lineage_upgrade {
                                         final_path =
                                             Path::new(&resolution_existing_name).to_path_buf();
                                     } else {
@@ -860,17 +1208,18 @@ pub fn ingest_dropped_file(
                                     let _ = std::io::copy(&mut zf, &mut out_file);
                                     extracted_files.push(file_name_str.clone());
 
-                                    if file_name_str == "override.json" {
-                                        if let Ok(content) = std::fs::read_to_string(&extract_target) {
-                                            let _ = app.emit("edge_override_detected", serde_json::json!({
-                                                "source_action": "ingest_dropped_file",
-                                                "override_json": content,
-                                            }));
-                                        }
+                                    let fn_lower = file_name_str.to_lowercase();
+                                    if fn_lower == "override.json" || (fn_lower == "manifest.json" && zip_manifest_json.is_some()) {
+                                        let _ = std::fs::remove_file(&extract_target);
+                                        continue;
                                     }
 
                                     let extracted_hash =
                                         calculate_hash(&extract_target).unwrap_or_default();
+                                    if !extracted_hash.is_empty() && !extracted_mod_hashes.contains(&extracted_hash) {
+                                        extracted_mod_hashes.push(extracted_hash.clone());
+                                    }
+                                    record_volatile_origin(&extracted_hash, &file_name_str, &source_full_str);
                                     let heuristic_sigs =
                                         get_heuristic_signatures(config.vault_path.clone())
                                             .unwrap_or_else(|_| vec![]);
@@ -947,10 +1296,12 @@ pub fn ingest_dropped_file(
                                                 "original_exists": manifest.original_exists,
                                                 "original_shredded": manifest.original_shredded,
                                                 "original_path": manifest.original_path,
+                                                "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
                                                 "quarantine_path": manifest.quarantine_path,
                                                 "matched_signature": manifest.signature
                                             }),
                                         );
+                                        drop(out_file);
                                         return Err("MALWARE".into());
                                     } else {
                                         if needs_resolution {
@@ -971,6 +1322,9 @@ pub fn ingest_dropped_file(
                                             let mut hash_match_found = false;
                                             let mut matched_existing_name = String::new();
                                             for (k, v) in cache.iter() {
+                                                if v.quarantined || k.contains(".sanctuary_quarantine") {
+                                                    continue;
+                                                }
                                                 if v.dna_hash == extracted_hash
                                                     && !extracted_hash.is_empty()
                                                     && Path::new(k).exists()
@@ -1010,10 +1364,37 @@ pub fn ingest_dropped_file(
                     }
                 }
             }
-            if let Some(ref ov_json) = zip_override_json {
-                let _ = app.emit("edge_override_detected", serde_json::json!({
-                    "override_json": ov_json
-                }));
+            drop(archive);
+            let primary_edge_json = zip_manifest_json.as_ref().or(zip_override_json.as_ref());
+            if let Some(raw_edge) = primary_edge_json {
+                if let Some((mut ovr, manifest_opt, auto_accepted)) =
+                    crate::commands::edge_network::auto_ingest_edge_json(&config.vault_path, raw_edge, &extracted_mod_hashes)
+                {
+                    if (ovr.manifest_url.is_empty() || ovr.manifest_url.contains("your-domain.com") || ovr.manifest_url.contains("example.com"))
+                        && zip_override_json.is_some()
+                    {
+                        if let Ok(legacy_ovr) = serde_json::from_str::<crate::commands::edge_network::EdgeOverride>(zip_override_json.as_ref().unwrap()) {
+                            if !legacy_ovr.manifest_url.is_empty() {
+                                ovr.manifest_url = legacy_ovr.manifest_url;
+                            }
+                        }
+                    }
+                    let _ = app.emit("edge_override_detected", serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": serde_json::to_string(&ovr).unwrap_or_else(|_| raw_edge.clone()),
+                        "manifest_json": manifest_opt.as_ref().and_then(|m| serde_json::to_string(m).ok()).or_else(|| zip_manifest_json.clone()),
+                        "extracted_hashes": extracted_mod_hashes,
+                        "auto_accepted": auto_accepted,
+                    }));
+                } else {
+                    let _ = app.emit("edge_override_detected", serde_json::json!({
+                        "source_action": "ingest_dropped_file",
+                        "override_json": raw_edge,
+                        "manifest_json": zip_manifest_json,
+                        "extracted_hashes": extracted_mod_hashes,
+                        "auto_accepted": true,
+                    }));
+                }
             }
             if std::fs::read_dir(&target_base)
                 .map(|mut iter| iter.next().is_none())
@@ -1021,8 +1402,11 @@ pub fn ingest_dropped_file(
             {
                 let _ = std::fs::remove_dir(&target_base);
             }
-            if extracted_files.is_empty() && zip_override_json.is_none() {
+            if extracted_files.is_empty() && zip_override_json.is_none() && zip_manifest_json.is_none() {
                 return Err("No supported files found inside archive.".into());
+            }
+            if should_move_original {
+                let _ = std::fs::remove_file(source);
             }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if ext == "rar" || ext == "7z" {
@@ -1118,7 +1502,10 @@ pub fn ingest_dropped_file(
                                 .map(|list| list.contains(&zf_ext_with_dot))
                                 .unwrap_or(false);
 
-                            for (k, _) in cache.iter() {
+                            for (k, v) in cache.iter() {
+                                if v.quarantined || k.contains(".sanctuary_quarantine") {
+                                    continue;
+                                }
                                 if Path::new(k).file_name() == Some(zf_file_name)
                                     && Path::new(k).exists()
                                 {
@@ -1163,6 +1550,7 @@ pub fn ingest_dropped_file(
 
                                 let extracted_hash =
                                     calculate_hash(&extract_target).unwrap_or_default();
+                                record_volatile_origin(&extracted_hash, &file_name_str, &source_full_str);
                                 let heuristic_sigs =
                                     get_heuristic_signatures(config.vault_path.clone())
                                         .unwrap_or_else(|_| vec![]);
@@ -1236,6 +1624,7 @@ pub fn ingest_dropped_file(
                                             "original_exists": manifest.original_exists,
                                             "original_shredded": manifest.original_shredded,
                                             "original_path": manifest.original_path,
+                                            "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
                                             "quarantine_path": manifest.quarantine_path,
                                             "matched_signature": manifest.signature
                                         }),
@@ -1267,6 +1656,9 @@ pub fn ingest_dropped_file(
                                         let mut hash_match_found = false;
                                         let mut matched_existing_name = String::new();
                                         for (k, v) in cache.iter() {
+                                            if v.quarantined || k.contains(".sanctuary_quarantine") {
+                                                continue;
+                                            }
                                             if v.dna_hash == extracted_hash
                                                 && !extracted_hash.is_empty()
                                                 && Path::new(k).exists()
@@ -1313,9 +1705,14 @@ pub fn ingest_dropped_file(
             if extracted_files.is_empty() {
                 return Err("No supported files found inside archive.".into());
             }
+            if should_move_original {
+                let _ = std::fs::remove_file(source);
+            }
             return Ok(serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()));
         } else if crate::game_logic::get_supported_extensions(&game_schema).contains(&ext) || file_name.to_string_lossy().to_string().to_lowercase() == "override.json" {
             let file_hash = calculate_hash(&source).unwrap_or_default();
+            let file_name_str = file_name.to_string_lossy().to_string();
+            record_volatile_origin(&file_hash, &file_name_str, &source_full_str);
             let heuristic_sigs =
                 get_heuristic_signatures(config.vault_path.clone()).unwrap_or_else(|_| vec![]);
             let mut matched_sig = "NO SIGNATURE MATCH".to_string();
@@ -1375,6 +1772,7 @@ pub fn ingest_dropped_file(
                         "original_exists": manifest.original_exists,
                         "original_shredded": manifest.original_shredded,
                         "original_path": manifest.original_path,
+                        "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
                         "quarantine_path": manifest.quarantine_path,
                         "matched_signature": manifest.signature
                     }),
@@ -1382,13 +1780,16 @@ pub fn ingest_dropped_file(
                 return Err("MALWARE".into());
             }
 
-            std::fs::rename(source, &target)
-                .or_else(|_| {
-                    std::fs::copy(source, &target).and_then(|_| std::fs::remove_file(source))
-                })
-                .map_err(|e| e.to_string())?;
+            if should_move_original {
+                std::fs::rename(source, &target)
+                    .or_else(|_| {
+                        std::fs::copy(source, &target).and_then(|_| std::fs::remove_file(source))
+                    })
+                    .map_err(|e| e.to_string())?;
+            } else {
+                std::fs::copy(source, &target).map_err(|e| e.to_string())?;
+            }
 
-            let file_name_str = file_name.to_string_lossy().to_string();
             if file_name_str.to_lowercase() == "override.json" {
                 if let Ok(content) = std::fs::read_to_string(&target) {
                     let _ = app.emit("edge_override_detected", serde_json::json!({

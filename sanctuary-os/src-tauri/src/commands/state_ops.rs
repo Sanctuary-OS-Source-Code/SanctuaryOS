@@ -75,6 +75,7 @@ pub fn get_global_config() -> SolderConfig {
                         .map(|n| n as u32),
                     supabase_url: None,
                     supabase_anon_key: None,
+                    ingest_file_mode: v["ingest_file_mode"].as_str().map(|s| s.to_string()),
                 };
 
                 return SolderConfig {

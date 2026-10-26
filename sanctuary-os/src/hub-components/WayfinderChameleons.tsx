@@ -31,6 +31,7 @@ import {
   autoHarmonizeThemeColors,
   exportThemeWithAssets,
   importThemeWithAssets,
+  uploadThemeAssetsToCloud,
 } from "../chameleon-components/ChameleonShared";
 import MasonFileBrowser from "./MasonFileBrowser";
 import MasonEditorPanel from "./MasonEditorPanel";
@@ -263,15 +264,20 @@ export function WayfinderChameleons({
     if (!editingThemeId || !activeEditingTheme) return;
     setIsSaving(true);
     try {
-      const payload = {
-        id: editingThemeId,
-        name: activeEditingTheme.name || editingThemeId,
-        theme_data: activeEditingTheme,
-        updated_at: new Date().toISOString(),
-      };
-
       const { supabase, supabaseAuth } = await import("../supabase");
       const token = useStore.getState().session?.access_token;
+
+      const { themeData: syncedThemeData } = await uploadThemeAssetsToCloud(
+        activeEditingTheme,
+        supabaseAuth || supabase
+      );
+
+      const payload = {
+        id: editingThemeId,
+        name: syncedThemeData.name || editingThemeId,
+        theme_data: syncedThemeData,
+        updated_at: new Date().toISOString(),
+      };
 
       if (!isKeepers && token) {
         const { error } = await supabase.rpc("secure_upsert_cloud_file", {
@@ -287,7 +293,8 @@ export function WayfinderChameleons({
 
       pushStatus(t("ui_saved_personal", "Master Theme saved to cloud."), "success");
       setHasChanges(false);
-      setCloudThemes((prev) => ({ ...prev, [editingThemeId]: activeEditingTheme }));
+      setActiveEditingTheme(syncedThemeData);
+      setCloudThemes((prev) => ({ ...prev, [editingThemeId]: syncedThemeData }));
     } catch (err: any) {
       console.error(err);
       pushStatus(`${t("alert_error", "Error:")} ${err.message}`, "error");

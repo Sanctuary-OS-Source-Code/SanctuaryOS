@@ -3,6 +3,313 @@ export const INJECTED_BROWSER_CSS = ``;
 export const INJECTED_BROWSER_SCRIPT = `
 (function() {
 const SANC_BRIDGE_TOKEN = "__SANCTUARY_BRIDGE_TOKEN__";
+const SANC_BG_R = Number("__OS_BG_R__") || 6;
+const SANC_BG_G = Number("__OS_BG_G__") || 13;
+const SANC_BG_B = Number("__OS_BG_B__") || 31;
+const SANC_FRAME_R = Number("__OS_FRAME_R__") || 4;
+const SANC_FRAME_G = Number("__OS_FRAME_G__") || 9;
+const SANC_FRAME_B = Number("__OS_FRAME_B__") || 21;
+const SANC_ACCENT_R = Number("__OS_ACCENT_R__") || 56;
+const SANC_ACCENT_G = Number("__OS_ACCENT_G__") || 189;
+const SANC_ACCENT_B = Number("__OS_ACCENT_B__") || 248;
+const SANC_IS_LIGHT = "__OS_IS_LIGHT__" === "true";
+
+// Universal CSP-proof Liquid Glass Viewport Mask, Inset Scrollbar & Surface Harmonizer
+try {
+    const frameRgbCss = 'rgb(' + SANC_FRAME_R + ', ' + SANC_FRAME_G + ', ' + SANC_FRAME_B + ')';
+    const bgRgbCss = 'rgb(' + SANC_BG_R + ', ' + SANC_BG_G + ', ' + SANC_BG_B + ')';
+    const pillR = Math.min(255, Math.round(SANC_BG_R + SANC_ACCENT_R * 0.08 + 13));
+    const pillG = Math.min(255, Math.round(SANC_BG_G + SANC_ACCENT_G * 0.08 + 16));
+    const pillB = Math.min(255, Math.round(SANC_BG_B + SANC_ACCENT_B * 0.08 + 24));
+    const themeSig = [SANC_BG_R, SANC_BG_G, SANC_BG_B, SANC_FRAME_R, SANC_FRAME_G, SANC_FRAME_B, SANC_ACCENT_R, SANC_ACCENT_G, SANC_ACCENT_B, SANC_IS_LIGHT ? 1 : 0].join(',');
+    window.__sanc_theme_sig = themeSig;
+
+    const atmoGradient = [
+        'radial-gradient(110% 75% at 16% 0%, rgba(' + SANC_ACCENT_R + ', ' + SANC_ACCENT_G + ', ' + SANC_ACCENT_B + ', 0.14) 0%, transparent 58%)',
+        'radial-gradient(90% 65% at 86% 100%, rgba(' + SANC_ACCENT_R + ', ' + SANC_ACCENT_G + ', ' + SANC_ACCENT_B + ', 0.09) 0%, transparent 55%)',
+        'linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, transparent 42%, rgba(0, 0, 0, 0.32) 100%)'
+    ].join(', ');
+
+    // 1. Nonce-aware <style> to hide native outer scrollbar gutter (preventing right-corner bleed) & set instant root canvas
+    const nonceSource = document.querySelector('style[nonce], script[nonce], link[nonce]');
+    const pageNonce = nonceSource ? (nonceSource.nonce || nonceSource.getAttribute('nonce') || '') : '';
+    let rootStyle = document.getElementById('sanc-universal-theme-style');
+    if (!rootStyle) {
+        rootStyle = document.createElement('style');
+        rootStyle.id = 'sanc-universal-theme-style';
+        if (pageNonce) {
+            rootStyle.nonce = pageNonce;
+            rootStyle.setAttribute('nonce', pageNonce);
+        }
+        (document.head || document.documentElement).appendChild(rootStyle);
+    } else if (pageNonce && rootStyle.getAttribute('nonce') !== pageNonce) {
+        rootStyle.nonce = pageNonce;
+        rootStyle.setAttribute('nonce', pageNonce);
+    }
+    const nextCss = [
+        ':root, html { color-scheme: ' + (SANC_IS_LIGHT ? 'light' : 'dark') + ' !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }',
+        'body { scrollbar-width: none !important; -ms-overflow-style: none !important; }',
+        'html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0px !important; height: 0px !important; display: none !important; }',
+        '*::-webkit-scrollbar { width: 5px; height: 5px; }',
+        '*::-webkit-scrollbar-track { background: transparent; margin-block: 14px; }',
+        '*::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 9999px; }'
+    ].join('\\n');
+    if (rootStyle.textContent !== nextCss) {
+        rootStyle.textContent = nextCss;
+    }
+
+    // 2. CSP-proof inline-styled Viewport Glass Mask (#sanc-viewport-mask)
+    // Uses concentric 11px inner radius inside the 6px parent bezel so the HWND corners never bleed
+    if (document.documentElement) {
+        let mask = document.getElementById('sanc-viewport-mask');
+        if (!mask) {
+            mask = document.createElement('div');
+            mask.id = 'sanc-viewport-mask';
+            document.documentElement.appendChild(mask);
+        }
+        if (mask.getAttribute('data-sanc-sig') !== themeSig) {
+            mask.setAttribute('data-sanc-sig', themeSig);
+            const rimColor = SANC_IS_LIGHT ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.12)';
+            const topSpec = SANC_IS_LIGHT ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.22)';
+            const innerDepth = SANC_IS_LIGHT ? 'rgba(15, 23, 42, 0.05)' : 'rgba(0, 0, 0, 0.38)';
+            const boxShadowVal = '0 0 0 32px ' + frameRgbCss + ', inset 0 0 0 1px ' + rimColor + ', inset 0 1px 0 0 ' + topSpec + ', inset 0 0 28px ' + innerDepth;
+            const lensSheenVal = SANC_IS_LIGHT
+                ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, transparent 16%)'
+                : 'radial-gradient(85% 40% at 50% 0%, rgba(' + SANC_ACCENT_R + ', ' + SANC_ACCENT_G + ', ' + SANC_ACCENT_B + ', 0.065) 0%, transparent 70%), linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 15%, transparent 86%, rgba(0, 0, 0, 0.20) 100%)';
+
+            mask.style.setProperty('position', 'fixed', 'important');
+            mask.style.setProperty('inset', '0px', 'important');
+            mask.style.setProperty('pointer-events', 'none', 'important');
+            mask.style.setProperty('z-index', '2147483646', 'important');
+            mask.style.setProperty('border-radius', '11px', 'important');
+            mask.style.setProperty('box-shadow', boxShadowVal, 'important');
+            mask.style.setProperty('background', lensSheenVal, 'important');
+        }
+
+        // 3. Inset Short Liquid Glass Scrollbar (#sanc-scroll-track & #sanc-scroll-thumb)
+        // Inset 22px from top and bottom so it is shorter than the viewport and never touches the rounded corners
+        let scrollTrack = document.getElementById('sanc-scroll-track');
+        let scrollThumb = document.getElementById('sanc-scroll-thumb');
+        if (!scrollTrack) {
+            scrollTrack = document.createElement('div');
+            scrollTrack.id = 'sanc-scroll-track';
+            scrollTrack.style.setProperty('position', 'fixed', 'important');
+            scrollTrack.style.setProperty('top', '22px', 'important');
+            scrollTrack.style.setProperty('bottom', '22px', 'important');
+            scrollTrack.style.setProperty('right', '5px', 'important');
+            scrollTrack.style.setProperty('width', '5px', 'important');
+            scrollTrack.style.setProperty('border-radius', '9999px', 'important');
+            scrollTrack.style.setProperty('z-index', '2147483647', 'important');
+            scrollTrack.style.setProperty('pointer-events', 'none', 'important');
+            scrollTrack.style.setProperty('transition', 'opacity 0.2s ease', 'important');
+
+            scrollThumb = document.createElement('div');
+            scrollThumb.id = 'sanc-scroll-thumb';
+            scrollThumb.style.setProperty('position', 'absolute', 'important');
+            scrollThumb.style.setProperty('left', '0px', 'important');
+            scrollThumb.style.setProperty('right', '0px', 'important');
+            scrollThumb.style.setProperty('border-radius', '9999px', 'important');
+            scrollThumb.style.setProperty('background', 'rgba(148, 163, 184, 0.34)', 'important');
+            scrollThumb.style.setProperty('box-shadow', 'inset 0 1px 0 rgba(255, 255, 255, 0.22)', 'important');
+
+            scrollTrack.appendChild(scrollThumb);
+            document.documentElement.appendChild(scrollTrack);
+        }
+
+        const updateInsetScrollbar = () => {
+            if (!scrollTrack || !scrollThumb) return;
+            const se = document.scrollingElement || document.documentElement;
+            const scrollHeight = Math.max(
+                se ? se.scrollHeight : 0,
+                document.body ? document.body.scrollHeight : 0
+            );
+            const clientHeight = window.innerHeight || (se ? se.clientHeight : 0);
+            if (scrollHeight <= clientHeight + 4) {
+                scrollTrack.style.setProperty('opacity', '0', 'important');
+                return;
+            }
+            scrollTrack.style.setProperty('opacity', '1', 'important');
+            const trackHeight = Math.max(40, clientHeight - 44);
+            const ratio = clientHeight / scrollHeight;
+            const thumbHeight = Math.max(28, Math.min(trackHeight, Math.round(trackHeight * ratio)));
+            const maxScroll = Math.max(1, scrollHeight - clientHeight);
+            const scrollTop = window.scrollY || (se ? se.scrollTop : 0) || 0;
+            const thumbTop = Math.min(
+                trackHeight - thumbHeight,
+                Math.max(0, Math.round((scrollTop / maxScroll) * (trackHeight - thumbHeight)))
+            );
+            scrollThumb.style.setProperty('height', thumbHeight + 'px', 'important');
+            scrollThumb.style.setProperty('transform', 'translateY(' + thumbTop + 'px)', 'important');
+        };
+        window.__sanc_update_scrollbar = updateInsetScrollbar;
+        updateInsetScrollbar();
+    }
+
+    // 4. Universal Liquid Glass Surface Harmonizer
+    const parseRgba = (str) => {
+        if (!str) return null;
+        const m = str.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\)/);
+        if (!m) return null;
+        return {
+            r: parseInt(m[1], 10),
+            g: parseInt(m[2], 10),
+            b: parseInt(m[3], 10),
+            a: m[4] !== undefined ? parseFloat(m[4]) : 1
+        };
+    };
+
+    const isNeutralDark = (c, minVal, maxVal) => {
+        if (!c || c.a < 0.75) return false;
+        const maxC = Math.max(c.r, c.g, c.b);
+        const minC = Math.min(c.r, c.g, c.b);
+        return maxC >= minVal && maxC <= maxVal && (maxC - minC) <= 16;
+    };
+
+    const isOpaqueLight = (c) => {
+        if (!c || c.a < 0.75) return false;
+        return c.r > 175 && c.g > 175 && c.b > 175;
+    };
+
+    const getOriginalBg = (el) => {
+        if (el.hasAttribute('data-sanc-orig-bg')) {
+            return parseRgba(el.getAttribute('data-sanc-orig-bg'));
+        }
+        const cs = window.getComputedStyle(el);
+        if (cs.backgroundImage && cs.backgroundImage !== 'none' && !el.hasAttribute('data-sanc-root-styled')) {
+            return null;
+        }
+        return parseRgba(cs.backgroundColor || '');
+    };
+
+    const lockOriginalBg = (el) => {
+        if (!el.hasAttribute('data-sanc-orig-bg')) {
+            el.setAttribute('data-sanc-orig-bg', window.getComputedStyle(el).backgroundColor || '');
+        }
+    };
+
+    const harmonizePageSurfaces = () => {
+        if (SANC_IS_LIGHT || !document.documentElement) return;
+
+        const docEl = document.documentElement;
+        const bodyEl = document.body;
+
+        // Check if body is explicitly an opaque white light-mode page (and not just default unstyled canvas)
+        const bodyOrig = bodyEl ? getOriginalBg(bodyEl) : null;
+        if (bodyEl && isOpaqueLight(bodyOrig)) {
+            return;
+        }
+
+        // Apply Sanctuary OS Atmospheric Liquid Glass backdrop to <html> immediately
+        if (docEl.getAttribute('data-sanc-sig') !== themeSig) {
+            lockOriginalBg(docEl);
+            docEl.setAttribute('data-sanc-root-styled', '1');
+            docEl.setAttribute('data-sanc-sig', themeSig);
+            docEl.style.setProperty('background-color', bgRgbCss, 'important');
+            docEl.style.setProperty('background-image', atmoGradient, 'important');
+            docEl.style.setProperty('background-attachment', 'fixed', 'important');
+        }
+
+        if (!bodyEl) return;
+
+        if (bodyEl.getAttribute('data-sanc-sig') !== themeSig) {
+            lockOriginalBg(bodyEl);
+            bodyEl.setAttribute('data-sanc-sig', themeSig);
+            bodyEl.style.setProperty('background-color', 'transparent', 'important');
+        }
+
+        const vw = window.innerWidth || 800;
+        const vh = window.innerHeight || 600;
+        const nodes = bodyEl.querySelectorAll('div, main, header, footer, nav, section, article, aside, form, button, input, textarea, [role="button"], [role="search"], [role="combobox"], [role="navigation"], [role="contentinfo"]');
+        const maxScan = Math.min(nodes.length, 240);
+
+        for (let i = 0; i < maxScan; i++) {
+            const el = nodes[i];
+            if (!el || !el.style || el.id === 'sanc-viewport-mask' || el.id === 'sanc-scroll-track' || el.id === 'sanc-scroll-thumb' || el.id === 'sanc-ctx-menu') continue;
+
+            const origBg = getOriginalBg(el);
+            if (!isNeutralDark(origBg, 8, 72)) continue;
+
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+
+            // Case A: Full-width main layout wrapper -> make transparent so atmospheric glass backdrop shows through
+            if (rect.width >= vw * 0.78 && rect.height >= vh * 0.34) {
+                lockOriginalBg(el);
+                el.setAttribute('data-sanc-role', 'wrapper');
+                if (el.getAttribute('data-sanc-sig') !== themeSig) {
+                    el.setAttribute('data-sanc-sig', themeSig);
+                    el.style.setProperty('background-color', 'transparent', 'important');
+                }
+                continue;
+            }
+
+            // Case B: Full-width horizontal bar (header, sticky nav, bottom footer like Google #171717) -> smoked glass bar
+            if (rect.width >= vw * 0.78 && rect.height < vh * 0.34) {
+                lockOriginalBg(el);
+                el.setAttribute('data-sanc-role', 'bar');
+                if (el.getAttribute('data-sanc-sig') !== themeSig) {
+                    el.setAttribute('data-sanc-sig', themeSig);
+                    el.style.setProperty('background-color', 'rgba(' + SANC_BG_R + ', ' + SANC_BG_G + ', ' + SANC_BG_B + ', 0.62)', 'important');
+                    el.style.setProperty('backdrop-filter', 'blur(16px)', 'important');
+                    el.style.setProperty('-webkit-backdrop-filter', 'blur(16px)', 'important');
+                    el.style.setProperty('border-color', 'rgba(255, 255, 255, 0.08)', 'important');
+                }
+                continue;
+            }
+
+            // Case C: Interactive UI surface (search bars, pills, buttons, cards with neutral gray #202124..#444)
+            if (rect.width < vw * 0.78 && rect.width >= 36 && rect.height >= 24 && rect.height <= 420 && isNeutralDark(origBg, 20, 72)) {
+                lockOriginalBg(el);
+                const parentPill = el.parentElement ? el.parentElement.closest('[data-sanc-role="pill"]') : null;
+                if (parentPill) {
+                    if (el.getAttribute('data-sanc-sig') !== themeSig) {
+                        el.setAttribute('data-sanc-sig', themeSig);
+                        el.style.setProperty('background-color', 'transparent', 'important');
+                        el.style.setProperty('box-shadow', 'none', 'important');
+                    }
+                } else {
+                    el.setAttribute('data-sanc-role', 'pill');
+                    if (el.getAttribute('data-sanc-sig') !== themeSig) {
+                        el.setAttribute('data-sanc-sig', themeSig);
+                        el.style.setProperty('background-color', 'rgba(' + pillR + ', ' + pillG + ', ' + pillB + ', 0.68)', 'important');
+                        el.style.setProperty('backdrop-filter', 'blur(14px)', 'important');
+                        el.style.setProperty('-webkit-backdrop-filter', 'blur(14px)', 'important');
+                        el.style.setProperty('border-color', 'rgba(255, 255, 255, 0.14)', 'important');
+                        el.style.setProperty('box-shadow', 'inset 0 1px 0 0 rgba(255, 255, 255, 0.15), 0 6px 18px rgba(0, 0, 0, 0.24)', 'important');
+                    }
+                }
+            }
+        }
+    };
+
+    window.__sanc_harmonize = harmonizePageSurfaces;
+    harmonizePageSurfaces();
+
+    // Attach instant DOM MutationObserver & scroll/resize listeners once per document
+    // so new elements are harmonized on the exact frame they mount without flashing
+    if (!window.__sanctuary_dom_observer_v1 && document.documentElement) {
+        window.__sanctuary_dom_observer_v1 = true;
+        let rafPending = false;
+        const scheduleHarmonize = () => {
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                if (typeof window.__sanc_harmonize === 'function') window.__sanc_harmonize();
+                if (typeof window.__sanc_update_scrollbar === 'function') window.__sanc_update_scrollbar();
+            });
+        };
+        const mo = new MutationObserver(scheduleHarmonize);
+        mo.observe(document.documentElement, { childList: true, subtree: true });
+        window.addEventListener('scroll', () => {
+            if (typeof window.__sanc_update_scrollbar === 'function') window.__sanc_update_scrollbar();
+        }, { passive: true });
+        window.addEventListener('resize', scheduleHarmonize, { passive: true });
+        document.addEventListener('DOMContentLoaded', scheduleHarmonize);
+        window.addEventListener('load', scheduleHarmonize);
+    }
+} catch (e) {}
+
 if (!window.__sanctuary_fs_injected) {
     window.__sanctuary_fs_injected = true;
 
@@ -64,7 +371,7 @@ if (!window.__sanctuary_fs_injected) {
         return origPush.apply(this, args);
     };
 
-    // Context Menu Handler
+    // Context Menu Handler (Trusted-Types Safe — Zero innerHTML)
     const ctxHandler = e => {
         if (!e.isTrusted) return;
         e.preventDefault();
@@ -77,41 +384,22 @@ if (!window.__sanctuary_fs_injected) {
         const a = e.target.closest('a');
         const isLink = a && a.href;
         const isVideo = e.target.tagName === 'VIDEO';
-        
-        if (!document.getElementById('sanc-font')) {
-            const style = document.createElement('style');
-            style.id = 'sanc-font';
-            style.textContent = "@keyframes sanc-fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }";
-            document.head.appendChild(style);
-        }
 
         let menu = document.getElementById('sanc-ctx-menu');
         if (menu) menu.remove();
         
         menu = document.createElement('div');
         menu.id = 'sanc-ctx-menu';
-        menu.style.cssText = "position:fixed; z-index:2147483647; box-sizing:border-box; background:rgba(128,128,128,0.15); backdrop-filter:blur(32px); -webkit-backdrop-filter:blur(32px); border:1px solid rgba(128,128,128,0.2); border-radius:10px; padding:4px 0; display:flex; flex-direction:column; width:170px; min-width:170px; box-shadow:0 15px 35px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05); overflow:hidden; font-family:system-ui, -apple-system, sans-serif; animation: sanc-fade-in 0.1s ease-out;";
-        
-        const getIcon = (action) => {
-            const svgAttrs = 'width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6; transition:opacity 0.15s;"';
-            if (action === 'newTab') return '<svg ' + svgAttrs + '><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-            if (action === 'copyLink') return '<svg ' + svgAttrs + '><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-            if (action === 'copyVideo') return '<svg ' + svgAttrs + '><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>';
-            if (action === 'cut') return '<svg ' + svgAttrs + '><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
-            if (action === 'copy') return '<svg ' + svgAttrs + '><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-            if (action === 'paste') return '<svg ' + svgAttrs + '><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>';
-            if (action === 'selectAll') return '<svg ' + svgAttrs + '><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M9 9h6v6H9z"/></svg>';
-            if (action === 'reload') return '<svg ' + svgAttrs + '><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-            if (action === 'back') return '<svg ' + svgAttrs + '><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>';
-            return '';
-        };
+        menu.style.cssText = "position:fixed; z-index:2147483647; box-sizing:border-box; background:rgba(10, 18, 36, 0.78); backdrop-filter:blur(28px); -webkit-backdrop-filter:blur(28px); border:1px solid rgba(255,255,255,0.16); border-radius:12px; padding:5px; display:flex; flex-direction:column; width:180px; min-width:180px; box-shadow:0 18px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.22); overflow:hidden; font-family:system-ui, -apple-system, sans-serif;";
 
         const makeBtn = (text, action) => {
             const b = document.createElement('button');
-            b.style.cssText = "box-sizing:border-box; background:transparent; border:none; color:rgba(255,255,255,0.85); padding:6px 14px; text-align:left; cursor:pointer; font-family:system-ui, -apple-system, sans-serif; font-size:14px; font-weight:400; margin:0; transition:background-color 0.15s; display:flex; align-items:center; gap:10px; width:100%; line-height:20px; text-shadow:0 1px 2px rgba(0,0,0,0.3);";
-            b.innerHTML = getIcon(action) + '<span>' + text + '</span>';
-            b.onmouseover = () => { b.style.background = "rgba(255,255,255,0.1)"; const svg = b.querySelector('svg'); if(svg) svg.style.opacity = "1"; };
-            b.onmouseout = () => { b.style.background = "transparent"; const svg = b.querySelector('svg'); if(svg) svg.style.opacity = "0.5"; };
+            b.style.cssText = "box-sizing:border-box; background:transparent; border:none; border-radius:8px; color:rgba(255,255,255,0.9); padding:7px 12px; text-align:left; cursor:pointer; font-family:system-ui, -apple-system, sans-serif; font-size:13px; font-weight:500; margin:0; transition:background-color 0.15s; display:flex; align-items:center; gap:10px; width:100%; line-height:18px;";
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = text;
+            b.appendChild(labelSpan);
+            b.onmouseover = () => { b.style.background = "rgba(255,255,255,0.10)"; };
+            b.onmouseout = () => { b.style.background = "transparent"; };
             b.onclick = (clickEv) => {
                 if (!clickEv.isTrusted) return;
                 if (action === 'paste') window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":paste";
@@ -141,14 +429,14 @@ if (!window.__sanctuary_fs_injected) {
             menu.appendChild(makeBtn("Open Link in New Tab", "newTab"));
             menu.appendChild(makeBtn("Copy Link Address", "copyLink"));
             const div = document.createElement('div');
-            div.style.cssText = "height:1px; background:rgba(128,128,128,0.2); margin:4px 0; width:100%;";
+            div.style.cssText = "height:1px; background:rgba(255,255,255,0.12); margin:4px 0; width:100%;";
             menu.appendChild(div);
         }
         
         if (isVideo) {
             menu.appendChild(makeBtn("Copy Video URL", "copyVideo"));
             const div = document.createElement('div');
-            div.style.cssText = "height:1px; background:rgba(128,128,128,0.2); margin:4px 0; width:100%;";
+            div.style.cssText = "height:1px; background:rgba(255,255,255,0.12); margin:4px 0; width:100%;";
             menu.appendChild(div);
         }
         
@@ -159,7 +447,7 @@ if (!window.__sanctuary_fs_injected) {
         
         if (isInput || hasSelection) {
             const div = document.createElement('div');
-            div.style.cssText = "height:1px; background:rgba(128,128,128,0.2); margin:4px 0; width:100%;";
+            div.style.cssText = "height:1px; background:rgba(255,255,255,0.12); margin:4px 0; width:100%;";
             menu.appendChild(div);
         }
         
@@ -310,4 +598,3 @@ if (!window.__sanctuary_checkout_watcher_v1) {
 }
 })();
 `;
-

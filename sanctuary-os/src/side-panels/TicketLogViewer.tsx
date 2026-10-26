@@ -10,6 +10,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
+  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
@@ -525,11 +526,9 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                             {t("icon_extension", "extension")}
                           </span>
                         </div>
-                        <span
-                          className="text-xs font-bold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors line-clamp-2 w-full"
-                          title={displayName}
-                        >
+                        <span className="text-xs font-bold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors line-clamp-2 w-full">
                           {displayName}
+                          <HoverTooltip title={displayName} />
                         </span>
                       </div>
                     );

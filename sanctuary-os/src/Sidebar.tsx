@@ -24,22 +24,9 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
           if (isCollapsed) setHoveredTooltip(null);
         }}
         onClick={onClick}
-        style={
-          isActive
-            ? {
-                backgroundColor: 'var(--glass-nav-active-bg)',
-                backgroundImage: 'linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 52%, rgba(var(--accent-rgb, 56, 189, 248), 0.05) 100%)',
-                boxShadow: 'var(--glass-nav-active-shadow)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.22)',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.14)',
-                borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-              }
-            : undefined
-        }
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group border-0 cursor-pointer
           ${isActive
-            ? "text-[var(--sidebartext)] opacity-100"
+            ? "sa-glass-active text-[var(--sidebartext)] opacity-100"
             : (isAccent
                 ? "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--sidebartext)_6%,transparent)]"
                 : "text-[var(--sidebartext)] opacity-60 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--sidebartext)_5%,transparent)]")
@@ -462,7 +449,7 @@ export function Sidebar({
                       <NavButton active={useStore.getState().masonActiveTab === "command_center"} onClick={() => useStore.getState().setMasonActiveTab("command_center")} icon={t("icon_desktop_windows", "desktop_windows") as string} label={t("wf_tab_command", "Command")?.replace(/^[^\w]*/, '').trim() || "Command Center"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "command_center"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().masonActiveTab === "sandbox" || useStore.getState().masonActiveTab === "registry"} onClick={() => useStore.getState().setMasonActiveTab("sandbox")} icon={(isVerifiedMason ? t("icon_deployed_code", "deployed_code") : t("icon_handyman", "handyman")) as string} label={(isVerifiedMason ? t("term_mods", "Mods") : t("filter_dev", "Sandbox"))?.replace(/^[^\w]*/, '').trim() || "Artifacts"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "sandbox" || useStore.getState().masonActiveTab === "registry"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={useStore.getState().masonActiveTab === "nexus"} onClick={() => useStore.getState().setMasonActiveTab("nexus")} icon={t("icon_hub", "hub") as string} label={t("tab_nexus", "{Nexus}")?.replace(/^[^\w]*/, '').trim() || "Nexus"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "nexus"} setHoveredTooltip={setHoveredTooltip} />
-                      <NavButton active={useStore.getState().masonActiveTab === "chameleons"} onClick={() => useStore.getState().setMasonActiveTab("chameleons")} icon="palette" label={t("tab_chameleons", "Chameleons")?.replace(/^[^\w]*/, '').trim() || "Chameleons"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={useStore.getState().masonActiveTab === "chameleons"} onClick={() => useStore.getState().setMasonActiveTab("chameleons")} icon={t("icon_palette", "palette") as string} label={t("tab_aesthetics", "Aesthetics")?.replace(/^[^\w]*/, '').trim() || "Aesthetics"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
                       {isVerifiedMason && (
                         <>
                           <NavButton active={useStore.getState().masonActiveTab === "collections"} onClick={() => useStore.getState().setMasonActiveTab("collections")} icon={t("icon_collections_bookmark", "collections_bookmark") as string} label={t("tab_cc", "Collections")?.replace(/^[^\w]*/, '').trim() || "Collections"} isCollapsed={false} isAccent={useStore.getState().masonActiveTab === "collections"} setHoveredTooltip={setHoveredTooltip} />
