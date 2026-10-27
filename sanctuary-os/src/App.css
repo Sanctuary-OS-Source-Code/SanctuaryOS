@@ -693,13 +693,9 @@ nav.firefox-safe-glass {
   background-image: none !important;
 }
 
-#root .sa-floating-glass-pill,
-#sa-portals .sa-floating-glass-pill,
-.sa-side-panel-window .sa-floating-glass-pill,
 .sa-floating-glass-pill {
   overflow: hidden;
   background-color: transparent !important;
-  background-image: none !important;
   border-top-color: var(--glass-border-top) !important;
   border-left-color: var(--glass-border-left) !important;
   border-right-color: var(--glass-border-right) !important;
@@ -756,12 +752,12 @@ nav.firefox-safe-glass {
 }
 
 /* Nested glass elements inside Sidebar, SidePanels, Mobile Overlays, Modals, or parent cards sit as clean frosted containers on top of the parent's continuous WebGL2 Liquid Glass slab */
-nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
-.sa-side-panel-window .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
-.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
-.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
-.glass-panel .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
-.glass-surface .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill) {
+nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
+.sa-side-panel-window .glass-panel:not(.portal-glass-fix),
+.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix),
+.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
+.glass-panel .glass-panel:not(.portal-glass-fix),
+.glass-surface .glass-panel:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.05)) !important;
@@ -774,7 +770,6 @@ nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix):not(.sa-floating-glas
 nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
 .sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix),
-.sa-floating-glass-pill .glass-surface:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
 .glass-panel .glass-surface:not(.portal-glass-fix),
 .glass-surface .glass-surface:not(.portal-glass-fix) {

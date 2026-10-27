@@ -407,7 +407,7 @@ export function WorkbenchSidePanel({
             {editorState.problemsList.length > 0 && (
                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2.5 w-max max-w-[calc(100%-2.5rem)] pointer-events-none">
                   <div
-                     className="pointer-events-auto w-fit max-w-full flex items-center justify-between gap-3.5 glass-panel sa-floating-glass-pill !rounded-2xl px-4 py-3 border cursor-pointer transition-all group/problem"
+                     className="pointer-events-auto w-fit max-w-full flex items-center justify-between gap-3.5 glass-panel portal-glass-fix sa-dropdown-popover !rounded-2xl px-4 py-3 cursor-pointer transition-all group/problem"
                      onClick={() => {
                         if (isTemplateMode && authorTab !== 'raw') setAuthorTab('raw');
                         if (editorState.editorRef && editorState.problemsList[0]) {

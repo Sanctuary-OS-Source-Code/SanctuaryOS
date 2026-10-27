@@ -603,7 +603,7 @@ export default function MasonEditorPanel({
                     (isLexiconActive &&
                       editorViewMode !== "visual" &&
                       validationStats.missing > 0)) && (
-                    <div className="pointer-events-auto w-fit max-w-full glass-panel sa-floating-glass-pill rounded-2xl px-4 py-3 border flex flex-wrap items-center justify-between gap-3.5 transition-all">
+                    <div className="pointer-events-auto w-fit max-w-full glass-panel portal-glass-fix sa-dropdown-popover !rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3.5 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)] shrink-0">
                           <span className="material-symbols-outlined !text-[20px]">
@@ -738,7 +738,7 @@ export default function MasonEditorPanel({
 
                 {problemsList.length > 0 && (
                   <div
-                    className="pointer-events-auto w-fit max-w-full glass-panel sa-floating-glass-pill rounded-2xl px-4 py-3 border flex items-center justify-between gap-3.5 cursor-pointer transition-all group/problem"
+                    className="pointer-events-auto w-fit max-w-full glass-panel portal-glass-fix sa-dropdown-popover !rounded-2xl px-4 py-3 flex items-center justify-between gap-3.5 cursor-pointer transition-all group/problem"
                     onClick={() => {
                       if (hasVisualStudio && editorViewMode === "visual") {
                         setEditorViewMode("split");
