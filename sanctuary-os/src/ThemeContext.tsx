@@ -609,9 +609,15 @@ export function applyThemeCssVarsToRoot(themeObj: any) {
   const isTransparentPassthrough =
     !themeObj.bgImage &&
     (themeObj.bg === 'transparent' || Boolean(themeObj.transparentWindow));
-  root.style.backgroundColor = isTransparentPassthrough ? 'transparent' : (themeObj.bg || '#000000');
+  const safeBg = isTransparentPassthrough
+    ? 'transparent'
+    : (themeObj.bg && themeObj.bg !== '#000000' ? themeObj.bg : '#050b16');
+  root.style.backgroundColor = safeBg;
+  const bootBgImg = themeObj.bgImage ? `url("${themeObj.bgImage}")` : 'none';
+  root.style.setProperty('--boot-bg-image', bootBgImg);
+  root.style.backgroundImage = bootBgImg;
   if (document.body) {
-    document.body.style.backgroundColor = isTransparentPassthrough ? 'transparent' : 'var(--bg, #000000)';
+    document.body.style.backgroundColor = 'transparent';
   }
 
   const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
@@ -1039,9 +1045,15 @@ export const ThemeProvider = ({ children }: any) => {
     const isTransparentPassthrough =
       !currentTheme.bgImage &&
       (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
-    root.style.backgroundColor = isTransparentPassthrough ? 'transparent' : (currentTheme.bg || '#000000');
+    const safeBg = isTransparentPassthrough
+      ? 'transparent'
+      : (currentTheme.bg && currentTheme.bg !== '#000000' ? currentTheme.bg : '#050b16');
+    root.style.backgroundColor = safeBg;
+    const bootBgImg = currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : 'none';
+    root.style.setProperty('--boot-bg-image', bootBgImg);
+    root.style.backgroundImage = bootBgImg;
     if (document.body) {
-      document.body.style.backgroundColor = isTransparentPassthrough ? 'transparent' : 'var(--bg, #000000)';
+      document.body.style.backgroundColor = 'transparent';
     }
     const rootMount = document.getElementById('root');
     if (rootMount) {

@@ -5,9 +5,25 @@ import "./index.css";
 import "./theme-radius.css";
 import App from "./App";
 import { useStore } from "./store";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isDesktop } from "./utils/envUtils";
 
 if (typeof window !== "undefined") {
   window.alert = (msg) => useStore.getState().pushStatus(msg, "info");
+
+  (window as any).__sanctuaryRevealBootWindow = () => {
+    if ((window as any).__sanctuaryBootRevealed) return;
+    (window as any).__sanctuaryBootRevealed = true;
+    if (isDesktop()) {
+      invoke("reveal_main_window").catch(() => {});
+      try {
+        const win = getCurrentWindow();
+        win.show().catch(() => {});
+        win.setFocus().catch(() => {});
+      } catch {}
+    }
+  };
 }
 window.confirm = (msg) => {
   useStore.getState().pushStatus(msg + " (Auto-Confirmed)", "warning");
@@ -52,4 +68,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   </React.StrictMode>
 );
 
-
+if (typeof window !== "undefined") {
+  window.setTimeout(() => {
+    (window as any).__sanctuaryRevealBootWindow?.();
+  }, 380);
+}

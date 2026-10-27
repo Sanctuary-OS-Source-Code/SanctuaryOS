@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" /><meta name="darkreader-lock" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#050b16" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,6 +14,95 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <title>Sanctuary OS</title>
+  <style>
+    html, body, #root {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 100dvh;
+      overflow: hidden;
+      background-color: transparent;
+      color-scheme: dark;
+    }
+    html {
+      background-color: var(--bg, #050b16);
+      background-image: var(--boot-bg-image, url("/themes/architect.png"));
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("lab_overlay") === "1") {
+          document.documentElement.style.setProperty("--bg", "transparent");
+          document.documentElement.style.setProperty("--boot-bg-image", "none");
+          document.documentElement.style.backgroundColor = "transparent";
+          document.documentElement.style.backgroundImage = "none";
+          return;
+        }
+        var builtins = {
+          architect: { bg: "#050b16", bgImage: "/themes/architect.png" },
+          radiant: { bg: "#f4f6fb", bgImage: "/themes/radiant.png" },
+          sims4: { bg: "#eefbf5", bgImage: "/themes/sims4.png" },
+          sims4_dark: { bg: "#020a06", bgImage: "/themes/sims4_dark.png" },
+          theme_1788994757269: { bg: "#020a06", bgImage: "/themes/sims4_dark.png" },
+          aurora: { bg: "#030712", bgImage: "/themes/aurora.png" },
+          bunker: { bg: "#020604", bgImage: "/themes/bunker.png" },
+          synthwave: { bg: "#090214", bgImage: "/themes/synthwave.png" },
+          dracula: { bg: "#12101b", bgImage: "/themes/dracula.png" },
+          true_glass: { bg: "transparent", bgImage: "", transparentWindow: true }
+        };
+        var wsId = localStorage.getItem("sanctuary_last_active_workspace") || "";
+        if (!wsId) {
+          try {
+            var cfg = JSON.parse(localStorage.getItem("sanctuary_config") || "{}");
+            if (cfg && cfg.active_workspace_id) wsId = cfg.active_workspace_id;
+          } catch (e) {}
+        }
+        if (!wsId) wsId = "default";
+        var useGlobal = localStorage.getItem("sanctuary_use_global_theme") === "true";
+        var themeId = (useGlobal
+          ? localStorage.getItem("sanctuary_global_theme")
+          : localStorage.getItem("sanctuary_" + wsId + "_active_theme")) || "architect";
+        var resolved = builtins[themeId] || null;
+        if (!resolved) {
+          try {
+            var customs = JSON.parse(localStorage.getItem("sanctuary_" + wsId + "_custom_themes") || "{}");
+            if (customs && customs[themeId]) resolved = customs[themeId];
+          } catch (e) {}
+        }
+        if (!resolved) {
+          try {
+            var devs = JSON.parse(localStorage.getItem("sanctuary_" + wsId + "_dev_themes") || "{}");
+            if (devs && devs[themeId]) resolved = devs[themeId];
+          } catch (e) {}
+        }
+        if (!resolved) resolved = builtins.architect;
+        var isPassthrough = !resolved.bgImage && (resolved.bg === "transparent" || Boolean(resolved.transparentWindow));
+        var bgColor = isPassthrough ? "transparent" : (resolved.bg && resolved.bg !== "#000000" ? resolved.bg : "#050b16");
+        var root = document.documentElement;
+        root.style.setProperty("--bg", bgColor);
+        root.style.backgroundColor = bgColor;
+        if (resolved.bgImage) {
+          var cssUrl = 'url("' + resolved.bgImage + '")';
+          root.style.setProperty("--boot-bg-image", cssUrl);
+          root.style.backgroundImage = cssUrl;
+          var img = new Image();
+          img.decoding = "sync";
+          img.src = resolved.bgImage;
+          window.__sanctuaryPreloadedWallpaper = img;
+          window.__sanctuaryPreloadedWallpaperSrc = resolved.bgImage;
+        } else {
+          root.style.setProperty("--boot-bg-image", "none");
+          root.style.backgroundImage = "none";
+        }
+      } catch (err) {}
+    })();
+  </script>
   <!-- Google Fonts for Sanctuary OS Themes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

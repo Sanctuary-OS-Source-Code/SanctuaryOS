@@ -77,10 +77,31 @@ fn test_package_scanner(_: String) -> Result<String, String> {
     Ok("Done".into())
 }
 
+#[tauri::command]
+fn reveal_main_window(app: tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
 fn main() {
     ensure_windows_aumid_registered();
 
     tauri::Builder::default()
+        .setup(|app| {
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                if let Some(win) = handle.get_webview_window("main") {
+                    if !win.is_visible().unwrap_or(true) {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                    }
+                }
+            });
+            Ok(())
+        })
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -221,7 +242,8 @@ fn main() {
             stack_local_dev_build_donation,
             download_and_install_update,
             native_webauthn_register,
-            native_webauthn_authenticate
+            native_webauthn_authenticate,
+            reveal_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

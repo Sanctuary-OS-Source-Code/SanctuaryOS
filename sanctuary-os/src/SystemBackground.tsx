@@ -998,16 +998,22 @@ export function SystemBackground() {
         texGeneration++;
         texturesReady = true;
         needsElementScan = true;
+        renderFrame();
         triggerAnimWindow(500);
+        if (!(window as any).__sanctuaryBootRevealed) {
+          window.requestAnimationFrame(() => {
+            (window as any).__sanctuaryRevealBootWindow?.();
+          });
+        }
       };
 
       if (t.bgImage) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          if (disposed) return;
-          const nw = img.naturalWidth || 1920;
-          const nh = img.naturalHeight || 1080;
+        let uploaded = false;
+        const handleLoadedImg = (loadedImg: HTMLImageElement) => {
+          if (disposed || uploaded) return;
+          uploaded = true;
+          const nw = loadedImg.naturalWidth || 1920;
+          const nh = loadedImg.naturalHeight || 1080;
           const imgAspect = nw / nh;
           let sx = 0;
           let sy = 0;
@@ -1028,11 +1034,29 @@ export function SystemBackground() {
           if (sCtx) {
             sCtx.imageSmoothingEnabled = true;
             sCtx.imageSmoothingQuality = 'high';
-            sCtx.drawImage(img, sx, sy, sw, sh, 0, 0, sharpCanvas.width, sharpCanvas.height);
+            sCtx.drawImage(loadedImg, sx, sy, sw, sh, 0, 0, sharpCanvas.width, sharpCanvas.height);
             uploadFromSourceCanvas(sharpCanvas);
           }
         };
-        img.src = t.bgImage;
+
+        const preloaded = (window as any).__sanctuaryPreloadedWallpaper as HTMLImageElement | undefined;
+        if (
+          preloaded &&
+          (window as any).__sanctuaryPreloadedWallpaperSrc === t.bgImage &&
+          preloaded.complete &&
+          preloaded.naturalWidth > 0
+        ) {
+          handleLoadedImg(preloaded);
+        } else {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.decoding = 'sync';
+          img.onload = () => handleLoadedImg(img);
+          img.src = t.bgImage;
+          if (img.complete && img.naturalWidth > 0) {
+            handleLoadedImg(img);
+          }
+        }
       } else {
         const gradCanvas = document.createElement('canvas');
         gradCanvas.width = 1280;
@@ -1272,7 +1296,15 @@ export function SystemBackground() {
         left: 'calc(-1 * env(safe-area-inset-left, 0px))',
         right: 'calc(-1 * env(safe-area-inset-right, 0px))',
         minHeight: 'calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
-        backgroundColor: isTransparentPassthrough ? 'transparent' : 'var(--bg, #000000)',
+        backgroundColor: isTransparentPassthrough
+          ? 'transparent'
+          : currentTheme.bgImage
+            ? 'transparent'
+            : 'var(--bg, #050b16)',
+        backgroundImage: currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
       }}
     >
       {/* Fallback image layer while WebGL textures initialize */}
@@ -1280,7 +1312,8 @@ export function SystemBackground() {
         <img
           src={currentTheme.bgImage}
           alt=""
-          decoding="async"
+          decoding="sync"
+          fetchPriority="high"
           draggable={false}
           className="absolute inset-0 w-full h-full object-cover object-center opacity-100 pointer-events-none select-none"
         />
