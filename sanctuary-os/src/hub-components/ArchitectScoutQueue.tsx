@@ -760,7 +760,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                               {row.label}
                             </span>
                             {row.candidates[0] && (
-                              <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
                                 <span className="material-symbols-outlined !text-[11px]">
                                   {t("icon_verified", "verified")}
                                 </span>
@@ -823,7 +823,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
+                            <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
                               {`#${idx + 1}`}
                             </span>
                             <span className="text-xs font-black text-[var(--text)] truncate">

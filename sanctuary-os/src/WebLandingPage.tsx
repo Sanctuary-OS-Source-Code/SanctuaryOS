@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { useLexicon } from './LexiconContext';
+import { useLexicon, normalizeAllCapsForThemeCase } from './LexiconContext';
 import { useStore } from './store';
 import { scrollToLandingSection } from './utils/routingUtils';
 import WebNewsFeed from './WebNewsFeed';
@@ -152,10 +152,10 @@ export default function WebLandingPage() {
                           {/* Top Row: Icon Box on Left + Outline Status Badge on Right */}
                           <div className="flex justify-between items-start gap-3 relative z-10">
                             <div
-                              className={`w-11 h-11 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                              className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
                                 isActive
-                                  ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                                  : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] group-hover:text-[var(--accent)]"
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
                               }`}
                             >
                               {game.icon ? (
@@ -173,20 +173,22 @@ export default function WebLandingPage() {
 
                             <div className="flex items-center gap-1.5 shrink-0">
                               {isActive ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                                  <span className="material-symbols-outlined !text-[12px]">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
-                                  {t("active", "Active")}
+                                  <span>{t("active", "Active")}</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                                  <span className="material-symbols-outlined !text-[12px]">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
                                   </span>
-                                  {isWorkspaceConfigured
-                                    ? t("workspace_badge_configured", "Configured")
-                                    : t("workspace_badge_ready", "Ready")}
+                                  <span>
+                                    {isWorkspaceConfigured
+                                      ? t("workspace_badge_configured", "Configured")
+                                      : t("workspace_badge_ready", "Ready")}
+                                  </span>
                                 </span>
                               )}
                             </div>
@@ -433,7 +435,7 @@ export default function WebLandingPage() {
               className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_15%,transparent)] transition-all duration-500 hover:-translate-y-1 cursor-pointer"
               footer={
                 <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-60 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-all">
-                  <span>{t("landing_support_card_badge", "0% PLATFORM FEE • +30 DAYS DEV BUILDS PER $5")}</span>
+                  <span>{t("landing_support_card_badge", "0% Platform Fee • +30 Days Dev Builds Per $5")}</span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_open_in_new", "open_in_new")}
@@ -483,13 +485,13 @@ export default function WebLandingPage() {
                   }
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {`${(g.payment_processor || "STRIPE").toUpperCase()} • ${t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}`}
+                      {`${normalizeAllCapsForThemeCase((g.payment_processor || "Stripe").toUpperCase())} • ${t("supporter_zero_fee_badge", "0% Platform Fee • Non-Custodial")}`}
                     </span>
                   }
                   className="h-full bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_20px_40px_color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all duration-500 hover:-translate-y-1 cursor-pointer"
                   footer={
                     <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-60 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-all">
-                      <span>{t("landing_support_card_badge", "0% PLATFORM FEE • +30 DAYS DEV BUILDS PER $5")}</span>
+                      <span>{t("landing_support_card_badge", "0% Platform Fee • +30 Days Dev Builds Per $5")}</span>
                       <span className="flex items-center gap-1.5 shrink-0">
                         <span className="material-symbols-outlined !text-[14px]">
                           {t("icon_open_in_new", "open_in_new")}
@@ -507,8 +509,8 @@ export default function WebLandingPage() {
 
       <footer id="eula" className="w-full py-12 mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 max-md:pb-[100px] gap-6 scroll-mt-24">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-            <span className="material-symbols-outlined text-[20px] text-[var(--text)] opacity-80">shield</span>
+          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center">
+            <span className="material-symbols-outlined text-[20px] text-[var(--accent)]">{t("icon_shield", "shield")}</span>
           </div>
           <div className="text-xs font-black uppercase tracking-widest opacity-60 text-[var(--text)]">
             {t("landing_copyright", "Sanctuary OS © 2026 Sanctuary Foundry") || "Sanctuary OS \u00A9 2026 Sanctuary Foundry"}

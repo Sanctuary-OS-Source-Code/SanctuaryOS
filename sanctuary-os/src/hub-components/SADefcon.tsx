@@ -291,7 +291,7 @@ export function DefconSidePanel({
                   </span>
                 </div>
 
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[12px]">
                     {t("icon_public", "public")}
                   </span>
@@ -307,7 +307,7 @@ export function DefconSidePanel({
               </p>
 
               <div className="rounded-xl p-3.5 border bg-transparent border-[color-mix(in_srgb,var(--danger)_38%,transparent)] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_threat_intelligence", "warning")}
                   </span>

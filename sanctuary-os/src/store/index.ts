@@ -3,67 +3,81 @@ import { isDesktop } from "../utils/envUtils";
 import { supabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
+import { resolvePresetForGameId, isSims4SchemaId } from '../utils/gameArchitecturePresets';
 
 export const getSafeSchema = (raw: any, fallbackId: string) => {
   const safe = { ...raw };
   if (!safe.id) safe.id = fallbackId;
   if (!safe.game_id) safe.game_id = safe.id;
-  if (!safe.name) safe.name = safe.id.replace(/_/g, ' ').toUpperCase();
+  const preset = resolvePresetForGameId(safe.game_id || safe.id || fallbackId);
+  const isSims4 = isSims4SchemaId(safe.game_id || safe.id || fallbackId);
+
+  if (!safe.name) safe.name = preset.display_name || safe.id.replace(/_/g, ' ').toUpperCase();
   if (!safe.display_name) safe.display_name = safe.name;
-  if (!safe.schema_version) safe.schema_version = 1;
-  if (!safe.executable_names || safe.executable_names.length === 0) {
-    safe.executable_names = ["TS4_x64.exe", "TS4.exe", "TS4_DX9_x64.exe"];
+  if (!safe.schema_version) safe.schema_version = preset.schema_version || 1;
+  if (!safe.executable_names || (isSims4 && safe.executable_names.length === 0)) {
+    safe.executable_names = [...(preset.executable_names || [])];
   }
   if (!safe.paths) {
-    safe.paths = { default_mod_dir_windows: "", default_mod_dir_mac: "", manifest_file: "Resource.cfg", auto_scan_paths_windows: [], auto_scan_paths_mac: [] };
-  } else if (!safe.paths.manifest_file) {
-    safe.paths = { ...safe.paths, manifest_file: "Resource.cfg" };
-  }
-  if (!safe.extensions) {
-    safe.extensions = { supported: [".package", ".ts4script", ".world"], parsers: {}, labels: { package: "PACKAGE", ts4script: "SCRIPT", world: "WORLD" } };
-  } else if (!safe.extensions.supported || safe.extensions.supported.length === 0) {
-    safe.extensions = {
-      ...safe.extensions,
-      supported: [".package", ".ts4script", ".world"],
-      labels: { package: "PACKAGE", ts4script: "SCRIPT", world: "WORLD", ...(safe.extensions.labels || {}) }
+    safe.paths = { ...preset.paths };
+  } else {
+    safe.paths = {
+      ...preset.paths,
+      ...safe.paths,
+      manifest_file:
+        safe.paths.manifest_file !== undefined
+          ? safe.paths.manifest_file
+          : preset.paths.manifest_file,
     };
   }
-  if (!safe.install_routes) {
-    safe.install_routes = [
-      {
-        id: "world_areas",
-        label: "World Area Files (.world)",
-        extensions: [".world"],
-        folder_match: "Worlds",
-        target_root: "live_path",
-        target_subdir: "Data/Shared/Worlds/Areas",
-        preserve_vanilla: true
-      }
-    ];
+  if (!safe.extensions) {
+    safe.extensions = {
+      ...preset.extensions,
+      labels: { ...(preset.extensions?.labels || {}) },
+    };
+  } else if (!safe.extensions.supported || safe.extensions.supported.length === 0) {
+    safe.extensions = {
+      ...preset.extensions,
+      ...safe.extensions,
+      supported: [...(preset.extensions?.supported || [])],
+      labels: { ...(preset.extensions?.labels || {}), ...(safe.extensions.labels || {}) },
+    };
   }
-  if (!safe.external_tools) {
-    safe.external_tools = [];
+  if (safe.extensions && 'parsers' in safe.extensions) {
+    delete safe.extensions.parsers;
+  }
+  if ('magic_bytes' in safe) {
+    delete safe.magic_bytes;
+  }
+  if (!safe.constraints) {
+    safe.constraints = { ...(preset.constraints || {}) };
+  } else {
+    safe.constraints = { ...(preset.constraints || {}), ...safe.constraints };
+  }
+  if (!Array.isArray(safe.install_routes)) {
+    safe.install_routes = [...(preset.install_routes || [])];
+  } else if (isSims4 && safe.install_routes.length === 0 && raw?.install_routes === undefined) {
+    safe.install_routes = [...(preset.install_routes || [])];
+  }
+  if ('external_tools' in safe) {
+    delete safe.external_tools;
   }
   if (!safe.lab_verification) {
     safe.lab_verification = {
-      require_for_mason_publish: true,
-      require_for_scout_approval: true,
-      required_active_seconds: 120,
-      max_idle_seconds: 20,
-      require_focus: true,
-      require_save_checkpoint: true,
-      seed_sandbox_from_latest_save: true,
-      save_extensions: [".save"],
+      ...preset.lab_verification,
+      world_load_signature: { ...(preset.lab_verification?.world_load_signature || {}) },
+    };
+  } else {
+    safe.lab_verification = {
+      ...preset.lab_verification,
+      ...safe.lab_verification,
       world_load_signature: {
-        stabilize_boot_seconds: 8,
-        min_disk_read_mb: 75,
-        min_ram_step_percent: 25,
-        warm_cache_ram_step_percent: 45,
-        scratch_activity_subdirs: ["saves/scratch"]
-      }
+        ...(preset.lab_verification?.world_load_signature || {}),
+        ...(safe.lab_verification?.world_load_signature || {}),
+      },
     };
   }
-  if (!safe.exception_rules || !Array.isArray(safe.exception_rules) || safe.exception_rules.length === 0) {
+  if (!Array.isArray(safe.exception_rules) || (isSims4 && safe.exception_rules.length === 0 && raw?.exception_rules === undefined)) {
     let cachedRules: any[] | null = null;
     try {
       const rawRules = localStorage.getItem(`sanctuary_exception_rules_${safe.id}`);
@@ -72,71 +86,25 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
         if (Array.isArray(parsed) && parsed.length > 0) cachedRules = parsed;
       }
     } catch (e) {}
-    safe.exception_rules = cachedRules || [
-      {
-        id: "ts4_store_utils_wallet_ui",
-        title: "StoreUtils / VirtualCurrencyWallet UI Desync (Error #1006)",
-        pattern: "StoreUtils/StoreDisabledByFeatureParameter | VirtualCurrencyWallet | TryGetValueAsBoolean",
-        file_hint: "lastUIException.txt",
-        severity: "warning",
-        diagnosis: "ActionScript UI exception in widgets.shared.utils::StoreUtils / VirtualCurrencyWallet. Frequently triggered on the Main Menu when EA Store feature parameters fail to initialize, or when an outdated UI override (.package) conflicts with current game patch UI widgets.",
-        resolution: "If this occurred on the Main Menu and live gameplay UI works normally, it is often a benign EA Store telemetry quirk (you can toggle 'Ignore During Timed Lab Verification' on this rule if desired). If UI panels are broken in live mode, ensure UI Cheats Extension (.package + .ts4script) and Main Menu overrides match your current game patch.",
-        ignore_in_lab: false,
-        enabled: true
-      },
-      {
-        id: "ts4_python_attr_or_import",
-        title: "Python Script Tuning Mismatch or Missing Core Library",
-        pattern: "AttributeError | ModuleNotFoundError | ImportError",
-        file_hint: "lastException.txt",
-        severity: "critical",
-        diagnosis: "A Python script (.ts4script) attempted to call a game engine attribute or import a module that changed in a recent game patch or requires an external core library (such as Lot51 Core Library, XML Injector, or S4CL).",
-        resolution: "Verify that all required dependency libraries are installed in your Mods folder and that the mod's .ts4script is updated for your active game patch.",
-        ignore_in_lab: false,
-        enabled: true
-      },
-      {
-        id: "ts4_posture_routing_graph",
-        title: "Posture Graph / Sim Routing Autonomy Exception",
-        pattern: "posture_graph | routing_service | PostureGraphService",
-        file_hint: "lastException.txt",
-        severity: "warning",
-        diagnosis: "A Sim attempted to route to or interact with an object whose footprint, slot, or posture tuning failed validation during live autonomy.",
-        resolution: "Check custom furniture/object overrides on the active lot or custom interaction mods that modify Sim posture tuning.",
-        ignore_in_lab: false,
-        enabled: true
-      }
-    ];
+    safe.exception_rules = cachedRules || [...(preset.exception_rules || [])];
   }
   if (!safe.time_capsule) {
     safe.time_capsule = {
-      world_state_targets: [
-        { name: "Saves", path: "saves" },
-        { name: "Tray", path: "Tray" }
-      ],
-      engine_state_targets: [
-        { name: "Game", path: "Game" },
-        { name: "Data", path: "Data" },
-        { name: "Delta", path: "Delta" }
-      ],
-      save_airgap_targets: ["saves"]
+      world_state_targets: [...(preset.time_capsule?.world_state_targets || [])],
+      engine_state_targets: [...(preset.time_capsule?.engine_state_targets || [])],
+      save_airgap_targets: [...(preset.time_capsule?.save_airgap_targets || ["saves"])],
     };
   } else if (!safe.time_capsule.save_airgap_targets) {
-    safe.time_capsule.save_airgap_targets = ["saves"];
+    safe.time_capsule.save_airgap_targets = [...(preset.time_capsule?.save_airgap_targets || ["saves"])];
   }
   if (!safe.load_order) {
     safe.load_order = {
-      strategy: "folder_priority",
-      direction: "higher_wins",
-      manifest_file: safe.paths?.manifest_file || "Resource.cfg",
-      prefix_format: "{index:03}_",
-      line_template: "{file}",
-      priority_tiers: [
-        { id: "default", label: "Standard (Base)", priority: 500, folder: "" },
-        { id: "tier_1", label: "Tier 1 (Sanctuary)", priority: 1000, folder: "Sanctuary" },
-        { id: "tier_2", label: "Tier 2 (Sanctuary2)", priority: 1500, folder: "Sanctuary2" },
-        { id: "tier_3", label: "Tier 3 (Sanctuary3)", priority: 2000, folder: "Sanctuary3" }
-      ]
+      ...preset.load_order,
+      manifest_file:
+        safe.paths?.manifest_file !== undefined
+          ? safe.paths.manifest_file
+          : preset.load_order?.manifest_file ?? "",
+      priority_tiers: [...(preset.load_order?.priority_tiers || [])],
     };
   }
   return safe;
@@ -372,6 +340,32 @@ const safeLocalStorageSetItem = (key: string, value: string) => {
     }
   }
 };
+
+const pendingStorageWrites = new Map<string, { timer: any; payload: any }>();
+
+const debouncedLocalStorageSetJson = (key: string, payload: any, delayMs = 320) => {
+  const prev = pendingStorageWrites.get(key);
+  if (prev?.timer) clearTimeout(prev.timer);
+  const timer = setTimeout(() => {
+    pendingStorageWrites.delete(key);
+    try {
+      safeLocalStorageSetItem(key, JSON.stringify(payload));
+    } catch {}
+  }, delayMs);
+  pendingStorageWrites.set(key, { timer, payload });
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    for (const [key, entry] of pendingStorageWrites.entries()) {
+      if (entry.timer) clearTimeout(entry.timer);
+      try {
+        safeLocalStorageSetItem(key, JSON.stringify(entry.payload));
+      } catch {}
+    }
+    pendingStorageWrites.clear();
+  });
+}
 
 const CACHED_GAME_DBS_KEY = 'sanctuary_cached_game_dbs_v1';
 
@@ -689,7 +683,7 @@ export const useStore = create<GlobalState>((set) => ({
     const nextSets = typeof playSets === 'function' ? playSets(state.playSets) : playSets;
     const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
     if (wsId && Array.isArray(nextSets)) {
-      safeLocalStorageSetItem(`sanctuary_${wsId}_playsets`, JSON.stringify(nextSets));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_playsets`, nextSets, 250);
     }
     return { playSets: nextSets };
   }),
@@ -867,7 +861,7 @@ export const useStore = create<GlobalState>((set) => ({
   setIdeOpenFiles: (files) => set((state) => {
       const newFiles = typeof files === 'function' ? files(state.ideOpenFiles) : files;
       const wsId = state.activeWorkspaceId || 'default';
-      safeLocalStorageSetItem(`sanctuary_${wsId}_ide_open_files`, JSON.stringify(newFiles));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_ide_open_files`, newFiles, 400);
       return { ideOpenFiles: newFiles };
   }),
   ideActiveFileIndex: -1,
@@ -887,7 +881,7 @@ export const useStore = create<GlobalState>((set) => ({
   setCwUnsavedEdits: (edits) => set((state) => {
       const newEdits = typeof edits === 'function' ? edits(state.cwUnsavedEdits) : edits;
       const wsId = state.activeWorkspaceId || 'default';
-      safeLocalStorageSetItem(`sanctuary_${wsId}_cw_unsaved_edits`, JSON.stringify(newEdits));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_cw_unsaved_edits`, newEdits, 400);
       return { cwUnsavedEdits: newEdits };
   }),
   cwSelectedFile: null,
@@ -910,21 +904,21 @@ export const useStore = create<GlobalState>((set) => ({
   setWayfinderDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.wayfinderDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      safeLocalStorageSetItem(`sanctuary_${wsId}_wayfinder_drafts`, JSON.stringify(newDrafts));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_wayfinder_drafts`, newDrafts, 400);
       return { wayfinderDrafts: newDrafts };
   }),
   masonCommentDrafts: {},
   setMasonCommentDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.masonCommentDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      safeLocalStorageSetItem(`sanctuary_${wsId}_mason_comment_drafts`, JSON.stringify(newDrafts));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_mason_comment_drafts`, newDrafts, 400);
       return { masonCommentDrafts: newDrafts };
   }),
   masonHubDrafts: {},
   setMasonHubDrafts: (drafts) => set((state) => {
       const newDrafts = typeof drafts === 'function' ? drafts(state.masonHubDrafts) : drafts;
       const wsId = state.activeWorkspaceId || 'default';
-      safeLocalStorageSetItem(`sanctuary_${wsId}_mason_hub_drafts`, JSON.stringify(newDrafts));
+      debouncedLocalStorageSetJson(`sanctuary_${wsId}_mason_hub_drafts`, newDrafts, 400);
       return { masonHubDrafts: newDrafts };
   })
 }));

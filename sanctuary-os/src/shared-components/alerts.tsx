@@ -34,7 +34,7 @@ export function LoadingScreen({
           />
 
           {/* Icon Box */}
-          <div className="w-12 h-12 rounded-2xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)] relative z-10">
+          <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center relative z-10">
             <span
               className={`material-symbols-outlined !text-[22px] text-[var(--accent)] ${icon === "sync" ? "animate-spin" : ""}`}
             >
@@ -73,6 +73,7 @@ export function HoverTooltip({
   vAlign: explicitVAlign,
   content,
   delay = 300,
+  onlyWhenTruncated = false,
 }: any) {
   const { setTooltip, clearTooltip } = useTooltipStore();
   const ref = React.useRef<HTMLDivElement>(null);
@@ -87,6 +88,7 @@ export function HoverTooltip({
     explicitAlign,
     explicitVAlign,
     content,
+    onlyWhenTruncated,
   });
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -103,10 +105,19 @@ export function HoverTooltip({
       explicitAlign,
       explicitVAlign,
       content,
+      onlyWhenTruncated,
     };
     const parent = ref.current?.parentElement;
     if (parent && parent.matches(":hover") && !timerRef.current) {
       const p = propsRef.current;
+      if (p.onlyWhenTruncated) {
+        const truncateEl = parent.classList.contains("truncate")
+          ? parent
+          : (parent.querySelector(".truncate") as HTMLElement | null) || parent;
+        if (truncateEl.scrollWidth <= truncateEl.clientWidth + 1) {
+          return;
+        }
+      }
       const rect = parent.getBoundingClientRect();
       let x = rect.left + rect.width / 2;
       let y = rect.top - 8;
@@ -161,6 +172,7 @@ export function HoverTooltip({
     explicitAlign,
     explicitVAlign,
     content,
+    onlyWhenTruncated,
     setTooltip,
   ]);
 
@@ -171,6 +183,15 @@ export function HoverTooltip({
 
     const showTooltip = () => {
       const p = propsRef.current;
+      if (p.onlyWhenTruncated) {
+        const truncateEl = parent.classList.contains("truncate")
+          ? parent
+          : (parent.querySelector(".truncate") as HTMLElement | null) || parent;
+        if (truncateEl.scrollWidth <= truncateEl.clientWidth + 1) {
+          timerRef.current = null;
+          return;
+        }
+      }
       const rect = parent.getBoundingClientRect();
       let x = rect.left + rect.width / 2;
       let y = rect.top - 8;

@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { useModalStore } from '../store/modalStore';
 import { getActiveGameClient } from '../supabase';
 import { HoverTooltip } from '../shared';
+import { isDesktop } from '../utils/envUtils';
 import { TabContainer, SettingsGrid, SettingsToggle, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 
@@ -108,13 +109,15 @@ export default function ClientTab({ config, updateConfig }: any) {
           actions={<SettingsToggle checked={showImages} />}
         />
         
-        <UniversalCard 
-          title={t("settings_use_internal_browser", "Use the Sanctuary Browser")} 
-          subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`} 
-          icon="language"
-          onClick={() => setUseInternalBrowser(!useInternalBrowser)}
-          actions={<SettingsToggle checked={useInternalBrowser} />}
-        />
+        {isDesktop() && (
+          <UniversalCard 
+            title={t("settings_use_internal_browser", "Use the Sanctuary Browser")} 
+            subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`} 
+            icon="language"
+            onClick={() => setUseInternalBrowser(!useInternalBrowser)}
+            actions={<SettingsToggle checked={useInternalBrowser} />}
+          />
+        )}
 
         <div className="relative group/malware">
           <UniversalCard 

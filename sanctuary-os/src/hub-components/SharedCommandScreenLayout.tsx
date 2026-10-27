@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
-import { extractPostImage, stripMarkdown, DashboardStatTile } from '../shared';
+import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
@@ -8,6 +8,7 @@ export { DashboardStatTile };
 
 export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     const { t } = useLexicon();
+    const isInsideSidePanel = React.useContext(SidePanelContext);
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const [canScrollRight, setCanScrollRight] = React.useState(false);
     const [canScrollLeft, setCanScrollLeft] = React.useState(false);
@@ -95,7 +96,10 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
             </button>
           </div>
         )}
-        <div ref={scrollRef} className={`flex w-full overflow-x-auto gap-4 md:gap-6 py-1 items-stretch hide-scrollbar ${innerClassName}`}>
+        <div
+          ref={scrollRef}
+          className={`flex w-full overflow-x-auto ${isInsideSidePanel ? "gap-3 md:gap-4 sa-sidepanel-tile-carousel" : "gap-4 md:gap-6"} py-1 items-stretch hide-scrollbar ${innerClassName}`}
+        >
           {children}
         </div>
         {canScrollRight && (
@@ -313,10 +317,10 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
         <button onClick={onClick} className="w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 cursor-pointer">
-            <div className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]' : 'bg-radial-[at_0%_0%] from-white/15 to-transparent'}`} />
+            <div className="absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden bg-radial-[at_0%_0%] from-white/15 to-transparent" />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,rgba(255,255,255,0.22))] text-[var(--danger)] shadow-[var(--glass-card-icon-shadow)]' : 'bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[var(--glass-card-icon-shadow)] text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                <div className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
                     <span className={`material-symbols-outlined !text-[25px] opacity-85 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">

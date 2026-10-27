@@ -32,6 +32,39 @@ export interface StackedModIssue {
   detail: string;
 }
 
+const activeModNamesWeakCache = new WeakMap<any[], { list: string[]; exactSet: Set<string> }>();
+
+function getCachedActiveModNames(activeMods: any[]): { list: string[]; exactSet: Set<string> } {
+  if (!Array.isArray(activeMods) || activeMods.length === 0) {
+    return { list: [], exactSet: new Set() };
+  }
+  const cached = activeModNamesWeakCache.get(activeMods);
+  if (cached) return cached;
+
+  const exactSet = new Set<string>();
+  const list: string[] = [];
+  for (let i = 0; i < activeMods.length; i++) {
+    const m = activeMods[i];
+    if (!m) continue;
+    const candidates = [
+      String(m._originalSetName || "").toLowerCase(),
+      String(m.name || "").toLowerCase(),
+      String(m.displayName || "").toLowerCase(),
+      m.dbId ? String(m.dbId).toLowerCase() : "",
+    ];
+    for (let j = 0; j < candidates.length; j++) {
+      const c = candidates[j];
+      if (c && !exactSet.has(c)) {
+        exactSet.add(c);
+        list.push(c);
+      }
+    }
+  }
+  const res = { list, exactSet };
+  activeModNamesWeakCache.set(activeMods, res);
+  return res;
+}
+
 export function evaluateModIssues(
   mod: any,
   {
@@ -156,14 +189,7 @@ export function evaluateModIssues(
       : parseStringArray(mod.dependencies);
 
     if (rawDeps.length > 0) {
-      const activeModNames = (activeMods || [])
-        .flatMap((m: any) => [
-          String(m?._originalSetName || "").toLowerCase(),
-          String(m?.name || "").toLowerCase(),
-          String(m?.displayName || "").toLowerCase(),
-          m?.dbId ? String(m.dbId).toLowerCase() : "",
-        ])
-        .filter(Boolean);
+      const { list: activeModNames, exactSet: activeModExactSet } = getCachedActiveModNames(activeMods || []);
 
       const seenDeps = new Set<string>();
       const missingDeps = rawDeps.filter((reqStr: string) => {
@@ -171,8 +197,9 @@ export function evaluateModIssues(
         if (!lower || lower.includes("object object") || lower.includes("[object")) return false;
         if (seenDeps.has(lower)) return false;
         seenDeps.add(lower);
+        if (activeModExactSet.has(lower)) return false;
         return !activeModNames.some(
-          (act: string) => act === lower || act.includes(lower) || lower.includes(act)
+          (act: string) => act.includes(lower) || lower.includes(act)
         );
       });
 
@@ -261,10 +288,26 @@ export function extractValidCreator(...candidates: any[]): string | null {
   return null;
 }
 
-export function groupBrokenMods(rawList: any[]): any[] {
-  if (!Array.isArray(rawList) || rawList.length === 0) return [];
+const vaultGroupLookupWeakCache = new WeakMap<
+  any[],
+  {
+    vaultUpdateLookup: Map<string, any>;
+    virtualByFamilyId: Map<string, any>;
+    parentByDbId: Map<string, any>;
+  }
+>();
 
-  const allVaultMods: any[] = useStore.getState().modList || [];
+function getCachedVaultGroupLookups(allVaultMods: any[]) {
+  if (!Array.isArray(allVaultMods) || allVaultMods.length === 0) {
+    return {
+      vaultUpdateLookup: new Map<string, any>(),
+      virtualByFamilyId: new Map<string, any>(),
+      parentByDbId: new Map<string, any>(),
+    };
+  }
+  const cached = vaultGroupLookupWeakCache.get(allVaultMods);
+  if (cached) return cached;
+
   const vaultUpdateLookup = new Map<string, any>();
   const virtualByFamilyId = new Map<string, any>();
   const parentByDbId = new Map<string, any>();
@@ -282,6 +325,18 @@ export function groupBrokenMods(rawList: any[]): any[] {
     if (vm.name) vaultUpdateLookup.set(String(vm.name).toLowerCase(), vm);
     if (vm.displayName) vaultUpdateLookup.set(String(vm.displayName).toLowerCase(), vm);
   }
+
+  const res = { vaultUpdateLookup, virtualByFamilyId, parentByDbId };
+  vaultGroupLookupWeakCache.set(allVaultMods, res);
+  return res;
+}
+
+export function groupBrokenMods(rawList: any[]): any[] {
+  if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+  const allVaultMods: any[] = useStore.getState().modList || [];
+  const { vaultUpdateLookup, virtualByFamilyId, parentByDbId } =
+    getCachedVaultGroupLookups(allVaultMods);
 
   const mcCount = rawList.filter((m) => {
     const label = formatDisplayName(m?.displayName || m?.name || "").trim();
@@ -601,6 +656,28 @@ export function resolveBlueprintConflicts(
 ): any[] {
   const conflicts: any[] = [];
   const seenCanonicalPairs = new Set<string>();
+  const ignoredSet = new Set<string>(Array.isArray(ignoredGlobal) ? ignoredGlobal : []);
+
+  const byUpperExact = new Map<string, any>();
+  const byDbId = new Map<string, any>();
+  const preppedMods: Array<{ em: any; cleanN: string; cleanDisp: string }> = [];
+
+  for (let i = 0; i < (activeMods || []).length; i++) {
+    const em = activeMods[i];
+    if (!em) continue;
+    const rawName = String(em.name || em._originalSetName || "");
+    const cleanN = rawName.toUpperCase();
+    const cleanDisp = String(em.displayName || "").toUpperCase();
+    const emBase = (rawName.split(/[\\/]/).pop() || "").replace(/\.[^/.]+$/, "").toUpperCase();
+
+    if (cleanN && !byUpperExact.has(cleanN)) byUpperExact.set(cleanN, em);
+    if (cleanDisp && !byUpperExact.has(cleanDisp)) byUpperExact.set(cleanDisp, em);
+    if (emBase && !byUpperExact.has(emBase)) byUpperExact.set(emBase, em);
+    if (em.dbId) byDbId.set(String(em.dbId), em);
+    if (!em.isFallback) {
+      preppedMods.push({ em, cleanN, cleanDisp });
+    }
+  }
 
   const findMatchingMod = (targetRaw: string) => {
     const cleanTarget = String(targetRaw || "").trim();
@@ -610,25 +687,22 @@ export function resolveBlueprintConflicts(
       .replace(/\.[^/.]+$/, "")
       .toUpperCase();
 
-    const matched = (activeMods || []).find((em: any) => {
-      if (!em) return false;
-      const cleanN = String(em.name || em._originalSetName || "").toUpperCase();
-      const cleanDisp = String(em.displayName || "").toUpperCase();
-      const emBase = (String(em.name || em._originalSetName || "").split(/[\\/]/).pop() || "")
-        .replace(/\.[^/.]+$/, "")
-        .toUpperCase();
-      return (
-        cleanN === upperTarget ||
-        cleanDisp === upperTarget ||
-        (emBase && emBase === baseTarget) ||
-        (upperTarget.length > 3 &&
-          (cleanN.includes(upperTarget) ||
-            cleanDisp.includes(upperTarget) ||
-            upperTarget.includes(cleanN)))
-      );
-    });
+    const exact = byUpperExact.get(upperTarget) || (baseTarget ? byUpperExact.get(baseTarget) : undefined);
+    if (exact) return exact;
 
-    if (matched) return matched;
+    if (upperTarget.length > 3) {
+      for (let i = 0; i < preppedMods.length; i++) {
+        const { em, cleanN, cleanDisp } = preppedMods[i];
+        if (
+          cleanN.includes(upperTarget) ||
+          cleanDisp.includes(upperTarget) ||
+          (cleanN && upperTarget.includes(cleanN))
+        ) {
+          return em;
+        }
+      }
+    }
+
     return {
       name: cleanTarget,
       displayName: formatCleanModTitle(cleanTarget.replace(/\.[^/.]+$/, "")),
@@ -686,7 +760,7 @@ export function resolveBlueprintConflicts(
           ).trim();
           const pairId = String(lc.mod_pair || `${rawA} vs ${rawB}`).trim();
           if (!pairId || !rawA || !rawB) continue;
-          if (Array.isArray(ignoredGlobal) && ignoredGlobal.includes(pairId)) continue;
+          if (ignoredSet.has(pairId)) continue;
 
           const modAMatch = findMatchingMod(rawA);
           const modBMatch = findMatchingMod(rawB);
@@ -719,19 +793,24 @@ export function resolveBlueprintConflicts(
   for (const mod of activeMods || []) {
     if (!mod || mod.isFallback || !Array.isArray(mod.conflicts)) continue;
     for (const c of mod.conflicts) {
-      const enemyActive = (activeMods || []).find((em: any) => {
-        if (!em || em.isFallback) return false;
-        if (c.enemy_id && String(em.dbId) === String(c.enemy_id)) return true;
-        if (c.enemy_name) {
-          const targetClean = String(c.enemy_name)
-            .replace(/\.[^/.]+$/i, "")
-            .toUpperCase();
-          const cleanN = String(em.name || "").toUpperCase();
-          const cleanDisp = String(em.displayName || "").toUpperCase();
-          if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) return true;
+      let enemyActive: any = c.enemy_id ? byDbId.get(String(c.enemy_id)) : undefined;
+      if (enemyActive?.isFallback) enemyActive = undefined;
+      if (!enemyActive && c.enemy_name) {
+        const targetClean = String(c.enemy_name)
+          .replace(/\.[^/.]+$/i, "")
+          .toUpperCase();
+        enemyActive = byUpperExact.get(targetClean);
+        if (enemyActive?.isFallback) enemyActive = undefined;
+        if (!enemyActive && targetClean) {
+          for (let i = 0; i < preppedMods.length; i++) {
+            const { em, cleanN, cleanDisp } = preppedMods[i];
+            if (cleanN.includes(targetClean) || cleanDisp.includes(targetClean)) {
+              enemyActive = em;
+              break;
+            }
+          }
         }
-        return false;
-      });
+      }
       if (enemyActive && mod.name && enemyActive.name && mod.name !== enemyActive.name) {
         const canonicalKey = makeCanonicalPairKey(
           mod,
@@ -743,7 +822,7 @@ export function resolveBlueprintConflicts(
 
         const sortedNames = [String(mod.name), String(enemyActive.name)].sort();
         const pairId = `${sortedNames[0]} vs ${sortedNames[1]}`;
-        if (Array.isArray(ignoredGlobal) && ignoredGlobal.includes(pairId)) continue;
+        if (ignoredSet.has(pairId)) continue;
         seenCanonicalPairs.add(canonicalKey);
 
         const sevRank = Number(c.severity_rank) === 4 ? 4 : 3;
@@ -1346,12 +1425,9 @@ export function ConflictComparisonCard({
       ? t("conflict_sev4_desc", "Fatal Collision — Cannot be installed together")
       : t("conflict_sev3_desc", "Tuning Overlap — Load order override or minor feature overlap");
 
-  const severityBadgeClass = isTier4
-    ? `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_45%,transparent)] !text-[var(--danger)]`
-    : `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] !text-[var(--warning)]`;
-
-  const winnerBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_45%,transparent)] !text-[var(--success)]`;
-  const loserBadgeClass = `${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--text)_18%,transparent)] !text-[var(--subtext)]`;
+  const severityBadgeClass = VAULT_CHIP_CLASS;
+  const winnerBadgeClass = VAULT_CHIP_CLASS;
+  const loserBadgeClass = `${VAULT_CHIP_CLASS} !text-[var(--subtext)]`;
 
   const slots = [
     { mod: ac.modA, image: imageA, isWinner: isWinnerA, isLoser: isWinnerB },

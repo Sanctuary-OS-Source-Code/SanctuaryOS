@@ -377,7 +377,7 @@ export default function CommandCenter({
               <HoverTooltip
                 variant="accent"
                 title={t("updates_avail", "Updates Available") || "Updates Available"}
-                subtitle={t("updates_det", "{mod} updates detected") || "Artifact updates detected."}
+                subtitle={t("updates_det", "{Mod} Updates Detected") || "Artifact Updates Detected"}
                 className="group-hover/updates:flex z-[1000] w-full"
                 vAlign="bottom"
               />
@@ -506,10 +506,10 @@ export default function CommandCenter({
                           localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
                           setDismissedBroadcastId(String(urgentBroadcast.id));
                         }}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-110 hover:shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_30%,transparent)] cursor-pointer shadow-md"
+                        className="absolute top-3.5 right-3.5 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-105 cursor-pointer"
                       >
                         <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
-                        <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>
+                        <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
                       </button>
                     </div>
                     );

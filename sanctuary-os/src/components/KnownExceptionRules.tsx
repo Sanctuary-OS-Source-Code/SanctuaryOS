@@ -538,7 +538,7 @@ export function KnownErrorDiagnosisBanner({
                           : t("exc_rules_badge_unstable", "UNSTABLE • UI / RANDOM BUGS")}
                       </span>
                       {isBenign && (
-                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] glass-surface flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[11px]">
                             {t("icon_verified", "verified")}
                           </span>
@@ -1119,7 +1119,7 @@ export function KnownErrorRuleEditorSidePanel({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
+                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
                   <span className="material-symbols-outlined !text-[12px]">
                     {t("icon_verified_user", "verified_user")}
                   </span>

@@ -3,14 +3,25 @@ import { isDesktop } from "./envUtils";
 
 export interface StagedArtifactItem {
   id: string;
+  dbId?: string;
   name: string;
   displayName?: string;
   hash?: string;
   author?: string;
+  master_author?: string;
   url?: string;
   version?: string;
   image_url?: string;
   category?: string;
+  category_override?: string;
+  type?: string;
+  description?: string;
+  compatible_versions?: string[];
+  created_at?: string;
+  updated_at?: string;
+  status?: string;
+  status_reason?: string;
+  compliance_tier?: number;
   is_paid?: boolean;
   is_early_access?: boolean;
   requiredDLC?: string[];
@@ -170,8 +181,34 @@ export async function resolvePayloadDependencies(
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     // Map of staged DB mod_id -> display name of the staged child mod
     const modIdToSourceName = new Map<string, string>();
+    const idsToLookup: string[] = [];
     const hashesToLookup: string[] = [];
     const namesToLookup: string[] = [];
+
+    const dbModById = new Map<string, any>();
+    const dbModByName = new Map<string, any>();
+    const dbModByHash = new Map<string, any>();
+
+    const MOD_SELECT_FIELDS =
+      "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
+
+    const registerDbMod = (modRow: any, explicitHash?: string) => {
+      if (!modRow?.id) return;
+      dbModById.set(String(modRow.id), modRow);
+      if (modRow.name) {
+        dbModByName.set(String(modRow.name).toLowerCase(), modRow);
+      }
+      if (explicitHash) {
+        dbModByHash.set(String(explicitHash).toLowerCase(), modRow);
+      }
+      if (Array.isArray(modRow.mod_versions)) {
+        modRow.mod_versions.forEach((mv: any) => {
+          if (mv?.dna_hash) {
+            dbModByHash.set(String(mv.dna_hash).toLowerCase(), modRow);
+          }
+        });
+      }
+    };
 
     items.forEach((item) => {
       if (item.id) existingKeys.add(item.id.toLowerCase());
@@ -179,8 +216,10 @@ export async function resolvePayloadDependencies(
       if (item.name) existingKeys.add(item.name.toLowerCase());
 
       const label = item.displayName || item.name || "";
-      if (item.id && uuidRegex.test(item.id)) {
-        modIdToSourceName.set(item.id, label);
+      const candidateId = item.dbId || item.id;
+      if (candidateId && uuidRegex.test(String(candidateId))) {
+        modIdToSourceName.set(String(candidateId), label);
+        idsToLookup.push(String(candidateId));
       }
       if (item.hash) {
         hashesToLookup.push(item.hash);
@@ -190,17 +229,29 @@ export async function resolvePayloadDependencies(
       }
     });
 
+    if (idsToLookup.length > 0) {
+      const { data: idData } = await supabase
+        .from("mods")
+        .select(MOD_SELECT_FIELDS)
+        .in("id", Array.from(new Set(idsToLookup)).slice(0, 60));
+
+      if (Array.isArray(idData)) {
+        idData.forEach((row: any) => registerDbMod(row));
+      }
+    }
+
     if (hashesToLookup.length > 0) {
       const { data: vData } = await supabase
         .from("mod_versions")
-        .select("mod_id, dna_hash, mods(id, name)")
-        .in("dna_hash", hashesToLookup.slice(0, 60));
+        .select(`mod_id, dna_hash, mods(${MOD_SELECT_FIELDS})`)
+        .in("dna_hash", Array.from(new Set(hashesToLookup)).slice(0, 60));
 
       if (Array.isArray(vData)) {
         vData.forEach((row: any) => {
           if (row.mod_id) {
             existingKeys.add(String(row.mod_id).toLowerCase());
             const modRef = Array.isArray(row.mods) ? row.mods[0] : row.mods;
+            if (modRef) registerDbMod(modRef, row.dna_hash);
             if (!modIdToSourceName.has(row.mod_id)) {
               modIdToSourceName.set(row.mod_id, modRef?.name || row.dna_hash);
             }
@@ -212,12 +263,13 @@ export async function resolvePayloadDependencies(
     if (namesToLookup.length > 0) {
       const { data: nData } = await supabase
         .from("mods")
-        .select("id, name")
+        .select(MOD_SELECT_FIELDS)
         .in("name", Array.from(new Set(namesToLookup)).slice(0, 60));
 
       if (Array.isArray(nData)) {
         nData.forEach((row: any) => {
           if (row.id) {
+            registerDbMod(row);
             existingKeys.add(String(row.id).toLowerCase());
             if (!modIdToSourceName.has(row.id)) {
               modIdToSourceName.set(row.id, row.name);
@@ -257,9 +309,8 @@ export async function resolvePayloadDependencies(
 
     const stagedChildIds = Array.from(modIdToSourceName.keys());
 
-    // Query ONLY where the staged mod is the child (dependent/addon) and parent_id is the required master/framework mod!
-    // Never invert parent_id -> child_id, because MC CMD CENTER (parent) does NOT require MC WOOHOO (child); MC WOOHOO requires MC CMD CENTER.
-    const [{ data: depRows }, { data: addonRows }] = await Promise.all([
+    // Query where the staged mod is the child (dependent/addon/flavor) and parent_id is the master/framework mod!
+    const [{ data: depRows }, { data: relRows }] = await Promise.all([
       supabase
         .from("mod_dependencies")
         .select("parent_id, child_id, dependency_name, dependency_url")
@@ -267,11 +318,22 @@ export async function resolvePayloadDependencies(
       supabase
         .from("mod_relationships")
         .select("parent_id, child_id, relationship_type")
-        .eq("relationship_type", "addon")
+        .in("relationship_type", ["addon", "flavor", "set_item", "beta"])
         .in("child_id", stagedChildIds),
     ]);
 
-    const allDepRows = [...(depRows || []), ...(addonRows || [])];
+    const addonRows = (relRows || []).filter((r: any) => r.relationship_type === "addon");
+    const allDepRows = [...(depRows || []), ...addonRows];
+
+    // Map of child_id -> parent_id so child flavors/addons can inherit missing metadata (author, description, category, dates) from their parent suite
+    const childToParentId = new Map<string, string>();
+    [...(depRows || []), ...(relRows || [])].forEach((row: any) => {
+      if (row.child_id && row.parent_id && row.parent_id !== row.child_id) {
+        if (!childToParentId.has(row.child_id)) {
+          childToParentId.set(row.child_id, row.parent_id);
+        }
+      }
+    });
 
     // Map of required parent mod_id -> child mod name that requires it (e.g. MC CMD CENTER id -> "MC WOOHOO")
     const requiredParentToChildName = new Map<string, string>();
@@ -307,21 +369,25 @@ export async function resolvePayloadDependencies(
       }
     });
 
-    // Fetch metadata for all required parent mods (both missing and already-staged ones so we can heal badges by name/hash)
-    const allRequiredParentIds = Array.from(requiredParentToChildName.keys());
+    // Fetch metadata for all required parent mods + any parent suites needed for metadata inheritance
+    const allParentIdsToFetch = Array.from(
+      new Set([
+        ...Array.from(requiredParentToChildName.keys()),
+        ...Array.from(childToParentId.values()),
+      ])
+    );
     const requiredParentNameToChildName = new Map<string, string>();
     const resolvedDbDeps: StagedArtifactItem[] = [];
 
-    if (allRequiredParentIds.length > 0) {
+    if (allParentIdsToFetch.length > 0) {
       const { data: depMods } = await supabase
         .from("mods")
-        .select(
-          "id, name, master_author, url, image_url, category_override, is_paid, is_early_access, mod_versions(dna_hash, version_label)"
-        )
-        .in("id", allRequiredParentIds);
+        .select(MOD_SELECT_FIELDS)
+        .in("id", allParentIdsToFetch);
 
       if (Array.isArray(depMods)) {
         depMods.forEach((dm: any) => {
+          registerDbMod(dm);
           const childName = requiredParentToChildName.get(dm.id);
           const dmNameLow = String(dm.name || "").toLowerCase();
           if (dmNameLow && childName && dmNameLow !== childName.toLowerCase()) {
@@ -348,14 +414,28 @@ export async function resolvePayloadDependencies(
 
           resolvedDbDeps.push({
             id: dm.id,
+            dbId: dm.id,
             name: dm.name,
             displayName: dm.name,
             hash: dmHash,
             author: dm.master_author || "",
+            master_author: dm.master_author || "",
             url: dm.url || "",
             version: latestVer?.version_label || "",
             image_url: dm.image_url || "",
             category: dm.category_override || "",
+            category_override: dm.category_override || "",
+            type: dm.category_override || "",
+            description: dm.description || "",
+            compatible_versions: Array.isArray(dm.compatible_versions)
+              ? dm.compatible_versions
+              : [],
+            created_at: dm.created_at || latestVer?.created_at || undefined,
+            updated_at: latestVer?.created_at || dm.created_at || undefined,
+            status: dm.status || "stable",
+            status_reason: dm.status_reason || undefined,
+            compliance_tier: dm.compliance_tier ?? 0,
+            requiredDLC: Array.isArray(dm.requiredDLC) ? dm.requiredDLC : [],
             is_paid: !!dm.is_paid,
             is_early_access: !!dm.is_early_access,
             priority_tier: "1_Core",
@@ -367,33 +447,142 @@ export async function resolvePayloadDependencies(
     }
 
     // Heal existing items in-place:
-    // 1. If an existing item IS a required parent (e.g. MC CMD CENTER when MC WOOHOO is also staged), mark it isDependency=true, dependencyOf="MC WOOHOO", priority_tier="1_Core".
-    // 2. If an existing item was falsely marked isDependency=true by the old inverted query (e.g. MC WOOHOO marked Needed For MC CMD CENTER), strip the false badge!
+    // 1. Hydrate missing DB metadata (author, description, category, dates, status, versions) from the item's DB row or its parent suite row.
+    // 2. If an existing item IS a required parent (e.g. MC CMD CENTER when MC WOOHOO is also staged), mark it isDependency=true, dependencyOf="MC WOOHOO", priority_tier="1_Core".
+    // 3. If an existing item was falsely marked isDependency=true by an old inverted query, strip the false badge.
     const healedExistingItems = items.map((item) => {
-      const itemIdStr = String(item.id || "");
+      if (item.asset_type) return item;
+
+      const itemIdStr = String(item.dbId || item.id || "");
+      const itemHashLow = String(item.hash || "").toLowerCase();
       const itemNameLow = String(item.name || item.displayName || "").toLowerCase();
+
+      const matchedMod =
+        dbModById.get(itemIdStr) ||
+        (itemHashLow ? dbModByHash.get(itemHashLow) : undefined) ||
+        (itemNameLow ? dbModByName.get(itemNameLow) : undefined);
+
+      const resolvedDbId =
+        matchedMod?.id || (uuidRegex.test(itemIdStr) ? itemIdStr : item.dbId);
+      const parentId = resolvedDbId ? childToParentId.get(String(resolvedDbId)) : undefined;
+      const parentMod = parentId ? dbModById.get(String(parentId)) : undefined;
+
+      const latestVer =
+        Array.isArray(matchedMod?.mod_versions) && matchedMod.mod_versions.length > 0
+          ? matchedMod.mod_versions[0]
+          : null;
+      const parentLatestVer =
+        Array.isArray(parentMod?.mod_versions) && parentMod.mod_versions.length > 0
+          ? parentMod.mod_versions[0]
+          : null;
+
+      const resolvedAuthor =
+        item.author ||
+        item.master_author ||
+        matchedMod?.master_author ||
+        parentMod?.master_author ||
+        "";
+      const resolvedCategory =
+        item.category_override ||
+        item.category ||
+        item.type ||
+        matchedMod?.category_override ||
+        parentMod?.category_override ||
+        "";
+      const resolvedDesc =
+        item.description ||
+        matchedMod?.description ||
+        parentMod?.description ||
+        "";
+      const resolvedCompat =
+        Array.isArray(item.compatible_versions) && item.compatible_versions.length > 0
+          ? item.compatible_versions
+          : Array.isArray(matchedMod?.compatible_versions) &&
+              matchedMod.compatible_versions.length > 0
+            ? matchedMod.compatible_versions
+            : Array.isArray(parentMod?.compatible_versions)
+              ? parentMod.compatible_versions
+              : [];
+      const resolvedCreatedAt =
+        item.created_at ||
+        matchedMod?.created_at ||
+        latestVer?.created_at ||
+        parentMod?.created_at ||
+        undefined;
+      const resolvedUpdatedAt =
+        item.updated_at ||
+        latestVer?.created_at ||
+        matchedMod?.created_at ||
+        parentLatestVer?.created_at ||
+        parentMod?.created_at ||
+        undefined;
+      const resolvedStatus =
+        item.status || matchedMod?.status || parentMod?.status || "stable";
+
+      const hydratedItem: StagedArtifactItem = {
+        ...item,
+        dbId: resolvedDbId,
+        hash: item.hash || latestVer?.dna_hash || "",
+        author: resolvedAuthor,
+        master_author: resolvedAuthor,
+        url: item.url || matchedMod?.url || parentMod?.url || "",
+        version:
+          item.version ||
+          latestVer?.version_label ||
+          parentLatestVer?.version_label ||
+          "",
+        image_url: item.image_url || matchedMod?.image_url || parentMod?.image_url || "",
+        category: resolvedCategory,
+        category_override: resolvedCategory,
+        type: resolvedCategory,
+        description: resolvedDesc,
+        compatible_versions: resolvedCompat,
+        created_at: resolvedCreatedAt,
+        updated_at: resolvedUpdatedAt,
+        status: resolvedStatus,
+        status_reason:
+          item.status_reason ||
+          matchedMod?.status_reason ||
+          parentMod?.status_reason ||
+          undefined,
+        compliance_tier:
+          item.compliance_tier ??
+          matchedMod?.compliance_tier ??
+          parentMod?.compliance_tier ??
+          0,
+        requiredDLC:
+          Array.isArray(item.requiredDLC) && item.requiredDLC.length > 0
+            ? item.requiredDLC
+            : Array.isArray(matchedMod?.requiredDLC) && matchedMod.requiredDLC.length > 0
+              ? matchedMod.requiredDLC
+              : Array.isArray(parentMod?.requiredDLC)
+                ? parentMod.requiredDLC
+                : [],
+      };
+
       const neededByChild =
+        (resolvedDbId ? requiredParentToChildName.get(String(resolvedDbId)) : undefined) ||
         requiredParentToChildName.get(itemIdStr) ||
         requiredParentNameToChildName.get(itemNameLow);
 
       if (neededByChild && neededByChild.toLowerCase() !== itemNameLow) {
         return {
-          ...item,
+          ...hydratedItem,
           priority_tier: "1_Core",
           isDependency: true,
           dependencyOf: neededByChild,
         };
       }
 
-      if (item.isDependency && !itemIdStr.startsWith("dep_")) {
+      if (hydratedItem.isDependency && !itemIdStr.startsWith("dep_")) {
         return {
-          ...item,
+          ...hydratedItem,
           isDependency: false,
           dependencyOf: undefined,
         };
       }
 
-      return item;
+      return hydratedItem;
     });
 
     const newDeps = [...resolvedDbDeps, ...externalDeps];

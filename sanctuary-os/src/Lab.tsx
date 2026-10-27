@@ -1459,7 +1459,7 @@ export default function Lab({
           {testSaveStatus && !testSaveStatus.has_test_save && (
             <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[22px]">
                     {t("icon_save", "save")}
                   </span>
@@ -1469,7 +1469,7 @@ export default function Lab({
                     <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                       {t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] bg-transparent flex items-center gap-1.5 shrink-0">
+                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)] glass-surface flex items-center gap-1.5 shrink-0">
                       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                         {t("icon_science", "science")}
                       </span>
@@ -2778,7 +2778,7 @@ export default function Lab({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[12px]">
                           verified_user
                         </span>

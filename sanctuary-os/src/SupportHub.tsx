@@ -585,9 +585,8 @@ export default function SupportHub() {
 
             {error && (
               <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -596,9 +595,9 @@ export default function SupportHub() {
                   </div>
                   <button
                     onClick={() => { setError(""); setPolicyViolations([]); }}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
+                    className="absolute top-4 right-4 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
+                    <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
                   </button>
                 </div>
                 {policyViolations.length > 0 && (
@@ -606,7 +605,7 @@ export default function SupportHub() {
                     <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
                     <div className="flex flex-wrap gap-2">
                       {policyViolations.map((mod, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[color-mix(in_srgb,var(--danger)_90%,transparent)] text-[10px] font-mono bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+                        <div key={i} className="flex items-center gap-2 text-[var(--danger)] text-[10px] font-mono bg-transparent py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_38%,transparent)]">
                           <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension", "extension")}</span>
                           <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
                         </div>
@@ -619,9 +618,8 @@ export default function SupportHub() {
 
             {vaultExtremeMods.length > 0 && (
               <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -629,7 +627,7 @@ export default function SupportHub() {
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
                       {t("support_vault_lock_desc", `Your vault contains ${totalExtremeMods} severe artifact(s) (Tier 3-5). Support submissions are disabled until purged.`)}
                     </span>
-                    <button onClick={() => setResolutionType('vault')} className="mt-3 self-start px-4 py-2 rounded-xl bg-transparent text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[var(--danger)] text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
+                    <button onClick={() => setResolutionType('vault')} className="mt-3 self-start px-4 py-2 rounded-xl glass-surface text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete", "delete")}</span> {t("resolve_issues", "Resolve")}
                     </button>
                   </div>
@@ -639,9 +637,8 @@ export default function SupportHub() {
 
             {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
               <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl flex flex-col relative shadow-md group shrink-0 mb-6">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)]">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -649,7 +646,7 @@ export default function SupportHub() {
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
                       {t("support_adult_mods_desc", `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`)}
                     </span>
-                    <button onClick={() => setResolutionType('blueprint')} className="mt-3 self-start px-4 py-2 rounded-xl bg-transparent text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[var(--warning)] text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
+                    <button onClick={() => setResolutionType('blueprint')} className="mt-3 self-start px-4 py-2 rounded-xl glass-surface text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_42%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_engineering", "engineering")}</span> {t("resolve_issues", "Resolve Anomalies")}
                     </button>
                   </div>
@@ -875,13 +872,13 @@ export default function SupportHub() {
                                     }} className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all border shadow-sm ${!isOptedOut ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)]' : 'glass-panel border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-60 hover:opacity-100'}`}>
                                       <div className="flex flex-col">
                                         <span className={`text-[11px] font-black tracking-widest uppercase flex items-center gap-3 ${!isOptedOut ? 'text-[var(--text)]' : 'text-[var(--subtext)]'}`}>
-                                          <span className="material-symbols-outlined !text-[16px]">{source.type === 'OS' ? 'memory' : 'folder'}</span>
+                                          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{source.type === 'OS' ? t("icon_memory", "memory") : t("icon_folder", "folder")}</span>
                                           {source.label}
                                         </span>
-                                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 mt-0.5">{!isOptedOut ? 'Data Included' : 'Excluded from report'}</span>
+                                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 mt-0.5">{!isOptedOut ? t("data_included", "Data Included") : t("excluded_from_report", "Excluded from report")}</span>
                                       </div>
-                                      <div className={`w-10 h-5 rounded-full transition-all relative shrink-0 glass-panel border ${!isOptedOut ? 'border-[var(--accent)] shadow-[inset_0_0_10px_rgba(var(--accent-rgb),0.2)]' : 'border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}>
-                                        <div className={`w-3 h-3 rounded-full absolute top-[3px] transition-all duration-300 ${!isOptedOut ? 'translate-x-[23px] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]' : 'translate-x-[3px] bg-[color-mix(in_srgb,var(--text)_40%,transparent)]'}`}></div>
+                                      <div className={`sa-glass-toggle ${!isOptedOut ? 'is-on' : ''}`}>
+                                        <div className="sa-glass-toggle-thumb" />
                                       </div>
                                     </div>
                                   );

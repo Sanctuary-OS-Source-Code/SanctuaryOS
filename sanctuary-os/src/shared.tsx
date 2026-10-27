@@ -16,6 +16,7 @@ export {
   SidePanelPillToggle,
 } from "./components/universal/UniversalLayout";
 export { VAULT_CHIP_CLASS } from "./Cards";
+export { StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 declare global {
   interface Window {

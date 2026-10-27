@@ -2,10 +2,10 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
-import { ModData, cleanSearchName } from "../shared";
+import { ModData, cleanSearchName, handleOpenUrl } from "../shared";
 
 export function useModActions(
-  openUrl: (url: string) => void, 
+  _openUrl: (url: string) => void, 
   fetchVault: () => void,
   runRadarSweep: (silent?: boolean) => Promise<void>,
   activeSetName: string | null,
@@ -13,10 +13,7 @@ export function useModActions(
   setShelterActive: (active: boolean) => void
 ) {
   const { setStatus, activeGameSchema } = useStore();
-  const { 
-    useInternalBrowser, setIsSideBrowserOpen, setSideBrowserUrl, 
-    setConfirmDialog
-  } = useModalStore();
+  const { setConfirmDialog } = useModalStore();
   const { t } = useLexicon();
 
   function handleSmartSearch(mod: ModData) {
@@ -29,12 +26,7 @@ export function useModActions(
           : `https://${mod.url}`
         : `https://www.google.com/search?q=${encodeURIComponent(activeGameSchema?.display_name || "Mod")}+${encodeURIComponent(cleanName)}`;
     
-    if (useInternalBrowser) {
-      setSideBrowserUrl(targetUrl);
-      setIsSideBrowserOpen(true);
-    } else {
-      openUrl(targetUrl);
-    }
+    handleOpenUrl(targetUrl);
     setStatus(`${t("status_intel_request", "SYSTEM: Intel request sent to default browser for")}${cleanName}`);
   }
 

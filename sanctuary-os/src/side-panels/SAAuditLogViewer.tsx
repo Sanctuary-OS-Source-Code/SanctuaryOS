@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabaseAuth, getActiveGameClient } from "../supabase";
-import { useLexicon } from "../LexiconContext";
+import { useLexicon, normalizeAllCapsForThemeCase } from "../LexiconContext";
 import { useStore } from "../store";
 import { SharedIdentityEditor } from "../IdentityMatrix";
 import {
@@ -724,15 +724,14 @@ export function AuditLogViewer({
           title={t("audit_retention_window", "Retention Window")}
           icon={t("icon_schedule", "schedule")}
         >
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
+          <div className="grid grid-cols-2 gap-3 w-full">
             {[30, 60, 90, 180].map((days) => (
               <DashboardStatTile
                 key={days}
                 variant="filter"
-                compact={true}
                 icon={t("icon_event_repeat", "event_repeat")}
-                title={`${days}D`}
-                value={`${days}d`}
+                label={t("audit_retention_window", "Retention Window")}
+                value={`${days} ${t("supporter_celebration_days_unit", "Days")}`}
                 active={retentionDays === days}
                 onClick={() => setRetentionDays(days)}
                 accentColor="accent"
@@ -806,9 +805,9 @@ export function AuditLogViewer({
                 />
                 <StatBox
                   label={t("role", "Role")}
-                  value={(
-                    selectedLog.profiles?.role || t("system", "System")
-                  ).toUpperCase()}
+                  value={normalizeAllCapsForThemeCase(
+                    (selectedLog.profiles?.role || t("system", "System")).toUpperCase()
+                  )}
                   icon={t("icon_badge", "badge")}
                 />
                 {effectiveIsKeepers && (
@@ -820,11 +819,11 @@ export function AuditLogViewer({
                 )}
                 <StatBox
                   label={t("target", "Target")}
-                  value={
+                  value={normalizeAllCapsForThemeCase(
                     selectedLog.target_name ||
-                    selectedLog.target_table ||
-                    t("system", "System")
-                  }
+                      selectedLog.target_table ||
+                      t("system", "System")
+                  )}
                   icon={t("icon_target", "my_location")}
                 />
               </div>
@@ -846,8 +845,8 @@ export function AuditLogViewer({
                       className="flex flex-col gap-2.5 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_35%,transparent)] !text-[var(--accent)]`}>
-                          <span className="material-symbols-outlined !text-[12px]">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                             {t("icon_edit_note", "edit_note")}
                           </span>
                           <span>{chg.label}</span>
@@ -891,7 +890,7 @@ export function AuditLogViewer({
                 </div>
               ) : (
                 <div className="flex items-center gap-3 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--subtext)]">
-                  <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-[16px]">
                       {t("icon_info", "info")}
                     </span>
@@ -923,7 +922,7 @@ export function AuditLogViewer({
             >
               <div className="glass-surface rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_person", "person")}
                     </span>
@@ -940,13 +939,13 @@ export function AuditLogViewer({
                           {t("icon_badge", "badge")}
                         </span>
                         <span>
-                          {(
-                            selectedLog.profiles?.role || t("system", "System")
-                          ).toUpperCase()}
+                          {normalizeAllCapsForThemeCase(
+                            (selectedLog.profiles?.role || t("system", "System")).toUpperCase()
+                          )}
                         </span>
                       </span>
                       {selectedLog.profiles?.is_banned && (
-                        <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`}>
+                        <span className={VAULT_CHIP_CLASS}>
                           <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
                             {t("icon_gpp_bad", "gpp_bad")}
                           </span>
@@ -1024,9 +1023,9 @@ export function AuditLogViewer({
     const actorName = log.profiles?.username
       ? `@${log.profiles.username}`
       : t("system", "System");
-    const actorRole = (
-      log.profiles?.role || t("system", "System")
-    ).toUpperCase();
+    const actorRole = normalizeAllCapsForThemeCase(
+      (log.profiles?.role || t("system", "System")).toUpperCase()
+    );
 
     const cleanReason = log._cleanReason ?? parseAuditLogEntry(log).cleanReason;
     const changes = log._changes ?? parseAuditLogEntry(log).changes;
@@ -1036,11 +1035,11 @@ export function AuditLogViewer({
         key={log.id}
         layout="vertical"
         title={log.action || t("action", "Action")}
-        subtitle={
+        subtitle={normalizeAllCapsForThemeCase(
           log.target_name ||
-          log.target_table ||
-          t("system_event", "System Event")
-        }
+            log.target_table ||
+            t("system_event", "System Event")
+        )}
         icon={statusIcon}
         statusColor={statusBorderClass}
         onClick={() => setSelectedLog(log)}
@@ -1187,9 +1186,9 @@ export function AuditLogViewer({
     const actorName = log.profiles?.username
       ? `@${log.profiles.username}`
       : t("system", "System");
-    const actorRole = (
-      log.profiles?.role || t("system", "System")
-    ).toUpperCase();
+    const actorRole = normalizeAllCapsForThemeCase(
+      (log.profiles?.role || t("system", "System")).toUpperCase()
+    );
 
     const cleanReason = log._cleanReason ?? parseAuditLogEntry(log).cleanReason;
     const changes = log._changes ?? parseAuditLogEntry(log).changes;
@@ -1203,7 +1202,7 @@ export function AuditLogViewer({
         <div className="flex flex-col gap-2.5 w-full">
           {/* Top Row: Boxed Icon on Left, Badges on Right */}
           <div className="flex items-center justify-between gap-2 w-full">
-            <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
               <span className={`material-symbols-outlined !text-[18px] ${statusTextClass}`}>
                 {statusIcon}
               </span>
@@ -1245,10 +1244,10 @@ export function AuditLogViewer({
 
           {/* Middle Block: Overline + Full Title + Reason / Diffs */}
           <div className="flex flex-col gap-1 w-full">
-            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-90 truncate">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-85 truncate">
               {log.target_name && log.target_table
-                ? `${log.target_name} • ${log.target_table}`
-                : log.target_name ||
+                ? `${normalizeAllCapsForThemeCase(log.target_name)} • ${log.target_table}`
+                : normalizeAllCapsForThemeCase(log.target_name || "") ||
                   log.target_table ||
                   t("system_event", "System Event")}
             </span>

@@ -210,102 +210,174 @@ export default function TimeCapsule({
   const renderSealCard = (isEngine: boolean) => {
     const isConfirming = isEngine ? confirmSealEngine : confirmSealWorld;
     const setConfirming = isEngine ? setConfirmSealEngine : setConfirmSealWorld;
+    const accentVar = isEngine ? "var(--danger)" : "var(--accent)";
     const themeColor = isEngine
       ? "text-[var(--danger)]"
       : "text-[var(--accent)]";
     const themeBorder = isEngine
-      ? "border-[color-mix(in_srgb,var(--danger)_38%,transparent)]"
-      : "border-[color-mix(in_srgb,var(--accent)_38%,transparent)]";
+      ? "border-[color-mix(in_srgb,var(--danger)_42%,transparent)]"
+      : "border-[color-mix(in_srgb,var(--accent)_42%,transparent)]";
+    const themeDashedBorder = isEngine
+      ? "border-[color-mix(in_srgb,var(--danger)_32%,transparent)] group-hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)]"
+      : "border-[color-mix(in_srgb,var(--accent)_32%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]";
     const themeHoverBorder = isEngine
       ? "hover:border-[color-mix(in_srgb,var(--danger)_55%,transparent)]"
       : "hover:border-[color-mix(in_srgb,var(--accent)_55%,transparent)]";
+    const categoryIcon = isEngine
+      ? t("icon_settings", "settings")
+      : t("icon_public", "public");
 
     return (
-      <UniversalCard
-        layout="vertical"
-        title={
-          isEngine
-            ? t("btn_seal_engine", "Seal Engine Core")
-            : t("btn_seal_state", "Seal World State")
-        }
-        subtitle={
-          isEngine
-            ? t("engine_full", "Engine Core")
-            : t("world_state", "World State")
-        }
-        icon={t("icon_add", "add")}
+      <div
         onClick={() => !isConfirming && setConfirming(true)}
-        className={`border-dashed ${themeBorder} ${themeHoverBorder}`}
-        footer={
-          <div
-            className="flex items-center justify-between gap-2 w-full"
-            onClick={(e) => e.stopPropagation()}
+        className={`glass-panel rounded-[var(--radius)] relative flex flex-col justify-between p-5 min-h-[276px] group cursor-pointer transition-all duration-300 overflow-hidden select-none ${themeHoverBorder}`}
+      >
+        {/* 3D Liquid Glass Meniscus Rim Overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
+          style={{
+            boxShadow: "var(--glass-inset-highlight)",
+          }}
+        />
+
+        {/* Ambient Radial Glow */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-70 group-hover:opacity-100 transition-opacity duration-500"
+          style={{
+            background: `radial-gradient(circle at 50% 42%, color-mix(in srgb, ${accentVar} 18%, transparent) 0%, transparent 68%)`,
+          }}
+        />
+
+        {/* Inset Dashed Create-Slot Frame */}
+        <div
+          className={`pointer-events-none absolute inset-2.5 rounded-[calc(var(--radius)-8px)] border-2 border-dashed transition-colors duration-300 z-10 ${themeDashedBorder}`}
+        />
+
+        {/* Top Header Pill Row */}
+        <div className="flex items-center justify-between gap-2 px-1.5 pt-0.5 relative z-20">
+          <span
+            className={`px-2.5 py-1 rounded-lg border bg-transparent ${themeBorder} ${themeColor} text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0`}
           >
-            {!isConfirming ? (
-              <>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75 truncate">
-                  {cleanActiveVersion || t("status_ready", "Ready")}
+            <span className="material-symbols-outlined !text-[12px]">
+              {t("icon_add_circle", "add_circle")}
+            </span>
+            <span>{t("tc_card_new_badge", "New Snapshot")}</span>
+          </span>
+
+          <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] inline-flex items-center gap-1.5 truncate">
+            <span
+              className={`material-symbols-outlined !text-[11px] ${themeColor}`}
+            >
+              {categoryIcon}
+            </span>
+            <span className="truncate">
+              {cleanActiveVersion ||
+                (isEngine
+                  ? t("engine_full", "Engine Core")
+                  : t("world_state", "World State"))}
+            </span>
+          </span>
+        </div>
+
+        {/* Center Hero Add Medallion & Copy */}
+        <div className="flex flex-col items-center justify-center text-center gap-2.5 my-auto py-3 px-3 relative z-20">
+          <div className="relative mb-0.5">
+            <div
+              className={`pointer-events-none absolute -inset-1.5 rounded-[18px] border border-dashed opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 ${themeBorder}`}
+            />
+            <div
+              className={`w-14 h-14 rounded-2xl glass-surface border ${themeBorder} ${themeColor} flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 relative`}
+              style={{
+                boxShadow: `0 8px 24px -6px color-mix(in srgb, ${accentVar} 35%, transparent)`,
+              }}
+            >
+              <span className="material-symbols-outlined !text-[28px]">
+                {t("icon_add", "add")}
+              </span>
+              <span
+                className={`w-5 h-5 rounded-md glass-surface border ${themeBorder} ${themeColor} flex items-center justify-center absolute -bottom-1.5 -right-1.5 shadow-md`}
+              >
+                <span className="material-symbols-outlined !text-[11px]">
+                  {categoryIcon}
                 </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <h3
+              className={`text-base md:text-[17px] font-black tracking-tight text-[var(--text)] group-hover:${themeColor} transition-colors m-0 leading-snug`}
+            >
+              {isEngine
+                ? t("btn_seal_engine", "Seal Engine Core")
+                : t("btn_seal_state", "Seal World State")}
+            </h3>
+            <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 max-w-[28ch] m-0">
+              {isEngine
+                ? t(
+                    "tc_seal_engine_desc",
+                    "Capture game installation binaries, delta patches, and base game data."
+                  )
+                : t(
+                    "tc_seal_world_desc",
+                    "Capture Saves, Tray library, and user config files using hardlink deduplication."
+                  )}
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Full-Width Action Bar */}
+        <div
+          className="px-1.5 pb-0.5 pt-1 relative z-20 w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {!isConfirming ? (
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className={`w-full h-9 rounded-xl glass-surface border ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transition-all cursor-pointer`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_add_circle", "add_circle")}
+              </span>
+              <span>{t("create_new_snapshot", "Create New Snapshot")}</span>
+            </button>
+          ) : (
+            <div className="flex items-center justify-between gap-2 w-full h-9 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
+              <span
+                className={`text-[9px] font-black uppercase tracking-wider ${themeColor} truncate`}
+              >
+                {isEngine
+                  ? t("confirm_seal_engine_prompt", "Seal Engine Core?")
+                  : t("confirm_seal_world_prompt", "Seal World State?")}
+              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setConfirming(true)}
-                  className={`px-3 h-7 rounded-lg border bg-transparent ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0`}
+                  onClick={() => {
+                    if (isEngine) {
+                      triggerFullEngineBackup && triggerFullEngineBackup();
+                    } else {
+                      triggerPrePatchSnapshot && triggerPrePatchSnapshot();
+                    }
+                    setConfirming(false);
+                  }}
+                  className={`px-2.5 h-6 rounded-lg border bg-transparent ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer`}
                 >
-                  <span className="material-symbols-outlined !text-[12px]">
-                    {t("icon_add", "add")}
-                  </span>
-                  {t("create_new_snapshot", "Create New Snapshot")}
+                  {t("confirm", "Confirm")}
                 </button>
-              </>
-            ) : (
-              <div className="flex items-center justify-between gap-2 w-full">
-                <span
-                  className={`text-[9px] font-black uppercase tracking-wider ${themeColor} truncate`}
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="px-2.5 h-6 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
-                  {isEngine
-                    ? t("confirm_seal_engine_prompt", "Seal Engine Core?")
-                    : t("confirm_seal_world_prompt", "Seal World State?")}
-                </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isEngine) {
-                        triggerFullEngineBackup && triggerFullEngineBackup();
-                      } else {
-                        triggerPrePatchSnapshot && triggerPrePatchSnapshot();
-                      }
-                      setConfirming(false);
-                    }}
-                    className={`px-2.5 h-7 rounded-lg border bg-transparent ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer`}
-                  >
-                    {t("confirm", "Confirm")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirming(false)}
-                    className="px-2.5 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    {t("btn_cancel", "Cancel")}
-                  </button>
-                </div>
+                  {t("cancel", "Cancel")}
+                </button>
               </div>
-            )}
-          </div>
-        }
-      >
-        <p className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0 mt-1">
-          {isEngine
-            ? t(
-                "tc_seal_engine_desc",
-                "Capture game installation binaries, delta patches, and base game data."
-              )
-            : t(
-                "tc_seal_world_desc",
-                "Capture Saves, Tray library, and user config files using hardlink deduplication."
-              )}
-        </p>
-      </UniversalCard>
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 

@@ -360,7 +360,7 @@ export function DispatchPollBuilder({
     return (
       <div className="flex items-center justify-between p-4 rounded-2xl glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+          <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
             <span className="material-symbols-outlined !text-[18px]">{t("icon_poll", "poll")}</span>
           </div>
           <div className="flex flex-col">
@@ -375,9 +375,9 @@ export function DispatchPollBuilder({
         <button
           type="button"
           onClick={handleEnablePoll}
-          className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] transition-all flex items-center gap-1.5"
+          className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
         >
-          <span className="material-symbols-outlined !text-[15px]">{t("icon_add_circle", "add_circle")}</span>
+          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">{t("icon_add_circle", "add_circle")}</span>
           {t("poll_btn_add_poll", "Add Poll")}
         </button>
       </div>
@@ -427,13 +427,13 @@ export function DispatchPollBuilder({
           <button
             type="button"
             onClick={toggleMultiple}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl glass-surface text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5 cursor-pointer ${
               pollData.allow_multiple
-                ? "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:text-[var(--text)]"
+                ? "sa-glass-pill-active text-[var(--text)]"
+                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
             }`}
           >
-            <span className="material-symbols-outlined !text-[14px]">
+            <span className={`material-symbols-outlined !text-[14px] ${pollData.allow_multiple ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}>
               {pollData.allow_multiple
                 ? t("icon_check_box", "check_box")
                 : t("icon_check_box_outline_blank", "check_box_outline_blank")}
@@ -444,9 +444,9 @@ export function DispatchPollBuilder({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all flex items-center gap-1"
+            className="px-3 py-1.5 rounded-xl glass-surface text-[10px] font-black uppercase tracking-widest text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] transition-all flex items-center gap-1 cursor-pointer"
           >
-            <span className="material-symbols-outlined !text-[14px]">{t("icon_delete", "delete")}</span>
+            <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_delete", "delete")}</span>
             {t("poll_btn_remove_poll", "Remove Poll")}
           </button>
         </div>
@@ -495,9 +495,9 @@ export function DispatchPollBuilder({
           <button
             type="button"
             onClick={addOption}
-            className="self-start mt-1 ml-6 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-all flex items-center gap-1.5"
+            className="self-start mt-1 ml-6 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest glass-surface text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <span className="material-symbols-outlined !text-[14px]">{t("icon_add_circle", "add_circle")}</span>
+            <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_add_circle", "add_circle")}</span>
             {t("support_add_option", "Add Option")}
           </button>
         )}
@@ -637,7 +637,7 @@ export function DispatchPollViewer({ post, userId = null }: { post: any; userId?
     <div className="mt-8 p-6 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-xl relative overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center text-[var(--accent)] shadow-inner">
+          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
             <span className="material-symbols-outlined !text-[22px]">{t("icon_how_to_vote", "how_to_vote")}</span>
           </div>
           <div className="flex flex-col">
@@ -652,12 +652,12 @@ export function DispatchPollViewer({ post, userId = null }: { post: any; userId?
 
         <div className="flex items-center gap-2">
           {myVotedOptionIds.size > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex items-center gap-1">
-              <span className="material-symbols-outlined !text-[12px]">{t("icon_task_alt", "task_alt")}</span>
+            <span className="px-2.5 py-1 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5">
+              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_task_alt", "task_alt")}</span>
               {t("poll_status_voted", "Voted")}
             </span>
           )}
-          <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+          <span className="px-2.5 py-1 rounded-lg glass-surface text-[9px] font-mono font-black text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
             {totalVotes} {totalVotes === 1 ? t("poll_vote_singular", "vote") : t("poll_vote_plural", "votes")}
           </span>
         </div>

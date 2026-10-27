@@ -686,9 +686,12 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex items-center justify-start border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
+                    <div className="flex items-center justify-between border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] pb-2">
                         <span className="text-[10px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_custom_fields", "Custom Fields (Json)")}</span>
-                        <button onClick={addField} className="text-[9px] font-black capitalize tracking-widest text-[var(--accent)] hover:opacity-80">+ {t("support_add_field", "Add Field")}</button>
+                        <button type="button" onClick={addField} className={`${VAULT_CHIP_CLASS} cursor-pointer hover:sa-glass-pill-active transition-all`}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_add", "add")}</span>
+                            <span>{t("support_add_field", "Add Field")}</span>
+                        </button>
                     </div>
 
                     <div className="flex flex-col gap-4">
@@ -704,7 +707,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                         placeholder={t("support_field_label_ph", "Field Label")}
                                     />
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3">
                                     <div className="flex-1">
                                         <CustomDropdown disableTint={true}
                                             value={field.type}
@@ -717,8 +720,27 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                             ]}
                                         />
                                     </div>
-                                    <button onClick={() => updateField(idx, { required: !field.required })} className={`px-4 py-2 rounded-lg text-[9px] font-black transition-all border ${field.required ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>{t("req_short", "REQ")}</button>
-                                    <button onClick={() => removeField(idx)} className="text-[color-mix(in_srgb,var(--danger)_70%,transparent)] hover:text-red-500 font-bold p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] rounded-lg transition-all"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close", "close")}</span></button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateField(idx, { required: !field.required })}
+                                        className={`${VAULT_CHIP_CLASS} !px-3 !py-2 cursor-pointer transition-all ${
+                                            field.required
+                                                ? "sa-glass-pill-active !text-[var(--text)]"
+                                                : "opacity-60 hover:opacity-100 !text-[var(--subtext)] hover:!text-[var(--text)]"
+                                        }`}
+                                    >
+                                        <span className={`material-symbols-outlined !text-[12px] ${field.required ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}>
+                                            {field.required ? t("icon_check_circle", "check_circle") : t("icon_radio_button_unchecked", "radio_button_unchecked")}
+                                        </span>
+                                        <span>{t("req_short", "REQ")}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeField(idx)}
+                                        className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-all shrink-0 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                                    </button>
                                 </div>
                                 {(field.type === "CHECKBOX" || field.type === "DROPDOWN") && (
                                     <div className="flex flex-col gap-2 pl-6 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] mt-2">
@@ -739,17 +761,18 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                                                 <button onClick={() => {
                                                     const newOpts = (field.options || []).filter((_, i) => i !== oIdx);
                                                     updateField(idx, { options: newOpts });
-                                                }} className="text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-red-500 p-1"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close", "close")}</span></button>
+                                                }} className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-all shrink-0 cursor-pointer"><span className='material-symbols-outlined !text-[12px]'>{t("icon_close", "close")}</span></button>
                                             </div>
                                         ))}
                                         <button onClick={() => updateField(idx, { options: [...(field.options || []), ""] })} className="w-full glass-surface rounded-md py-1.5 text-[9px] font-black text-center opacity-60 hover:opacity-100 capitalize tracking-widest mt-1">{t("support_add_option", "Add Option")}</button>
 
-                                        <div className="flex items-center justify-start mt-2 pr-2">
-                                            <span className="text-[8px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_allow_multi", "Allow Multi-select")}</span>
-                                            <label className="relative inline-flex items-center cursor-pointer scale-75">
-                                                <input type="checkbox" className="sr-only peer" checked={field.allow_multi_select || false} onChange={e => updateField(idx, { allow_multi_select: e.target.checked })} />
-                                                <div className="w-11 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
-                                            </label>
+                                        <div className="mt-2 pr-2">
+                                            <UniversalToggle
+                                                checked={field.allow_multi_select || false}
+                                                onChange={val => updateField(idx, { allow_multi_select: val })}
+                                                label={t("support_allow_multi", "Allow Multi-select")}
+                                                layout="horizontal-reverse"
+                                            />
                                         </div>
                                     </div>
                                 )}
@@ -759,45 +782,40 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_mod ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">extension</span>
-                            {t("support_req_target_mod", "Requires Target {Mod} Uuid")}
-                        </span>
-                        <UniversalToggle checked={draft.requires_target_mod || false} onChange={val => setDraft({...draft, requires_target_mod: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_req_target_mod", "Requires Target {Mod} Uuid")}
+                        icon={t("icon_extension", "extension")}
+                        checked={draft.requires_target_mod || false}
+                        onChange={val => setDraft({ ...draft, requires_target_mod: val })}
+                    />
 
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.requires_target_user ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">person</span>
-                            {t("support_req_target_user", "Requires Target User Uuid")}
-                        </span>
-                        <UniversalToggle checked={draft.requires_target_user || false} onChange={val => setDraft({...draft, requires_target_user: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_req_target_user", "Requires Target User Uuid")}
+                        icon={t("icon_person", "person")}
+                        checked={draft.requires_target_user || false}
+                        onChange={val => setDraft({ ...draft, requires_target_user: val })}
+                    />
 
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_title_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">title</span>
-                            {t("support_show_title", "Show Title Box")}
-                        </span>
-                        <UniversalToggle checked={draft.show_title_box || false} onChange={val => setDraft({...draft, show_title_box: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_show_title", "Show Title Box")}
+                        icon={t("icon_title", "title")}
+                        checked={draft.show_title_box || false}
+                        onChange={val => setDraft({ ...draft, show_title_box: val })}
+                    />
 
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_description_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">description</span>
-                            {t("support_show_desc", "Show Description Box")}
-                        </span>
-                        <UniversalToggle checked={draft.show_description_box || false} onChange={val => setDraft({...draft, show_description_box: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_show_desc", "Show Description Box")}
+                        icon={t("icon_description", "description")}
+                        checked={draft.show_description_box || false}
+                        onChange={val => setDraft({ ...draft, show_description_box: val })}
+                    />
 
-                    <div className="flex items-center justify-between p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group">
-                        <span className={`text-[9px] font-black capitalize tracking-widest transition-colors flex items-center gap-2 ${draft.show_logs_box ? 'theme-text-accent' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>
-                            <span className="material-symbols-outlined !text-[14px]">history</span>
-                            {t("support_show_logs", "Show Logs")}
-                        </span>
-                        <UniversalToggle checked={draft.show_logs_box || false} onChange={val => setDraft({...draft, show_logs_box: val})} />
-                    </div>
+                    <SidePanelPillToggle
+                        label={t("support_show_logs", "Show Logs")}
+                        icon={t("icon_history", "history")}
+                        checked={draft.show_logs_box || false}
+                        onChange={val => setDraft({ ...draft, show_logs_box: val })}
+                    />
                 </div>
 
                 <div className="flex flex-col gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -808,7 +826,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-3 p-4 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                            <span className="text-[9px] font-black capitalize tracking-widest theme-text-accent flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_bug_report", "bug_report")}</span> {t("support_mod_reports", "{Mod} Bug Reports")}</span>
+                            <span className="text-[9px] font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-2 mb-2"><span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_bug_report", "bug_report")}</span> {t("support_mod_reports", "{Mod} Bug Reports")}</span>
                             {telemetrySources.filter(s => s.type === 'MOD' && s.is_active).map(source => (
                                 <div key={source.id} className="flex items-center justify-between group py-1">
                                     <div className="flex flex-col">

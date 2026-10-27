@@ -6,6 +6,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  StatTileCarousel,
   extractPostImage,
   stripMarkdown,
   ActionPill,
@@ -57,12 +58,6 @@ export function SanctuaryAlertsSidePanel({
         );
       }
 
-      if (filterStatus === "Active") {
-        query = query.eq("is_active", true);
-      } else if (filterStatus === "Inactive") {
-        query = query.eq("is_active", false);
-      }
-
       if (filterCategory !== "All") {
         query = query.eq("category", filterCategory);
       } else {
@@ -93,10 +88,28 @@ export function SanctuaryAlertsSidePanel({
       setLoading(false);
     };
     fetchPosts();
-  }, [isOpen, filterStatus, filterCategory, audience, tableName, t]);
+  }, [isOpen, filterCategory, audience, tableName, t]);
+
+  const activePostsCount = useMemo(
+    () => posts.filter((p) => p.is_active === true || p.is_active === "true").length,
+    [posts]
+  );
+  const inactivePostsCount = useMemo(
+    () => posts.filter((p) => p.is_active === false || p.is_active === "false").length,
+    [posts]
+  );
 
   const filteredPosts = useMemo(() => {
     return [...posts]
+      .filter((p) => {
+        if (filterStatus === "Active") {
+          return p.is_active === true || p.is_active === "true";
+        }
+        if (filterStatus === "Inactive") {
+          return p.is_active === false || p.is_active === "false";
+        }
+        return true;
+      })
       .filter(
         (p) =>
           !searchQuery ||
@@ -110,7 +123,7 @@ export function SanctuaryAlertsSidePanel({
         if (!aPinned && bPinned) return 1;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [posts, searchQuery]);
+  }, [posts, filterStatus, searchQuery]);
 
   const isPostPinned = (p: any) => p?.is_pinned === true || p?.is_pinned === "true";
   const hasActiveAlert = posts.some(isPostPinned);
@@ -131,6 +144,36 @@ export function SanctuaryAlertsSidePanel({
         subtitle={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <StatTileCarousel innerClassName="px-0">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_check_circle", "check_circle")}
+              label={t("status_active", "Active")}
+              value={activePostsCount}
+              isActive={filterStatus === "Active"}
+              onClick={() => setFilterStatus("Active")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_history", "history")}
+              label={t("tab_inactive", "Inactive")}
+              value={inactivePostsCount}
+              isActive={filterStatus === "Inactive"}
+              onClick={() => setFilterStatus("Inactive")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_all_inclusive", "all_inclusive")}
+              label={t("status_dd_all", "All Statuses")}
+              value={posts.length}
+              isActive={filterStatus === "All"}
+              onClick={() => setFilterStatus("All")}
+            />
+          </StatTileCarousel>
+
           <SidePanelHeroCard
             icon={
               hasActiveAlert
@@ -147,33 +190,6 @@ export function SanctuaryAlertsSidePanel({
             badgeIcon={t("icon_podcasts", "podcasts")}
             variant={hasActiveAlert ? "warning" : "accent"}
           />
-
-          <div className="grid grid-cols-3 gap-3">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_check_circle", "check_circle")}
-              label={t("status_active", "Active")}
-              isActive={filterStatus === "Active"}
-              onClick={() => setFilterStatus("Active")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_history", "history")}
-              label={t("tab_inactive", "Inactive")}
-              isActive={filterStatus === "Inactive"}
-              onClick={() => setFilterStatus("Inactive")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_all_inclusive", "all_inclusive")}
-              label={t("status_dd_all", "All Statuses")}
-              isActive={filterStatus === "All"}
-              onClick={() => setFilterStatus("All")}
-            />
-          </div>
 
           <ActionPill
             searchQuery={searchQuery}

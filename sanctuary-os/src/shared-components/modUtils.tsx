@@ -239,6 +239,18 @@ export const LOCAL_DLC_MAP: Record<string, string> = {
 export const mapDlcCode = (code: string) => {
   let baseCode = code.split(" ")[0].toUpperCase();
   baseCode = baseCode.replace(/^([A-Z]+)(\d)$/, "$10$2");
+  try {
+    const activeSchema = useStore.getState().activeGameSchema;
+    const schemaDlcList = activeSchema?.taxonomy?.dlc_list;
+    if (Array.isArray(schemaDlcList)) {
+      const found = schemaDlcList.find(
+        (d: any) =>
+          String(d?.code || d?.id || "").toUpperCase() === baseCode ||
+          String(d?.code || d?.id || "").toUpperCase() === code.toUpperCase()
+      );
+      if (found?.name) return found.name;
+    }
+  } catch {}
   return DLC_MAP[baseCode] || LOCAL_DLC_MAP[baseCode] || code;
 };
 export const getModIcon = (mod: any, schema: any, t: any) => {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
@@ -426,145 +426,10 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const refractedWallpaperCache = new Map<string, { bodyUrl: string; rimUrl: string }>();
-
-export function generateRefractedWallpaperPair(
-  bgImage: string,
-  blurPx: number,
-  saturation: string,
-  fallbackBg: string,
-  vw: number,
-  vh: number
-): Promise<{ bodyUrl: string; rimUrl: string }> {
-  const isMobileViewport = vw <= 768;
-  const viewportAspect = vw / Math.max(1, vh);
-  const aspectBucket = Math.round(viewportAspect * 100) / 100;
-  const satPct = Math.max(80, Math.min(280, Math.round(parseFloat(String(saturation || '185')) || 185)));
-  const effectiveSat = Math.max(110, Math.min(132, Math.round(122 * (satPct / 185))));
-  const cleanBlur = Math.max(0, Math.min(80, Math.round(blurPx || 36)));
-  const cacheKey = `${bgImage}::${cleanBlur}::${effectiveSat}::${fallbackBg}::${aspectBucket}::${isMobileViewport ? 'm' : 'd'}::v29`;
-  const cached = refractedWallpaperCache.get(cacheKey);
-  if (cached) return Promise.resolve(cached);
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const nw = img.naturalWidth || 1920;
-        const nh = img.naturalHeight || 1080;
-        const imgAspect = nw / nh;
-        const targetAspect = viewportAspect > 0.2 ? viewportAspect : (16 / 9);
-
-        // Match SystemBackground's `object-fit: cover; object-position: center` crop
-        let sx = 0;
-        let sy = 0;
-        let sw = nw;
-        let sh = nh;
-        if (imgAspect > targetAspect) {
-          sw = nh * targetAspect;
-          sx = (nw - sw) * 0.5;
-        } else if (imgAspect < targetAspect) {
-          sh = nw / targetAspect;
-          sy = (nh - sh) * 0.5;
-        }
-
-        const W = isMobileViewport ? Math.max(480, Math.min(640, Math.round(vw))) : 1280;
-        const H = Math.max(270, Math.round(W / targetAspect));
-        const scaledBlur = cleanBlur <= 0
-          ? 0
-          : isMobileViewport
-            ? Math.max(10, Math.min(20, Math.round(cleanBlur * 0.45)))
-            : Math.max(16, Math.min(28, Math.round(cleanBlur * 0.62)));
-        const pad = Math.max(64, scaledBlur * 3);
-
-        const padCanvas = document.createElement('canvas');
-        padCanvas.width = W + pad * 2;
-        padCanvas.height = H + pad * 2;
-        const padCtx = padCanvas.getContext('2d');
-        if (!padCtx) {
-          const fallback = `url("${bgImage}")`;
-          resolve({ bodyUrl: fallback, rimUrl: fallback });
-          return;
-        }
-
-        padCtx.fillStyle = fallbackBg;
-        padCtx.fillRect(0, 0, padCanvas.width, padCanvas.height);
-
-        // Draw clamped border strips and corners from the cropped source rectangle so Gaussian blur has zero edge vignette
-        padCtx.drawImage(img, sx, sy, sw, 1, pad, 0, W, pad);
-        padCtx.drawImage(img, sx, sy + sh - 1, sw, 1, pad, pad + H, W, pad);
-        padCtx.drawImage(img, sx, sy, 1, sh, 0, pad, pad, H);
-        padCtx.drawImage(img, sx + sw - 1, sy, 1, sh, pad + W, pad, pad, H);
-        padCtx.drawImage(img, sx, sy, 1, 1, 0, 0, pad, pad);
-        padCtx.drawImage(img, sx + sw - 1, sy, 1, 1, pad + W, 0, pad, pad);
-        padCtx.drawImage(img, sx, sy + sh - 1, 1, 1, 0, pad + H, pad, pad);
-        padCtx.drawImage(img, sx + sw - 1, sy + sh - 1, 1, 1, pad + W, pad + H, pad, pad);
-        // Center cropped image
-        padCtx.drawImage(img, sx, sy, sw, sh, pad, pad, W, H);
-
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = W;
-        outCanvas.height = H;
-        const outCtx = outCanvas.getContext('2d');
-        if (!outCtx) {
-          const fallback = `url("${bgImage}")`;
-          resolve({ bodyUrl: fallback, rimUrl: fallback });
-          return;
-        }
-
-        const [fbR, fbG, fbB] = parseHexToRgb(fallbackBg, [10, 13, 20]);
-        outCtx.fillStyle = `rgb(${fbR}, ${fbG}, ${fbB})`;
-        outCtx.fillRect(0, 0, W, H);
-        outCtx.imageSmoothingEnabled = true;
-        outCtx.imageSmoothingQuality = 'high';
-
-        // True Optical Frosted Liquid Glass Refraction:
-        // Clean, uniform Gaussian blur + subtle optical magnification (1.012x) and natural color preservation
-        // without artificial neon saturation spikes or radioactive blue contrast blotches
-        const bodyMag = 1.012;
-        const bmw = padCanvas.width * bodyMag;
-        const bmh = padCanvas.height * bodyMag;
-        const bmx = -pad - (bmw - padCanvas.width) * 0.5;
-        const bmy = -pad - (bmh - padCanvas.height) * 0.5;
-
-        outCtx.globalCompositeOperation = 'source-over';
-        outCtx.globalAlpha = 1.0;
-        outCtx.filter = scaledBlur > 0
-          ? `blur(${scaledBlur}px) saturate(${effectiveSat}%) brightness(1.06)`
-          : `saturate(${effectiveSat}%) brightness(1.04)`;
-        outCtx.drawImage(padCanvas, 0, 0, padCanvas.width, padCanvas.height, bmx, bmy, bmw, bmh);
-
-        // Soft neutral frosted luminance veil so cards over dark wallpaper areas still look like frosted crystal
-        outCtx.filter = 'none';
-        const frostGrad = outCtx.createLinearGradient(0, 0, W, H);
-        frostGrad.addColorStop(0, 'rgba(255, 255, 255, 0.048)');
-        frostGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.026)');
-        frostGrad.addColorStop(1, 'rgba(255, 255, 255, 0.040)');
-        outCtx.fillStyle = frostGrad;
-        outCtx.fillRect(0, 0, W, H);
-
-        const bodyUrl = `url("${outCanvas.toDataURL('image/jpeg', 0.92)}")`;
-        const pair = { bodyUrl, rimUrl: bodyUrl };
-        refractedWallpaperCache.set(cacheKey, pair);
-        resolve(pair);
-      } catch {
-        const fallback = `url("${bgImage}")`;
-        resolve({ bodyUrl: fallback, rimUrl: fallback });
-      }
-    };
-    img.onerror = () => {
-      const fallback = `url("${bgImage}")`;
-      resolve({ bodyUrl: fallback, rimUrl: fallback });
-    };
-    img.src = bgImage;
-  });
-}
-
 const GLASS_OPTICS_REV = "rev_49";
 
-export function applyThemeCssVarsToRoot(themeObj: any) {
-  if (!themeObj || typeof document === 'undefined') return;
+export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
+  if (!themeObj || typeof document === 'undefined') return 'dark';
   const root = document.documentElement;
   Object.entries(themeObj).forEach(([key, val]) => {
     if (key !== 'name' && val !== undefined && val !== null) {
@@ -615,14 +480,22 @@ export function applyThemeCssVarsToRoot(themeObj: any) {
   root.style.setProperty('--boot-bg-image', bootBgImg);
   root.style.backgroundImage = bootBgImg;
 
+  if (themeObj.bgImage) {
+    root.style.setProperty('--bgGradient', `url("${themeObj.bgImage}")`);
+  } else if (themeObj.bgGradient && themeObj.bgGradient !== 'transparent' && themeObj.bgGradient !== 'none' && themeObj.bgGradient !== themeObj.bg) {
+    root.style.setProperty('--bgGradient', themeObj.bgGradient);
+  } else {
+    root.style.setProperty('--bgGradient', 'none');
+  }
+
   const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
     .split(',')
     .map((s) => parseInt(s.trim(), 10));
   const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-  const colorScheme = yiq >= 128 ? 'light' : 'dark';
+  const colorScheme: 'light' | 'dark' = yiq >= 128 ? 'light' : 'dark';
   root.style.colorScheme = colorScheme;
   if (document.body) {
-    document.body.style.backgroundColor = safeBg;
+    document.body.style.backgroundColor = 'transparent';
     document.body.style.colorScheme = colorScheme;
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
@@ -633,6 +506,11 @@ export function applyThemeCssVarsToRoot(themeObj: any) {
   if (colorSchemeMeta) {
     colorSchemeMeta.setAttribute('content', colorScheme);
   }
+  const rootMount = document.getElementById('root');
+  if (rootMount) {
+    rootMount.style.backgroundColor = 'transparent';
+  }
+  return colorScheme;
 }
 
 const ThemeContext = createContext<any>(null);
@@ -804,8 +682,11 @@ export const ThemeProvider = ({ children }: any) => {
     fetchGameThemes();
   }, [wsId, workspaces]);
 
-  const mergedCoreThemes = { ...CORE_THEMES, ...DEFAULT_CORE_THEMES };
-  const allThemes = { ...mergedCoreThemes, ...gameThemes, ...devThemes, ...customThemes };
+  const mergedCoreThemes = useMemo(() => ({ ...CORE_THEMES, ...DEFAULT_CORE_THEMES }), [CORE_THEMES]);
+  const allThemes = useMemo(
+    () => ({ ...mergedCoreThemes, ...gameThemes, ...devThemes, ...customThemes }),
+    [mergedCoreThemes, gameThemes, devThemes, customThemes]
+  );
   const resolvedThemeId = activeThemeIdState === 'theme_1788994757269' ? 'sims4_dark' : activeThemeIdState;
   const currentThemeRaw = allThemes[resolvedThemeId] || DEFAULT_CORE_THEMES.architect;
 
@@ -825,13 +706,16 @@ export const ThemeProvider = ({ children }: any) => {
     return defaults[key];
   };
 
-  const currentTheme = {
-    ...currentThemeRaw,
-    success: sanitizeSemanticChannel('success', currentThemeRaw.success),
-    warning: sanitizeSemanticChannel('warning', currentThemeRaw.warning),
-    danger: sanitizeSemanticChannel('danger', currentThemeRaw.danger),
-    textCase: currentThemeRaw.textCase || 'capitalize',
-  };
+  const currentTheme = useMemo(
+    () => ({
+      ...currentThemeRaw,
+      success: sanitizeSemanticChannel('success', currentThemeRaw.success),
+      warning: sanitizeSemanticChannel('warning', currentThemeRaw.warning),
+      danger: sanitizeSemanticChannel('danger', currentThemeRaw.danger),
+      textCase: currentThemeRaw.textCase || 'capitalize',
+    }),
+    [currentThemeRaw]
+  );
 
   // Migrate stale auto-forked custom themes that were created from the old navy #091326 / #081121 defaults
   useEffect(() => {
@@ -1016,147 +900,15 @@ export const ThemeProvider = ({ children }: any) => {
   }, [customThemes, activeThemeIdState, wsId]);
 
   useLayoutEffect(() => {
-    const root = document.documentElement;
-    Object.entries(currentTheme).forEach(([key, val]) => {
-      if (key !== 'name') {
-        let finalVal = val as string;
-
-        // Ensure glassOpacity is a decimal!
-        if (key === 'glassOpacity' && typeof finalVal === 'string' && finalVal.endsWith('%')) {
-          finalVal = (parseFloat(finalVal) / 100).toString();
-        }
-        if (key !== 'bgGradient') {
-          if (key === 'glassOpacity') {
-            let parsedVal = parseFloat(finalVal);
-            // Legacy support: if value is a decimal like 0.04, convert it to 4% so color-mix doesn't break
-            if (!String(finalVal).endsWith('%') && parsedVal <= 1.0) {
-              finalVal = `${parsedVal * 100}%`;
-            }
-            root.style.setProperty(`--glassOpacityPercent`, finalVal);
-            root.style.setProperty(`--${key}`, finalVal);
-          } else {
-            root.style.setProperty(`--${key}`, finalVal);
-          }
-        }
-      }
-    });
-
-    const opticalVars = computeGlassOpticalVars(currentTheme);
-    Object.entries(opticalVars).forEach(([k, v]) => {
-      root.style.setProperty(k, v);
-    });
-    const resolvedTextCase = currentTheme.textCase || 'capitalize';
-    root.style.setProperty('--textCase', resolvedTextCase);
-    root.setAttribute('data-text-case', resolvedTextCase);
+    const colorScheme = applyThemeCssVarsToRoot(currentTheme);
     (window as any).__sanctuaryRenderWebGLGlass?.(true);
 
-    const canUsePassthrough =
-      isDesktop() ||
-      (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
-    const isTransparentPassthrough =
-      canUsePassthrough &&
-      !currentTheme.bgImage &&
-      (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
-    const fallbackThemeColor =
-      currentTheme.bg && currentTheme.bg !== '#000000' && currentTheme.bg !== 'transparent'
-        ? currentTheme.bg
-        : currentTheme.sidebar && currentTheme.sidebar !== '#000000' && currentTheme.sidebar !== 'transparent'
-          ? currentTheme.sidebar
-          : '#050b16';
-    const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
-    root.style.setProperty('--bg', safeBg);
-    root.style.backgroundColor = safeBg;
-    const bootBgImg = currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : 'none';
-    root.style.setProperty('--boot-bg-image', bootBgImg);
-    root.style.backgroundImage = bootBgImg;
-
-    const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
-      .split(',')
-      .map((s) => parseInt(s.trim(), 10));
-    const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-    const colorScheme = yiq >= 128 ? 'light' : 'dark';
-    root.style.colorScheme = colorScheme;
-    if (document.body) {
-      document.body.style.backgroundColor = safeBg;
-      document.body.style.colorScheme = colorScheme;
+    if (isDesktop()) {
+      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+        getCurrentWindow().setTheme(colorScheme).catch(() => { });
+      }).catch(() => { });
     }
-    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeColorMeta) {
-      themeColorMeta.setAttribute('content', fallbackThemeColor);
-    }
-    const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
-    if (colorSchemeMeta) {
-      colorSchemeMeta.setAttribute('content', colorScheme);
-    }
-    const rootMount = document.getElementById('root');
-    if (rootMount) {
-      rootMount.style.backgroundColor = 'transparent';
-    }
-
-    const rawBg = fallbackThemeColor;
-    const blurPx = parseFloat(String(currentTheme.glassBlur || '28px')) || 28;
-    const saturation = opticalVars['--glassSaturation'] || '185%';
-
-    let isCancelled = false;
-
-    const applyRefractedWallpaper = () => {
-      const vw = window.innerWidth || 1920;
-      const vh = window.innerHeight || 1080;
-      root.style.setProperty('--sanctuary-vw', `${vw}px`);
-      root.style.setProperty('--sanctuary-vh', `${vh}px`);
-
-      if (currentTheme.bgImage) {
-        root.style.setProperty(`--bgGradient`, `url("${currentTheme.bgImage}")`);
-        root.style.setProperty(`--glassBgImage`, `none`);
-        root.style.setProperty(`--glassBgImageSurface`, `none`);
-        root.style.setProperty(`--glassBeforeDisplay`, `none`);
-        root.style.setProperty(`--glassFilter`, `none`);
-        root.style.setProperty(`--glassFilterSurface`, `none`);
-
-        const cleanBlur = Math.max(0, Math.min(80, Math.round(blurPx || 32)));
-        generateRefractedWallpaperPair(currentTheme.bgImage, cleanBlur, saturation, rawBg, vw, vh).then(({ bodyUrl, rimUrl }) => {
-          if (!isCancelled) {
-            root.style.setProperty(`--glass-refracted-wallpaper`, bodyUrl);
-            root.style.setProperty(`--glass-rim-wallpaper`, rimUrl);
-          }
-        });
-      } else if (currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent' && currentTheme.bgGradient !== 'none' && currentTheme.bgGradient !== currentTheme.bg) {
-        root.style.setProperty(`--bgGradient`, currentTheme.bgGradient);
-        root.style.setProperty(`--glass-refracted-wallpaper`, currentTheme.bgGradient);
-        root.style.setProperty(`--glass-rim-wallpaper`, currentTheme.bgGradient);
-        root.style.setProperty(`--glassBgImage`, `none`);
-        root.style.setProperty(`--glassBgImageSurface`, `none`);
-        root.style.setProperty(`--glassBeforeDisplay`, `none`);
-        root.style.setProperty(`--glassFilter`, `none`);
-        root.style.setProperty(`--glassFilterSurface`, `none`);
-      } else {
-        root.style.setProperty(`--bgGradient`, `none`);
-        root.style.setProperty(`--glass-refracted-wallpaper`, `none`);
-        root.style.setProperty(`--glass-rim-wallpaper`, `none`);
-        root.style.setProperty(`--glassBgImage`, `none`);
-        root.style.setProperty(`--glassBgImageSurface`, `none`);
-        root.style.setProperty(`--glassBeforeDisplay`, `none`);
-        root.style.setProperty(`--glassFilter`, `none`);
-        root.style.setProperty(`--glassFilterSurface`, `none`);
-      }
-    };
-
-    applyRefractedWallpaper();
-
-    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow().setTheme(colorScheme).catch(() => { });
-    }).catch(() => { });
-
-    const handleResizeWallpaper = () => {
-      applyRefractedWallpaper();
-    };
-    window.addEventListener('resize', handleResizeWallpaper, { passive: true });
-
-    return () => {
-      isCancelled = true;
-      window.removeEventListener('resize', handleResizeWallpaper);
-    };
-  }, [activeThemeIdState, JSON.stringify(currentTheme), GLASS_OPTICS_REV]);
+  }, [activeThemeIdState, currentTheme, GLASS_OPTICS_REV]);
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {

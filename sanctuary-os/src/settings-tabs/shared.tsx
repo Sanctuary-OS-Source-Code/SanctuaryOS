@@ -44,16 +44,16 @@ export function SettingsGrid({ children }: any) {
 }
 
 export function SettingsToggle({ checked, danger }: any) {
-  const containerBase = "w-12 h-6 rounded-full transition-all duration-300 flex items-center p-1 shrink-0 border backdrop-blur-md box-border";
-  const checkedAccent = "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] theme-border-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)]";
-  const checkedDanger = "bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border-[var(--danger)] shadow-[0_0_15px_rgba(255,0,0,0.2)]";
-  const uncheckedClass = "bg-black/20 border-[color-mix(in_srgb,var(--text)_15%,transparent)] shadow-inner";
-  
-  const containerClasses = `${containerBase} ${checked ? (danger ? checkedDanger : checkedAccent) : uncheckedClass}`;
-  
   return (
-    <div className={containerClasses}>
-      <div className={`w-4 h-4 rounded-full transition-all duration-300 ${checked ? "translate-x-[22px] bg-white shadow-[0_0_10px_white]" : "translate-x-0 bg-[var(--text)] opacity-40"}`} />
+    <div
+      className={`sa-glass-toggle ${checked ? "is-on" : ""}`}
+      style={
+        danger
+          ? ({ "--toggle-accent": "var(--danger)" } as React.CSSProperties)
+          : undefined
+      }
+    >
+      <div className="sa-glass-toggle-thumb" />
     </div>
   );
 }

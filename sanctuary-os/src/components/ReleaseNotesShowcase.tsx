@@ -12,6 +12,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  StatTileCarousel,
   StatBox,
   HoverTooltip,
   LinkAssetSidePanel,
@@ -1879,13 +1880,13 @@ export function ReleaseNotesShowcase({
           >
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-2">
-                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                     {t("icon_verified", "verified")}
                   </span>
                 </div>
-                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_35%,transparent)] !text-[var(--accent)]`}>
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                     {t("icon_verified", "verified")}
                   </span>
                   {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
@@ -1926,13 +1927,13 @@ export function ReleaseNotesShowcase({
           >
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-2">
-                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">
                     {t("icon_bolt", "bolt")}
                   </span>
                 </div>
-                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_35%,transparent)] !text-[var(--success)]`}>
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                     {t("icon_bolt", "bolt")}
                   </span>
                   {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
@@ -2088,7 +2089,7 @@ export function ReleaseNotesShowcase({
       >
         <div className="flex flex-col gap-6 pb-12 w-full">
           {/* StatTile Navigation: Top line "View", Bottom line "Post" / "Changelog" / "On GitHub" */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+          <StatTileCarousel innerClassName="px-0">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -2119,7 +2120,7 @@ export function ReleaseNotesShowcase({
               isActive={false}
               onClick={() => handleOpenUrl(activeGitHubUrl)}
             />
-          </div>
+          </StatTileCarousel>
 
           <SidePanelHeroCard
             title={activeTitle}
@@ -2227,7 +2228,7 @@ export function ReleaseNotesShowcase({
           >
             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               {/* Switch between Public and Dev Release Post */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
                 <DashboardStatTile
                   variant="filter"
                   className="!w-full"

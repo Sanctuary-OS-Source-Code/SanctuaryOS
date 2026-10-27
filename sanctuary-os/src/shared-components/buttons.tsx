@@ -47,39 +47,39 @@ export function ActionButton({
       break;
     case "world":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_20%,transparent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)]";
       borderColorVar = "--accent";
       break;
     case "engine":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_65%,transparent)]";
       borderColorVar = "--danger";
       break;
     case "danger":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_65%,transparent)]";
       borderColorVar = "--danger";
       break;
     case "success":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--success)_30%,transparent)] !bg-[color-mix(in_srgb,var(--success)_5%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--success)_20%,transparent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_65%,transparent)]";
       borderColorVar = "--success";
       break;
     case "warning":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--warning)_20%,transparent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)]";
       borderColorVar = "--warning";
       break;
     case "accent":
     case "primary":
     case "default":
       variantClasses =
-        "!border-[color-mix(in_srgb,var(--accent)_38%,rgba(255,255,255,0.45))] !bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-surface-fill,rgba(255,255,255,0.08)))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_58%,rgba(255,255,255,0.65))] hover:!bg-[color-mix(in_srgb,var(--accent)_22%,var(--glass-surface-fill,rgba(255,255,255,0.12)))] shadow-[0_8px_20px_-4px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.48)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--accent)_42%,rgba(255,255,255,0.35))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] hover:!text-[var(--accent)]";
       borderColorVar = "--accent";
       break;
     case "glass":
       variantClasses =
-        "glass-surface !text-[var(--text)] hover:!bg-[color-mix(in_srgb,var(--accent)_10%,var(--glass-surface-fill,rgba(255,255,255,0.12)))]";
+        "glass-surface !border-[color-mix(in_srgb,var(--text)_14%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_28%,transparent)]";
       borderColorVar = "--text";
       break;
   }
@@ -96,7 +96,7 @@ export function ActionButton({
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         disabled={disabled}
-        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border hover:shadow-xl"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
+        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
         style={
           !disabled
             ? ({
@@ -107,15 +107,6 @@ export function ActionButton({
             : undefined
         }
       >
-        {variant !== "solid" && (
-          <>
-            <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_srgb,white_8%,transparent)] to-transparent opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none"
-              style={{ backgroundColor: `var(${borderColorVar})` }}
-            />
-          </>
-        )}
         {icon && (
           <span
             className={`material-symbols-outlined ${iconOnly ? "!text-[18px]" : "!text-[16px]"} relative z-10 transition-transform group-hover:-translate-y-0.5`}

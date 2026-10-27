@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { writeTextFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
@@ -17,6 +16,7 @@ import {
   getExtensionRegex,
   getModFallbackUrl,
   getModFallbackAuthor,
+  handleOpenUrl,
   ActionPill,
   ActionButton,
   DashboardStatTile,
@@ -337,7 +337,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         setIsSideBrowserOpen(true);
       } else {
         urls.slice(0, 5).forEach((u) => {
-          openUrl(u);
+          handleOpenUrl(u);
         });
       }
     },
@@ -748,14 +748,7 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
 
           <button
             type="button"
-            onClick={() => {
-              if (useInternalBrowser && isDesktop()) {
-                setSideBrowserUrl(targetUrl);
-                setIsSideBrowserOpen(true);
-              } else {
-                openUrl(targetUrl);
-              }
-            }}
+            onClick={() => handleOpenUrl(targetUrl)}
             className="w-9 h-9 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative cursor-pointer"
           >
             <span className="material-symbols-outlined !text-[16px]">

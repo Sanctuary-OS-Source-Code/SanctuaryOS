@@ -358,7 +358,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      <span className="text-[12px] font-black text-[var(--text)] tracking-wide truncate">
                         {displayLabel || setting.key}
                      </span>
-                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_38%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)]">
+                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)]">
                         {setting.type}
                      </span>
                      {!isChild && catLabel && categories.length > 1 && (
@@ -551,13 +551,9 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                         <button
                            type="button"
                            onClick={() => updateThisSetting((target) => { target.default = !Boolean(target.default); })}
-                           className={`w-11 h-6 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer border ${
-                              setting.default
-                                 ? 'bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
-                                 : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
-                           }`}
+                           className={`sa-glass-toggle ${setting.default ? 'is-on' : ''}`}
                         >
-                           <div className={`w-4.5 h-4.5 rounded-full transition-transform ${setting.default ? 'translate-x-5 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`} />
+                           <div className="sa-glass-toggle-thumb" />
                         </button>
                      </div>
                   )}
@@ -618,13 +614,9 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                            <button
                               type="button"
                               onClick={() => updateThisSetting((target) => { target.allow_decimals = !Boolean(target.allow_decimals); })}
-                              className={`w-9 h-5 rounded-full transition-all relative flex items-center px-0.5 cursor-pointer border ${
-                                 setting.allow_decimals
-                                    ? 'bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
-                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
-                              }`}
+                              className={`sa-glass-toggle scale-90 ${setting.allow_decimals ? 'is-on' : ''}`}
                            >
-                              <div className={`w-3.5 h-3.5 rounded-full transition-transform ${setting.allow_decimals ? 'translate-x-4 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`} />
+                              <div className="sa-glass-toggle-thumb" />
                            </button>
                         </div>
                      </div>
@@ -657,9 +649,9 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                                  const nextNum = target.options.length + 1;
                                  target.options.push({ value: `opt${nextNum}`, label_key: `Option ${nextNum}` });
                               })}
-                              className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] flex items-center gap-1 text-[10px] font-black tracking-wider transition-all cursor-pointer"
+                              className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active text-[var(--text)] flex items-center gap-1 text-[10px] font-black tracking-wider transition-all cursor-pointer"
                            >
-                              <span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_add", "add")}</span>
                               {t("support_add_option", "Add Option")}
                            </button>
                         </div>
@@ -690,12 +682,15 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                                     onClick={() => updateThisSetting((target) => {
                                        target.default = opt.value;
                                     })}
-                                    className={`h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                                    className={`h-8 px-2.5 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1.5 ${
                                        setting.default === opt.value
-                                          ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
-                                          : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                                          ? 'sa-glass-pill-active text-[var(--text)]'
+                                          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-65 hover:opacity-100 hover:text-[var(--text)]'
                                     }`}
                                  >
+                                    <span className={`material-symbols-outlined !text-[12px] ${setting.default === opt.value ? "text-[var(--accent)]" : "text-[var(--subtext)]"}`}>
+                                       {setting.default === opt.value ? t("icon_check_circle", "check_circle") : t("icon_radio_button_unchecked", "radio_button_unchecked")}
+                                    </span>
                                     {t("type_default", "Default")}
                                  </button>
                                  <button
@@ -747,13 +742,9 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                            <button
                               type="button"
                               onClick={() => updateThisSetting((target) => { target.allow_multiple = !Boolean(target.allow_multiple); })}
-                              className={`w-9 h-5 rounded-full transition-all relative flex items-center px-0.5 cursor-pointer border ${
-                                 setting.allow_multiple
-                                    ? 'bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
-                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
-                              }`}
+                              className={`sa-glass-toggle scale-90 ${setting.allow_multiple ? 'is-on' : ''}`}
                            >
-                              <div className={`w-3.5 h-3.5 rounded-full transition-transform ${setting.allow_multiple ? 'translate-x-4 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`} />
+                              <div className="sa-glass-toggle-thumb" />
                            </button>
                         </div>
                      </div>

@@ -4,6 +4,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  StatTileCarousel,
   StatBox,
   HoverTooltip,
   handleOpenUrl,
@@ -504,10 +505,9 @@ export function UpdateSidePanel() {
 
         <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-4 flex flex-col flex-1 relative z-20 min-w-0">
           {/* 3-Column View Switcher Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <StatTileCarousel innerClassName="px-0">
             <DashboardStatTile
               variant="filter"
-              className="!w-full"
               icon={t("icon_menu_book", "menu_book")}
               value={t("btn_post", "Post")}
               label={t("btn_view", "View")}
@@ -522,7 +522,6 @@ export function UpdateSidePanel() {
             />
             <DashboardStatTile
               variant="filter"
-              className="!w-full"
               icon={t("icon_terminal", "terminal")}
               value={t("release_notes_tile_changelog", "Changelog")}
               label={t("btn_view", "View")}
@@ -537,7 +536,6 @@ export function UpdateSidePanel() {
             />
             <DashboardStatTile
               variant="filter"
-              className="!w-full"
               icon={t("icon_open_in_new", "open_in_new")}
               value={t("release_notes_tile_github", "On GitHub")}
               label={t("btn_view", "View")}
@@ -547,7 +545,7 @@ export function UpdateSidePanel() {
               tooltipTitle={t("update_panel_view_github", "View on GitHub")}
               tooltipSubtitle={activeGitHubUrl}
             />
-          </div>
+          </StatTileCarousel>
 
           <SidePanelHeroCard
             icon={t("icon_system_update_alt", "system_update_alt")}

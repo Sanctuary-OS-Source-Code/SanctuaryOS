@@ -3,9 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { useLexicon } from "./LexiconContext";
-import { useModalStore } from "./store/modalStore";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { HoverTooltip } from "./shared";
+import { HoverTooltip, handleOpenUrl } from "./shared";
 
 interface MarkdownRendererProps {
   content: string;
@@ -21,8 +19,6 @@ export default function MarkdownRenderer({
   forceTranslate,
 }: MarkdownRendererProps) {
   const { t, td } = useLexicon();
-  const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } =
-    useModalStore();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const translatedContent = String(
     td ? td(content || "", { forceTranslate }) : content || ""
@@ -250,17 +246,12 @@ export default function MarkdownRenderer({
             return (
               <a
                 href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (href && /^https?:\/\//i.test(href)) {
-                    if (useInternalBrowser) {
-                      setSideBrowserUrl(href);
-                      setIsSideBrowserOpen(true);
-                    } else {
-                      openUrl(href).catch((err) =>
-                        console.error("Failed to open URL externally", err)
-                      );
-                    }
+                  if (href && /^(https?:\/\/|mailto:)/i.test(href)) {
+                    handleOpenUrl(href);
                   }
                 }}
                 className="theme-text-accent hover:underline font-bold cursor-pointer"

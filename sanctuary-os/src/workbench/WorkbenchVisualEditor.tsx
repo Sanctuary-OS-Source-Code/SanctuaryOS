@@ -186,16 +186,16 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      {label}
                   </span>
                   {setting.risk === "advanced" && (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] text-[9px] font-bold shrink-0">
+                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--danger)] text-[9px] font-bold shrink-0">
                         {t("advanced_badge", "Advanced")}
                      </span>
                   )}
                   {isUnsavedEdit ? (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-bold shrink-0">
+                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)] text-[9px] font-bold shrink-0">
                         {t("unsaved", "Unsaved")}
                      </span>
                   ) : isModified ? (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)] text-[9px] font-bold shrink-0">
+                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-bold shrink-0">
                         {t("modified", "Modified")}
                      </span>
                   ) : null}
@@ -239,17 +239,9 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                   <button
                      type="button"
                      onClick={() => onVisualChange(dataPath, !Boolean(effectiveVal))}
-                     className={`w-11 h-6 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 border ${
-                        effectiveVal
-                           ? 'bg-[color-mix(in_srgb,var(--accent)_22%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.22)]'
-                           : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
-                     }`}
+                     className={`sa-glass-toggle ${effectiveVal ? 'is-on' : ''}`}
                   >
-                     <div
-                        className={`w-4.5 h-4.5 rounded-full shadow-sm transition-transform duration-200 ${
-                           effectiveVal ? 'translate-x-5 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'
-                        }`}
-                     />
+                     <div className="sa-glass-toggle-thumb" />
                   </button>
                )}
 
@@ -595,12 +587,12 @@ const GroupNode = ({
                   <div className="flex items-center gap-2 flex-wrap">
                      <span className="text-[12px] font-black capitalize tracking-wider text-[var(--text)]">{label}</span>
                      {unsavedCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[10px] font-bold text-[var(--warning)]">
+                        <span className="px-2.5 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--warning)]">
                            {unsavedCount} {t("unsaved", "Unsaved")}
                         </span>
                      )}
                      {modifiedCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[10px] font-bold text-[var(--accent)]">
+                        <span className="px-2.5 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--accent)]">
                            {modifiedCount} {t("modified", "Modified")}
                         </span>
                      )}

@@ -1,4 +1,4 @@
-import { useLexicon } from '../LexiconContext';
+import { useLexicon, normalizeAllCapsForThemeCase } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -356,7 +356,7 @@ export function SidePanel({
 
             {!hideHeader && (
               <div
-                className={`px-4 py-3.5 sm:px-6 sm:py-4 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
+                className={`px-4 py-3.5 max-md:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:px-6 sm:py-4 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
               >
                 {coverImage && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[inherit] rounded-tr-[inherit]">
@@ -414,14 +414,14 @@ export function SidePanel({
             )}
 
             <div
-              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-4 sm:p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
+              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-4 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] sm:p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
             >
               {children}
             </div>
 
             {(footer || actions) && (
               <div
-                className={`px-6 pb-6 pt-5 md:px-7 md:pb-7 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.14))] ${footerClass || ""}`}
+                className={`px-6 pb-6 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 md:px-7 md:pb-7 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.14))] ${footerClass || ""}`}
               >
                 {footer}
                 {actions}
@@ -690,42 +690,40 @@ export function DashboardStatTile({
 
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = resolvedActive
-    ? isModal
-      ? "!border-[color-mix(in_srgb,currentColor_65%,rgba(255,255,255,0.35))] z-10"
-      : isSpecial
-        ? "sa-glass-pill-active z-10"
-        : "!border-[currentColor] z-10"
-    : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
+    ? "sa-glass-pill-active z-10 !opacity-100"
+    : isSpecial || isModal
+      ? "opacity-65 hover:opacity-100 hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]"
+      : "hover:!border-[rgba(var(--text-rgb,255,255,255),0.28)]";
 
   const isTextSpecial =
     isSpecial && hasValue && isNaN(Number(strVal.replace(/[,.\s%+]/g, "")));
 
   if (isModal || isTextSpecial) {
-    sizeClass = "text-sm md:text-base";
-  } else if (strVal.length > 15) sizeClass = "text-base xl:text-lg";
-  else if (strVal.length > 10) sizeClass = "text-lg xl:text-xl";
-  else if (strVal.length > 5) sizeClass = "text-xl lg:text-2xl xl:text-3xl";
+    sizeClass = "text-xs sm:text-sm md:text-base";
+  } else if (strVal.length > 15) sizeClass = "text-sm sm:text-base xl:text-lg";
+  else if (strVal.length > 10) sizeClass = "text-base sm:text-lg xl:text-xl";
+  else if (strVal.length > 5) sizeClass = "text-lg sm:text-xl lg:text-2xl xl:text-3xl";
 
   const paddingClass =
     variant === "tab" || variant === "filter" || isModal
-      ? "py-2.5 px-3.5 sm:py-3 sm:px-4 md:py-4 md:px-4"
-      : "py-2.5 px-3.5 sm:py-3 sm:px-4 md:py-4 md:px-5 lg:p-5";
+      ? "py-2.5 px-3 sm:py-3 sm:px-4 md:py-4 md:px-4"
+      : "py-2.5 px-3 sm:py-3 sm:px-4 md:py-4 md:px-5 lg:p-5";
   const iconSizeClass =
     isFilter || isTextSpecial
-      ? "w-8 h-8 md:w-10 md:h-10"
-      : "w-9 h-9 md:w-12 md:h-12";
+      ? "w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"
+      : "w-8 h-8 sm:w-9 sm:h-9 md:w-12 md:h-12";
   const iconTextClass =
     isFilter || isTextSpecial
-      ? "!text-[18px] md:!text-[22px]"
-      : "!text-[20px] md:!text-[26px]";
+      ? "!text-[16px] sm:!text-[18px] md:!text-[22px]"
+      : "!text-[18px] sm:!text-[20px] md:!text-[26px]";
 
   const sizeConstraintClass =
     variant === "tab"
       ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[64px] md:min-h-[88px] shrink-0"
       : variant === "filter"
-        ? "w-full min-w-0 min-h-[64px] md:min-h-[80px]"
+        ? "w-full min-w-0 min-h-[58px] sm:min-h-[64px] md:min-h-[80px]"
         : isModal
-          ? "flex-1 min-w-0 min-h-[60px] md:min-h-[76px]"
+          ? "flex-1 min-w-0 min-h-[56px] sm:min-h-[60px] md:min-h-[76px]"
           : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
 
   const mergedStyle = {
@@ -741,47 +739,51 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={mergedStyle}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${cleanColorClass} ${resolvedActive && isSpecial ? "text-[var(--accent)]" : textColor} relative group transition duration-500 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-2.5 sm:gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${isSpecial && !hasPulse ? "text-[var(--text)]" : `${cleanColorClass} ${textColor}`} relative group transition duration-300 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
-      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[inherit]" />
+      <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
 
       {icon && (
         <div
-          className={`${iconSizeClass} rounded-xl border flex items-center justify-center shrink-0 relative transition-all duration-500 ${
+          className={`${iconSizeClass} rounded-xl border flex items-center justify-center shrink-0 relative transition-all duration-300 ${
             resolvedActive
-              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] shadow-[var(--glass-card-icon-shadow)]"
-              : `border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${hasPulse ? textColor : ""}`
+              ? "border-[color-mix(in_srgb,var(--accent)_75%,rgba(255,255,255,0.55))] bg-[color-mix(in_srgb,var(--accent)_24%,var(--glass-card-icon-bg,rgba(255,255,255,0.12)))] text-[var(--text)] shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_28%,transparent),var(--glass-card-icon-shadow)]"
+              : `border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${hasPulse ? textColor : isSpecial ? "text-[var(--subtext)] group-hover:text-[var(--text)]" : textColor}`
           }`}
         >
           <span
-            className={`material-symbols-outlined ${iconTextClass} ${hasPulse ? `${textColor} animate-pulse` : "transition-opacity"}`}
+            className={`material-symbols-outlined ${iconTextClass} ${hasPulse ? `${textColor} animate-pulse` : "transition-colors"}`}
           >
             {icon}
           </span>
         </div>
       )}
 
-      <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-1 items-start justify-center`}>
+      <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-0.5 sm:py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[10px] mb-0.5 tracking-wider" : "text-xs md:text-sm tracking-widest"} uppercase font-black transition-colors duration-500 truncate w-full pr-1 md:pr-0 ${
-            resolvedActive && isSpecial
-              ? "text-[var(--accent)]"
-              : isModal && resolvedActive
-                ? "text-current"
-                : hasValue
-                  ? "text-[var(--subtext)]"
-                  : "text-[var(--text)] opacity-85 group-hover:opacity-100"
+          className={`${hasValue ? "text-[9px] sm:text-[10px] mb-0.5 tracking-wider" : "text-[10px] sm:text-xs md:text-sm tracking-wider sm:tracking-widest"} uppercase font-black transition-colors duration-300 truncate w-full ${
+            resolvedActive
+              ? "text-[var(--text)] opacity-100"
+              : hasValue
+                ? "text-[var(--subtext)] opacity-80 group-hover:opacity-100"
+                : "text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] group-hover:opacity-100"
           }`}
         >
-          {label}
+          {typeof label === "string" ? normalizeAllCapsForThemeCase(label) : label}
         </span>
         {hasValue && (
           <span
-            className={`${sizeClass} font-black tracking-tighter pr-1 md:pr-0 leading-tight truncate w-full ${
-              hasPulse ? `${textColor} animate-pulse` : "text-[var(--text)]"
+            className={`${sizeClass} capitalize font-black tracking-tighter leading-tight truncate w-full transition-opacity duration-300 ${
+              hasPulse
+                ? `${textColor} animate-pulse`
+                : resolvedActive
+                  ? "text-[var(--text)] opacity-100"
+                  : isSpecial || isModal
+                    ? "text-[var(--text)] opacity-75 group-hover:opacity-100"
+                    : "text-[var(--text)]"
             }`}
           >
-            {displayValue}
+            {typeof displayValue === "string" ? normalizeAllCapsForThemeCase(displayValue) : displayValue}
           </span>
         )}
       </div>
@@ -807,21 +809,16 @@ export function MobileSegmentedControl({
               onClick={() => {
                 tab.setTab ? tab.setTab(tab.id) : setTab(tab.id);
               }}
-              className={`relative flex items-center justify-center gap-2 px-6 py-3 rounded-2xl transition-all duration-300 group backdrop-blur-[24px] backdrop-saturate-[140%] border
+              className={`relative flex items-center justify-center gap-2 px-6 py-3 rounded-2xl transition-all duration-300 group glass-surface overflow-hidden
                 ${
                   isActive
-                    ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] shadow-[0_10px_20px_rgba(0,0,0,0.5),0_0_20px_rgba(var(--accent-rgb),0.2)] scale-105 z-10"
-                    : "border-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] scale-95 opacity-80 hover:opacity-100 hover:scale-100"
+                    ? "sa-glass-pill-active !text-[var(--text)] scale-105 z-10 !opacity-100"
+                    : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] scale-95 opacity-70 hover:opacity-100 hover:scale-100"
                 }`}
-              style={{
-                background: isActive
-                  ? "linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.15) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.05) 100%)"
-                  : "linear-gradient(135deg, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.05) 0%, rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.01) 100%)",
-              }}
             >
               {tab.icon && (
                 <span
-                  className={`material-symbols-outlined !text-[16px] transition-transform duration-300 ${isActive ? "drop-shadow-[0_0_8px_currentColor]" : "group-hover:scale-110"}`}
+                  className={`material-symbols-outlined !text-[16px] transition-transform duration-300 ${isActive ? "text-[var(--accent)]" : "group-hover:scale-110"}`}
                 >
                   {tab.icon}
                 </span>
@@ -855,10 +852,10 @@ export function InlineFilterGroup({
             key={opt.id}
             type="button"
             onClick={() => onChange(opt.id)}
-            className={`sa-dropdown-item rounded-xl px-3.5 h-9 transition-all flex items-center justify-center text-[11px] capitalize tracking-wide whitespace-nowrap ${
+            className={`sa-dropdown-item rounded-xl px-3.5 h-9 transition-all flex items-center justify-center text-[11px] capitalize tracking-wide whitespace-nowrap relative overflow-hidden ${
               active
                 ? "is-selected sa-glass-active font-bold text-[var(--text)]"
-                : "font-semibold text-[var(--subtext)] hover:text-[var(--text)]"
+                : "font-semibold text-[var(--subtext)] opacity-70 hover:opacity-100 hover:text-[var(--text)]"
             }`}
           >
             {opt.label}
@@ -881,16 +878,15 @@ export function GlassSegmentedControl({
     >
       {options.map((opt: any) => {
         const isActive = activeTab === opt.id;
-        const colorVar = opt.colorVar || "--accent";
-        const activeClass = `text-[var(${colorVar})] bg-[color-mix(in_srgb,var(${colorVar})_10%,transparent)] shadow-[0_0_15px_rgba(var(${colorVar}-rgb),0.15)]`;
+        const activeClass = `sa-glass-active !text-[var(--text)] !opacity-100`;
         const inactiveClass =
-          "text-[color-mix(in_srgb,var(--text)_50%,transparent)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
+          "text-[var(--subtext)] opacity-65 hover:opacity-100 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 
         return (
           <button
             key={opt.id}
             onClick={() => setTab(opt.id)}
-            className={`${buttonClassName || "px-4 md:px-5 h-10 md:h-12 text-[10px] md:text-xs"} font-black capitalize tracking-widest transition-all shrink-0 flex-1 md:flex-none text-center whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
+            className={`relative overflow-hidden ${buttonClassName || "px-4 md:px-5 h-10 md:h-12 text-[10px] md:text-xs"} font-black capitalize tracking-widest transition-all shrink-0 flex-1 md:flex-none text-center whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
           >
             {opt.label}
           </button>

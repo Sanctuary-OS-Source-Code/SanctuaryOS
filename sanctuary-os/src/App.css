@@ -106,6 +106,34 @@ textarea,
   user-select: text;
 }
 
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+}
+
+input.glass-panel:focus,
+input.glass-surface:focus,
+textarea.glass-panel:focus,
+textarea.glass-surface:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--glass-border-top, rgba(255, 255, 255, 0.35))) !important;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
 .cursor-not-allowed,
 [disabled],
 .disabled\:cursor-not-allowed:disabled {
@@ -656,12 +684,34 @@ nav.firefox-safe-glass {
 }
 
 .sa-side-panel-window,
-.sa-mobile-glass-overlay {
+.sa-mobile-glass-overlay,
+.sa-floating-glass-pill {
   isolation: isolate;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
   background-image: none !important;
+}
+
+#root .sa-floating-glass-pill,
+#sa-portals .sa-floating-glass-pill,
+.sa-side-panel-window .sa-floating-glass-pill,
+.sa-floating-glass-pill {
+  overflow: hidden;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-top-color: var(--glass-border-top) !important;
+  border-left-color: var(--glass-border-left) !important;
+  border-right-color: var(--glass-border-right) !important;
+  border-bottom-color: var(--glass-border-bottom) !important;
+  box-shadow:
+    var(--glass-outer-shadow, 0 20px 44px -10px rgba(0, 0, 0, 0.52)),
+    var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.44), inset 1px 0 0 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 0 rgba(255, 255, 255, 0.14)) !important;
+}
+
+.sa-floating-glass-pill > *:not(.sa-webgl-overlay-canvas) {
+  position: relative;
+  z-index: 1;
 }
 
 .sa-side-panel-window.sa-panel-right {
@@ -692,13 +742,26 @@ nav.firefox-safe-glass {
   }
 }
 
+.sa-sidepanel-tile-carousel > * {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .sa-sidepanel-tile-carousel > * {
+    flex: 0 0 calc(50% - 0.375rem) !important;
+    width: calc(50% - 0.375rem) !important;
+    min-width: calc(50% - 0.375rem) !important;
+  }
+}
+
 /* Nested glass elements inside Sidebar, SidePanels, Mobile Overlays, Modals, or parent cards sit as clean frosted containers on top of the parent's continuous WebGL2 Liquid Glass slab */
-nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
-.sa-side-panel-window .glass-panel:not(.portal-glass-fix),
-.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix),
-.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
-.glass-panel .glass-panel:not(.portal-glass-fix),
-.glass-surface .glass-panel:not(.portal-glass-fix) {
+nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
+.sa-side-panel-window .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
+.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
+.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
+.glass-panel .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill),
+.glass-surface .glass-panel:not(.portal-glass-fix):not(.sa-floating-glass-pill) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.05)) !important;
@@ -711,6 +774,7 @@ nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
 nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
 .sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix),
+.sa-floating-glass-pill .glass-surface:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
 .glass-panel .glass-surface:not(.portal-glass-fix),
 .glass-surface .glass-surface:not(.portal-glass-fix) {
@@ -1745,93 +1809,138 @@ section:has(.monaco-diff-editor),
 
 /* 3D Liquid Glass Toggle Switch */
 .sa-glass-toggle {
+  --toggle-accent: var(--accent);
   position: relative;
-  width: 2.5rem;
-  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 1.5rem;
   border-radius: 9999px;
-  padding: 0.125rem;
+  padding: 0.1875rem;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  background:
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: var(
+    --glass-nested-surface-bg,
+    color-mix(in srgb, var(--bg) 55%, rgba(15, 23, 42, 0.42))
+  );
+  background-image:
     linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0.28) 0%,
-      rgba(255, 255, 255, 0.04) 100%
+      rgba(0, 0, 0, 0.32) 0%,
+      rgba(255, 255, 255, 0.06) 100%
     ),
-    color-mix(in srgb, var(--text) 8%, rgba(0, 0, 0, 0.25));
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
-  border-right: 1px solid rgba(255, 255, 255, 0.18);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.26);
+    var(
+      --glass-surface-sheen,
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.12) 0%,
+        transparent 55%,
+        rgba(0, 0, 0, 0.22) 100%
+      )
+    );
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-top: 1px solid rgba(255, 255, 255, 0.24);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.20);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.48),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.16);
+    inset 0 2px 4px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.26);
+}
+
+.sa-glass-toggle:hover {
+  border-top-color: rgba(255, 255, 255, 0.36);
+  border-left-color: rgba(255, 255, 255, 0.28);
 }
 
 .sa-glass-toggle.is-on {
-  background:
+  background-color: color-mix(
+    in srgb,
+    var(--toggle-accent, var(--accent)) 22%,
+    var(--glass-nested-surface-bg, rgba(15, 23, 42, 0.48))
+  );
+  background-image:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.28) 0%,
-      transparent 55%,
-      rgba(0, 0, 0, 0.18) 100%
+      rgba(255, 255, 255, 0.24) 0%,
+      color-mix(in srgb, var(--toggle-accent, var(--accent)) 18%, transparent) 52%,
+      rgba(0, 0, 0, 0.28) 100%
     ),
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent) 44%, rgba(255, 255, 255, 0.14)) 0%,
-      color-mix(in srgb, var(--accent) 68%, rgba(255, 255, 255, 0.24)) 100%
-    );
-  border-top: 1px solid rgba(255, 255, 255, 0.42);
-  border-left: 1px solid rgba(255, 255, 255, 0.32);
-  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.24));
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.30));
+    var(--glass-nav-active-sheen);
+  border-top: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 74%, rgba(255, 255, 255, 0.55));
+  border-left: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 64%, rgba(255, 255, 255, 0.40));
+  border-right: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 48%, rgba(255, 255, 255, 0.22));
+  border-bottom: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 58%, rgba(255, 255, 255, 0.28));
   box-shadow:
-    inset 0 1.5px 2px rgba(255, 255, 255, 0.38),
-    inset 0 -1.5px 3px rgba(0, 0, 0, 0.32),
-    0 0 12px color-mix(in srgb, var(--accent) 26%, transparent);
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.32),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.38),
+    0 0 14px -2px color-mix(in srgb, var(--toggle-accent, var(--accent)) 42%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .sa-glass-toggle-thumb {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   border-radius: 9999px;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+  flex-shrink: 0;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease;
   background:
     radial-gradient(
-      115% 95% at 30% 24%,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0.42) 48%,
-      rgba(255, 255, 255, 0.18) 100%
+      120% 100% at 32% 24%,
+      rgba(255, 255, 255, 0.86) 0%,
+      rgba(255, 255, 255, 0.28) 46%,
+      rgba(255, 255, 255, 0.08) 100%
     );
-  border: 1px solid rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.48);
   box-shadow:
-    0 2px 5px rgba(0, 0, 0, 0.45),
-    inset 0 1px 1.5px #ffffff,
-    inset 0 -1px 2px rgba(0, 0, 0, 0.25);
+    0 2px 5px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.85),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.3);
 }
 
 .sa-glass-toggle.is-on .sa-glass-toggle-thumb {
-  transform: translateX(1.22rem);
+  transform: translateX(1.25rem);
+  background:
+    radial-gradient(
+      115% 95% at 30% 22%,
+      #ffffff 0%,
+      color-mix(in srgb, var(--toggle-accent, var(--accent)) 54%, #ffffff) 44%,
+      color-mix(in srgb, var(--toggle-accent, var(--accent)) 86%, rgba(0, 0, 0, 0.18)) 100%
+    );
+  border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.5),
-    0 0 8px rgba(255, 255, 255, 0.45),
-    inset 0 1px 1.5px #ffffff,
-    inset 0 -1px 2px rgba(0, 0, 0, 0.22);
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    0 0 10px color-mix(in srgb, var(--toggle-accent, var(--accent)) 72%, transparent),
+    inset 0 1.5px 2px #ffffff,
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.25);
 }
 
-/* Clean Liquid Glass Active Pill & Card State (Crisp Accent Rim, Zero Glow or Fill) */
+/* Sculpted Liquid Glass Active Pill & Tab State (Matches Sidebar .sa-glass-active Material) */
 .sa-glass-pill-active,
-html[data-webgl-glass="ready"] .sa-glass-pill-active {
-  background-color: transparent !important;
-  background-image: none !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.32)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, 0.24)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.16)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.18)) !important;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
-    inset 1px 0 0 0 rgba(255, 255, 255, 0.16) !important;
-  color: var(--accent) !important;
+.glass-panel.sa-glass-pill-active,
+.glass-surface.sa-glass-pill-active,
+.sa-side-panel-window .glass-panel.sa-glass-pill-active:not(.portal-glass-fix),
+.sa-side-panel-window .glass-surface.sa-glass-pill-active:not(.portal-glass-fix),
+nav.firefox-safe-glass .glass-panel.sa-glass-pill-active:not(.portal-glass-fix),
+nav.firefox-safe-glass .glass-surface.sa-glass-pill-active:not(.portal-glass-fix),
+html[data-webgl-glass="ready"] .sa-glass-pill-active,
+html[data-webgl-glass="ready"] .glass-panel.sa-glass-pill-active,
+html[data-webgl-glass="ready"] .glass-surface.sa-glass-pill-active {
+  background-color: var(--glass-nav-active-bg, color-mix(in srgb, var(--accent) 14%, rgba(255, 255, 255, 0.05))) !important;
+  background-image: var(--glass-nav-active-sheen) !important;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.45)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 64%, rgba(255, 255, 255, 0.35)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.20)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 54%, rgba(255, 255, 255, 0.24)) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
+  color: var(--text) !important;
 }
 
 /* Chameleon Theme Engine: Global Text Caps Case (ALL CAPS / Title Case / lowercase) */
@@ -1881,10 +1990,15 @@ html[data-text-case="capitalize"] h1,
 html[data-text-case="capitalize"] h2,
 html[data-text-case="capitalize"] h3,
 html[data-text-case="capitalize"] h4,
+html[data-text-case="capitalize"] h5,
+html[data-text-case="capitalize"] h6,
+html[data-text-case="capitalize"] button,
+html[data-text-case="capitalize"] label,
 html[data-text-case="capitalize"] .uppercase:not(code),
 html[data-text-case="capitalize"] .lowercase:not(code),
 html[data-text-case="capitalize"] .sanctuary-title,
 html[data-text-case="capitalize"] .sanctuary-subtitle,
+html[data-text-case="capitalize"] #sa-tooltip-portal span:not(.material-symbols-outlined):not(.material-symbols-rounded),
 [data-sandbox-preview-root="true"][data-text-case="capitalize"] h1,
 [data-sandbox-preview-root="true"][data-text-case="capitalize"] .uppercase:not(code) {
   text-transform: capitalize !important;

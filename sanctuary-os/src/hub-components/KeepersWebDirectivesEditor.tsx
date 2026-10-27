@@ -1342,23 +1342,19 @@ export default function KeepersWebDirectivesEditor({
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             {hasUnsavedEdits ? (
-              <span
-                className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_45%,transparent)] !text-[var(--warning)]`}
-              >
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                   {t("icon_edit", "edit")}
                 </span>
                 <span>{t("action_unsaved_draft", "Draft")}</span>
               </span>
             ) : (
-              <span
-                className={`${VAULT_CHIP_CLASS} ${
-                  isLive
-                    ? "!border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]"
-                    : "!text-[var(--subtext)]"
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    isLive ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                  }`}
+                >
                   {isLive
                     ? t("icon_cell_tower", "cell_tower")
                     : t("icon_portable_wifi_off", "portable_wifi_off")}

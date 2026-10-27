@@ -649,19 +649,41 @@ export const useModalStore = create<ModalState>((set, get) => ({
             const cCategory = c.category_override || c.type || c.category || mod.category_override || mod.category || "";
             const cName = c.name || c.displayName || "Unknown Mod";
             const cId = String(c.id || c.dbId || c.hash || cName);
+            const cAuthor = c.master_author || c.author || mod.master_author || mod.author || "";
+            const cLatestVer = Array.isArray(c.mod_versions) && c.mod_versions[0] ? c.mod_versions[0] : null;
             nextItems.push({
               id: cId,
+              dbId: c.dbId || c.id || mod.dbId || mod.id,
               name: cName,
               displayName: c.displayName || c.name || "Unknown Mod",
-              hash: c.hash || (Array.isArray(c.mod_versions) && c.mod_versions[0]?.dna_hash) || "",
-              author: c.master_author || c.author || mod.master_author || mod.author || "",
+              hash: c.hash || cLatestVer?.dna_hash || "",
+              author: cAuthor,
+              master_author: cAuthor,
               url: c.url || mod.url || "",
-              version: c.latest_version || c.version || mod.latest_version || mod.version || "",
+              version: c.latest_version || c.version || cLatestVer?.version_label || mod.latest_version || mod.version || "",
               image_url: c.image_url || mod.image_url || "",
               category: cCategory,
+              category_override: cCategory,
+              type: cCategory,
+              description: c.description || c.desc || mod.description || mod.desc || "",
+              compatible_versions:
+                Array.isArray(c.compatible_versions) && c.compatible_versions.length > 0
+                  ? c.compatible_versions
+                  : Array.isArray(mod.compatible_versions)
+                    ? mod.compatible_versions
+                    : [],
+              created_at: c.created_at || cLatestVer?.created_at || mod.created_at || undefined,
+              updated_at: c.updated_at || cLatestVer?.created_at || c.created_at || mod.updated_at || mod.created_at || undefined,
+              status: c.status || mod.status || "stable",
+              status_reason: c.status_reason || mod.status_reason || undefined,
+              compliance_tier: c.compliance_tier ?? mod.compliance_tier ?? 0,
               is_paid: !!(c.is_paid ?? mod.is_paid),
               is_early_access: !!(c.is_early_access ?? mod.is_early_access),
-              requiredDLC: Array.isArray(c.requiredDLC) ? c.requiredDLC : [],
+              requiredDLC: Array.isArray(c.requiredDLC) && c.requiredDLC.length > 0
+                ? c.requiredDLC
+                : Array.isArray(mod.requiredDLC)
+                  ? mod.requiredDLC
+                  : [],
               priority_tier: c.priority_tier || inferDefaultPriorityTier(cCategory, cName),
               load_order_index: nextItems.length,
             });
@@ -724,16 +746,29 @@ export const useModalStore = create<ModalState>((set, get) => ({
           : "Template"
       : mod.category_override || mod.type || mod.category || "";
     const modName = mod.name || mod.displayName || "Unknown Mod";
+    const resolvedAuthor = mod.master_author || mod.author || "";
+    const latestVer = Array.isArray(mod.mod_versions) && mod.mod_versions[0] ? mod.mod_versions[0] : null;
     const newItem = {
       id: targetId || targetName,
+      dbId: isNexusAsset ? undefined : mod.dbId || mod.id,
       name: modName,
       displayName: mod.displayName || mod.name || "Unknown Mod",
-      hash: mod.hash || (Array.isArray(mod.mod_versions) && mod.mod_versions[0]?.dna_hash) || "",
-      author: mod.master_author || mod.author || "",
+      hash: mod.hash || latestVer?.dna_hash || "",
+      author: resolvedAuthor,
+      master_author: resolvedAuthor,
       url: mod.url || "",
-      version: mod.latest_version || mod.version || "",
+      version: mod.latest_version || mod.version || latestVer?.version_label || "",
       image_url: mod.image_url || "",
       category,
+      category_override: category,
+      type: category,
+      description: mod.description || mod.desc || "",
+      compatible_versions: Array.isArray(mod.compatible_versions) ? mod.compatible_versions : [],
+      created_at: mod.created_at || latestVer?.created_at || undefined,
+      updated_at: mod.updated_at || latestVer?.created_at || mod.created_at || undefined,
+      status: mod.status || "stable",
+      status_reason: mod.status_reason || undefined,
+      compliance_tier: mod.compliance_tier ?? 0,
       is_paid: !!mod.is_paid,
       is_early_access: !!mod.is_early_access,
       requiredDLC: Array.isArray(mod.requiredDLC) ? mod.requiredDLC : [],
@@ -803,18 +838,32 @@ export const useModalStore = create<ModalState>((set, get) => ({
         };
       }
       const modName = a.name || a.displayName || "Unknown Mod";
-      const category = a.category || a.type || "";
+      const category = a.category_override || a.category || a.type || "";
+      const author = a.master_author || a.author || blueprint?.author || "";
       return {
-        id: String(a.id || a.hash || a.name || idx),
+        id: String(a.id || a.dbId || a.hash || a.name || idx),
+        dbId: a.dbId || a.id,
         name: modName,
         displayName: a.displayName || a.name || "Unknown Mod",
         hash: a.hash || "",
-        author: a.author || blueprint?.author || "",
+        author,
+        master_author: author,
         url: a.url || "",
-        version: a.version || "",
+        version: a.version || a.latest_version || "",
+        image_url: a.image_url || "",
         category,
+        category_override: category,
+        type: category,
+        description: a.description || a.desc || "",
+        compatible_versions: Array.isArray(a.compatible_versions) ? a.compatible_versions : [],
+        created_at: a.created_at || undefined,
+        updated_at: a.updated_at || a.created_at || undefined,
+        status: a.status || "stable",
+        status_reason: a.status_reason || undefined,
+        compliance_tier: a.compliance_tier ?? 0,
         is_paid: !!a.is_paid,
         is_early_access: !!a.is_early_access,
+        requiredDLC: Array.isArray(a.requiredDLC) ? a.requiredDLC : [],
         priority_tier: a.priority_tier || inferDefaultPriorityTier(category, modName),
         load_order_index: typeof a.load_order_index === "number" ? a.load_order_index : idx,
       };

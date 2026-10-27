@@ -729,20 +729,35 @@ export function usePlaySetLogic() {
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
-  const { modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames, precomputedBaseNames } = useMemo(() => {
+  const { modMap, hashToMod, baseToMod, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames } = useMemo(() => {
     const extRegex = getExtensionRegex(activeGameSchema);
     const m1 = new Map<string, any>();
     const m2 = new Map<string, any>();
     const m3 = new Map<string, any>();
     const byDbId = new Map<string, any>();
+    const byFamilyOrDbId = new Map<string, any[]>();
+    const byParsedBaseName = new Map<string, any[]>();
     const namesAndDisplayNames: any[] = [];
     const precomputedBaseNames = new Map<string, string>();
+
+    const pushToMap = (map: Map<string, any[]>, key: string, val: any) => {
+      let arr = map.get(key);
+      if (!arr) {
+        arr = [];
+        map.set(key, arr);
+      }
+      arr.push(val);
+    };
     
     modList.forEach((m: any) => {
         m1.set(m.name, m);
         if (m.hash) m2.set(m.hash, m);
         const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
-        if (mBase) m3.set(mBase, m);
+        if (mBase && !m3.has(mBase)) m3.set(mBase, m);
+        if (m.familyId != null) pushToMap(byFamilyOrDbId, String(m.familyId), m);
+        if (m.dbId != null && String(m.dbId) !== String(m.familyId)) {
+            pushToMap(byFamilyOrDbId, String(m.dbId), m);
+        }
         if (!m.isVirtual) {
             if (m.dbId) byDbId.set(String(m.dbId), m);
             const dn = m.displayName || "";
@@ -755,9 +770,10 @@ export function usePlaySetLogic() {
         }
         const parsedBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
         precomputedBaseNames.set(m.name, parsedBase);
+        if (parsedBase) pushToMap(byParsedBaseName, parsedBase, m);
     });
     
-    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, namesAndDisplayNames, precomputedBaseNames };
+    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames };
   }, [modList, activeGameSchema]);
 
   const toggleInActiveSet = useCallback((targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
@@ -774,10 +790,37 @@ export function usePlaySetLogic() {
       let rawNewMods = new Set<any>(currentSet.mods);
       const healedMods = new Set<any>();
       const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
+      const tierFolders: string[] = ["sanctuary", "!sanctuary", "sanctuary2", "!sanctuary2", "sanctuary3", "!sanctuary3"];
+      if (Array.isArray(activeGameSchema?.load_order?.priority_tiers)) {
+        for (const tObj of activeGameSchema.load_order.priority_tiers) {
+          const f = String(tObj?.folder || "").trim().toLowerCase();
+          if (f && !tierFolders.includes(f)) tierFolders.push(f);
+        }
+      }
+      const hasTierPrefix = (pathStr: string) => {
+        const lower = pathStr.toLowerCase();
+        return tierFolders.some((tf) => lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`));
+      };
+      const stripTierPrefix = (pathStr: string) => {
+        let cur = pathStr;
+        let changed = true;
+        while (changed) {
+          changed = false;
+          const lower = cur.toLowerCase();
+          for (const tf of tierFolders) {
+            if (lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`)) {
+              cur = cur.slice(tf.length + 1);
+              changed = true;
+              break;
+            }
+          }
+        }
+        return cur;
+      };
       const sanctuaryMods = new Map<string, any>();
       rawNewMods.forEach((mObj: any) => {
          const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-         if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
+         if (hasTierPrefix(m)) {
              const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
              if (cleanM) sanctuaryMods.set(cleanM, mObj);
          }
@@ -785,7 +828,7 @@ export function usePlaySetLogic() {
 
       rawNewMods.forEach((mObj: any) => {
          const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-         if (m.toLowerCase().startsWith("sanctuary/") || m.toLowerCase().startsWith("sanctuary\\")) {
+         if (hasTierPrefix(m)) {
              healedMods.add(mObj);
          } else {
              const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
@@ -864,7 +907,7 @@ export function usePlaySetLogic() {
          if (forceRemove) {
             const toDelete = Array.from(newMods).find((m: any) => {
                 const strM = typeof m === 'string' ? m : (m.name || m.path || '');
-                return strM === targetName || strM.replace(/^(sanctuary[/\\])+/i, '') === targetName.replace(/^(sanctuary[/\\])+/i, '');
+                return strM === targetName || stripTierPrefix(strM) === stripTierPrefix(targetName);
             });
             if (toDelete) {
                newMods.delete(toDelete);
@@ -890,7 +933,7 @@ export function usePlaySetLogic() {
         : [];
       const isActuallyFlavorFolder =
         targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
-      const cleanSanctuaryPrefix = (n: string) => n.replace(/^(sanctuary[/\\])+/i, '');
+      const cleanSanctuaryPrefix = (n: string) => stripTierPrefix(n);
       const newModsCleaned = new Set(Array.from(newMods).map((mObj: any) => 
           cleanSanctuaryPrefix(typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || ''))
       ));
@@ -904,7 +947,7 @@ export function usePlaySetLogic() {
       const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
         const toDelete = Array.from(newMods).find((mObj: any) => {
            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-           return strM === nameToDelete || strM.replace(/^(sanctuary[/\\])+/i, '') === nameToDelete.replace(/^(sanctuary[/\\])+/i, '');
+           return strM === nameToDelete || stripTierPrefix(strM) === stripTierPrefix(nameToDelete);
         });
         if (!toDelete) return;
         newMods.delete(toDelete);
@@ -1056,8 +1099,17 @@ export function usePlaySetLogic() {
         
         const anchor = modObj.familyId || modObj.dbId;
         const modBaseName = precomputedBaseNames.get(modObj.name) || "";
+        const candidateMods = new Set<any>();
+        if (anchor && currentRules.family !== false) {
+          const famCandidates = byFamilyOrDbId.get(String(anchor));
+          if (famCandidates) famCandidates.forEach((c) => candidateMods.add(c));
+        }
+        if (modBaseName) {
+          const baseCandidates = byParsedBaseName.get(modBaseName);
+          if (baseCandidates) baseCandidates.forEach((c) => candidateMods.add(c));
+        }
         
-        modList.forEach((m) => {
+        candidateMods.forEach((m) => {
           let isTwinMatch = false;
           const mBaseName = precomputedBaseNames.get(m.name) || "";
           if (mBaseName && modBaseName && mBaseName === modBaseName && m.name !== modObj.name) {
@@ -1246,7 +1298,7 @@ export function usePlaySetLogic() {
       console.timeEnd("PlaySetLogic: toggleInActiveSet");
       return updatedSets;
     });
-  }, [setPlaySets, activePlaySetIndex, anarchyRules, activeGameSchema, modMap, hashToMod, baseToMod, byDbId, namesAndDisplayNames, precomputedBaseNames, modList]);
+  }, [setPlaySets, activePlaySetIndex, anarchyRules, activeGameSchema, modMap, hashToMod, baseToMod, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames, modList]);
 
   function deletePlaySet(setName: string) {
     const updatedSets = playSets.filter((s) => s.name !== setName);
@@ -1703,13 +1755,13 @@ export function usePlaySetLogic() {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
       if (!modName) continue;
 
-      if (modList.some((m: any) => m.name === modName)) {
+      if (modMap.has(modName)) {
         nextMods.push(modName);
       } else {
         let healed = false;
         const oldHash = nextHashes[modName];
         if (oldHash) {
-          const dnaMatch = modList.find((m: any) => m.hash === oldHash);
+          const dnaMatch = hashToMod.get(oldHash);
           if (dnaMatch) {
             nextMods.push(dnaMatch.name);
             nextHashes[dnaMatch.name] = dnaMatch.hash;
@@ -1721,10 +1773,7 @@ export function usePlaySetLogic() {
         
         if (!healed) {
           const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
-          const baseMatch = targetBase ? modList.find((m: any) => {
-            const mBase = typeof m.name === 'string' ? m.name.split(/[\\/]/).pop()?.replace(extRegex, '') : '';
-            return mBase === targetBase;
-          }) : null;
+          const baseMatch = targetBase ? baseToMod.get(targetBase) : null;
           
           if (baseMatch) {
             nextMods.push(baseMatch.name);

@@ -438,7 +438,7 @@ export function CommunitySupportSidePanel({
             />
           ) : (
             <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] flex flex-col gap-1.5">
-              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit">
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 w-fit">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_warning", "warning")}
                 </span>

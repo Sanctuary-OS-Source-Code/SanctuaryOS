@@ -3,16 +3,31 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useModalStore } from '../store/modalStore';
+import { isDesktop } from '../utils/envUtils';
 import { SidePanelContext } from "./layout";
 import { HoverTooltip } from "./alerts";
 export const handleOpenUrl = (url: string) => {
+  if (!url || typeof url !== "string") return;
+  const trimmed = url.trim();
+  if (!trimmed) return;
+  const normalizedUrl = /^(https?:\/\/|mailto:)/i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  if (!isDesktop()) {
+    window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+
   const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } =
     useModalStore.getState();
   if (useInternalBrowser) {
-    setSideBrowserUrl(url);
+    setSideBrowserUrl(normalizedUrl);
     setIsSideBrowserOpen(true);
   } else {
-    openUrl(url);
+    openUrl(normalizedUrl).catch(() => {
+      window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+    });
   }
 };
 export const fetchAllPaginated = async (queryFn: () => any) => {
@@ -157,21 +172,15 @@ export function FilterPopover({
   const baseBg =
     effectiveVariant === "inline"
       ? "bg-transparent"
-      : effectiveVariant === "panel"
-        ? "bg-[color-mix(in_srgb,var(--text)_4%,transparent)]"
-        : "glass-surface";
+      : "glass-surface";
   const hoverBg =
     effectiveVariant === "inline"
       ? "hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-      : effectiveVariant === "panel"
-        ? "hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-        : "";
+      : "";
   const borderClass =
     effectiveVariant === "inline"
       ? "border-none text-[var(--subtext)] hover:text-[var(--text)]"
-      : effectiveVariant === "panel"
-        ? "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100"
-        : "border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-70 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]";
+      : "border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]";
 
   const activeStateClass =
     "sa-glass-active !text-[var(--text)] !opacity-100";

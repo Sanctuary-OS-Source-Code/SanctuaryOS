@@ -4,6 +4,8 @@ import {
   ActionButton,
   PanelHeaderButton,
   PanelHeaderGroup,
+  HoverTooltip,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import Editor from "@monaco-editor/react";
 import VersionTimeline from "../VersionTimeline";
@@ -249,17 +251,24 @@ export default function MasonEditorPanel({
               {activeFile.name}
             </span>
           </div>
-          <span
-            className={`px-2 py-0.5 rounded-lg border bg-transparent text-[9px] font-black uppercase tracking-wider shrink-0 ${
-              problemsList.length > 0 || isJsonParseError
-                ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+          <div className={VAULT_CHIP_CLASS}>
+            <span
+              className={`material-symbols-outlined !text-[12px] ${
+                problemsList.length > 0 || isJsonParseError
+                  ? "text-[var(--danger)]"
+                  : isDirty
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }`}
+            >
+              {problemsList.length > 0 || isJsonParseError
+                ? t("icon_error", "error")
                 : isDirty
-                  ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-                  : "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-            }`}
-          >
-            {isDirty ? t("unsaved_changes", "Modified") : t("status_synced", "Synced")}
-          </span>
+                  ? t("icon_edit_note", "edit_note")
+                  : t("icon_check_circle", "check_circle")}
+            </span>
+            <span>{isDirty ? t("unsaved_changes", "Modified") : t("status_synced", "Synced")}</span>
+          </div>
         </div>
         <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
           <Editor
@@ -300,7 +309,7 @@ export default function MasonEditorPanel({
               minimap: { enabled: false },
               fontSize: 14,
               fontFamily: "var(--font-mono), Consolas, monospace",
-              padding: { top: 20, bottom: 20 },
+              padding: { top: 20, bottom: 120 },
               smoothScrolling: true,
               cursorBlinking: "smooth",
               lineHeight: 24,
@@ -458,156 +467,6 @@ export default function MasonEditorPanel({
             </PanelHeaderGroup>
           </>
         }
-        footer={
-          problemsList.length > 0 ||
-          (!isLexiconActive &&
-            validationStats &&
-            (validationStats.missing > 0 || validationStats.deprecated > 0)) ? (
-            <div className="flex flex-col gap-4 w-full relative z-50">
-              {/* Validation Error Banner */}
-              {!isLexiconActive &&
-                validationStats &&
-                (validationStats.missing > 0 || validationStats.deprecated > 0) && (
-                  <div className="w-full flex items-center justify-between gap-5 theme-panel-warning !rounded-2xl px-6 py-4">
-                    <div className="flex items-center gap-5">
-                      <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] flex items-center justify-center text-[var(--warning)] shrink-0">
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {t("icon_warning", "warning")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-bold text-[var(--warning)] flex items-center gap-2">
-                          <strong>{validationStats.total - validationStats.missing}</strong>
-                          {activeFile?.name?.match(/^[a-z]{2}-.+\.json$/i)
-                            ? t(
-                                "lexicon_translated_count",
-                                "{translated} / {total} Translated"
-                              ).replace("{translated} / {total}", `/ ${validationStats.total}`)
-                            : `/ ${validationStats.total} ${t("status_validated", "Validated")}`}
-                          <span className="text-[10px] text-[var(--warning)] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] shrink-0 bg-transparent ml-1">
-                            {t("schema_validation", "Schema Validation")}
-                          </span>
-                        </span>
-                        <span className="text-xs text-[var(--warning)] opacity-80 mt-0.5">
-                          {validationStats.deprecated > 0
-                            ? `${validationStats.deprecated} ${
-                                activeFile?.name?.match(/^[a-z]{2}-.+\.json$/i)
-                                  ? t("deprecated_strings", "Deprecated Strings")
-                                  : t("unrecognized_fields", "Unrecognized Fields")
-                              }`
-                            : activeFile?.name?.match(/^[a-z]{2}-.+\.json$/i)
-                              ? t("lexicon_missing_count", "{missing} Missing Strings").replace(
-                                  "{missing}",
-                                  validationStats.missing.toString()
-                                )
-                              : `${validationStats.missing} ${t(
-                                  "missing_schema_keys",
-                                  "Missing Schema Keys"
-                                )}`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {validationStats.deprecated > 0 ? (
-                        <ActionButton
-                          onClick={purgeDeprecatedStrings}
-                          variant="danger"
-                          icon="delete"
-                          label={
-                            <span className="whitespace-nowrap">{`${t(
-                              "lexicon_purge_keys",
-                              "Purge Keys"
-                            )} (${validationStats.deprecated})`}</span>
-                          }
-                          className="!px-5 !py-2.5 !text-xs"
-                        />
-                      ) : validationStats.completelyMissing > 0 ? (
-                        <ActionButton
-                          onClick={addMissingStrings}
-                          variant="default"
-                          icon="add_circle"
-                          label={
-                            <span className="whitespace-nowrap">
-                              {t("lexicon_add_missing", "Add Missing")}
-                            </span>
-                          }
-                          className="!px-5 !py-2.5 !text-xs"
-                        />
-                      ) : (
-                        <ActionButton
-                          onClick={() => {
-                            if (hasVisualStudio && editorViewMode === "visual") {
-                              setEditorViewMode("split");
-                            }
-                            if (jumpToNextEmpty) jumpToNextEmpty();
-                          }}
-                          variant="default"
-                          icon="arrow_downward"
-                          label={
-                            <span className="whitespace-nowrap">
-                              {t("lexicon_next_empty", "Next Empty")}
-                            </span>
-                          }
-                          className="!px-5 !py-2.5 !text-xs"
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* Syntax Error Banner */}
-              {problemsList.length > 0 && (
-                <div
-                  className="w-full flex items-center justify-between gap-5 theme-panel-danger !rounded-2xl px-6 py-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/problem"
-                  onClick={() => {
-                    if (editorRef && problemsList[0]) {
-                      editorRef.revealLineInCenter(problemsList[0].line);
-                      editorRef.setPosition({
-                        lineNumber: problemsList[0].line,
-                        column: problemsList[0].column,
-                      });
-                      editorRef.focus();
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_error", "error")}
-                      </span>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold text-[var(--danger)] flex items-center gap-2">
-                        <strong>{problemsList.length}</strong>{" "}
-                        {problemsList.length === 1
-                          ? t("syntax_error", "Syntax Error")
-                          : t("syntax_errors", "Syntax Errors")}
-                        <span className="text-[10px] text-[var(--danger)] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shrink-0 bg-transparent ml-1">
-                          {t("line_label", "Line")} {problemsList[0]?.line}
-                        </span>
-                      </span>
-                      <span className="text-xs text-[var(--danger)] opacity-80 font-mono truncate max-w-[600px] transition-colors mt-0.5">
-                        {problemsList[0]?.message}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (setProblemsList) setProblemsList([]);
-                    }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all shrink-0"
-                  >
-                    <span className="material-symbols-outlined !text-[18px]">
-                      {t("icon_close", "close")}
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : undefined
-        }
       >
         <div className="absolute inset-0 flex flex-col w-full min-w-full">
           <div className="flex-1 relative flex w-full min-w-full h-full min-h-0">
@@ -669,9 +528,12 @@ export default function MasonEditorPanel({
                             <span className="text-xs font-black text-[var(--text)] truncate font-mono">
                               {referenceLabel || t("reference_schema", "Reference Schema")}
                             </span>
-                            <span className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-transparent text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
-                              {t("read_only", "Read Only")}
-                            </span>
+                            <div className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_lock", "lock")}
+                              </span>
+                              <span>{t("read_only", "Read Only")}</span>
+                            </div>
                           </div>
                           <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
                             <Editor
@@ -712,7 +574,7 @@ export default function MasonEditorPanel({
                                 minimap: { enabled: false },
                                 fontSize: 13,
                                 fontFamily: "var(--font-mono)",
-                                padding: { top: 20, bottom: 20 },
+                                padding: { top: 20, bottom: 120 },
                                 automaticLayout: true,
                                 hover: { enabled: "on", above: false },
                               }}
@@ -725,6 +587,232 @@ export default function MasonEditorPanel({
                 </>
               )}
             </div>
+
+            {/* Floating 3D Liquid Glass Key Validator & Syntax Error Alert Dock */}
+            {(problemsList.length > 0 ||
+              (validationStats &&
+                (validationStats.deprecated > 0 ||
+                  (!isLexiconActive && validationStats.missing > 0) ||
+                  (isLexiconActive &&
+                    editorViewMode !== "visual" &&
+                    validationStats.missing > 0)))) && (
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2.5 w-max max-w-[calc(100%-2.5rem)] pointer-events-none">
+                {validationStats &&
+                  (validationStats.deprecated > 0 ||
+                    (!isLexiconActive && validationStats.missing > 0) ||
+                    (isLexiconActive &&
+                      editorViewMode !== "visual" &&
+                      validationStats.missing > 0)) && (
+                    <div className="pointer-events-auto w-fit max-w-full glass-panel sa-floating-glass-pill rounded-2xl px-4 py-3 border flex flex-wrap items-center justify-between gap-3.5 transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)] shrink-0">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {t("icon_neurology", "neurology")}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <span className="text-xs font-black tracking-wide text-[var(--text)]">
+                              {isLexiconActive
+                                ? t("validator_lexicon_title", "Lexicon Validation Alert")
+                                : t("validator_schema_title", "Schema Validation Alert")}
+                            </span>
+
+                            <div className={`${VAULT_CHIP_CLASS} font-mono`}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                {t("icon_fact_check", "fact_check")}
+                              </span>
+                              <span>
+                                {`${Math.max(
+                                  0,
+                                  validationStats.total - validationStats.missing
+                                )} / ${validationStats.total}`}
+                              </span>
+                            </div>
+
+                            <div className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_verified", "verified")}
+                              </span>
+                              <span>
+                                {referenceLabel ||
+                                  (isLexiconActive
+                                    ? t("validator_source_default_lex", "en-default.json Baseline")
+                                    : t(
+                                        "validator_source_keepers",
+                                        "Keepers Core Default Schema"
+                                      ))}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] font-medium text-[var(--subtext)] leading-snug">
+                            {validationStats.missing > 0 && validationStats.deprecated > 0
+                              ? (isLexiconActive
+                                  ? t(
+                                      "validator_desc_lex_both",
+                                      "{missing} missing strings and {deprecated} deprecated keys detected against baseline."
+                                    )
+                                  : t(
+                                      "validator_desc_schema_both",
+                                      "{missing} missing schema keys and {deprecated} unrecognized fields detected against baseline."
+                                    )
+                                )
+                                  .replace("{missing}", String(validationStats.missing))
+                                  .replace("{deprecated}", String(validationStats.deprecated))
+                              : validationStats.missing > 0
+                                ? (isLexiconActive
+                                    ? t(
+                                        "validator_desc_lex_missing",
+                                        "{missing} untranslated or missing strings detected — add missing keys or jump to next empty."
+                                      )
+                                    : t(
+                                        "validator_desc_schema_missing",
+                                        "{missing} required schema keys are missing from this configuration — inject defaults to sync."
+                                      )
+                                  ).replace("{missing}", String(validationStats.missing))
+                                : (isLexiconActive
+                                    ? t(
+                                        "validator_desc_lex_deprecated",
+                                        "{deprecated} deprecated or unused keys are no longer in the baseline and can be removed."
+                                      )
+                                    : t(
+                                        "validator_desc_schema_deprecated",
+                                        "{deprecated} unrecognized fields are not in the baseline schema and can be safely removed."
+                                      )
+                                  ).replace("{deprecated}", String(validationStats.deprecated))}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 pl-3 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        {validationStats.deprecated > 0 && (
+                          <ActionButton
+                            onClick={purgeDeprecatedStrings}
+                            variant="danger"
+                            icon={t("icon_delete", "delete")}
+                            label={
+                              <span className="whitespace-nowrap">{`${t(
+                                "lexicon_purge_keys",
+                                "Purge Keys"
+                              )} (${validationStats.deprecated})`}</span>
+                            }
+                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                          />
+                        )}
+                        {validationStats.completelyMissing > 0 ? (
+                          <ActionButton
+                            onClick={addMissingStrings}
+                            variant="accent"
+                            icon={t("icon_add_circle", "add_circle")}
+                            label={
+                              <span className="whitespace-nowrap">{`${t(
+                                "lexicon_add_missing",
+                                "Add Missing"
+                              )} (${validationStats.completelyMissing})`}</span>
+                            }
+                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                          />
+                        ) : validationStats.missing > 0 ? (
+                          <ActionButton
+                            onClick={() => {
+                              if (hasVisualStudio && editorViewMode === "visual") {
+                                setEditorViewMode("split");
+                              }
+                              if (jumpToNextEmpty) jumpToNextEmpty();
+                            }}
+                            variant="glass"
+                            icon={t("icon_arrow_downward", "arrow_downward")}
+                            label={
+                              <span className="whitespace-nowrap">
+                                {t("lexicon_next_empty", "Next Empty")}
+                              </span>
+                            }
+                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+
+                {problemsList.length > 0 && (
+                  <div
+                    className="pointer-events-auto w-fit max-w-full glass-panel sa-floating-glass-pill rounded-2xl px-4 py-3 border flex items-center justify-between gap-3.5 cursor-pointer transition-all group/problem"
+                    onClick={() => {
+                      if (hasVisualStudio && editorViewMode === "visual") {
+                        setEditorViewMode("split");
+                      }
+                      if (editorRef && problemsList[0]) {
+                        editorRef.revealLineInCenter(problemsList[0].line);
+                        editorRef.setPosition({
+                          lineNumber: problemsList[0].line,
+                          column: problemsList[0].column,
+                        });
+                        editorRef.focus();
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {t("icon_error", "error")}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
+                          <span className="text-xs font-black tracking-wide text-[var(--text)]">
+                            {t("syntax_error_title", "Syntax Error Detected")}
+                          </span>
+
+                          <div className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                              {t("icon_bug_report", "bug_report")}
+                            </span>
+                            <span>
+                              <strong>{problemsList.length}</strong>{" "}
+                              {problemsList.length === 1
+                                ? t("syntax_error", "Syntax Error")
+                                : t("syntax_errors", "Syntax Errors")}
+                            </span>
+                          </div>
+
+                          <div className={`${VAULT_CHIP_CLASS} font-mono`}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                              {t("icon_code", "code")}
+                            </span>
+                            <span>
+                              {t("line_label", "Line")} {problemsList[0]?.line}
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-[var(--subtext)] font-mono truncate max-w-[460px]">
+                          {problemsList[0]?.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pl-3 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (setProblemsList) setProblemsList([]);
+                        }}
+                        className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--danger)] opacity-80 hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t("icon_close", "close")}
+                        </span>
+                        <HoverTooltip title={t("close", "Close")} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </SidePanel>

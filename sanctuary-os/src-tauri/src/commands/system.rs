@@ -8,10 +8,21 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
     if !crate::utils::is_safe_user_file_path(p) {
         return Err("Refusing to delete protected or unsafe path.".into());
     }
-    if p.exists() {
+    if p.exists() || std::fs::symlink_metadata(p).is_ok() {
+        let mut deleted_file_names: Vec<String> = Vec::new();
         if p.is_dir() {
+            for entry in walkdir::WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    if let Some(fname) = entry.file_name().to_str() {
+                        deleted_file_names.push(fname.to_string());
+                    }
+                }
+            }
             std::fs::remove_dir_all(p).map_err(|e| e.to_string())?;
         } else {
+            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
+                deleted_file_names.push(fname.to_string());
+            }
             std::fs::remove_file(p).map_err(|e| e.to_string())?;
         }
 
@@ -26,8 +37,11 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
             current = dir.parent().map(|d| d.to_path_buf());
         }
 
+        crate::utils::cleanup_live_counterparts_on_delete(p, &deleted_file_names);
+
         Ok("Deleted".into())
     } else {
+        crate::utils::cleanup_live_counterparts_on_delete(p, &[]);
         Err("File not found".into())
     }
 }
@@ -439,7 +453,71 @@ pub fn open_screenshots_dir() -> Result<String, String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path_str)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
     Ok(path_str)
+}
+
+#[tauri::command]
+pub fn open_folder(path: String) -> Result<(), String> {
+    let p = PathBuf::from(path.trim());
+    if !p.exists() {
+        return Err("Path does not exist".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        if p.is_file() {
+            std::process::Command::new("explorer")
+                .arg(format!("/select,{}", p.to_string_lossy()))
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            std::process::Command::new("explorer")
+                .arg(&p)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if p.is_file() {
+            std::process::Command::new("open")
+                .arg("-R")
+                .arg(&p)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            std::process::Command::new("open")
+                .arg(&p)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let dir_to_open = if p.is_file() {
+            p.parent().unwrap_or(&p).to_path_buf()
+        } else {
+            p
+        };
+        std::process::Command::new("xdg-open")
+            .arg(&dir_to_open)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn crc32_ieee(bytes: &[u8]) -> u32 {

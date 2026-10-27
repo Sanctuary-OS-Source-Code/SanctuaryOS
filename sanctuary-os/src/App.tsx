@@ -321,21 +321,34 @@ function App() {
 
     let unlistenPromise: Promise<() => void> | null = null;
 
+    const handleCancelDrag = () => {
+      if (!localIsDragging && !useModalStore.getState().isDragging) return;
+      localIsDragging = false;
+      const state = useModalStore.getState();
+      if (state.isDragging) {
+        state.setIsDragging(false);
+      }
+      window.removeEventListener("mousemove", handleCancelDrag);
+    };
+
     if (isDesktop()) {
       unlistenPromise = getCurrentWebview().onDragDropEvent((event) => {
         if (event.payload.type === "enter" || event.payload.type === "over") {
           if (!localIsDragging) {
             localIsDragging = true;
             useModalStore.getState().setIsDragging(true);
+            window.addEventListener("mousemove", handleCancelDrag);
           }
         } else if (event.payload.type === "leave") {
           if (localIsDragging) {
             localIsDragging = false;
             useModalStore.getState().setIsDragging(false);
+            window.removeEventListener("mousemove", handleCancelDrag);
           }
         } else if (event.payload.type === "drop") {
           localIsDragging = false;
           useModalStore.getState().setIsDragging(false);
+          window.removeEventListener("mousemove", handleCancelDrag);
           const paths = event.payload.paths as string[];
           if (paths && paths.length > 0) {
             dropQueue.push(...paths);
@@ -346,13 +359,6 @@ function App() {
       });
     }
 
-    const handleCancelDrag = () => {
-      const state = useModalStore.getState();
-      if (state.isDragging) {
-        state.setIsDragging(false);
-      }
-    };
-    window.addEventListener("mousemove", handleCancelDrag);
     window.addEventListener("mousedown", handleCancelDrag);
     window.addEventListener("keydown", handleCancelDrag);
 
@@ -3355,7 +3361,7 @@ function App() {
 
   return (
     <div
-      className={`flex flex-col ${isDesktop() ? 'h-screen w-screen' : 'h-full min-h-[100dvh] w-full'} overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
+      className={`flex flex-col ${isDesktop() ? 'h-screen w-screen' : 'h-full min-h-[100lvh] w-full'} overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
       <SystemBackground />
@@ -3379,7 +3385,7 @@ function App() {
             unreadNotificationCount={unreadNotificationCount}
             handleQuickLaunch={handleQuickLaunch}
           />
-          <main id="sanctuary-main-scroll" className={`flex-1 relative overflow-y-auto overflow-x-hidden px-6 pb-4 pt-[70px] max-md:px-4 ${!isDesktop() && isRootDomain() ? 'max-md:pt-5' : 'max-md:pt-[68px]'} max-md:pb-[100px] custom-scrollbar`} style={{ flexGrow: 1, width: '100%' }}>
+          <main id="sanctuary-main-scroll" className={`flex-1 relative overflow-y-auto overflow-x-hidden px-6 pb-4 pt-[70px] max-md:px-4 ${!isDesktop() && isRootDomain() ? 'max-md:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]' : 'max-md:pt-[calc(env(safe-area-inset-top,0px)+4.25rem)]'} max-md:pb-[calc(env(safe-area-inset-bottom,0px)+100px)] custom-scrollbar`} style={{ flexGrow: 1, width: '100%' }}>
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
                 <>

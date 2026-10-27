@@ -530,6 +530,14 @@ export function MasonChameleons({
 
   const activeFile = activeFileIndex >= 0 ? openFiles[activeFileIndex] : null;
   const isDirty = activeFile ? activeFile.content !== activeFile.originalContent : false;
+  const isActiveFileLexicon = Boolean(
+    activeFile &&
+      (activeFile.content?.includes("_meta_lang") ||
+        activeFile.content?.includes('"a_citizen"') ||
+        activeFile.content?.includes('"term_mod"') ||
+        activeFile.name?.match(/^[a-z]{2}-.+\.json$/i) !== null ||
+        activeFile.name?.toLowerCase() === "simlish.json")
+  );
 
   let validationStats: {
     total: number;
@@ -546,10 +554,12 @@ export function MasonChameleons({
         ? null
         : referenceData && Object.keys(referenceData).length > 0
           ? referenceData
-          : enDefault;
+          : isActiveFileLexicon
+            ? enDefault
+            : null;
       if (reference) {
         const total = deepCountKeys(reference);
-        const stats = deepCompare(reference, parsed, true);
+        const stats = deepCompare(reference, parsed, isActiveFileLexicon);
         validationStats = { total, ...stats };
       }
     } catch {}
@@ -560,8 +570,13 @@ export function MasonChameleons({
     try {
       const parsed = JSON.parse(activeFile.content);
       const reference =
-        referenceData && Object.keys(referenceData).length > 0 ? referenceData : enDefault;
-      const newObj = deepAddMissing(reference, parsed, true);
+        referenceData && Object.keys(referenceData).length > 0
+          ? referenceData
+          : isActiveFileLexicon
+            ? enDefault
+            : null;
+      if (!reference) return;
+      const newObj = deepAddMissing(reference, parsed, isActiveFileLexicon);
       const newContent = JSON.stringify(newObj, null, 2);
       if (editorRef && editorRef.getModel()) {
         const model = editorRef.getModel();
@@ -581,8 +596,13 @@ export function MasonChameleons({
     try {
       const parsed = JSON.parse(activeFile.content);
       const reference =
-        referenceData && Object.keys(referenceData).length > 0 ? referenceData : enDefault;
-      const newObj = deepPurgeDeprecated(reference, parsed, true);
+        referenceData && Object.keys(referenceData).length > 0
+          ? referenceData
+          : isActiveFileLexicon
+            ? enDefault
+            : null;
+      if (!reference) return;
+      const newObj = deepPurgeDeprecated(reference, parsed, isActiveFileLexicon);
       const newContent = JSON.stringify(newObj, null, 2);
       if (editorRef && editorRef.getModel()) {
         const model = editorRef.getModel();

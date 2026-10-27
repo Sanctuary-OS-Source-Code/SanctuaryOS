@@ -43,7 +43,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
       />
 
       {/* Container for pills */}
-      <div className="fixed top-0 left-0 right-0 h-[56px] pointer-events-none flex items-center z-[999998] px-5">
+      <div className="fixed top-[env(safe-area-inset-top,0px)] left-0 right-0 h-[56px] pointer-events-none flex items-center z-[999998] px-5">
 
         {/* Spacer to respect sidebar width */}
         <div className="shrink-0 transition-all duration-500 hidden md:block" style={{ width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }} />
@@ -53,7 +53,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
           {workspaces?.length > 0 ? (
             <button
               type="button"
-              className="pointer-events-auto glass-panel portal-glass-fix h-8 px-3.5 rounded-xl flex items-center gap-2 cursor-pointer group/launcher hover:-translate-y-0.5 transition-all duration-300"
+              className="pointer-events-auto glass-panel sa-floating-glass-pill h-8 px-3.5 rounded-xl flex items-center gap-2 cursor-pointer group/launcher hover:-translate-y-0.5 transition-all duration-300"
               onClick={() => setIsWorkspacePanelOpen(true)}
             >
               {activeGameIcon ? (
@@ -71,7 +71,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
               </span>
             </button>
           ) : (
-            <div className="pointer-events-none glass-panel portal-glass-fix h-8 px-3.5 rounded-xl flex items-center gap-2">
+            <div className="pointer-events-none glass-panel sa-floating-glass-pill h-8 px-3.5 rounded-xl flex items-center gap-2">
               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-90">
                 {t("icon_sports_esports", "sports_esports") || "sports_esports"}
               </span>
@@ -85,7 +85,7 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* Right Window Controls Pill */}
         {isDesktop() && (
           <div
-            className="pointer-events-auto glass-panel portal-glass-fix h-8 px-2 rounded-xl flex items-center gap-1"
+            className="pointer-events-auto glass-panel sa-floating-glass-pill h-8 px-2 rounded-xl flex items-center gap-1"
             data-tauri-drag-region
             onMouseDown={async (e) => {
               if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {

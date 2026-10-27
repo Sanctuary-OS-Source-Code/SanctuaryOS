@@ -814,13 +814,13 @@ export function ArtifactRulesTab({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_savings", "savings")}
                 </span>
                 {t("studio_static_pill_zero_cost", "$0 Static Hosting")}
               </span>
-              <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_history", "history")}
                 </span>

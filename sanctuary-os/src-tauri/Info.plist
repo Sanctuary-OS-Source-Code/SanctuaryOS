@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Sanctuary OS requires access to your Documents folder to manage game Mods, Saves, and Time Capsule backups.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Sanctuary OS watches your Downloads folder to automatically intercept and scan downloaded mods for malware.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Sanctuary OS requires Desktop access when your Vault or Screenshots folder is stored on the Desktop.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Sanctuary OS requires access to external drives when your Game installation or Vault is stored on an external volume.</string>
+</dict>
+</plist>

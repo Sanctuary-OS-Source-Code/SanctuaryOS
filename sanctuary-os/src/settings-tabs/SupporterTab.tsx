@@ -465,7 +465,7 @@ export default function SupporterTab() {
           <div className="flex flex-col gap-6 w-full">
             {/* SINGLE COMBINED HIGH-CONTRAST NOTICE BAR (ABOVE COMMUNITIES) */}
             <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,rgba(var(--bg-rgb),0.88))] shadow-[0_8px_24px_rgba(0,0,0,0.28)] flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 shadow-sm">
+              <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0 shadow-sm">
                 <span className="material-symbols-outlined !text-[20px]">
                   {t("icon_info", "info")}
                 </span>

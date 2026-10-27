@@ -388,7 +388,7 @@ export default function Blueprints({
             }}
             className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all relative ${
               isPinned
-                ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_55%,transparent)] !bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] shadow-[0_0_12px_rgba(var(--accent-rgb),0.22)] opacity-100"
+                ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_55%,transparent)] opacity-100"
                 : "text-[var(--subtext)] opacity-65 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]"
             }`}
           >
@@ -490,10 +490,10 @@ export default function Blueprints({
                   e.stopPropagation();
                   equipPlaySet && equipPlaySet(set.name);
                 }}
-                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent ${
+                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border glass-surface ${
                   isDeployed
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
+                    : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
                 }`}
               >
                 <span className="material-symbols-outlined !text-[15px]">
@@ -886,11 +886,10 @@ export default function Blueprints({
                   iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                 />
                 {syncInputVisible ? (
-                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] rounded-2xl shadow-[0_0_40px_rgba(var(--accent-rgb),0.1)] relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
-                    <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_10%,transparent)] via-transparent to-transparent opacity-100" />
+                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-2xl relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-5 h-full relative z-10 w-full">
-                      <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]">
-                        <span className="material-symbols-outlined !text-3xl drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]">
+                      <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-3xl">
                           {t("icon_cloud_download", "cloud_download")}
                         </span>
                       </div>
@@ -1011,14 +1010,13 @@ export default function Blueprints({
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-12 pt-2">
             {isDraftingSet && (
-              <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 shadow-[0_0_30px_rgba(var(--accent-rgb),0.1)] relative bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] min-h-[14rem] justify-center">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent)_10%,transparent)] to-transparent pointer-events-none" />
+              <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_35%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 relative min-h-[14rem] justify-center">
                 <input
                   autoFocus
                   type="text"
                   value={draftSetName}
                   onChange={(e) => setDraftSetName && setDraftSetName(e.target.value)}
-                  className="w-full bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-4 text-xl text-[var(--text)] font-black outline-none shadow-inner focus:border-[var(--accent)] transition-all z-10 text-center"
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-4 text-xl text-[var(--text)] font-black outline-none focus:border-[var(--accent)] transition-all z-10 text-center"
                   placeholder={t("draft_placeholder", "{Blueprint} Name...")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") finalizeDraftSet();
@@ -1027,13 +1025,13 @@ export default function Blueprints({
                 <div className="flex gap-3 mt-2 z-10">
                   <button
                     onClick={finalizeDraftSet}
-                    className="flex-1 py-3 bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)] backdrop-blur-md font-black capitalize tracking-widest text-[10px] rounded-xl hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--success)_25%,transparent)] transition-all shadow-[0_0_20px_rgba(var(--success-rgb),0.2)]"
+                    className="flex-1 py-3 glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] font-black capitalize tracking-widest text-[10px] rounded-xl hover:border-[color-mix(in_srgb,var(--success)_65%,transparent)] transition-all"
                   >
                     {t("hub_save", "Save")}
                   </button>
                   <button
                     onClick={() => setIsDraftingSet && setIsDraftingSet(false)}
-                    className="w-16 py-3 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--text)] font-black rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:scale-[1.02] transition-all"
+                    className="w-16 py-3 flex items-center justify-center glass-surface text-[var(--text)] font-black rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:text-[var(--danger)] transition-all"
                   >
                     <span className="material-symbols-outlined !text-[18px]">
                       {t("icon_close", "close")}
@@ -1423,7 +1421,7 @@ export default function Blueprints({
                         className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex flex-col justify-between gap-3 group/mod"
                       >
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[20px]">
                               {modIcon}
                             </span>

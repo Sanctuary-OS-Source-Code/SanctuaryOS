@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
-import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { createPortal } from "react-dom";
 import {
   SidePanel,
@@ -14,6 +12,7 @@ import {
   PanelHeaderButton,
   getModFallbackUrl,
   getModFallbackAuthor,
+  handleOpenUrl,
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
@@ -28,7 +27,6 @@ export function MissingImportsAlert({
   finalizeImport,
 }: any) {
   const { t } = useLexicon();
-  const { useInternalBrowser, setIsSideBrowserOpen, setSideBrowserUrl } = useModalStore();
   const [hasFetchedHashes, setHasFetchedHashes] = useState(false);
 
   useEffect(() => {
@@ -278,14 +276,7 @@ export function MissingImportsAlert({
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (useInternalBrowser) {
-                  setSideBrowserUrl(targetUrl);
-                  setIsSideBrowserOpen(true);
-                } else {
-                  openUrl(targetUrl);
-                }
-              }}
+              onClick={() => handleOpenUrl(targetUrl)}
               className="w-9 h-9 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-xl transition-all text-[var(--text)] group/btn relative cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[17px]">

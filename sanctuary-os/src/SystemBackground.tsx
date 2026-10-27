@@ -66,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v40';
+export const SHADER_REV = 'webgl_glass_v42';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -145,13 +145,13 @@ void main() {
 
   // 3. True 3D Liquid Glass Lens & Meniscus Profile
   float minDim = min(panelHalfSize.x, panelHalfSize.y);
-  float compactFactor = smoothstep(14.0, 36.0, minDim);
+  float compactFactor = smoothstep(7.0, 18.0, minDim);
   float isLargeSlab = (isSideDrawer > 1.5 || (glassKind > 0.5 && glassKind < 1.5 && minDim > 80.0)) ? 1.0 : 0.0;
   float rawBezel = (glassKind > 1.5)
     ? clamp(minDim * 0.34, 5.0, 12.0)
     : (isLargeSlab > 0.5)
       ? clamp(minDim * 0.28, 16.0, 38.0)
-      : clamp(minDim * 0.36, 12.0, 26.0);
+      : clamp(minDim * 0.58, 11.0, 26.0);
   float bezelWidth = clamp(rawBezel * u_bezelScale, 4.0, max(4.5, minDim * 0.78));
 
   float normY = clamp((panelRel.y / max(1.0, panelHalfSize.y)) * 0.5 + 0.5, 0.0, 1.0);
@@ -524,12 +524,13 @@ export function SystemBackground() {
       const rawRadius = maxCorner;
       const isSidePanel = el.classList.contains('sa-side-panel-window');
       const isMobileOverlay = el.classList.contains('sa-mobile-glass-overlay');
+      const isFloatingPill = el.classList.contains('sa-floating-glass-pill');
       const isSidebar = el.tagName === 'NAV' && el.classList.contains('firefox-safe-glass');
       const isSurface = el.classList.contains('glass-surface');
 
       const glassKind = (isSidebar || isSidePanel || isMobileOverlay) ? 1.0 : isSurface ? 2.0 : 0.0;
-      const isOverlay = isSidePanel || isMobileOverlay;
-      const scrollClipEl = (isSidebar || isSidePanel || isMobileOverlay) ? null : findScrollClipParent(el);
+      const isOverlay = isSidePanel || isMobileOverlay || isFloatingPill;
+      const scrollClipEl = (isSidebar || isSidePanel || isMobileOverlay || isFloatingPill) ? null : findScrollClipParent(el);
 
       meta = {
         radiusPx: rawRadius,
@@ -551,20 +552,21 @@ export function SystemBackground() {
         const c = staleCanvases[i];
         if (
           !c.parentElement?.classList.contains('sa-side-panel-window') &&
-          !c.parentElement?.classList.contains('sa-mobile-glass-overlay')
+          !c.parentElement?.classList.contains('sa-mobile-glass-overlay') &&
+          !c.parentElement?.classList.contains('sa-floating-glass-pill')
         ) {
           c.remove();
         }
       }
 
       const nodes = document.querySelectorAll<HTMLElement>(
-        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window, .sa-mobile-glass-overlay'
+        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window, .sa-mobile-glass-overlay, .sa-floating-glass-pill'
       );
 
       const layer0: HTMLElement[] = []; // Main top-level cards & sidebar
       const orphanLayer1: HTMLElement[] = []; // Standalone surfaces on main page
       const cardChildren = new Map<HTMLElement, HTMLElement[]>(); // Surfaces/nested panels grouped by parent card
-      const layer2: HTMLElement[] = []; // Full-height SidePanel drawers & Mobile Liquid Glass Overlays
+      const layer2: HTMLElement[] = []; // Full-height SidePanel drawers & Mobile/Floating Liquid Glass Overlays
       const overlayChildren = new Map<HTMLElement, HTMLElement[]>(); // Surfaces/cards grouped by parent SidePanel
 
       for (let i = 0; i < nodes.length; i++) {
@@ -581,16 +583,17 @@ export function SystemBackground() {
 
         const isSelfOverlay =
           el.classList.contains('sa-side-panel-window') ||
-          el.classList.contains('sa-mobile-glass-overlay');
+          el.classList.contains('sa-mobile-glass-overlay') ||
+          el.classList.contains('sa-floating-glass-pill');
         if (isSelfOverlay) {
           layer2.push(el);
           if (!overlayChildren.has(el)) overlayChildren.set(el, []);
           continue;
         }
 
-        const hostOverlay = el.closest('.sa-side-panel-window, .sa-mobile-glass-overlay') as HTMLElement | null;
+        const hostOverlay = el.closest('.sa-side-panel-window, .sa-mobile-glass-overlay, .sa-floating-glass-pill') as HTMLElement | null;
         if (hostOverlay) {
-          // Inside a SidePanel or Mobile Liquid Glass Overlay, the drawer container itself is the continuous 3D Liquid Glass slab;
+          // Inside a SidePanel or Mobile/Floating Liquid Glass Overlay, the container itself is the continuous 3D Liquid Glass slab;
           // internal components sit cleanly on top of that slab via CSS translucent glass fills instead of punching separate wallpaper lenses.
           continue;
         }
@@ -638,8 +641,10 @@ export function SystemBackground() {
       }
 
       const isSidePanel = host.classList.contains('sa-side-panel-window');
-      const isMobileOverlay = host.classList.contains('sa-mobile-glass-overlay');
-      // Inside SidePanel / MobileOverlay, content sits at z-10+, so z-index: 0 sits cleanly behind content and 100% above main page.
+      const isMobileOverlay =
+        host.classList.contains('sa-mobile-glass-overlay') ||
+        host.classList.contains('sa-floating-glass-pill');
+      // Inside SidePanel / MobileOverlay / FloatingPill, content sits at z-10+, so z-index: 0 sits cleanly behind content and 100% above main page.
       // For right-anchored SidePanels (border-left:1px, border-right:0px), align 1:1 with the host's border-box and keep right corners 0px flush.
       ov.style.cssText = isSidePanel
         ? 'position:absolute;top:-1px;bottom:-1px;left:-1px;right:0px;width:calc(100% + 1px);height:calc(100% + 2px);pointer-events:none;z-index:0;border-top-left-radius:inherit;border-bottom-left-radius:inherit;border-top-right-radius:0px;border-bottom-right-radius:0px;'
@@ -669,8 +674,11 @@ export function SystemBackground() {
         scanGlassElements();
       }
 
-      const vw = Math.max(1, window.innerWidth);
-      const vh = Math.max(1, window.innerHeight);
+      const canvasRect = canvas!.getBoundingClientRect();
+      const canvasOffsetX = canvasRect.left;
+      const canvasOffsetY = canvasRect.top;
+      const vw = Math.max(1, Math.round(canvasRect.width || window.innerWidth));
+      const vh = Math.max(1, Math.round(canvasRect.height || window.innerHeight));
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const targetW = Math.round(vw * dpr);
       const targetH = Math.round(vh * dpr);
@@ -727,28 +735,29 @@ export function SystemBackground() {
       }> = [];
       const clipCache = new Map<HTMLElement, DOMRect>();
 
-      const pushElementInstance = (el: HTMLElement, checkOverlayHidden: boolean): DOMRect | null => {
+      const pushElementInstance = (el: HTMLElement, _checkOverlayHidden: boolean): DOMRect | null => {
         if (count >= MAX_INSTANCES) return null;
         if (!el.isConnected) {
           needsElementScan = true;
           return null;
         }
-        const mayBeHidden =
-          checkOverlayHidden ||
-          (typeof el.className === 'string' &&
-            (el.className.includes('opacity-0') ||
-              el.className.includes('hidden') ||
-              el.className.includes('invisible')));
-        if (mayBeHidden) {
-          const cs = window.getComputedStyle(el);
-          if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') < 0.5) {
-            return null;
-          }
+        if (
+          el.classList.contains('opacity-0') ||
+          el.classList.contains('invisible') ||
+          el.style.visibility === 'hidden' ||
+          el.style.display === 'none' ||
+          el.parentElement?.classList.contains('opacity-0')
+        ) {
+          return null;
         }
 
-        const rect = el.getBoundingClientRect();
-        if (rect.width < 8 || rect.height < 8) return null;
-        if (rect.bottom <= 0 || rect.top >= vh || rect.right <= 0 || rect.left >= vw) return null;
+        const rawRect = el.getBoundingClientRect();
+        if (rawRect.width < 8 || rawRect.height < 8) return null;
+        const rectLeft = rawRect.left - canvasOffsetX;
+        const rectTop = rawRect.top - canvasOffsetY;
+        const rectRight = rawRect.right - canvasOffsetX;
+        const rectBottom = rawRect.bottom - canvasOffsetY;
+        if (rectBottom <= 0 || rectTop >= vh || rectRight <= 0 || rectLeft >= vw) return null;
 
         const meta = getElementMeta(el);
         let clipL = 0;
@@ -762,33 +771,33 @@ export function SystemBackground() {
             cRect = meta.scrollClipEl.getBoundingClientRect();
             clipCache.set(meta.scrollClipEl, cRect);
           }
-          clipL = Math.max(0, cRect.left);
-          clipT = Math.max(0, cRect.top);
-          clipR = Math.min(vw, cRect.right);
-          clipB = Math.min(vh, cRect.bottom);
-          if (rect.bottom <= clipT || rect.top >= clipB || rect.right <= clipL || rect.left >= clipR) {
+          clipL = Math.max(0, cRect.left - canvasOffsetX);
+          clipT = Math.max(0, cRect.top - canvasOffsetY);
+          clipR = Math.min(vw, cRect.right - canvasOffsetX);
+          clipB = Math.min(vh, cRect.bottom - canvasOffsetY);
+          if (rectBottom <= clipT || rectTop >= clipB || rectRight <= clipL || rectLeft >= clipR) {
             return null;
           }
         }
 
         const base = count * FLOATS_PER_INSTANCE;
-        instanceData[base + 0] = rect.left;
-        instanceData[base + 1] = rect.top;
-        instanceData[base + 2] = rect.width;
-        instanceData[base + 3] = rect.height;
+        instanceData[base + 0] = rectLeft;
+        instanceData[base + 1] = rectTop;
+        instanceData[base + 2] = rawRect.width;
+        instanceData[base + 3] = rawRect.height;
 
         instanceData[base + 4] = clipL;
         instanceData[base + 5] = clipT;
         instanceData[base + 6] = clipR;
         instanceData[base + 7] = clipB;
 
-        instanceData[base + 8] = Math.min(meta.radiusPx, Math.min(rect.width, rect.height) * 0.5);
+        instanceData[base + 8] = Math.min(meta.radiusPx, Math.min(rawRect.width, rawRect.height) * 0.5);
         instanceData[base + 9] = meta.glassKind;
         instanceData[base + 10] = rawOpacity;
         instanceData[base + 11] = meta.isSideDrawer ? 2.0 : (meta.glassKind > 1.5 ? 0.5 : 1.0);
 
         count++;
-        return rect;
+        return new DOMRect(rectLeft, rectTop, rawRect.width, rawRect.height);
       };
 
       // 1. Top-level cards & sidebar (off-screen cards are culled here along with all their children)
@@ -1099,16 +1108,21 @@ export function SystemBackground() {
       }
     };
 
-    buildWallpaperTextures();
+    let resizeTimer = 0;
 
     const onScroll = () => {
       scheduleRender();
     };
 
     const onResize = () => {
-      buildWallpaperTextures();
+      metaCache = new WeakMap<HTMLElement, CachedElementMeta>();
       needsElementScan = true;
       scheduleRender();
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = 0;
+        if (!disposed) buildWallpaperTextures();
+      }, 160);
     };
 
     // Only animate WebGL glass during genuine geometry/layout transitions or opacity-0 glass reveals
@@ -1138,6 +1152,7 @@ export function SystemBackground() {
           !tgt?.classList ||
           (!tgt.classList.contains('sa-side-panel-window') &&
             !tgt.classList.contains('sa-mobile-glass-overlay') &&
+            !tgt.classList.contains('sa-floating-glass-pill') &&
             !tgt.classList.contains('sa-mobile-drawer-wrapper') &&
             !tgt.classList.contains('portal-glass-fix') &&
             tgt.tagName !== 'NAV')
@@ -1155,6 +1170,7 @@ export function SystemBackground() {
         tgt?.classList &&
         (tgt.classList.contains('sa-side-panel-window') ||
           tgt.classList.contains('sa-mobile-glass-overlay') ||
+          tgt.classList.contains('sa-floating-glass-pill') ||
           tgt.classList.contains('sa-mobile-drawer-wrapper') ||
           tgt.classList.contains('portal-glass-fix') ||
           tgt.classList.contains('sa-dropdown-popover') ||
@@ -1185,6 +1201,8 @@ export function SystemBackground() {
                 n.classList?.contains('sa-side-panel-window') ||
                 n.classList?.contains('sa-side-panel-wrapper') ||
                 n.classList?.contains('sa-mobile-glass-overlay') ||
+                n.classList?.contains('sa-floating-glass-pill') ||
+                n.querySelector?.('.sa-floating-glass-pill') ||
                 n.classList?.contains('sa-mobile-drawer-wrapper') ||
                 n.classList?.contains('portal-glass-fix') ||
                 n.classList?.contains('sa-dropdown-popover') ||
@@ -1204,24 +1222,29 @@ export function SystemBackground() {
             hasRelevantMutation = true;
           }
         } else if (m.type === 'attributes') {
-          if (m.attributeName === 'class') {
-            metaCache.delete(tgt);
-            hasRelevantMutation = true;
-          }
-          if (
+          const isGlassOrOverlayTarget =
             tgt.classList?.contains('sa-side-panel-window') ||
             tgt.classList?.contains('sa-side-panel-wrapper') ||
             tgt.classList?.contains('sa-mobile-glass-overlay') ||
+            tgt.classList?.contains('sa-floating-glass-pill') ||
             tgt.classList?.contains('sa-mobile-drawer-wrapper') ||
             tgt.classList?.contains('portal-glass-fix') ||
             tgt.classList?.contains('sa-dropdown-popover') ||
             tgt.classList?.contains('glass-panel') ||
             tgt.classList?.contains('glass-surface') ||
-            tgt.tagName === 'NAV' ||
-            tgt.closest?.('.portal-glass-fix, .sa-mobile-glass-overlay')
-          ) {
+            tgt.tagName === 'NAV';
+          if (isGlassOrOverlayTarget) {
+            metaCache.delete(tgt);
             hasRelevantMutation = true;
-            needsAnimLoop = true;
+            if (
+              tgt.classList?.contains('sa-side-panel-window') ||
+              tgt.classList?.contains('sa-side-panel-wrapper') ||
+              tgt.classList?.contains('sa-mobile-glass-overlay') ||
+              tgt.classList?.contains('sa-floating-glass-pill') ||
+              tgt.classList?.contains('sa-mobile-drawer-wrapper')
+            ) {
+              needsAnimLoop = true;
+            }
           }
         }
       }
@@ -1247,6 +1270,7 @@ export function SystemBackground() {
     window.addEventListener('transitionstart', onTransition, { capture: true, passive: true });
     window.addEventListener('transitionend', onTransition, { capture: true, passive: true });
     window.addEventListener('animationstart', onAnimationStart, { capture: true, passive: true });
+    window.addEventListener('animationend', onAnimationStart, { capture: true, passive: true });
 
     (window as any).__sanctuaryRebuildWebGLGlass = () => {
       buildWallpaperTextures();
@@ -1262,12 +1286,14 @@ export function SystemBackground() {
     return () => {
       disposed = true;
       if (rafId) window.cancelAnimationFrame(rafId);
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       mutObserver.disconnect();
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('transitionstart', onTransition, true);
       window.removeEventListener('transitionend', onTransition, true);
       window.removeEventListener('animationstart', onAnimationStart, true);
+      window.removeEventListener('animationend', onAnimationStart, true);
       gl.deleteTexture(sharpTex);
       gl.deleteTexture(blurTex);
       gl.deleteBuffer(instanceVbo);
@@ -1322,7 +1348,7 @@ export function SystemBackground() {
         bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
         left: 'calc(-1 * env(safe-area-inset-left, 0px))',
         right: 'calc(-1 * env(safe-area-inset-right, 0px))',
-        minHeight: 'calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
+        minHeight: 'calc(100lvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
         backgroundColor: isTransparentPassthrough
           ? 'transparent'
           : currentTheme.bgImage

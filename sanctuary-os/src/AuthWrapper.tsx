@@ -511,7 +511,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         >
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[26px]">
                   {t("icon_skull", "skull")}
                 </span>
@@ -521,7 +521,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--danger)]">
                     {`${t("tab_network", "Network")} ${t("err_severed", "Severed")}`}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]">
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--danger)]">
                     {t("offline_mode", "LOCAL SANDBOX ONLY")}
                   </span>
                 </div>
@@ -645,7 +645,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           {/* Clean Top Info Card (matches CoreTab & ElevatedPasskeyGate) */}
           <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 p-1.5">
+            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 p-1.5">
               <img
                 src={osLogoUrl || "/icon.png"}
                 alt={t("sidebar_app_title", "Sanctuary OS")}
@@ -893,7 +893,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         {t("auth_mfa_passkey_required_title", "Passkey Verification Required")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
                       {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
                     </span>
                   </div>
@@ -1180,7 +1180,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         {t("auth_passkey_badge_fido", "FIDO2 Passkey")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
                       {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
                     </span>
                   </div>
@@ -1221,7 +1221,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
                   <div className="divide-y divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
                     <div className="px-4 py-3.5 flex items-start gap-3.5">
-                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--success)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_shield", "shield")}
                         </span>
@@ -1240,7 +1240,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                     </div>
 
                     <div className="px-4 py-3.5 flex items-start gap-3.5">
-                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_visibility_off", "visibility_off")}
                         </span>
@@ -1259,7 +1259,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                     </div>
 
                     <div className="px-4 py-3.5 flex items-start gap-3.5">
-                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_mark_email_read", "mark_email_read")}
                         </span>
@@ -1278,7 +1278,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                     </div>
 
                     <div className="px-4 py-3.5 flex items-start gap-3.5">
-                      <div className="w-9 h-9 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_cloud_done", "cloud_done")}
                         </span>

@@ -93,7 +93,7 @@ export default function MasonFollowingSidePanel({
                   }}
                   className="flex items-center gap-3.5 px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] cursor-pointer transition-all group"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-transparent shrink-0 overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                  <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] shrink-0 overflow-hidden flex items-center justify-center text-[var(--accent)]">
                     {mason.avatar_url ? (
                       <img src={mason.avatar_url} alt={mason.name} className="w-full h-full object-cover" />
                     ) : (
@@ -112,7 +112,7 @@ export default function MasonFollowingSidePanel({
                       </span>
                     )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                  <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_chevron_right", "chevron_right")}
                     </span>

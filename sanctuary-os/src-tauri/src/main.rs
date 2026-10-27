@@ -52,7 +52,9 @@ fn reveal_main_window(app: tauri::AppHandle) {
 }
 
 fn main() {
-    ensure_windows_aumid_registered();
+    std::thread::spawn(|| {
+        ensure_windows_aumid_registered();
+    });
 
     tauri::Builder::default()
         .setup(|app| {
@@ -74,6 +76,7 @@ fn main() {
         .manage(AppState {
             active_schema: std::sync::Mutex::new(None),
             is_deploying: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            last_deploy_epoch_ms: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
         })
         .manage(state::DownloadsWatcherState(std::sync::Mutex::new(None)))
         .manage(SecurityState {
@@ -94,6 +97,9 @@ fn main() {
             scan_sandbox,
             import_to_sandbox,
             delete_local_file,
+            delete_mod,
+            open_folder,
+            detect_cloud_hijack,
             get_saved_coordinates,
             get_global_config,
             save_coordinates,

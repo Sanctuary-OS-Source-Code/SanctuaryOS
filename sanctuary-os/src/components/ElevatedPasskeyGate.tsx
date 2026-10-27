@@ -404,7 +404,7 @@ export function ElevatedPasskeyGate({
           onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
         >
           <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[22px]">
                 {t("icon_shield", "shield")}
               </span>
@@ -461,7 +461,7 @@ export function ElevatedPasskeyGate({
                       {t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
                     {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
                   </span>
                 </div>

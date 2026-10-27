@@ -243,7 +243,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
               <img src={image} alt={title} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
             </div>
           )}
@@ -294,9 +294,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
       {/* Bottom Telemetry & Version Bar */}
       <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span
-            className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)] font-mono`}
-          >
+          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_new_releases", "new_releases")}
             </span>
@@ -448,7 +446,7 @@ export function UpdatesSidePanel({
           title={t("updates_summary_desc", "New versions are available for the following {mods} in your active profile.")}
           description={
             groupedUpdates.length > 0
-              ? t("updates_det", "{mod} updates detected")
+              ? t("updates_det", "{Mod} Updates Detected")
               : t("no_updates", "All Mods Up to Date")
           }
           badge={`${groupedUpdates.length} ${t("term_mods", "Items")}`}

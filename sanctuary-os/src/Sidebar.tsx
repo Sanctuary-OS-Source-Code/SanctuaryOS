@@ -37,7 +37,7 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
             {icon}
           </span>
           {isCollapsed && badge > 0 && (
-            <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-1 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[8px] font-black flex items-center justify-center z-20">
+            <span className="absolute -top-1.5 -right-2 min-w-[15px] h-[15px] px-1 rounded-md glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_22%,transparent)] text-[var(--sidebartext)] text-[8px] font-black flex items-center justify-center z-20">
               {badge}
             </span>
           )}
@@ -51,7 +51,7 @@ function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false
           </span>
         )}
         {!isCollapsed && badge > 0 && (
-          <span className="px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[9px] font-black text-[var(--accent)] shrink-0">
+          <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_16%,transparent)] text-[9px] font-black text-[var(--sidebartext)] opacity-85 shrink-0 flex items-center justify-center leading-none">
             {badge}
           </span>
         )}

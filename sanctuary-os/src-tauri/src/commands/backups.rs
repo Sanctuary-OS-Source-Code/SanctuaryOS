@@ -12,15 +12,24 @@ pub async fn sanitize_vault(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let is_deploying = state.inner().is_deploying.clone();
+    let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
+    let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        struct SanitizeGuard(Arc<std::sync::atomic::AtomicBool>);
+        struct SanitizeGuard(
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<std::sync::atomic::AtomicU64>,
+        );
         impl Drop for SanitizeGuard {
             fn drop(&mut self) {
+                self.1.store(
+                    crate::utils::current_epoch_ms(),
+                    std::sync::atomic::Ordering::SeqCst,
+                );
                 self.0.store(false, std::sync::atomic::Ordering::SeqCst);
             }
         }
         is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
-        let _guard = SanitizeGuard(is_deploying);
+        let _guard = SanitizeGuard(is_deploying, last_deploy_epoch_ms);
 
         let vault_root = PathBuf::from(&vault_path);
         let backups_dir = vault_root.join("Backups");
@@ -84,6 +93,8 @@ pub async fn sanitize_vault(
             Ok(is_empty)
         }
 
+        let config_exts = crate::game_logic::get_config_extensions(&game_schema);
+        crate::utils::deduplicate_vault_root_configs(&mods_lane, &config_exts);
         let _ = sweep_empty_dirs(&mods_lane);
 
         Ok(moved.to_string())
@@ -307,7 +318,8 @@ pub async fn backup_universe(
         let mut search_dirs = vec![parent_dir.clone()];
         let legacy_world_dir = PathBuf::from(&config.vault_path).join("Backups").join("World");
         if legacy_world_dir != parent_dir && legacy_world_dir.exists() {
-            let same_drive = parent_dir.components().next() == legacy_world_dir.components().next();
+            let same_drive =
+                crate::utils::are_paths_on_same_filesystem(&parent_dir, &legacy_world_dir);
             if same_drive {
                 search_dirs.push(legacy_world_dir);
             }
@@ -355,7 +367,12 @@ pub async fn backup_universe(
             }
         }
         if targets.is_empty() {
-            for default_dir in &["saves", "Saves", "Tray"] {
+            let defaults: &[&str] = if crate::game_logic::is_sims4_schema(&game_schema) {
+                &["saves", "Saves", "Tray"]
+            } else {
+                &["saves", "Saves"]
+            };
+            for default_dir in defaults {
                 let candidate = game_docs_path.join(default_dir);
                 if candidate.exists() && !targets.iter().any(|(_, p)| p == &candidate) {
                     targets.push((default_dir.to_string(), candidate));
@@ -545,18 +562,9 @@ pub async fn backup_engine_full(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
-        let mut base_path = PathBuf::from(&live_path);
-        if base_path.is_file() {
-            base_path.pop();
-        }
-        let lower_path = base_path.to_string_lossy().to_lowercase();
-        if lower_path.ends_with("bin") || lower_path.ends_with("bin_le") {
-            base_path.pop();
-        }
-        let lower_path2 = base_path.to_string_lossy().to_lowercase();
-        if lower_path2.ends_with("game") {
-            base_path.pop();
-        }
+        let app_state = app.state::<AppState>();
+        let game_schema = app_state.active_schema.lock().unwrap().clone();
+        let base_path = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
         let backup_name = format!(
             "Engine_Core--{}--{}",
             version,
@@ -599,9 +607,6 @@ pub async fn backup_engine_full(
         }
 
         let _ = std::fs::create_dir_all(&backup_path);
-
-        let app_state = app.state::<AppState>();
-        let game_schema = app_state.active_schema.lock().unwrap().clone();
 
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
@@ -1127,7 +1132,9 @@ pub async fn extract_backup_file(
     docs_path: String,
     backup_name: String,
     file_path: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let parsed_rel = Path::new(&file_path);
         if file_path.trim().is_empty()
@@ -1150,19 +1157,7 @@ pub async fn extract_backup_file(
         }
 
         let target_root = if backup_name.starts_with("Engine_Core") {
-            let mut base = PathBuf::from(&config.live_path);
-            if base.is_file() {
-                base.pop();
-            }
-            if base.to_string_lossy().to_lowercase().ends_with("bin")
-                || base.to_string_lossy().to_lowercase().ends_with("bin_le")
-            {
-                base.pop();
-            }
-            if base.to_string_lossy().to_lowercase().ends_with("game") {
-                base.pop();
-            }
-            base
+            crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
             PathBuf::from(&docs_path)
         };
@@ -1184,7 +1179,9 @@ pub async fn diff_backup(
     vault_path: String,
     docs_path: String,
     backup_name: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<Vec<DiffEntry>, String> {
+    let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
             Some(dir) => dir,
@@ -1193,19 +1190,7 @@ pub async fn diff_backup(
         let config = get_saved_coordinates();
 
         let target_root = if backup_name.starts_with("Engine_Core") {
-            let mut base = PathBuf::from(&config.live_path);
-            if base.is_file() {
-                base.pop();
-            }
-            if base.to_string_lossy().to_lowercase().ends_with("bin")
-                || base.to_string_lossy().to_lowercase().ends_with("bin_le")
-            {
-                base.pop();
-            }
-            if base.to_string_lossy().to_lowercase().ends_with("game") {
-                base.pop();
-            }
-            base
+            crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
             PathBuf::from(&docs_path)
         };
@@ -1257,10 +1242,26 @@ pub async fn diff_backup(
             }
         }
 
-        // For World State backups, also detect new files in live saves/Tray that did not exist when this snapshot was sealed
+        // For World State backups, also detect new files in live world_state_targets that did not exist when this snapshot was sealed
         if !backup_name.starts_with("Engine_Core") {
+            let mut sub_dirs: Vec<String> = Vec::new();
+            if let Some(schema) = &game_schema {
+                if let Some(tc) = &schema.time_capsule {
+                    for target in &tc.world_state_targets {
+                        sub_dirs.push(crate::game_logic::expand_env_vars(&target.path));
+                    }
+                }
+            }
+            if sub_dirs.is_empty() {
+                if crate::game_logic::is_sims4_schema(&game_schema) {
+                    sub_dirs = vec!["saves".into(), "Saves".into(), "Tray".into()];
+                } else {
+                    sub_dirs = vec!["saves".into(), "Saves".into()];
+                }
+            }
+
             let mut scanned_dirs = std::collections::HashSet::new();
-            for sub in &["saves", "Saves", "Tray"] {
+            for sub in &sub_dirs {
                 let live_sub = target_root.join(sub);
                 if live_sub.exists() {
                     let canon = live_sub
@@ -1309,15 +1310,13 @@ pub async fn restore_game_data(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
+        let app_state = app.state::<AppState>();
+        let game_schema = app_state.active_schema.lock().unwrap().clone();
         let arc =
             find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
 
         let target = if backup_name.contains("Engine") {
-            PathBuf::from(live_path)
-                .parent()
-                .and_then(|p| p.parent())
-                .unwrap()
-                .to_path_buf()
+            crate::game_logic::resolve_game_engine_root(&live_path, &game_schema)
         } else {
             PathBuf::from(docs_path)
         };
@@ -1399,8 +1398,24 @@ pub async fn restore_game_data(
         } else {
             // Legacy tar.zst
             if !backup_name.contains("Engine") {
-                let _ = std::fs::remove_dir_all(target.join("Saves"));
-                let _ = std::fs::remove_dir_all(target.join("Tray"));
+                let mut targets_to_clear: Vec<String> = Vec::new();
+                if let Some(schema) = &game_schema {
+                    if let Some(tc) = &schema.time_capsule {
+                        for t in &tc.world_state_targets {
+                            targets_to_clear.push(crate::game_logic::expand_env_vars(&t.path));
+                        }
+                    }
+                }
+                if targets_to_clear.is_empty() {
+                    if crate::game_logic::is_sims4_schema(&game_schema) {
+                        targets_to_clear = vec!["Saves".into(), "Tray".into()];
+                    } else {
+                        targets_to_clear = vec!["Saves".into()];
+                    }
+                }
+                for sub in targets_to_clear {
+                    let _ = std::fs::remove_dir_all(target.join(sub));
+                }
             }
 
             let tar_file = std::fs::File::open(&arc).map_err(|e| e.to_string())?;

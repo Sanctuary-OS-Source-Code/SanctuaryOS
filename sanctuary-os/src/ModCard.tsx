@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { HoverTooltip, formatDisplayName, getModIcon, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion, parseStringArray } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
@@ -54,16 +54,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
   const [confirmMode, setConfirmMode] = useState<'casualty' | 'dlc' | 'tier3' | 'broken' | 'flavor_swap' | null>(null);
-  const [delayedConfirmMode, setDelayedConfirmMode] = useState<'casualty' | 'dlc' | 'tier3' | 'broken' | 'flavor_swap' | null>(null);
-
-  useEffect(() => {
-    if (confirmMode) {
-      setDelayedConfirmMode(confirmMode);
-    } else {
-      const timer = setTimeout(() => setDelayedConfirmMode(null), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [confirmMode]);
+  const delayedConfirmMode = confirmMode;
 
   let rawDLC: string[] = parseStringArray(mod.requiredDLC);
   if (mod.flavors) {
@@ -74,9 +65,13 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
       }
     });
   }
+  rawDLC = rawDLC.filter((p: string) => {
+    const code = p.split(' ')[0].toUpperCase().trim();
+    return Boolean(code) && code !== "BASE";
+  });
 
   let missingPacks = rawDLC.filter((p: string) => {
-    const baseCode = p.split(' ')[0].toUpperCase();
+    const baseCode = p.split(' ')[0].toUpperCase().trim();
     return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
   });
 
@@ -89,15 +84,26 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
 
   let familyVersion = "Unknown";
   if (mod.isVirtual) {
-    const highestPerFlavor = (mod.flavors || []).map((f: any) => getHighestVersion(getVersions(f)));
-    familyVersion = getLowestVersion(highestPerFlavor);
+    const highestPerFlavor = (mod.flavors || [])
+      .map((f: any) => getHighestVersion(getVersions(f)))
+      .filter((v: string) => v && v !== "Unknown" && v !== "ALL" && v !== "ANY" && v.toLowerCase() !== "global");
+    familyVersion = highestPerFlavor.length > 0 ? getLowestVersion(highestPerFlavor) : getHighestVersion(getVersions(mod));
   } else {
     familyVersion = getHighestVersion(getVersions(mod));
   }
 
-  const isGameVersionMismatch = gameVersion && familyVersion !== "Unknown" && familyVersion !== "ALL" && familyVersion !== "" && !isVersionMatch([familyVersion], gameVersion);
+  const isGameVersionMismatch = Boolean(
+    gameVersion &&
+    familyVersion !== "Unknown" &&
+    familyVersion !== "ALL" &&
+    familyVersion !== "ANY" &&
+    familyVersion.toLowerCase() !== "global" &&
+    familyVersion !== "" &&
+    !isVersionMatch([familyVersion], gameVersion)
+  );
 
-  const isGhosted = isSelfGhosted !== undefined ? isSelfGhosted : (missingPacks.length > 0 || hasMissingDeps || (isGameVersionMismatch && mod.ghostReason !== "VERSION_MISMATCH" ? true : mod.ghostReason === "VERSION_MISMATCH") || mod.isGhosted);
+  const hasLiveGhostIssue = missingPacks.length > 0 || hasMissingDeps || isGameVersionMismatch;
+  const isGhosted = isSelfGhosted !== undefined ? (isSelfGhosted && hasLiveGhostIssue) : hasLiveGhostIssue;
 
   if (hideIneligible && isGhosted) {
     return null;
@@ -208,68 +214,73 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
       ? t("type_package", "Package")
       : null;
 
+  const statusBadgeLabel = (() => {
+    if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("badge_local", "Unlinked");
+    const raw = (mod.status || "");
+    let cleaned = raw.replace(/[[]"]/g, "");
+    if (cleaned === 'bunker') cleaned = 'vault';
+    if (mod.hash?.startsWith('dev_vault_')) return 'DEV';
+    if (cleaned.toUpperCase().includes('SANDBOX')) return t("studio_badge_sandbox", "Sandbox");
+    if (isSelfBroken) return t("status_corrupted", "Broken");
+    if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("status_stable", "Stable");
+    if (cleaned.toLowerCase() === 'stable') return t("status_stable", "Stable");
+    if (cleaned.toLowerCase() === 'unverified') return t("unverified", "Unverified");
+    if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node", "Local Node");
+    if (cleaned.toLowerCase() === 'unstable') return t("label_unstable", "Unstable");
+    return cleaned.toUpperCase();
+  })();
+
+  const statusRevisionValue = (() => {
+    let v = mod.latest_version || mod.version;
+    if (!v && mod.isVirtual && mod.flavors) {
+      const flavorV = mod.flavors.find((f: any) => f.latest_version || f.version);
+      if (flavorV) v = flavorV.latest_version || flavorV.version;
+    }
+    return v || t("unknown", "Unknown");
+  })();
+
+  const statusGameVersionValue = mod.compatible_versions && mod.compatible_versions.length > 0
+    ? getHighestVersion(mod.compatible_versions)
+    : t("filter_all", "All");
+
+  const statusUpdatedDateValue = (() => {
+    let dt = mod.updated_at;
+    if (!dt && mod.isVirtual && mod.flavors) {
+      const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
+      if (dates.length > 0) dt = dates[0];
+    }
+    return dt ? new Date(dt).toLocaleDateString() : t("unknown", "Unknown");
+  })();
+
   const statusBadgeNode = (
     <div className="group/badge relative cursor-help inline-flex pointer-events-auto" onClick={(e) => e.stopPropagation()}>
       <div className={chipClass}>
         <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
           {statusIcon}
         </span>
-        <span>
-          {(() => {
-            if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("badge_local", "Unlinked");
-            const raw = (mod.status || "");
-            let cleaned = raw.replace(/[[]"]/g, "");
-            if (cleaned === 'bunker') cleaned = 'vault';
-            if (mod.hash?.startsWith('dev_vault_')) return 'DEV';
-            if (cleaned.toUpperCase().includes('SANDBOX')) return t("studio_badge_sandbox", "Sandbox");
-            if (isSelfBroken) return t("status_corrupted", "Broken");
-            if (cleaned.toLowerCase() === 'broken' && !isSelfBroken) return t("status_stable", "Stable");
-            if (cleaned.toLowerCase() === 'stable') return t("status_stable", "Stable");
-            if (cleaned.toLowerCase() === 'unverified') return t("unverified", "Unverified");
-            if (cleaned.toLowerCase() === 'local folder' || cleaned.toLowerCase() === 'local node') return t("local_node", "Local Node");
-            if (cleaned.toLowerCase() === 'unstable') return t("label_unstable", "Unstable");
-            return cleaned.toUpperCase();
-          })()}
-        </span>
+        <span>{statusBadgeLabel}</span>
       </div>
       <HoverTooltip
         align="left"
         vAlign="bottom"
-        content={
-          <div className="flex flex-col gap-1.5 min-w-[210px] pointer-events-none py-0.5">
-            <div className="glass-surface px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="text-[8.5px] font-extrabold capitalize text-[var(--subtext)] tracking-[0.14em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_history", "history")}</span>{t("revision", "Revision")}</span>
-              <span className="text-[10.5px] font-mono font-bold text-[var(--text)] capitalize truncate">{(() => {
-                let v = mod.latest_version || mod.version;
-                if (!v && mod.isVirtual && mod.flavors) {
-                  const flavorV = mod.flavors.find((f: any) => f.latest_version || f.version);
-                  if (flavorV) v = flavorV.latest_version || flavorV.version;
-                }
-                return v || t("unknown", "Unknown");
-              })()}</span>
-            </div>
-            <div className="glass-surface px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="text-[8.5px] font-extrabold capitalize text-[var(--subtext)] tracking-[0.14em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_sports_esports", "sports_esports")}</span>{t("label_game_version", "Game Version")}</span>
-              <span className="text-[10.5px] font-bold text-[var(--text)] capitalize truncate">{mod.compatible_versions && mod.compatible_versions.length > 0 ? getHighestVersion(mod.compatible_versions) : t("filter_all", "All")}</span>
-            </div>
-            <div className="glass-surface px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="text-[8.5px] font-extrabold capitalize text-[var(--subtext)] tracking-[0.14em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_calendar_today", "calendar_today")}</span>{t("updated_date", "Last Updated")}</span>
-              <span className="text-[10.5px] font-bold text-[var(--text)] capitalize truncate">{(() => {
-                let dt = mod.updated_at;
-                if (!dt && mod.isVirtual && mod.flavors) {
-                  const dates = mod.flavors.map((f: any) => f.updated_at).filter(Boolean).sort().reverse();
-                  if (dates.length > 0) dt = dates[0];
-                }
-                return dt ? new Date(dt).toLocaleDateString() : t("unknown", "Unknown");
-              })()}</span>
-            </div>
+        icon={statusIcon}
+        variant={
+          isStatusBroken || statusType === 'broken' || statusType === 'corrupted' || Boolean(mod.status_reason)
+            ? 'danger'
+            : statusType === 'unstable'
+              ? 'warning'
+              : 'default'
+        }
+        title={statusBadgeLabel}
+        subtitle={
+          <>
+            <div className="w-full truncate">{t("revision", "Revision")}: {statusRevisionValue}</div>
+            <div className="w-full truncate">{t("label_game_version", "Game Version")}: {statusGameVersionValue}</div>
+            <div className="w-full truncate">{t("updated_date", "Last Updated")}: {statusUpdatedDateValue}</div>
             {mod.status_reason && (
-              <div className="glass-surface !bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] px-3 py-2 rounded-xl overflow-hidden flex flex-col gap-0.5 border shadow-sm">
-                <span className="text-[8.5px] font-extrabold capitalize text-[var(--danger)] tracking-[0.14em] flex items-center gap-1.5"><span className="material-symbols-outlined !text-[11px]">{t("icon_error", "error")}</span>{t("directive_note", "Rule Note")}</span>
-                <span className="text-[10px] font-bold text-[var(--text)] capitalize whitespace-normal leading-snug">{mod.status_reason}</span>
-              </div>
+              <div className="w-full text-[var(--danger)] font-bold mt-0.5">{t("directive_note", "Rule Note")}: {mod.status_reason}</div>
             )}
-          </div>
+          </>
         }
       />
     </div>
@@ -409,21 +420,38 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
               <div className="flex items-center gap-1.5 pointer-events-auto">
                 {!mod.status?.includes('QUARANTINED') && !mod.status?.includes('ARCHIVED') && (
                   <button
+                    type="button"
                     onClick={handleToggleClick}
-                    className={`relative group/actionbtn w-8 h-8 rounded-[max(0px,calc(var(--radius)-4px))] backdrop-blur-md border flex items-center justify-center transition-all shadow-sm hover:shadow-md hover:scale-105 pointer-events-auto ${isShadowed ? (isSwappedState ? 'theme-panel-accent border-[var(--accent)] theme-text-accent' : 'theme-panel-danger border-[var(--danger)] text-[var(--text)]') : hasTier3 && !isInActiveSet ? 'bg-[color-mix(in_srgb,orange_5%,transparent)] border-[color-mix(in_srgb,orange_15%,transparent)] text-orange-500  hover:border-[color-mix(in_srgb,orange_25%,transparent)]' : isInActiveSet ? 'bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)]' : 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-[var(--success)]'}`}
+                    className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer pointer-events-auto ${
+                      isShadowed
+                        ? isSwappedState
+                          ? 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)]'
+                          : 'border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] text-[var(--danger)]'
+                        : hasTier3 && !isInActiveSet
+                          ? 'border-[color-mix(in_srgb,var(--warning)_35%,transparent)] hover:border-[var(--warning)] text-[var(--warning)]'
+                          : isInActiveSet
+                            ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] text-[var(--success)]'
+                    }`}
                   >
                     {isShadowed ? (
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {isSwappedState ? "swap_horiz" : isNemesisEquipped ? (t("icon_crisis_alert", "crisis_alert"))
-                          : isGameVersionMismatch ? "sports_esports"
-                            : hasMissingDeps ? "extension"
-                              : isGhosted ? "currency_exchange"
-                                : "broken_image"}
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {isSwappedState
+                          ? t("icon_swap_horiz", "swap_horiz")
+                          : isNemesisEquipped
+                            ? t("icon_crisis_alert", "crisis_alert")
+                            : isGameVersionMismatch
+                              ? t("icon_sports_esports", "sports_esports")
+                              : hasMissingDeps
+                                ? t("icon_extension", "extension")
+                                : isGhosted
+                                  ? t("icon_currency_exchange", "currency_exchange")
+                                  : t("icon_broken_image", "broken_image")}
                       </span>
                     ) : hasTier3 && !isInActiveSet ? (
-                      <span className="material-symbols-outlined !text-[16px]">{t("icon_tune", "tune")}</span>
+                      <span className="material-symbols-outlined !text-[15px]">{t("icon_tune", "tune")}</span>
                     ) : (
-                      <span className={`material-symbols-outlined !text-[18px] ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add", "add")}</span>
+                      <span className={`material-symbols-outlined !text-[16px] transition-transform duration-200 ${isInActiveSet ? 'rotate-45' : ''}`}>{t("icon_add", "add")}</span>
                     )}
 
                     {(isShadowed || hasTier3 || isSwappedState) && !confirmMode && !delayedConfirmMode && (
@@ -494,146 +522,238 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
         </div>
 
         {delayedConfirmMode && (
-          <div className={`absolute inset-0 z-[100] transition-opacity duration-300 ${confirmMode ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          <div className={`absolute inset-0 z-[100] transition-opacity duration-200 ${confirmMode ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
             <UniversalCard
               layout={layout === "compact" || compact ? "vertical-compact" : "vertical"}
               title={<></>}
               image={undefined}
-              className={`pointer-events-auto relative h-full w-full border ${delayedConfirmMode === 'tier3' ? 'border-[color-mix(in_srgb,var(--warning)_38%,transparent)]' :
-                delayedConfirmMode === 'flavor_swap' ? 'border-[color-mix(in_srgb,var(--accent)_38%,transparent)]' :
-                  'border-[color-mix(in_srgb,var(--danger)_38%,transparent)]'
-                }`}
+              className={` relative h-full w-full ${confirmMode ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             >
-              <div
-                className="absolute inset-0 z-20 flex flex-col rounded-[inherit] overflow-hidden"
-                style={{
-                  backgroundColor: 'var(--glass-dropdown-bg, color-mix(in srgb, var(--bg, #050b16) 86%, var(--panelTint, #081020)))',
-                  backgroundImage:
-                    delayedConfirmMode === 'tier3'
-                      ? 'radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--warning) 18%, transparent) 0%, transparent 72%), var(--glass-dropdown-gradient, none)'
-                      : delayedConfirmMode === 'flavor_swap'
-                        ? 'radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 72%), var(--glass-dropdown-gradient, none)'
-                        : 'radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--danger) 20%, transparent) 0%, transparent 72%), var(--glass-dropdown-gradient, none)',
-                }}
-              >
+              <div className="absolute inset-0 z-20 flex flex-col rounded-[inherit] overflow-hidden">
 
-                {/* Header */}
-                <div className="relative z-10 pt-3.5 pb-2.5 px-4 flex flex-row items-center justify-center gap-2.5 shrink-0 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center border shadow-sm shrink-0 ${delayedConfirmMode === 'tier3' ? 'bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]' :
-                    delayedConfirmMode === 'flavor_swap' ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]' :
-                      'bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]'
-                    }`}>
-                    <span className={`material-symbols-outlined !text-[15px] ${delayedConfirmMode === 'tier3' ? 'text-[var(--warning)]' : delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>
+                {/* Header (Matches ModCard & ConflictCard Liquid Glass Header Chips) */}
+                <div className="relative z-10 pt-3 pb-2 px-3.5 flex flex-row items-center justify-between gap-2 shrink-0">
+                  <div className={chipClass}>
+                    <span className={`material-symbols-outlined !text-[12px] ${delayedConfirmMode === 'tier3' ? 'text-[var(--warning)]' : delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>
                       {delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("icon_sports_esports", "sports_esports") : hasMissingDeps ? t("icon_extension", "extension") : t("icon_currency_exchange", "currency_exchange")) : delayedConfirmMode === 'broken' ? t("icon_warning", "warning") : delayedConfirmMode === 'casualty' ? (!isInActiveSet ? t("icon_crisis_alert", "crisis_alert") : t("icon_delete", "delete")) : delayedConfirmMode === 'tier3' ? t("icon_tune", "tune") : t("icon_delete", "delete")}
                     </span>
+                    <span className="truncate">
+                      {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : t("missing_dlc", "Missing DLC")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : (!isInActiveSet ? t("fatal_conflict", "Severity 4 Collision") : t("yeet_cascade", "Delete Cascade:"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts", "Corrupted {Mods}") : t("tier3_conflict", "Severity 3 Collision")).replace(/:$/, '')}
+                    </span>
                   </div>
-                  <span className={`text-[12px] font-black capitalize tracking-wider text-left leading-tight truncate ${delayedConfirmMode === 'tier3' ? 'text-[var(--warning)]' : delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>
-                    {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : t("missing_dlc", "Missing DLC")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : (!isInActiveSet ? t("fatal_conflict", "Severity 4 Collision") : t("yeet_cascade", "Delete Cascade:"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts", "Corrupted {Mods}") : t("tier3_conflict", "Severity 3 Collision")).replace(/:$/, '')}
-                  </span>
+
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }}
+                    className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
+                  </button>
                 </div>
 
                 {/* Scrolling Content */}
-                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar px-3.5 py-2.5 flex flex-col gap-2">
+                <div className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3.5 py-1.5 flex flex-col gap-2">
                   {delayedConfirmMode === 'dlc' ? (
                     <>
                       {isGameVersionMismatch && (
-                        <div className="flex items-center gap-2.5 glass-surface border shadow-sm p-2.5 px-3 rounded-xl !bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                            <span className="material-symbols-outlined !text-[15px] text-[var(--danger)]">{t("icon_sports_esports", "sports_esports")}</span>
+                        <div className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_sports_esports", "sports_esports")}</span>
                           </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[9.5px] font-extrabold text-[var(--danger)] capitalize tracking-wider leading-tight">{t("required_version", "Required Game Version")}</span>
-                            <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{getHighestVersion(requiredVersions || [])}</span>
+                          <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                            <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("required_version", "Required Game Version")}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{getHighestVersion(requiredVersions || [])}</span>
                           </div>
+                          <HoverTooltip
+                            onlyWhenTruncated
+                            variant="danger"
+                            icon={t("icon_sports_esports", "sports_esports")}
+                            title={getHighestVersion(requiredVersions || [])}
+                            subtitle={t("required_version", "Required Game Version")}
+                          />
                         </div>
                       )}
-                      {missingPacks.length > 0 && missingPacks.map((p: string) => (
-                        <div key={p} className="flex items-center gap-2.5 glass-surface border shadow-sm p-2.5 px-3 rounded-xl !bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                            <span className="material-symbols-outlined !text-[15px] text-[var(--danger)]">{t("icon_currency_exchange", "currency_exchange")}</span>
-                          </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[9.5px] font-extrabold text-[var(--danger)] capitalize tracking-wider leading-tight">{t("missing_dlc", "Missing DLC")}</span>
-                            <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{mapDlcCode(p)}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {hasMissingDeps && missingDeps.map((req: any) => {
-                        const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
+                      {missingPacks.length > 0 && missingPacks.map((p: string) => {
+                        const dlcName = mapDlcCode(p);
                         return (
-                          <div key={reqIdStr}
-                            onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
-                            className={`flex items-center gap-2.5 glass-surface border shadow-sm p-2.5 px-3 rounded-xl !bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] ${onInspectItem ? 'cursor-pointer hover:!bg-[color-mix(in_srgb,var(--danger)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--danger)_45%,transparent)] group/inspect' : ''}`}>
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                              <span className="material-symbols-outlined !text-[15px] text-[var(--danger)]">{t("icon_extension", "extension")}</span>
+                          <div key={p} className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_currency_exchange", "currency_exchange")}</span>
                             </div>
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-[9.5px] font-extrabold text-[var(--danger)] capitalize tracking-wider leading-tight">{t("badge_missing_dep", "Missing Dependency")}</span>
-                              <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{cleanSearchName(reqIdStr, activeGameSchema)}</span>
+                            <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                              <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("missing_dlc", "Missing DLC")}</span>
+                              <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{dlcName}</span>
                             </div>
-                            {onInspectItem && (
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 group-hover/inspect:opacity-100 transition-opacity">{t("icon_open_in_new", "open_in_new")}</span>
-                            )}
+                            <HoverTooltip
+                              onlyWhenTruncated
+                              variant="danger"
+                              icon={t("icon_currency_exchange", "currency_exchange")}
+                              title={dlcName}
+                              subtitle={t("missing_dlc", "Missing DLC")}
+                            />
                           </div>
                         );
                       })}
+                      {hasMissingDeps && missingDeps.map((req: any) => {
+                        const reqIdStr = String(typeof req === 'string' ? req : (req.id || req.name || ''));
+                        const depLabel = cleanSearchName(reqIdStr, activeGameSchema);
+                        return (
+                          <div key={reqIdStr}
+                            onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
+                            className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)] group/inspect' : ''}`}>
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_extension", "extension")}</span>
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                              <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("badge_missing_dep", "Missing Dependency")}</span>
+                              <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{depLabel}</span>
+                            </div>
+                            {onInspectItem && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] group-hover/inspect:text-[var(--text)] transition-colors shrink-0">{t("icon_open_in_new", "open_in_new")}</span>
+                            )}
+                            <HoverTooltip
+                              onlyWhenTruncated
+                              variant="danger"
+                              icon={t("icon_extension", "extension")}
+                              title={depLabel}
+                              subtitle={t("badge_missing_dep", "Missing Dependency")}
+                            />
+                          </div>
+                        );
+                      })}
+                      {!isGameVersionMismatch && missingPacks.length === 0 && !hasMissingDeps && (
+                        rawDLC.length > 0 ? rawDLC.map((p: string) => {
+                          const dlcName = mapDlcCode(p);
+                          return (
+                            <div key={p} className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
+                              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_currency_exchange", "currency_exchange")}</span>
+                              </div>
+                              <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                                <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("missing_dlc", "Missing DLC")}</span>
+                                <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{dlcName}</span>
+                              </div>
+                              <HoverTooltip
+                                onlyWhenTruncated
+                                variant="danger"
+                                icon={t("icon_currency_exchange", "currency_exchange")}
+                                title={dlcName}
+                                subtitle={t("missing_dlc", "Missing DLC")}
+                              />
+                            </div>
+                          );
+                        }) : (
+                          <div className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_sports_esports", "sports_esports")}</span>
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                              <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("required_version", "Required Game Version")}</span>
+                              <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{getHighestVersion(requiredVersions || [])}</span>
+                            </div>
+                          </div>
+                        )
+                      )}
                     </>
                   ) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (
-                    casualtyList.map((c: any, i: number) => (
-                      <div key={i}
-                        onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
-                        className={`flex items-center gap-2.5 glass-surface border shadow-sm p-2.5 px-3 rounded-xl ${delayedConfirmMode === 'flavor_swap' ? '!bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : '!bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'} ${onInspectItem ? `cursor-pointer group/inspect ${delayedConfirmMode === 'flavor_swap' ? 'hover:!border-[color-mix(in_srgb,var(--accent)_48%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))]' : 'hover:!border-[color-mix(in_srgb,var(--danger)_48%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))]'}` : ''}`}>
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${delayedConfirmMode === 'flavor_swap' ? 'bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]'}`}>
-                          <span className={`material-symbols-outlined !text-[15px] ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : (!isInActiveSet ? t("icon_crisis_alert", "crisis_alert") : t("icon_delete", "delete"))}</span>
+                    casualtyList.map((c: any, i: number) => {
+                      const itemTitle = formatDisplayName(c.name || c);
+                      const itemOverline = delayedConfirmMode === 'flavor_swap' ? t("flavor_replaced", "Will Replace") : t("artifact_removed", "Will {Remove}");
+                      const itemIcon = delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : (!isInActiveSet ? t("icon_crisis_alert", "crisis_alert") : t("icon_delete", "delete"));
+                      return (
+                        <div key={i}
+                          onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
+                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? `cursor-pointer group/inspect ${delayedConfirmMode === 'flavor_swap' ? 'hover:border-[color-mix(in_srgb,var(--accent)_42%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)]'}` : ''}`}>
+                          <div className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'border-[color-mix(in_srgb,var(--accent)_32%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_32%,transparent)]'}`}>
+                            <span className={`material-symbols-outlined !text-[14px] ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{itemIcon}</span>
+                          </div>
+                          <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                            <span className={`text-[8.5px] font-black uppercase tracking-wider leading-none ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{itemOverline}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{itemTitle}</span>
+                          </div>
+                          {onInspectItem && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] group-hover/inspect:text-[var(--text)] transition-colors shrink-0">{t("icon_open_in_new", "open_in_new")}</span>
+                          )}
+                          <HoverTooltip
+                            onlyWhenTruncated
+                            variant={delayedConfirmMode === 'flavor_swap' ? 'accent' : 'danger'}
+                            icon={itemIcon}
+                            title={itemTitle}
+                            subtitle={itemOverline}
+                          />
                         </div>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className={`text-[9.5px] font-extrabold capitalize tracking-wider leading-tight ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{delayedConfirmMode === 'flavor_swap' ? t("flavor_replaced", "Will Replace") : t("artifact_removed", "Will {Remove}")}</span>
-                          <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{formatDisplayName(c.name || c)}</span>
-                        </div>
-                        {onInspectItem && (
-                          <span className={`material-symbols-outlined !text-[16px] opacity-60 group-hover/inspect:opacity-100 transition-opacity ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{t("icon_open_in_new", "open_in_new")}</span>
-                        )}
-                      </div>
-                    ))
+                      );
+                    })
                   ) : delayedConfirmMode === 'broken' ? (
-                    brokenMods.map((b: any, i: number) => (
-                      <div key={i}
-                        onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
-                        className={`flex items-center gap-2.5 glass-surface border shadow-sm p-2.5 px-3 rounded-xl !bg-[color-mix(in_srgb,var(--danger)_12%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] ${onInspectItem ? 'cursor-pointer hover:!bg-[color-mix(in_srgb,var(--danger)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--danger)_45%,transparent)] group/inspect' : ''}`}>
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[color-mix(in_srgb,var(--danger)_16%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">
-                          <span className="material-symbols-outlined !text-[15px] text-[var(--danger)]">{t("icon_broken_image", "broken_image")}</span>
+                    brokenMods.map((b: any, i: number) => {
+                      const brokenTitle = formatDisplayName(b.displayName || b.name);
+                      return (
+                        <div key={i}
+                          onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
+                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)] group/inspect' : ''}`}>
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_broken_image", "broken_image")}</span>
+                          </div>
+                          <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                            <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("status_corrupted", "Corrupted")}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{brokenTitle}</span>
+                          </div>
+                          {onInspectItem && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] group-hover/inspect:text-[var(--text)] transition-colors shrink-0">{t("icon_open_in_new", "open_in_new")}</span>
+                          )}
+                          <HoverTooltip
+                            onlyWhenTruncated
+                            variant="danger"
+                            icon={t("icon_broken_image", "broken_image")}
+                            title={brokenTitle}
+                            subtitle={t("status_corrupted", "Corrupted")}
+                          />
                         </div>
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-[9.5px] font-extrabold text-[var(--danger)] capitalize tracking-wider leading-tight">{t("status_corrupted", "Corrupted")}</span>
-                          <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{formatDisplayName(b.displayName || b.name)}</span>
-                        </div>
-                        {onInspectItem && (
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--danger)] opacity-60 group-hover/inspect:opacity-100 transition-opacity">{t("icon_open_in_new", "open_in_new")}</span>
-                        )}
-                      </div>
-                    ))
+                      );
+                    })
                   ) : delayedConfirmMode === 'tier3' ? (
                     <div className="flex flex-col relative gap-2">
-                      <div className="text-[9.5px] font-extrabold capitalize tracking-wider text-[var(--warning)] mb-0.5 px-1">{t("select_winner", "Select Winner")}</div>
-                      <div className="relative flex flex-col gap-6">
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="flex items-center justify-start gap-2.5 glass-surface border !bg-[color-mix(in_srgb,var(--warning)_10%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] active:scale-95 transition-all duration-300 p-2.5 px-3 rounded-xl w-full text-left group/btn shadow-sm">
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[9px] font-extrabold text-[var(--warning)] capitalize tracking-wider">{t("enemy_a", "{Mod} A")}</span>
-                            <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{formatDisplayName(mod.displayName || mod.name)}</span>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] mb-0.5 px-1">{t("select_winner", "Select Winner")}</div>
+                      <div className="relative flex flex-col gap-4">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_tune", "tune")}</span>
                           </div>
-                          <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] opacity-70 group-hover/btn:opacity-100 group-hover/btn:scale-110 transition-all">{t("icon_add_circle", "add_circle")}</span>
+                          <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                            <span className="text-[8.5px] font-black text-[var(--warning)] uppercase tracking-wider leading-none">{t("enemy_a", "{Mod} A")}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{formatDisplayName(mod.displayName || mod.name)}</span>
+                          </div>
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/btn:text-[var(--warning)] transition-colors shrink-0">{t("icon_check_circle", "check_circle")}</span>
+                          <HoverTooltip
+                            onlyWhenTruncated
+                            variant="warning"
+                            icon={t("icon_tune", "tune")}
+                            title={formatDisplayName(mod.displayName || mod.name)}
+                            subtitle={t("enemy_a", "{Mod} A")}
+                          />
                         </button>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-                          <div className="glass-surface shadow-md px-2.5 h-5 border !bg-[var(--glass-dropdown-bg,rgba(8,12,20,0.92))] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)] rounded-full flex items-center justify-center">
-                            <span className="text-[9px] font-black leading-none tracking-[0.1em]">{t("vs", "VS")}</span>
+                        <div className="relative h-px w-full flex items-center justify-center z-20">
+                          <div className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center absolute text-[var(--subtext)]">
+                            <span className="text-[8px] font-black uppercase tracking-wider">{t("vs", "VS")}</span>
                           </div>
+                          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="flex items-center justify-start gap-2.5 glass-surface border !bg-[color-mix(in_srgb,var(--warning)_10%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_50%,transparent)] hover:!bg-[color-mix(in_srgb,var(--warning)_18%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] active:scale-95 transition-all duration-300 p-2.5 px-3 rounded-xl w-full text-left group/btn shadow-sm">
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[9px] font-extrabold text-[var(--warning)] capitalize tracking-wider">{t("enemy_b", "{Mod} B")}</span>
-                            <span className="text-[11px] font-mono font-bold text-[var(--text)] capitalize tracking-wide truncate mt-0.5">{formatDisplayName(tier3List[0]?.name || tier3List[0] || "")}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_tune", "tune")}</span>
                           </div>
-                          <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] opacity-70 group-hover/btn:opacity-100 group-hover/btn:scale-110 transition-all">{t("icon_add_circle", "add_circle")}</span>
+                          <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                            <span className="text-[8.5px] font-black text-[var(--warning)] uppercase tracking-wider leading-none">{t("enemy_b", "{Mod} B")}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{formatDisplayName(tier3List[0]?.name || tier3List[0] || "")}</span>
+                          </div>
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] group-hover/btn:text-[var(--warning)] transition-colors shrink-0">{t("icon_check_circle", "check_circle")}</span>
+                          <HoverTooltip
+                            onlyWhenTruncated
+                            variant="warning"
+                            icon={t("icon_tune", "tune")}
+                            title={formatDisplayName(tier3List[0]?.name || tier3List[0] || "")}
+                            subtitle={t("enemy_b", "{Mod} B")}
+                          />
                         </button>
                       </div>
                     </div>
@@ -641,31 +761,36 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                 </div>
 
                 {/* Footer Actions */}
-                <div className="w-full z-20 px-3.5 pb-3.5 pt-1.5 flex flex-row gap-2 shrink-0 isolate border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+                <div className="w-full z-20 px-3.5 pb-3 pt-2 flex flex-row gap-2 shrink-0 isolate">
+                  <div className="absolute top-0 left-3.5 right-3.5 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none" />
                   {delayedConfirmMode === 'tier3' ? (
                   <>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl text-[var(--danger)] font-black text-[10px] capitalize tracking-wider shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2.5 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words !bg-[color-mix(in_srgb,var(--danger)_14%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_24%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--danger)_55%,transparent)]">
-                      {t("btn_ignore_conflict", "Ignore Conflict")}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
+                      <span>{t("btn_ignore_conflict", "Ignore Conflict")}</span>
                     </button>
                   </>
                 ) : delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc' ? (
                   <>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl text-[var(--danger)] font-black text-[10px] capitalize tracking-wider shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2.5 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words !bg-[color-mix(in_srgb,var(--danger)_14%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_24%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--danger)_55%,transparent)]">
-                      {t("btn_equip_anyway", "Proceed Anyway")}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
+                      <span>{t("btn_equip_anyway", "Proceed Anyway")}</span>
                     </button>
                     {mod.isParent && delayedConfirmMode === 'broken' && (
-                      <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl text-[var(--text)] font-black text-[10px] capitalize tracking-wider shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2.5 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words !bg-[color-mix(in_srgb,var(--text)_8%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:!bg-[color-mix(in_srgb,var(--text)_14%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--text)_30%,transparent)]">
-                        {t("btn_add_not_broken", "Add Not Corrupted")}
+                      <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--text)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                        <span>{t("btn_add_not_broken", "Add Not Corrupted")}</span>
                       </button>
                     )}
                   </>
                 ) : (
-                  <button onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className={`flex-1 glass-surface min-w-0 py-2 rounded-xl font-black text-[10px] capitalize tracking-wider px-2.5 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)] !bg-[color-mix(in_srgb,var(--accent)_14%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:!bg-[color-mix(in_srgb,var(--accent)_24%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--accent)_55%,transparent)]' : 'text-[var(--danger)] !bg-[color-mix(in_srgb,var(--danger)_14%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:!bg-[color-mix(in_srgb,var(--danger)_24%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--danger)_55%,transparent)]'}`}>
-                    {delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm", "Swap Files") : t("btn_purge_confirm", "{Remove} {Mods}")}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className={`flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]' : 'text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]'}`}>
+                    <span className="material-symbols-outlined !text-[13px] shrink-0">{delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : t("icon_delete", "delete")}</span>
+                    <span>{delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm", "Swap Files") : t("btn_purge_confirm", "{Remove} {Mods}")}</span>
                   </button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl text-[var(--text)] hover:text-[var(--success)] font-black text-[10px] capitalize tracking-wider shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all px-2.5 min-h-[36px] flex items-center justify-center leading-tight whitespace-normal text-center break-words !bg-[color-mix(in_srgb,var(--text)_8%,var(--glass-nested-surface-bg,rgba(255,255,255,0.04)))] !border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:!bg-[color-mix(in_srgb,var(--success)_16%,var(--glass-nested-surface-bg,rgba(255,255,255,0.06)))] hover:!border-[color-mix(in_srgb,var(--success)_42%,transparent)]">
-                  {t("btn_safety", "Back to Safety")}
+                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                  <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
+                  <span>{t("btn_safety", "Back to Safety")}</span>
                 </button>
                 </div>
 

@@ -1469,7 +1469,7 @@ export const DbpfScout = () => {
                                                 <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] shadow-[0_0_30px_rgba(239,68,68,0.15)] flex flex-col gap-4 animate-in fade-in duration-300">
                                                     <div className="flex items-center justify-between flex-wrap gap-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center justify-center text-[var(--danger)]">
+                                                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--danger)]">
                                                                 <span className="material-symbols-outlined !text-[20px]">{t("icon_sync_problem", "sync_problem")}</span>
                                                             </div>
                                                             <div className="flex flex-col">
@@ -1656,7 +1656,7 @@ export const DbpfScout = () => {
                                                                             }`}
                                                                         >
                                                                             <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                                                <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                                                                                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                                                                     <span className="material-symbols-outlined !text-[20px]">
                                                                                         {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
                                                                                     </span>
@@ -1961,7 +1961,7 @@ export const DbpfScout = () => {
                                     </p>
                                     <div className="flex items-center justify-between gap-3 p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                                 <span className="material-symbols-outlined !text-[20px]">
                                                     {String(getFileLabel(selectedItem.cleanName, activeGameSchema)).toUpperCase().includes("SCRIPT") || selectedItem.cleanName.toLowerCase().endsWith(".ts4script")
                                                         ? t("icon_code", "code")

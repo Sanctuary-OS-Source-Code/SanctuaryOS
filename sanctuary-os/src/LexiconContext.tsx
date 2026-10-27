@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
@@ -198,13 +198,41 @@ export function sanitizeLexiconMojibake(str: string): string {
     .replace(/Ã‚Â©/g, '©');
 }
 
+const PRESERVED_ACRONYMS = new Set([
+  'OS', 'UI', 'UX', 'ID', 'IDS', 'URL', 'URLS', 'URI', 'API', 'APIS', 'DLC', 'DLCS', 'CC', 'PC', 'HQ',
+  '2FA', 'MFA', 'SSO', 'VIP', 'PWA', 'IDE', 'SQL', 'RLS', 'JSON', 'CSV', 'XML', 'YAML', 'TOML', 'HTML', 'CSS', 'JS', 'TS', 'TSX', 'MD',
+  'SHA', 'SHA-256', 'MD5', 'DEFCON', 'FIDO2', 'TOTP', 'JWT', 'UUID', 'HEX', 'RGB', 'RGBA', 'HSL',
+  'MSI', 'EXE', 'DMG', 'PKG', 'DEB', 'RPM', 'APPIMAGE', 'ZIP', 'RAR', '7Z', 'CFG', 'INI',
+  'AV', 'GB', 'MB', 'KB', 'TB', 'PB', 'B', 'MS', 'FPS', 'HZ', 'GHZ', 'MHZ',
+  'CPU', 'GPU', 'RAM', 'VRAM', 'SSD', 'NVME', 'HDD', 'IO', 'I/O', 'LAN', 'WAN', 'VPN', 'DNS', 'IP', 'TCP', 'UDP', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'SSH', 'FTP',
+  'CI', 'CD', 'CI/CD', 'PR', 'SDK', 'CLI', 'GUI', 'HUD', 'RNG', 'RPG', 'MMO', 'NPC', 'CAS', 'BB', 'TS4', 'WW', 'MCCC',
+  'PDF', 'PNG', 'JPG', 'JPEG', 'WEBP', 'SVG', 'GIF', 'MP4', 'WEBM', 'MP3', 'WAV', 'OGG',
+  'UTC', 'GMT', 'EST', 'PST', 'CST', 'MST', 'EDT', 'PDT', 'AI', 'ML', 'LLM', 'WEBGL', 'GLSL', 'RBAC', 'ACL', 'CORS', 'CSRF', 'XSS', 'DDOS', 'P2P', 'CDN', 'OTA', 'EOF', 'EOL', 'NULL', 'NAN', 'OK', 'FAQ', 'TOS', 'EULA', 'DMCA', 'GDPR', 'CCPA',
+]);
+
+export function normalizeAllCapsForThemeCase(str: string): string {
+  if (typeof str !== 'string') return str;
+  if (/[a-z]/.test(str) || !/[A-Z]{2,}/.test(str)) return str;
+  return str.replace(/[A-Z0-9]+(?:-[A-Z0-9]+)*/g, (word) => {
+    if (PRESERVED_ACRONYMS.has(word)) return word;
+    if (/^\d+$/.test(word)) return word;
+    if (word.includes('-')) {
+      return word
+        .split('-')
+        .map((part) => (PRESERVED_ACRONYMS.has(part) ? part : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()))
+        .join('-');
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
 export function interpolateGlossaryTokens(
   str: string,
   dict: Record<string, any>,
   activeLang: string = 'en-sanctuary'
 ): string {
   if (typeof str !== 'string') return str;
-  const cleaned = sanitizeLexiconMojibake(str);
+  const cleaned = normalizeAllCapsForThemeCase(sanitizeLexiconMojibake(str));
   if (!cleaned.includes('{')) return cleaned;
 
   const resolveToken = (tokName: string): string | null => {
@@ -814,12 +842,27 @@ export const LexiconProvider = ({ children }: any) => {
 
   const emojiRegex = /[\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{2328}\u{23CF}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{24C2}]/u;
 
-  const t = (key: string, fallback?: string) => {
-    if (!key) return fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : "";
+  const tCache = useMemo(
+    () => new Map<string, any>(),
+    [dictionary, activeLangState, titleAreaConfig, previewSubtitleText]
+  );
+
+  const t = useCallback((key: string, fallback?: string) => {
+    const cacheKey = `${key}\x00${fallback ?? ''}`;
+    const cached = tCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    if (!key) {
+      const res = fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : "";
+      tCache.set(cacheKey, res);
+      return res;
+    }
 
     // 1. Dedicated Core Title Area System (ONLY Title & Subtitles are isolated from Lexicon files & locked from Spokes)
     if (key === "sidebar_app_title") {
-      return titleAreaConfig.appTitle || "Sanctuary OS";
+      const res = titleAreaConfig.appTitle || "Sanctuary OS";
+      tCache.set(cacheKey, res);
+      return res;
     }
     if (key.startsWith("sidebar_app_subtitle_")) {
       if (previewSubtitleText) return previewSubtitleText;
@@ -829,7 +872,9 @@ export const LexiconProvider = ({ children }: any) => {
           : DEFAULT_TITLE_AREA_SUBTITLES;
       const num = parseInt(key.replace("sidebar_app_subtitle_", ""), 10);
       const idx = Number.isFinite(num) && num > 0 ? (num - 1) % list.length : 0;
-      return list[idx] || DEFAULT_TITLE_AREA_SUBTITLES[0];
+      const res = list[idx] || DEFAULT_TITLE_AREA_SUBTITLES[0];
+      tCache.set(cacheKey, res);
+      return res;
     }
 
     let val = dictionary[key];
@@ -856,17 +901,32 @@ export const LexiconProvider = ({ children }: any) => {
         val = "Sanctuary Foundry";
       }
       if (emojiRegex.test(val) && (key.includes('icon') || key.startsWith('emote_'))) {
+        tCache.set(cacheKey, "");
         return "";
       }
-      return typeof val === "string" ? interpolateGlossaryTokens(val, dictionary, activeLangState) : val;
+      const res =
+        key === "forge_case_upper"
+          ? String(val)
+          : typeof val === "string"
+            ? interpolateGlossaryTokens(val, dictionary, activeLangState)
+            : val;
+      tCache.set(cacheKey, res);
+      return res;
     }
     if (key.includes('icon') || key.startsWith('emote_')) {
-      if (fallback && !emojiRegex.test(fallback)) return fallback;
-      if (key.startsWith('icon_')) return key.slice(5);
-      return "";
+      const res =
+        fallback && !emojiRegex.test(fallback)
+          ? fallback
+          : key.startsWith('icon_')
+            ? key.slice(5)
+            : "";
+      tCache.set(cacheKey, res);
+      return res;
     }
-    return fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : `[${key}]`;
-  };
+    const res = fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : `[${key}]`;
+    tCache.set(cacheKey, res);
+    return res;
+  }, [tCache, dictionary, activeLangState, titleAreaConfig, previewSubtitleText]);
 
   const importLexicon = (json: any, langCode: string) => {
     const updated = { ...registry, [langCode]: json };
@@ -930,7 +990,8 @@ export const LexiconProvider = ({ children }: any) => {
     options?: { forceTranslate?: boolean; targetIso?: string }
   ): string => {
     if (!rawText || typeof rawText !== 'string') return rawText;
-    const adapted = applyThematicGlossaryToProse(rawText, dictionary, activeLangState);
+    const interpolated = interpolateGlossaryTokens(rawText, dictionary, activeLangState);
+    const adapted = applyThematicGlossaryToProse(interpolated, dictionary, activeLangState);
     const shouldCloudTranslate = Boolean(options?.forceTranslate || autoTranslateDynamic);
     if (!shouldCloudTranslate) return adapted;
 
@@ -961,7 +1022,8 @@ export const LexiconProvider = ({ children }: any) => {
     targetIso?: string
   ): Promise<string> => {
     if (!rawText || typeof rawText !== 'string') return rawText;
-    const adapted = applyThematicGlossaryToProse(rawText, dictionary, activeLangState);
+    const interpolated = interpolateGlossaryTokens(rawText, dictionary, activeLangState);
+    const adapted = applyThematicGlossaryToProse(interpolated, dictionary, activeLangState);
     const resolvedIso =
       targetIso || resolveTargetLanguageIso(activeLangState, dictionary, lexiconMeta, true);
     if (!resolvedIso || resolvedIso === 'en') return adapted;

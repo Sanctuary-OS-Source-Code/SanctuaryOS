@@ -116,95 +116,111 @@ pub fn get_cache_path(vault_path: &str) -> PathBuf {
     Path::new(vault_path).join(".sanctuary_cache.db")
 }
 
+static INITIALIZED_DB_PATHS: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashSet<PathBuf>>,
+> = std::sync::OnceLock::new();
+
 pub fn get_db_conn(vault_path: &str) -> Connection {
     let path = get_cache_path(vault_path);
     let conn = Connection::open(&path).unwrap_or_else(|_| Connection::open_in_memory().unwrap());
-    let _ = conn.execute(
-        "CREATE TABLE IF NOT EXISTS cache (
-            path TEXT PRIMARY KEY,
-            mtime INTEGER NOT NULL,
-            dna_hash TEXT NOT NULL,
-            explicitly_local INTEGER NOT NULL,
-            quarantined INTEGER NOT NULL,
-            heuristic_malware_sig TEXT,
-            heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0
-        )",
-        [],
-    );
-    let _ = conn.execute(
-        "ALTER TABLE cache ADD COLUMN heuristic_malware_sig TEXT",
-        [],
-    );
-    let _ = conn.execute(
-        "ALTER TABLE cache ADD COLUMN heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0",
-        [],
-    );
-    let _ = conn.execute(
-        "CREATE TABLE IF NOT EXISTS edge_manifests (
-            artifact_id TEXT PRIMARY KEY,
-            mason_id TEXT NOT NULL,
-            manifest_url TEXT NOT NULL,
-            target_hash TEXT DEFAULT '',
-            archive_hashes TEXT DEFAULT '[]',
-            game_id TEXT DEFAULT '',
-            last_fetched_hash TEXT,
-            last_fetched_metadata TEXT,
-            created_at INTEGER NOT NULL
-        )",
-        [],
-    );
-    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''", []);
-    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'", []);
-    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''", []);
-    let _ = conn.execute(
-        "CREATE TABLE IF NOT EXISTS local_mason_follows (
-            mason_id TEXT PRIMARY KEY,
-            mason_name TEXT NOT NULL DEFAULT '',
-            avatar_url TEXT DEFAULT '',
-            workspace_id TEXT DEFAULT '',
-            notify_alerts INTEGER NOT NULL DEFAULT 1,
-            followed_at INTEGER NOT NULL
-        )",
-        [],
-    );
-    let _ = conn.execute(
-        "CREATE TABLE IF NOT EXISTS local_mason_supporters (
-            mason_id TEXT PRIMARY KEY,
-            mason_name TEXT NOT NULL DEFAULT '',
-            provider TEXT NOT NULL DEFAULT 'patreon',
-            tier_name TEXT DEFAULT 'Supporter',
-            pledge_cents INTEGER NOT NULL DEFAULT 500,
-            patreon_campaign_id TEXT DEFAULT '',
-            access_token TEXT DEFAULT '',
-            cryptographic_pass TEXT NOT NULL DEFAULT '',
-            expedited_support INTEGER NOT NULL DEFAULT 1,
-            early_access INTEGER NOT NULL DEFAULT 1,
-            verified_at INTEGER NOT NULL,
-            expires_at INTEGER NOT NULL
-        )",
-        [],
-    );
-    let _ = conn.execute(
-        "CREATE TABLE IF NOT EXISTS local_dev_build_status (
-            user_id TEXT PRIMARY KEY,
-            dev_build_until INTEGER NOT NULL DEFAULT 0,
-            donation_credit_cents INTEGER NOT NULL DEFAULT 0,
-            total_months_unlocked INTEGER NOT NULL DEFAULT 0,
-            channel_enabled INTEGER NOT NULL DEFAULT 0,
-            updated_at INTEGER NOT NULL
-        )",
-        [],
-    );
-    let _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
-        [],
-    );
+    let _ = conn.pragma_update(None, "journal_mode", "WAL");
+    let _ = conn.pragma_update(None, "synchronous", "NORMAL");
+    let _ = conn.busy_timeout(std::time::Duration::from_millis(5000));
+
+    let initialized =
+        INITIALIZED_DB_PATHS.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+    let needs_init = initialized
+        .lock()
+        .map(|mut set| set.insert(path))
+        .unwrap_or(true);
+
+    if needs_init {
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS cache (
+                path TEXT PRIMARY KEY,
+                mtime INTEGER NOT NULL,
+                dna_hash TEXT NOT NULL,
+                explicitly_local INTEGER NOT NULL,
+                quarantined INTEGER NOT NULL,
+                heuristic_malware_sig TEXT,
+                heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cache ADD COLUMN heuristic_malware_sig TEXT",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cache ADD COLUMN heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS edge_manifests (
+                artifact_id TEXT PRIMARY KEY,
+                mason_id TEXT NOT NULL,
+                manifest_url TEXT NOT NULL,
+                target_hash TEXT DEFAULT '',
+                archive_hashes TEXT DEFAULT '[]',
+                game_id TEXT DEFAULT '',
+                last_fetched_hash TEXT,
+                last_fetched_metadata TEXT,
+                created_at INTEGER NOT NULL
+            )",
+            [],
+        );
+        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''", []);
+        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'", []);
+        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''", []);
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS local_mason_follows (
+                mason_id TEXT PRIMARY KEY,
+                mason_name TEXT NOT NULL DEFAULT '',
+                avatar_url TEXT DEFAULT '',
+                workspace_id TEXT DEFAULT '',
+                notify_alerts INTEGER NOT NULL DEFAULT 1,
+                followed_at INTEGER NOT NULL
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS local_mason_supporters (
+                mason_id TEXT PRIMARY KEY,
+                mason_name TEXT NOT NULL DEFAULT '',
+                provider TEXT NOT NULL DEFAULT 'patreon',
+                tier_name TEXT DEFAULT 'Supporter',
+                pledge_cents INTEGER NOT NULL DEFAULT 500,
+                patreon_campaign_id TEXT DEFAULT '',
+                access_token TEXT DEFAULT '',
+                cryptographic_pass TEXT NOT NULL DEFAULT '',
+                expedited_support INTEGER NOT NULL DEFAULT 1,
+                early_access INTEGER NOT NULL DEFAULT 1,
+                verified_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS local_dev_build_status (
+                user_id TEXT PRIMARY KEY,
+                dev_build_until INTEGER NOT NULL DEFAULT 0,
+                donation_credit_cents INTEGER NOT NULL DEFAULT 0,
+                total_months_unlocked INTEGER NOT NULL DEFAULT 0,
+                channel_enabled INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
+            [],
+        );
+    }
     conn
 }
 
-pub fn load_cache(vault_path: &str) -> BunkerCache {
-    let conn = get_db_conn(vault_path);
-    let mut stmt = match conn.prepare("SELECT path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime FROM cache") {
+fn load_cache_from_conn(conn: &Connection) -> BunkerCache {
+    let mut stmt = match conn.prepare_cached("SELECT path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime FROM cache") {
         Ok(s) => s,
         Err(_) => return HashMap::new(),
     };
@@ -239,10 +255,15 @@ pub fn load_cache(vault_path: &str) -> BunkerCache {
     cache
 }
 
+pub fn load_cache(vault_path: &str) -> BunkerCache {
+    let conn = get_db_conn(vault_path);
+    load_cache_from_conn(&conn)
+}
+
 pub fn upsert_cache_entry(conn: &Connection, path: &str, entry: &CacheEntry) {
     let explicitly_local_int = if entry.explicitly_local { 1 } else { 0 };
     let quarantined_int = if entry.quarantined { 1 } else { 0 };
-    let _ = conn.execute(
+    if let Ok(mut stmt) = conn.prepare_cached(
         "INSERT INTO cache (path, mtime, dna_hash, explicitly_local, quarantined, heuristic_malware_sig, heuristic_sigs_mtime) 
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
          ON CONFLICT(path) DO UPDATE SET
@@ -252,7 +273,8 @@ pub fn upsert_cache_entry(conn: &Connection, path: &str, entry: &CacheEntry) {
             quarantined=excluded.quarantined,
             heuristic_malware_sig=excluded.heuristic_malware_sig,
             heuristic_sigs_mtime=excluded.heuristic_sigs_mtime",
-        params![
+    ) {
+        let _ = stmt.execute(params![
             path,
             entry.mtime as i64,
             entry.dna_hash,
@@ -260,19 +282,23 @@ pub fn upsert_cache_entry(conn: &Connection, path: &str, entry: &CacheEntry) {
             quarantined_int,
             entry.heuristic_malware_sig,
             entry.heuristic_sigs_mtime as i64
-        ]
-    );
+        ]);
+    }
 }
 
 pub fn remove_cache_entry(conn: &Connection, path: &str) {
-    let _ = conn.execute("DELETE FROM cache WHERE path = ?1", params![path]);
+    if let Ok(mut stmt) = conn.prepare_cached("DELETE FROM cache WHERE path = ?1") {
+        let _ = stmt.execute(params![path]);
+    }
 }
 
 pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
     let mut conn = get_db_conn(vault_path);
-    let current_db_cache = load_cache(vault_path);
+    let current_db_cache = load_cache_from_conn(&conn);
 
-    let tx = conn.transaction().unwrap();
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
 
     for (path, entry) in cache {
         let needs_update = if let Some(old_entry) = current_db_cache.get(path) {
@@ -296,13 +322,13 @@ pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
         }
     }
 
-    tx.commit().unwrap();
+    let _ = tx.commit();
 }
 
 pub fn calculate_hash(path: &Path) -> Result<String, std::io::Error> {
     let mut file = std::fs::File::open(path)?;
     let mut hasher = Sha256::new();
-    let mut buffer = [0; 1024 * 8];
+    let mut buffer = vec![0u8; 128 * 1024];
     loop {
         let count = file.read(&mut buffer)?;
         if count == 0 {
@@ -320,6 +346,28 @@ pub fn get_config_path() -> PathBuf {
         .join("sanctuary_config.json")
 }
 
+pub fn is_macos_or_os_metadata_path(path: &Path) -> bool {
+    if let Some(fname) = path.file_name().and_then(|n| n.to_str()) {
+        let lower = fname.to_lowercase();
+        if lower == ".ds_store"
+            || lower == "desktop.ini"
+            || lower == "thumbs.db"
+            || lower.starts_with("._")
+        {
+            return true;
+        }
+    }
+    for comp in path.components() {
+        if let std::path::Component::Normal(os_str) = comp {
+            let s = os_str.to_string_lossy();
+            if s.eq_ignore_ascii_case("__MACOSX") || s.eq_ignore_ascii_case(".DS_Store") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub fn walk_packages(
     game_schema: &Option<crate::schema::GameSchema>,
     dir: &Path,
@@ -333,10 +381,18 @@ pub fn walk_packages(
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
+            if is_macos_or_os_metadata_path(&p) {
+                continue;
+            }
             if p.is_dir() {
                 if let Some(name) = p.file_name() {
                     let name_str = name.to_string_lossy().to_lowercase();
-                    if name_str == "sandbox" || name_str == "dev" || name_str == "resource" {
+                    if name_str == "sandbox"
+                        || name_str == "dev"
+                        || name_str == "resource"
+                        || name_str == "__macosx"
+                        || name_str.starts_with('.')
+                    {
                         continue;
                     }
                 }
@@ -491,7 +547,121 @@ pub fn create_symlink_file(source: &Path, target: &Path) -> std::io::Result<()> 
 
 use rayon::prelude::*;
 
-pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
+pub fn expand_env_vars(path: &str) -> String {
+    let trimmed = path.trim();
+    let home_dir = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .ok()
+        .or_else(|| dirs::home_dir().map(|d| d.to_string_lossy().into_owned()));
+
+    let tilde_expanded = if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\")
+    {
+        if let Some(ref home) = home_dir {
+            if trimmed == "~" {
+                home.clone()
+            } else {
+                format!(
+                    "{}{}",
+                    home.trim_end_matches(|c| c == '/' || c == '\\'),
+                    &trimmed[1..]
+                )
+            }
+        } else {
+            trimmed.to_string()
+        }
+    } else {
+        trimmed.to_string()
+    };
+
+    let dollar_expanded = if let Some(ref home) = home_dir {
+        tilde_expanded
+            .replace("${HOME}", home)
+            .replace("$HOME", home)
+    } else {
+        tilde_expanded
+    };
+
+    let mut result = String::new();
+    let mut chars = dollar_expanded.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '%' {
+            let mut var_name = String::new();
+            let mut found_end = false;
+            while let Some(&next_c) = chars.peek() {
+                if next_c == '%' {
+                    chars.next();
+                    found_end = true;
+                    break;
+                }
+                var_name.push(chars.next().unwrap());
+            }
+            if found_end {
+                let resolved = std::env::var(&var_name).ok().or_else(|| {
+                    match var_name.to_uppercase().as_str() {
+                        "USERPROFILE" | "HOME" => home_dir.clone(),
+                        "LOCALAPPDATA" => home_dir.as_ref().map(|p| {
+                            #[cfg(target_os = "windows")]
+                            {
+                                format!("{}\\AppData\\Local", p)
+                            }
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                format!("{}/Library/Application Support", p)
+                            }
+                        }),
+                        "APPDATA" => home_dir.as_ref().map(|p| {
+                            #[cfg(target_os = "windows")]
+                            {
+                                format!("{}\\AppData\\Roaming", p)
+                            }
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                format!("{}/Library/Application Support", p)
+                            }
+                        }),
+                        "PROGRAMFILES" => Some("C:\\Program Files".to_string()),
+                        "PROGRAMFILES(X86)" => Some("C:\\Program Files (x86)".to_string()),
+                        _ => None,
+                    }
+                });
+                if let Some(val) = resolved {
+                    result.push_str(&val);
+                } else {
+                    result.push('%');
+                    result.push_str(&var_name);
+                    result.push('%');
+                }
+            } else {
+                result.push('%');
+                result.push_str(&var_name);
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        if dollar_expanded.contains("%USERPROFILE%") && result.contains('\\') {
+            result = result.replace('\\', "/");
+        }
+    }
+    result
+}
+
+fn normalize_path_key(p: &std::path::Path) -> String {
+    p.to_string_lossy()
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .to_lowercase()
+}
+
+fn safe_wipe_mods_dir_inner(
+    dir: &std::path::Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+    shared_with_vanilla: bool,
+    tracked_set: &std::collections::HashSet<String>,
+) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
         items.into_par_iter().for_each(|path| {
@@ -511,9 +681,26 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
 
             let manifest_name = game_schema
                 .as_ref()
-                .map(|s| s.paths.manifest_file.clone())
-                .filter(|m| !m.is_empty())
-                .unwrap_or_else(|| "Resource.cfg".to_string());
+                .and_then(|s| {
+                    s.load_order
+                        .as_ref()
+                        .and_then(|lo| lo.manifest_file.clone())
+                        .filter(|m| !m.is_empty())
+                        .or_else(|| {
+                            if !s.paths.manifest_file.is_empty() {
+                                Some(s.paths.manifest_file.clone())
+                            } else {
+                                None
+                            }
+                        })
+                })
+                .unwrap_or_else(|| {
+                    if crate::game_logic::is_sims4_schema(game_schema) {
+                        "Resource.cfg".to_string()
+                    } else {
+                        String::new()
+                    }
+                });
 
             let parent_is_resource_subdir = path
                 .parent()
@@ -524,21 +711,72 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
 
             if !parent_is_resource_subdir
                 && path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
-                    n.eq_ignore_ascii_case(&manifest_name)
-                        || n.eq_ignore_ascii_case("Resource.cfg")
+                    (!manifest_name.is_empty() && n.eq_ignore_ascii_case(&manifest_name))
+                        || (crate::game_logic::is_sims4_schema(game_schema)
+                            && n.eq_ignore_ascii_case("Resource.cfg"))
                 })
             {
                 return;
             }
 
+            if shared_with_vanilla {
+                let norm = normalize_path_key(&path);
+                if path.is_dir() {
+                    safe_wipe_mods_dir_inner(&path, game_schema, true, tracked_set);
+                    if tracked_set.contains(&norm) {
+                        let _ = std::fs::remove_dir(&path);
+                    }
+                } else if tracked_set.contains(&norm) {
+                    let _ = std::fs::remove_file(&path);
+                }
+                return;
+            }
+
             if path.is_dir() {
-                safe_wipe_mods_dir(&path, game_schema);
+                safe_wipe_mods_dir_inner(&path, game_schema, false, tracked_set);
                 let _ = std::fs::remove_dir(&path);
             } else {
                 let _ = std::fs::remove_file(&path);
             }
         });
     }
+}
+
+pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
+    let shared_with_vanilla = game_schema
+        .as_ref()
+        .and_then(|s| s.constraints.as_ref())
+        .and_then(|c| c.mods_dir_is_shared_with_vanilla)
+        .unwrap_or(false);
+
+    let mut tracked_set: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut manifest_locations = vec![dir.join(".sanctuary_deployed_links.json")];
+    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+    if !saved_coords.vault_path.trim().is_empty() {
+        manifest_locations.push(
+            std::path::PathBuf::from(&saved_coords.vault_path)
+                .join(".sanctuary_deployed_links.json"),
+        );
+    }
+
+    for loc in &manifest_locations {
+        if loc.exists() {
+            if let Ok(raw) = std::fs::read_to_string(loc) {
+                if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
+                    for item in list {
+                        let p = std::path::PathBuf::from(&item);
+                        let norm = normalize_path_key(&p);
+                        if !norm.is_empty() {
+                            tracked_set.insert(norm);
+                        }
+                    }
+                }
+            }
+            let _ = std::fs::remove_file(loc);
+        }
+    }
+
+    safe_wipe_mods_dir_inner(dir, game_schema, shared_with_vanilla, &tracked_set);
 }
 
 pub fn obscure_username(path: &str) -> String {
@@ -1009,6 +1247,7 @@ pub fn check_heuristic_malware_compiled(
     None
 }
 
+#[allow(dead_code)]
 pub fn check_heuristic_malware(path: &Path, signatures: &[HeuristicSignature]) -> Option<String> {
     if signatures.is_empty() {
         return None;
@@ -1134,27 +1373,94 @@ pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
     }
 }
 
-pub fn get_engine_backups_dir(live_path: &str, vault_path: &str) -> Option<PathBuf> {
-    if live_path.trim().is_empty() {
-        return None;
+pub fn are_paths_on_same_filesystem(p1: &Path, p2: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let existing_ancestor = |p: &Path| -> Option<PathBuf> {
+            for anc in p.ancestors() {
+                if !anc.as_os_str().is_empty() && anc.exists() {
+                    return Some(anc.to_path_buf());
+                }
+            }
+            None
+        };
+        if let (Some(a1), Some(a2)) = (existing_ancestor(p1), existing_ancestor(p2)) {
+            if let (Ok(m1), Ok(m2)) = (std::fs::metadata(a1), std::fs::metadata(a2)) {
+                return m1.dev() == m2.dev();
+            }
+        }
+        false
     }
-    let p = PathBuf::from(live_path);
-    let root = p.ancestors().last()?;
-    if root.as_os_str().is_empty() {
-        return None;
+    #[cfg(not(unix))]
+    {
+        p1.components().next() == p2.components().next()
+    }
+}
+
+#[cfg(unix)]
+fn resolve_unix_backup_dir(source_path: &Path, vault_path: &str, lane: &str) -> Option<PathBuf> {
+    let vault_p = PathBuf::from(vault_path);
+    if !vault_path.trim().is_empty() && are_paths_on_same_filesystem(source_path, &vault_p) {
+        return Some(vault_p.join("Backups").join(lane));
     }
 
-    let vault_name = PathBuf::from(vault_path)
+    let vault_name = vault_p
         .file_name()
         .unwrap_or(std::ffi::OsStr::new("default"))
         .to_string_lossy()
         .into_owned();
 
-    Some(
-        root.join(".sanctuary_backups")
-            .join(vault_name)
-            .join("Engine"),
-    )
+    let src_str = source_path.to_string_lossy();
+    if let Some(rest) = src_str.strip_prefix("/Volumes/") {
+        if let Some(vol_name) = rest.split('/').next().filter(|s| !s.is_empty()) {
+            let vol_root = PathBuf::from("/Volumes").join(vol_name);
+            return Some(
+                vol_root
+                    .join(".sanctuary_backups")
+                    .join(&vault_name)
+                    .join(lane),
+            );
+        }
+    }
+
+    if let Some(home) = dirs::home_dir() {
+        return Some(home.join(".sanctuary_backups").join(vault_name).join(lane));
+    }
+
+    None
+}
+
+pub fn get_engine_backups_dir(live_path: &str, vault_path: &str) -> Option<PathBuf> {
+    if live_path.trim().is_empty() {
+        return None;
+    }
+    let p = PathBuf::from(live_path);
+
+    #[cfg(unix)]
+    {
+        return resolve_unix_backup_dir(&p, vault_path, "Engine");
+    }
+
+    #[cfg(not(unix))]
+    {
+        let root = p.ancestors().last()?;
+        if root.as_os_str().is_empty() {
+            return None;
+        }
+
+        let vault_name = PathBuf::from(vault_path)
+            .file_name()
+            .unwrap_or(std::ffi::OsStr::new("default"))
+            .to_string_lossy()
+            .into_owned();
+
+        Some(
+            root.join(".sanctuary_backups")
+                .join(vault_name)
+                .join("Engine"),
+        )
+    }
 }
 
 pub fn get_docs_base_from_mods_path(mods_path: &str) -> String {
@@ -1178,22 +1484,31 @@ pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBu
         return None;
     }
     let p = PathBuf::from(docs_path);
-    let root = p.ancestors().last()?;
-    if root.as_os_str().is_empty() {
-        return None;
+
+    #[cfg(unix)]
+    {
+        return resolve_unix_backup_dir(&p, vault_path, "World");
     }
 
-    let vault_name = PathBuf::from(vault_path)
-        .file_name()
-        .unwrap_or(std::ffi::OsStr::new("default"))
-        .to_string_lossy()
-        .into_owned();
+    #[cfg(not(unix))]
+    {
+        let root = p.ancestors().last()?;
+        if root.as_os_str().is_empty() {
+            return None;
+        }
 
-    Some(
-        root.join(".sanctuary_backups")
-            .join(vault_name)
-            .join("World"),
-    )
+        let vault_name = PathBuf::from(vault_path)
+            .file_name()
+            .unwrap_or(std::ffi::OsStr::new("default"))
+            .to_string_lossy()
+            .into_owned();
+
+        Some(
+            root.join(".sanctuary_backups")
+                .join(vault_name)
+                .join("World"),
+        )
+    }
 }
 
 #[cfg(windows)]
@@ -1442,5 +1757,547 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
     }
 
     text
+}
+
+pub fn current_epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn is_skipped_vault_subdir(name_lower: &str) -> bool {
+    name_lower == "sandbox"
+        || name_lower == "dev"
+        || name_lower == "resource"
+        || name_lower == "quarantine"
+        || name_lower == "__macosx"
+        || name_lower.starts_with('.')
+}
+
+pub fn resolve_vault_config_destination(
+    vault_mods_path: &Path,
+    relative_path: &Path,
+    file_name: &str,
+) -> PathBuf {
+    if relative_path.components().count() > 1 {
+        return vault_mods_path.join(relative_path);
+    }
+
+    let fname_lower = file_name.to_lowercase();
+
+    // 1. Search 1-2 levels deep in vault_mods_path for an existing subfolder containing `file_name`
+    if let Ok(entries) = std::fs::read_dir(vault_mods_path) {
+        for entry in entries.flatten() {
+            let sub_path = entry.path();
+            if !sub_path.is_dir() {
+                continue;
+            }
+            let sub_name = entry.file_name().to_string_lossy().to_lowercase();
+            if is_skipped_vault_subdir(&sub_name) {
+                continue;
+            }
+            // Check 1 level deep
+            if let Ok(sub_entries) = std::fs::read_dir(&sub_path) {
+                for sub_entry in sub_entries.flatten() {
+                    let p = sub_entry.path();
+                    if p.is_file()
+                        && sub_entry
+                            .file_name()
+                            .to_string_lossy()
+                            .eq_ignore_ascii_case(&fname_lower)
+                    {
+                        return p;
+                    } else if p.is_dir() {
+                        let sub2_name = sub_entry.file_name().to_string_lossy().to_lowercase();
+                        if !is_skipped_vault_subdir(&sub2_name) {
+                            // Check 2 levels deep
+                            if let Ok(sub2_entries) = std::fs::read_dir(&p) {
+                                for sub2_entry in sub2_entries.flatten() {
+                                    let p2 = sub2_entry.path();
+                                    if p2.is_file()
+                                        && sub2_entry
+                                            .file_name()
+                                            .to_string_lossy()
+                                            .eq_ignore_ascii_case(&fname_lower)
+                                    {
+                                        return p2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. If not yet present in any subfolder, check if a subfolder owns mods with a matching `<prefix>_` (e.g., `mc_` -> `mc_cmd_center.ts4script`)
+    if let Some(underscore_idx) = fname_lower.find('_') {
+        let prefix = &fname_lower[..=underscore_idx]; // includes trailing '_'
+        if prefix.len() >= 3 {
+            if let Ok(entries) = std::fs::read_dir(vault_mods_path) {
+                for entry in entries.flatten() {
+                    let sub_path = entry.path();
+                    if !sub_path.is_dir() {
+                        continue;
+                    }
+                    let sub_name = entry.file_name().to_string_lossy().to_lowercase();
+                    if is_skipped_vault_subdir(&sub_name) {
+                        continue;
+                    }
+                    if prefix == "mc_"
+                        && (sub_name.contains("mc command center") || sub_name == "mccc")
+                    {
+                        return sub_path.join(file_name);
+                    }
+                    if let Ok(sub_entries) = std::fs::read_dir(&sub_path) {
+                        for sub_entry in sub_entries.flatten() {
+                            let p = sub_entry.path();
+                            if p.is_file() {
+                                let child_lower =
+                                    sub_entry.file_name().to_string_lossy().to_lowercase();
+                                if child_lower.starts_with(prefix)
+                                    && (child_lower.ends_with(".ts4script")
+                                        || child_lower.ends_with(".package")
+                                        || child_lower.ends_with(".dll")
+                                        || child_lower.ends_with(".asi"))
+                                {
+                                    return sub_path.join(file_name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    vault_mods_path.join(relative_path)
+}
+
+fn dir_contains_mod_binaries(dir: &Path) -> bool {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if matches!(
+                        ext_lower.as_str(),
+                        "ts4script"
+                            | "package"
+                            | "dll"
+                            | "asi"
+                            | "rpf"
+                            | "cak"
+                            | "pac"
+                            | "esp"
+                            | "esm"
+                            | "esl"
+                            | "bsa"
+                            | "ba2"
+                            | "archive"
+                            | "pak"
+                    ) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn find_surviving_vault_file(
+    vault_mods_lane: &Path,
+    fname_lower: &str,
+    excluded_path: &Path,
+) -> Option<PathBuf> {
+    if !vault_mods_lane.exists() {
+        return None;
+    }
+
+    let mut fallback_match: Option<PathBuf> = None;
+
+    if let Ok(entries) = std::fs::read_dir(vault_mods_lane) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p == excluded_path {
+                continue;
+            }
+            if p.is_file() {
+                if entry
+                    .file_name()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(fname_lower)
+                {
+                    fallback_match = Some(p);
+                }
+            } else if p.is_dir() {
+                let dname = entry.file_name().to_string_lossy().to_lowercase();
+                if is_skipped_vault_subdir(&dname) {
+                    continue;
+                }
+                if let Ok(sub_entries) = std::fs::read_dir(&p) {
+                    for sub_entry in sub_entries.flatten() {
+                        let sp = sub_entry.path();
+                        if sp == excluded_path {
+                            continue;
+                        }
+                        if sp.is_file()
+                            && sub_entry
+                                .file_name()
+                                .to_string_lossy()
+                                .eq_ignore_ascii_case(fname_lower)
+                        {
+                            if dir_contains_mod_binaries(&p) {
+                                return Some(sp);
+                            }
+                            if fallback_match.is_none() {
+                                fallback_match = Some(sp);
+                            }
+                        } else if sp.is_dir() {
+                            let sub2_name = sub_entry.file_name().to_string_lossy().to_lowercase();
+                            if !is_skipped_vault_subdir(&sub2_name) {
+                                if let Ok(sub2_entries) = std::fs::read_dir(&sp) {
+                                    for sub2_entry in sub2_entries.flatten() {
+                                        let sp2 = sub2_entry.path();
+                                        if sp2 == excluded_path {
+                                            continue;
+                                        }
+                                        if sp2.is_file()
+                                            && sub2_entry
+                                                .file_name()
+                                                .to_string_lossy()
+                                                .eq_ignore_ascii_case(fname_lower)
+                                        {
+                                            if dir_contains_mod_binaries(&sp)
+                                                || dir_contains_mod_binaries(&p)
+                                            {
+                                                return Some(sp2);
+                                            }
+                                            if fallback_match.is_none() {
+                                                fallback_match = Some(sp2);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fallback_match
+}
+
+pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[String]) {
+    if !vault_mods_lane.exists() {
+        return;
+    }
+
+    let is_config_ext = |ext_lower: &str| -> bool {
+        matches!(ext_lower, "cfg" | "ini" | "json" | "xml" | "txt" | "log")
+            || config_exts.iter().any(|e| e.eq_ignore_ascii_case(ext_lower))
+    };
+
+    let mut root_configs: Vec<(String, PathBuf)> = Vec::new();
+    let mut subdirs: Vec<PathBuf> = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(vault_mods_lane) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                let dname = entry.file_name().to_string_lossy().to_lowercase();
+                if !is_skipped_vault_subdir(&dname) {
+                    subdirs.push(p);
+                }
+            } else if p.is_file() {
+                let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                if fname_lower == "resource.cfg"
+                    || fname_lower == "default.ini"
+                    || fname_lower == "desktop.ini"
+                    || fname_lower.starts_with('.')
+                {
+                    continue;
+                }
+                if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
+                    if is_config_ext(&ext.to_lowercase()) {
+                        root_configs.push((fname_lower, p));
+                    }
+                }
+            }
+        }
+    }
+
+    if root_configs.is_empty() || subdirs.is_empty() {
+        return;
+    }
+
+    let config = crate::commands::state_ops::get_saved_coordinates();
+    let mut removed_root_paths: Vec<String> = Vec::new();
+
+    for (fname_lower, root_file) in root_configs {
+        // Prefer a subfolder match where the folder actually contains mod binaries
+        let mut preferred_match: Option<PathBuf> = None;
+        let mut fallback_match: Option<PathBuf> = None;
+
+        'search: for subdir in &subdirs {
+            if let Ok(sub_entries) = std::fs::read_dir(subdir) {
+                for sub_entry in sub_entries.flatten() {
+                    let sp = sub_entry.path();
+                    if sp.is_file()
+                        && sub_entry
+                            .file_name()
+                            .to_string_lossy()
+                            .eq_ignore_ascii_case(&fname_lower)
+                    {
+                        if dir_contains_mod_binaries(subdir) {
+                            preferred_match = Some(sp);
+                            break 'search;
+                        } else if fallback_match.is_none() {
+                            fallback_match = Some(sp);
+                        }
+                    } else if sp.is_dir() {
+                        let sub2_name = sub_entry.file_name().to_string_lossy().to_lowercase();
+                        if !is_skipped_vault_subdir(&sub2_name) {
+                            if let Ok(sub2_entries) = std::fs::read_dir(&sp) {
+                                for sub2_entry in sub2_entries.flatten() {
+                                    let sp2 = sub2_entry.path();
+                                    if sp2.is_file()
+                                        && sub2_entry
+                                            .file_name()
+                                            .to_string_lossy()
+                                            .eq_ignore_ascii_case(&fname_lower)
+                                    {
+                                        if dir_contains_mod_binaries(&sp)
+                                            || dir_contains_mod_binaries(subdir)
+                                        {
+                                            preferred_match = Some(sp2);
+                                            break 'search;
+                                        } else if fallback_match.is_none() {
+                                            fallback_match = Some(sp2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(sub_file) = preferred_match.or(fallback_match) {
+            let root_is_symlink = std::fs::symlink_metadata(&root_file)
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false)
+                || std::fs::read_link(&root_file).is_ok();
+
+            if !root_is_symlink {
+                let root_meta = std::fs::metadata(&root_file).ok();
+                let sub_meta = std::fs::metadata(&sub_file).ok();
+                if let (Some(rm), Some(sm)) = (root_meta, sub_meta) {
+                    if rm.len() > 0 {
+                        let should_preserve_root_data = if sm.len() == 0 {
+                            true
+                        } else if let (Ok(rt), Ok(st)) = (rm.modified(), sm.modified()) {
+                            // Only overwrite subfolder config if root is newer AND not a truncated/empty stub
+                            rt > st && rm.len() >= sm.len() / 2
+                        } else {
+                            false
+                        };
+                        if should_preserve_root_data {
+                            let _ = std::fs::copy(&root_file, &sub_file);
+                        }
+                    }
+                }
+            }
+
+            if std::fs::remove_file(&root_file).is_ok() {
+                removed_root_paths.push(root_file.to_string_lossy().to_string());
+
+                // If live Mods/<fname> symlink was pointing to the removed root duplicate, re-point it to sub_file
+                if !config.mods_path.trim().is_empty() {
+                    if let Some(actual_name) = sub_file.file_name() {
+                        let live_cfg = Path::new(&config.mods_path).join(actual_name);
+                        if let Ok(link_target) = std::fs::read_link(&live_cfg) {
+                            if link_target == root_file {
+                                let _ = std::fs::remove_file(&live_cfg);
+                                let _ = create_symlink_file(&sub_file, &live_cfg)
+                                    .or_else(|_| std::fs::copy(&sub_file, &live_cfg).map(|_| ()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Purge any removed root duplicate entries from SQLite cache so ghost entries never linger
+    if !removed_root_paths.is_empty() && !config.vault_path.trim().is_empty() {
+        let conn = get_db_conn(&config.vault_path);
+        for p_str in &removed_root_paths {
+            let norm_win = p_str.replace('/', "\\");
+            let norm_unix = p_str.replace('\\', "/");
+            let _ = conn.execute(
+                "DELETE FROM cache WHERE path = ?1 OR path = ?2 OR path = ?3",
+                params![p_str, norm_win, norm_unix],
+            );
+        }
+    }
+}
+
+pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_names: &[String]) {
+    let is_protected = |name_lower: &str| -> bool {
+        matches!(
+            name_lower,
+            "resource.cfg"
+                | "default.ini"
+                | "desktop.ini"
+                | ".ds_store"
+                | ".sanctuary_deployed_links.json"
+                | ".sanctuary_cache.db"
+                | ".sanctuary_cache.json"
+        )
+    };
+
+    let mut target_names_lower: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
+    if let Some(fname) = deleted_path.file_name().and_then(|n| n.to_str()) {
+        let lower = fname.to_lowercase();
+        if !is_protected(&lower) {
+            target_names_lower.insert(lower);
+        }
+    }
+    for name in deleted_file_names {
+        let lower = name.to_lowercase();
+        if !is_protected(&lower) {
+            target_names_lower.insert(lower);
+        }
+    }
+
+    let config = crate::commands::state_ops::get_saved_coordinates();
+    let vault_mods_lane = if !config.vault_path.trim().is_empty() {
+        Some(get_vault_mods_lane(&config.vault_path))
+    } else {
+        None
+    };
+
+    // Map any surviving copy in Vault/Mods so deleting a duplicate never kills the remaining copy's live link
+    let mut surviving_vault_copies: std::collections::HashMap<String, PathBuf> =
+        std::collections::HashMap::new();
+    if let Some(ref lane) = vault_mods_lane {
+        for name_lower in &target_names_lower {
+            if let Some(survivor) = find_surviving_vault_file(lane, name_lower, deleted_path) {
+                surviving_vault_copies.insert(name_lower.clone(), survivor);
+            }
+        }
+    }
+
+    // 1. Clean up or re-point exact relative path in live Mods folder if present
+    if let Some(ref lane) = vault_mods_lane {
+        if let Ok(rel) = deleted_path.strip_prefix(lane) {
+            if !config.mods_path.trim().is_empty() {
+                let live_rel = Path::new(&config.mods_path).join(rel);
+                if live_rel != deleted_path {
+                    let fname_lower = live_rel
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or_default()
+                        .to_lowercase();
+                    if let Some(survivor) = surviving_vault_copies.get(&fname_lower) {
+                        if live_rel.parent().map(|p| p == Path::new(&config.mods_path)).unwrap_or(false) {
+                            let _ = std::fs::remove_file(&live_rel);
+                            let _ = create_symlink_file(survivor, &live_rel)
+                                .or_else(|_| std::fs::copy(survivor, &live_rel).map(|_| ()));
+                        }
+                    } else if let Ok(meta) = std::fs::symlink_metadata(&live_rel) {
+                        if meta.file_type().is_symlink() || std::fs::read_link(&live_rel).is_ok() {
+                            if live_rel.is_dir() {
+                                let _ = std::fs::remove_dir(&live_rel);
+                            } else {
+                                let _ = std::fs::remove_file(&live_rel);
+                            }
+                        } else if meta.is_file() {
+                            let _ = std::fs::remove_file(&live_rel);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Clean up or re-point live counterparts and symlinks in config.mods_path
+    if !config.mods_path.trim().is_empty() {
+        let mods_dir = PathBuf::from(&config.mods_path);
+        if mods_dir.exists() && mods_dir != deleted_path {
+            let remove_or_relink_in_dir = |dir: &Path| {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p == deleted_path {
+                            continue;
+                        }
+                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                        if is_protected(&fname_lower) {
+                            continue;
+                        }
+                        let mut matches_target = target_names_lower.contains(&fname_lower);
+                        let mut points_to_deleted = false;
+                        if let Ok(link_target) = std::fs::read_link(&p) {
+                            if link_target == deleted_path
+                                || link_target.starts_with(deleted_path)
+                            {
+                                matches_target = true;
+                                points_to_deleted = true;
+                            }
+                        }
+                        if matches_target {
+                            // If another copy of this file still exists in the Vault, re-link instead of deleting!
+                            if let Some(survivor) = surviving_vault_copies.get(&fname_lower) {
+                                if points_to_deleted || dir == mods_dir {
+                                    let _ = std::fs::remove_file(&p);
+                                    let _ = create_symlink_file(survivor, &p)
+                                        .or_else(|_| std::fs::copy(survivor, &p).map(|_| ()));
+                                }
+                                continue;
+                            }
+
+                            let is_link = std::fs::read_link(&p).is_ok()
+                                || std::fs::symlink_metadata(&p)
+                                    .map(|m| m.file_type().is_symlink())
+                                    .unwrap_or(false);
+                            if is_link {
+                                if p.is_dir() {
+                                    let _ = std::fs::remove_dir(&p);
+                                } else {
+                                    let _ = std::fs::remove_file(&p);
+                                }
+                            } else if p.is_file() {
+                                let _ = std::fs::remove_file(&p);
+                            }
+                        }
+                    }
+                }
+            };
+
+            remove_or_relink_in_dir(&mods_dir);
+            if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        let dname = entry.file_name().to_string_lossy().to_lowercase();
+                        if dname != "resource" && !dname.starts_with('.') {
+                            remove_or_relink_in_dir(&p);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 

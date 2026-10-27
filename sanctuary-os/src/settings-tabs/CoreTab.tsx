@@ -852,7 +852,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                   title={t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}
                   icon={t("icon_passkey", "passkey")}
                   headerAction={
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
                       {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
                     </span>
                   }

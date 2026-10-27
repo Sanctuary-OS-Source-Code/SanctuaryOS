@@ -19,6 +19,8 @@ import LogicTab from './settings-tabs/LogicTab';
 import MalwareTab from './settings-tabs/MalwareTab';
 import SupporterTab from './settings-tabs/SupporterTab';
 import { isDesktop } from './utils/envUtils';
+import { getKeepersPipelineConfig, isTargetVersionNewer } from './utils/supporterManager';
+import packageJson from '../package.json';
 
 export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const { t } = useLexicon();
@@ -32,11 +34,23 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     }
     return isDesktop() ? 'CORE' : 'CLIENT';
   });
-  const [appVersion, setAppVersion] = useState("v1.0.1");
+  const [appVersion, setAppVersion] = useState(`v${packageJson.version}`);
 
   useEffect(() => {
     if (isDesktop()) {
       getVersion().then(v => setAppVersion(`v${v}`)).catch(console.error);
+    } else {
+      getKeepersPipelineConfig(false)
+        .then((cfg) => {
+          const remoteVer = (cfg?.stable_version || "").replace(/^v/i, "").trim();
+          const localVer = (packageJson.version || "").replace(/^v/i, "").trim();
+          if (remoteVer && isTargetVersionNewer(localVer, remoteVer, false)) {
+            setAppVersion(`v${remoteVer}`);
+          } else if (localVer) {
+            setAppVersion(`v${localVer}`);
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 

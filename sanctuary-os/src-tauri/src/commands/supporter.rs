@@ -686,7 +686,10 @@ pub async fn download_and_install_update(
         }
     }
 
-    std::thread::sleep(std::time::Duration::from_millis(850));
+    let _ = tauri::async_runtime::spawn_blocking(|| {
+        std::thread::sleep(std::time::Duration::from_millis(850));
+    })
+    .await;
 
     let _ = app_handle.emit(
         "sanctuary-update-progress",
@@ -702,7 +705,10 @@ pub async fn download_and_install_update(
         exit_handle.exit(0);
     });
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    let _ = tauri::async_runtime::spawn_blocking(|| {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    })
+    .await;
 
     Ok(installer_path.to_string_lossy().to_string())
 }

@@ -82,9 +82,6 @@
     "max_folder_depth": 5,
     "requires_script_unzipping": false
   },
-  "magic_bytes": {
-    "PACKAGE": "DBPF"
-  },
   "display_name": "The Sims 4",
   "time_capsule": {
     "world_state_targets": [

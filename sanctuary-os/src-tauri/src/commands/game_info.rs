@@ -10,53 +10,50 @@ pub fn rip_game_version(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-
-    let mut root_path = PathBuf::from(&live_path);
-    if root_path.is_file() {
-        root_path.pop();
-    }
-
-    if root_path.ends_with("Bin") || root_path.ends_with("bin") {
-        root_path.pop();
-        if root_path.ends_with("Game") || root_path.ends_with("game") {
-            root_path.pop();
-        }
-    }
-
-    let mut exe_path = None;
-
-    if let Some(schema) = &game_schema {
-        for exe_name in &schema.executable_names {
-            let paths_to_check = vec![
-                root_path.join(exe_name),
-                root_path.join("Game").join("Bin").join(exe_name),
-            ];
-
-            for p in paths_to_check {
-                if p.exists() && p.is_file() {
-                    exe_path = Some(p);
-                    break;
-                }
-            }
-            if exe_path.is_some() {
-                break;
-            }
-        }
-    }
+    let root_path = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+    let mut exe_path = crate::game_logic::resolve_executable_path(&live_path, &game_schema);
 
     if exe_path.is_none() {
-        let bin_folder = root_path.join("Game").join("Bin");
-        let search_folder = if bin_folder.exists() { bin_folder } else { root_path.clone() };
+        let mut search_folder = root_path.clone();
+        if let Some(schema) = &game_schema {
+            if let Some(sub_str) = schema
+                .paths
+                .executable_subdir
+                .as_deref()
+                .filter(|s| !s.is_empty())
+            {
+                let sub = root_path.join(sub_str);
+                if sub.exists() {
+                    search_folder = sub;
+                }
+            } else if crate::game_logic::is_sims4_schema(&game_schema) {
+                let bin_folder = root_path.join("Game").join("Bin");
+                if bin_folder.exists() {
+                    search_folder = bin_folder;
+                }
+            }
+        } else {
+            let bin_folder = root_path.join("Game").join("Bin");
+            if bin_folder.exists() {
+                search_folder = bin_folder;
+            }
+        }
 
         if let Ok(entries) = fs::read_dir(&search_folder) {
             let mut largest_exe = None;
             let mut max_size = 0;
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() && path.extension().and_then(|e| e.to_str()).map(|s| s.to_lowercase()) == Some("exe".to_string()) {
+                if path.is_file()
+                    && path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|s| s.to_lowercase())
+                        == Some("exe".to_string())
+                {
                     if let Some(file_name) = path.file_stem().and_then(|n| n.to_str()) {
                         let name_lower = file_name.to_lowercase();
-                        if name_lower.contains("redist") 
+                        if name_lower.contains("redist")
                             || name_lower.contains("crashhandler")
                             || name_lower.contains("anticheat")
                             || name_lower.contains("unins")
@@ -78,15 +75,43 @@ pub fn rip_game_version(
     }
 
     if let Some(exe) = &exe_path {
-        if let Ok(map) = pelite::FileMap::open(exe) {
-            if let Ok(pe) = pelite::PeFile::from_bytes(map.as_ref()) {
-                if let Ok(resources) = pe.resources() {
-                    if let Ok(version_info) = resources.version_info() {
-                        if let Some(fixed) = version_info.fixed() {
-                            let v = fixed.dwFileVersion;
-                            let version_str = format!("{}.{}.{}.{}", v.Major, v.Minor, v.Patch, v.Build);
-                            if version_str != "0.0.0.0" {
-                                return Ok(version_str);
+        if let Some(version_str) = crate::game_logic::extract_pe_file_version(exe) {
+            if !version_str.is_empty() && version_str != "0.0.0.0" {
+                return Ok(version_str);
+            }
+        }
+    }
+
+    if let Some(version_str) =
+        crate::game_logic::extract_pe_file_version(std::path::Path::new(&live_path))
+            .or_else(|| crate::game_logic::extract_pe_file_version(&root_path))
+    {
+        if !version_str.is_empty() && version_str != "0.0.0.0" {
+            return Ok(version_str);
+        }
+    }
+
+    if let Some(schema) = &game_schema {
+        if let Some(version_ext) = &schema.version_extraction {
+            if !version_ext.relative_path.is_empty() {
+                let schema_ini = root_path.join(&version_ext.relative_path);
+
+                if schema_ini.exists() {
+                    if let Ok(content) = fs::read_to_string(&schema_ini) {
+                        let prefix = version_ext.line_prefix.to_lowercase();
+                        for line in content.lines() {
+                            if line.to_lowercase().starts_with(&prefix) {
+                                if let Some(idx) = line.find('=') {
+                                    let raw_version = line[idx + 1..].trim();
+                                    let version: String = raw_version
+                                        .chars()
+                                        .filter(|c| c.is_ascii_digit() || *c == '.')
+                                        .collect();
+
+                                    if !version.is_empty() {
+                                        return Ok(version);
+                                    }
+                                }
                             }
                         }
                     }
@@ -95,15 +120,20 @@ pub fn rip_game_version(
         }
     }
 
-    if let Some(schema) = &game_schema {
-        if let Some(version_ext) = &schema.version_extraction {
-            let schema_ini = root_path.join(&version_ext.relative_path);
-            
-            if schema_ini.exists() {
-                if let Ok(content) = fs::read_to_string(&schema_ini) {
-                    let prefix = version_ext.line_prefix.to_lowercase();
+    if crate::game_logic::is_sims4_schema(&game_schema) {
+        let ini_candidates = [
+            root_path.join("Game").join("Bin").join("Default.ini"),
+            root_path.join("Contents").join("Resources").join("Default.ini"),
+            PathBuf::from(&live_path)
+                .join("Contents")
+                .join("Resources")
+                .join("Default.ini"),
+        ];
+        for legacy_ini in ini_candidates {
+            if legacy_ini.exists() {
+                if let Ok(content) = fs::read_to_string(&legacy_ini) {
                     for line in content.lines() {
-                        if line.to_lowercase().starts_with(&prefix) {
+                        if line.to_lowercase().starts_with("gameversion") {
                             if let Some(idx) = line.find('=') {
                                 let raw_version = line[idx + 1..].trim();
                                 let version: String = raw_version
@@ -122,27 +152,6 @@ pub fn rip_game_version(
         }
     }
 
-    let legacy_ini = root_path.join("Game").join("Bin").join("Default.ini");
-    if legacy_ini.exists() {
-        if let Ok(content) = fs::read_to_string(&legacy_ini) {
-            for line in content.lines() {
-                if line.to_lowercase().starts_with("gameversion") {
-                    if let Some(idx) = line.find('=') {
-                        let raw_version = line[idx + 1..].trim();
-                        let version: String = raw_version
-                            .chars()
-                            .filter(|c| c.is_ascii_digit() || *c == '.')
-                            .collect();
-
-                        if !version.is_empty() {
-                            return Ok(version);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     Err("backend_version_string_empty".into())
 }
 
@@ -153,31 +162,66 @@ pub async fn scan_installed_dlc(
 ) -> Result<Vec<String>, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let mut installed_packs = Vec::new();
-    let mut base_path = std::path::PathBuf::from(&live_path);
+    let root = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
 
-    if base_path.is_file() {
-        base_path.pop();
+    let mut dirs_to_scan = vec![root.clone()];
+    if crate::game_logic::is_sims4_schema(&game_schema) {
+        for extra in [
+            root.join("The Sims 4 Packs"),
+            root.join("Contents").join("Delta"),
+            PathBuf::from(&live_path).join("Contents").join("Delta"),
+        ] {
+            if extra.exists() && !dirs_to_scan.contains(&extra) {
+                dirs_to_scan.push(extra);
+            }
+        }
     }
+    if let Some(schema) = &game_schema {
+        if let Some(subs) = &schema.dlc_subdirs {
+            for sub in subs {
+                let p = root.join(sub);
+                if p.exists() && !dirs_to_scan.contains(&p) {
+                    dirs_to_scan.push(p);
+                }
+            }
+        }
+    }
+    let dlc_exts: Vec<String> = game_schema
+        .as_ref()
+        .and_then(|s| s.dlc_file_extensions.as_ref())
+        .map(|list| {
+            list.iter()
+                .map(|e| e.trim_start_matches('.').to_lowercase())
+                .collect()
+        })
+        .unwrap_or_default();
 
-    let root = if base_path.ends_with("Bin")
-        || base_path.ends_with("bin")
-        || base_path.ends_with("Bin_LE")
-        || base_path.ends_with("bin_le")
-    {
-        base_path
-            .parent()
-            .and_then(|p| p.parent())
-            .unwrap_or(base_path.as_path())
-    } else {
-        base_path.as_path()
-    };
-
-    if let Ok(entries) = std::fs::read_dir(root) {
-        for entry in entries.flatten() {
-            if let Ok(name) = entry.file_name().into_string() {
-                let name_up = name.to_uppercase();
-                if crate::game_logic::is_dlc_folder(&game_schema, &name_up) {
-                    installed_packs.push(name_up);
+    for dir in dirs_to_scan {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    if let Ok(name) = entry.file_name().into_string() {
+                        let name_up = name.to_uppercase();
+                        if crate::game_logic::is_dlc_folder(&game_schema, &name_up) {
+                            if !installed_packs.contains(&name_up) {
+                                installed_packs.push(name_up);
+                            }
+                        }
+                    }
+                } else if p.is_file() && !dlc_exts.is_empty() {
+                    if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                        if dlc_exts.contains(&ext.to_lowercase()) {
+                            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                                let name_up = stem.to_uppercase();
+                                if crate::game_logic::is_dlc_folder(&game_schema, &name_up) {
+                                    if !installed_packs.contains(&name_up) {
+                                        installed_packs.push(name_up);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -519,4 +563,70 @@ pub fn rename_version(
         |h| h.name = Some(name),
         "Failed to rename version",
     )
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct CloudHijackReport {
+    pub is_hijacked: bool,
+    pub provider: Option<String>,
+    pub detected_path: String,
+}
+
+#[tauri::command]
+pub fn detect_cloud_hijack(mods_path: String) -> CloudHijackReport {
+    let trimmed = mods_path.trim();
+    if trimmed.is_empty() {
+        return CloudHijackReport {
+            is_hijacked: false,
+            provider: None,
+            detected_path: String::new(),
+        };
+    }
+
+    let path_obj = PathBuf::from(trimmed);
+    let canonical_or_raw = std::fs::canonicalize(&path_obj)
+        .unwrap_or_else(|_| path_obj.clone())
+        .to_string_lossy()
+        .to_string();
+    let lower = canonical_or_raw.to_lowercase();
+
+    if lower.contains("onedrive") {
+        return CloudHijackReport {
+            is_hijacked: true,
+            provider: Some("OneDrive".to_string()),
+            detected_path: canonical_or_raw,
+        };
+    }
+
+    if lower.contains("mobile documents")
+        || lower.contains("clouddocs")
+        || lower.contains("icloud")
+    {
+        return CloudHijackReport {
+            is_hijacked: true,
+            provider: Some("iCloud Drive".to_string()),
+            detected_path: canonical_or_raw,
+        };
+    }
+
+    if path_obj.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&path_obj) {
+            for entry in entries.flatten() {
+                let fname = entry.file_name().to_string_lossy().to_lowercase();
+                if fname.ends_with(".icloud") {
+                    return CloudHijackReport {
+                        is_hijacked: true,
+                        provider: Some("iCloud Drive".to_string()),
+                        detected_path: canonical_or_raw,
+                    };
+                }
+            }
+        }
+    }
+
+    CloudHijackReport {
+        is_hijacked: false,
+        provider: None,
+        detected_path: canonical_or_raw,
+    }
 }

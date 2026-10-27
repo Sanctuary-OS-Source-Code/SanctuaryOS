@@ -1,40 +1,55 @@
 import React from 'react';
 import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer } from '../../shared';
 import { ModCard } from '../../ModCard';
-import { useStore } from '../../store';
 
 export function VaultGrid(props: any) {
   const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods } = props;
-  const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
-  const localSetsRaw = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]";
-  const localSets = React.useMemo(() => {
-    try {
-      return JSON.parse(localSetsRaw);
-    } catch {
-      return [];
-    }
-  }, [localSetsRaw]);
+  const localSets = Array.isArray(playSets) ? playSets : [];
   const [drawerSearchQuery, setDrawerSearchQuery] = React.useState("");
   React.useEffect(() => {
     setDrawerSearchQuery("");
   }, [expandedFolder]);
+  const archetypePeersByHash = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (let i = 0; i < localSets.length; i++) {
+      const arch = localSets[i]?.archetypes;
+      if (!arch) continue;
+      const group: string[] = [];
+      if (arch.core) group.push(arch.core);
+      if (Array.isArray(arch.twins)) group.push(...arch.twins.filter(Boolean));
+      if (Array.isArray(arch.addons)) group.push(...arch.addons.filter(Boolean));
+      if (group.length < 2) continue;
+      for (let a = 0; a < group.length; a++) {
+        const hA = group[a];
+        let peers = map.get(hA);
+        if (!peers) {
+          peers = new Set<string>();
+          map.set(hA, peers);
+        }
+        for (let b = 0; b < group.length; b++) {
+          if (a !== b) peers.add(group[b]);
+        }
+      }
+    }
+    return map;
+  }, [localSets]);
   const areArchetypes = React.useCallback((hash1: string, hash2: string) => {
     if (!hash1 || !hash2) return false;
-    return localSets.some((s: any) => (
-      (s.archetypes?.core === hash1 && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2))) ||
-      (s.archetypes?.core === hash2 && (s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1))) ||
-      ((s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1)) && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2)))
-    ));
-  }, [localSets]);
+    return archetypePeersByHash.get(hash1)?.has(hash2) || false;
+  }, [archetypePeersByHash]);
   const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
   const cleanedActiveSet = React.useMemo(() => {
     const s = new Set<string>();
-    activeSetMods.forEach((m: string) => s.add(m.replace(/^(sanctuary[/\\])+/i, '')));
+    activeSetMods.forEach((m: string) => {
+      s.add(m);
+      s.add(m.replace(/^(sanctuary[/\\])+/i, ''));
+    });
     return s;
   }, [activeSetMods]);
 
   const checkConflicts = React.useCallback((mObj: any, targetCasualties: any[], targetTier3: any[]) => {
-    const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
+    const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase() || "";
+    const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
     const mObjDispUpper = mObj.displayName?.toUpperCase();
     if (mObj.conflicts && mObj.conflicts.length > 0) {
       const processSeverity = (targetRank: number, targetList: any[]) => {
@@ -44,7 +59,6 @@ export function VaultGrid(props: any) {
             if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
             if (c.enemy_name) {
               const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
-              const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
               if (mObjBase === targetClean || (item.emBaseNoScript ?? item.emBaseClean.replace(/_SCRIPT(S)?$/i, "")) === targetClean || mObjDispUpper === targetClean || (item.emDispNoScript ?? item.emDisp.replace(/_SCRIPT(S)?$/i, "")) === targetClean) return true;
             }
             return false;
@@ -71,7 +85,6 @@ export function VaultGrid(props: any) {
           if (c.enemy_id && String(mObj.dbId) === String(c.enemy_id)) return true;
           if (c.enemy_name) {
             const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
-            const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
             if (mObjBase === targetClean || mObjDispUpper === targetClean) return true;
           }
           return false;
@@ -119,23 +132,8 @@ export function VaultGrid(props: any) {
 
     paginatedMods.forEach((mod: any) => {
       const isEquipped = mod.isParent
-        ? (() => {
-          const anchor = mod.dbId || mod.familyId;
-          if (mod.isFlavorFolder) {
-            return (mod.flavors || []).some((f: any) =>
-              activeSetMods.includes(f.name) || cleanedActiveSet.has(f.name)
-            );
-          }
-          if (anchor) {
-            return (mod.flavors || []).some((f: any) =>
-              activeSetMods.includes(f.name) || cleanedActiveSet.has(f.name)
-            );
-          }
-          return (mod.flavors || []).some((f: any) =>
-            activeSetMods.includes(f.name) || cleanedActiveSet.has(f.name)
-          );
-        })()
-        : activeSetMods.includes(mod.name) || cleanedActiveSet.has(mod.name);
+        ? (mod.flavors || []).some((f: any) => cleanedActiveSet.has(f.name))
+        : cleanedActiveSet.has(mod.name);
       
       const getDeepCasualties = (targetMods: any[], shallow = false) => {
         let queue = [...targetMods];
@@ -482,16 +480,21 @@ export function VaultGrid(props: any) {
           else if (Array.isArray(flavor.requiredDLC)) rawFlavorDLC.push(...flavor.requiredDLC);
         }
 
-        let flavorDLC = Array.from(new Set(rawFlavorDLC)).filter(Boolean);
+        let flavorDLC = Array.from(new Set(rawFlavorDLC))
+          .map((p: string) => String(p).replace(/[\{\}\[\]"']/g, "").trim())
+          .filter((p: string) => {
+            const code = p.split(' ')[0].toUpperCase().trim();
+            return Boolean(code) && code !== "BASE";
+          });
         const missingPacks = flavorDLC.filter((p: string) => {
-          const baseCode = p.split(' ')[0].toUpperCase();
+          const baseCode = p.split(' ')[0].toUpperCase().trim();
           return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
         });
         const hasMissingDeps = (flavor.missingReqs && flavor.missingReqs.length > 0) || (mod.missingReqs && mod.missingReqs.length > 0);
 
         const flavorVersionMismatch = (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) || (mod.compatible_versions && mod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(mod.compatible_versions, selectedVersion));
-        const flavorGhostReason = flavor.ghostReason || (flavorVersionMismatch ? "VERSION_MISMATCH" : null) || (mod.ghostReason === "VERSION_MISMATCH" ? "VERSION_MISMATCH" : null);
-        const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || flavor.isGhosted || mod.isGhosted || flavorGhostReason === "VERSION_MISMATCH";
+        const flavorGhostReason = flavorVersionMismatch ? "VERSION_MISMATCH" : (missingPacks.length > 0 ? "MISSING_DLC" : null);
+        const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || Boolean(flavorVersionMismatch);
 
         map.set(flavor.hash || flavor.name, {
           isFlavorEquipped,
@@ -669,7 +672,7 @@ export function VaultGrid(props: any) {
                     {/* Unified Full-Width Folder Header */}
                     <div className="flex flex-wrap gap-4 items-center justify-between pb-5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-20 w-full">
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">
                             {t("icon_folder_open", "folder_open")}
                           </span>

@@ -415,9 +415,9 @@ export default function BlueprintMatrix({
               <button
                 type="button"
                 onClick={handleRemoveAllViolating}
-                className="px-3 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--danger)] inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                className={`${VAULT_CHIP_CLASS} !h-7 cursor-pointer hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] transition-all`}
               >
-                <span className="material-symbols-outlined !text-[13px]">
+                <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
                   {t("icon_delete_sweep", "delete_sweep")}
                 </span>
                 <span>{t("matrix_btn_remove_all", "Remove All")}</span>
@@ -436,7 +436,7 @@ export default function BlueprintMatrix({
                   >
                     <div className="flex items-start justify-between gap-2.5 min-w-0">
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[18px]">
                             {t("icon_gpp_bad", "gpp_bad")}
                           </span>
@@ -456,7 +456,7 @@ export default function BlueprintMatrix({
                       </button>
                     </div>
                     <div className="flex items-center gap-1.5 pt-2 border-t border-[rgba(var(--text-rgb),0.06)]">
-                      <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]`}>
+                      <span className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
                           {t("icon_shield", "shield")}
                         </span>
@@ -572,7 +572,7 @@ export default function BlueprintMatrix({
             )}
             {uploadSuccess && (
               <div className="flex justify-center">
-                <div className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]`}>
+                <div className={VAULT_CHIP_CLASS}>
                   <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                     {t("icon_check_circle", "check_circle")}
                   </span>

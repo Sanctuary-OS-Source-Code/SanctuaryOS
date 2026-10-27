@@ -1,6 +1,7 @@
 import React from 'react';
 import { EmptyState } from '../../shared-components/layout';
 import { HoverTooltip } from '../../shared-components/alerts';
+import { normalizeAllCapsForThemeCase } from '../../LexiconContext';
 
 // ==========================================
 // HUB OVERVIEW LANDING & SECTION (GOLD STANDARD)
@@ -146,8 +147,12 @@ export function SidePanelHeroCard({
   children,
   className = "",
 }: SidePanelHeroCardProps) {
-  const resolvedOverline = overline ?? label;
-  const resolvedDescription = description ?? subtitle;
+  const rawOverline = overline ?? label;
+  const resolvedOverline = typeof rawOverline === "string" ? normalizeAllCapsForThemeCase(rawOverline) : rawOverline;
+  const rawDescription = description ?? subtitle;
+  const resolvedDescription = typeof rawDescription === "string" ? normalizeAllCapsForThemeCase(rawDescription) : rawDescription;
+  const resolvedTitle = typeof title === "string" ? normalizeAllCapsForThemeCase(title) : title;
+  const resolvedBadge = typeof badge === "string" ? normalizeAllCapsForThemeCase(badge) : badge;
   const colorVar =
     variant === "danger"
       ? "--danger"
@@ -164,9 +169,8 @@ export function SidePanelHeroCard({
       <div className="flex items-start justify-between gap-3.5">
         <div className="flex items-start gap-3.5 min-w-0 flex-1">
           <div
-            className="w-11 h-11 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+            className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
             style={{
-              borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
               color: `var(${colorVar})`,
             }}
           >
@@ -181,9 +185,9 @@ export function SidePanelHeroCard({
                 {resolvedOverline}
               </span>
             )}
-            {title && (
+            {resolvedTitle && (
               <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug">
-                {title}
+                {resolvedTitle}
               </h3>
             )}
             {resolvedDescription && (
@@ -194,43 +198,49 @@ export function SidePanelHeroCard({
           </div>
         </div>
 
-        {(badge || (badges && badges.length > 0)) && (
+        {(resolvedBadge || (badges && badges.length > 0)) && (
           <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
-            {badge && (
-              <span
-                className="px-2.5 py-1 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 shrink-0"
-                style={{
-                  borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
-                  color: `var(${colorVar})`,
-                }}
-              >
-                <span className="material-symbols-outlined !text-[12px]">
+            {resolvedBadge && (
+              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                <span
+                  className="material-symbols-outlined !text-[12px]"
+                  style={{ color: `var(${colorVar})` }}
+                >
                   {badgeIcon || icon}
                 </span>
-                {badge}
+                <span>{resolvedBadge}</span>
               </span>
             )}
-            {badges?.map((b, idx) => (
-              <span
-                key={idx}
-                className={`px-2.5 py-1 rounded-lg glass-surface text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 shrink-0 ${
-                  b.colorClass || ""
-                }`}
-                style={
-                  b.colorClass
-                    ? undefined
-                    : {
-                        borderColor: `color-mix(in srgb, var(${colorVar}) 42%, transparent)`,
-                        color: `var(${colorVar})`,
-                      }
-                }
-              >
-                <span className="material-symbols-outlined !text-[12px]">
-                  {b.icon || icon}
+            {badges?.map((b, idx) => {
+              const badgeIconColorVar =
+                b.colorClass?.includes("--danger") || b.colorClass?.includes("red")
+                  ? "--danger"
+                  : b.colorClass?.includes("--warning") ||
+                      b.colorClass?.includes("amber") ||
+                      b.colorClass?.includes("yellow") ||
+                      b.colorClass?.includes("orange")
+                    ? "--warning"
+                    : b.colorClass?.includes("--success") ||
+                        b.colorClass?.includes("emerald") ||
+                        b.colorClass?.includes("green")
+                      ? "--success"
+                      : colorVar;
+              const resolvedBadgeLabel = typeof b.label === "string" ? normalizeAllCapsForThemeCase(b.label) : b.label;
+              return (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0"
+                >
+                  <span
+                    className="material-symbols-outlined !text-[12px]"
+                    style={{ color: `var(${badgeIconColorVar})` }}
+                  >
+                    {b.icon || icon}
+                  </span>
+                  <span>{resolvedBadgeLabel}</span>
                 </span>
-                {b.label}
-              </span>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -271,7 +281,7 @@ export function SidePanelTitleInput({
       {headerLabel && (
         <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[15px]">
                 {icon || (readOnly || !onChange ? "label" : "edit_note")}
               </span>
@@ -341,10 +351,10 @@ export function SidePanelPillToggle({
       <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
         {icon && (
           <div
-            className={`w-8 h-8 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors ${
+            className={`w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center shrink-0 transition-colors ${
               checked
-                ? `border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)] text-[var(${colorVar})]`
-                : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]"
+                ? `text-[var(${colorVar})]`
+                : "text-[var(--subtext)] group-hover:text-[var(--text)]"
             }`}
           >
             <span className="material-symbols-outlined !text-[16px]">{icon}</span>
@@ -354,7 +364,7 @@ export function SidePanelPillToggle({
           <span
             className={`text-xs font-bold tracking-wide transition-colors truncate ${
               checked
-                ? `text-[var(${colorVar})]`
+                ? "text-[var(--text)]"
                 : "text-[var(--subtext)] group-hover:text-[var(--text)]"
             }`}
           >
@@ -368,19 +378,10 @@ export function SidePanelPillToggle({
         </div>
       </div>
       <div
-        className={`w-11 h-6 rounded-full transition-all relative shrink-0 border bg-transparent ${
-          checked
-            ? `border-[color-mix(in_srgb,var(${colorVar})_55%,transparent)]`
-            : "border-[color-mix(in_srgb,var(--text)_18%,transparent)]"
-        }`}
+        className={`sa-glass-toggle ${checked ? "is-on" : ""}`}
+        style={{ "--toggle-accent": `var(${colorVar})` } as React.CSSProperties}
       >
-        <div
-          className={`w-4 h-4 rounded-full absolute top-[3px] transition-all duration-300 ${
-            checked
-              ? `translate-x-[22px] bg-[var(${colorVar})] shadow-[0_0_8px_var(${colorVar})]`
-              : "translate-x-[3px] bg-[color-mix(in_srgb,var(--text)_40%,transparent)]"
-          }`}
-        />
+        <div className="sa-glass-toggle-thumb" />
       </div>
       <input
         type="checkbox"
@@ -436,7 +437,7 @@ export function UniversalGroup({
         <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
-              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[15px]">
                   {icon}
                 </span>
@@ -609,10 +610,29 @@ export function UniversalToggle({
     );
   }
 
+  const colorVar =
+    variant === "warning"
+      ? "--warning"
+      : variant === "success"
+        ? "--success"
+        : variant === "danger"
+          ? "--danger"
+          : "--accent";
+
   const toggleNode = (
     <label className="relative inline-flex items-center cursor-pointer shrink-0">
-      <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <div className="w-10 h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-full peer peer-checked:bg-[var(--accent)] transition-colors after:content-[''] after:absolute after:top-1 after:left-1 after:bg-[var(--bg)] after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4 shadow-inner"></div>
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <div
+        className={`sa-glass-toggle ${checked ? "is-on" : ""}`}
+        style={{ "--toggle-accent": `var(${colorVar})` } as React.CSSProperties}
+      >
+        <div className="sa-glass-toggle-thumb" />
+      </div>
     </label>
   );
 
@@ -708,16 +728,16 @@ export function StatBox({
         onClick ? "cursor-pointer active:scale-[0.99]" : "cursor-default"
       } ${className}`}
     >
-      <div className={`w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,currentColor_35%,transparent)] flex items-center justify-center shrink-0 relative z-10 ${resolvedIconColorClass}`}>
+      <div className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative z-10 ${resolvedIconColorClass}`}>
         <span className="material-symbols-outlined !text-[18px]">{icon}</span>
       </div>
 
       <div className="flex flex-col min-w-0 flex-1 relative z-10">
         <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 mb-0.5 truncate">
-          {label}
+          {normalizeAllCapsForThemeCase(label)}
         </span>
         <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] break-words line-clamp-2`}>
-          {value}
+          {typeof value === "string" ? normalizeAllCapsForThemeCase(value) : value}
         </div>
       </div>
 

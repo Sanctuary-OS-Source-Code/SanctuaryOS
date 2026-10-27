@@ -60,7 +60,7 @@ function MobileNavItem({
         {label}
       </span>
       {typeof badge === 'number' && badge > 0 && (
-        <span className="px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[9px] font-black text-[var(--accent)] shrink-0">
+        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_16%,transparent)] text-[9px] font-black text-[var(--sidebartext)] opacity-85 shrink-0 flex items-center justify-center leading-none">
           {badge}
         </span>
       )}
@@ -252,7 +252,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                     {tab.icon}
                   </span>
                   {typeof tab.badge === "number" && tab.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-[15px] h-[15px] px-1 rounded-full bg-[var(--accent)] text-[var(--bg)] text-[8px] font-black flex items-center justify-center shadow-md z-20">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[15px] h-[15px] px-1 rounded-md glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_22%,transparent)] text-[var(--sidebartext)] text-[8px] font-black flex items-center justify-center shadow-sm z-20">
                       {tab.badge}
                     </span>
                   )}

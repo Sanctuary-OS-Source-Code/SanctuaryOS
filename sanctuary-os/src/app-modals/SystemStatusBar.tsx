@@ -278,8 +278,8 @@ export function SystemStatusBar({
     <>
       {/* Mobile Top-Right Compact Alert Pod */}
       {isWorkspaceDockActive && hasQueueAlerts && !isSideBrowserOpen && !isHubLockdownActive && (
-        <div data-sa-dock="true" className="md:hidden fixed top-[20px] right-4 z-[14000] pointer-events-auto">
-          <div className="glass-panel portal-glass-fix flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl">
+        <div data-sa-dock="true" className="md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+12px)] right-4 z-[14000] pointer-events-auto">
+          <div className="glass-panel sa-floating-glass-pill flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl">
             {sigQueueCount > 0 && (
               <button
                 onClick={() => setIsSignatureQueueOpen(true)}
@@ -321,7 +321,7 @@ export function SystemStatusBar({
                 transitionDuration: '400ms',
                 transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
               }}
-              className="pointer-events-auto glass-panel portal-glass-fix h-9 rounded-2xl flex items-center px-3 relative"
+              className="pointer-events-auto glass-panel sa-floating-glass-pill h-9 rounded-2xl flex items-center px-3 relative"
             >
               {/* 1. INLINE STATUS SEGMENT (Morphs inside the same pill on Save / Scan / Error) */}
               <div

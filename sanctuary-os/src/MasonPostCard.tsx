@@ -249,7 +249,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
     <UniversalCard
       layout={layout || (isCompact ? "vertical-compact" : "vertical")}
       title={td ? td(post.title || "") : post.title}
-      subtitle={`${t("by_author", "BY")} ${authorName}`}
+      subtitle={`${t("by_author", "By")} ${authorName}`}
       image={showImage ? imageUrl : undefined}
       icon={!showImage ? t("icon_cell_tower", "cell_tower") : undefined}
       statusColor={isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[0_0_20px_rgba(239,68,68,0.1)]' : undefined}

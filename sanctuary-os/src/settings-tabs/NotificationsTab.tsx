@@ -697,7 +697,7 @@ export default function NotificationsTab() {
             icon={t('icon_hub', 'hub')}
             actions={
               selectedScope !== 'global' ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--accent)_38%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
                   <span className="material-symbols-outlined !text-[11px]">
                     {spokeHasCustomOverrides
                       ? t('icon_tune', 'tune')

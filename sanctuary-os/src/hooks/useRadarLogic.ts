@@ -3,7 +3,7 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
-import { isVersionMatch, getExtensionRegex } from "../shared";
+import { isVersionMatch, getExtensionRegex, parseStringArray } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState } from "react";
 import { useModalStore } from "../store/modalStore";
@@ -209,7 +209,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           currentOwnedDLC = physicalDLC;
 
           if (config.launch_args) {
-            const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
+            const tpl = activeGameSchema?.launch_args_dlc_mask_template;
+            let maskRegex = /-disablepack:([\w,]+)/i;
+            if (typeof tpl === "string" && tpl.includes("{packs}")) {
+              const escaped = tpl
+                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                .replace("\\{packs\\}", "([\\w,.-]+)");
+              try {
+                maskRegex = new RegExp(escaped, "i");
+              } catch {}
+            }
+            const maskMatch = config.launch_args.match(maskRegex);
             if (maskMatch?.[1]) {
               const masked = maskMatch[1]
                 .split(",")
@@ -941,16 +951,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           : [];
 
         // Local Dossier takes top priority for requiredDLC
-        let rawDLC = modLocalOvr?.requiredDLC !== undefined
-          ? modLocalOvr.requiredDLC
-          : (dbMod?.requiredDLC || modEdgeLogic?.required_dlc || []);
-        if (typeof rawDLC === 'string') rawDLC = rawDLC.split(',').map((s: string) => s.trim()).filter(Boolean);
+        let rawDLC = parseStringArray(
+          modLocalOvr?.requiredDLC !== undefined
+            ? modLocalOvr.requiredDLC
+            : (dbMod?.requiredDLC || modEdgeLogic?.required_dlc || [])
+        );
         if (!modLocalOvr?.is_user_dossier && Array.isArray(modEdgeLogic?.required_dlc) && modEdgeLogic.required_dlc.length > 0) {
-          rawDLC = Array.from(new Set([...(Array.isArray(rawDLC) ? rawDLC : []), ...modEdgeLogic.required_dlc]));
+          rawDLC = Array.from(new Set([...rawDLC, ...parseStringArray(modEdgeLogic.required_dlc)]));
         }
+        rawDLC = rawDLC.filter((dlc: string) => {
+          const code = dlc.split(' ')[0].toUpperCase().trim();
+          return Boolean(code) && code !== "BASE";
+        });
         const isDlcMissing = rawDLC.some(
           (dlc: string) => {
-            const baseCode = dlc.split(' ')[0].toUpperCase();
+            const baseCode = dlc.split(' ')[0].toUpperCase().trim();
             return !currentOwnedDLC.includes(baseCode) || currentMaskedDLC.includes(baseCode);
           }
         );
@@ -1096,7 +1111,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
         let isVersionMismatch = false;
         if (selectedVersion && compVerArray.length > 0) {
-            isVersionMismatch = !compVerArray.some((v: string) => v === selectedVersion);
+            isVersionMismatch = !isVersionMatch(compVerArray, selectedVersion);
         }
 
         const mergedRequirements = [
@@ -1493,21 +1508,55 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (rm.dbId) rawByHashOrDbId.set(String(rm.dbId), rm);
       });
 
+      const conflictsById = new Map<string, any[]>();
+      const conflictsByName = new Map<string, any[]>();
+      const pushConflict = (map: Map<string, any[]>, key: string, c: any) => {
+        if (!key) return;
+        let arr = map.get(key);
+        if (!arr) {
+          arr = [];
+          map.set(key, arr);
+        }
+        arr.push(c);
+      };
+      for (const c of globalConflicts) {
+        if (c.mod_a_id != null) pushConflict(conflictsById, String(c.mod_a_id), c);
+        if (c.mod_b_id != null) pushConflict(conflictsById, String(c.mod_b_id), c);
+        if (c.mod_a) pushConflict(conflictsByName, String(c.mod_a).toUpperCase(), c);
+        if (c.mod_b) pushConflict(conflictsByName, String(c.mod_b).toUpperCase(), c);
+      }
+
       const masterList = rawMasterList.map((m: any) => {
         if (!m.name || globalConflicts.length === 0) return m;
         const cleanName = m.name.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase() || "";
         const cleanDisplayName = m.displayName?.toUpperCase() || "";
         const upperHash = m.hash ? String(m.hash).toUpperCase() : "";
 
-        const myConflicts = globalConflicts.filter((c: any) => {
-           if (m.dbId && (c.mod_a_id === m.dbId || c.mod_b_id === m.dbId)) return true;
-           if (m.hash && (c.mod_a_id === m.hash || c.mod_b_id === m.hash)) return true;
-           const cModA = c.mod_a ? String(c.mod_a).toUpperCase() : "";
-           const cModB = c.mod_b ? String(c.mod_b).toUpperCase() : "";
-           if (cModA && (cModA === cleanName || cModA === cleanDisplayName || (upperHash && cModA === upperHash))) return true;
-           if (cModB && (cModB === cleanName || cModB === cleanDisplayName || (upperHash && cModB === upperHash))) return true;
-           return false;
-        }).map((c: any) => {
+        const matchedSet = new Set<any>();
+        if (m.dbId != null) {
+          const list = conflictsById.get(String(m.dbId));
+          if (list) for (const c of list) matchedSet.add(c);
+        }
+        if (m.hash) {
+          const list = conflictsById.get(String(m.hash));
+          if (list) for (const c of list) matchedSet.add(c);
+        }
+        if (cleanName) {
+          const list = conflictsByName.get(cleanName);
+          if (list) for (const c of list) matchedSet.add(c);
+        }
+        if (cleanDisplayName && cleanDisplayName !== cleanName) {
+          const list = conflictsByName.get(cleanDisplayName);
+          if (list) for (const c of list) matchedSet.add(c);
+        }
+        if (upperHash) {
+          const list = conflictsByName.get(upperHash);
+          if (list) for (const c of list) matchedSet.add(c);
+        }
+
+        if (matchedSet.size === 0) return m;
+
+        const myConflicts = Array.from(matchedSet).map((c: any) => {
            const isModA =
              (m.dbId && c.mod_a_id === m.dbId) ||
              (m.hash && c.mod_a_id === m.hash) ||
@@ -1585,11 +1634,30 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const netBroken = Array.isArray(cachedNetUpdates?.broken) ? cachedNetUpdates.broken : [];
       const netObsolete = Array.isArray(cachedNetUpdates?.obsolete) ? cachedNetUpdates.obsolete : [];
 
+      const netUpdatedByHash = new Map<string, any>();
+      const netUpdatedByName = new Map<string, any>();
+      for (const u of netUpdated) {
+        if (u?.hash) netUpdatedByHash.set(u.hash, u);
+        if (u?.name) netUpdatedByName.set(u.name, u);
+      }
+      const netBrokenHashes = new Set<string>();
+      const netBrokenNames = new Set<string>();
+      for (const b of netBroken) {
+        if (b?.hash) netBrokenHashes.add(b.hash);
+        if (b?.name) netBrokenNames.add(b.name);
+      }
+      const netObsoleteHashes = new Set<string>();
+      const netObsoleteNames = new Set<string>();
+      for (const o of netObsolete) {
+        if (o?.hash) netObsoleteHashes.add(o.hash);
+        if (o?.name) netObsoleteNames.add(o.name);
+      }
+
       const preserveModState = (m: any): any => {
         const existing = prevByHash.get(m.hash) || prevByName.get(m.name);
-        const netUpd = netUpdated.find((u: any) => (u.hash && u.hash === m.hash) || (u.name && u.name === m.name));
-        const isNetBroken = netBroken.some((b: any) => (b.hash && b.hash === m.hash) || (b.name && b.name === m.name));
-        const isNetObsolete = netObsolete.some((b: any) => (b.hash && b.hash === m.hash) || (b.name && b.name === m.name));
+        const netUpd = (m.hash && netUpdatedByHash.get(m.hash)) || (m.name && netUpdatedByName.get(m.name));
+        const isNetBroken = Boolean((m.hash && netBrokenHashes.has(m.hash)) || (m.name && netBrokenNames.has(m.name)));
+        const isNetObsolete = Boolean((m.hash && netObsoleteHashes.has(m.hash)) || (m.name && netObsoleteNames.has(m.name)));
 
         let nextFlavors = m.flavors;
         if (Array.isArray(m.flavors)) {

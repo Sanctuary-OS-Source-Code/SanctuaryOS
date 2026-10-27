@@ -92,7 +92,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                   )}
                 </>
               }
-              className={`w-full h-full transition-colors transition-shadow duration-300 ${expandedFolder === mainKey ? '!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_18%,transparent)]' : ''}`}
+              className={`w-full h-full transition-all duration-300 ${expandedFolder === mainKey ? '!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_18%,transparent)]' : ''}`}
               footer={
                 <div className="flex items-center justify-between w-full pt-1 relative min-h-[16px] gap-2">
                   <div className="flex items-center gap-1.5">
@@ -118,7 +118,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}
-                        className="px-3 py-1.5 rounded-full glass-surface bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest shadow-sm hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-colors flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
+                        className="px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)] transition-all flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
                       >
                         <span className="material-symbols-outlined !text-[12px]">{t("icon_download", "download")}</span>
                         <span>{t("update_panel_install", "Install")}</span>
@@ -184,7 +184,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setDrawerSearchQuery(""); setExpandedFolder(null); }}
-                        className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] transition-colors shrink-0 cursor-pointer"
+                        className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] transition-colors shrink-0 cursor-pointer"
                       >
                         <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
                       </button>

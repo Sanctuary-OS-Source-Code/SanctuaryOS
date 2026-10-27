@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useStore } from "../store";
+import { useStore, getSafeSchema } from "../store";
+import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
 import { readDir, readTextFile, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
 import enDefault from "../lexicons/en-default.json";
@@ -415,6 +416,10 @@ export function useMasonFiles({
     fetchFiles();
   }, [vaultPath, internalCloudTarget]);
 
+  const activeOpenFilePath = (isCloudMode ? cloudOpenFiles : localOpenFiles)[
+    isCloudMode ? cloudActiveFileIndex : localActiveFileIndex
+  ]?.path;
+
   useEffect(() => {
     const fetchRef = async () => {
       const currentFile = (isCloudMode ? cloudOpenFiles : localOpenFiles)[
@@ -435,23 +440,37 @@ export function useMasonFiles({
 
       if (isLexicon) {
         setReferenceData(enDefault);
-        setReferenceLabel("en-default.json Reference");
+        setReferenceLabel(t("validator_source_default_lex", "en-default.json Baseline"));
       } else {
-        const { supabaseAuth } = await import("../supabase");
-        const client = supabaseAuth;
-        const { data } = await client
-          .from("sanctuary_schemas")
-          .select("schema_data")
-          .eq("id", "default")
-          .maybeSingle();
-        if (data && Object.keys((data as any).schema_data || {}).length > 0) {
-          setReferenceData((data as any).schema_data);
-          setReferenceLabel("Default Master Schema");
-        }
+        const fallbackDefaultSchema = getSafeSchema(GAME_ARCHITECTURE_PRESETS.sims4, "default");
+        setReferenceData(fallbackDefaultSchema);
+        setReferenceLabel(
+          t("validator_source_keepers", "Keepers Core Default Schema")
+        );
+        try {
+          const { supabaseAuth } = await import("../supabase");
+          const { data } = await supabaseAuth
+            .from("sanctuary_schemas")
+            .select("schema_data")
+            .eq("id", "default")
+            .maybeSingle();
+          if (data && Object.keys((data as any).schema_data || {}).length > 0) {
+            const keepersDefault = getSafeSchema((data as any).schema_data, "default");
+            setReferenceData(keepersDefault);
+            setReferenceLabel(
+              t("validator_source_keepers", "Keepers Core Default Schema")
+            );
+          }
+        } catch {}
       }
     };
     fetchRef();
-  }, [isCloudMode ? cloudActiveFileIndex : localActiveFileIndex, isCloudMode, internalCloudTarget]);
+  }, [
+    isCloudMode ? cloudActiveFileIndex : localActiveFileIndex,
+    activeOpenFilePath,
+    isCloudMode,
+    internalCloudTarget,
+  ]);
 
   useEffect(() => {
     if (!editorRef || !(window as any).monaco) return;

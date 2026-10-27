@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub struct AppState {
     pub active_schema: std::sync::Mutex<Option<crate::schema::GameSchema>>,
     pub is_deploying: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub last_deploy_epoch_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

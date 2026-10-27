@@ -101,7 +101,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleMasonAlert}
-                className={`relative w-10 h-10 rounded-xl glass-surface backdrop-blur-md border flex items-center justify-center transition-all duration-300 ${masonAlerts[masonId] ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]' : 'bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'}`}
+                className={`relative w-10 h-10 rounded-xl glass-surface border flex items-center justify-center transition-all duration-300 ${masonAlerts[masonId] ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]'}`}
               >
                 <HoverTooltip title={t("profile_notify", "Notifications")} noIcon={true} />
                 <span className="material-symbols-outlined !text-[18px]">
@@ -112,7 +112,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
               {mason.patreon_url && (
                 <button
                   onClick={() => handleOpenUrl(mason.patreon_url)}
-                  className="relative w-10 h-10 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md text-[#FF424D] hover:bg-[#FF424D]/15 hover:border-[#FF424D]/35 flex items-center justify-center transition-all duration-300"
+                  className="relative w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[#FF424D] hover:border-[#FF424D]/50 flex items-center justify-center transition-all duration-300"
                 >
                   <HoverTooltip title={t("link_patreon", "Patreon")} noIcon={true} />
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_favorite", "favorite")}</span>
@@ -122,7 +122,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
               {mason.website_url && (
                 <button
                   onClick={() => handleOpenUrl(mason.website_url)}
-                  className="relative w-10 h-10 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md text-[#06B6D4] hover:bg-[#06B6D4]/15 hover:border-[#06B6D4]/35 flex items-center justify-center transition-all duration-300"
+                  className="relative w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[#06B6D4] hover:border-[#06B6D4]/50 flex items-center justify-center transition-all duration-300"
                 >
                   <HoverTooltip title={t("link_website", "Website")} noIcon={true} />
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_public", "public")}</span>
@@ -132,7 +132,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
               {mason.discord_url && (
                 <button
                   onClick={() => handleOpenUrl(mason.discord_url)}
-                  className="relative w-10 h-10 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] backdrop-blur-md text-[#5865F2] hover:bg-[#5865F2]/15 hover:border-[#5865F2]/35 flex items-center justify-center transition-all duration-300"
+                  className="relative w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[#5865F2] hover:border-[#5865F2]/50 flex items-center justify-center transition-all duration-300"
                 >
                   <HoverTooltip title={t("link_discord", "Discord")} noIcon={true} />
                   <span className="material-symbols-outlined !text-[18px]">{t("icon_chat", "chat")}</span>
@@ -142,10 +142,10 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
               {onOpenSupportModal && (
                 <button
                   onClick={onOpenSupportModal}
-                  className={`h-10 px-4 rounded-xl glass-surface backdrop-blur-md border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] ${
+                  className={`h-10 px-4 rounded-xl glass-surface border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] transition-all duration-300 ${
                     isVerifiedSupporter
-                      ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/25'
-                      : 'bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]'
+                      ? 'border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] hover:border-[color-mix(in_srgb,var(--success)_65%,transparent)]'
+                      : 'border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_65%,transparent)]'
                   }`}
                 >
                   <span className="material-symbols-outlined !text-[16px]">
@@ -161,7 +161,7 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
 
               <button
                 onClick={toggleFollow}
-                className={`h-10 px-5 rounded-xl glass-surface backdrop-blur-md border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] transition-all duration-300 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] ${isFollowing ? 'bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'}`}
+                className={`h-10 px-5 rounded-xl glass-surface border flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] transition-all duration-300 ${isFollowing ? 'border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]'}`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {isFollowing ? t("icon_check_circle", "check_circle") : t("icon_person_add", "person_add")}

@@ -16,16 +16,7 @@ pub fn launch_game(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = &state.active_schema.lock().unwrap().clone();
-    let mut doc_dir = std::path::PathBuf::from(&mods_path);
-    if doc_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default()
-        .to_lowercase()
-        == "mods"
-    {
-        doc_dir.pop();
-    }
+    let doc_dir = crate::game_logic::resolve_user_data_root(&mods_path, game_schema);
 
     let check_and_delete = |dir: &std::path::Path| {
         if dir.exists() && dir.is_dir() {
@@ -45,28 +36,33 @@ pub fn launch_game(
     check_and_delete(&doc_dir);
     check_and_delete(std::path::Path::new(&mods_path));
 
-    let mut base_path = std::path::PathBuf::from(&live_path);
-    if !base_path.ends_with("Bin") && !base_path.ends_with("bin") {
-        base_path.push("Game");
-        base_path.push("Bin");
-    }
-
-    let exe_names = crate::game_logic::get_executable_names(game_schema);
-    let mut exe_path = None;
-    for name in exe_names {
-        let test_path = base_path.join(&name);
-        if test_path.exists() {
-            exe_path = Some(test_path);
-            break;
-        }
-    }
-
-    let exe_path = match exe_path {
+    let exe_path = match crate::game_logic::resolve_executable_path(&live_path, game_schema) {
         Some(p) => p,
         None => return Err("backend_exe_not_found".to_string()),
     };
 
-    let parent_dir = exe_path.parent().unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        if exe_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map_or(false, |e| e.eq_ignore_ascii_case("app"))
+        {
+            return match std::process::Command::new("open")
+                .arg("-a")
+                .arg(&exe_path)
+                .spawn()
+            {
+                Ok(_) => Ok("backend_ignition_started".to_string()),
+                Err(e) => Err(e.to_string()),
+            };
+        }
+    }
+
+    let parent_dir = exe_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
 
     match std::process::Command::new(&exe_path)
         .current_dir(parent_dir)
@@ -239,14 +235,17 @@ fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::GameSchema>) 
     vec!["saves".to_string()]
 }
 
-fn resolve_docs_root(docs_or_mods_path: &str) -> PathBuf {
+fn resolve_docs_root(
+    docs_or_mods_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> PathBuf {
     let config = get_saved_coordinates();
     let candidate = if docs_or_mods_path.trim().is_empty() {
         config.mods_path
     } else {
         docs_or_mods_path.to_string()
     };
-    PathBuf::from(crate::utils::get_docs_base_from_mods_path(&candidate))
+    crate::game_logic::resolve_user_data_root(&candidate, game_schema)
 }
 
 fn set_tree_readonly(dir: &Path, readonly: bool) {
@@ -272,7 +271,7 @@ pub fn apply_save_airgap(
     enable: bool,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Result<String, String> {
-    let docs_dir = resolve_docs_root(docs_path);
+    let docs_dir = resolve_docs_root(docs_path, game_schema);
     if !docs_dir.exists() {
         return Ok("Documents directory not found".to_string());
     }
@@ -406,179 +405,197 @@ pub fn get_lab_test_save_status(
     state: tauri::State<'_, AppState>,
 ) -> Result<LabTestSaveStatus, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let docs_dir = resolve_docs_root(&docs_path);
+    let docs_dir = resolve_docs_root(&docs_path, &game_schema);
     Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
 }
 
 #[tauri::command]
-pub fn configure_lab_test_save(
+pub async fn configure_lab_test_save(
     docs_path: String,
     mode: String,
     source_save_name: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabTestSaveStatus, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let docs_dir = resolve_docs_root(&docs_path);
-    let targets = resolve_save_airgap_targets(&game_schema);
-    let primary_save_rel = targets
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "saves".to_string());
-    let save_exts = resolve_save_extensions(&game_schema);
+    tauri::async_runtime::spawn_blocking(move || {
+        let docs_dir = resolve_docs_root(&docs_path, &game_schema);
+        let targets = resolve_save_airgap_targets(&game_schema);
+        let primary_save_rel = targets
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "saves".to_string());
+        let save_exts = resolve_save_extensions(&game_schema);
 
-    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
-    let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
-    let marker_file = airgap_root.join(".airgap_active.json");
-    let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
+        let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+        let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
+        let marker_file = airgap_root.join(".airgap_active.json");
+        let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
 
-    let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
-        (
-            docs_dir.join(&primary_save_rel),
-            airgap_root.join(&primary_save_rel),
-        )
-    } else {
-        (
-            sandbox_root.join(&primary_save_rel),
-            docs_dir.join(&primary_save_rel),
-        )
-    };
+        let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
+            (
+                docs_dir.join(&primary_save_rel),
+                airgap_root.join(&primary_save_rel),
+            )
+        } else {
+            (
+                sandbox_root.join(&primary_save_rel),
+                docs_dir.join(&primary_save_rel),
+            )
+        };
 
-    let _ = std::fs::create_dir_all(&sandbox_saves_dir);
-    set_tree_readonly(&sandbox_saves_dir, false);
-    let seeded_marker = sandbox_saves_dir.join(".sanctuary_seeded_save");
+        let _ = std::fs::create_dir_all(&sandbox_saves_dir);
+        set_tree_readonly(&sandbox_saves_dir, false);
+        let seeded_marker = sandbox_saves_dir.join(".sanctuary_seeded_save");
 
-    match mode.as_str() {
-        "reset_for_fresh_save" => {
-            for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
-                .max_depth(2)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if entry.file_type().is_file() {
-                    let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                    if fname_lower.contains(".save") || fname_lower == ".sanctuary_seeded_save" {
-                        let _ = std::fs::remove_file(entry.path());
-                    }
-                }
-            }
-            let _ = std::fs::remove_file(&seeded_marker);
-        }
-        "select_sandbox_save" => {
-            if let Some(target_name) = source_save_name.filter(|s| !s.trim().is_empty()) {
-                let _ = std::fs::write(&seeded_marker, target_name.trim().as_bytes());
-            }
-        }
-        "copy_live_save" => {
-            let target_name = source_save_name
-                .filter(|s| !s.trim().is_empty())
-                .or_else(|| {
-                    list_saves_in_dir(&live_saves_dir, &save_exts)
-                        .first()
-                        .map(|s| s.file_name.clone())
-                })
-                .ok_or_else(|| "No save file selected or available in live saves.".to_string())?;
-
-            let mut found_src: Option<PathBuf> = None;
-            if live_saves_dir.exists() {
-                for entry in walkdir::WalkDir::new(&live_saves_dir)
+        match mode.as_str() {
+            "reset_for_fresh_save" => {
+                for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
                     .max_depth(2)
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
-                    if entry.file_type().is_file()
-                        && entry
-                            .file_name()
-                            .to_string_lossy()
-                            .eq_ignore_ascii_case(&target_name)
+                    if entry.file_type().is_file() {
+                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                        let matches_save_ext = save_exts
+                            .iter()
+                            .any(|ext| fname_lower.ends_with(&ext.to_lowercase()));
+                        if matches_save_ext || fname_lower == ".sanctuary_seeded_save" {
+                            let _ = std::fs::remove_file(entry.path());
+                        }
+                    }
+                }
+                let _ = std::fs::remove_file(&seeded_marker);
+            }
+            "select_sandbox_save" => {
+                if let Some(target_name) = source_save_name.filter(|s| !s.trim().is_empty()) {
+                    let _ = std::fs::write(&seeded_marker, target_name.trim().as_bytes());
+                }
+            }
+            "copy_live_save" => {
+                let target_name = source_save_name
+                    .filter(|s| !s.trim().is_empty())
+                    .or_else(|| {
+                        list_saves_in_dir(&live_saves_dir, &save_exts)
+                            .first()
+                            .map(|s| s.file_name.clone())
+                    })
+                    .ok_or_else(|| "No save file selected or available in live saves.".to_string())?;
+
+                let mut found_src: Option<PathBuf> = None;
+                if live_saves_dir.exists() {
+                    for entry in walkdir::WalkDir::new(&live_saves_dir)
+                        .max_depth(2)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
                     {
-                        found_src = Some(entry.path().to_path_buf());
-                        break;
+                        if entry.file_type().is_file()
+                            && entry
+                                .file_name()
+                                .to_string_lossy()
+                                .eq_ignore_ascii_case(&target_name)
+                        {
+                            found_src = Some(entry.path().to_path_buf());
+                            break;
+                        }
                     }
                 }
-            }
 
-            let src_path = found_src.ok_or_else(|| {
-                format!("Could not locate save file '{}' in live saves.", target_name)
-            })?;
+                let src_path = found_src.ok_or_else(|| {
+                    format!("Could not locate save file '{}' in live saves.", target_name)
+                })?;
 
-            // Remove old .save files in sandbox so only the selected dedicated test save is active
-            for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
-                .max_depth(2)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if entry.file_type().is_file() {
-                    let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                    if fname_lower.contains(".save") {
-                        let _ = std::fs::remove_file(entry.path());
+                // Remove old save files in sandbox so only the selected dedicated test save is active
+                for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
+                    .max_depth(2)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file() {
+                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                        let matches_save_ext = save_exts
+                            .iter()
+                            .any(|ext| fname_lower.ends_with(&ext.to_lowercase()));
+                        if matches_save_ext {
+                            let _ = std::fs::remove_file(entry.path());
+                        }
                     }
                 }
-            }
 
-            let clean_fname = src_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(&target_name)
-                .to_string();
-            let dst_path = sandbox_saves_dir.join(&clean_fname);
-            std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
-            if let Ok(meta) = std::fs::metadata(&dst_path) {
-                let mut perms = meta.permissions();
-                perms.set_readonly(false);
-                let _ = std::fs::set_permissions(&dst_path, perms);
+                let clean_fname = src_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&target_name)
+                    .to_string();
+                let dst_path = sandbox_saves_dir.join(&clean_fname);
+                std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+                if let Ok(meta) = std::fs::metadata(&dst_path) {
+                    let mut perms = meta.permissions();
+                    perms.set_readonly(false);
+                    let _ = std::fs::set_permissions(&dst_path, perms);
+                }
+                let _ = std::fs::write(&seeded_marker, clean_fname.as_bytes());
             }
-            let _ = std::fs::write(&seeded_marker, clean_fname.as_bytes());
+            _ => return Err(format!("Unsupported Lab Test Save mode: {}", mode)),
         }
-        _ => return Err(format!("Unsupported Lab Test Save mode: {}", mode)),
-    }
 
-    Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
+        Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn airgap_saves(
+pub async fn airgap_saves(
     docs_path: String,
     enable: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    apply_save_airgap(&docs_path, enable, &game_schema)
+    tauri::async_runtime::spawn_blocking(move || {
+        apply_save_airgap(&docs_path, enable, &game_schema)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn get_airgap_status(
+pub async fn get_airgap_status(
     docs_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<AirgapStatus, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let docs_dir = resolve_docs_root(&docs_path);
-    let targets = resolve_save_airgap_targets(&game_schema);
-    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
-    let marker_file = airgap_root.join(".airgap_active.json");
+    tauri::async_runtime::spawn_blocking(move || {
+        let docs_dir = resolve_docs_root(&docs_path, &game_schema);
+        let targets = resolve_save_airgap_targets(&game_schema);
+        let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+        let marker_file = airgap_root.join(".airgap_active.json");
 
-    let mut protected_files_count = 0usize;
-    let mut any_airgap_dir = false;
-    for t in &targets {
-        let dir = airgap_root.join(t);
-        if dir.exists() {
-            any_airgap_dir = true;
-            for entry in walkdir::WalkDir::new(&dir)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if entry.file_type().is_file() {
-                    protected_files_count += 1;
+        let mut protected_files_count = 0usize;
+        let mut any_airgap_dir = false;
+        for t in &targets {
+            let dir = airgap_root.join(t);
+            if dir.exists() {
+                any_airgap_dir = true;
+                for entry in walkdir::WalkDir::new(&dir)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file() {
+                        protected_files_count += 1;
+                    }
                 }
             }
         }
-    }
 
-    Ok(AirgapStatus {
-        active: marker_file.exists() || any_airgap_dir,
-        targets,
-        airgap_path: airgap_root.to_string_lossy().to_string(),
-        protected_files_count,
+        Ok(AirgapStatus {
+            active: marker_file.exists() || any_airgap_dir,
+            targets,
+            airgap_path: airgap_root.to_string_lossy().to_string(),
+            protected_files_count,
+        })
     })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -590,7 +607,12 @@ pub fn launch_external_tool(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let exe_path = PathBuf::from(tool_path.trim());
-    if !exe_path.exists() || !exe_path.is_file() {
+    let is_app_bundle = exe_path.is_dir()
+        && exe_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map_or(false, |e| e.eq_ignore_ascii_case("app"));
+    if !exe_path.exists() || (!exe_path.is_file() && !is_app_bundle) {
         return Err("backend_exe_not_found".to_string());
     }
 
@@ -630,6 +652,28 @@ pub fn launch_external_tool(
         let _ = apply_save_airgap(&resolved_docs, true, &game_schema);
     }
 
+    #[cfg(target_os = "macos")]
+    if is_app_bundle {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg("-a").arg(&exe_path);
+        if let Some(arg_list) = args {
+            let cleaned_args: Vec<String> = arg_list
+                .into_iter()
+                .filter(|a| !a.trim().is_empty())
+                .collect();
+            if !cleaned_args.is_empty() {
+                cmd.arg("--args");
+                for a in cleaned_args {
+                    cmd.arg(a);
+                }
+            }
+        }
+        return match cmd.spawn() {
+            Ok(_) => Ok("backend_external_tool_started".to_string()),
+            Err(e) => Err(e.to_string()),
+        };
+    }
+
     let parent_dir = exe_path
         .parent()
         .map(|p| p.to_path_buf())
@@ -649,21 +693,6 @@ pub fn launch_external_tool(
         Ok(_) => Ok("backend_external_tool_started".to_string()),
         Err(e) => Err(e.to_string()),
     }
-}
-
-pub fn resolve_engine_root(live_path: &str) -> PathBuf {
-    let mut base = PathBuf::from(live_path);
-    if base.is_file() {
-        base.pop();
-    }
-    let lower = base.to_string_lossy().to_lowercase();
-    if lower.ends_with("bin") || lower.ends_with("bin_le") {
-        base.pop();
-    }
-    if base.to_string_lossy().to_lowercase().ends_with("game") {
-        base.pop();
-    }
-    base
 }
 
 pub fn cleanup_routed_links(vault_path: &str) {
@@ -794,9 +823,14 @@ pub fn route_file_if_matched(
 
 struct DeployGuard {
     flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    last_deploy_epoch_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
 }
 impl Drop for DeployGuard {
     fn drop(&mut self) {
+        self.last_deploy_epoch_ms.store(
+            crate::utils::current_epoch_ms(),
+            std::sync::atomic::Ordering::SeqCst,
+        );
         self.flag.store(false, std::sync::atomic::Ordering::SeqCst);
     }
 }
@@ -811,10 +845,14 @@ pub async fn deploy_playset_bulk(
     let game_schema = state.active_schema.lock().unwrap().clone();
 
     let is_deploying = state.inner().is_deploying.clone();
+    let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
     is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = DeployGuard { flag: is_deploying };
+        let _guard = DeployGuard {
+            flag: is_deploying,
+            last_deploy_epoch_ms,
+        };
 
         let mods_dir = PathBuf::from(&mods_path);
         let vault_dir = PathBuf::from(&vault_path);
@@ -838,11 +876,15 @@ pub async fn deploy_playset_bulk(
         let priority_folders = crate::game_logic::get_priority_folders(&game_schema);
         let load_strategy = crate::game_logic::get_load_order_strategy(&game_schema);
         let install_routes = crate::game_logic::get_install_routes(&game_schema);
+        let config_exts = crate::game_logic::get_config_extensions(&game_schema);
+        crate::utils::deduplicate_vault_root_configs(&vault_mods_lane, &config_exts);
         let saved_coords = get_saved_coordinates();
-        let live_root = resolve_engine_root(&saved_coords.live_path);
-        let docs_root = PathBuf::from(crate::utils::get_docs_base_from_mods_path(&mods_path));
+        let live_root =
+            crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, &game_schema);
+        let docs_root = crate::game_logic::resolve_user_data_root(&mods_path, &game_schema);
         let routed_records: std::sync::Mutex<Vec<RoutedFileRecord>> =
             std::sync::Mutex::new(Vec::new());
+        let deployed_links: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
         fn populate_vault_index(
             dir: &PathBuf,
@@ -1078,7 +1120,23 @@ pub async fn deploy_playset_bulk(
                 } else if load_strategy == "numeric_prefix" {
                     if let Some(order_idx) = m.load_order_index {
                         if let Some(fname) = target.file_name().and_then(|n| n.to_str()) {
-                            let prefixed_name = format!("{:03}_{}", order_idx + 1, fname);
+                            let prefix_fmt = game_schema
+                                .as_ref()
+                                .and_then(|s| s.load_order.as_ref())
+                                .and_then(|lo| lo.prefix_format.as_deref())
+                                .filter(|f| !f.is_empty())
+                                .unwrap_or("{index:03}_");
+                            let idx_num = order_idx + 1;
+                            let formatted_prefix = if prefix_fmt.contains("{index:03}") {
+                                prefix_fmt.replace("{index:03}", &format!("{:03}", idx_num))
+                            } else if prefix_fmt.contains("{index:02}") {
+                                prefix_fmt.replace("{index:02}", &format!("{:02}", idx_num))
+                            } else if prefix_fmt.contains("{index}") {
+                                prefix_fmt.replace("{index}", &idx_num.to_string())
+                            } else {
+                                format!("{:03}_", idx_num)
+                            };
+                            let prefixed_name = format!("{}{}", formatted_prefix, fname);
                             target = target.with_file_name(prefixed_name);
                         }
                     }
@@ -1086,6 +1144,14 @@ pub async fn deploy_playset_bulk(
 
                 if let Some(parent) = target.parent() {
                     let _ = std::fs::create_dir_all(parent);
+                    if parent != mods_dir.as_path() {
+                        if let Ok(mut dl) = deployed_links.lock() {
+                            let p_str = parent.to_string_lossy().to_string();
+                            if !dl.contains(&p_str) {
+                                dl.push(p_str);
+                            }
+                        }
+                    }
                 }
 
                 if m.allow_write {
@@ -1103,21 +1169,52 @@ pub async fn deploy_playset_bulk(
                 }
 
                 if !source.is_dir() {
-                    if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
-                        let schema_exts = crate::game_logic::get_supported_extensions(&game_schema);
-                        let target_ext = if schema_exts.len() >= 2 {
-                            if ext.eq_ignore_ascii_case(&schema_exts[0]) {
-                                Some(schema_exts[1].clone())
-                            } else if ext.eq_ignore_ascii_case(&schema_exts[1]) {
-                                Some(schema_exts[0].clone())
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
+                    if let Ok(mut dl) = deployed_links.lock() {
+                        let t_str = target.to_string_lossy().to_string();
+                        if !dl.contains(&t_str) {
+                            dl.push(t_str);
+                        }
+                    }
+                }
 
-                        if let Some(other_ext) = target_ext {
+                if !source.is_dir() {
+                    if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
+                        let ext_clean = ext.trim_start_matches('.').to_lowercase();
+                        let mut twin_exts: Vec<String> = Vec::new();
+                        if let Some(ref s) = game_schema {
+                            if let Some(ref groups) = s.extensions.twin_extensions {
+                                for group in groups {
+                                    let cleaned_group: Vec<String> = group
+                                        .iter()
+                                        .map(|g| g.trim_start_matches('.').to_lowercase())
+                                        .filter(|g| !g.is_empty())
+                                        .collect();
+                                    if cleaned_group.contains(&ext_clean) {
+                                        for sibling in cleaned_group {
+                                            if sibling != ext_clean && !twin_exts.contains(&sibling)
+                                            {
+                                                twin_exts.push(sibling);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if twin_exts.is_empty()
+                            && crate::game_logic::is_sims4_schema(&game_schema)
+                        {
+                            let schema_exts =
+                                crate::game_logic::get_supported_extensions(&game_schema);
+                            if schema_exts.len() >= 2 {
+                                if ext.eq_ignore_ascii_case(&schema_exts[0]) {
+                                    twin_exts.push(schema_exts[1].clone());
+                                } else if ext.eq_ignore_ascii_case(&schema_exts[1]) {
+                                    twin_exts.push(schema_exts[0].clone());
+                                }
+                            }
+                        }
+
+                        for other_ext in twin_exts {
                             let twin_source = source.with_extension(&other_ext);
                             if twin_source.exists() {
                                 let twin_target = target.with_extension(&other_ext);
@@ -1126,6 +1223,12 @@ pub async fn deploy_playset_bulk(
                                     .or_else(|_| {
                                         std::fs::copy(&twin_source, &twin_target).map(|_| ())
                                     });
+                                if let Ok(mut dl) = deployed_links.lock() {
+                                    let tt_str = twin_target.to_string_lossy().to_string();
+                                    if !dl.contains(&tt_str) {
+                                        dl.push(tt_str);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1181,11 +1284,7 @@ pub async fn deploy_playset_bulk(
                                                     path.extension().and_then(|e| e.to_str())
                                                 {
                                                     let ext_lower = ext.to_lowercase();
-                                                    if ext_lower == "cfg"
-                                                        || ext_lower == "ini"
-                                                        || ext_lower == "json"
-                                                        || ext_lower == "txt"
-                                                    {
+                                                    if config_exts.contains(&ext_lower) {
                                                         let dest = target_parent.join(file_name);
                                                         if !dest.exists() {
                                                             let _ =
@@ -1199,6 +1298,16 @@ pub async fn deploy_playset_bulk(
                                                                         std::fs::copy(&path, &dest)
                                                                             .map(|_| ())
                                                                     });
+                                                            if let Ok(mut dl) =
+                                                                deployed_links.lock()
+                                                            {
+                                                                let d_str = dest
+                                                                    .to_string_lossy()
+                                                                    .to_string();
+                                                                if !dl.contains(&d_str) {
+                                                                    dl.push(d_str);
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1248,29 +1357,60 @@ pub async fn deploy_playset_bulk(
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                        if file_name.eq_ignore_ascii_case("desktop.ini")
+                        if file_name.starts_with('.')
+                            || file_name.starts_with("._")
+                            || file_name.eq_ignore_ascii_case("desktop.ini")
                             || file_name.eq_ignore_ascii_case("Default.ini")
+                            || file_name.eq_ignore_ascii_case("Resource.cfg")
+                            || file_name.eq_ignore_ascii_case(".DS_Store")
                             || file_name.eq_ignore_ascii_case(".sanctuary_cache.json")
+                            || file_name.eq_ignore_ascii_case(".sanctuary_deployed_links.json")
                         {
                             continue;
                         }
                         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                             let ext_lower = ext.to_lowercase();
-                            if ext_lower == "cfg"
-                                || ext_lower == "ini"
-                                || ext_lower == "json"
-                                || ext_lower == "txt"
-                                || ext_lower == "xml"
-                            {
+                            if config_exts.contains(&ext_lower) {
                                 let dest = mods_dir.join(file_name);
-                                if !dest.exists() {
+                                let already_deployed_by_subfolder = deployed_links
+                                    .lock()
+                                    .map(|dl| {
+                                        dl.iter().any(|existing| {
+                                            Path::new(existing)
+                                                .file_name()
+                                                .and_then(|n| n.to_str())
+                                                .map_or(false, |n| {
+                                                    n.eq_ignore_ascii_case(file_name)
+                                                })
+                                        })
+                                    })
+                                    .unwrap_or(false);
+                                if !already_deployed_by_subfolder
+                                    && !dest.exists()
+                                    && std::fs::symlink_metadata(&dest).is_err()
+                                {
                                     let _ = create_symlink_file(&path, &dest)
                                         .or_else(|_| std::fs::hard_link(&path, &dest))
                                         .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                    if let Ok(mut dl) = deployed_links.lock() {
+                                        let d_str = dest.to_string_lossy().to_string();
+                                        if !dl.contains(&d_str) {
+                                            dl.push(d_str);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if let Ok(dl) = deployed_links.lock() {
+            if !dl.is_empty() {
+                if let Ok(json) = serde_json::to_string_pretty(&*dl) {
+                    let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
+                    let _ = std::fs::write(vault_dir.join(".sanctuary_deployed_links.json"), json);
                 }
             }
         }
@@ -1355,6 +1495,7 @@ struct ActiveLabSession {
     docs_dir: PathBuf,
     vault_path: String,
     executable_names: Vec<String>,
+    save_targets: Vec<String>,
     save_extensions: Vec<String>,
     scratch_subdirs: Vec<String>,
     stage: String,
@@ -1418,12 +1559,23 @@ fn get_lab_input_watch() -> &'static Arc<LabInputWatchState> {
 }
 
 #[cfg(target_os = "windows")]
-fn start_windows_pause_key_watcher() {
+fn start_windows_pause_key_watcher(game_schema: &Option<crate::schema::GameSchema>) {
     use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
+    let hotkey_enabled = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.enable_hotkey_pause_detection)
+        .unwrap_or_else(|| crate::game_logic::is_sims4_schema(game_schema));
+
     let watch = get_lab_input_watch().clone();
     watch.game_paused.store(false, Ordering::SeqCst);
+    if !hotkey_enabled {
+        watch.running.store(false, Ordering::SeqCst);
+        return;
+    }
+
     if watch
         .running
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -1432,6 +1584,17 @@ fn start_windows_pause_key_watcher() {
         return;
     }
 
+    let custom_pause_vks = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.pause_key_vk_codes.clone())
+        .filter(|v| !v.is_empty());
+    let custom_resume_vks = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.resume_key_vk_codes.clone())
+        .filter(|v| !v.is_empty());
+
     std::thread::Builder::new()
         .name("sanctuary-lab-key-watcher".to_string())
         .spawn(move || {
@@ -1439,6 +1602,7 @@ fn start_windows_pause_key_watcher() {
             let mut was_p = false;
             let mut was_zero = false;
             let mut was_tilde = false;
+            let mut was_custom_pause = false;
 
             while watch.running.load(Ordering::SeqCst) {
                 let pid = watch.target_pid.load(Ordering::SeqCst);
@@ -1462,42 +1626,58 @@ fn start_windows_pause_key_watcher() {
                             (GetAsyncKeyState(vk) as u16 & 0x8000) != 0
                         };
 
-                        let esc_down = is_down(0x1B); // VK_ESCAPE (Pause/Options menu)
-                        let p_down = is_down(0x50); // 'P' key (Pause toggle)
-                        let zero_down = is_down(0x30) || is_down(0x60); // '0' or Numpad 0 (Sim speed 0 / Pause)
-                        let tilde_down = is_down(0xC0); // '~' / '`' key (Sim speed pause)
-                        let speed_resume = is_down(0x31)
-                            || is_down(0x32)
-                            || is_down(0x33)
-                            || is_down(0x61)
-                            || is_down(0x62)
-                            || is_down(0x63); // '1', '2', '3' live speed keys
+                        if let Some(ref pause_vks) = custom_pause_vks {
+                            let any_pause = pause_vks.iter().any(|&vk| is_down(vk as i32));
+                            if any_pause && !was_custom_pause {
+                                let cur = watch.game_paused.load(Ordering::SeqCst);
+                                watch.game_paused.store(!cur, Ordering::SeqCst);
+                            }
+                            was_custom_pause = any_pause;
 
-                        if esc_down && !was_esc {
-                            let cur = watch.game_paused.load(Ordering::SeqCst);
-                            watch.game_paused.store(!cur, Ordering::SeqCst);
-                        }
-                        if p_down && !was_p {
-                            let cur = watch.game_paused.load(Ordering::SeqCst);
-                            watch.game_paused.store(!cur, Ordering::SeqCst);
-                        }
-                        if (zero_down && !was_zero) || (tilde_down && !was_tilde) {
-                            watch.game_paused.store(true, Ordering::SeqCst);
-                        }
-                        if speed_resume {
-                            watch.game_paused.store(false, Ordering::SeqCst);
-                        }
+                            if let Some(ref resume_vks) = custom_resume_vks {
+                                if resume_vks.iter().any(|&vk| is_down(vk as i32)) {
+                                    watch.game_paused.store(false, Ordering::SeqCst);
+                                }
+                            }
+                        } else {
+                            let esc_down = is_down(0x1B); // VK_ESCAPE (Pause/Options menu)
+                            let p_down = is_down(0x50); // 'P' key (Pause toggle)
+                            let zero_down = is_down(0x30) || is_down(0x60); // '0' or Numpad 0 (Sim speed 0 / Pause)
+                            let tilde_down = is_down(0xC0); // '~' / '`' key (Sim speed pause)
+                            let speed_resume = is_down(0x31)
+                                || is_down(0x32)
+                                || is_down(0x33)
+                                || is_down(0x61)
+                                || is_down(0x62)
+                                || is_down(0x63); // '1', '2', '3' live speed keys
 
-                        was_esc = esc_down;
-                        was_p = p_down;
-                        was_zero = zero_down;
-                        was_tilde = tilde_down;
+                            if esc_down && !was_esc {
+                                let cur = watch.game_paused.load(Ordering::SeqCst);
+                                watch.game_paused.store(!cur, Ordering::SeqCst);
+                            }
+                            if p_down && !was_p {
+                                let cur = watch.game_paused.load(Ordering::SeqCst);
+                                watch.game_paused.store(!cur, Ordering::SeqCst);
+                            }
+                            if (zero_down && !was_zero) || (tilde_down && !was_tilde) {
+                                watch.game_paused.store(true, Ordering::SeqCst);
+                            }
+                            if speed_resume {
+                                watch.game_paused.store(false, Ordering::SeqCst);
+                            }
+
+                            was_esc = esc_down;
+                            was_p = p_down;
+                            was_zero = zero_down;
+                            was_tilde = tilde_down;
+                        }
                     }
                 } else {
                     was_esc = false;
                     was_p = false;
                     was_zero = false;
                     was_tilde = false;
+                    was_custom_pause = false;
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(60));
@@ -1507,7 +1687,7 @@ fn start_windows_pause_key_watcher() {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn start_windows_pause_key_watcher() {}
+fn start_windows_pause_key_watcher(_game_schema: &Option<crate::schema::GameSchema>) {}
 
 fn stop_windows_pause_key_watcher() {
     let watch = get_lab_input_watch();
@@ -1586,29 +1766,40 @@ fn current_epoch_secs() -> u64 {
         .unwrap_or(0)
 }
 
-fn snapshot_save_mtimes(docs_dir: &Path, save_extensions: &[String]) -> HashMap<PathBuf, u64> {
+fn snapshot_save_mtimes(
+    docs_dir: &Path,
+    save_targets: &[String],
+    save_extensions: &[String],
+) -> HashMap<PathBuf, u64> {
     let mut map = HashMap::new();
-    let saves_dir = docs_dir.join("saves");
-    if !saves_dir.exists() {
-        return map;
-    }
-    for entry in walkdir::WalkDir::new(&saves_dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if !entry.file_type().is_file() {
+    let targets: Vec<String> = if save_targets.is_empty() {
+        vec!["saves".to_string()]
+    } else {
+        save_targets.to_vec()
+    };
+    for rel in targets {
+        let saves_dir = docs_dir.join(&rel);
+        if !saves_dir.exists() {
             continue;
         }
-        let name_lower = entry.file_name().to_string_lossy().to_lowercase();
-        if save_extensions
-            .iter()
-            .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+        for entry in walkdir::WalkDir::new(&saves_dir)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
         {
-            if let Ok(meta) = entry.metadata() {
-                if let Ok(mtime) = meta.modified() {
-                    if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                        map.insert(entry.path().to_path_buf(), dur.as_secs());
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let name_lower = entry.file_name().to_string_lossy().to_lowercase();
+            if save_extensions
+                .iter()
+                .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+            {
+                if let Ok(meta) = entry.metadata() {
+                    if let Ok(mtime) = meta.modified() {
+                        if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                            map.insert(entry.path().to_path_buf(), dur.as_secs());
+                        }
                     }
                 }
             }
@@ -1643,44 +1834,52 @@ fn check_scratch_activity(docs_dir: &Path, scratch_subdirs: &[String], since_epo
 
 fn detect_new_save_file(
     docs_dir: &Path,
+    save_targets: &[String],
     save_extensions: &[String],
     initial_mtimes: &HashMap<PathBuf, u64>,
     min_epoch: u64,
 ) -> Option<String> {
-    let saves_dir = docs_dir.join("saves");
-    if !saves_dir.exists() {
-        return None;
-    }
-    for entry in walkdir::WalkDir::new(&saves_dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if !entry.file_type().is_file() {
+    let targets: Vec<String> = if save_targets.is_empty() {
+        vec!["saves".to_string()]
+    } else {
+        save_targets.to_vec()
+    };
+    for rel in targets {
+        let saves_dir = docs_dir.join(&rel);
+        if !saves_dir.exists() {
             continue;
         }
-        let fname = entry.file_name().to_string_lossy().to_string();
-        let name_lower = fname.to_lowercase();
-        if !save_extensions
-            .iter()
-            .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+        for entry in walkdir::WalkDir::new(&saves_dir)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
         {
-            continue;
-        }
-        if let Ok(meta) = entry.metadata() {
-            if meta.len() == 0 {
+            if !entry.file_type().is_file() {
                 continue;
             }
-            if let Ok(mtime) = meta.modified() {
-                if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                    let secs = dur.as_secs();
-                    let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
-                    if secs > prev && secs >= min_epoch {
-                        let _ = std::fs::write(
-                            saves_dir.join(".sanctuary_seeded_save"),
-                            fname.as_bytes(),
-                        );
-                        return Some(fname);
+            let fname = entry.file_name().to_string_lossy().to_string();
+            let name_lower = fname.to_lowercase();
+            if !save_extensions
+                .iter()
+                .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+            {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                if meta.len() == 0 {
+                    continue;
+                }
+                if let Ok(mtime) = meta.modified() {
+                    if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                        let secs = dur.as_secs();
+                        let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
+                        if secs > prev && secs >= min_epoch {
+                            let _ = std::fs::write(
+                                saves_dir.join(".sanctuary_seeded_save"),
+                                fname.as_bytes(),
+                            );
+                            return Some(fname);
+                        }
                     }
                 }
             }
@@ -2171,7 +2370,11 @@ pub fn deploy_single_mod_to_live_sync(
                     }
                 })
                 .unwrap_or_else(|| dev_lane.join("ExtractedMod"));
-            if crate::commands::library::extract_sandbox_zip_in_place(&resolved, &extract_dir) > 0
+            if crate::commands::library::extract_sandbox_zip_in_place(
+                &resolved,
+                &extract_dir,
+                game_schema,
+            ) > 0
             {
                 let _ = std::fs::remove_file(&resolved);
                 resolved = extract_dir;
@@ -2194,7 +2397,12 @@ pub fn deploy_single_mod_to_live_sync(
                 }
             }
             for z in zips {
-                if crate::commands::library::extract_sandbox_zip_in_place(&z, &resolved) > 0 {
+                if crate::commands::library::extract_sandbox_zip_in_place(
+                    &z,
+                    &resolved,
+                    game_schema,
+                ) > 0
+                {
                     let _ = std::fs::remove_file(&z);
                 }
             }
@@ -2243,10 +2451,12 @@ pub fn deploy_single_mod_to_live_sync(
 
     let install_routes = crate::game_logic::get_install_routes(game_schema);
     let saved_coords = get_saved_coordinates();
-    let live_root = resolve_engine_root(&saved_coords.live_path);
-    let docs_root = PathBuf::from(crate::utils::get_docs_base_from_mods_path(mods_path));
+    let live_root =
+        crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, game_schema);
+    let docs_root = crate::game_logic::resolve_user_data_root(mods_path, game_schema);
     let mut routed_records: Vec<RoutedFileRecord> = Vec::new();
     let mut linked_names: Vec<String> = Vec::new();
+    let mut deployed_links: Vec<String> = Vec::new();
 
     let spurious_res_dir = mods_dir.join("Resource");
     if spurious_res_dir.is_dir() {
@@ -2259,12 +2469,15 @@ pub fn deploy_single_mod_to_live_sync(
             None => continue,
         };
         let fname_lower = fname.to_lowercase();
+        let is_edge_manifest = fname_lower == "manifest.json"
+            && std::fs::read_to_string(&src_file)
+                .map_or(false, |c| crate::commands::library::is_sanctuary_edge_manifest_json(&c));
         if fname_lower.starts_with('.')
             || fname_lower == "desktop.ini"
             || fname_lower == "default.ini"
             || fname_lower == "resource.cfg"
-            || fname_lower == "manifest.json"
             || fname_lower == "override.json"
+            || is_edge_manifest
         {
             continue;
         }
@@ -2303,9 +2516,20 @@ pub fn deploy_single_mod_to_live_sync(
 
         if link_res.is_ok() && (dest_file.exists() || std::fs::symlink_metadata(&dest_file).is_ok())
         {
+            let dest_str = dest_file.to_string_lossy().to_string();
+            if !deployed_links.contains(&dest_str) {
+                deployed_links.push(dest_str);
+            }
             if !linked_names.contains(&fname) {
                 linked_names.push(fname);
             }
+        }
+    }
+
+    if !deployed_links.is_empty() {
+        if let Ok(json) = serde_json::to_string_pretty(&deployed_links) {
+            let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
+            let _ = std::fs::write(vault_dir.join(".sanctuary_deployed_links.json"), json);
         }
     }
 
@@ -2337,10 +2561,14 @@ pub async fn deploy_mod_for_lab_test(
 ) -> Result<Vec<String>, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     let is_deploying = state.inner().is_deploying.clone();
+    let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
     is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
 
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = DeployGuard { flag: is_deploying };
+        let _guard = DeployGuard {
+            flag: is_deploying,
+            last_deploy_epoch_ms,
+        };
         let extra = additional_mods.unwrap_or_default();
         deploy_single_mod_to_live_sync(
             &mod_path_or_name,
@@ -2368,8 +2596,9 @@ pub async fn start_lab_verification_session(
 ) -> Result<LabVerificationStatus, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let docs_dir = resolve_docs_root(&docs_path);
+        let docs_dir = resolve_docs_root(&docs_path, &game_schema);
         let exe_names = crate::game_logic::get_executable_names(&game_schema);
+        let save_targets = resolve_save_airgap_targets(&game_schema);
 
         let lv = game_schema.as_ref().and_then(|s| s.lab_verification.clone());
         let wls = lv.as_ref().and_then(|l| l.world_load_signature.clone());
@@ -2412,16 +2641,22 @@ pub async fn start_lab_verification_session(
         let scratch_subdirs = wls
             .as_ref()
             .and_then(|w| w.scratch_activity_subdirs.clone())
-            .unwrap_or_else(|| vec!["saves/scratch".to_string()]);
+            .unwrap_or_else(|| {
+                if crate::game_logic::is_sims4_schema(&game_schema) {
+                    vec!["saves/scratch".to_string()]
+                } else {
+                    Vec::new()
+                }
+            });
 
-        let seeded_save_present = docs_dir
-            .join("saves")
-            .join(".sanctuary_seeded_save")
-            .exists();
+        let seeded_save_present = save_targets
+            .iter()
+            .any(|t| docs_dir.join(t).join(".sanctuary_seeded_save").exists());
         let now = current_epoch_secs();
-        let initial_save_mtimes = snapshot_save_mtimes(&docs_dir, &save_extensions);
+        let initial_save_mtimes =
+            snapshot_save_mtimes(&docs_dir, &save_targets, &save_extensions);
 
-        start_windows_pause_key_watcher();
+        start_windows_pause_key_watcher(&game_schema);
 
         let session = ActiveLabSession {
             dna_hash,
@@ -2429,6 +2664,7 @@ pub async fn start_lab_verification_session(
             docs_dir,
             vault_path,
             executable_names: exe_names,
+            save_targets,
             save_extensions,
             scratch_subdirs,
             stage: "BOOTING".to_string(),
@@ -2518,10 +2754,21 @@ pub async fn poll_lab_verification_session(
         return Ok(Some(build_session_status(session)));
     }
 
-    // 2. Refresh processes via sysinfo
-    session
-        .sys
-        .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    // 2. Refresh processes via sysinfo (single PID when already tracked, fallback to All)
+    let needs_full_refresh = if let Some(pid) = session.tracked_pid {
+        let sys_pid = sysinfo::Pid::from_u32(pid);
+        session
+            .sys
+            .refresh_processes(sysinfo::ProcessesToUpdate::Some(&[sys_pid]), true);
+        !session.sys.processes().contains_key(&sys_pid)
+    } else {
+        true
+    };
+    if needs_full_refresh {
+        session
+            .sys
+            .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    }
 
     let mut matched_pid: Option<u32> = None;
     let mut best_ram: u64 = 0;
@@ -2531,7 +2778,9 @@ pub async fn poll_lab_verification_session(
         let pname = proc_info.name().to_string_lossy().to_lowercase();
         let is_match = session.executable_names.iter().any(|exe| {
             let clean_exe = exe.to_lowercase();
-            let stem = clean_exe.trim_end_matches(".exe");
+            let stem = clean_exe
+                .trim_end_matches(".exe")
+                .trim_end_matches(".app");
             pname == clean_exe || pname == stem || pname.starts_with(stem)
         });
         if is_match {
@@ -2587,8 +2836,11 @@ pub async fn poll_lab_verification_session(
                     if session.boot_plateau_ticks >= 3 || boot_elapsed >= 42 {
                         session.baseline_ram_bytes = session.current_ram_bytes;
                         session.baseline_disk_read_bytes = session.cumulative_disk_read_bytes;
-                        session.initial_save_mtimes =
-                            snapshot_save_mtimes(&session.docs_dir, &session.save_extensions);
+                        session.initial_save_mtimes = snapshot_save_mtimes(
+                            &session.docs_dir,
+                            &session.save_targets,
+                            &session.save_extensions,
+                        );
                         session.stage = "MENU_WAITING".to_string();
                     }
                 }
@@ -2633,8 +2885,11 @@ pub async fn poll_lab_verification_session(
                 if primary_world_loaded || warm_cache_loaded {
                     // Wait until the loading screen disk burst finishes settling into live gameplay
                     if disk_rate_mb <= 15 {
-                        session.initial_save_mtimes =
-                            snapshot_save_mtimes(&session.docs_dir, &session.save_extensions);
+                        session.initial_save_mtimes = snapshot_save_mtimes(
+                            &session.docs_dir,
+                            &session.save_targets,
+                            &session.save_extensions,
+                        );
                         get_lab_input_watch()
                             .game_paused
                             .store(false, Ordering::SeqCst);
@@ -2657,6 +2912,7 @@ pub async fn poll_lab_verification_session(
                 if session.verified_save_name.is_none() {
                     if let Some(sname) = detect_new_save_file(
                         &session.docs_dir,
+                        &session.save_targets,
                         &session.save_extensions,
                         &session.initial_save_mtimes,
                         session.started_at_epoch,
@@ -2692,8 +2948,11 @@ pub async fn poll_lab_verification_session(
                         session.stage = "AWAITING_SAVE".to_string();
                         session.pause_reason = None;
                         session.awaiting_save_since_epoch = Some(now);
-                        session.initial_save_mtimes =
-                            snapshot_save_mtimes(&session.docs_dir, &session.save_extensions);
+                        session.initial_save_mtimes = snapshot_save_mtimes(
+                            &session.docs_dir,
+                            &session.save_targets,
+                            &session.save_extensions,
+                        );
                         session.verified_save_name = None;
                         if !session.notified_awaiting_save {
                             session.notified_awaiting_save = true;
@@ -2747,6 +3006,7 @@ pub async fn poll_lab_verification_session(
                 if session.save_detected_epoch.is_none() {
                     if let Some(sname) = detect_new_save_file(
                         &session.docs_dir,
+                        &session.save_targets,
                         &session.save_extensions,
                         &session.initial_save_mtimes,
                         session.awaiting_save_since_epoch.unwrap_or(session.started_at_epoch),

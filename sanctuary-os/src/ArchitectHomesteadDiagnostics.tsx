@@ -1430,7 +1430,7 @@ export function HomesteadDiagnostics({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[12px]">
                           {t("icon_verified_user", "verified_user")}
                         </span>

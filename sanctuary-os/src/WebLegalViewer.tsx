@@ -7,6 +7,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  StatTileCarousel,
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "./shared";
@@ -104,10 +105,9 @@ export default function WebLegalViewer() {
       }
     >
       <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-        <div className="grid grid-cols-3 gap-3">
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
-            className="!w-full"
             icon={t("icon_gavel", "gavel")}
             label={t("btn_view", "View")}
             number={t("landing_eula", "EULA")}
@@ -118,7 +118,6 @@ export default function WebLegalViewer() {
           />
           <DashboardStatTile
             variant="filter"
-            className="!w-full"
             icon={t("icon_shield", "shield")}
             label={t("btn_view", "View")}
             number={t("landing_privacy", "Privacy")}
@@ -129,7 +128,6 @@ export default function WebLegalViewer() {
           />
           <DashboardStatTile
             variant="filter"
-            className="!w-full"
             icon={t("icon_description", "description")}
             label={t("btn_view", "View")}
             number={t("landing_terms", "Terms")}
@@ -138,7 +136,7 @@ export default function WebLegalViewer() {
               window.location.hash = "terms";
             }}
           />
-        </div>
+        </StatTileCarousel>
 
         <SidePanelHeroCard
           icon={t("icon_gavel", "gavel")}

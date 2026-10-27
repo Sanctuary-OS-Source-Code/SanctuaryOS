@@ -618,10 +618,11 @@ export default function WayfinderSupportSidePanel({
               
               {field.type === "CHECKBOX" && (!field.options || field.options.length === 0) && (
                 <button
+                  type="button"
                   onClick={() => setCustomFieldsData(prev => ({ ...prev, [field.id]: prev[field.id] === "true" ? "false" : "true" }))}
-                  className={`w-12 h-6 rounded-full transition-all flex items-center px-1 overflow-hidden relative border ${customFieldsData[field.id] === "true" ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}
+                  className={`sa-glass-toggle ${customFieldsData[field.id] === "true" ? "is-on" : ""}`}
                 >
-                  <div className={`w-4 h-4 rounded-full shadow-md transition-all ${customFieldsData[field.id] === "true" ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[color-mix(in_srgb,var(--text)_50%,transparent)]'}`} />
+                  <div className="sa-glass-toggle-thumb" />
                 </button>
               )}
 

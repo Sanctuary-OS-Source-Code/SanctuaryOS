@@ -4,7 +4,19 @@ use crate::utils::get_db_conn;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+static EDGE_HTTP_CLIENT: std::sync::OnceLock<Client> = std::sync::OnceLock::new();
+
+fn get_http_client() -> &'static Client {
+    EDGE_HTTP_CLIENT.get_or_init(|| {
+        Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(12))
+            .build()
+            .unwrap_or_else(|_| Client::new())
+    })
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
@@ -545,10 +557,7 @@ pub async fn fetch_and_sync_edge_manifest(vault_path: String, artifact_id: Strin
         return Err("Placeholder manifest URL cannot be polled".to_string());
     }
 
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(12))
-        .build()
-        .unwrap_or_else(|_| Client::new());
+    let client = get_http_client();
     let resp = client.get(&manifest_url).send().await.map_err(|e| format!("HTTP request failed: {}", e))?;
     let raw_val: serde_json::Value = resp.json().await.map_err(|e| format!("JSON parsing failed: {}", e))?;
     let mut manifest = parse_manifest_or_catalog(raw_val, &resolved_artifact_id)?;
@@ -728,7 +737,12 @@ pub async fn export_edge_release(
             let ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
             if mod_exts.iter().any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext)) {
                 package_files.push(p.to_path_buf());
-                if let Ok(h) = crate::utils::calculate_hash(&p) {
+                let file_hash_res = if target_file_for_hash.as_deref() == Some(p) && !actual_hash.is_empty() {
+                    Ok(actual_hash.clone())
+                } else {
+                    crate::utils::calculate_hash(p)
+                };
+                if let Ok(h) = file_hash_res {
                     push_unique_hash(&mut current_hashes, &h);
                     let rel_name = p
                         .strip_prefix(&mod_dir)
@@ -1171,10 +1185,7 @@ pub async fn execute_edge_manifest_push(
         cfg.remote_path.trim().trim_start_matches('/').to_string()
     };
 
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .unwrap_or_else(|_| Client::new());
+    let client = get_http_client();
 
     match provider.as_str() {
         "github_repo" => {

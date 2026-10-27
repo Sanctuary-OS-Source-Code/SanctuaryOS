@@ -171,10 +171,8 @@ export default function CodeSnippetSidebar({
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {trimmedQuery && (
-              <span
-                className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)]`}
-              >
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_find_in_page", "find_in_page")}
                 </span>
                 {matchingLineIndices.size} / {lines.length}

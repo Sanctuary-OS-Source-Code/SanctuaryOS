@@ -405,9 +405,9 @@ export function WorkbenchSidePanel({
       >
          <div className="flex-1 min-h-0 flex flex-col h-full w-full relative">
             {editorState.problemsList.length > 0 && (
-               <div className="flex flex-col gap-4 w-full relative z-50 px-2 pt-2">
+               <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2.5 w-max max-w-[calc(100%-2.5rem)] pointer-events-none">
                   <div
-                     className="w-full flex items-center justify-between gap-5 theme-panel-danger !rounded-2xl px-6 py-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all group/problem"
+                     className="pointer-events-auto w-fit max-w-full flex items-center justify-between gap-3.5 glass-panel sa-floating-glass-pill !rounded-2xl px-4 py-3 border cursor-pointer transition-all group/problem"
                      onClick={() => {
                         if (isTemplateMode && authorTab !== 'raw') setAuthorTab('raw');
                         if (editorState.editorRef && editorState.problemsList[0]) {
@@ -417,43 +417,59 @@ export function WorkbenchSidePanel({
                         }
                      }}
                   >
-                     <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-3 min-w-0">
                         <div
                            className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0"
                            style={{
-                              borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
+                              borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
                            }}
                         >
                            <span className="material-symbols-outlined !text-[20px]">{t("icon_error", "error")}</span>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                           <span className="text-sm font-bold text-[var(--danger)] flex items-center gap-2">
-                              <strong>{editorState.problemsList.length}</strong> {t("syntax_error_title", "Syntax Error")}
-                              <span
-                                 className={`${VAULT_CHIP_CLASS} font-mono ml-1`}
-                                 style={{
-                                    color: "var(--danger)",
-                                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                                 }}
-                              >
-                                 <span className="material-symbols-rounded !text-[12px] shrink-0">
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                           <div className="flex flex-wrap items-center gap-2 min-w-0">
+                              <span className="text-xs font-black tracking-wide text-[var(--text)]">
+                                 {t("syntax_error_title", "Syntax Error Detected")}
+                              </span>
+
+                              <div className={VAULT_CHIP_CLASS}>
+                                 <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                                    {t("icon_bug_report", "bug_report")}
+                                 </span>
+                                 <span>
+                                    <strong>{editorState.problemsList.length}</strong>{" "}
+                                    {editorState.problemsList.length === 1
+                                       ? t("syntax_error", "Syntax Error")
+                                       : t("syntax_errors", "Syntax Errors")}
+                                 </span>
+                              </div>
+
+                              <div className={`${VAULT_CHIP_CLASS} font-mono`}>
+                                 <span className="material-symbols-rounded !text-[12px] text-[var(--danger)] shrink-0">
                                     {t("icon_code", "code")}
                                  </span>
-                                 L{editorState.problemsList[0]?.line}
-                              </span>
-                           </span>
-                           <span className="text-xs text-[var(--danger)] opacity-80 font-mono truncate max-w-[600px] transition-colors mt-0.5">
+                                 <span>
+                                    {t("line_label", "Line")} {editorState.problemsList[0]?.line}
+                                 </span>
+                              </div>
+                           </div>
+
+                           <p className="text-[11px] text-[var(--subtext)] font-mono truncate max-w-[460px]">
                               {editorState.problemsList[0]?.message}
-                           </span>
+                           </p>
                         </div>
                      </div>
 
-                     <button
-                        onClick={(e) => { e.stopPropagation(); editorState.setProblemsList([]); }}
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] transition-all shrink-0"
-                     >
-                        <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
-                     </button>
+                     <div className="pl-3 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
+                        <button
+                           onClick={(e) => { e.stopPropagation(); editorState.setProblemsList([]); }}
+                           className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,var(--border))] hover:border-[var(--danger)] flex items-center justify-center text-[var(--danger)] opacity-80 hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                        >
+                           <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
+                           <HoverTooltip title={t("close", "Close")} />
+                        </button>
+                     </div>
                   </div>
                </div>
             )}

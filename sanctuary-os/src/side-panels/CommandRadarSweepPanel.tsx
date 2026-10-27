@@ -134,7 +134,7 @@ export default function CommandRadarSweepPanel({
   } else if (radarState === "warning") {
     subtext = t("sys_comp", "System Compromised");
   } else if (radarState === "update") {
-    subtext = t("updates_det", "{mod} updates detected");
+    subtext = t("updates_det", "{Mod} Updates Detected");
   }
 
   const breakdownText = `${updatesCount} ${t("updates_modal_title", "Updates")} • ${

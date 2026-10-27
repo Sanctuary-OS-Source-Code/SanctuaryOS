@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { isDesktop } from "./utils/envUtils";
+import { resolvePayloadDependencies } from "./utils/stagingCrypto";
 import { useLexicon } from "./LexiconContext";
 import { supabase, submitThreatManifestToSpoke } from "./supabase";
 import { useStore } from "./store";
@@ -26,6 +26,7 @@ import {
   StatBox,
   ActionButton,
   getModFallbackUrl,
+  handleOpenUrl,
   PanelHeaderGroup,
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
@@ -37,7 +38,7 @@ import {
 } from "./components/LabVerificationGate";
 
 export default function ModDossier({
-  mod,
+  mod: rawMod,
   modList,
   activePlaySet,
   onToggleInActiveSet,
@@ -62,6 +63,215 @@ export default function ModDossier({
   const session = useStore((state) => state.session);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
   const [isModLabVerified, setIsModLabVerified] = useState<boolean>(false);
+  const [hydratedMeta, setHydratedMeta] = useState<any | null>(null);
+
+  useEffect(() => {
+    setHydratedMeta(null);
+    if (!rawMod) return;
+
+    let cancelled = false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const candidateId =
+      rawMod.dbId && uuidRegex.test(String(rawMod.dbId))
+        ? String(rawMod.dbId)
+        : rawMod.id && uuidRegex.test(String(rawMod.id))
+          ? String(rawMod.id)
+          : "";
+    const candidateHash = String(rawMod.hash || "").trim();
+    const candidateName = String(rawMod.name || rawMod.displayName || "").trim();
+
+    const MOD_SELECT =
+      "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
+
+    const hydrateFromSpoke = async () => {
+      try {
+        let matchedMod: any = null;
+        if (candidateId) {
+          const { data } = await supabase
+            .from("mods")
+            .select(MOD_SELECT)
+            .eq("id", candidateId)
+            .maybeSingle();
+          if (data) matchedMod = data;
+        }
+        if (!matchedMod && candidateHash) {
+          const { data: vRow } = await supabase
+            .from("mod_versions")
+            .select(`mod_id, dna_hash, mods(${MOD_SELECT})`)
+            .eq("dna_hash", candidateHash)
+            .limit(1)
+            .maybeSingle();
+          if (vRow?.mods) {
+            matchedMod = Array.isArray(vRow.mods) ? vRow.mods[0] : vRow.mods;
+          }
+        }
+        if (!matchedMod && candidateName) {
+          const { data } = await supabase
+            .from("mods")
+            .select(MOD_SELECT)
+            .eq("name", candidateName)
+            .limit(1)
+            .maybeSingle();
+          if (data) matchedMod = data;
+        }
+
+        const resolvedId = matchedMod?.id || candidateId;
+        let parentMod: any = null;
+
+        if (resolvedId) {
+          const [{ data: relRows }, { data: depRows }] = await Promise.all([
+            supabase
+              .from("mod_relationships")
+              .select("parent_id, child_id, relationship_type")
+              .in("relationship_type", ["addon", "flavor", "set_item", "beta"])
+              .eq("child_id", resolvedId)
+              .limit(5),
+            supabase
+              .from("mod_dependencies")
+              .select("parent_id, child_id")
+              .eq("child_id", resolvedId)
+              .limit(5),
+          ]);
+
+          const parentRow = [...(relRows || []), ...(depRows || [])].find(
+            (r: any) => r.parent_id && r.parent_id !== resolvedId
+          );
+          if (parentRow?.parent_id) {
+            const { data: pData } = await supabase
+              .from("mods")
+              .select(MOD_SELECT)
+              .eq("id", parentRow.parent_id)
+              .maybeSingle();
+            if (pData) parentMod = pData;
+          }
+        }
+
+        if (cancelled || (!matchedMod && !parentMod)) return;
+
+        const latestVer =
+          Array.isArray(matchedMod?.mod_versions) && matchedMod.mod_versions.length > 0
+            ? matchedMod.mod_versions[0]
+            : null;
+        const parentLatestVer =
+          Array.isArray(parentMod?.mod_versions) && parentMod.mod_versions.length > 0
+            ? parentMod.mod_versions[0]
+            : null;
+
+        setHydratedMeta({
+          dbId: matchedMod?.id || resolvedId || undefined,
+          hash: latestVer?.dna_hash || undefined,
+          author: matchedMod?.master_author || parentMod?.master_author || undefined,
+          master_author: matchedMod?.master_author || parentMod?.master_author || undefined,
+          category_override:
+            matchedMod?.category_override || parentMod?.category_override || undefined,
+          description: matchedMod?.description || parentMod?.description || undefined,
+          url: matchedMod?.url || parentMod?.url || undefined,
+          image_url: matchedMod?.image_url || parentMod?.image_url || undefined,
+          compatible_versions:
+            Array.isArray(matchedMod?.compatible_versions) &&
+            matchedMod.compatible_versions.length > 0
+              ? matchedMod.compatible_versions
+              : Array.isArray(parentMod?.compatible_versions)
+                ? parentMod.compatible_versions
+                : undefined,
+          created_at:
+            matchedMod?.created_at ||
+            latestVer?.created_at ||
+            parentMod?.created_at ||
+            undefined,
+          updated_at:
+            latestVer?.created_at ||
+            matchedMod?.created_at ||
+            parentLatestVer?.created_at ||
+            parentMod?.created_at ||
+            undefined,
+          version:
+            latestVer?.version_label || parentLatestVer?.version_label || undefined,
+          status: matchedMod?.status || parentMod?.status || "stable",
+          status_reason:
+            matchedMod?.status_reason || parentMod?.status_reason || undefined,
+          compliance_tier:
+            matchedMod?.compliance_tier ?? parentMod?.compliance_tier ?? undefined,
+          mod_versions: matchedMod?.mod_versions || parentMod?.mod_versions || undefined,
+        });
+      } catch {
+        // Ignore non-fatal hydration error
+      }
+    };
+
+    hydrateFromSpoke();
+    return () => {
+      cancelled = true;
+    };
+  }, [rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name]);
+
+  const mod = useMemo(() => {
+    if (!rawMod) return null;
+    const isUnknownStr = (val?: string) => {
+      if (!val) return true;
+      const low = String(val).trim().toLowerCase();
+      return (
+        low === "" ||
+        low === "unknown" ||
+        low === "unknown creator" ||
+        low === "unknown mason" ||
+        low === "local"
+      );
+    };
+
+    const resolvedAuthor = !isUnknownStr(rawMod.author)
+      ? rawMod.author
+      : !isUnknownStr(rawMod.master_author)
+        ? rawMod.master_author
+        : hydratedMeta?.author || rawMod.author || "";
+
+    const resolvedCategory =
+      rawMod.category_override ||
+      rawMod.category ||
+      rawMod.type ||
+      hydratedMeta?.category_override ||
+      "";
+
+    const resolvedCompat =
+      Array.isArray(rawMod.compatible_versions) && rawMod.compatible_versions.length > 0
+        ? rawMod.compatible_versions
+        : hydratedMeta?.compatible_versions || [];
+
+    const latestVerCreated =
+      rawMod.mod_versions?.[0]?.created_at ||
+      hydratedMeta?.mod_versions?.[0]?.created_at;
+
+    return {
+      ...rawMod,
+      dbId: rawMod.dbId || hydratedMeta?.dbId || (rawMod.isNexusView ? rawMod.id : undefined),
+      hash: rawMod.hash || hydratedMeta?.hash || "",
+      author: resolvedAuthor,
+      master_author: resolvedAuthor,
+      category: resolvedCategory,
+      category_override: resolvedCategory,
+      type: resolvedCategory,
+      description: rawMod.description || rawMod.desc || hydratedMeta?.description || "",
+      url: rawMod.url || hydratedMeta?.url || "",
+      image_url: rawMod.image_url || hydratedMeta?.image_url || "",
+      compatible_versions: resolvedCompat,
+      created_at: rawMod.created_at || hydratedMeta?.created_at || latestVerCreated || null,
+      updated_at:
+        rawMod.updated_at ||
+        hydratedMeta?.updated_at ||
+        latestVerCreated ||
+        rawMod.created_at ||
+        hydratedMeta?.created_at ||
+        null,
+      version: rawMod.version || rawMod.latest_version || hydratedMeta?.version || "",
+      status:
+        rawMod.status ||
+        hydratedMeta?.status ||
+        (rawMod.isNexusView ? "stable" : ""),
+      status_reason: rawMod.status_reason || hydratedMeta?.status_reason || undefined,
+      compliance_tier: rawMod.compliance_tier ?? hydratedMeta?.compliance_tier ?? 0,
+      mod_versions: rawMod.mod_versions || hydratedMeta?.mod_versions,
+    };
+  }, [rawMod, hydratedMeta]);
 
   useEffect(() => {
     if (!mod?.hash) {
@@ -88,11 +298,11 @@ export default function ModDossier({
   const kidToRender = selectedKid || displayedKid;
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
-  const isNexusView = mod.isNexusView;
+  const isNexusView = mod?.isNexusView;
   const targetDbId =
-    mod.dbId ||
+    mod?.dbId ||
     (isNexusView &&
-    mod.id &&
+    mod?.id &&
     String(mod.id).match(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     )
@@ -125,7 +335,7 @@ export default function ModDossier({
   );
   const showImages = useStore((state: any) => state.showImages);
   const [localCategory, setLocalCategory] = useState<string>(
-    mod?.category_override || mod?.type || ""
+    mod?.category_override || mod?.category || mod?.type || ""
   );
   const [localCompatibleVersions, setLocalCompatibleVersions] = useState<
     string[]
@@ -135,7 +345,7 @@ export default function ModDossier({
     if (mod) {
       setLocalCreatedAt(mod.created_at || null);
       setLocalUpdatedAt(mod.updated_at || null);
-      setLocalCategory(mod.category_override || mod.type || "");
+      setLocalCategory(mod.category_override || mod.category || mod.type || "");
       setLocalCompatibleVersions(mod.compatible_versions || []);
     }
   }, [mod]);
@@ -143,18 +353,23 @@ export default function ModDossier({
   const { t } = useLexicon();
   const userRole = useStore((state: any) => state.userRole);
   const {
-    setIsSideBrowserOpen,
-    setSideBrowserUrl,
-    useInternalBrowser,
     stagingDraftItems,
+    setStagingDraftItems,
     toggleModInStagingDraft,
   } = useModalStore();
-  const isModStaged = stagingDraftItems.some(
-    (item: any) =>
-      String(item.mod_id || item.dna_hash || item.name) ===
-        String(mod?.id || mod?.dbId || mod?.hash || mod?.name) ||
-      (mod?.hash && item.dna_hash === mod.hash)
-  );
+  const isModStaged = stagingDraftItems.some((item: any) => {
+    const itemId = String(item.id || item.mod_id || "").toLowerCase();
+    const itemHash = String(item.hash || item.dna_hash || "").toLowerCase();
+    const itemName = String(item.name || item.displayName || "").toLowerCase();
+    const targetId = String(mod?.id || mod?.dbId || "").toLowerCase();
+    const targetHash = String(mod?.hash || "").toLowerCase();
+    const targetName = String(mod?.name || mod?.displayName || "").toLowerCase();
+    return (
+      (targetId && itemId === targetId) ||
+      (targetHash && itemHash && itemHash === targetHash) ||
+      (targetName && itemName === targetName)
+    );
+  });
 
   if (!mod) return null;
 
@@ -738,10 +953,10 @@ export default function ModDossier({
   })();
 
   const resolvedCreatedAt = (() => {
-    let dt = mod.created_at;
+    let dt = mod.created_at || mod.mod_versions?.[0]?.created_at;
     if (!dt && mod.isVirtual && mod.flavors) {
       const dates = mod.flavors
-        .map((f: any) => f.created_at)
+        .map((f: any) => f.created_at || f.mod_versions?.[0]?.created_at)
         .filter(Boolean)
         .sort()
         .reverse();
@@ -751,10 +966,10 @@ export default function ModDossier({
   })();
 
   const resolvedUpdatedAt = (() => {
-    let dt = mod.updated_at;
+    let dt = mod.updated_at || mod.mod_versions?.[0]?.created_at || mod.created_at;
     if (!dt && mod.isVirtual && mod.flavors) {
       const dates = mod.flavors
-        .map((f: any) => f.updated_at)
+        .map((f: any) => f.updated_at || f.mod_versions?.[0]?.created_at || f.created_at)
         .filter(Boolean)
         .sort()
         .reverse();
@@ -947,9 +1162,28 @@ export default function ModDossier({
                         : t("staging_btn_stage_mod", "Stage to PC")
                     }
                     variant={isModStaged ? "success" : "default"}
-                    onClick={() => {
+                    onClick={async () => {
                       const wasStaged = isModStaged;
-                      toggleModInStagingDraft(mod);
+                      const added = toggleModInStagingDraft(mod);
+                      const latestItems = useModalStore.getState().stagingDraftItems || [];
+                      if (latestItems.length > 0) {
+                        const { mergedItems, addedCount } = await resolvePayloadDependencies(latestItems);
+                        setStagingDraftItems(
+                          mergedItems.map((item, idx) => ({ ...item, load_order_index: idx }))
+                        );
+                        if (added && addedCount > 0) {
+                          useStore
+                            .getState()
+                            .pushStatus(
+                              `${t("resolved", "Resolved")} ${addedCount} ${t(
+                                "status_deps_resolved_suffix",
+                                "child dependencies."
+                              )}`,
+                              "info"
+                            );
+                          return;
+                        }
+                      }
                       useStore
                         .getState()
                         .pushStatus(
@@ -966,34 +1200,27 @@ export default function ModDossier({
                     }}
                   />
                 )}
-                {isDesktop() && (
-                  <PanelHeaderButton
-                    icon={
-                      mod.url || hasOverrides
-                        ? t("icon_download", "download")
-                        : t("icon_search", "search")
-                    }
-                    tooltip={
-                      mod.url || hasOverrides
-                        ? t("btn_download", "Download")
-                        : t("btn_search_web", "Search Web")
-                    }
-                    onClick={() => {
-                      const url = getModFallbackUrl(
-                        mod.displayName || mod.name || "",
-                        mod.hash,
-                        activeGameSchema,
-                        { url: mod.url }
-                      );
-                      if (useInternalBrowser) {
-                        setSideBrowserUrl(url);
-                        setIsSideBrowserOpen(true);
-                      } else {
-                        openUrl(url);
-                      }
-                    }}
-                  />
-                )}
+                <PanelHeaderButton
+                  icon={
+                    mod.url || hasOverrides
+                      ? t("icon_download", "download")
+                      : t("icon_search", "search")
+                  }
+                  tooltip={
+                    mod.url || hasOverrides
+                      ? t("btn_download", "Download")
+                      : t("btn_search_web", "Search Web")
+                  }
+                  onClick={() => {
+                    const url = getModFallbackUrl(
+                      mod.displayName || mod.name || "",
+                      mod.hash,
+                      activeGameSchema,
+                      { url: mod.url }
+                    );
+                    handleOpenUrl(url);
+                  }}
+                />
               </>
             )}
           </PanelHeaderGroup>
@@ -1089,7 +1316,7 @@ export default function ModDossier({
                         }}
                       />
                     )}
-                  {!editMode && isDesktop() && (
+                  {!editMode && (
                     <ActionButton
                       variant="glass"
                       icon={
@@ -1109,12 +1336,7 @@ export default function ModDossier({
                           activeGameSchema,
                           { url: mod.url }
                         );
-                        if (useInternalBrowser) {
-                          setSideBrowserUrl(url);
-                          setIsSideBrowserOpen(true);
-                        } else {
-                          openUrl(url);
-                        }
+                        handleOpenUrl(url);
                       }}
                     />
                   )}
@@ -1725,8 +1947,7 @@ export default function ModDossier({
                       onClick={() =>
                         match
                           ? setSelectedKid(match)
-                          : (setSideBrowserUrl(searchUrl),
-                            setIsSideBrowserOpen(true))
+                          : handleOpenUrl(searchUrl)
                       }
                       className={`group flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border transition-all cursor-pointer ${
                         !match

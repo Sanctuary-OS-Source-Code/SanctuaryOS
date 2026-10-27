@@ -7,6 +7,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  StatTileCarousel,
   ActionButton,
   stripMarkdown,
 } from "./shared";
@@ -1350,53 +1351,57 @@ export default function WebDocumentFeed() {
     const effectiveWalkStages = customWalkTab?.cards?.length
       ? customWalkTab.cards.map((c, idx) => ({
           num: idx + 1,
-          short: c.badge,
-          overline: c.overline,
+          short: t("", c.badge || ""),
+          overline: t("", c.overline || ""),
           icon: c.icon,
-          title: c.title,
-          sub: c.footerMeta,
-          desc: c.desc,
+          title: t("", c.title || ""),
+          sub: t("", c.footerMeta || ""),
+          desc: t("", c.desc || ""),
           controls: (c.subCards || []).map((sc) => ({
             icon: sc.icon,
-            name: sc.title,
-            desc: sc.desc,
+            name: t("", sc.title || ""),
+            desc: t("", sc.desc || ""),
           })),
         }))
       : walkthroughStages;
 
     const effectiveCitizenSteps = customModTab?.cards?.length
       ? customModTab.cards.map((c) => ({
-          short: c.badge,
-          overline: c.overline,
-          title: c.title,
-          badge: c.footerMeta,
+          short: t("", c.badge || ""),
+          overline: t("", c.overline || ""),
+          title: t("", c.title || ""),
+          badge: t("", c.footerMeta || ""),
           icon: c.icon,
-          desc: c.desc,
-          tip: c.tip || "",
+          desc: t("", c.desc || ""),
+          tip: t("", c.tip || ""),
           cards: (c.subCards || []).map((sc) => ({
             icon: sc.icon,
-            title: sc.title,
-            desc: sc.desc,
+            title: t("", sc.title || ""),
+            desc: t("", sc.desc || ""),
           })),
         }))
       : citizenSteps;
 
     const effectiveRoles = customRoleTab?.cards?.length
       ? customRoleTab.cards.map((c) => ({
-          short: c.title,
+          short: t("", c.title || ""),
           icon: c.icon,
-          title: c.title,
-          badge: c.overline || c.footerMeta,
-          desc: c.desc,
+          title: t("", c.title || ""),
+          badge: t("", c.overline || c.footerMeta || ""),
+          desc: t("", c.desc || ""),
           requiresPasskey: c.status !== "citizen",
-          subCards: c.subCards || [],
+          subCards: (c.subCards || []).map((sc) => ({
+            ...sc,
+            title: t("", sc.title || ""),
+            desc: t("", sc.desc || ""),
+          })),
         }))
       : elevatedRoles;
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Static Top Tiles (Uniform font size, zero scrolling, zero truncation) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_play_circle", "play_circle")}
@@ -1424,7 +1429,7 @@ export default function WebDocumentFeed() {
             isActive={guideMode === "roles"}
             onClick={() => setGuideMode("roles")}
           />
-        </div>
+        </StatTileCarousel>
 
         {/* Mode 1: 7-Stage Interactive UI Walkthrough (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "walkthrough" && (
@@ -1472,7 +1477,7 @@ export default function WebDocumentFeed() {
                     /* Compact Unselected Row */
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[20px]">
                             {stg.icon}
                           </span>
@@ -1491,10 +1496,10 @@ export default function WebDocumentFeed() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                          {stg.short}
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span>{stg.short}</span>
                         </span>
-                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                           <span className="material-symbols-outlined !text-[16px]">
                             {t("icon_expand_more", "expand_more")}
                           </span>
@@ -1518,7 +1523,7 @@ export default function WebDocumentFeed() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[22px]">
                                 {stg.icon}
                               </span>
@@ -1534,13 +1539,13 @@ export default function WebDocumentFeed() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                              <span className="material-symbols-outlined !text-[12px]">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                 {t("icon_check_circle", "check_circle")}
                               </span>
-                              {stg.short}
+                              <span>{stg.short}</span>
                             </span>
-                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                            <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                               <span className="material-symbols-outlined !text-[16px]">
                                 {t("icon_expand_less", "expand_less")}
                               </span>
@@ -1663,7 +1668,7 @@ export default function WebDocumentFeed() {
                   {!isActive ? (
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[20px]">
                             {step.icon}
                           </span>
@@ -1682,10 +1687,10 @@ export default function WebDocumentFeed() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                          {step.short}
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span>{step.short}</span>
                         </span>
-                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                           <span className="material-symbols-outlined !text-[16px]">
                             {t("icon_expand_more", "expand_more")}
                           </span>
@@ -1708,7 +1713,7 @@ export default function WebDocumentFeed() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[22px]">
                                 {step.icon}
                               </span>
@@ -1724,13 +1729,13 @@ export default function WebDocumentFeed() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                              <span className="material-symbols-outlined !text-[12px]">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                 {t("icon_check_circle", "check_circle")}
                               </span>
-                              {step.short}
+                              <span>{step.short}</span>
                             </span>
-                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                            <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                               <span className="material-symbols-outlined !text-[16px]">
                                 {t("icon_expand_less", "expand_less")}
                               </span>
@@ -1869,7 +1874,7 @@ export default function WebDocumentFeed() {
                   {!isActive ? (
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[20px]">
                             {role.icon}
                           </span>
@@ -1885,23 +1890,25 @@ export default function WebDocumentFeed() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                            role.requiresPasskey
-                              ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-                              : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[12px]">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              role.requiresPasskey
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--success)]"
+                            }`}
+                          >
                             {role.requiresPasskey
                               ? t("icon_passkey", "passkey")
                               : t("icon_check_circle", "check_circle")}
                           </span>
-                          {role.requiresPasskey
-                            ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                            : t("role_citizen", "{Citizen}")}
+                          <span>
+                            {role.requiresPasskey
+                              ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                              : t("role_citizen", "{Citizen}")}
+                          </span>
                         </span>
-                        <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                           <span className="material-symbols-outlined !text-[16px]">
                             {t("icon_expand_more", "expand_more")}
                           </span>
@@ -1924,7 +1931,7 @@ export default function WebDocumentFeed() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[22px]">
                                 {role.icon}
                               </span>
@@ -1940,23 +1947,25 @@ export default function WebDocumentFeed() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                                role.requiresPasskey
-                                  ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-                                  : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                              }`}
-                            >
-                              <span className="material-symbols-outlined !text-[12px]">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <span
+                                className={`material-symbols-outlined !text-[12px] ${
+                                  role.requiresPasskey
+                                    ? "text-[var(--warning)]"
+                                    : "text-[var(--success)]"
+                                }`}
+                              >
                                 {role.requiresPasskey
                                   ? t("icon_passkey", "passkey")
                                   : t("icon_check_circle", "check_circle")}
                               </span>
-                              {role.requiresPasskey
-                                ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                                : t("role_citizen", "{Citizen}")}
+                              <span>
+                                {role.requiresPasskey
+                                  ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                                  : t("role_citizen", "{Citizen}")}
+                              </span>
                             </span>
-                            <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                            <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                               <span className="material-symbols-outlined !text-[16px]">
                                 {t("icon_expand_less", "expand_less")}
                               </span>
@@ -2020,17 +2029,17 @@ export default function WebDocumentFeed() {
             num:
               parseInt((c.overline || "").replace(/\D+/g, ""), 10) ||
               Math.max(1, 12 - idx),
-            code: c.overline || `PHASE ${Math.max(1, 12 - idx)}`,
-            title: c.title,
-            sub: c.footerMeta || "",
+            code: t("", c.overline || `Phase ${Math.max(1, 12 - idx)}`),
+            title: t("", c.title || ""),
+            sub: t("", c.footerMeta || ""),
             status: (c.status || (idx === 0 ? "active" : "completed")) as
               | "active"
               | "completed",
             icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
-            desc: c.desc,
+            desc: t("", c.desc || ""),
             milestones: (c.subCards || []).map((sc) => ({
-              title: sc.title,
-              desc: sc.desc,
+              title: t("", sc.title || ""),
+              desc: t("", sc.desc || ""),
               pending: Boolean(sc.pending),
             })),
           }))
@@ -2048,8 +2057,8 @@ export default function WebDocumentFeed() {
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Interactive Filter Tabs (Uniform font size, zero scrolling, zero truncation) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1x3 Interactive Filter Tabs (Responsive SidePanel Carousel) */}
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_timeline", "timeline")}
@@ -2086,7 +2095,7 @@ export default function WebDocumentFeed() {
               setSelectedPhaseNum(11);
             }}
           />
-        </div>
+        </StatTileCarousel>
 
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
@@ -2128,7 +2137,7 @@ export default function WebDocumentFeed() {
                 {!isExpanded ? (
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                         <span className="material-symbols-outlined !text-[20px]">
                           {phase.icon}
                         </span>
@@ -2147,23 +2156,25 @@ export default function WebDocumentFeed() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                          isActivePhase
-                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            isActivePhase
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--success)]"
+                          }`}
+                        >
                           {isActivePhase
                             ? t("icon_rocket_launch", "rocket_launch")
                             : t("icon_check_circle", "check_circle")}
                         </span>
-                        {isActivePhase
-                          ? t("sd_roadmap_status_active", "ACTIVE PHASE")
-                          : t("status_completed", "COMPLETED")}
+                        <span>
+                          {isActivePhase
+                            ? t("sd_roadmap_status_active", "Active Phase")
+                            : t("status_completed", "Completed")}
+                        </span>
                       </span>
-                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {t("icon_expand_more", "expand_more")}
                         </span>
@@ -2187,10 +2198,10 @@ export default function WebDocumentFeed() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3.5 min-w-0">
                           <div
-                            className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                            className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                               isActivePhase
-                                ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]"
-                                : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--success)]"
                             }`}
                           >
                             <span className="material-symbols-outlined !text-[22px]">
@@ -2214,23 +2225,25 @@ export default function WebDocumentFeed() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                              isActivePhase
-                                ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                                : "border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[12px]">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                            <span
+                              className={`material-symbols-outlined !text-[12px] ${
+                                isActivePhase
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--success)]"
+                              }`}
+                            >
                               {isActivePhase
                                 ? t("icon_rocket_launch", "rocket_launch")
                                 : t("icon_check_circle", "check_circle")}
                             </span>
-                            {isActivePhase
-                              ? t("sd_roadmap_status_active", "ACTIVE PHASE")
-                              : t("status_completed", "COMPLETED")}
+                            <span>
+                              {isActivePhase
+                                ? t("sd_roadmap_status_active", "Active Phase")
+                                : t("status_completed", "Completed")}
+                            </span>
                           </span>
-                          <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
+                          <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                             <span className="material-symbols-outlined !text-[16px]">
                               {t("icon_expand_less", "expand_less")}
                             </span>
@@ -2343,8 +2356,8 @@ export default function WebDocumentFeed() {
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Static Top Tiles (Uniform font size, zero scrolling, zero truncation) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_hub", "hub")}
@@ -2372,23 +2385,23 @@ export default function WebDocumentFeed() {
             isActive={forkTab === "sql"}
             onClick={() => setForkTab("sql")}
           />
-        </div>
+        </StatTileCarousel>
 
         {/* Tab 1: Official Partner Spoke Setup & Cut the Cord */}
         {forkTab === "spoke" && (
           <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
             <div className="flex items-start justify-between gap-3">
-              <div className="w-11 h-11 rounded-xl border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[22px]">
                   {t("icon_hub", "hub")}
                 </span>
               </div>
 
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-                <span className="material-symbols-outlined !text-[12px]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_verified", "verified")}
                 </span>
-                {t("active", "Active")}
+                <span>{t("active", "Active")}</span>
               </span>
             </div>
 
@@ -2545,10 +2558,10 @@ export default function WebDocumentFeed() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                       forkModeIdx === 0
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[20px]">
@@ -2566,7 +2579,7 @@ export default function WebDocumentFeed() {
                     >
                       {t(
                         "sd_fork_mode_standalone_badge",
-                        "MODE 1 • 1-DATABASE STANDALONE"
+                        "Mode 1 • 1-Database Standalone"
                       )}
                     </span>
                     <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
@@ -2578,21 +2591,23 @@ export default function WebDocumentFeed() {
                   </div>
                 </div>
 
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap shrink-0 ${
-                    forkModeIdx === 0
-                      ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
-                      : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                  <span
+                    className={`material-symbols-outlined !text-[12px] ${
+                      forkModeIdx === 0
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)]"
+                    }`}
+                  >
                     {forkModeIdx === 0
                       ? t("icon_check_circle", "check_circle")
                       : t("icon_storage", "storage")}
                   </span>
-                  {forkModeIdx === 0
-                    ? t("active", "Active")
-                    : t("dir_fk_t2_val", "1-File Fork")}
+                  <span>
+                    {forkModeIdx === 0
+                      ? t("active", "Active")
+                      : t("dir_fk_t2_val", "1-File Fork")}
+                  </span>
                 </span>
               </div>
 
@@ -2711,10 +2726,10 @@ export default function WebDocumentFeed() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                       forkModeIdx === 1
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[20px]">
@@ -2732,7 +2747,7 @@ export default function WebDocumentFeed() {
                     >
                       {t(
                         "sd_fork_mode_hub_badge",
-                        "MODE 2 • FULL HUB & SPOKE FEDERATION"
+                        "Mode 2 • Full Hub & Spoke Federation"
                       )}
                     </span>
                     <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
@@ -2744,21 +2759,23 @@ export default function WebDocumentFeed() {
                   </div>
                 </div>
 
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap shrink-0 ${
-                    forkModeIdx === 1
-                      ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
-                      : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                  <span
+                    className={`material-symbols-outlined !text-[12px] ${
+                      forkModeIdx === 1
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)]"
+                    }`}
+                  >
                     {forkModeIdx === 1
                       ? t("icon_check_circle", "check_circle")
                       : t("icon_hub", "hub")}
                   </span>
-                  {forkModeIdx === 1
-                    ? t("active", "Active")
-                    : t("dir_ar_t2_val", "Hub & Spokes")}
+                  <span>
+                    {forkModeIdx === 1
+                      ? t("active", "Active")
+                      : t("dir_ar_t2_val", "Hub & Spokes")}
+                  </span>
                 </span>
               </div>
 
@@ -2918,10 +2935,10 @@ export default function WebDocumentFeed() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                       isSpokeSqlActive
-                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-[color-mix(in_srgb,var(--success)_14%,transparent)] text-[var(--success)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        ? "text-[var(--success)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[20px]">
@@ -2939,7 +2956,7 @@ export default function WebDocumentFeed() {
                     >
                       {t(
                         "dir_fork_sql_spoke_sub",
-                        "SPOKE & STANDALONE DB • 36 TABLES"
+                        "Spoke & Standalone DB • 36 Tables"
                       )}
                     </span>
                     <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
@@ -2966,19 +2983,21 @@ export default function WebDocumentFeed() {
                         : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
                     </ActionButton>
                   )}
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                      isSpokeSqlActive
-                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                    <span
+                      className={`material-symbols-outlined !text-[12px] ${
+                        isSpokeSqlActive
+                          ? "text-[var(--success)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
                       {isSpokeSqlActive
                         ? t("icon_check_circle", "check_circle")
                         : t("icon_database", "database")}
                     </span>
-                    {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                    <span>
+                      {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -3024,10 +3043,10 @@ export default function WebDocumentFeed() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                       !isSpokeSqlActive
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[20px]">
@@ -3045,7 +3064,7 @@ export default function WebDocumentFeed() {
                     >
                       {t(
                         "dir_fork_sql_hub_sub",
-                        "CENTRAL CORE HUB DB • 16 TABLES"
+                        "Central Core Hub DB • 16 Tables"
                       )}
                     </span>
                     <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
@@ -3072,19 +3091,21 @@ export default function WebDocumentFeed() {
                         : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
                     </ActionButton>
                   )}
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                      !isSpokeSqlActive
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                    <span
+                      className={`material-symbols-outlined !text-[12px] ${
+                        !isSpokeSqlActive
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
                       {!isSpokeSqlActive
                         ? t("icon_check_circle", "check_circle")
                         : t("icon_database", "database")}
                     </span>
-                    {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                    <span>
+                      {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -3288,21 +3309,21 @@ export default function WebDocumentFeed() {
     const activePillar = customArchCard
       ? {
           icon: customArchCard.icon || defaultPillar.icon,
-          badge: customArchCard.overline || defaultPillar.badge,
-          heading: customArchCard.title || defaultPillar.heading,
-          summary: customArchCard.desc || defaultPillar.summary,
+          badge: t("", customArchCard.overline || defaultPillar.badge),
+          heading: t("", customArchCard.title || defaultPillar.heading),
+          summary: t("", customArchCard.desc || defaultPillar.summary),
           cards: (customArchCard.subCards || []).map((sc) => ({
             icon: sc.icon || defaultPillar.icon,
-            title: sc.title,
-            desc: sc.desc,
+            title: t("", sc.title || ""),
+            desc: t("", sc.desc || ""),
           })),
         }
       : defaultPillar;
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Static Top Tiles (Uniform font size, zero scrolling, zero truncation) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_memory", "memory")}
@@ -3330,22 +3351,22 @@ export default function WebDocumentFeed() {
             isActive={archTab === "p3"}
             onClick={() => setArchTab("p3")}
           />
-        </div>
+        </StatTileCarousel>
 
         {/* Clean 3-Tier Hero Container Below 1x3 Tiles */}
         <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
           <div className="flex items-start justify-between gap-3">
-            <div className="w-11 h-11 rounded-xl border bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[22px]">
                 {activePillar.icon}
               </span>
             </div>
 
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
-              <span className="material-symbols-outlined !text-[12px]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                 {activePillar.icon}
               </span>
-              {t("active", "Active")}
+              <span>{t("active", "Active")}</span>
             </span>
           </div>
 
@@ -3739,11 +3760,11 @@ export default function WebDocumentFeed() {
     const effectiveProtoRoles =
       customProtoRolesTab && customProtoRolesTab.cards.length > 0
         ? customProtoRolesTab.cards.map((c) => ({
-            short: c.title,
+            short: t("", c.title || ""),
             icon: c.icon,
-            title: c.title,
-            badge: c.overline || c.footerMeta,
-            desc: c.desc,
+            title: t("", c.title || ""),
+            badge: t("", c.overline || c.footerMeta || ""),
+            desc: t("", c.desc || ""),
             requiresPasskey: c.status !== "citizen",
           }))
         : elevatedRoles;
@@ -3751,9 +3772,9 @@ export default function WebDocumentFeed() {
     const effectiveComplianceTiers =
       customProtoCompTab && customProtoCompTab.cards.length > 0
         ? customProtoCompTab.cards.map((c, idx) => ({
-            badge: c.overline || c.badge,
-            title: c.title,
-            desc: c.desc,
+            badge: t("", c.overline || c.badge || ""),
+            title: t("", c.title || ""),
+            desc: t("", c.desc || ""),
             colorClass:
               complianceTiers[idx]?.colorClass ||
               "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
@@ -3766,21 +3787,21 @@ export default function WebDocumentFeed() {
       customProtoListTab && customProtoListTab.cards.length > 0
         ? customProtoListTab.cards.map((c) => ({
             icon: c.icon,
-            badge: c.overline || c.badge,
-            title: c.title,
-            desc: c.desc,
+            badge: t("", c.overline || c.badge || ""),
+            title: t("", c.title || ""),
+            desc: t("", c.desc || ""),
             rules: (c.subCards || []).map((sc) => ({
               icon: sc.icon,
-              title: sc.title,
-              desc: sc.desc,
+              title: t("", sc.title || ""),
+              desc: t("", sc.desc || ""),
             })),
           }))
         : protocolDomains;
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Static Top Tiles (Uniform font size, zero scrolling, zero truncation) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
+        <StatTileCarousel innerClassName="px-0">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
@@ -3808,7 +3829,7 @@ export default function WebDocumentFeed() {
             isActive={protoTab === "list"}
             onClick={() => setProtoTab("list")}
           />
-        </div>
+        </StatTileCarousel>
 
         {/* Tab 1: 6-Tier Role Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "roles" && (
@@ -3867,10 +3888,10 @@ export default function WebDocumentFeed() {
                   >
                     <div className="flex items-start gap-3.5 min-w-0 flex-1">
                       <div
-                        className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                           isActive
-                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[20px]">
@@ -3895,23 +3916,25 @@ export default function WebDocumentFeed() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                          role.requiresPasskey
-                            ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-                            : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            role.requiresPasskey
+                              ? "text-[var(--warning)]"
+                              : "text-[var(--success)]"
+                          }`}
+                        >
                           {role.requiresPasskey
                             ? t("icon_passkey", "passkey")
                             : t("icon_check_circle", "check_circle")}
                         </span>
-                        {role.requiresPasskey
-                          ? t("auth_passkey_badge_fido", "FIDO2 PASSKEY")
-                          : t("role_citizen", "{Citizen}")}
+                        <span>
+                          {role.requiresPasskey
+                            ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                            : t("role_citizen", "{Citizen}")}
+                        </span>
                       </span>
-                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {isActive
                             ? t("icon_expand_less", "expand_less")
@@ -4025,7 +4048,7 @@ export default function WebDocumentFeed() {
                   >
                     <div className="flex items-start gap-3.5 min-w-0 flex-1">
                       <div
-                        className={`w-10 h-10 rounded-xl border bg-transparent flex items-center justify-center shrink-0 transition-colors ${tier.colorClass}`}
+                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${tier.textColor}`}
                       >
                         <span className="material-symbols-outlined !text-[20px]">
                           {tier.icon}
@@ -4047,15 +4070,13 @@ export default function WebDocumentFeed() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${tier.colorClass}`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className={`material-symbols-outlined !text-[12px] ${tier.textColor}`}>
                           {tier.icon}
                         </span>
-                        {tier.badge.split("•")[0].trim()}
+                        <span>{tier.badge.split("•")[0].trim()}</span>
                       </span>
-                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {isActive
                             ? t("icon_expand_less", "expand_less")
@@ -4172,10 +4193,10 @@ export default function WebDocumentFeed() {
                   >
                     <div className="flex items-start gap-3.5 min-w-0 flex-1">
                       <div
-                        className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                           isActive
-                            ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] group-hover:text-[var(--text)]"
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[20px]">
@@ -4200,21 +4221,21 @@ export default function WebDocumentFeed() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
-                          isActive
-                            ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            isActive
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)]"
+                          }`}
+                        >
                           {isActive
                             ? t("icon_check_circle", "check_circle")
                             : dom.icon}
                         </span>
-                        {dom.badge.split("•")[0].trim()}
+                        <span>{dom.badge.split("•")[0].trim()}</span>
                       </span>
-                      <span className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {isActive
                             ? t("icon_expand_less", "expand_less")

@@ -276,7 +276,7 @@ export function PwaInstallPrompt() {
             >
               <div className="flex flex-col gap-3">
                 <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_ios_share", "ios_share")}
                     </span>
@@ -292,7 +292,7 @@ export function PwaInstallPrompt() {
                 </div>
 
                 <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_add_box", "add_box")}
                     </span>
@@ -308,7 +308,7 @@ export function PwaInstallPrompt() {
                 </div>
 
                 <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--success)_30%,transparent)] flex items-center justify-center text-[var(--success)] shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--success)] shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_check_circle", "check_circle")}
                     </span>
@@ -334,7 +334,7 @@ export function PwaInstallPrompt() {
             >
               <div className="flex flex-col gap-3">
                 <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_more_vert", "more_vert")}
                     </span>
@@ -353,7 +353,7 @@ export function PwaInstallPrompt() {
                 </div>
 
                 <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_add_to_home_screen", "add_to_home_screen")}
                     </span>

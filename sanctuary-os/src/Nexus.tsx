@@ -1737,8 +1737,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               {/* Header */}
                               <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                                 <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
-                                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
+                                  <div className="w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
                                   </div>
                                   <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-3">
@@ -1747,7 +1747,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       </h3>
                                     </div>
                                     <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
-                                      <span className="material-symbols-outlined !text-[14px]">account_tree</span>
+                                      <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree", "account_tree")}</span>
                                       {t("nav_exploring", "Exploring")} {(item.flavors || []).length} {t("term_mods", "Mods")}
                                     </span>
                                   </div>
@@ -1794,7 +1794,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       setDrawerSearchQuery("");
                                       setExpandedFolder(null);
                                     }}
-                                    className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                                    className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
                                   >
                                     <span className="material-symbols-outlined !text-[20px]">
                                       {t("icon_close", "close")}
@@ -2152,8 +2152,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             {/* Header */}
                             <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
                               <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center shrink-0 shadow-[inset_0_0_15px_rgba(var(--accent-rgb),0.1)]">
-                                  <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">folder_open</span>
+                                <div className="w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                                  <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <div className="flex items-center gap-3">
@@ -2162,7 +2162,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     </h3>
                                   </div>
                                   <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
-                                    <span className="material-symbols-outlined !text-[14px]">account_tree</span>
+                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree", "account_tree")}</span>
                                     {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("term_mods", "Mods")}
                                   </span>
                                 </div>
@@ -2209,7 +2209,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     setDrawerSearchQuery("");
                                     setExpandedFolder(null);
                                   }}
-                                  className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                                  className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
                                 >
                                   <span className="material-symbols-outlined !text-[20px]">
                                     {t("icon_close", "close")}

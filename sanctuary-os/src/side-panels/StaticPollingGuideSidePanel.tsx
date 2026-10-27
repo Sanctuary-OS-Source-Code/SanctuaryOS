@@ -441,7 +441,7 @@ export function StaticPollingGuideSidePanel({
                         {opt.title}
                       </h4>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest shrink-0">
+                    <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest shrink-0">
                       {opt.badge}
                     </span>
                   </div>

@@ -72,12 +72,12 @@ export function UniversalCard({
   switch (layout) {
     case "horizontal":
       layoutClasses = "flex-row items-center p-4 gap-4 min-h-[80px]";
-      imageContainerClasses = "w-12 h-12 shrink-0 flex items-center justify-center rounded-xl group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-500 overflow-hidden relative";
+      imageContainerClasses = "w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-500 overflow-hidden relative";
       contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "compact":
       layoutClasses = "flex-row items-center p-3 gap-4 min-h-[64px] transition-colors rounded-xl";
-      imageContainerClasses = "w-11 h-11 shrink-0 flex items-center justify-center rounded-xl group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-300 overflow-hidden relative";
+      imageContainerClasses = "w-11 h-11 shrink-0 flex items-center justify-center rounded-xl border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] group-hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.5))] group-hover:bg-[color-mix(in_srgb,var(--accent)_12%,var(--glass-card-icon-bg))] transition-all duration-300 overflow-hidden relative";
       contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "vertical-compact":
@@ -109,7 +109,7 @@ export function UniversalCard({
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
-  const hoverClasses = !isDisabled && isInteractive ? "hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] transition-colors transition-shadow duration-300" : "transition-colors duration-300";
+  const hoverClasses = !isDisabled && isInteractive ? "hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] transition-all duration-300" : "transition-colors duration-300";
 
   const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
@@ -189,14 +189,14 @@ export function UniversalCard({
                         : "var(--accent)";
                 const isCompactBanner = layout === "vertical-compact";
                 const rawSubtitleSegment =
-                  typeof subtitle === "string" && subtitle.trim()
-                    ? subtitle.split(/[•·|]/)[0]?.trim() || ""
+                  typeof resolvedSubtitle === "string" && resolvedSubtitle.trim()
+                    ? resolvedSubtitle.split(/[•·|]/)[0]?.trim() || ""
                     : "";
                 const firstBadgeLabel =
                   Array.isArray(badges) &&
                   typeof badges[0]?.label === "string" &&
                   badges[0].label.trim()
-                    ? badges[0].label.trim()
+                    ? (td ? td(badges[0].label.trim()) : badges[0].label.trim())
                     : "";
                 const topLabel = firstBadgeLabel
                   ? firstBadgeLabel
@@ -204,12 +204,12 @@ export function UniversalCard({
                     ? rawSubtitleSegment
                     : typeof status === "string" && status.trim() && !status.includes("-")
                       ? status.trim()
-                      : typeof title === "string" && title.trim() && title.trim().length <= 24
-                        ? title.trim()
+                      : typeof resolvedTitle === "string" && resolvedTitle.trim() && resolvedTitle.trim().length <= 24
+                        ? resolvedTitle.trim()
                         : t("status_active", "Active");
                 const bottomLabel =
-                  typeof title === "string" && title.trim()
-                    ? title.trim()
+                  typeof resolvedTitle === "string" && resolvedTitle.trim()
+                    ? resolvedTitle.trim()
                     : rawSubtitleSegment
                       ? rawSubtitleSegment
                       : t("overview", "Overview");
@@ -237,10 +237,7 @@ export function UniversalCard({
                       <div
                         className={`${
                           isCompactBanner ? "w-12" : "w-14"
-                        } h-full rounded-xl glass-surface border flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
-                        style={{
-                          borderColor: `color-mix(in srgb, ${headerAccentVar} 38%, transparent)`,
-                        }}
+                        } h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
                       >
                         <span
                           className={`material-symbols-outlined ${

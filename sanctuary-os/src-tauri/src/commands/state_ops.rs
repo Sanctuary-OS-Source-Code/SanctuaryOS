@@ -122,29 +122,140 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     let vault_path = String::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
 
-    let default_mod = game_schema
-        .as_ref()
-        .map(|s| s.paths.default_mod_dir_windows.clone())
-        .unwrap_or_default();
-
-    if let Ok(profile) = std::env::var("USERPROFILE") {
-        let docs = std::path::Path::new(&profile);
-        let ts4_mods = docs.join(&default_mod);
-        if ts4_mods.exists() {
-            mods_path = ts4_mods.to_string_lossy().to_string();
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
+    let mut search_paths = if let Some(schema) = &game_schema {
+        #[cfg(target_os = "macos")]
+        {
+            schema
+                .paths
+                .auto_scan_paths_mac
+                .clone()
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| schema.paths.auto_scan_paths_windows.clone())
         }
-    }
-
-    let search_paths = if let Some(schema) = &game_schema {
-        schema.paths.auto_scan_paths_windows.clone()
+        #[cfg(not(target_os = "macos"))]
+        {
+            schema.paths.auto_scan_paths_windows.clone()
+        }
     } else {
         vec![]
     };
 
-    for p in search_paths {
-        if std::path::Path::new(&p).exists() {
-            live_path = p.to_string();
-            break;
+    #[cfg(target_os = "macos")]
+    {
+        if crate::game_logic::is_sims4_schema(&game_schema) {
+            for default_mac_p in [
+                "/Applications/The Sims 4.app",
+                "~/Applications/The Sims 4.app",
+                "/Applications/EA Games/The Sims 4.app",
+                "~/Applications/EA Games/The Sims 4.app",
+                "~/Library/Application Support/Steam/steamapps/common/The Sims 4",
+            ] {
+                if !search_paths.iter().any(|p| p == default_mac_p) {
+                    search_paths.push(default_mac_p.to_string());
+                }
+            }
+        }
+        if let Ok(volumes) = std::fs::read_dir("/Volumes") {
+            for vol in volumes.flatten() {
+                let vol_path = vol.path();
+                if vol_path.is_dir() {
+                    if crate::game_logic::is_sims4_schema(&game_schema) {
+                        for rel in [
+                            "The Sims 4.app",
+                            "Applications/The Sims 4.app",
+                            "EA Games/The Sims 4.app",
+                            "SteamLibrary/steamapps/common/The Sims 4",
+                        ] {
+                            let candidate = vol_path.join(rel).to_string_lossy().to_string();
+                            if !search_paths.contains(&candidate) {
+                                search_paths.push(candidate);
+                            }
+                        }
+                    } else if let Some(schema) = &game_schema {
+                        for exe_name in &schema.executable_names {
+                            if exe_name.ends_with(".app") {
+                                let candidate =
+                                    vol_path.join(exe_name).to_string_lossy().to_string();
+                                if !search_paths.contains(&candidate) {
+                                    search_paths.push(candidate);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for raw_p in search_paths {
+        let expanded_p = crate::utils::expand_env_vars(&raw_p);
+        let p_path = std::path::Path::new(&expanded_p);
+        if p_path.exists() {
+            let has_exe = game_schema
+                .as_ref()
+                .map(|s| {
+                    s.executable_names.is_empty()
+                        || crate::game_logic::resolve_executable_path(&expanded_p, &game_schema)
+                            .is_some()
+                })
+                .unwrap_or(true);
+            if has_exe {
+                live_path = expanded_p;
+                break;
+            }
+        }
+    }
+
+    if let Some(default_mods) = crate::game_logic::get_default_mods_folder(&game_schema) {
+        if default_mods.exists() {
+            mods_path = default_mods.to_string_lossy().to_string();
+        }
+    }
+
+    let default_mod_raw = game_schema
+        .as_ref()
+        .map(|s| {
+            #[cfg(target_os = "macos")]
+            {
+                s.paths
+                    .default_mod_dir_mac
+                    .clone()
+                    .filter(|d| !d.trim().is_empty())
+                    .unwrap_or_else(|| s.paths.default_mod_dir_windows.clone())
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                s.paths.default_mod_dir_windows.clone()
+            }
+        })
+        .unwrap_or_default();
+
+    if mods_path.is_empty() && !default_mod_raw.is_empty() {
+        let expanded_mod = crate::utils::expand_env_vars(&default_mod_raw);
+        let exp_path = std::path::Path::new(&expanded_mod);
+        if exp_path.is_absolute() && exp_path.exists() {
+            mods_path = exp_path.to_string_lossy().to_string();
+        } else if let Ok(profile) =
+            std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+        {
+            let docs = std::path::Path::new(&profile);
+            let user_mods = docs.join(&expanded_mod);
+            if user_mods.exists() {
+                mods_path = user_mods.to_string_lossy().to_string();
+            }
+        }
+        if mods_path.is_empty() && !live_path.is_empty() {
+            let engine_root =
+                crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+            if default_mod_raw == "." {
+                mods_path = engine_root.to_string_lossy().to_string();
+            } else {
+                let engine_mods = engine_root.join(&expanded_mod);
+                if engine_mods.exists() {
+                    mods_path = engine_mods.to_string_lossy().to_string();
+                }
+            }
         }
     }
 

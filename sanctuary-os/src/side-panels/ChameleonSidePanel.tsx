@@ -317,19 +317,9 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                     </span>
                   </div>
                   <div
-                    className={`w-10 h-5 shrink-0 rounded-full p-0.5 flex items-center border transition-all duration-300 ${
-                      useGlobalTheme
-                        ? "bg-transparent border-[var(--accent)]"
-                        : "bg-transparent border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
-                    }`}
+                    className={`sa-glass-toggle ${useGlobalTheme ? "is-on" : ""}`}
                   >
-                    <div
-                      className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                        useGlobalTheme
-                          ? "bg-[var(--accent)] translate-x-[18px]"
-                          : "bg-[var(--subtext)] translate-x-0"
-                      }`}
-                    />
+                    <div className="sa-glass-toggle-thumb" />
                   </div>
                 </div>
 

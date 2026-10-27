@@ -122,8 +122,12 @@ export function GlobalTooltip() {
         } as React.CSSProperties}
       >
         {content ? (
-          <div ref={tooltipRef}>
-            {content}
+          <div
+            ref={tooltipRef}
+            style={variantStyle}
+            className="sa-tooltip-glass flex flex-col items-start justify-center px-3.5 py-2 max-w-[360px] w-max !rounded-xl relative overflow-hidden"
+          >
+            <div className="relative z-10 w-full">{content}</div>
           </div>
         ) : (
           <div

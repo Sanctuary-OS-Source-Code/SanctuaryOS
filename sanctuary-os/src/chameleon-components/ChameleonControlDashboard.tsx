@@ -268,7 +268,7 @@ export function ChameleonControlDashboard({
       <div className="flex flex-col gap-3.5 px-6 pt-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-transparent shrink-0">
         <div className="glass-panel p-3.5 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
               <span className="material-symbols-outlined !text-[20px]">
                 {t('icon_palette', 'palette')}
               </span>
@@ -399,7 +399,7 @@ export function ChameleonControlDashboard({
                     >
                       <div className="relative z-10 flex items-start justify-between gap-2.5 w-full">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0">
+                          <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                               {t(preset.iconKey, preset.fallbackIcon)}
                             </span>
@@ -691,7 +691,7 @@ export function ChameleonControlDashboard({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)] mt-0.5">
+                        <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] mt-0.5">
                           <span className="material-symbols-outlined !text-[16px]">{ctrl.icon}</span>
                         </div>
                         <div className="flex flex-col min-w-0 gap-0.5">
@@ -1060,7 +1060,7 @@ export function ChameleonControlDashboard({
                 <div className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                      <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {t('icon_rounded_corner', 'rounded_corner')}
                         </span>
@@ -1111,7 +1111,7 @@ export function ChameleonControlDashboard({
                 <div className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                      <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {t('icon_width', 'width')}
                         </span>
@@ -1155,7 +1155,7 @@ export function ChameleonControlDashboard({
                 <div className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3 md:col-span-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                      <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
                         <span className="material-symbols-outlined !text-[16px]">
                           {t('icon_text_fields', 'text_fields')}
                         </span>
@@ -1387,7 +1387,7 @@ export function ChameleonControlDashboard({
                   <div key={cfg.key} className="glass-panel p-4 rounded-2xl flex flex-col justify-between gap-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)]">
+                        <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)]">
                           <span className="material-symbols-outlined !text-[16px]">{cfg.icon}</span>
                         </div>
                         <span className="text-xs font-black text-[var(--text)]">{cfg.label}</span>
@@ -1453,7 +1453,7 @@ export function ChameleonControlDashboard({
                       }`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                           <span className="material-symbols-outlined !text-[20px]">
                             {t('icon_flip_to_back', 'flip_to_back')}
                           </span>
@@ -1552,7 +1552,7 @@ export function ChameleonControlDashboard({
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                         {t('forge_wallpaper_engine', 'Custom Desktop Wallpaper')}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[8px] font-black uppercase tracking-wider">
+                      <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[8px] font-black uppercase tracking-wider">
                         {!currentTheme.bgImage && (currentTheme.bg === 'transparent' || currentTheme.transparentWindow)
                           ? t('forge_wp_desktop_passthrough', 'Desktop Passthrough')
                           : String(currentTheme.bgImage || '').startsWith('http')

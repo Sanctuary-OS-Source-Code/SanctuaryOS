@@ -4,11 +4,14 @@ use std::path::{Path, PathBuf};
 
 #[tauri::command]
 pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
-    let mut cache = load_cache(&vault_path);
-    if let Some(entry) = cache.get_mut(&file_path) {
-        entry.explicitly_local = true;
-        let conn = get_db_conn(&vault_path);
-        upsert_cache_entry(&conn, &file_path, entry);
+    let conn = get_db_conn(&vault_path);
+    let rows = conn
+        .execute(
+            "UPDATE cache SET explicitly_local = 1 WHERE path = ?1",
+            rusqlite::params![file_path],
+        )
+        .map_err(|e| e.to_string())?;
+    if rows > 0 {
         Ok(())
     } else {
         Err("File not found in cache".to_string())
@@ -16,18 +19,23 @@ pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<()
 }
 
 #[tauri::command]
-pub fn generate_full_dna_hash(file_path: PathBuf) -> String {
-    calculate_hash(&file_path).unwrap_or_else(|_| "0".into())
+pub async fn generate_full_dna_hash(file_path: PathBuf) -> String {
+    tauri::async_runtime::spawn_blocking(move || {
+        calculate_hash(&file_path).unwrap_or_else(|_| "0".into())
+    })
+    .await
+    .unwrap_or_else(|_| "0".into())
 }
 
 #[tauri::command]
-pub fn resolve_dna_match(
+pub async fn resolve_dna_match(
     path: String,
     existing_name: String,
     action: String,
     move_original: Option<bool>,
 ) -> Result<String, String> {
-    let source = Path::new(&path);
+    tauri::async_runtime::spawn_blocking(move || {
+        let source = Path::new(&path);
     let mut resolved_existing = existing_name.clone();
     if resolved_existing.is_empty() {
         resolved_existing = path.replace(".tmp_sanctuary_conflict", "");
@@ -147,6 +155,9 @@ pub fn resolve_dna_match(
     }
 
     Ok("Resolved".into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -173,16 +184,51 @@ pub fn load_master_cache(vault_path: String) -> Result<String, String> {
 #[tauri::command]
 pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Result<String, String> {
     let mut deleted = 0;
+    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+
     for filename in filenames {
-        let mut path = std::path::PathBuf::from(&vault_path);
-        path.push(&filename);
-        if path.exists() {
-            if path.is_dir() {
-                let _ = std::fs::remove_dir_all(&path);
-            } else {
-                let _ = std::fs::remove_file(&path);
+        let candidates = [
+            std::path::PathBuf::from(&vault_path).join(&filename),
+            vault_mods_lane.join(&filename),
+        ];
+        for path in candidates {
+            if path.exists() || std::fs::symlink_metadata(&path).is_ok() {
+                let mut deleted_names = Vec::new();
+                if path.is_dir() {
+                    for entry in walkdir::WalkDir::new(&path)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                    {
+                        if entry.file_type().is_file() {
+                            if let Some(fname) = entry.file_name().to_str() {
+                                deleted_names.push(fname.to_string());
+                            }
+                        }
+                    }
+                    let _ = std::fs::remove_dir_all(&path);
+                } else {
+                    if let Some(fname) = path.file_name().and_then(|n| n.to_str()) {
+                        deleted_names.push(fname.to_string());
+                    }
+                    let _ = std::fs::remove_file(&path);
+                }
+
+                let mut current = path.parent().map(|d| d.to_path_buf());
+                while let Some(dir) = current {
+                    if dir == vault_mods_lane
+                        || dir.file_name().and_then(|s| s.to_str()) == Some("Mods")
+                    {
+                        break;
+                    }
+                    if std::fs::remove_dir(&dir).is_err() {
+                        break;
+                    }
+                    current = dir.parent().map(|d| d.to_path_buf());
+                }
+
+                crate::utils::cleanup_live_counterparts_on_delete(&path, &deleted_names);
+                deleted += 1;
             }
-            deleted += 1;
         }
     }
     Ok(format!("Purged {} artifacts.", deleted))

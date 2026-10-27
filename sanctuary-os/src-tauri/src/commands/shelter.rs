@@ -338,140 +338,143 @@ pub fn get_quarantine_list() -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn restore_quarantined_file(filename: String) -> String {
-    let config = get_saved_coordinates();
-    let sq_path = PathBuf::from(&config.vault_path)
-        .join(".sanctuary_quarantine")
-        .join(&filename);
-    let q_path = PathBuf::from(&config.vault_path)
-        .join("Quarantine")
-        .join(format!("{}.json", filename));
-    let m_path = crate::utils::get_vault_mods_lane(&config.vault_path).join(&filename);
+pub async fn restore_quarantined_file(filename: String) -> String {
+    tauri::async_runtime::spawn_blocking(move || {
+        let config = get_saved_coordinates();
+        let sq_path = PathBuf::from(&config.vault_path)
+            .join(".sanctuary_quarantine")
+            .join(&filename);
+        let q_path = PathBuf::from(&config.vault_path)
+            .join("Quarantine")
+            .join(format!("{}.json", filename));
+        let m_path = crate::utils::get_vault_mods_lane(&config.vault_path).join(&filename);
 
-    let mut cache = load_cache(&config.vault_path);
+        let mut moved = false;
 
-    let mut moved = false;
-
-    let path_str = sq_path.to_string_lossy().to_string();
-    if cache.contains_key(&path_str) {
-        cache.remove(&path_str);
+        let path_str = sq_path.to_string_lossy().to_string();
         let conn = get_db_conn(&config.vault_path);
         remove_cache_entry(&conn, &path_str);
-    }
 
-    if sq_path.exists() {
-        let _ = fs::rename(&sq_path, &m_path);
-        moved = true;
-    }
+        if sq_path.exists() {
+            let _ = fs::rename(&sq_path, &m_path);
+            moved = true;
+        }
 
-    if q_path.exists() {
-        let _ = fs::remove_file(&q_path);
-    }
+        if q_path.exists() {
+            let _ = fs::remove_file(&q_path);
+        }
 
-    if moved {
-        "Restored".into()
-    } else {
-        "Error: File missing".into()
-    }
+        if moved {
+            "Restored".into()
+        } else {
+            "Error: File missing".into()
+        }
+    })
+    .await
+    .unwrap_or_else(|_| "Error: File missing".into())
 }
 
 #[tauri::command]
-pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
-    let config = get_saved_coordinates();
-    let mut cache = load_cache(&config.vault_path);
+pub async fn purge_quarantined_file(filename: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let config = get_saved_coordinates();
+        let conn = get_db_conn(&config.vault_path);
 
-    let base_name = Path::new(&filename)
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| filename.clone());
+        let base_name = Path::new(&filename)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| filename.clone());
 
-    let mut paths_to_check = vec![
-        PathBuf::from(&config.vault_path)
-            .join(".sanctuary_quarantine")
-            .join(&base_name),
-        PathBuf::from(&config.vault_path)
-            .join("Quarantine")
-            .join(format!("{}.json", base_name)),
-    ];
+        let mut paths_to_check = vec![
+            PathBuf::from(&config.vault_path)
+                .join(".sanctuary_quarantine")
+                .join(&base_name),
+            PathBuf::from(&config.vault_path)
+                .join("Quarantine")
+                .join(format!("{}.json", base_name)),
+        ];
 
-    let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
-    let direct_mod_path = mods_lane.join(&filename);
-    if direct_mod_path.exists() && direct_mod_path.is_file() {
-        paths_to_check.push(direct_mod_path);
-    } else if !base_name.is_empty() {
-        for entry in walkdir::WalkDir::new(&mods_lane).into_iter().filter_map(|e| e.ok()) {
-            let ep = entry.path();
-            if ep.is_file() {
-                if let Some(fname) = ep.file_name().and_then(|n| n.to_str()) {
-                    if fname.eq_ignore_ascii_case(&base_name) {
-                        paths_to_check.push(ep.to_path_buf());
+        let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
+        let direct_mod_path = mods_lane.join(&filename);
+        if direct_mod_path.exists() && direct_mod_path.is_file() {
+            paths_to_check.push(direct_mod_path);
+        } else if !base_name.is_empty() {
+            for entry in walkdir::WalkDir::new(&mods_lane).into_iter().filter_map(|e| e.ok()) {
+                let ep = entry.path();
+                if ep.is_file() {
+                    if let Some(fname) = ep.file_name().and_then(|n| n.to_str()) {
+                        if fname.eq_ignore_ascii_case(&base_name) {
+                            paths_to_check.push(ep.to_path_buf());
+                        }
                     }
                 }
             }
         }
-    }
 
-    for q_path in paths_to_check {
-        let path_str = q_path.to_string_lossy().to_string();
-        if cache.contains_key(&path_str) {
-            cache.remove(&path_str);
-            let conn = get_db_conn(&config.vault_path);
+        for q_path in paths_to_check {
+            let path_str = q_path.to_string_lossy().to_string();
             remove_cache_entry(&conn, &path_str);
-        }
 
-        if q_path.exists() {
-            let orig_file_name = q_path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-            let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
-            let shred_path = q_path.with_file_name(format!(".shredding_{}_{}", now_ms, orig_file_name));
-            let active_shred_path = if std::fs::rename(&q_path, &shred_path).is_ok() {
-                shred_path
-            } else {
-                q_path.clone()
-            };
-            let q_path_clone = active_shred_path;
-            let vault_root = PathBuf::from(&config.vault_path);
-            tauri::async_runtime::spawn_blocking(move || {
-                zero_fill_and_remove_file(&q_path_clone, 4 * 1024 * 1024);
+            if q_path.exists() {
+                let orig_file_name = q_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+                let shred_path = q_path.with_file_name(format!(".shredding_{}_{}", now_ms, orig_file_name));
+                let active_shred_path = if std::fs::rename(&q_path, &shred_path).is_ok() {
+                    shred_path
+                } else {
+                    q_path.clone()
+                };
+                let q_path_clone = active_shred_path;
+                let vault_root = PathBuf::from(&config.vault_path);
+                tauri::async_runtime::spawn_blocking(move || {
+                    zero_fill_and_remove_file(&q_path_clone, 4 * 1024 * 1024);
 
-                let manifest_path = vault_root
-                    .join("Quarantine")
-                    .join(format!("{}.manifest.json", orig_file_name));
-                if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                    if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
-                        manifest.quarantined_file_shredded = true;
-                        if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                            let _ = std::fs::write(&manifest_path, json);
+                    let manifest_path = vault_root
+                        .join("Quarantine")
+                        .join(format!("{}.manifest.json", orig_file_name));
+                    if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+                        if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
+                            manifest.quarantined_file_shredded = true;
+                            if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                                let _ = std::fs::write(&manifest_path, json);
+                            }
                         }
                     }
-                }
-            });
-            return Ok("Purge initiated".into());
+                });
+                return Ok("Purge initiated".into());
+            }
         }
-    }
 
-    Ok("Purge initiated".into())
+        Ok("Purge initiated".into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn get_shelter_list(state: tauri::State<'_, AppState>) -> Vec<String> {
+pub async fn get_shelter_list(state: tauri::State<'_, AppState>) -> Result<Vec<String>, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let config = get_saved_coordinates();
-    let s_path = PathBuf::from(config.vault_path).join("Shelter");
-    if !s_path.exists() {
-        return vec![];
-    }
-    let mut packages = Vec::new();
-    walk_packages(&game_schema, &s_path, &mut packages);
-    packages
-        .into_iter()
-        .filter_map(|p| {
-            p.strip_prefix(&s_path)
-                .ok()
-                .map(|n| n.to_string_lossy().replace("\\", "/"))
-        })
-        .collect()
+    tauri::async_runtime::spawn_blocking(move || {
+        let config = get_saved_coordinates();
+        let s_path = PathBuf::from(config.vault_path).join("Shelter");
+        if !s_path.exists() {
+            return vec![];
+        }
+        let mut packages = Vec::new();
+        walk_packages(&game_schema, &s_path, &mut packages);
+        packages
+            .into_iter()
+            .filter_map(|p| {
+                p.strip_prefix(&s_path)
+                    .ok()
+                    .map(|n| n.to_string_lossy().replace("\\", "/"))
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())
 }

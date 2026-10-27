@@ -555,9 +555,9 @@ pub async fn native_webauthn_register(window: tauri::Window, options: Value) -> 
     #[cfg(target_os = "windows")]
     {
         let hwnd = window.hwnd().map(|h| h.0 as isize).unwrap_or(0);
-        std::thread::spawn(move || win_webauthn::make_credential_sync(hwnd, options))
-            .join()
-            .map_err(|_| "WebAuthn thread panicked".to_string())?
+        tauri::async_runtime::spawn_blocking(move || win_webauthn::make_credential_sync(hwnd, options))
+            .await
+            .map_err(|e| format!("WebAuthn task failed: {}", e))?
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -571,9 +571,9 @@ pub async fn native_webauthn_authenticate(window: tauri::Window, options: Value)
     #[cfg(target_os = "windows")]
     {
         let hwnd = window.hwnd().map(|h| h.0 as isize).unwrap_or(0);
-        std::thread::spawn(move || win_webauthn::get_assertion_sync(hwnd, options))
-            .join()
-            .map_err(|_| "WebAuthn thread panicked".to_string())?
+        tauri::async_runtime::spawn_blocking(move || win_webauthn::get_assertion_sync(hwnd, options))
+            .await
+            .map_err(|e| format!("WebAuthn task failed: {}", e))?
     }
     #[cfg(not(target_os = "windows"))]
     {

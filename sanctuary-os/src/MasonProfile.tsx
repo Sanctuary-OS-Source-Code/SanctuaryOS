@@ -1022,7 +1022,7 @@ export default function MasonProfile({
               title={t("supporter_btn_support_creator", "Support (0% Fee)")}
               icon={t("icon_volunteer_activism", "volunteer_activism")}
               headerAction={
-                <span className="px-2.5 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
+                <span className="px-2.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
                   {mason?.payment_processor || "Patreon / Direct"}
                 </span>
               }
@@ -1065,13 +1065,13 @@ export default function MasonProfile({
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-transparent text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1">
                     <span className="material-symbols-outlined !text-[12px]">
                       {t("icon_bolt", "bolt")}
                     </span>
                     {t("supporter_badge_expedited_support", "EXPEDITED SUPPORT PATH")}
                   </span>
-                  <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-transparent text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest glass-surface text-[var(--warning)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1">
                     <span className="material-symbols-outlined !text-[12px]">
                       {t("icon_science", "science")}
                     </span>

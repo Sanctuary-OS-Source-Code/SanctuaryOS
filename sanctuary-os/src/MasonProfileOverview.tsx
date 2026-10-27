@@ -25,7 +25,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
         <div className="w-full flex flex-col gap-8 h-full min-w-0">
           <div className="flex items-center justify-between w-full gap-4 mb-2 pb-4 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
             <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-4 min-w-[200px] shrink-0">
-              <div className="w-12 h-12 rounded-2xl glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-2xl text-[var(--warning)]">{t("icon_workspace_premium", "workspace_premium")}</span>
               </div>
               <span className="truncate">{t("showcase", "Showcase")}</span>
@@ -33,7 +33,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
             {isOwner && (
               <button
                 onClick={onEditShowcase}
-                className="h-10 px-4 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] backdrop-blur-md flex items-center gap-2 text-xs font-black capitalize tracking-widest text-[var(--text)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                className="h-10 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-2 text-xs font-black capitalize tracking-widest text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all shrink-0"
               >
                 <span className="material-symbols-outlined !text-lg">{t("icon_edit", "edit")}</span>
                 <span>{t("edit", "Edit")}</span>
@@ -317,7 +317,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
         {/* COMM-LINK on right */}
         <div className="flex flex-col gap-8 min-w-0 h-full border-l border-[color-mix(in_srgb,var(--text)_6%,transparent)] xl:pl-12">
           <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)] flex items-center gap-4 min-w-[200px] shrink-0 mb-2 pb-4 border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
-            <div className="w-12 h-12 rounded-2xl glass-surface bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-2xl text-[var(--accent)]">{t("icon_satellite_alt", "satellite_alt")}</span>
             </div>
             <span className="truncate">{t("tab_commlink", "Comm-Link")}</span>

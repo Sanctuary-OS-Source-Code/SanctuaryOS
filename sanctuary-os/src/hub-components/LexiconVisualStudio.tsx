@@ -26,7 +26,7 @@ const enSanctuary = enSanctuaryRaw as Record<string, any>;
 const enSims = enSimsRaw as Record<string, any>;
 const simlish = simlishRaw as Record<string, any>;
 
-const MODULE_GRID_PAGE_SIZE = 12;
+const MODULE_GRID_PAGE_SIZE = 18;
 
 type StudioMainTab = "glossary" | "modules" | "navigation" | "tools";
 
@@ -717,7 +717,7 @@ export default function LexiconVisualStudio({
     return (
       <div
         key={key}
-        className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${
+        className={`glass-surface rounded-xl p-2.5 px-3 border flex flex-col justify-between gap-1.5 transition-all ${
           isLockedField
             ? "border-[color-mix(in_srgb,var(--warning)_22%,transparent)] opacity-75"
             : isCustomized
@@ -776,7 +776,7 @@ export default function LexiconVisualStudio({
             value={rawVal ?? ""}
             placeholder={String(refVal)}
             onChange={(e) => handleUpdateKey(key, e.target.value)}
-            className={`w-full glass-panel rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] resize-y ${
+            className={`w-full glass-panel rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] resize-y ${
               isLockedField ? "cursor-not-allowed opacity-75" : ""
             }`}
           />
@@ -788,7 +788,7 @@ export default function LexiconVisualStudio({
             value={rawVal ?? ""}
             placeholder={String(refVal)}
             onChange={(e) => handleUpdateKey(key, e.target.value)}
-            className={`w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] ${
+            className={`w-full h-[34px] glass-panel rounded-lg px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] ${
               isLockedField ? "cursor-not-allowed opacity-75" : ""
             }`}
           />
@@ -804,7 +804,7 @@ export default function LexiconVisualStudio({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-10 gap-4 select-none">
+    <div className="flex flex-col h-full min-h-0 w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-36 gap-4 select-none">
       {/* 1. Sleek Header Bar + 1x4 DashboardStatTile Filter Grid (Zero Redundant Boxes) */}
       <div className="flex flex-col gap-3.5 pb-1 shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -883,10 +883,10 @@ export default function LexiconVisualStudio({
           TAB 1: CORE TERMINOLOGY (3 STRUCTURED GROUP GRIDS)
          ===================================================================== */}
       {activeTab === "glossary" && (
-        <div className="flex flex-col gap-5 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-4 pb-12 animate-in fade-in duration-200">
           {coreTermGroups.map((group) => (
             <UniversalGroup key={group.id} title={group.title} icon={group.icon}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
                 {group.keys.map((termKey) => {
                   const term = CORE_GLOSSARY_TERMS.find((g) => g.key === termKey);
                   if (!term) return null;
@@ -902,7 +902,7 @@ export default function LexiconVisualStudio({
                   return (
                     <div
                       key={term.key}
-                      className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${
+                      className={`glass-surface rounded-xl p-2.5 px-3 border flex flex-col justify-between gap-1.5 transition-all ${
                         isCustom
                           ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
                           : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
@@ -940,7 +940,7 @@ export default function LexiconVisualStudio({
                         value={rawVal ?? ""}
                         placeholder={String(refVal)}
                         onChange={(e) => handleUpdateKey(term.key, e.target.value)}
-                        className="w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full h-[34px] glass-panel rounded-lg px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                       />
                     </div>
                   );
@@ -955,7 +955,7 @@ export default function LexiconVisualStudio({
           TAB 2: OS MODULES (EXPANDABLE ACCORDION CARDS + 2-COL FORM GRID)
          ===================================================================== */}
       {activeTab === "modules" && (
-        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-4 pb-12 animate-in fade-in duration-200">
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -1008,11 +1008,11 @@ export default function LexiconVisualStudio({
                         setExpandedModuleId(sec.id);
                       }
                     }}
-                    className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
+                    className="glass-panel rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[18px]">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
                       </div>
@@ -1020,14 +1020,14 @@ export default function LexiconVisualStudio({
                         <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)] truncate">
                           {sec.overline}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)] truncate">
+                        <span className="text-xs font-black text-[var(--text)] truncate">
                           {sec.title}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2.5 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
                         {`${customInSec} / ${filtered.length}`}
                       </span>
                       <ActionButton
@@ -1035,7 +1035,7 @@ export default function LexiconVisualStudio({
                         icon={t("icon_expand_more", "expand_more")}
                         iconOnly={true}
                         onClick={() => setExpandedModuleId(sec.id)}
-                        className="!w-8 !h-8 !rounded-xl"
+                        className="!w-7 !h-7 !rounded-lg"
                       />
                     </div>
                   </div>
@@ -1045,12 +1045,12 @@ export default function LexiconVisualStudio({
               return (
                 <div
                   key={sec.id}
-                  className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] w-full animate-in fade-in duration-150"
+                  className="glass-panel rounded-2xl p-3.5 flex flex-col gap-3 border opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] w-full animate-in fade-in duration-150"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[18px]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
                       </div>
@@ -1058,7 +1058,7 @@ export default function LexiconVisualStudio({
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
                           {sec.overline}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)]">
+                        <span className="text-xs font-black text-[var(--text)]">
                           {sec.title}
                         </span>
                       </div>
@@ -1078,7 +1078,7 @@ export default function LexiconVisualStudio({
                                 [sec.id]: Math.max(0, safePage - 1),
                               }))
                             }
-                            className="!w-8 !h-8 !rounded-xl"
+                            className="!w-7 !h-7 !rounded-lg"
                           />
                           <span className="text-[10px] font-mono font-bold text-[var(--subtext)] px-2">
                             {`${safePage + 1} / ${totalPages}`}
@@ -1094,7 +1094,7 @@ export default function LexiconVisualStudio({
                                 [sec.id]: Math.min(totalPages - 1, safePage + 1),
                               }))
                             }
-                            className="!w-8 !h-8 !rounded-xl"
+                            className="!w-7 !h-7 !rounded-lg"
                           />
                         </div>
                       )}
@@ -1108,7 +1108,7 @@ export default function LexiconVisualStudio({
                       className="py-6"
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
                       {pageSlice.map((k) => renderFieldGridCard(k, false))}
                     </div>
                   )}
@@ -1123,7 +1123,7 @@ export default function LexiconVisualStudio({
           TAB 3: SIDEBAR, NAVIGATION & LANDING (FULLY UNLOCKED FOR SPOKES/MASONS)
          ===================================================================== */}
       {activeTab === "navigation" && (
-        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-4 pb-12 animate-in fade-in duration-200">
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -1176,11 +1176,11 @@ export default function LexiconVisualStudio({
                         setExpandedNavGroupId(sec.id);
                       }
                     }}
-                    className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
+                    className="glass-panel rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[18px]">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
                       </div>
@@ -1188,14 +1188,14 @@ export default function LexiconVisualStudio({
                         <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)] truncate">
                           {sec.overline}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)] truncate">
+                        <span className="text-xs font-black text-[var(--text)] truncate">
                           {sec.title}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2.5 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
                         {`${customInSec} / ${filtered.length}`}
                       </span>
                       <ActionButton
@@ -1203,7 +1203,7 @@ export default function LexiconVisualStudio({
                         icon={t("icon_expand_more", "expand_more")}
                         iconOnly={true}
                         onClick={() => setExpandedNavGroupId(sec.id)}
-                        className="!w-8 !h-8 !rounded-xl"
+                        className="!w-7 !h-7 !rounded-lg"
                       />
                     </div>
                   </div>
@@ -1213,12 +1213,12 @@ export default function LexiconVisualStudio({
               return (
                 <div
                   key={sec.id}
-                  className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] w-full animate-in fade-in duration-150"
+                  className="glass-panel rounded-2xl p-3.5 flex flex-col gap-3 border opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] w-full animate-in fade-in duration-150"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[18px]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
                       </div>
@@ -1226,7 +1226,7 @@ export default function LexiconVisualStudio({
                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
                           {sec.overline}
                         </span>
-                        <span className="text-sm font-black text-[var(--text)]">
+                        <span className="text-xs font-black text-[var(--text)]">
                           {sec.title}
                         </span>
                       </div>
@@ -1246,7 +1246,7 @@ export default function LexiconVisualStudio({
                                 [pageKey]: Math.max(0, safePage - 1),
                               }))
                             }
-                            className="!w-8 !h-8 !rounded-xl"
+                            className="!w-7 !h-7 !rounded-lg"
                           />
                           <span className="text-[10px] font-mono font-bold text-[var(--subtext)] px-2">
                             {`${safePage + 1} / ${totalPages}`}
@@ -1262,7 +1262,7 @@ export default function LexiconVisualStudio({
                                 [pageKey]: Math.min(totalPages - 1, safePage + 1),
                               }))
                             }
-                            className="!w-8 !h-8 !rounded-xl"
+                            className="!w-7 !h-7 !rounded-lg"
                           />
                         </div>
                       )}
@@ -1276,7 +1276,7 @@ export default function LexiconVisualStudio({
                       className="py-6"
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
                       {pageSlice.map((k) => renderFieldGridCard(k, false))}
                     </div>
                   )}
@@ -1291,7 +1291,7 @@ export default function LexiconVisualStudio({
           TAB 4: PACK METADATA, BATCH FIND/REPLACE & ICON OVERRIDES
          ===================================================================== */}
       {activeTab === "tools" && (
-        <div className="flex flex-col gap-5 animate-in fade-in duration-200">
+        <div className="flex flex-col gap-5 pb-12 animate-in fade-in duration-200">
           {/* Card 1: Pack Metadata */}
           <UniversalGroup
             title={t("lex_studio_meta_btn", "Pack Metadata")}
@@ -1456,7 +1456,7 @@ export default function LexiconVisualStudio({
                       className="glass-surface rounded-2xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 relative"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                        <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                           <span className="material-symbols-outlined !text-[18px]">
                             {currentGlyph}
                           </span>

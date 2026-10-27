@@ -10,6 +10,8 @@ import {
   StatBox,
   PanelHeaderGroup,
   PanelHeaderButton,
+  getModFallbackUrl,
+  handleOpenUrl,
 } from "./shared";
 import { VAULT_CHIP_CLASS } from "./Cards";
 import { useTheme } from "./ThemeContext";
@@ -296,25 +298,43 @@ export default function AssetPreviewSidebar({
                   )}
                   <PanelHeaderButton
                     icon={
-                      assetType === "blueprint"
-                        ? t("icon_download", "download")
-                        : isInstalled(data)
-                          ? isOutdated(data)
-                            ? t("icon_update", "update")
-                            : t("icon_check_circle", "check_circle")
-                          : t("icon_download", "download")
+                      assetType === "mod"
+                        ? data.url
+                          ? t("icon_download", "download")
+                          : t("icon_search", "search")
+                        : assetType === "blueprint"
+                          ? t("icon_download", "download")
+                          : isInstalled(data)
+                            ? isOutdated(data)
+                              ? t("icon_update", "update")
+                              : t("icon_check_circle", "check_circle")
+                            : t("icon_download", "download")
                     }
                     tooltip={
-                      assetType === "blueprint"
-                        ? t("update_panel_install", "Install")
-                        : isInstalled(data)
-                          ? isOutdated(data)
-                            ? t("btn_update", "Update")
-                            : t("btn_reinstall", "Reinstall")
-                          : t("update_panel_install", "Install")
+                      assetType === "mod"
+                        ? data.url
+                          ? t("btn_download", "Download")
+                          : t("btn_search_web", "Search Web")
+                        : assetType === "blueprint"
+                          ? t("update_panel_install", "Install")
+                          : isInstalled(data)
+                            ? isOutdated(data)
+                              ? t("btn_update", "Update")
+                              : t("btn_reinstall", "Reinstall")
+                            : t("update_panel_install", "Install")
                     }
                     onClick={async (e?: React.MouseEvent) => {
                       e?.stopPropagation();
+                      if (assetType === "mod") {
+                        const targetUrl = getModFallbackUrl(
+                          data.displayName || data.name || "",
+                          data.hash || "",
+                          useStore.getState().activeGameSchema,
+                          { url: data.url }
+                        );
+                        handleOpenUrl(targetUrl);
+                        return;
+                      }
                       if (assetType === "blueprint") {
                         navigator.clipboard.writeText(data.json_data?.code || "").catch(() => {});
                         useStore
@@ -443,20 +463,16 @@ export default function AssetPreviewSidebar({
                 {(data.is_early_access || data.is_paid) && (
                   <div className="flex items-center gap-2 flex-wrap">
                     {data.is_early_access && (
-                      <span
-                        className={`${VAULT_CHIP_CLASS} !border-purple-500/40 !text-purple-300`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-purple-400">
                           {t("icon_science", "science")}
                         </span>
                         {t("badge_early_access", "Early Access")}
                       </span>
                     )}
                     {data.is_paid && (
-                      <span
-                        className={`${VAULT_CHIP_CLASS} !border-amber-500/40 !text-amber-300`}
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-amber-400">
                           {t("icon_monetization_on", "monetization_on")}
                         </span>
                         {t("badge_paid", "Paid")}

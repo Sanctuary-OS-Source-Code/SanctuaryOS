@@ -39,15 +39,18 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
                        <div className="flex flex-wrap items-center gap-3">
                           <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
                           {setting.risk === "advanced" && (
-                             <span className="px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] text-[8px] font-black tracking-widest capitalize border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]">{t("advanced_badge", "Advanced")}</span>
+                             <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0">
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
+                                {t("advanced_badge", "Advanced")}
+                             </span>
                           )}
                        </div>
                        <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium leading-relaxed max-w-2xl">{resolveText(setting.desc_key, "No description provided.")}</span>
                     </div>
                     <div className="shrink-0 flex items-center justify-end">
                        {setting.type === "boolean" && (
-                          <div className={`w-14 h-8 rounded-full transition-all duration-300 relative flex items-center px-1 border shadow-inner ${val ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)]'}`}>
-                             <div className={`w-6 h-6 rounded-full shadow-md transition-all duration-300 ${val ? 'translate-x-6 bg-[var(--accent)]' : 'translate-x-0 bg-[var(--text)] opacity-40'}`}></div>
+                          <div className={`sa-glass-toggle ${val ? 'is-on' : ''}`}>
+                             <div className="sa-glass-toggle-thumb" />
                           </div>
                        )}
                        {setting.type === "number" && (
