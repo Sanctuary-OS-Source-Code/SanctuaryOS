@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import {
@@ -7,7 +7,6 @@ import {
   CustomDatePicker,
   CustomComplianceDropdown,
   CustomClassificationDropdown,
-  ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,

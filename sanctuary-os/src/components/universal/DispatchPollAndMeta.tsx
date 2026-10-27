@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase, supabaseAuth } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { renderTextWithIcons, HoverTooltip, StatBox } from "../../shared";
+import { renderTextWithIcons, StatBox } from "../../shared";
 
 let cachedHubCommunities: string[] | null = null;
 let isFetchingHubCommunities = false;

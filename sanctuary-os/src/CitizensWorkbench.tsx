@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, SidePanelHeroCard, UniversalGroup, ActionButton, standardButtonClass, standardDangerButtonClass, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, SidePanelHeroCard, UniversalGroup, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -30,7 +30,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    const unsavedEdits = useStore(state => state.cwUnsavedEdits);
 
    const [mainSearchQuery, setMainSearchQuery] = useState("");
-   const [feedFilter, setFeedFilter] = useState<"ALL" | "CONFIGS" | "TEMPLATES">("ALL");
+   const [feedFilter] = useState<"ALL" | "CONFIGS" | "TEMPLATES">("ALL");
    const [gridFilter, setGridFilter] = useState<"ALL" | "UNSAVED">("ALL");
 
    const selectedFile = useStore(state => state.cwSelectedFile);

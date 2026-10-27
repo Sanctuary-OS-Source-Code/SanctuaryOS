@@ -2,14 +2,12 @@ import {
   HubOverviewLanding,
   HubOverviewSection,
   SidePanelHeroCard,
-  SidePanelTitleInput,
   SidePanelPillToggle,
   UniversalGroup,
   UniversalInput,
   UniversalTextArea,
 } from "./components/universal/UniversalLayout";
-import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import {

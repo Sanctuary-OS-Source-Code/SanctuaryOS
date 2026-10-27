@@ -13,7 +13,6 @@ import {
   BUILTIN_WALLPAPERS,
   FONT_OPTIONS,
   getLuminance,
-  autoHarmonizeThemeColors,
   analyzeAndHarmonizeTheme,
 } from './ChameleonShared';
 import { UniversalCard } from '../components/universal/UniversalCard';

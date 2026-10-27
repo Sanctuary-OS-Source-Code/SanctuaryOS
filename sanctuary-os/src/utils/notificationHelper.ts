@@ -381,10 +381,6 @@ function writeLocalIdSet(key: string, set: Set<string>): void {
   } catch (e) {}
 }
 
-export function isHubNotificationRead(id: string): boolean {
-  return readLocalIdSet(HUB_READ_STORAGE_KEY).has(id);
-}
-
 export function markHubNotificationRead(id: string): void {
   if (!id) return;
   const set = readLocalIdSet(HUB_READ_STORAGE_KEY);
@@ -398,10 +394,6 @@ export function markAllHubNotificationsRead(ids: string[]): void {
     if (id) set.add(id);
   });
   writeLocalIdSet(HUB_READ_STORAGE_KEY, set);
-}
-
-export function isHubNotificationDismissed(id: string): boolean {
-  return readLocalIdSet(HUB_DISMISSED_STORAGE_KEY).has(id);
 }
 
 export function dismissHubNotification(id: string): void {

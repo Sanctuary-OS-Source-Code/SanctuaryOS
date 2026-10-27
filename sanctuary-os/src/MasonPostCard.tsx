@@ -1,4 +1,3 @@
-import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { stripMarkdown, renderTextWithIcons, HoverTooltip } from "./shared";
 import { useStore } from "./store";

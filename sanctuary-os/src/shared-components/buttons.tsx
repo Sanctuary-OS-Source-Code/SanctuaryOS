@@ -1,14 +1,4 @@
-import { useStore } from '../store';
-import { useLexicon } from '../LexiconContext';
-import { useTheme } from '../ThemeContext';
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { useModalStore } from '../store/modalStore';
-import { useTooltipStore } from '../store/tooltipStore';
-import { supabase } from '../supabase';
-import { UniversalCard } from '../components/universal/UniversalCard';
-
+import React from 'react';
 import { HoverTooltip } from "./alerts";
 export function ActionButton({
   icon,
@@ -146,119 +136,8 @@ export function ActionButton({
     </div>
   );
 }
-export const standardButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardGlassButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] transition-all hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none";
-export const standardPrimaryButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black capitalize tracking-[0.2em] transition-all hover:theme-bg-accent/20 hover:theme-text-accent hover:theme-border-accent hover:shadow-[0_0_30px_rgba(var(--accent-rgb),0.4)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none group";
-export const standardSuccessButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] theme-panel-success theme-btn-success text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
-export const standardDangerButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] theme-panel-danger theme-btn-danger text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
 export const standardAccentGlassButtonClass =
   "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
-export function SidebarActionButton({
-  id,
-  icon,
-  label,
-  subtext,
-  active,
-  onClick,
-  danger,
-  success,
-  customColorClass,
-  className,
-  iconClassName,
-}: any) {
-  const { t } = useLexicon();
-  return (
-    <button
-      onClick={() => onClick(id)}
-      className={`glass-surface w-full px-5 py-4 h-auto min-h-[64px] flex items-center justify-start gap-4 rounded-[var(--radius)] font-black text-[10px] capitalize tracking-widest transition-all duration-300 group ${
-        customColorClass
-          ? customColorClass
-          : active
-            ? "!border-[var(--accent)] !text-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.1)] scale-[1.02]"
-            : danger
-              ? "text-[var(--danger)] hover:!border-[var(--danger)]"
-              : success
-                ? "text-[var(--success)] hover:!border-[var(--success)]"
-                : "text-[var(--text)] hover:!border-[var(--text)] hover:text-[var(--accent)]"
-      } ${className || ""}`}
-      style={
-        active || danger || success
-          ? ({
-              "--panelTint": active
-                ? "var(--accent)"
-                : danger
-                  ? "var(--danger)"
-                  : "var(--success)",
-            } as React.CSSProperties)
-          : undefined
-      }
-    >
-      {icon && (
-        <span
-          className={`material-symbols-outlined !text-[20px] shrink-0 relative z-10 transition-transform duration-300 group-hover:scale-110 ${active ? "opacity-100 drop-shadow-md" : "opacity-80"} ${iconClassName || ""}`}
-        >
-          {icon}
-        </span>
-      )}
-      <div className="flex flex-col items-start gap-1 relative z-10 w-full pr-6 overflow-hidden">
-        <span className="tracking-[0.15em] truncate w-full text-left pt-0.5">
-          {label}
-        </span>
-        {subtext && (
-          <span className="text-[8px] font-bold opacity-60 normal-case tracking-normal whitespace-normal text-left leading-tight mt-0.5 w-full">
-            {subtext}
-          </span>
-        )}
-      </div>
-
-      <span
-        className={`material-symbols-outlined !text-[16px] shrink-0 absolute right-5 opacity-0 -translate-x-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 ${active ? "opacity-100 translate-x-0" : ""}`}
-      >
-        {t("icon_chevron_right", "chevron_right")}
-      </span>
-    </button>
-  );
-}
-export function HubActionButton({
-  icon,
-  label,
-  onClick,
-  className = "",
-  isDanger = false,
-  isWarning = false,
-}: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={`glass-surface h-10 px-5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shrink-0 font-black capitalize tracking-widest group ${
-        isDanger
-          ? "!border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:brightness-125"
-          : isWarning
-            ? "!border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:brightness-125"
-            : "text-[var(--text)] hover:text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-      } ${className}`}
-      style={
-        isDanger || isWarning
-          ? ({
-              "--panelTint": isDanger ? "var(--danger)" : "var(--warning)",
-            } as React.CSSProperties)
-          : undefined
-      }
-    >
-      <span
-        className={`material-symbols-outlined !text-[18px] transition-transform ${isDanger ? "animate-bounce" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`}
-      >
-        {icon}
-      </span>
-      <span className="text-[10px]">{label}</span>
-    </button>
-  );
-}
 export function SidebarFooterButton({
   icon,
   label,

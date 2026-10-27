@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, standardButtonClass, standardDangerButtonClass, CustomDropdown, CustomComplianceDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
-import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle } from '../components/universal/UniversalLayout';
+import { SidePanel, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
+import { UniversalGroup, UniversalInput, UniversalTextArea } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
@@ -22,7 +22,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const [signatures, setSignatures] = useState<any[]>([]);
+  const [, setSignatures] = useState<any[]>([]);
   const [newSig, setNewSig] = useState("");
   const [matchType, setMatchType] = useState("archive_entry_exact");
   const [severity, setSeverity] = useState("malware");

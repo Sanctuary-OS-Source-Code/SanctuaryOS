@@ -27,19 +27,6 @@ export const rgbToHex = (r: number, g: number, b: number) => {
 };
 export const RGBToHex = rgbToHex;
 
-export const themeKeys = [
-  'bg',
-  'sidebar',
-  'sidebartext',
-  'accent',
-  'text',
-  'subtext',
-  'headerText',
-  'success',
-  'warning',
-  'danger',
-];
-
 export const PRESET_COLORS = [
   '#38bdf8', '#0284c7', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e',
   '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActionPill, DashboardStatTile, useIsMobile, HeaderActionPortal } from '../../shared';
+import { ActionPill, DashboardStatTile, HeaderActionPortal } from '../../shared';
 import { StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
 export {
   HubOverviewLanding,
@@ -96,7 +96,6 @@ export function ElevatedHubLayout({
   isHiddenTab = false,
   actions
 }: ElevatedHubLayoutProps) {
-  const isMobile = useIsMobile();
   const isOverviewTab = activeTab === 'overview' || activeTab === 'LANDING';
   const hasActionPillContent = (!hideSearch && !!onSearchChange) || !!leftContent || !!headerActions || !!primaryPopover || Boolean(actions && actions.length > 0);
 

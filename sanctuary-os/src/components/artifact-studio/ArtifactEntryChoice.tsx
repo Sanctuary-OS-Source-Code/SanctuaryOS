@@ -1,4 +1,3 @@
-import React from "react";
 import { useLexicon } from "../../LexiconContext";
 import { CustomDropdown, ModSearchDropdown } from "../../shared";
 

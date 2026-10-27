@@ -1,14 +1,6 @@
-import { useStore } from '../store';
 import { useLexicon } from '../LexiconContext';
-import { useTheme } from '../ThemeContext';
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { useModalStore } from '../store/modalStore';
+import React from 'react';
 import { useTooltipStore } from '../store/tooltipStore';
-import { supabase } from '../supabase';
-import { UniversalCard } from '../components/universal/UniversalCard';
-
 import { FilterPopover } from "./misc";
 import { SidePanelContext, HeaderActionPortalContext, useHubActionsState } from "./layout";
 export function LoadingScreen({
@@ -65,75 +57,6 @@ export function LoadingScreen({
             </p>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-export function SystemAlertBanner({
-  type = "info",
-  title,
-  message,
-  icon,
-  action,
-  onClose,
-  className = "",
-}: any) {
-  const themeType = type === "info" ? "accent" : type;
-
-  const iconName =
-    icon ||
-    (type === "danger"
-      ? "gpp_bad"
-      : type === "warning"
-        ? "warning"
-        : type === "success"
-          ? "check_circle"
-          : "info");
-
-  return (
-    <div
-      className={`w-full theme-panel-${themeType} p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 group rounded-[var(--radius)] ${className}`}
-    >
-      <div
-        className={`absolute inset-0 z-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full duration-1000 transition-all ease-in-out`}
-      />
-
-      <div className="flex items-center gap-5 z-10 flex-1 min-w-0">
-        <div
-          className={`w-12 h-12 rounded-xl border border-current flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105 opacity-80 theme-text-${themeType}`}
-        >
-          <span className="material-symbols-outlined !text-[24px] drop-shadow-md">
-            {typeof iconName === "string" ? iconName : iconName}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1 flex-1 min-w-0">
-          {message && (
-            <span
-              className={`text-[9px] capitalize font-bold tracking-widest leading-tight truncate opacity-80 theme-text-${themeType}`}
-            >
-              {message}
-            </span>
-          )}
-          <h3
-            className={`text-base font-black capitalize tracking-widest leading-tight truncate theme-text-${themeType}`}
-          >
-            {title}
-          </h3>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 z-10 shrink-0">
-        {action}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`w-8 h-8 rounded-xl border border-current flex items-center justify-center transition-colors opacity-50 hover:opacity-100 ml-2 hover:bg-white/10 theme-text-${themeType}`}
-          >
-            <span className="material-symbols-outlined !text-[16px]">
-              close
-            </span>
-          </button>
-        )}
       </div>
     </div>
   );

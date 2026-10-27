@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton } from "./shared";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
 import { useLexicon } from "./LexiconContext";

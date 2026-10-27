@@ -1,8 +1,6 @@
-import { YeetConfirmAlert } from "./side-panels/YeetConfirmAlert";
-import { DefconAlert } from "./DefconAlert";
 import { TitleBar } from "./TitleBar";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -23,24 +21,19 @@ import { useVaultIntake } from "./hooks/useVaultIntake";
 import { useCloudService } from "./hooks/useCloudService";
 import { useStore, syncMasterSchemas, syncGameDatabases, getSafeSchema } from "./store";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
-import { open, save } from "@tauri-apps/plugin-dialog";
 import { supabase, supabaseAuth, getActiveGameClient, isStandaloneFork, RESOLVED_SANCTUARY_CONFIG } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { check } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import ArchitectHub from "./ArchitectHub";
 import GlobalFeed from "./GlobalFeed";
 import Settings from "./SettingsTab";
-import { ModData, ViewHeader, SidePanel, deriveHumanReadableVersion, isVersionMatch, loadDLCMap, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, PixelSnapper } from "./shared";
-import { ModCard } from "./ModCard";
+import { ModData, SidePanel, deriveHumanReadableVersion, loadDLCMap, getExtensionRegex, PixelSnapper } from "./shared";
 import ModDossier from "./ModDossier";
 import BlueprintArchitect from "./BlueprintArchitect";
 import Nexus from "./Nexus";
 import { DbpfScout } from "./DbpfScout";
 import { useLexicon } from "./LexiconContext";
-import { WorkspaceLanding } from "./WorkspaceLanding";
 import WebLandingPage from "./WebLandingPage";
 import { isDesktop } from "./utils/envUtils";
 import { isRootDomain, getSubdomain } from "./utils/routingUtils";
@@ -85,14 +78,6 @@ import {
   hasDeliveredNotification,
   fetchUnifiedSanctuaryNotifications,
 } from "./utils/notificationHelper";
-const setupBtnStyle: React.CSSProperties = {
-  padding: "12px",
-  backgroundColor: "rgba(255,255,255,0.05)",
-  color: "white",
-  border: "none",
-  borderRadius: "4px",
-  cursor: "pointer",
-};
 
 function App() {
   if (!window.__sanctuaryCache) {
@@ -224,9 +209,6 @@ function App() {
     };
   };
   const backupProgress = useStore((state) => state.backupProgress);
-  const setBackupProgress = useStore((state) => state.setBackupProgress);
-  const isPatchDetected = useStore((state) => state.isPatchDetected);
-  const defconLevel = useStore((state) => state.defconLevel);
   const userRole = useStore((state) => state.userRole);
   const setUserRole = useStore((state) => state.setUserRole);
   const osRole = useStore((state) => state.osRole);
@@ -397,22 +379,16 @@ function App() {
 
   const isConfigured = useStore((state) => state.isConfigured);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
-  const livePath = useStore((state) => state.livePath);
   const setLivePath = useStore((state) => state.setLivePath);
   const modsPath = useStore((state) => state.modsPath);
   const setModsPath = useStore((state) => state.setModsPath);
   const vaultPath = useStore((state) => state.vaultPath);
   const setVaultPath = useStore((state) => state.setVaultPath);
   const quarantineList = useStore((state) => state.quarantineList);
-  const setQuarantineList = useStore((state) => state.setQuarantineList);
   const shelterContents = useStore((state) => state.shelterContents);
-  const setShelterContents = useStore((state) => state.setShelterContents);
   const shelterActive = useStore((state) => state.shelterActive);
   const setShelterActive = useStore((state) => state.setShelterActive);
-
-  const setScanProgress = useStore((state) => state.setScanProgress);
   const backupList = useStore((state) => state.backupList);
-  const setBackupList = useStore((state) => state.setBackupList);
   const [isNotificationSidebarOpen, setIsNotificationSidebarOpen] = useState(false);
   const [globalViewingPost, setGlobalViewingPost] = useState<any>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -453,7 +429,6 @@ function App() {
   const [isDraftingSet, setIsDraftingSet] = useState(false);
   const [draftSetName, setDraftSetName] = useState("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isBugModalOpen, setIsBugModalOpen] = useState(false);
   const [isCitizenTicketsOpen, setIsCitizenTicketsOpen] = useState(false);
 
   useEffect(() => {
@@ -992,10 +967,6 @@ function App() {
       setStatus(`Error: ${err.message || err}`);
     }
   };
-
-
-  const handleUpdateMod = (mod: any) => { };
-
   const [conflictTarget, setConflictTarget] = useState<any | null>(null);
   const [isLoadingAssociated, setIsLoadingAssociated] = useState(false);
 
@@ -1036,74 +1007,10 @@ function App() {
 
   const networkUpdates = useStore((state) => state.networkUpdates);
   const setNetworkUpdates = useStore((state) => state.setNetworkUpdates);
-  const [tier2Hashes, setTier2Hashes] = useState<string[]>([]);
+  const [tier2Hashes] = useState<string[]>([]);
   const { uploadBlueprintToCloud, syncBlueprintByCode, massIngestToCloud } = useCloudService(activeMasonProfileId, tier2Hashes);
 
-  const {
-    snapshotModal,
-    setSnapshotModal,
-    snapshotName,
-    setSnapshotName,
-    bulkModal,
-    setBulkModal,
-    bulkName,
-    setBulkName,
-    isBulkMode,
-    setIsBulkMode,
-    selectedMods,
-    setSelectedMods,
-    renameModal,
-    setRenameModal,
-    renameTarget,
-    setRenameTarget,
-    nameInput,
-    setNameInput,
-    localFolderModal,
-    setLocalFolderModal,
-    localFolderType,
-    setLocalFolderType,
-    localFolderName,
-    setLocalFolderName,
-    missingImportMods,
-    setMissingImportMods,
-    pendingImportSet,
-    setPendingImportSet,
-    syncCode,
-    setSyncCode,
-    confirmDialog,
-    setConfirmDialog,
-    isDropzoneOpen,
-    setIsDropzoneOpen,
-    isDragging,
-    setIsDragging,
-    dropzoneState,
-    setDropzoneState,
-    droppedFiles,
-    setDroppedFiles,
-    showBrokenModal,
-    setShowBrokenModal,
-    showQuarantineModal,
-    setShowQuarantineModal,
-    isBackingUp,
-    setIsBackingUp,
-    isRestoring,
-    setIsRestoring,
-    ingestProgress,
-    setIngestProgress,
-    isScanning,
-    setIsScanning,
-    showDefconAlert,
-    setShowDefconAlert,
-    yeetConfirmPending,
-    setYeetConfirmPending,
-    dnaMatchQueue,
-    setDnaMatchQueue,
-    edgeOverrideQueue,
-    setEdgeOverrideQueue,
-    scoutQueue,
-    setScoutQueue,
-    setUpdatePayload
-  } = useModalStore();
+  const { snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, bulkModal, setBulkModal, bulkName, setBulkName, isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, renameModal, setRenameModal, renameTarget, setRenameTarget, nameInput, setNameInput, localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, missingImportMods, setMissingImportMods, pendingImportSet, setPendingImportSet, syncCode, setSyncCode, confirmDialog, setConfirmDialog, isDropzoneOpen, setIsDropzoneOpen, isDragging, setIsDragging, dropzoneState, setDropzoneState, droppedFiles, setDroppedFiles, showBrokenModal, setShowBrokenModal, showQuarantineModal, setShowQuarantineModal, isBackingUp, isRestoring, ingestProgress, setIngestProgress, isScanning, showDefconAlert, setShowDefconAlert, yeetConfirmPending, setYeetConfirmPending, dnaMatchQueue, setDnaMatchQueue, edgeOverrideQueue, setEdgeOverrideQueue, scoutQueue, setScoutQueue } = useModalStore();
 
   const {
     createLocalFolder,
@@ -1509,11 +1416,6 @@ function App() {
     setActiveMasonPostId(postId || null);
     setView("MasonProfile");
   };
-  const openRenameUI = (fileName: string) => {
-    setRenameTarget(fileName);
-    setNameInput(fileName.replace(".tar.zst", ""));
-  };
-
   const didInitDLC = useRef(false);
   useEffect(() => {
     if (didInitDLC.current) return;
@@ -1837,7 +1739,7 @@ function App() {
     }
   }, []);
   const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString } = usePlaySetLogic();
-  const { handleSmartSearch, runSanitization, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
+  const { handleSmartSearch, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
   async function fetchCloudLabQueue() {
     try {
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;

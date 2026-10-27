@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { tauriBridge } from "../lib/tauri-bridge";
 import { useModalStore } from "../store/modalStore";

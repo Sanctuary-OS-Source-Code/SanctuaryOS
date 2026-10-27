@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -38,7 +38,7 @@ export function ArchitectRegistry({
   const [modRelationships, setModRelationships] = useState<any[]>([]);
   const [groupFamilies, setGroupFamilies] = useState<boolean>(true);
   const [studioTab, setStudioTab] = useState<StudioTabId>("overview");
-  const [totalCount, setTotalCount] = useState<number>(0);
+  const [, setTotalCount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [activeMod, setActiveMod] = useState<any | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);

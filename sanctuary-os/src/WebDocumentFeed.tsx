@@ -7,7 +7,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
-  HoverTooltip,
   ActionButton,
   stripMarkdown,
 } from "./shared";
@@ -39,13 +38,6 @@ type DirectiveModuleId =
   | "forking"
   | "architecture"
   | "protocols";
-
-const STANDALONE_BUNDLE_SNIPPET = `export const SANCTUARY_CONFIG = {
-  // Paste your exported SANCTUARY-UPLINK:// bundle from Wayfinder Hub:
-  uplinkBundle: "SANCTUARY-UPLINK://eyJuYW1lIjoiVGhlIFNpbXMgNCIs...",
-  mode: "hub_and_spoke",
-};`;
-
 const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
   uplinkBundle: "",
   mode: "standalone",
@@ -70,29 +62,6 @@ export const SANCTUARY_CONFIG = {
   supabaseUrl: "https://YOUR_HUB_PROJECT_ID.supabase.co",
   supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
 };`;
-
-const DYNAMIC_SCHEMA_SNIPPET = `{
-  "id": "sims4",
-  "game_id": "sims4",
-  "name": "The Sims 4",
-  "display_name": "The Sims 4",
-  "schema_version": 2,
-  "paths": {
-    "default_mod_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
-    "default_mod_dir_mac": "~/Documents/Electronic Arts/The Sims 4/Mods",
-    "manifest_file": "Resource.cfg"
-  },
-  "extensions": {
-    "supported": [".package", ".ts4script"],
-    "parsers": { ".package": "dbpf", ".ts4script": "zip_python" }
-  },
-  "load_order": {
-    "strategy": "folder_priority",
-    "winner_direction": "higher_wins",
-    "manifest_target": "Resource.cfg",
-    "tiers": ["Base", "Sanctuary", "Sanctuary2", "Sanctuary3"]
-  }
-}`;
 
 export default function WebDocumentFeed() {
   const { t } = useLexicon();

@@ -308,10 +308,6 @@ export function readCoreTitleAreaConfig(): CoreTitleAreaConfig {
   }
 }
 
-export const KEEPER_LOCKED_LEXICON_KEYS = new Set<string>([
-  'sidebar_app_title',
-]);
-
 export function isKeeperLockedLexiconKey(key: string): boolean {
   if (!key) return false;
   const k = key.toLowerCase();

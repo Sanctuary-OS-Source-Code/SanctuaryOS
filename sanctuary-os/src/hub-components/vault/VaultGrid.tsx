@@ -1,10 +1,10 @@
 import React from 'react';
-import { formatDisplayName, getHighestVersion, mapDlcCode, getExtensionRegex, getFileLabel, HoverTooltip, EmptyState, cleanSearchName, AccordionDrawer, DeferredRender, ActionPill } from '../../shared';
+import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer } from '../../shared';
 import { ModCard } from '../../ModCard';
 import { useStore } from '../../store';
 
 export function VaultGrid(props: any) {
-  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, toggleModSelection, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, drawerCasualties, selectedVersion, hasMissingDeps, missingPacks, isSwappedState, isBetaSwap, isFlavorGhosted, isFlavorEquipped, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, flavorGhostReason, setIsDropzoneOpen, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods, setActiveLocalFolder, setIsLocalFolderEditorOpen } = props;
+  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods } = props;
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const localSetsRaw = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]";
   const localSets = React.useMemo(() => {
@@ -36,8 +36,6 @@ export function VaultGrid(props: any) {
   const checkConflicts = React.useCallback((mObj: any, targetCasualties: any[], targetTier3: any[]) => {
     const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase();
     const mObjDispUpper = mObj.displayName?.toUpperCase();
-    const mObjBase = mObjCleanN.replace(/_SCRIPT(S)?$/i, "");
-
     if (mObj.conflicts && mObj.conflicts.length > 0) {
       const processSeverity = (targetRank: number, targetList: any[]) => {
         const found = mObj.conflicts.filter((c: any) => Number(c.severity_rank) == targetRank).map((c: any) => {

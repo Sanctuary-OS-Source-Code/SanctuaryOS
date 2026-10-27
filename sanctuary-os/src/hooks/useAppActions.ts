@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import { supabase } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -9,14 +8,7 @@ import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
   const { t } = useLexicon();
   const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, setStatus, modList } = useStore();
-  const { 
-    localFolderName, localFolderType, setLocalFolderModal, setLocalFolderName, setIsBulkMode, setSelectedMods, selectedMods,
-    bulkName, setBulkModal, setBulkName,
-    snapshotName, setSnapshotModal, setSnapshotName,
-    setPendingImportSet, setMissingImportMods, setSyncCode,
-    renameModal, setRenameModal,
-    renameTarget, setRenameTarget, nameInput, setNameInput
-  } = useModalStore();
+  const { localFolderName, localFolderType, setLocalFolderModal, setLocalFolderName, setIsBulkMode, setSelectedMods, selectedMods, bulkName, setBulkModal, setBulkName, snapshotName, setSnapshotModal, setSnapshotName, renameModal, setRenameModal, renameTarget, setRenameTarget, nameInput } = useModalStore();
 
   function createLocalFolder() {
     const folderName = localFolderName.trim();

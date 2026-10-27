@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, SidebarActionButton, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, GlassSegmentedControl, PanelHeaderGroup, PanelHeaderButton, StatBox } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
-import { UniversalGroup, SidePanelHeroCard, SidePanelTitleInput } from "./components/layouts/ElevatedHubLayout";
+import { UniversalGroup, SidePanelHeroCard } from "./components/layouts/ElevatedHubLayout";
 import { useLexicon } from "./LexiconContext";
 import { usePlaySetLogic, compileLoadOrder, LoadOrderRule } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import ConflictCard from "./ConflictCard";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
-import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenStats, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 
 const VAULT_CHIP_CLASS =
     "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -79,8 +79,6 @@ export const DbpfScout = () => {
     const [loadOrderSearch, setLoadOrderSearch] = useState("");
     const [blueprintSearch, setBlueprintSearch] = useState("");
     const [activeConflictSeverity, setActiveConflictSeverity] = useState<number | null>(null);
-    const [activeOverrideSeverity, setActiveOverrideSeverity] = useState<number | null>(null);
-
     // Load Order Rule Builder & Filter state
     const [ruleModA, setRuleModA] = useState<string>("");
     const [ruleModB, setRuleModB] = useState<string>("");
@@ -183,7 +181,7 @@ export const DbpfScout = () => {
     }, [fatalConflicts, tuningConflicts, cloneConflicts, softConflicts, hasScanned, scanScope]);
 
     const [selectedForVault, setSelectedForVault] = useState<string[]>([]);
-    const [resolvingScript, setResolvingScript] = useState<string | null>(null);
+    const [, setResolvingScript] = useState<string | null>(null);
     const [confirmMassVault, setConfirmMassVault] = useState(false);
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [activeConflictRes, setActiveConflictRes] = useState<any>(null);
@@ -367,13 +365,6 @@ export const DbpfScout = () => {
             localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updated));
         }
     };
-
-    const resetIgnored = () => {
-        setIgnoredPairs([]);
-        localStorage.removeItem("sanctuary_ignored_conflicts");
-        if (hasScanned) runRadar();
-    };
-
     const targetHq = () => {
         let newTargets: string[] = [...selectedForVault];
         cloneConflicts.forEach((c: any) => {

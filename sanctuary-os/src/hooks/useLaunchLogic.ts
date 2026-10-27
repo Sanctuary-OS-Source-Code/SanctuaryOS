@@ -7,7 +7,7 @@ export function useLaunchLogic(
   triggerPrePatchSnapshot: () => Promise<void>,
   equipPlaySet?: (setName: string) => Promise<void>
 ) {
-  const { setStatus, isPatchDetected, defconLevel } = useStore();
+  const { setStatus } = useStore();
   const { t } = useLexicon();
 
   const handleQuickLaunch = async () => {

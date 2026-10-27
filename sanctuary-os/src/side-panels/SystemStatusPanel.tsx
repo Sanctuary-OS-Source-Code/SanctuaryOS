@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { SidePanel, SidePanelHeroCard, UniversalGroup, StatBox, HoverTooltip } from "../shared";
+import { SidePanel, SidePanelHeroCard, UniversalGroup, StatBox } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";

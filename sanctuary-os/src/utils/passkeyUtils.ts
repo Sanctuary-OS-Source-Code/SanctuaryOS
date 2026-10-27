@@ -210,13 +210,6 @@ async function fetchUserPasskeysViaRest(): Promise<any[]> {
   }
 }
 
-function doesHostnameMatchRpId(rpId?: string): boolean {
-  if (typeof window === "undefined" || !rpId) return false;
-  const host = (window.location.hostname || "").toLowerCase();
-  const target = rpId.toLowerCase();
-  return host === target || host.endsWith(`.${target}`);
-}
-
 let cachedMfaState: MfaSecurityState | null = null;
 let cachedMfaUserId: string | null = null;
 

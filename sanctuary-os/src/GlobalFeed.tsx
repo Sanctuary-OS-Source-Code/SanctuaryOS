@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, stripMarkdown, HoverTabDrawer, VerticalTabButton, CustomDropdown, CustomDatePicker, ActionButton, ActionPill } from "./shared";
-import MarkdownRenderer from "./MarkdownRenderer";
+import { ViewHeader, CustomDropdown, CustomDatePicker, ActionButton, ActionPill } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useStore } from './store';
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import MasonRecentPostsSidePanel from "./side-panels/MasonRecentPostsSidePanel";
 import MasonFollowingSidePanel from "./side-panels/MasonFollowingSidePanel";

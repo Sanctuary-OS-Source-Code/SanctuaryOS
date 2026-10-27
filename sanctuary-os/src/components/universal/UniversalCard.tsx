@@ -1,6 +1,5 @@
 import React from "react";
 import { useLexicon } from "../../LexiconContext";
-import { HoverTooltip } from "../../shared";
 
 export interface UniversalCardProps {
   layout?: "vertical" | "horizontal" | "compact" | "vertical-compact" | "stat";

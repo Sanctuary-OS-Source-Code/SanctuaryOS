@@ -1,4 +1,3 @@
-import React from "react";
 import { useLexicon } from "../LexiconContext";
 import { ActionButton, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 

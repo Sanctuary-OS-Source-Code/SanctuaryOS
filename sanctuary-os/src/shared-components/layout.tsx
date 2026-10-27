@@ -1,14 +1,7 @@
-import { useStore } from '../store';
 import { useLexicon } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { useModalStore } from '../store/modalStore';
-import { useTooltipStore } from '../store/tooltipStore';
-import { supabase } from '../supabase';
-import { UniversalCard } from '../components/universal/UniversalCard';
-
 import { PanelHeaderButton } from "./buttons";
 import { ActionPill } from "./alerts";
 export const HeaderActionPortalContext = React.createContext(false);
@@ -502,7 +495,7 @@ export function ViewHeader({
             </h1>
             {breadcrumb && (
               <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-                <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--accent)] leading-tight">
+                <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-tight">
                   {breadcrumb}
                 </span>
               </div>
@@ -867,36 +860,6 @@ export function InlineFilterGroup({
                 ? "is-selected sa-glass-active font-bold text-[var(--text)]"
                 : "font-semibold text-[var(--subtext)] hover:text-[var(--text)]"
             }`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-export function MinimalFilterGroup({
-  options,
-  activeTab,
-  setTab,
-  className = "",
-}: any) {
-  return (
-    <div
-      className={`flex items-center gap-6 overflow-x-auto hide-scrollbar w-full md:w-auto shrink-0 ${className}`}
-    >
-      {options.map((opt: any) => {
-        const isActive = activeTab === opt.id;
-        const colorVar = opt.colorVar || "--accent";
-        const activeClass = `text-[var(${colorVar})] border-b-2 border-[var(${colorVar})] drop-shadow-[0_0_8px_rgba(var(${colorVar}-rgb),0.8)]`;
-        const inactiveClass =
-          "text-[color-mix(in_srgb,var(--text)_50%,transparent)] border-b-2 border-transparent hover:text-[var(--text)]";
-
-        return (
-          <button
-            key={opt.id}
-            onClick={() => setTab(opt.id)}
-            className={`pb-1 text-[10px] md:text-xs font-black uppercase tracking-widest transition-all shrink-0 whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
           >
             {opt.label}
           </button>

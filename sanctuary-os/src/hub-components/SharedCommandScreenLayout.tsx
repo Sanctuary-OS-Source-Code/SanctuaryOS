@@ -153,7 +153,6 @@ export function CommandScreenSectionHeading({
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "text-[var(--accent)]" 
 }: any) {
-  const { t } = useLexicon();
   const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
   
   return (
@@ -174,7 +173,7 @@ export function CommandScreenSectionHeading({
             </h2>
             {breadcrumb && (
               <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-                <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] leading-tight truncate">
+                <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] leading-tight truncate">
                   {breadcrumb}
                 </span>
               </div>
@@ -230,7 +229,6 @@ export function CommandScreenMain({ children }: any) {
 }
 
 export function CommandScreenSidebar({ title, icon, shape = "square", children }: any) {
-    const { t } = useLexicon();
     const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
     return (
         <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
@@ -253,58 +251,6 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
         </div>
     );
 }
-
-export function CommandScreenStatusbar({ children }: any) {
-    return (
-        <div className="w-full shrink-0 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] pt-4 mt-8 relative z-10">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--accent)]/50 to-transparent" />
-            <div className="flex items-center gap-4 w-full">
-                {children}
-            </div>
-        </div>
-    );
-}
-
-
-export function UrgentBroadcastBanner({ urgentBroadcast, setViewingPost, setUrgentBroadcast }: any) {
-    const { t } = useLexicon();
-    if (!urgentBroadcast || localStorage.getItem("sanctuary_notify_alert_banner") === "false") return null;
-
-    return (
-    <div onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', views: 0, likes: 0, replies: 0 })} className="w-full glass-panel rounded-2xl p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 shadow-xl hover:shadow-2xl cursor-pointer transition-all duration-700 ease-out group relative border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_60%,transparent)]">
-            <div className="absolute inset-0 rounded-[inherit] bg-[color-mix(in_srgb,var(--danger)_5%,transparent)] z-0 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
-            
-            <div className="w-14 h-14 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center shrink-0 z-10 group-hover:scale-110 transition-transform duration-500 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[inset_0_0_20px_color-mix(in_srgb,var(--danger)_20%,transparent)]">
-                <span className="material-symbols-outlined !text-[32px] text-[var(--danger)] drop-shadow-[0_0_15px_currentColor] animate-pulse">{t("icon_warning_amber", "warning_amber")}</span>
-            </div>
-            
-            <div className="flex flex-col gap-1 flex-1 z-10 min-w-0">
-                <div className="flex items-center gap-3">
-                    <span className="px-2.5 py-1 bg-transparent text-[var(--danger)] text-[9px] font-black uppercase tracking-wider rounded-lg border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] flex items-center gap-1.5 shrink-0">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
-                        <span>{t("urgent_alert", "Urgent Alert")}</span>
-                    </span>
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-60 text-[var(--danger)]">{new Date(urgentBroadcast.created_at).toLocaleDateString()}</span>
-                </div>
-                <h3 className="text-xl font-[900] tracking-tighter text-[var(--danger)] group-hover:brightness-150 group-hover:drop-shadow-[0_0_15px_currentColor] transition-all truncate mt-1">{urgentBroadcast.title}</h3>
-            </div>
-            
-            <div className="flex items-center gap-2 z-10 ml-auto">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        localStorage.setItem("sanctuary_notify_alert_banner", "false");
-                        setUrgentBroadcast(null);
-                    }}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-colors opacity-50 hover:opacity-100"
-                >
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_close", "close")}</span>
-                </button>
-            </div>
-        </div>
-    );
-}
-
 
 export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
     const { t } = useLexicon();

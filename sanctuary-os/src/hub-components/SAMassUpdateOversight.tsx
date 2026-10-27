@@ -1,32 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { supabase, getActiveGameClient } from "../supabase";
+import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
-  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker,
-  HubTabButton, ModSearchDropdown, EmptyState,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton,
+  SidePanel, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, EmptyState,
+  fetchAllPaginated, PanelHeaderGroup, PanelHeaderButton,
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { DynamicArtifactPreviewBanner } from "../chameleon-components/ThemeCard";
-import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
-
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
-import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
-import MasonPostViewer from "../side-panels/MasonPostViewer";
-import MarkdownRenderer from "../MarkdownRenderer";
-
 
 export function MassUpdateOversight() {
   const { t } = useLexicon();
@@ -42,8 +28,6 @@ export function MassUpdateOversight() {
 
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterGameVersions, setFilterGameVersions] = useState<string[]>([]);
-  const [filterVersionSearch, setFilterVersionSearch] = useState<string>("");
-
   const [massStatus, setMassStatus] = useState<string>("");
   const [massGameVersions, setMassGameVersions] = useState<string[]>([]);
   const [massCategory, setMassCategory] = useState<string>("");

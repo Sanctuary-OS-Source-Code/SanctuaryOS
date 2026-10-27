@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { SidePanel, standardAccentGlassButtonClass, standardButtonClass, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelHeroCard } from "../shared";
+import { useState } from "react";
+import { SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelHeroCard } from "../shared";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "./WayfinderSupportSidePanel";

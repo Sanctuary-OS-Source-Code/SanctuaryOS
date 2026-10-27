@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
 import { getSafeSchema } from "../store";
 import {
@@ -266,10 +266,6 @@ export default function SchemaVisualStudio({
     ? parsedSchema.exception_rules
     : [];
   const capsuleObj = parsedSchema.time_capsule || {};
-  const externalTools: any[] = Array.isArray(parsedSchema.external_tools)
-    ? parsedSchema.external_tools
-    : [];
-
   return (
     <div className="flex flex-col h-full min-h-0 w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-10 gap-4 select-none">
       {/* 1. Sleek Header Bar + 1x4 DashboardStatTile Filter Grid */}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { writeTextFile, mkdir, exists } from "@tauri-apps/plugin-fs";
@@ -25,7 +25,6 @@ import {
   UniversalGroup,
   StatBox,
   standardAccentGlassButtonClass,
-  standardDangerButtonClass,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { unpackBlueprintLoadOrder } from "../hooks/usePlaySetLogic";

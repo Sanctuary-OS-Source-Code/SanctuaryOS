@@ -1,100 +1,15 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { useStore } from "../store";
 import {
-  ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker, DashboardStatTile,
-  HubTabButton, ModSearchDropdown, EmptyState, ActionButton,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton,
-  SidePanelHeroCard, SidePanelTitleInput, UniversalGroup, StatBox, HoverTooltip,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion
+  SidePanel, ActionButton,
+  SidePanelHeroCard, UniversalGroup, HoverTooltip
 } from "../shared";
 import { UniversalTextArea } from "../components/universal/UniversalLayout";
-import { ArtifactCard, VaultCard, VAULT_CHIP_CLASS } from "../Cards";
-import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
-import { MasonStatusDropdown } from "../MasonHub";
+import { VAULT_CHIP_CLASS } from "../Cards";
 import { logArchitectAction } from "../lib/audit";
-
-
-export function MasonRegistrationSidePanel({ isOpen, onClose, onCreate }: { isOpen: boolean, onClose: () => void, onCreate: (name: string) => Promise<void> }) {
-  const { t } = useLexicon();
-  const [newMasonName, setNewMasonName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-
-  const handleCreate = async () => {
-    setIsCreating(true);
-    await onCreate(newMasonName);
-    setIsCreating(false);
-    setNewMasonName("");
-  };
-
-  return (
-    <SidePanel
-      isOpen={isOpen}
-      onClose={onClose}
-      title={t("verify_panel_title", "Register Mason")}
-      subtitle={t("auth_user_id_desc", "Mason Registry")}
-      icon={t("icon_person_add", "person_add")}
-      iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[680px]"
-      panelZ="z-[15001]"
-      backdropZ="z-[15000]"
-      headerActions={
-        <PanelHeaderGroup>
-          <PanelHeaderButton
-            icon={t("icon_add", "add")}
-            tooltip={isCreating ? t("btn_saving", "Saving...") : t("ql_add", "Create Mason")}
-            variant="accent"
-            disabled={isCreating || !newMasonName.trim()}
-            onClick={handleCreate}
-          />
-        </PanelHeaderGroup>
-      }
-    >
-      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-        <SidePanelHeroCard
-          icon={t("icon_person_add", "person_add")}
-          overline={t("auth_user_id_desc", "Mason Registry")}
-          title={newMasonName || t("verify_panel_title", "Register Mason")}
-          description={t("resolution_suggestion", "Create a new creator identity in the community Mason registry.")}
-          variant="accent"
-        />
-
-        <SidePanelTitleInput
-          value={newMasonName}
-          onChange={setNewMasonName}
-          placeholder={t("auto_e_g_load_31", "Enter Mason name...")}
-          subtitle={t("resolution_suggestion", "Mason Display Name")}
-        />
-
-        <UniversalGroup title={t("verify_panel_title", "Mason Identity")} icon={t("icon_badge", "badge")}>
-          <div className="flex flex-col gap-3 w-full">
-            <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("resolution_suggestion", "Mason Handle")}</label>
-            <input
-              value={newMasonName}
-              onChange={e => setNewMasonName(e.target.value)}
-              placeholder={t("auto_e_g_load_31", "Enter Mason name...")}
-              className="glass-surface rounded-xl px-5 py-4 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] w-full"
-            />
-            <ActionButton
-              variant="glass"
-              icon={t("icon_add", "add")}
-              disabled={isCreating || !newMasonName.trim()}
-              onClick={handleCreate}
-              className="w-full justify-center !py-3 mt-1"
-            >
-              {isCreating ? t("btn_saving", "Saving...") : t("ql_add", "Create Mason")}
-            </ActionButton>
-          </div>
-        </UniversalGroup>
-      </div>
-    </SidePanel>
-  );
-}
 
 export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, isOversight, initialHash, onManualFlag }: { isOpen: boolean, onClose: () => void, onJumpToArtifact?: (modObj: any) => void, isOversight?: boolean, initialHash?: string, onManualFlag?: (hash: string) => void }) {
   const { t } = useLexicon();
@@ -177,12 +92,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     if (!flagReason.trim() || !filePath || !fileHash) return;
     setIsSubmitting(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || "system";
-
     const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
-    const cleanFileName = fileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
-    const hiddenPath = filePath.replace(/^(?:[A-Z]:)?[\/\\]Users[\/\\][^\/\\]+[\/\\]/i, '...\\');
 
     await logArchitectAction(`Flagged Artifact: ${fileName}`, 'sanctuary_tickets', fileName, `User provided reason: ${flagReason}`);
     

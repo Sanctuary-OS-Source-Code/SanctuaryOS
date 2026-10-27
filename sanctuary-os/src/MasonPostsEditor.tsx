@@ -1,30 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import IconPicker from "./IconPicker";
-import MarkdownRenderer from "./MarkdownRenderer";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
-  SidePanel, CustomDropdown, ModSearchDropdown, EmptyState, HoverTooltip, CustomDatePicker, ActionButton, LinkAssetSidePanel,
-  DashboardStatTile, ViewHeader, CustomComplianceDropdown,
-  HubTabButton, HubTabs,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, PanelHeaderGroup, PanelHeaderButton,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle, UniversalGroup, StatBox
+  SidePanel, EmptyState, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton,
+  extractPostImage, SidePanelPillToggle, UniversalGroup
 } from "./shared";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
-import { ArtifactCard, VaultCard } from "./Cards";
-import { UniversalCard } from "./components/universal/UniversalCard";
-import { CustomMasonDropdown, CustomStatusDropdown } from "./ArchitectHub";
-import { MasonStatusDropdown } from "./MasonHub";
-import { logArchitectAction } from "./lib/audit";
-
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "./components/universal/UnifiedPostEditor";
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
@@ -44,10 +31,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [inlineImageUrl, setInlineImageUrl] = useState("");
-
+  const [, setShowImageInput] = useState(false);
+  const [, setShowIconPicker] = useState(false);
   const [masonName, setMasonName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -160,13 +145,6 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
-
-  const handleInsertText = (prefix: string, suffix: string = "") => {
-    if (editor) {
-      editor.chain().focus().insertContent(prefix + suffix).run();
-    }
-  };
-
   const handleLinkAsset = (asset: any) => {
     const linkStr = `asset://${asset.type}/${asset.id}`;
 

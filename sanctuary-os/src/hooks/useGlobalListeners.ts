@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { supabase } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { tauriBridge } from "../lib/tauri-bridge";
@@ -12,8 +10,8 @@ export function useGlobalListeners(
   triggerPrePatchSnapshot: () => void,
   triggerFullEngineBackup: () => void
 ) {
-  const { setScanProgress, setBackupProgress, setDefconLevel, setIsPatchDetected } = useStore();
-  const { setDnaMatches, setIsDnaModalOpen, dnaMatches, setShowDefconAlert } = useModalStore();
+  const { setScanProgress, setBackupProgress } = useStore();
+  const { setDnaMatches, setIsDnaModalOpen, dnaMatches } = useModalStore();
 
   useEffect(() => {
     let unlisten: any = null;

@@ -725,7 +725,7 @@ export async function precomputeBlueprintConflicts(
 }
 
 export function usePlaySetLogic() {
-  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, ignoredGlobal, setIgnoredGlobal } = useStore();
+  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, setIgnoredGlobal } = useStore();
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
@@ -805,16 +805,6 @@ export function usePlaySetLogic() {
             ((s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1)) && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2)))
          ));
       };
-
-      const isTwinRival = (hash1: string, hash2: string) => {
-         if (!hash1 || !hash2) return false;
-         return localSets.some((s: any) => (
-            (s.archetypes?.core === hash1 && s.archetypes?.twins?.includes(hash2)) ||
-            (s.archetypes?.core === hash2 && s.archetypes?.twins?.includes(hash1)) ||
-            (s.archetypes?.twins?.includes(hash1) && s.archetypes?.twins?.includes(hash2))
-         ));
-      };
-
       const checkGhosted = (mObj: any) => {
         if (mObj.isGhosted) return true;
         let rDLC = mObj.requiredDLC || [];
@@ -1466,7 +1456,6 @@ export function usePlaySetLogic() {
     try {
       useStore.setState({ activeConflictCount: { total: 0, tier4: 0, tier3: 0 }, activeBrokenCounts: { broken: 0, unstable: 0 } });
       console.time("equipPlaySet_JS_overhead");
-      const jsStartTime = Date.now();
       const config: any = await invoke("get_saved_coordinates");
         let deployPayload: any[] = [];
         const fileNameToPathMap = new Map<string, string>();
@@ -1692,9 +1681,6 @@ export function usePlaySetLogic() {
       if (newIndex !== -1 && setActivePlaySetIndex) {
         setActivePlaySetIndex(newIndex);
       }
-      
-      const jsTime = Date.now() - jsStartTime;
-
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
       precomputeBlueprintConflicts(setName, targetSet.mods, config.vault_path).catch(() => {});
     } catch (err) {

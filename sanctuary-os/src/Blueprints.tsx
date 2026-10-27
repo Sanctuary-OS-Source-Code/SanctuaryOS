@@ -9,7 +9,6 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   StatBox,
-  isVersionMatch,
   HoverTabDrawer,
   VerticalTabButton,
   DashboardStatTile,

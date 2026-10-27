@@ -11,7 +11,7 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   const { setStatus, activeGameSchema } = useStore();
   const { setIngestProgress } = useModalStore();
   const { t } = useLexicon();
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<string[]>([]);
   const [dnaMatchQueue, setDnaMatchQueue] = useState<any[]>([]);
   const [edgeOverrideQueue, setEdgeOverrideQueue] = useState<any[]>([]);

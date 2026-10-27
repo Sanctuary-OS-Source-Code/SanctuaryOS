@@ -164,7 +164,7 @@ export const VaultFilters = React.memo(function VaultFilters({
     const list: any[] = [
       {
         id: "layout",
-        icon: <span className="material-symbols-outlined !text-[20px] sm:!text-[20px] !text-[18px]">{vaultLayout === "standard" ? t("icon_view_module", "view_module") : vaultLayout === "compact" ? t("icon_grid_view", "grid_view") : t("icon_view_list", "view_list")}</span>,
+        icon: <span className="material-symbols-outlined !text-[20px] sm:!text-[20px]">{vaultLayout === "standard" ? t("icon_view_module", "view_module") : vaultLayout === "compact" ? t("icon_grid_view", "grid_view") : t("icon_view_list", "view_list")}</span>,
         label: t("layout_toggle", "Toggle Layout"),
         onClick: () => {
           if (vaultLayout === "standard") setVaultLayout("compact");
@@ -177,7 +177,7 @@ export const VaultFilters = React.memo(function VaultFilters({
     if (onCreateLocalFolder) {
       list.push({
         id: "create_node",
-        icon: <span className="material-symbols-outlined !text-[20px] sm:!text-[20px] !text-[18px]">{t("icon_add_circle", "add_circle")}</span>,
+        icon: <span className="material-symbols-outlined !text-[20px] sm:!text-[20px]">{t("icon_add_circle", "add_circle")}</span>,
         label: t("btn_create_node", "New Node"),
         onClick: () => { setSelectedMods && setSelectedMods([]); onCreateLocalFolder(); }
       });
@@ -186,7 +186,7 @@ export const VaultFilters = React.memo(function VaultFilters({
     if (equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
       list.push({
         id: "hide_ghosts",
-        icon: <span className={`material-symbols-outlined !text-[20px] sm:!text-[20px] !text-[18px] ${hideGhostCards ? 'text-[var(--success)]' : ''}`}>{hideGhostCards ? t("icon_visibility_off", "visibility_off") : t("icon_visibility", "visibility")}</span>,
+        icon: <span className={`material-symbols-outlined !text-[20px] sm:!text-[20px] ${hideGhostCards ? 'text-[var(--success)]' : ''}`}>{hideGhostCards ? t("icon_visibility_off", "visibility_off") : t("icon_visibility", "visibility")}</span>,
         label: t("btn_hide_ghosts", "Only Show Eligible"),
         activeClassName: hideGhostCards ? 'sa-glass-active !text-[var(--success)] !opacity-100' : '',
         onClick: () => setHideGhostCards(!hideGhostCards)

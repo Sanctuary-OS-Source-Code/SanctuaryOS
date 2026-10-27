@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton } from './shared';
 import { IdentityMatrix } from './IdentityMatrix';
-import MasonIDE from './MasonIDE';
 import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
 import KeepersActiveGames from './hub-components/KeepersActiveGames';
 import { KeeperCommandScreen } from "./hub-components/CommandScreens";
 import KeepersSupportTickets from './hub-components/KeepersSupportTickets';
-import { AuditLogViewer } from './side-panels/SAAuditLogViewer';
 import { KeepersDispatchEditor } from './hub-components/KeepersDispatchEditor';
 import KeepersWebDirectivesEditor from './hub-components/KeepersWebDirectivesEditor';
-import KeeperSupportSettings from './hub-components/KeeperSupportSettings';
 import KeepersHeuristicsOversight from './hub-components/KeepersHeuristicsOversight';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import { openSanctuaryScreenshotTour } from './side-panels/ScreenshotTourSidePanel';

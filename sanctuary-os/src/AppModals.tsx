@@ -33,8 +33,6 @@ import { ScreenshotTourSidePanel } from "./side-panels/ScreenshotTourSidePanel";
 import { getExtensionRegex, handleOpenUrl } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { isDesktop } from "./utils/envUtils";
-import { isRootDomain } from "./utils/routingUtils";
-
 export const AppModals = React.memo(function AppModals(props: any) {
   const [isLogExpanded, setIsLogExpanded] = React.useState(false);
   const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
@@ -55,29 +53,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
-  const {
-    snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet,
-    bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName,
-    renameModal, setRenameModal, executeRename,
-    renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename,
-    localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder,
-    missingImportMods, pendingImportSet, setMissingImportMods, setPendingImportSet, finalizeImport, setIsDropzoneOpen,
-    confirmDialog, setConfirmDialog,
-    isBulkMode, openBulk, openLocalFolder,
-    isDropzoneOpen, isDragging, dropzoneState, droppedFiles, setDropzoneState, setDroppedFiles, setIsDragging, handleDroppedFiles, runRadarSweep,
-    showBrokenModal, setShowBrokenModal, modList,
-    showQuarantineModal, setShowQuarantineModal, quarantineList, restoreMod, purgeMod,
-    isBackingUp, isRestoring,
-    ingestProgress,
-    isScanning,
-    showDefconAlert, setShowDefconAlert, triggerFullEngineBackup, triggerPrePatchSnapshot,
-    yeetConfirmPending, setYeetConfirmPending,
-    dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog,
-    edgeOverrideQueue, setEdgeOverrideQueue,
-    scoutQueue, setScoutQueue, onOpenScoutDossier,
-    malwareAlert, setMalwareAlert, setPlaySets,
-    isSidebarCollapsed, equipPlaySet
-  } = props;
+  const { snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet, bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName, renameModal, setRenameModal, executeRename, renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename, localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder, missingImportMods, pendingImportSet, setMissingImportMods, setPendingImportSet, finalizeImport, setIsDropzoneOpen, isDropzoneOpen, isDragging, dropzoneState, droppedFiles, setDropzoneState, setDroppedFiles, setIsDragging, handleDroppedFiles, runRadarSweep, modList, showQuarantineModal, setShowQuarantineModal, quarantineList, restoreMod, purgeMod, isBackingUp, isRestoring, ingestProgress, isScanning, showDefconAlert, yeetConfirmPending, setYeetConfirmPending, dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog, scoutQueue, setScoutQueue, onOpenScoutDossier, malwareAlert, setMalwareAlert, setPlaySets, isSidebarCollapsed, equipPlaySet } = props;
 
   const status = useStore((state) => state.status);
   const activeConflictCount = useStore((state) => state.activeConflictCount) || { total: 0, tier3: 0, tier4: 0 };

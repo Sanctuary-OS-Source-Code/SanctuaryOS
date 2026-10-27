@@ -3,8 +3,6 @@ import { createPortal } from 'react-dom';
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
-import { CustomDropdown, HoverTooltip, useIsMobile } from './shared';
-import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
 import { openSanctuaryLogin } from "./AuthWrapper";
@@ -75,23 +73,18 @@ export function Sidebar({
   const session = useStore((state) => state.session);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
-  const setKeepersActiveTab = useStore((state) => state.setKeepersActiveTab);
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const isConfigured = useStore((state) => state.isConfigured);
   const { showDefconAlert, stagingDraftItems } = useModalStore();
-  const [globalGames, setGlobalGames] = React.useState<any[]>([]);
-  const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = React.useState(false);
+  const [, setGlobalGames] = React.useState<any[]>([]);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
   const [activeLandingSection, setActiveLandingSection] = React.useState<string>('workspaces');
   const [hasLinkedMasonRecord, setHasLinkedMasonRecord] = React.useState<boolean>(false);
   const [isMasonRecordVerified, setIsMasonRecordVerified] = React.useState<boolean>(false);
 
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const workspaces = useStore((state) => state.workspaces);
-  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
-  const activeGameName = globalGames.find(g => g.schema_id === activeWorkspace?.schema_id)?.name || activeWorkspace?.name || "Sanctuary OS";
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
 

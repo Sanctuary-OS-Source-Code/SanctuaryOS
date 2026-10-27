@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, standardButtonClass, standardAccentGlassButtonClass, standardDangerButtonClass, getFileLabel, isSupportedExtension, formatDisplayName, getExtensionRegex, getModIcon, compareVersions, cleanSearchName, ActionButton, SidebarFooterButton, enrichBlueprintsWithPremiumStatus, FilterTabs, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
 import { useTheme } from "./ThemeContext";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readDir, readTextFile, writeTextFile, exists, mkdir, readFile } from '@tauri-apps/plugin-fs';
-import { appDataDir } from "@tauri-apps/api/path";
+import { readDir, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
 import BlueprintMatrix from "./BlueprintMatrix";
-import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import {
   DynamicThemePreviewBanner,
@@ -75,12 +72,7 @@ const cleanModName = (raw: string) => {
   return { name: name.replace(/_/g, ' '), ext };
 };
 
-const getSearchUrl = (mod: any) => {
-  return `https://www.google.com/search?q=${encodeURIComponent(cleanSearchName(mod.name || mod.displayName, useStore.getState().activeGameSchema) + ' ' + (useStore.getState().activeGameSchema?.display_name || "Game") + ' mod')}`;
-};
-
 export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, onOpenDossier, syncBlueprintByCode }: NexusProps) {
-  const activeGameSchema = useStore(state => state.activeGameSchema);
   const { t, importLexicon, registry } = useLexicon();
   const session = useStore((state) => state.session);
   const marketTab = useStore(state => state.marketTab);
@@ -88,21 +80,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const selectedVersion = useStore(state => state.selectedVersion);
   const showImages = useStore(state => state.showImages);
   const marketSearchQuery = useStore(state => state.marketSearchQuery);
-  const setMarketSearchQuery = useStore(state => state.setMarketSearchQuery);
   const ownedDLC = useStore(state => state.ownedDLC) || [];
   const maskedDLC = useStore(state => state.maskedDLC) || [];
   const playSets = useStore(state => state.playSets) || [];
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__sanctuaryCache!.nexus?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
-  const {
-    nexusPreviewAsset: previewAsset,
-    setNexusPreviewAsset: setPreviewAsset,
-    stagingDraftItems,
-    toggleModInStagingDraft,
-    stageBlueprintToDraft,
-    volatileSignatureQueue
-  } = useModalStore();
+  const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset, stagingDraftItems, toggleModInStagingDraft, stageBlueprintToDraft } = useModalStore();
   const stagedModKeys = useMemo(() => {
     const s = new Set<string>();
     stagingDraftItems.forEach((item) => {
@@ -123,8 +107,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const [gameVersions, setGameVersions] = useState<any[]>([]);
   const [installedTemplates, setInstalledTemplates] = useState<Record<string, string>>({});
   const [selectedGameVersion, setSelectedGameVersion] = useState<string>(selectedVersion || "all");
-  const [dlcFilter, setDlcFilter] = useState<string>("all");
-  const [dlcRegistry, setDlcRegistry] = useState<any[]>([]);
+  const [dlcFilter] = useState<string>("all");
+  const [, setDlcRegistry] = useState<any[]>([]);
   const [hidePaid, setHidePaid] = useState<boolean>(() => {
     return localStorage.getItem('sanctuary_hide_paid') === 'true';
   });
@@ -210,8 +194,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         try {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const isoDate = thirtyDaysAgo.toISOString();
-
           const [
             { count: artifactsCount },
             { count: blueprintsCount },
@@ -618,40 +600,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
   }
 
-  const handleUploadAsset = async () => {
-    try {
-      if (!session?.user?.id) {
-        useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active") || "Login required to upload.");
-        return;
-      }
-      if (session?.user?.id) {
-        const { data: profileData } = await supabase.from('user_profiles').select('allow_upload').eq('id', session.user.id).maybeSingle();
-        if (profileData && profileData.allow_upload === false) {
-          useStore.getState().pushStatus(t("upload_banned", "Upload access has been revoked."));
-          return;
-        }
-      }
-
-      setUploadState({
-        isOpen: true,
-        isEdit: false,
-        editId: null,
-        fileContent: null,
-        fileName: '',
-        name: '',
-        version: '1.0.0',
-        description: '',
-        releaseNotes: '',
-        language: availableLanguages.length > 0 ? availableLanguages[0] : 'English',
-        newLanguage: '',
-        lexiconType: 'Theme',
-        themeMode: 'Dark'
-      });
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
-
   const handleEditAsset = (e: React.MouseEvent, asset: any) => {
     e.stopPropagation();
     if (marketTab === 'BLUEPRINTS') {
@@ -894,8 +842,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
 
     if (!isSilent && !window.__sanctuaryCache!.nexus!.nexusItems) setLoadingMods(true);
-    const startFetch = performance.now();
-
     nexusFetchPromise = (async () => {
       try {
         const { count, error: countError } = await supabase
@@ -949,8 +895,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         ]);
 
         const modsData = allMods;
-        const midFetch = performance.now();
-
         const flavorGroups = flavorGroupsRes.data;
         const collections = collectionsRes.data;
         const relationships = relationshipsRes.data;
@@ -1171,7 +1115,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const ownedHashesSet = useMemo(() => new Set(ownedHashes), [ownedHashes]);
   const filteredResults = useMemo(() => {
     let filtered = results.filter((mod: any) => {
-      const modName = (mod.name || "").toLowerCase().trim();
       const isOwned = (() => {
         if (mod.isVirtual || mod.isParent) {
           return mod.flavors?.some((f: any) =>

@@ -1,5 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
-import { ViewHeader } from "./shared";
+import { Component, ErrorInfo, ReactNode } from "react";
 import { useLexicon } from "./LexiconContext";
 
 interface Props {

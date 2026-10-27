@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
@@ -10,7 +10,6 @@ import {
   CustomDropdown,
   EmptyState,
   LoadingScreen,
-  ActionButton,
   formatOverviewMetric,
   PanelHeaderGroup,
   PanelHeaderButton,

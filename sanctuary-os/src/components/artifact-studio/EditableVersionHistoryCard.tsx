@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import {

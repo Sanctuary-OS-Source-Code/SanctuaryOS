@@ -1,28 +1,22 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, CustomDropdown, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, mapDlcCode, HubTabButton, standardButtonClass, standardDangerButtonClass, standardSuccessButtonClass, SidePanel, SidebarActionButton, getFileLabel, isSupportedExtension, getExtensionRegex, HoverTooltip, EmptyState, cleanSearchName, ActionButton, getModIcon, DashboardStatTile } from "./shared";
+import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, getExtensionRegex, getModIcon } from "./shared";
 import { useLexicon } from './LexiconContext';
-import { CommandScreenLayout, CommandScreenStats, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
+import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
 import { VaultFilters } from "./hub-components/vault/VaultFilters";
 import { VaultGrid } from "./hub-components/vault/VaultGrid";
-import { VaultStats } from "./hub-components/vault/VaultStats";
-import { VaultSidebar } from "./hub-components/vault/VaultSidebar";
-
 import { VaultTabs } from "./hub-components/vault/VaultTabs";
 import { VaultModals } from "./hub-components/vault/VaultModals";
 import { invoke } from '@tauri-apps/api/core';
-import { ModCard } from './ModCard';
 import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
 import { useStore } from './store';
 import { VaultToolsSidePanel, VaultLocalFolderEditorSidePanel } from './side-panels/VaultSidePanels';
-import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { supabase } from "./supabase";
 
 
 const Vault = React.memo(function Vault(props: any) {
-  const [isSidePanelOpen, setIsSidePanelOpen] = React.useState(false);
   const [activeTier3Conflict, setActiveTier3Conflict] = React.useState<any>(null);
 
 
@@ -32,21 +26,7 @@ const Vault = React.memo(function Vault(props: any) {
 
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { applyConflictOverride } = usePlaySetLogic();
-  const {
-    isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setConfirmDialog,
-    setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets,
-    equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus,
-    setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType,
-    visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet,
-    openUrl, setLocalFolderName, setLocalFolderType, executeHotSwap, equipPlaySet, setMetaNameInput,
-    setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash,
-    quarantineList, restoreMod, purgeMod, ownedDLC, maskedDLC, setMetaDescInput,
-    setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder,
-    drawerConfirmHash,
-    modList,
-    anarchyRules,
-    setBulkModal
-  } = props;
+  const { isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash, ownedDLC, maskedDLC, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, drawerConfirmHash, modList, anarchyRules, setBulkModal } = props;
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const localFolderCount = React.useMemo(() => {
@@ -204,7 +184,7 @@ const Vault = React.memo(function Vault(props: any) {
     const parsedActiveSetModNames = new Set();
     const parsedActiveSetModNamespaces = new Set();
 
-    const parsedActiveSetMods = activeSetMods.map((n: string) => {
+    activeSetMods.forEach((n: string) => {
       const cleanNLookup = n.replace(/^(sanctuary[/\\])+/i, '');
       const mData = modListIndex.byName.get(cleanNLookup) || modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === cleanNLookup)?.orig;
       const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
@@ -215,8 +195,6 @@ const Vault = React.memo(function Vault(props: any) {
 
       parsedActiveSetModNamespaces.add(n);
       parsedActiveSetModNamespaces.add(cleanNLookup);
-
-      return { n, cleanNLookup, cleanN, mData };
     });
 
     const equippedDisplayModFamilies = new Set();
@@ -396,10 +374,7 @@ const Vault = React.memo(function Vault(props: any) {
       return !folderExists;
     });
   }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, equippedDisplayMods, modListIndex]);
-
-  const totalPages = Math.max(1, Math.ceil(finalVisibleMods.length / itemsPerPage));
   const dependencyGraph = React.useMemo(() => {
-    const tStart = performance.now();
     const graph = new Map<string, any[]>();
 
     const equippedByName = new Map<string, any>();

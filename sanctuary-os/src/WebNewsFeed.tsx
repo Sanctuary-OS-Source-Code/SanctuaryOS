@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { supabase, supabaseAuth } from "./supabase";
+import { supabaseAuth } from "./supabase";
 import { useStore } from "./store";
-import { stripMarkdown } from "./shared";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MasonPostCard from "./MasonPostCard";
 

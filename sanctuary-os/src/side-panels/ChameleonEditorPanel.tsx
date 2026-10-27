@@ -1,4 +1,3 @@
-import React from "react";
 import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";

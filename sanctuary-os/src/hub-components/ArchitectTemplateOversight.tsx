@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, StatBox } from "../shared";

@@ -1,12 +1,10 @@
-import React from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
   PanelHeaderGroup,
-  PanelHeaderButton,
-  ActionButton,
+  PanelHeaderButton
 } from "../../shared";
 import ConflictResolutionSidebar from "../../side-panels/ConflictResolutionSidebar";
 

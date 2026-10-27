@@ -1,5 +1,5 @@
 import { useStore } from "../store";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import {

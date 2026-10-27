@@ -1,34 +1,19 @@
-import { DashboardStatTile } from "./shared";
-import React, { useState, useEffect } from 'react';
-import { supabase } from './supabase';
+import { useState } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/CommandScreens";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, ActionButton, SidebarFooterButton, VerticalTabDropdown, SidePanel, extractPostImage, stripMarkdown, EmptyState } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton, EmptyState } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
-
-
-import GlobalFeed from './GlobalFeed';
-import MasonBugReports from './MasonBugReports';
-import SASupportSettings from './hub-components/SASupportSettings';
-import { AuditLogViewer } from './side-panels/SAAuditLogViewer';
 import { DefconSidePanel } from './hub-components/SADefcon';
-import { MasonLinker } from './hub-components/SAMasonLinker';
 import WayfinderMasterSchemas from './hub-components/WayfinderMasterSchemas';
 import SAComplianceOversight from './hub-components/SAComplianceOversight';
 import SAMalwareOversight from './hub-components/SAMalwareOversight';
-import MasonPostViewer from './side-panels/MasonPostViewer';
-import SystemBroadcastsFeed from './SystemBroadcastsFeed';
 import { IdentityMatrix } from './IdentityMatrix';
 import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
 import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
 import { NexusReportsViewer } from './side-panels/NexusReportsViewer';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import ComplianceManualFlagSidePanel from './side-panels/ComplianceManualFlagSidePanel';
-import SAOversightReports from './hub-components/SAOversightReports';
-import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
-
-import { ServerHealthSidePanel } from './side-panels/WayfinderSidePanels';
 
 export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfile?: (id: string) => void }) {
   const { t } = useLexicon();
@@ -40,7 +25,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
   const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");
   const [defconOpen, setDefconOpen] = useState(false);
   const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
-  const [verifyPanelInitialHash, setVerifyPanelInitialHash] = useState("");
+  const [verifyPanelInitialHash] = useState("");
   const [initialHeuristicEdit, setInitialHeuristicEdit] = useState<any>(null);
   const defconLevel = useStore((state) => state.defconLevel);
 

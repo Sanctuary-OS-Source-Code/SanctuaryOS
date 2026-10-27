@@ -4,7 +4,6 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { WorkspaceSidePanel } from './side-panels/WorkspaceSidePanel';
 import { isDesktop } from "./utils/envUtils";
-import { isRootDomain } from "./utils/routingUtils";
 
 export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIndex }: any) {
   const { t } = useLexicon();

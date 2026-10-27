@@ -17,7 +17,6 @@ import {
   ActionPill,
   InlineFilterGroup,
   SidePanelHeroCard,
-  StatBox,
   DashboardStatTile,
   UniversalGroup,
   VAULT_CHIP_CLASS,
@@ -1660,23 +1659,6 @@ export default function CommandIncompatiblePanel({
       ).length,
     [groupedBrokenMods]
   );
-  const missingReqsCount = useMemo(
-    () =>
-      groupedBrokenMods.filter((m: any) => {
-        const cats = Array.isArray(m._categories) ? m._categories : [m._alert_category];
-        return cats.includes("missing_dlc") || cats.includes("missing_deps");
-      }).length,
-    [groupedBrokenMods]
-  );
-  const unstableCount = useMemo(
-    () =>
-      groupedBrokenMods.filter((m: any) => {
-        const cats = Array.isArray(m._categories) ? m._categories : [m._alert_category];
-        return cats.includes("unstable") || m._alert_type === "amber";
-      }).length,
-    [groupedBrokenMods]
-  );
-
   const filteredGroupedBrokenMods = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return groupedBrokenMods.filter((mod: any) => {

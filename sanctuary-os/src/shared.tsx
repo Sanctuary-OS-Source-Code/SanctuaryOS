@@ -15,18 +15,7 @@ export {
   SidePanelTitleInput,
   SidePanelPillToggle,
 } from "./components/universal/UniversalLayout";
-export { VAULT_CHIP_CLASS, REGISTRY_CHIP_CLASS } from "./Cards";
-
-import { useStore } from "./store";
-import { useLexicon } from "./LexiconContext";
-import { useTheme } from "./ThemeContext";
-import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { useModalStore } from "./store/modalStore";
-import { useTooltipStore } from "./store/tooltipStore";
-import { supabase } from "./supabase";
-import { UniversalCard } from "./components/universal/UniversalCard";
+export { VAULT_CHIP_CLASS } from "./Cards";
 
 declare global {
   interface Window {

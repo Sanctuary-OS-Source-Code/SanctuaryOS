@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { EmptyState, InlineFilterGroup, ActionPill, HeaderActionPortal } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";

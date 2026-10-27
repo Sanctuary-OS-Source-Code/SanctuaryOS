@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -103,7 +103,6 @@ export default function KeepersHeuristicsOversight() {
     const id = editingId || `core_${newSig.trim().toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "")}`;
 
     try {
-      const userRes = await supabaseAuth.auth.getUser();
       const payload = {
         id,
         signature: newSig.trim(),

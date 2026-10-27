@@ -1,7 +1,6 @@
 import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
-  ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,

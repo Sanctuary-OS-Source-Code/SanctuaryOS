@@ -24,8 +24,6 @@ import {
   toggleLocalFollow,
   getKeepersPipelineConfig,
   loadPartnerCommunitiesList,
-  checkSupporterDevBuildUpdate,
-  downloadAndInstallReleaseAsset,
   syncUpdateChannelNotification,
   buildPartnerCheckoutUrl,
   isSandboxDonationUrl,
@@ -34,7 +32,6 @@ import {
   KeepersPipelineConfig,
   LocalSupporterStatePayload,
 } from "../utils/supporterManager";
-import { isDesktop } from "../utils/envUtils";
 import { useModalStore } from "../store/modalStore";
 import packageJson from "../../package.json";
 

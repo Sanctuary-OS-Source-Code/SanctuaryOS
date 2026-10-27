@@ -1,4 +1,3 @@
-import React from "react";
 import { useLexicon } from "../../LexiconContext";
 import { CustomDropdown, HoverTooltip, ModSearchDropdown } from "../../shared";
 import ModStructureBuilder, { StructureNode } from "../../ModStructureBuilder";

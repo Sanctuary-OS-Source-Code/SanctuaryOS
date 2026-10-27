@@ -561,17 +561,6 @@ export function generateRefractedWallpaperPair(
   });
 }
 
-export function generateRefractedWallpaperDataUrl(
-  bgImage: string,
-  blurPx: number,
-  saturation: string,
-  fallbackBg: string,
-  vw: number,
-  vh: number
-): Promise<string> {
-  return generateRefractedWallpaperPair(bgImage, blurPx, saturation, fallbackBg, vw, vh).then((p) => p.bodyUrl);
-}
-
 const GLASS_OPTICS_REV = "rev_49";
 
 export function applyThemeCssVarsToRoot(themeObj: any) {
@@ -606,25 +595,44 @@ export function applyThemeCssVarsToRoot(themeObj: any) {
   root.style.setProperty('--textCase', resolvedTextCase);
   root.setAttribute('data-text-case', resolvedTextCase);
 
+  const canUsePassthrough =
+    isDesktop() ||
+    (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
   const isTransparentPassthrough =
+    canUsePassthrough &&
     !themeObj.bgImage &&
     (themeObj.bg === 'transparent' || Boolean(themeObj.transparentWindow));
-  const safeBg = isTransparentPassthrough
-    ? 'transparent'
-    : (themeObj.bg && themeObj.bg !== '#000000' ? themeObj.bg : '#050b16');
+  const fallbackThemeColor =
+    themeObj.bg && themeObj.bg !== '#000000' && themeObj.bg !== 'transparent'
+      ? themeObj.bg
+      : themeObj.sidebar && themeObj.sidebar !== '#000000' && themeObj.sidebar !== 'transparent'
+        ? themeObj.sidebar
+        : '#050b16';
+  const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
+  root.style.setProperty('--bg', safeBg);
   root.style.backgroundColor = safeBg;
   const bootBgImg = themeObj.bgImage ? `url("${themeObj.bgImage}")` : 'none';
   root.style.setProperty('--boot-bg-image', bootBgImg);
   root.style.backgroundImage = bootBgImg;
-  if (document.body) {
-    document.body.style.backgroundColor = 'transparent';
-  }
 
   const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
     .split(',')
     .map((s) => parseInt(s.trim(), 10));
   const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
-  root.style.colorScheme = yiq >= 128 ? 'light' : 'dark';
+  const colorScheme = yiq >= 128 ? 'light' : 'dark';
+  root.style.colorScheme = colorScheme;
+  if (document.body) {
+    document.body.style.backgroundColor = safeBg;
+    document.body.style.colorScheme = colorScheme;
+  }
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute('content', fallbackThemeColor);
+  }
+  const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+  if (colorSchemeMeta) {
+    colorSchemeMeta.setAttribute('content', colorScheme);
+  }
 }
 
 const ThemeContext = createContext<any>(null);
@@ -1042,25 +1050,50 @@ export const ThemeProvider = ({ children }: any) => {
     root.setAttribute('data-text-case', resolvedTextCase);
     (window as any).__sanctuaryRenderWebGLGlass?.(true);
 
+    const canUsePassthrough =
+      isDesktop() ||
+      (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
     const isTransparentPassthrough =
+      canUsePassthrough &&
       !currentTheme.bgImage &&
       (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
-    const safeBg = isTransparentPassthrough
-      ? 'transparent'
-      : (currentTheme.bg && currentTheme.bg !== '#000000' ? currentTheme.bg : '#050b16');
+    const fallbackThemeColor =
+      currentTheme.bg && currentTheme.bg !== '#000000' && currentTheme.bg !== 'transparent'
+        ? currentTheme.bg
+        : currentTheme.sidebar && currentTheme.sidebar !== '#000000' && currentTheme.sidebar !== 'transparent'
+          ? currentTheme.sidebar
+          : '#050b16';
+    const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
+    root.style.setProperty('--bg', safeBg);
     root.style.backgroundColor = safeBg;
     const bootBgImg = currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : 'none';
     root.style.setProperty('--boot-bg-image', bootBgImg);
     root.style.backgroundImage = bootBgImg;
+
+    const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20')
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10));
+    const yiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
+    const colorScheme = yiq >= 128 ? 'light' : 'dark';
+    root.style.colorScheme = colorScheme;
     if (document.body) {
-      document.body.style.backgroundColor = 'transparent';
+      document.body.style.backgroundColor = safeBg;
+      document.body.style.colorScheme = colorScheme;
+    }
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', fallbackThemeColor);
+    }
+    const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
+    if (colorSchemeMeta) {
+      colorSchemeMeta.setAttribute('content', colorScheme);
     }
     const rootMount = document.getElementById('root');
     if (rootMount) {
       rootMount.style.backgroundColor = 'transparent';
     }
 
-    const rawBg = currentTheme.bg && currentTheme.bg !== 'transparent' ? currentTheme.bg : '#0a0d14';
+    const rawBg = fallbackThemeColor;
     const blurPx = parseFloat(String(currentTheme.glassBlur || '28px')) || 28;
     const saturation = opticalVars['--glassSaturation'] || '185%';
 
@@ -1110,23 +1143,8 @@ export const ThemeProvider = ({ children }: any) => {
 
     applyRefractedWallpaper();
 
-    const [bgR, bgG, bgB] = (opticalVars['--bg-rgb'] || '10, 13, 20').split(',').map((s) => parseInt(s.trim(), 10));
-    const yiq = ((bgR * 299) + (bgG * 587) + (bgB * 114)) / 1000;
-    const isLight = yiq >= 128;
-    const scheme = isLight ? 'light' : 'dark';
-    root.style.colorScheme = scheme;
-
-    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeColorMeta) {
-      themeColorMeta.setAttribute('content', rawBg);
-    }
-    const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
-    if (colorSchemeMeta) {
-      colorSchemeMeta.setAttribute('content', scheme);
-    }
-
     import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow().setTheme(scheme).catch(() => { });
+      getCurrentWindow().setTheme(colorScheme).catch(() => { });
     }).catch(() => { });
 
     const handleResizeWallpaper = () => {

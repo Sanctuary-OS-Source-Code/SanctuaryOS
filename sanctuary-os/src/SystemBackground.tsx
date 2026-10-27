@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTheme } from './ThemeContext';
+import { isDesktop } from './utils/envUtils';
 
 export const VERTEX_SHADER_BG = `#version 300 es
 precision highp float;
@@ -65,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v39';
+export const SHADER_REV = 'webgl_glass_v40';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -522,12 +523,13 @@ export function SystemBackground() {
       );
       const rawRadius = maxCorner;
       const isSidePanel = el.classList.contains('sa-side-panel-window');
+      const isMobileOverlay = el.classList.contains('sa-mobile-glass-overlay');
       const isSidebar = el.tagName === 'NAV' && el.classList.contains('firefox-safe-glass');
       const isSurface = el.classList.contains('glass-surface');
 
-      const glassKind = (isSidebar || isSidePanel) ? 1.0 : isSurface ? 2.0 : 0.0;
-      const isOverlay = isSidePanel;
-      const scrollClipEl = (isSidebar || isSidePanel) ? null : findScrollClipParent(el);
+      const glassKind = (isSidebar || isSidePanel || isMobileOverlay) ? 1.0 : isSurface ? 2.0 : 0.0;
+      const isOverlay = isSidePanel || isMobileOverlay;
+      const scrollClipEl = (isSidebar || isSidePanel || isMobileOverlay) ? null : findScrollClipParent(el);
 
       meta = {
         radiusPx: rawRadius,
@@ -547,19 +549,22 @@ export function SystemBackground() {
       const staleCanvases = document.querySelectorAll<HTMLCanvasElement>('canvas.sa-webgl-overlay-canvas');
       for (let i = 0; i < staleCanvases.length; i++) {
         const c = staleCanvases[i];
-        if (!c.parentElement?.classList.contains('sa-side-panel-window')) {
+        if (
+          !c.parentElement?.classList.contains('sa-side-panel-window') &&
+          !c.parentElement?.classList.contains('sa-mobile-glass-overlay')
+        ) {
           c.remove();
         }
       }
 
       const nodes = document.querySelectorAll<HTMLElement>(
-        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window'
+        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window, .sa-mobile-glass-overlay'
       );
 
       const layer0: HTMLElement[] = []; // Main top-level cards & sidebar
       const orphanLayer1: HTMLElement[] = []; // Standalone surfaces on main page
       const cardChildren = new Map<HTMLElement, HTMLElement[]>(); // Surfaces/nested panels grouped by parent card
-      const layer2: HTMLElement[] = []; // Full-height SidePanel drawers
+      const layer2: HTMLElement[] = []; // Full-height SidePanel drawers & Mobile Liquid Glass Overlays
       const overlayChildren = new Map<HTMLElement, HTMLElement[]>(); // Surfaces/cards grouped by parent SidePanel
 
       for (let i = 0; i < nodes.length; i++) {
@@ -574,16 +579,18 @@ export function SystemBackground() {
           continue;
         }
 
-        const isSelfOverlay = el.classList.contains('sa-side-panel-window');
+        const isSelfOverlay =
+          el.classList.contains('sa-side-panel-window') ||
+          el.classList.contains('sa-mobile-glass-overlay');
         if (isSelfOverlay) {
           layer2.push(el);
           if (!overlayChildren.has(el)) overlayChildren.set(el, []);
           continue;
         }
 
-        const hostOverlay = el.closest('.sa-side-panel-window') as HTMLElement | null;
+        const hostOverlay = el.closest('.sa-side-panel-window, .sa-mobile-glass-overlay') as HTMLElement | null;
         if (hostOverlay) {
-          // Inside a SidePanel, the drawer container itself is the continuous 3D Liquid Glass slab;
+          // Inside a SidePanel or Mobile Liquid Glass Overlay, the drawer container itself is the continuous 3D Liquid Glass slab;
           // internal components sit cleanly on top of that slab via CSS translucent glass fills instead of punching separate wallpaper lenses.
           continue;
         }
@@ -631,11 +638,14 @@ export function SystemBackground() {
       }
 
       const isSidePanel = host.classList.contains('sa-side-panel-window');
-      // Inside SidePanel, header is z-30 and body is z-10, so z-index: 0 sits cleanly behind SidePanel content and 100% above main page.
+      const isMobileOverlay = host.classList.contains('sa-mobile-glass-overlay');
+      // Inside SidePanel / MobileOverlay, content sits at z-10+, so z-index: 0 sits cleanly behind content and 100% above main page.
       // For right-anchored SidePanels (border-left:1px, border-right:0px), align 1:1 with the host's border-box and keep right corners 0px flush.
       ov.style.cssText = isSidePanel
         ? 'position:absolute;top:-1px;bottom:-1px;left:-1px;right:0px;width:calc(100% + 1px);height:calc(100% + 2px);pointer-events:none;z-index:0;border-top-left-radius:inherit;border-bottom-left-radius:inherit;border-top-right-radius:0px;border-bottom-right-radius:0px;'
-        : 'position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);pointer-events:none;z-index:-1;border-radius:inherit;';
+        : isMobileOverlay
+          ? 'position:absolute;inset:0px;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:inherit;'
+          : 'position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);pointer-events:none;z-index:-1;border-radius:inherit;';
       overlayCanvasMap.set(host, ov);
       return ov;
     };
@@ -672,8 +682,13 @@ export function SystemBackground() {
 
       // Collect visible glass rects using parent-first viewport culling
       const t = (window as any).__sanctuaryPreviewTheme || themeRef.current || {};
+      const canPassthrough =
+        isDesktop() ||
+        (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
       const isTransparentPassthrough =
-        !t.bgImage && (t.bg === 'transparent' || Boolean(t.transparentWindow));
+        canPassthrough &&
+        !t.bgImage &&
+        (t.bg === 'transparent' || Boolean(t.transparentWindow));
 
       const drawWallpaperPass = () => {
         gl!.viewport(0, 0, targetW, targetH);
@@ -1122,6 +1137,8 @@ export function SystemBackground() {
         if (
           !tgt?.classList ||
           (!tgt.classList.contains('sa-side-panel-window') &&
+            !tgt.classList.contains('sa-mobile-glass-overlay') &&
+            !tgt.classList.contains('sa-mobile-drawer-wrapper') &&
             !tgt.classList.contains('portal-glass-fix') &&
             tgt.tagName !== 'NAV')
         ) {
@@ -1137,6 +1154,8 @@ export function SystemBackground() {
       if (
         tgt?.classList &&
         (tgt.classList.contains('sa-side-panel-window') ||
+          tgt.classList.contains('sa-mobile-glass-overlay') ||
+          tgt.classList.contains('sa-mobile-drawer-wrapper') ||
           tgt.classList.contains('portal-glass-fix') ||
           tgt.classList.contains('sa-dropdown-popover') ||
           tgt.classList.contains('sa-side-panel-backdrop'))
@@ -1165,6 +1184,8 @@ export function SystemBackground() {
               if (
                 n.classList?.contains('sa-side-panel-window') ||
                 n.classList?.contains('sa-side-panel-wrapper') ||
+                n.classList?.contains('sa-mobile-glass-overlay') ||
+                n.classList?.contains('sa-mobile-drawer-wrapper') ||
                 n.classList?.contains('portal-glass-fix') ||
                 n.classList?.contains('sa-dropdown-popover') ||
                 n.classList?.contains('grid')
@@ -1190,12 +1211,14 @@ export function SystemBackground() {
           if (
             tgt.classList?.contains('sa-side-panel-window') ||
             tgt.classList?.contains('sa-side-panel-wrapper') ||
+            tgt.classList?.contains('sa-mobile-glass-overlay') ||
+            tgt.classList?.contains('sa-mobile-drawer-wrapper') ||
             tgt.classList?.contains('portal-glass-fix') ||
             tgt.classList?.contains('sa-dropdown-popover') ||
             tgt.classList?.contains('glass-panel') ||
             tgt.classList?.contains('glass-surface') ||
             tgt.tagName === 'NAV' ||
-            tgt.closest?.('.portal-glass-fix')
+            tgt.closest?.('.portal-glass-fix, .sa-mobile-glass-overlay')
           ) {
             hasRelevantMutation = true;
             needsAnimLoop = true;
@@ -1283,13 +1306,17 @@ export function SystemBackground() {
     currentTheme.transparentWindow,
   ]);
 
+  const canPassthrough =
+    isDesktop() ||
+    (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
   const isTransparentPassthrough =
+    canPassthrough &&
     !currentTheme.bgImage &&
     (currentTheme.bg === 'transparent' || Boolean(currentTheme.transparentWindow));
 
   return (
     <div
-      className="fixed inset-0 w-full h-full pointer-events-none z-[0] overflow-hidden"
+      className="fixed pointer-events-none z-[0] overflow-hidden"
       style={{
         top: 'calc(-1 * env(safe-area-inset-top, 0px))',
         bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
@@ -1299,7 +1326,7 @@ export function SystemBackground() {
         backgroundColor: isTransparentPassthrough
           ? 'transparent'
           : currentTheme.bgImage
-            ? 'transparent'
+            ? 'var(--bg, #050b16)'
             : 'var(--bg, #050b16)',
         backgroundImage: currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : undefined,
         backgroundSize: 'cover',

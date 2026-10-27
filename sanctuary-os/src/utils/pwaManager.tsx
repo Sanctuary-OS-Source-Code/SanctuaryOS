@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { isDesktop } from "./envUtils";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -195,40 +195,42 @@ export function PwaInstallPrompt() {
     <>
       {showFloatingBanner && (
         <div className="md:hidden fixed bottom-[calc(86px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[999990] animate-in fade-in slide-in-from-bottom-4 duration-500 pointer-events-auto">
-          <div className="p-3.5 rounded-2xl glass-panel portal-glass-fix border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
-                <img src="/pwa-192x192.png" alt="" className="w-7 h-7 object-contain drop-shadow-md" />
+          <div className="p-3.5 rounded-2xl glass-panel sa-mobile-glass-overlay border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] relative overflow-hidden">
+            <div className="relative z-10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
+                  <img src="/pwa-192x192.png" alt="" className="w-7 h-7 object-contain drop-shadow-md" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
+                    {t("pwa_banner_title", "Get the Sanctuary OS App")}
+                  </span>
+                  <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
+                    {t("pwa_banner_subtitle", "Add to your home screen for full-screen access")}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
-                  {t("pwa_banner_title", "Get the Sanctuary OS App")}
-                </span>
-                <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
-                  {t("pwa_banner_subtitle", "Add to your home screen for full-screen access")}
-                </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={triggerInstall}
+                  className="px-3.5 py-2 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_14%,transparent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                    {t("icon_add_to_home_screen", "add_to_home_screen")}
+                  </span>
+                  {t("pwa_btn_add_short", "Add App")}
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissBanner}
+                  className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_close", "close")}
+                  </span>
+                </button>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={triggerInstall}
-                className="px-3.5 py-2 rounded-xl glass-surface bg-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_14%,transparent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
-                  {t("icon_add_to_home_screen", "add_to_home_screen")}
-                </span>
-                {t("pwa_btn_add_short", "Add App")}
-              </button>
-              <button
-                type="button"
-                onClick={dismissBanner}
-                className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_close", "close")}
-                </span>
-              </button>
             </div>
           </div>
         </div>

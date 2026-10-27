@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup, standardButtonClass, standardAccentGlassButtonClass, getExtensionRegex, ActionButton, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, getExtensionRegex, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -22,7 +22,7 @@ export default function WayfinderSupportSidePanel({
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<any[]>([]);
   const [telemetrySources, setTelemetrySources] = useState<any[]>([]);
-  const [loadingCats, setLoadingCats] = useState(true);
+  const [, setLoadingCats] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [policyViolations, setPolicyViolations] = useState<string[]>([]);
@@ -210,7 +210,6 @@ export default function WayfinderSupportSidePanel({
                 const docDirMatch = modsPath.match(/(.*)[\\/]+mods[\\/]*$/i);
                 const docDir = docDirMatch ? docDirMatch[1] : modsPath;
                 let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
-                const isPatternIncludedInPath = source.file_pattern.includes('/');
                 let fullPath = searchPath;
                 if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
                 fullPath += source.file_pattern;

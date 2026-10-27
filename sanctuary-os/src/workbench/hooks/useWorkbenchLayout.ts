@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useStore } from '../../store';
 
 interface UseWorkbenchLayoutProps {
    editorRef: any;

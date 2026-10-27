@@ -3,22 +3,17 @@ import { useLexicon } from "./LexiconContext";
 import {
   ViewHeader,
   ModSearchDropdown,
-  CustomDropdown,
   ActionButton,
-  FilterTabs,
   SidePanel,
   getExtensionRegex,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
-  GlassSegmentedControl,
   StatBox,
   HoverTooltip,
 } from "./shared";
 import {
-  CommandScreenLayout,
   DashboardStatTile,
-  CommandScreenStats,
   CommandScreenQuickLink,
   CommandScreenSectionHeading,
   CommandScreenBody,
@@ -38,7 +33,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import {
   LabVerificationGate,
-  LabVerificationBadge,
   LabVerificationStatus,
   LabTestSaveStatus,
   recordVerifiedCertificate,
@@ -186,7 +180,7 @@ export default function Lab({
   const [missingDeps, setMissingDeps] = useState<any[]>([]);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("DASHBOARD");
-  const [lastTestResult, setLastTestResult] = useState<any>(null);
+  const [, setLastTestResult] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [secureCardState, setSecureCardState] = useState<"idle" | "working" | "done">("idle");
   const [submitCardState, setSubmitCardState] = useState<"idle" | "working" | "done" | "error">("idle");

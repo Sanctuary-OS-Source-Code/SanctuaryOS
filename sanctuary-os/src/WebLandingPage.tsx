@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { getSubdomain, scrollToLandingSection } from './utils/routingUtils';
+import { scrollToLandingSection } from './utils/routingUtils';
 import WebNewsFeed from './WebNewsFeed';
 import WebDocumentFeed from './WebDocumentFeed';
 import WebLegalViewer from './WebLegalViewer';
-import { DashboardStatTile, standardButtonClass, standardAccentGlassButtonClass, handleOpenUrl } from './shared';
-import { SystemBackground } from './SystemBackground';
+import { handleOpenUrl, ViewHeader } from './shared';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
@@ -15,6 +14,7 @@ import { UniversalCard } from './components/universal/UniversalCard';
 import { usePwaInstall } from './utils/pwaManager';
 import { getKeepersPipelineConfig, getSupporterState, buildPartnerCheckoutUrl, DEFAULT_KEEPERS_PIPELINE_CONFIG, KeepersPipelineConfig } from './utils/supporterManager';
 import { ReleaseNotesShowcase } from './components/ReleaseNotesShowcase';
+import { CommandScreenSectionHeading } from './hub-components/SharedCommandScreenLayout';
 
 export default function WebLandingPage() {
   const { t } = useLexicon();
@@ -89,38 +89,29 @@ export default function WebLandingPage() {
     <div className="w-full flex flex-col items-center justify-start relative pt-0 px-0 pb-0">
       <WebLegalViewer />
 
-      <main className="w-full flex flex-col gap-8 md:gap-12 relative z-10 px-0 lg:px-4 pb-12">
+      <main className="w-full flex flex-col gap-0 relative z-10 px-0 pb-12">
         <div className="absolute top-6 right-6 z-[100] hidden md:flex items-center gap-4">
         </div>
 
-        <header className="w-full flex flex-col gap-5 md:gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700 mt-1 md:mt-0">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none text-[var(--text)] drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] break-words">
-              {t("landing_welcome", "Welcome to Sanctuary OS")}
-            </h1>
-            <p className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-wider sm:tracking-widest opacity-80 max-w-3xl leading-relaxed text-[var(--subtext)] drop-shadow-md mt-1.5 md:mt-2">
-              {t("landing_subtitle", "Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter.")}
-            </p>
-          </div>
-        </header>
+        <ViewHeader
+          title={t("landing_welcome", "Welcome to Sanctuary OS")}
+          subtitle={t("landing_subtitle", "Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter.")}
+          icon={t("icon_shield", "shield")}
+        />
 
         <div className="flex flex-col gap-8 md:gap-12 w-full animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-150 fill-mode-both">
 
           <section id="workspaces" className="flex flex-col gap-6 scroll-mt-24">
-            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-                  <span className="material-symbols-outlined text-[var(--accent)]">public</span>
-                </div>
-                {t("landing_workspaces", "Active Workspaces")}
-              </h2>
-            </div>
+            <CommandScreenSectionHeading
+              title={t("landing_workspaces", "Active Workspaces")}
+              icon={t("icon_public", "public")}
+            />
 
             <div className="w-full">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loading ? (
                   <div className="col-span-full py-12 flex justify-center">
-                    <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">autorenew</span>
+                    <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">{t("icon_autorenew", "autorenew")}</span>
                   </div>
                 ) : games.length === 0 ? (
                   <div className="col-span-full py-12 flex items-center justify-center opacity-50 font-bold uppercase tracking-widest glass-panel rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
@@ -255,44 +246,30 @@ export default function WebLandingPage() {
 
           <section id="news" className="flex flex-col gap-6 scroll-mt-24 mt-8">
             <div id="sanctuary_foundry_news" className="hidden" />
-            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
-                  <span className="material-symbols-outlined text-[var(--accent)]">campaign</span>
-                </div>
-                {t("landing_news", "Sanctuary Foundry News") || "Sanctuary Foundry News"}
-              </h2>
-            </div>
+            <CommandScreenSectionHeading
+              title={t("landing_news", "Sanctuary Foundry News")}
+              icon={t("icon_campaign", "campaign")}
+            />
             <div className="w-full">
               <WebNewsFeed />
             </div>
           </section>
 
           <section id="release_notes" className="flex flex-col gap-6 scroll-mt-24 mt-8">
-            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
-                  <span className="material-symbols-outlined text-[var(--accent)]">
-                    {t("icon_new_releases", "new_releases")}
-                  </span>
-                </div>
-                {t("release_notes_section_title", "Current Build Release Notes")}
-              </h2>
-            </div>
+            <CommandScreenSectionHeading
+              title={t("release_notes_section_title", "Current Build Release Notes")}
+              icon={t("icon_new_releases", "new_releases")}
+            />
             <ReleaseNotesShowcase versionLabel={stableVersion} />
           </section>
 
         </div>
 
         <section id="system_directives" className="w-full flex flex-col gap-6 mt-16 mb-8 scroll-mt-24">
-          <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-              <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
-                <span className="material-symbols-outlined text-[var(--accent)]">folder_special</span>
-              </div>
-              {t("landing_system_directives", "Public Documents")}
-            </h2>
-          </div>
+          <CommandScreenSectionHeading
+            title={t("landing_system_directives", "Public Documents")}
+            icon={t("icon_folder_special", "folder_special")}
+          />
           <div className="w-full">
             <WebDocumentFeed />
           </div>
@@ -301,24 +278,19 @@ export default function WebLandingPage() {
         {!isDesktop() && (
           <section id="download" className="w-full flex flex-col gap-6 mt-12 mb-12 scroll-mt-24 z-10 relative">
 
-            <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-                <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in srgb, var(--accent) 20%, transparent)]">
-                  <span className="material-symbols-outlined text-[var(--accent)] md:!hidden">
-                    {t("icon_install_mobile", "install_mobile")}
+            <CommandScreenSectionHeading
+              title={
+                <>
+                  <span className="md:hidden">
+                    {t("landing_install_pwa", "Install the PWA")}
                   </span>
-                  <span className="material-symbols-outlined text-[var(--accent)] !hidden md:!inline-block">
-                    {t("icon_system_update_alt", "system_update_alt")}
+                  <span className="hidden md:inline">
+                    {t("landing_download", "Download the Desktop Client")}
                   </span>
-                </div>
-                <span className="md:hidden">
-                  {t("landing_install_pwa", "Install the PWA")}
-                </span>
-                <span className="hidden md:inline">
-                  {t("landing_download", "Download the Desktop Client") || "DOWNLOAD DESKTOP CLIENT"}
-                </span>
-              </h2>
-            </div>
+                </>
+              }
+              icon={t("icon_system_update_alt", "system_update_alt")}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
 
@@ -429,16 +401,10 @@ export default function WebLandingPage() {
         )}
 
         <section id="support" className="w-full flex flex-col gap-6 mt-8 mb-8 scroll-mt-24 z-10 relative">
-          <div className="flex items-center justify-between w-full gap-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <h2 className="text-xl md:text-2xl font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-4 drop-shadow-md">
-              <div className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center shrink-0 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
-                <span className="material-symbols-outlined text-[var(--accent)]">
-                  {t("icon_volunteer_activism", "volunteer_activism")}
-                </span>
-              </div>
-              {t("landing_support_section_title", "Support Sanctuary OS & Partner Communities")}
-            </h2>
-          </div>
+          <CommandScreenSectionHeading
+            title={t("landing_support_section_title", "Support Sanctuary OS & Partner Communities")}
+            icon={t("icon_volunteer_activism", "volunteer_activism")}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
             <UniversalCard

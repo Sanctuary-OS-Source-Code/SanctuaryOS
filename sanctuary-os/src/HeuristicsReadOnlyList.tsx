@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { EmptyState, SidePanel, StatBox, HoverTooltip } from './shared';

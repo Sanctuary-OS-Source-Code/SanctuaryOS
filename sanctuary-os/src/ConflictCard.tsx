@@ -1,8 +1,7 @@
 import React from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { formatDisplayName, getFileLabel, isSupportedExtension } from "./shared";
-import { UniversalCard } from "./components/universal/UniversalCard";
+import { formatDisplayName } from "./shared";
 
 interface ConflictCardProps {
   conflict: any;

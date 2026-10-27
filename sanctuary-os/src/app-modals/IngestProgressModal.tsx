@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLexicon } from "../LexiconContext";
 
 export function IngestProgressModal({ ingestProgress }: any) {

@@ -5,7 +5,6 @@ import {
   PanelHeaderButton,
 } from "./shared";
 import { useState, useEffect, useRef } from "react";
-import { readFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
@@ -24,7 +23,6 @@ import {
 import { ChameleonControlDashboard } from "./chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "./chameleon-components/ChameleonSandboxPreview";
 import {
-  autoHarmonizeThemeColors,
   analyzeAndHarmonizeTheme,
   exportThemeWithAssets,
   importThemeWithAssets,

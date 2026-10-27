@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 import Image from "@tiptap/extension-image";
@@ -40,8 +40,6 @@ import {
 import { logArchitectAction } from "../lib/audit";
 import {
   extractDispatchMetadata,
-  DispatchMetadataHeader,
-  DispatchPollBuilder,
   DispatchPollData,
 } from "../components/universal/DispatchPollAndMeta";
 import {
@@ -131,10 +129,8 @@ export default function KeepersWebDirectivesEditor({
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [inlineImageUrl, setInlineImageUrl] = useState("");
-
+  const [, setShowImageInput] = useState(false);
+  const [, setShowIconPicker] = useState(false);
   const [, setWayfinderName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [activeAsset, setActiveAsset] = useState<{

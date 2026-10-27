@@ -92,10 +92,6 @@ export const getHighestVersion = (reqs: string[] | string) => {
   return sorted[0];
 };
 
-export const isValidVersion = (version: string) => {
-  return /^\d+\.\d+\.\d+$/.test(version);
-};
-
 export const getLowestVersion = (versions: string[]): string => {
   if (!versions || versions.length === 0) return "";
   const expanded = versions.flatMap((v) =>

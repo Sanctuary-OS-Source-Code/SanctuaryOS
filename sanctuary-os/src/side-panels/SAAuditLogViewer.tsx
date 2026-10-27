@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
+import { supabaseAuth, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { SharedIdentityEditor } from "../IdentityMatrix";

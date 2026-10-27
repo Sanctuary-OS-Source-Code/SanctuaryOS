@@ -11,8 +11,7 @@ import {
   SidePanel,
   SidePanelHeroCard,
   ActionButton,
-  compareVersions,
-  cleanSearchName,
+  compareVersions
 } from "./shared";
 import { useState, useEffect } from "react";
 import { supabase, getActiveGameClient } from "./supabase";
@@ -73,7 +72,6 @@ export default function MasonProfile({
 }) {
   const { t, importLexicon, registry } = useLexicon();
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
-  const selectedVersion = useStore((state) => state.selectedVersion);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
 
   const [installedTemplates, setInstalledTemplates] = useState<Record<string, string>>({});
@@ -171,7 +169,7 @@ export default function MasonProfile({
 
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modPage, setModPage] = useState(1);
+  const [, setModPage] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
 
   const [selectedPost, setSelectedPost] = useState<any>(null);

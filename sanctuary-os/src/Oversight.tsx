@@ -1,46 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { createPortal } from 'react-dom';
-import { supabase } from './supabase';
+import { useState } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { useModalStore } from './store/modalStore';
-import { ViewHeader, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, SidePanel, CustomComplianceDropdown, loadDLCMap, HoverTabDrawer, VerticalTabButton, VerticalTabDropdown, DashboardStatTile, standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass, standardDangerButtonClass, standardAccentGlassButtonClass, CustomDatePicker, extractPostImage, stripMarkdown, EmptyState, ActionButton, SidebarFooterButton } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
-import SASupportSettings from './hub-components/SASupportSettings';
 import MasonPostViewer from './side-panels/MasonPostViewer';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import ComplianceManualFlagSidePanel from './side-panels/ComplianceManualFlagSidePanel';
-import { IdentityMatrix, SharedIdentityEditor, CustomRoleSelect, ROLES } from './IdentityMatrix';
+import { IdentityMatrix } from './IdentityMatrix';
 import { SharedMetadataEditorSidePanel } from './side-panels/SharedMetadataEditorSidePanel';
-import SAOversightReports from './hub-components/SAOversightReports';
 import SAComplianceOversight from './hub-components/SAComplianceOversight';
 import SAMalwareOversight from './hub-components/SAMalwareOversight';
 import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
-import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import { OversightCommandScreen } from './hub-components/CommandScreens';
-
-function TabButton({ id, label, activeTab, setTab }: any) {
-    const isActive = activeTab === id;
-    return (
-        <button
-            onClick={() => setTab(id)}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black capitalize tracking-widest transition-all flex items-center gap-2
-        ${isActive
-                    ? 'theme-bg-accent text-[var(--bg)] shadow-lg'
-                    : 'text-[var(--subtext)] opacity-60 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'
-                }`}
-        >
-            {label}
-        </button>
-    );
-}
-
-const fetchAllPaginated = async (queryFn: () => any) => { let allData: any[] = []; let from = 0; const step = 999; while (true) { const { data, error } = await queryFn().range(from, from + step); if (error || !data || data.length === 0) break; allData = [...allData, ...data]; if (data.length <= step) break; from += step + 1; } return { data: allData, error: null }; };
-
-import { DefconPanel, DefconSidePanel } from "./hub-components/SADefcon";
-import { MasonLinker, ProfileSearchDropdown } from "./hub-components/SAMasonLinker";
-import { WayfinderComms } from "./hub-components/SAWayfinderComms";
+import { DefconSidePanel } from "./hub-components/SADefcon";
 import { MassUpdateOversight } from "./hub-components/SAMassUpdateOversight";
 import { GameManagementOversight } from "./hub-components/SAGameManagementOversight";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
@@ -52,7 +24,7 @@ export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfi
     const [complianceFilter, setComplianceFilter] = useState("ALL");
     const [viewingPost, setViewingPost] = useState<any | null>(null);
     const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
-    const [verifyPanelInitialHash, setVerifyPanelInitialHash] = useState<string>("");
+    const [verifyPanelInitialHash] = useState<string>("");
     const [showManualFlagModal, setShowManualFlagModal] = useState(false);
     const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");
     const [initialHeuristicEdit, setInitialHeuristicEdit] = useState<any>(null);

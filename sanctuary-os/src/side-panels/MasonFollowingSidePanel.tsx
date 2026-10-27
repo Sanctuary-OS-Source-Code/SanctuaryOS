@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { SidePanel, SidePanelHeroCard, UniversalGroup, EmptyState } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";

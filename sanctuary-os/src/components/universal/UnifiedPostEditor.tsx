@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
 import { useLexicon } from "../../LexiconContext";
 import {

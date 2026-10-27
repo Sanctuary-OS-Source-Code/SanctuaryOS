@@ -1,15 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { supabase, getActiveGameClient } from "../supabase";
+import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
-  DashboardStatTile, ViewHeader, SidePanel, CustomDropdown, GameVersionMultiSelect,
-  CustomComplianceDropdown, CustomDatePicker,
-  HubTabButton, ModSearchDropdown, EmptyState,
-  standardButtonClass, standardPrimaryButtonClass, standardSuccessButtonClass,
-  standardDangerButtonClass, standardAccentGlassButtonClass, ActionButton,
-  extractPostImage, stripMarkdown, isVersionMatch, deriveHumanReadableVersion, getHighestVersion,
-  fetchAllPaginated, CustomTierDropdown, loadDLCMap, PanelHeaderGroup, PanelHeaderButton
+  SidePanel, CustomDropdown, EmptyState, loadDLCMap, PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
@@ -17,15 +11,7 @@ import { UniversalCard } from "../components/universal/UniversalCard";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
-import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
-import { MasonStatusDropdown } from "../MasonHub";
 import { logArchitectAction } from "../lib/audit";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
-import MasonPostViewer from "../side-panels/MasonPostViewer";
-import MarkdownRenderer from "../MarkdownRenderer";
-
 
 export function GameManagementOversight() {
   const { t } = useLexicon();
@@ -82,8 +68,6 @@ export function GameManagementOversight() {
 
   const handlePanelCommit = async (isDelete: boolean = false) => {
     setIsPanelSubmitting(true);
-    const userRes = await supabase.auth.getUser();
-
     const resolvedType = panelInput3 === "CUSTOM" ? panelInput4 : panelInput3;
 
     if (isDelete) {

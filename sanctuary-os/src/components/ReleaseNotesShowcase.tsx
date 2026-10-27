@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabaseAuth } from "../supabase";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 import Image from "@tiptap/extension-image";
@@ -16,14 +16,12 @@ import {
   HoverTooltip,
   LinkAssetSidePanel,
   handleOpenUrl,
-  stripMarkdown,
-  ActionButton,
+  stripMarkdown
 } from "../shared";
-import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
+import { SidePanelHeroCard } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
 import { UniversalGroup } from "./universal/UniversalLayout";
 import {
-  DispatchPollBuilder,
   DispatchPollData,
   DispatchPollViewer,
 } from "./universal/DispatchPollAndMeta";
@@ -32,8 +30,6 @@ import {
   UnifiedPostBodyEditor,
   PostAttachmentsManager,
 } from "./universal/UnifiedPostEditor";
-import MarkdownRenderer from "../MarkdownRenderer";
-import IconPicker from "../IconPicker";
 import {
   getKeepersPipelineConfig,
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
@@ -1391,11 +1387,7 @@ export function ReleaseNotesShowcase({
   const [draftCodeSnippet, setDraftCodeSnippet] = useState("");
   const [draftPollData, setDraftPollData] = useState<DispatchPollData | null>(null);
   const [draftBody, setDraftBody] = useState("");
-
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [inlineImageUrl, setInlineImageUrl] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1802,9 +1794,6 @@ export function ReleaseNotesShowcase({
   const activeVersion = isDevActive ? devVersion : stableVersion;
   const activeDateStr = isDevActive ? devDateDisplay : stableDateDisplay;
   const activePlatformStr = isDevActive ? devPlatformDisplay : stablePlatformDisplay;
-  const activeChannelShort = isDevActive
-    ? t("release_notes_meta_channel_dev", "Dev")
-    : t("release_notes_meta_channel_public", "Public");
   const activeChannelBadge = isDevActive
     ? t("release_notes_dev_channel_badge", "Daily Dev Build")
     : t("release_notes_stable_channel_badge", "Stable Release");

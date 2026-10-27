@@ -41,9 +41,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [activeAsset, setActiveAsset] = useState<{ type: string, id: string } | null>(null);
   const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
-  const [, setProtocolTargetMod] = useState<any | null>(null);
-  const [, setIsMobileMenuOpen] = useState(false);
-
+  const [] = useState<any | null>(null);
   useEffect(() => {
     if (sandboxMod) setMasonActiveTab("sandbox");
   }, [sandboxMod]);

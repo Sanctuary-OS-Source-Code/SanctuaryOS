@@ -2,27 +2,23 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase, supabaseAuth } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
 import { IconPlugin } from '../IconPlugin';
 import {
-  SidePanel, standardButtonClass, standardAccentGlassButtonClass, CustomDropdown, HoverTooltip, EmptyState,
-  extractPostImage, stripMarkdown, HubTabs, ActionButton, ViewToggle, RadioCardGroup, RadioCard,
+  SidePanel, CustomDropdown, EmptyState,
+  extractPostImage,
   PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel,
-  SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle, UniversalGroup, StatBox
+  SidePanelHeroCard, UniversalGroup
 } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import MasonPostCard from "../MasonPostCard";
-import MarkdownRenderer from "../MarkdownRenderer";
-import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
-import { extractDispatchMetadata, DispatchMetadataHeader, DispatchPollBuilder, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
+import { extractDispatchMetadata, DispatchPollData } from "../components/universal/DispatchPollAndMeta";
 import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "../components/universal/UnifiedPostEditor";
 
 export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, isOpen, onClose }: { authorId: string, authorProfileId: string, isSidePanel?: boolean, isOpen?: boolean, onClose?: () => void }) {
@@ -33,7 +29,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState<string[]>(["All"]);
-  const targetAudienceOptions = ["All", "Citizens", "Masons", "Architects", "Oversight", "Wayfinders", "Keepers"];
   const [communityOptions, setCommunityOptions] = useState<string[]>([]);
   const [category, setCategory] = useState("Update");
   const [actionRequired, setActionRequired] = useState("No Action Required");
@@ -46,11 +41,9 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [codeSnippet, setCodeSnippet] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [inlineImageUrl, setInlineImageUrl] = useState("");
-
-  const [masonName, setWayfinderName] = useState<string>("");
+  const [, setShowImageInput] = useState(false);
+  const [, setShowIconPicker] = useState(false);
+  const [, setWayfinderName] = useState<string>("");
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -62,7 +55,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   const [isActive, setIsActive] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const [filterAudience, setFilterAudience] = useState("All");
+  const [filterAudience] = useState("All");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterStatus, setFilterStatus] = useState("overview");
 
@@ -183,13 +176,6 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
   };
 
   useEffect(() => { fetchPostsAndAssets(); }, []);
-
-  const handleInsertText = (prefix: string, suffix: string = "") => {
-    if (editor) {
-      editor.chain().focus().insertContent(prefix + suffix).run();
-    }
-  };
-
   const handleLinkAsset = (asset: any) => {
     const linkStr = `asset://${asset.type}/${asset.id}`;
 

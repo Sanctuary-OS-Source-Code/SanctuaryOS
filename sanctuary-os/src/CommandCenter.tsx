@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, isVersionMatch, SidePanel, getHighestVersion, handleOpenUrl, getExtensionRegex, HoverTooltip, ActionButton, stripMarkdown } from "./shared";
-import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
 import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
 
 import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
-import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-import { UpdatesSidePanel, groupUpdateMods } from './side-panels/CommandCenterSidePanels';
+import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
 import { evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
 import { CommunitySupportSidePanel } from "./side-panels/CommunitySupportSidePanel";
-import { VaultFilters } from "./hub-components/vault/VaultFilters";
 import { extractDispatchMetadata, formatDispatchCategory } from "./components/universal/DispatchPollAndMeta";
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
@@ -34,13 +30,10 @@ export default function CommandCenter({
   const activePlaySetIndex = React.useMemo(() => playSets ? playSets.findIndex((ps: any) => ps.name === activeSetName) : -1, [playSets, activeSetName]);
   const activePlaySet = activePlaySetIndex !== -1 ? playSets[activePlaySetIndex] : null;
   const session = useStore((state) => state.session);
-  const userRole = useStore((state) => state.userRole);
-  const setPlaySets = useStore((state) => state.setPlaySets);
   const ignoredGlobal = useStore((state) => state.ignoredGlobal);
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const status = useStore((state) => state.status);
-  const { showUpdatesModal, setShowUpdatesModal, showIncompatiblePanel, setShowIncompatiblePanel, showConflictsPanel, setShowConflictsPanel, isConflictRadarOpen, setIsConflictRadarOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen } = useModalStore();
+  const { setShowUpdatesModal, setIsConflictRadarOpen, setIsBlueprintSwapOpen } = useModalStore();
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
@@ -51,10 +44,6 @@ export default function CommandCenter({
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
   const [dismissedBroadcastId, setDismissedBroadcastId] = useState(localStorage.getItem('sanctuary_dismissed_alert_id'));
-
-  const [dismissedCritical, setDismissedCritical] = useState<string | null>(localStorage.getItem('sanctuary_dismiss_critical'));
-  const [dismissedAlerts, setDismissedAlerts] = useState<string | null>(localStorage.getItem('sanctuary_dismiss_alerts'));
-
   const [nexusCount, setNexusCount] = useState<number | "-">("-");
   const [ticketCount, setTicketCount] = useState<number | "-">("-");
 
@@ -69,8 +58,6 @@ export default function CommandCenter({
 
   useEffect(() => {
     checkPerms();
-
-    let isMounted = true;
     if (activeWorkspaceId === 'default_workspace' || !workspaces || workspaces.length === 0) return;
 
     import('./supabase').then(async ({ supabase }) => {
@@ -144,8 +131,6 @@ export default function CommandCenter({
   }, [hasSymlinkPerms]);
 
   const cachedStoreBrokenCounts = useStore((state) => state.activeBrokenCounts);
-  const cachedStoreConflictCount = useStore((state) => state.activeConflictCount);
-
   const activeBlueprintMods = React.useMemo(() => {
     if (!activePlaySet) return [];
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
@@ -234,7 +219,6 @@ export default function CommandCenter({
       }));
     return groupUpdateMods(rawUpdates);
   }, [activeBlueprintMods, modList, networkUpdates, activePlaySet]);
-  const { applyConflictOverride } = usePlaySetLogic();
   const activeBrokenCounts = React.useMemo(() => {
     const hasLoadedMods = Array.isArray(modList) && modList.length > 0;
     if (!hasLoadedMods && cachedStoreBrokenCounts && (cachedStoreBrokenCounts.broken > 0 || cachedStoreBrokenCounts.unstable > 0)) {
@@ -379,8 +363,6 @@ export default function CommandCenter({
 
 
       {(() => {
-        const currentCritical = String(radarTier4Count + radarBrokenCount);
-        const currentAlerts = String(radarTier3Count + radarUnstableCount);
         const showCritical = (radarTier4Count + radarBrokenCount) > 0;
         const showAlerts = (radarTier3Count + radarUnstableCount) > 0;
 

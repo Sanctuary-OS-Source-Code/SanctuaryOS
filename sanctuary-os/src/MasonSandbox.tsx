@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
@@ -12,7 +12,6 @@ import {
   CustomComplianceDropdown,
   CustomDatePicker,
   EmptyState,
-  ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "./shared";
@@ -23,12 +22,10 @@ import {
   SidePanelTitleInput,
   SidePanelPillToggle,
 } from "./components/layouts/ElevatedHubLayout";
-import { UniversalCard } from "./components/universal/UniversalCard";
 import { ArtifactCard } from "./Cards";
 import { MasonStatusDropdown } from "./MasonHub";
 import {
   LabVerificationGate,
-  LabVerificationBadge,
   checkDnaHashVerification,
   recordVerifiedCertificate,
 } from "./components/LabVerificationGate";

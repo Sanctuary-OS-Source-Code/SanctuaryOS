@@ -11,7 +11,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,
-  UniversalGroup,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { useStore } from "../store";

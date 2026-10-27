@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
 import { supabase, supabaseAuth } from "../supabase";

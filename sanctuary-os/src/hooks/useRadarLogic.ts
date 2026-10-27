@@ -24,12 +24,8 @@ export function markQuarantineFileShredded(filename: string) {
 }
 
 export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Promise<void>) {
-  const { 
-    setQuarantineList, setShelterContents, 
-    ownedDLC, setOwnedDLC, maskedDLC, setMaskedDLC,
-    setModList, activeGameSchema, session, selectedVersion, setStatus, scanProgress, setScanProgress
-  } = useStore();
-  const { setScoutQueue, isScanning, setIsScanning } = useModalStore();
+  const { setQuarantineList, setShelterContents, ownedDLC, setOwnedDLC, maskedDLC, setMaskedDLC, setModList, activeGameSchema, session, selectedVersion, setStatus, setScanProgress } = useStore();
+  const { setScoutQueue } = useModalStore();
     const [malwareAlert, setMalwareAlert] = useState<any[]>([]);
   const { t } = useLexicon();
 

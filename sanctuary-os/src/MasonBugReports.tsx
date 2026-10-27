@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { EmptyState } from "./shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "./components/layouts/ElevatedHubLayout";
 import { supabase } from "./supabase";

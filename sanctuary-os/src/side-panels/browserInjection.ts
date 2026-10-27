@@ -1,5 +1,3 @@
-export const INJECTED_BROWSER_CSS = ``;
-
 export const INJECTED_BROWSER_SCRIPT = `
 (function() {
 const SANC_BRIDGE_TOKEN = "__SANCTUARY_BRIDGE_TOKEN__";

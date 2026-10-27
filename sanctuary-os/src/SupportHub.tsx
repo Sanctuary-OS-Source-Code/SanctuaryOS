@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { CustomDropdown, ModSearchDropdown, ViewHeader, HoverTabDrawer, VerticalTabButton, ActionButton, getExtensionRegex, standardButtonClass, standardAccentGlassButtonClass, LoadingScreen, SidePanel } from "./shared";
+import { CustomDropdown, ModSearchDropdown, ActionButton, getExtensionRegex, LoadingScreen, SidePanel } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import ArtifactResolutionSidePanel from "./side-panels/ArtifactResolutionSidePanel";
-import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
+import { UniversalInput, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
 import { getSupporterState, findLocalMasonSupporterPass, LocalMasonSupporter } from "./utils/supporterManager";
 import { scrubLogUserData } from "./utils/logScrubber";
 
@@ -33,7 +33,7 @@ export default function SupportHub() {
   const [targetModId, setTargetModId] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
   const [logs, setLogs] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [, setFiles] = useState<File[]>([]);
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>({});
 
   const [categories, setCategories] = useState<any[]>([]);
@@ -42,7 +42,7 @@ export default function SupportHub() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [, setCurrentStep] = useState<number>(1);
   const [policyViolations, setPolicyViolations] = useState<string[]>([]);
   const [optedOutSources, setOptedOutSources] = useState<string[]>([]);
 

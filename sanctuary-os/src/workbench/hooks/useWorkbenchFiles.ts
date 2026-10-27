@@ -18,7 +18,6 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
    const pushStatus = useStore(state => state.pushStatus);
    const selectedFile = useStore(state => state.cwSelectedFile);
    const setSelectedFile = useStore(state => state.setCwSelectedFile);
-   const setActiveTab = useStore(state => state.setCwActiveTab);
    const communityDefaultsRefreshTrigger = useStore(state => state.communityDefaultsRefreshTrigger);
    const setUnsavedEdits = useStore(state => state.setCwUnsavedEdits);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   SidePanel,
   PanelHeaderGroup,
@@ -15,7 +15,6 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { supabaseAuth } from "../supabase";
 import { relaunch } from "@tauri-apps/plugin-process";
-import MarkdownRenderer from "../MarkdownRenderer";
 import { DispatchPollViewer } from "../components/universal/DispatchPollAndMeta";
 import {
   getKeepersPipelineConfig,

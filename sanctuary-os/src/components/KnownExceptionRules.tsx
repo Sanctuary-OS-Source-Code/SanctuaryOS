@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -14,9 +14,6 @@ import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLay
 import { UniversalCard } from "./universal/UniversalCard";
 import {
   UniversalGroup,
-  UniversalInput,
-  UniversalTextArea,
-  UniversalToggle,
   StatBox,
 } from "./universal/UniversalLayout";
 import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
@@ -1203,20 +1200,12 @@ export function KnownErrorRulesManager({
   const [rules, setRules] = useState<SchemaExceptionRule[]>(() =>
     getExceptionRules(activeGameSchema)
   );
-  const [localFilter, setLocalFilter] = useState<"all" | NormalizedRuleSeverity>("all");
+  const [localFilter] = useState<"all" | NormalizedRuleSeverity>("all");
   const [editingRule, setEditingRule] = useState<SchemaExceptionRule | null>(null);
   const [defaultAsGameBug, setDefaultAsGameBug] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const activeFilter = severityFilter !== undefined ? severityFilter : localFilter;
-  const handleFilterChange = (val: "all" | NormalizedRuleSeverity) => {
-    if (onSeverityFilterChange) {
-      onSeverityFilterChange(val);
-    } else {
-      setLocalFilter(val);
-    }
-  };
-
   useEffect(() => {
     const refresh = () => {
       const loaded = getExceptionRules(useStore.getState().activeGameSchema);
@@ -1248,14 +1237,6 @@ export function KnownErrorRulesManager({
       setIsEditorOpen(true);
     }
   }, [externalTriggerCreateGameBug, canEdit]);
-
-  const counts = {
-    all: rules.length,
-    corrupted: rules.filter((r) => normalizeRuleSeverity(r) === "corrupted").length,
-    unstable: rules.filter((r) => normalizeRuleSeverity(r) === "unstable").length,
-    unrelated: rules.filter((r) => normalizeRuleSeverity(r) === "unrelated").length,
-  };
-
   const filtered = rules.filter((r) => {
     const normSev = normalizeRuleSeverity(r);
     if (activeFilter !== "all" && normSev !== activeFilter) {
