@@ -212,21 +212,6 @@ pub fn is_dlc_folder(schema: &Option<GameSchema>, folder_name: &str) -> bool {
         || name_up.starts_with("FP")
 }
 
-pub fn get_magic_bytes(schema: &Option<GameSchema>, label: &str) -> Option<String> {
-    if let Some(s) = schema {
-        if let Some(magic_map) = &s.magic_bytes {
-            if let Some(magic) = magic_map.get(label) {
-                return Some(magic.clone());
-            }
-        }
-    }
-
-    if label == "PACKAGE" || label == "WORLD" {
-        return Some("DBPF".to_string());
-    }
-    None
-}
-
 pub fn get_supported_extensions(schema: &Option<GameSchema>) -> Vec<String> {
     let mut exts = if let Some(s) = schema {
         let configured: Vec<String> = s

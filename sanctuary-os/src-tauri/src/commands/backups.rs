@@ -1,26 +1,9 @@
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::SystemTime;
 use tauri::{Emitter, Manager};
 
 #[tauri::command]
@@ -70,10 +53,11 @@ pub async fn sanitize_vault(
                 let path = entry.path();
                 if path.is_file() && path.extension().map_or(false, |ext| ext == "zst") {
                     let dest = backups_world.join(path.file_name().unwrap());
-                    if std::fs::rename(&path, &dest).is_err() {
-                        if std::fs::copy(&path, &dest).is_ok() {
-                            let _ = std::fs::remove_file(&path);
-                        }
+                    if std::fs::rename(&path, &dest).is_ok()
+                        || (std::fs::copy(&path, &dest).is_ok()
+                            && std::fs::remove_file(&path).is_ok())
+                    {
+                        moved += 1;
                     }
                 }
             }
@@ -114,7 +98,6 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         let mut files = vec![];
         let config = get_saved_coordinates();
         let base = PathBuf::from(&vault_path).join("Backups");
-        let mut engine_core_seen = false;
 
         let mut process_dir = |dir: &std::path::Path| {
             if let Ok(entries) = std::fs::read_dir(dir) {
@@ -951,13 +934,6 @@ pub async fn get_backup_contents(
             logical_size = total_scanned_bytes;
         }
 
-        let raw_diff_size = std::fs::read_to_string(backup_dir.join(".diff_size_bytes.txt"))
-            .unwrap_or_default()
-            .trim()
-            .parse::<u64>()
-            .unwrap_or(0);
-        let mut diff_size = raw_diff_size;
-
         // Find the immediately preceding snapshot of the same prefix (World_State or Engine_Core)
         let prefix = if backup_name.starts_with("World_State") {
             Some("World_State")
@@ -1014,9 +990,6 @@ pub async fn get_backup_contents(
                         }
                     }
                 }
-            }
-            if prev_backup_entry.is_none() {
-                diff_size = logical_size;
             }
         }
 

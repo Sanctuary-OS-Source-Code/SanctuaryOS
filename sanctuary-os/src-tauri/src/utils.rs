@@ -1,28 +1,10 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
-use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
-use notify::Watcher;
-use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
 
 pub fn process_structure_nodes(
     schema: &Option<crate::schema::GameSchema>,
@@ -286,10 +268,6 @@ pub fn remove_cache_entry(conn: &Connection, path: &str) {
     let _ = conn.execute("DELETE FROM cache WHERE path = ?1", params![path]);
 }
 
-pub fn clear_cache_db(conn: &Connection) {
-    let _ = conn.execute("DELETE FROM cache", []);
-}
-
 pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
     let mut conn = get_db_conn(vault_path);
     let current_db_cache = load_cache(vault_path);
@@ -513,7 +491,6 @@ pub fn create_symlink_file(source: &Path, target: &Path) -> std::io::Result<()> 
 
 use rayon::prelude::*;
 
-#[tauri::command]
 pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
@@ -1222,7 +1199,7 @@ pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBu
 #[cfg(windows)]
 pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
     let mut total_size = 0;
-    let mut diff_size = 0; // Old backups on Windows will gracefully fallback to 0 delta size
+    let diff_size = 0; // Old backups on Windows will gracefully fallback to 0 delta size
     let mut walker = walkdir::WalkDir::new(path).into_iter();
 
     while let Some(Ok(entry)) = walker.next() {
@@ -1253,55 +1230,6 @@ pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
         }
     }
     (total_size, diff_size)
-}
-
-pub fn calculate_dir_size(path: &std::path::Path) -> u64 {
-    calculate_sizes(path).0
-}
-
-pub fn hardlink_mirror(
-    source_dir: &std::path::Path,
-    dest_dir: &std::path::Path,
-    previous_backup: Option<&std::path::Path>,
-) -> std::io::Result<()> {
-    if !dest_dir.exists() {
-        std::fs::create_dir_all(dest_dir)?;
-    }
-
-    if let Ok(entries) = std::fs::read_dir(source_dir) {
-        for e in entries.flatten() {
-            let src_path = e.path();
-            let file_name = e.file_name();
-            let dest_path = dest_dir.join(&file_name);
-
-            if src_path.is_dir() {
-                let prev_sub = previous_backup.map(|p| p.join(&file_name));
-                hardlink_mirror(&src_path, &dest_path, prev_sub.as_deref())?;
-            } else {
-                let mut linked = false;
-                if let Some(prev) = previous_backup {
-                    let prev_file = prev.join(&file_name);
-                    if prev_file.exists() && prev_file.is_file() {
-                        if let (Ok(src_meta), Ok(prev_meta)) =
-                            (src_path.metadata(), prev_file.metadata())
-                        {
-                            if src_meta.len() == prev_meta.len()
-                                && src_meta.modified().ok() == prev_meta.modified().ok()
-                            {
-                                if std::fs::hard_link(&prev_file, &dest_path).is_ok() {
-                                    linked = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                if !linked {
-                    let _ = std::fs::copy(&src_path, &dest_path);
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 pub const SANCTUARY_REDACTED_TOKEN: &str = "[REDACTED BY SANCTUARY]";

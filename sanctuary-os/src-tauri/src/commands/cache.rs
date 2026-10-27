@@ -1,27 +1,6 @@
-use crate::commands::backups::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
-use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
 
 #[tauri::command]
 pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
@@ -38,25 +17,7 @@ pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<()
 
 #[tauri::command]
 pub fn generate_full_dna_hash(file_path: PathBuf) -> String {
-    let file = match std::fs::File::open(&file_path) {
-        Ok(f) => f,
-        Err(_) => return "0".into(),
-    };
-    let mut reader = BufReader::new(file);
-    let mut hasher = Sha256::new();
-    let mut buffer = [0; 8192];
-
-    while let Ok(count) = reader.read(&mut buffer) {
-        if count == 0 {
-            break;
-        }
-        hasher.update(&buffer[..count]);
-    }
-    hasher
-        .finalize()
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect()
+    calculate_hash(&file_path).unwrap_or_else(|_| "0".into())
 }
 
 #[tauri::command]

@@ -1,27 +1,6 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
-use crate::commands::state_ops::*;
-use crate::state::*;
-use crate::utils::*;
-use notify::Watcher;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
+use std::path::PathBuf;
+use tauri::Manager;
 
 #[tauri::command]
 pub fn delete_local_file(path: String) -> Result<String, String> {
@@ -206,20 +185,6 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
     }
 
     Ok(crate::utils::scrub_user_data_from_log(&info))
-}
-
-#[tauri::command]
-pub fn overwrite_local_schema(schema_id: String, schema_data: String) -> Result<(), String> {
-    if schema_id.is_empty()
-        || !schema_id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-    {
-        return Err("Invalid schema_id.".into());
-    }
-    // Development-only tool: write the schema out to src/data/schemas/
-    let path = format!("../src/data/schemas/{}.json", schema_id);
-    std::fs::write(&path, schema_data).map_err(|e| e.to_string())
 }
 
 #[cfg(target_os = "windows")]

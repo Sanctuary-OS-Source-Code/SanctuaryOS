@@ -1,27 +1,12 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
 use crate::commands::game_info::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 
 #[tauri::command]
 pub async fn scan_bunker(
@@ -1921,54 +1906,9 @@ pub fn import_to_sandbox(files: Vec<String>, vault_path: String) -> Result<usize
 }
 
 #[tauri::command]
-pub fn get_sandbox_files(vault_path: String) -> Result<Vec<String>, String> {
-    if vault_path.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let vault_dir = PathBuf::from(&vault_path);
-    let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
-        vault_dir
-            .parent()
-            .unwrap_or(&vault_dir)
-            .join("Dev")
-            .join("Sandbox")
-    } else {
-        vault_dir.join("Dev").join("Sandbox")
-    };
-
-    let mut files = Vec::new();
-    if let Ok(entries) = fs::read_dir(&dev_lane) {
-        for entry in entries.flatten() {
-            if let Ok(file_type) = entry.file_type() {
-                if file_type.is_file() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if name.ends_with(".js")
-                            || name.ends_with(".ts")
-                            || name.ends_with(".json")
-                            || name.ends_with(".xml")
-                            || name.ends_with(".html")
-                            || name.ends_with(".css")
-                            || name.ends_with(".txt")
-                            || name.ends_with(".cfg")
-                            || name.ends_with(".ini")
-                        {
-                            files.push(name.to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    files.sort_unstable();
-    Ok(files)
-}
-
-#[tauri::command]
 pub fn get_workbench_files(vault_path: String) -> Result<Vec<String>, String> {
     let mut results = Vec::new();
-    let mut scan_paths = vec![
+    let scan_paths = vec![
         crate::utils::get_vault_mods_lane(&vault_path),
         std::path::PathBuf::from(&vault_path)
             .join("Data")
@@ -2038,48 +1978,6 @@ pub fn read_blueprint(path: String) -> Result<String, String> {
 #[tauri::command]
 pub fn save_blueprint(path: String, content: String) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn move_mod_between_lanes(vault_path: String, mod_name_or_path: String, to_sandbox: bool) -> Result<(), String> {
-    let vault_dir = PathBuf::from(&vault_path);
-    let dev_lane = if crate::utils::is_mods_dir(&vault_dir) {
-        vault_dir.parent().unwrap_or(&vault_dir).join("Dev").join("Sandbox")
-    } else {
-        vault_dir.join("Dev").join("Sandbox")
-    };
-    
-    let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
-
-    if to_sandbox {
-        let source = mods_lane.join(&mod_name_or_path);
-        if source.exists() {
-            let stem = source.file_stem().unwrap_or_default().to_string_lossy().to_string();
-            let dest_dir = dev_lane.join(&stem);
-            let _ = std::fs::create_dir_all(&dest_dir);
-            let dest = dest_dir.join(source.file_name().unwrap());
-            std::fs::rename(&source, &dest).map_err(|e| e.to_string())?;
-        }
-    } else {
-        let source_dir = dev_lane.join(&mod_name_or_path);
-        if source_dir.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&source_dir) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_file() {
-                        let dest = mods_lane.join(p.file_name().unwrap());
-                        let _ = std::fs::rename(&p, &dest);
-                    }
-                }
-            }
-            let _ = std::fs::remove_dir_all(&source_dir);
-        } else if source_dir.is_file() {
-            let dest = mods_lane.join(source_dir.file_name().unwrap());
-            let _ = std::fs::rename(&source_dir, &dest);
-        }
-    }
-    
-    Ok(())
 }
 
 

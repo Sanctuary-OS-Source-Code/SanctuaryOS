@@ -1,28 +1,8 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::shelter::*;
-use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
+use std::path::Path;
 
 #[tauri::command]
 pub async fn run_conflict_radar(
@@ -59,7 +39,6 @@ pub async fn run_conflict_radar(
 
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let game_schema_merge = game_schema.clone();
         let merge_thread = std::thread::spawn(move || {
             let mut resource_map: HashMap<(u32, u32, u64), String> = HashMap::new();
             let mut conflicts: HashMap<String, Conflict> = HashMap::new();

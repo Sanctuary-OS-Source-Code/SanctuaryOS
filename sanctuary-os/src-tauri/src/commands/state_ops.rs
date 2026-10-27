@@ -1,27 +1,6 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
 
 #[tauri::command]
 pub fn update_active_game_schema(
@@ -36,7 +15,7 @@ pub fn update_active_game_schema(
 pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
     if let Ok(content) = fs::read_to_string(&path) {
-        if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Ok(config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
                     return config;
@@ -137,53 +116,10 @@ pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_suggested_paths(state: tauri::State<'_, AppState>) -> WorkspaceConfig {
-    let mut config = WorkspaceConfig::default();
-    let game_schema = state.active_schema.lock().unwrap().clone();
-
-    let default_mod = if let Some(schema) = &game_schema {
-        schema.paths.default_mod_dir_windows.clone()
-    } else {
-        String::new()
-    };
-
-    if !default_mod.is_empty() {
-        if let Ok(profile) = std::env::var("USERPROFILE") {
-            let docs_path = std::path::Path::new(&profile).join(&default_mod);
-            config.mods_path = docs_path.to_string_lossy().to_string();
-        }
-    }
-
-    let possible_bins = if let Some(schema) = &game_schema {
-        schema.paths.auto_scan_paths_windows.clone()
-    } else {
-        vec![]
-    };
-
-    for bin in &possible_bins {
-        if std::path::Path::new(bin).exists() {
-            config.live_path = bin.to_string();
-            break;
-        }
-    }
-
-    if config.live_path.is_empty() && !possible_bins.is_empty() {
-        config.live_path = possible_bins[0].clone();
-    }
-
-    config
-}
-
-#[tauri::command]
-pub fn reset_coordinates() -> String {
-    "Reset".into()
-}
-
-#[tauri::command]
 pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value {
     let mut live_path = String::new();
     let mut mods_path = String::new();
-    let mut vault_path = String::new();
+    let vault_path = String::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
 
     let default_mod = game_schema

@@ -1,27 +1,9 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
 use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
 
 #[tauri::command]
 pub fn check_file_exists(file_path: String) -> bool {
@@ -83,6 +65,30 @@ pub fn clear_volatile_original_path(
     }
 }
 
+fn zero_fill_and_remove_file(path: &Path, max_zero_bytes: u64) {
+    if let Ok(mut perms) = path.metadata().map(|m| m.permissions()) {
+        if perms.readonly() {
+            perms.set_readonly(false);
+            let _ = std::fs::set_permissions(path, perms);
+        }
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(path) {
+        if let Ok(meta) = f.metadata() {
+            let zeros = vec![0u8; 1024 * 1024];
+            let mut remaining = std::cmp::min(meta.len(), max_zero_bytes);
+            while remaining > 0 {
+                let write_size = std::cmp::min(remaining, zeros.len() as u64);
+                if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
+                    break;
+                }
+                remaining -= write_size;
+            }
+            let _ = f.sync_all();
+        }
+    }
+    let _ = std::fs::remove_file(path);
+}
+
 #[tauri::command]
 pub fn shred_external_file(
     state: tauri::State<'_, SecurityState>,
@@ -97,17 +103,9 @@ pub fn shred_external_file(
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default()
     });
-    clear_volatile_original_path(state, hash_str.clone(), fname_str.clone());
-    purge_external_file(file_path, hash_str, fname_str)
-}
+    clear_volatile_original_path(state, hash_str, fname_str.clone());
 
-#[tauri::command]
-pub fn purge_external_file(
-    path: String,
-    _hash: String,
-    filename: String,
-) -> Result<String, String> {
-    let p = std::path::PathBuf::from(&path);
+    let p = std::path::PathBuf::from(&file_path);
     if !crate::utils::is_safe_user_file_path(&p) {
         return Err("Refusing to purge protected or unsafe path.".into());
     }
@@ -117,10 +115,10 @@ pub fn purge_external_file(
     if !norm_vault.is_empty() && norm_p.starts_with(&norm_vault) {
         return Err("Refusing to purge Vault internal path as external file.".into());
     }
-    let safe_filename = std::path::Path::new(&filename)
+    let safe_filename = std::path::Path::new(&fname_str)
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or(&filename)
+        .unwrap_or(&fname_str)
         .to_string();
     let manifest_path = std::path::PathBuf::from(&config.vault_path)
         .join("Quarantine")
@@ -132,52 +130,12 @@ pub fn purge_external_file(
                 for entry in walkdir::WalkDir::new(&p).into_iter().filter_map(|e| e.ok()) {
                     let ep = entry.path();
                     if ep.is_file() {
-                        if let Ok(mut perms) = ep.metadata().map(|m| m.permissions()) {
-                            if perms.readonly() {
-                                perms.set_readonly(false);
-                                let _ = std::fs::set_permissions(ep, perms);
-                            }
-                        }
-                        if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(ep) {
-                            if let Ok(meta) = f.metadata() {
-                                let zeros = vec![0u8; 1024 * 1024];
-                                let mut remaining = std::cmp::min(meta.len(), 32 * 1024 * 1024);
-                                while remaining > 0 {
-                                    let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                                    if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err() {
-                                        break;
-                                    }
-                                    remaining -= write_size;
-                                }
-                                let _ = f.sync_all();
-                            }
-                        }
+                        zero_fill_and_remove_file(ep, 32 * 1024 * 1024);
                     }
                 }
                 let _ = std::fs::remove_dir_all(&p);
             } else {
-                if let Ok(mut perms) = p.metadata().map(|m| m.permissions()) {
-                    if perms.readonly() {
-                        perms.set_readonly(false);
-                        let _ = std::fs::set_permissions(&p, perms);
-                    }
-                }
-                if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&p) {
-                    if let Ok(meta) = f.metadata() {
-                        let zeros = vec![0u8; 1024 * 1024];
-                        let mut remaining = std::cmp::min(meta.len(), 100 * 1024 * 1024);
-                        while remaining > 0 {
-                            let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize]).is_err()
-                            {
-                                break;
-                            }
-                            remaining -= write_size;
-                        }
-                        let _ = f.sync_all();
-                    }
-                }
-                let _ = std::fs::remove_file(&p);
+                zero_fill_and_remove_file(&p, 100 * 1024 * 1024);
             }
 
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
@@ -194,23 +152,6 @@ pub fn purge_external_file(
     } else {
         Err("File not found".into())
     }
-}
-
-#[tauri::command]
-pub fn purge_from_shelter(file_path: String) -> Result<String, String> {
-    let path = Path::new(&file_path);
-    if !crate::utils::is_safe_user_file_path(path) {
-        return Err("Refusing to purge protected or unsafe path.".into());
-    }
-    if path.exists() {
-        if path.is_dir() {
-            std::fs::remove_dir_all(path).map_err(|e| e.to_string())?;
-        } else {
-            std::fs::remove_file(path).map_err(|e| e.to_string())?;
-        }
-        return Ok("backend_purged".into());
-    }
-    Err("backend_not_found".into())
 }
 
 #[tauri::command]
@@ -438,7 +379,6 @@ pub fn restore_quarantined_file(filename: String) -> String {
 pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
     let config = get_saved_coordinates();
     let mut cache = load_cache(&config.vault_path);
-    let mut cache_updated = false;
 
     let base_name = Path::new(&filename)
         .file_name()
@@ -495,29 +435,7 @@ pub fn purge_quarantined_file(filename: String) -> Result<String, String> {
             let q_path_clone = active_shred_path;
             let vault_root = PathBuf::from(&config.vault_path);
             tauri::async_runtime::spawn_blocking(move || {
-                if let Ok(mut perms) = q_path_clone.metadata().map(|m| m.permissions()) {
-                    if perms.readonly() {
-                        perms.set_readonly(false);
-                        let _ = std::fs::set_permissions(&q_path_clone, perms);
-                    }
-                }
-                if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(&q_path_clone) {
-                    if let Ok(meta) = f.metadata() {
-                        let zeros = vec![0u8; 1024 * 1024];
-                        let mut remaining = std::cmp::min(meta.len(), 4 * 1024 * 1024);
-                        while remaining > 0 {
-                            let write_size = std::cmp::min(remaining, zeros.len() as u64);
-                            if std::io::Write::write_all(&mut f, &zeros[..write_size as usize])
-                                .is_err()
-                            {
-                                break;
-                            }
-                            remaining -= write_size;
-                        }
-                        let _ = f.sync_all();
-                    }
-                }
-                let _ = std::fs::remove_file(&q_path_clone);
+                zero_fill_and_remove_file(&q_path_clone, 4 * 1024 * 1024);
 
                 let manifest_path = vault_root
                     .join("Quarantine")
@@ -556,9 +474,4 @@ pub fn get_shelter_list(state: tauri::State<'_, AppState>) -> Vec<String> {
                 .map(|n| n.to_string_lossy().replace("\\", "/"))
         })
         .collect()
-}
-
-#[tauri::command]
-pub fn trigger_emp(_: bool, _: String) -> String {
-    "Done".into()
 }

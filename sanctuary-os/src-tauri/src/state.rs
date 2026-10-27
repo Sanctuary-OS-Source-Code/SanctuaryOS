@@ -1,15 +1,5 @@
-use crate::utils::*;
-use notify::Watcher;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
 
 pub struct AppState {
     pub active_schema: std::sync::Mutex<Option<crate::schema::GameSchema>>,
@@ -55,7 +45,6 @@ pub struct SolderConfig {
 
 #[derive(serde::Deserialize, Debug)]
 pub struct StructureNode {
-    pub id: String,
     pub name: String,
     #[serde(rename = "type")]
     pub node_type: String,
@@ -147,13 +136,6 @@ pub struct BackupInfo {
     pub name: String,
     pub size_mb: f64,
     pub logical_size_mb: Option<f64>,
-}
-
-#[derive(Serialize, Clone)]
-pub struct BackupProgress {
-    pub current: usize,
-    pub total: usize,
-    pub action: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

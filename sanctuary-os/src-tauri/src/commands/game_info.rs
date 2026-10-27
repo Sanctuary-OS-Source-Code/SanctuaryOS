@@ -1,36 +1,14 @@
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
 use crate::state::*;
 use crate::utils::*;
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
+use std::path::PathBuf;
 
 #[tauri::command]
 pub fn rip_game_version(
     live_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    use std::fs;
-    use std::path::PathBuf;
-
     let game_schema = state.active_schema.lock().unwrap().clone();
 
     let mut root_path = PathBuf::from(&live_path);
@@ -221,173 +199,99 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
         }
     }
 
-    let defaults = vec![
-        HeuristicSignature {
-            id: "discord_com_api_webhooks".into(),
-            signature: "discord.com/api/webhooks".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Unauthorized Discord webhook exfiltration.".into(),
-        },
-        HeuristicSignature {
-            id: "discordapp_com_api_webhooks".into(),
-            signature: "discordapp.com/api/webhooks".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Legacy Discord webhook exfiltration.".into(),
-        },
-        HeuristicSignature {
-            id: "telegram_bot_exfil".into(),
-            signature: "api.telegram.org/bot".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Telegram Bot API credential exfiltration.".into(),
-        },
-        HeuristicSignature {
-            id: "discord_token_leveldb".into(),
-            signature: "Local Storage\\leveldb".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Discord/Browser Local Storage LevelDB token harvesting.".into(),
-        },
-        HeuristicSignature {
-            id: "browser_login_data_stealer".into(),
-            signature: "User Data\\Default\\Login Data".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Chromium browser SQLite password vault access.".into(),
-        },
-        HeuristicSignature {
-            id: "powershell_encoded_dropper".into(),
-            signature: "powershell -enc".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Encoded PowerShell dropper payload.".into(),
-        },
-        HeuristicSignature {
-            id: "powershell_hidden_window".into(),
-            signature: "powershell -w hidden".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Hidden PowerShell execution.".into(),
-        },
-        HeuristicSignature {
-            id: "subprocess_popen_powershell".into(),
-            signature: "subprocess.Popen( + powershell".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Compound: Spawns PowerShell via subprocess.Popen.".into(),
-        },
-        HeuristicSignature {
-            id: "os_system_powershell".into(),
-            signature: "os.system( + powershell".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Compound: Executes PowerShell via os.system.".into(),
-        },
-        HeuristicSignature {
-            id: "os_system_cmd_dropper".into(),
-            signature: "os.system( + cmd.exe /c".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Compound: Executes command-prompt chain via os.system.".into(),
-        },
-        HeuristicSignature {
-            id: "b64decode_exec_chain".into(),
-            signature: "base64.b64decode( + exec(".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Compound: Base64 payload decode and dynamic exec.".into(),
-        },
-        HeuristicSignature {
-            id: "import_os_system_obfuscated".into(),
-            signature: "__import__('os') + system(".into(),
-            match_type: "file_content_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "Compound: Obfuscated __import__('os') with system().".into(),
-        },
-        HeuristicSignature {
-            id: "grabber_py".into(),
-            signature: "grabber.py".into(),
-            match_type: "file_name_exact".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "".into(),
-        },
-        HeuristicSignature {
-            id: "stealer_exe".into(),
-            signature: "stealer.exe".into(),
-            match_type: "file_name_exact".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "".into(),
-        },
-        HeuristicSignature {
-            id: "_vbs".into(),
-            signature: ".vbs".into(),
-            match_type: "file_name_contains".into(),
-            severity: "malware".into(),
-            source: "system".into(),
-            enabled: true,
-            created_by: "system".into(),
-            created_at: chrono::Local::now().to_rfc3339(),
-            notes: "".into(),
-        },
+    let now_str = chrono::Local::now().to_rfc3339();
+    let default_specs = [
+        (
+            "discord_com_api_webhooks",
+            "discord.com/api/webhooks",
+            "file_content_contains",
+            "Unauthorized Discord webhook exfiltration.",
+        ),
+        (
+            "discordapp_com_api_webhooks",
+            "discordapp.com/api/webhooks",
+            "file_content_contains",
+            "Legacy Discord webhook exfiltration.",
+        ),
+        (
+            "telegram_bot_exfil",
+            "api.telegram.org/bot",
+            "file_content_contains",
+            "Telegram Bot API credential exfiltration.",
+        ),
+        (
+            "discord_token_leveldb",
+            "Local Storage\\leveldb",
+            "file_content_contains",
+            "Discord/Browser Local Storage LevelDB token harvesting.",
+        ),
+        (
+            "browser_login_data_stealer",
+            "User Data\\Default\\Login Data",
+            "file_content_contains",
+            "Chromium browser SQLite password vault access.",
+        ),
+        (
+            "powershell_encoded_dropper",
+            "powershell -enc",
+            "file_content_contains",
+            "Encoded PowerShell dropper payload.",
+        ),
+        (
+            "powershell_hidden_window",
+            "powershell -w hidden",
+            "file_content_contains",
+            "Hidden PowerShell execution.",
+        ),
+        (
+            "subprocess_popen_powershell",
+            "subprocess.Popen( + powershell",
+            "file_content_contains",
+            "Compound: Spawns PowerShell via subprocess.Popen.",
+        ),
+        (
+            "os_system_powershell",
+            "os.system( + powershell",
+            "file_content_contains",
+            "Compound: Executes PowerShell via os.system.",
+        ),
+        (
+            "os_system_cmd_dropper",
+            "os.system( + cmd.exe /c",
+            "file_content_contains",
+            "Compound: Executes command-prompt chain via os.system.",
+        ),
+        (
+            "b64decode_exec_chain",
+            "base64.b64decode( + exec(",
+            "file_content_contains",
+            "Compound: Base64 payload decode and dynamic exec.",
+        ),
+        (
+            "import_os_system_obfuscated",
+            "__import__('os') + system(",
+            "file_content_contains",
+            "Compound: Obfuscated __import__('os') with system().",
+        ),
+        ("grabber_py", "grabber.py", "file_name_exact", ""),
+        ("stealer_exe", "stealer.exe", "file_name_exact", ""),
+        ("_vbs", ".vbs", "file_name_contains", ""),
     ];
+
+    let defaults: Vec<HeuristicSignature> = default_specs
+        .into_iter()
+        .map(|(id, signature, match_type, notes)| HeuristicSignature {
+            id: id.into(),
+            signature: signature.into(),
+            match_type: match_type.into(),
+            severity: "malware".into(),
+            source: "system".into(),
+            enabled: true,
+            created_by: "system".into(),
+            created_at: now_str.clone(),
+            notes: notes.into(),
+        })
+        .collect();
 
     let _ = save_heuristic_signatures(vault_path, defaults.clone());
 
@@ -426,49 +330,37 @@ pub fn save_heuristic_signatures(
     Err("Failed to save heuristic signatures".into())
 }
 
-#[tauri::command]
-pub fn move_to_vault(
-    app: tauri::AppHandle,
-    file_name: String,
-    mods_path: String,
-    vault_path: String,
-    force_replace: bool,
-    state: tauri::State<'_, AppState>,
-) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
-    let source = PathBuf::from(&mods_path).join(&file_name);
-    let dest = crate::utils::get_vault_mods_lane(&vault_path).join(&file_name);
-
-    if !source.is_dir() && !force_replace {
-        let hash = calculate_hash(&source).unwrap_or_default();
-        let cache = load_cache(&vault_path);
-        let mut exists = false;
-        let mut existing_name = String::new();
-        for (k, v) in cache.iter() {
-            if v.dna_hash == hash && !hash.is_empty() {
-                exists = true;
-                existing_name = k.clone();
-                break;
-            }
-        }
-        if exists {
-            let _ = app.emit("dna_match_detected", serde_json::json!({ "path": source.to_string_lossy().to_string(), "hash": hash, "existing_name": existing_name, "file_name": file_name, "source_action": "move_to_vault" }));
-            return Err("DNA_MATCH".into());
-        }
-    }
-
-    if let Some(parent) = dest.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    fs::rename(&source, &dest)
-        .or_else(|_| fs::copy(&source, &dest).and_then(|_| fs::remove_file(&source)))
-        .map_err(|e| format!("Failed to move {}: {}", file_name, e))?;
-    Ok("Vaulted".into())
+fn get_file_history_dir(app: &tauri::AppHandle, path: &str) -> Option<PathBuf> {
+    use tauri::Manager;
+    let app_dir = app.path().app_data_dir().ok()?;
+    let path_hash = format!("{:x}", md5::compute(path));
+    Some(app_dir.join("file_history").join(path_hash))
 }
 
-#[tauri::command]
-pub fn commission_mod(_: String) -> serde_json::Value {
-    serde_json::json!({"success": true})
+fn update_history_entry<F>(
+    app: &tauri::AppHandle,
+    path: &str,
+    timestamp: u64,
+    mutate: F,
+    err_msg: &str,
+) -> Result<(), String>
+where
+    F: FnOnce(&mut HistoryEntry),
+{
+    if let Some(file_history_dir) = get_file_history_dir(app, path) {
+        let history_file = file_history_dir.join(format!("{}.json", timestamp));
+        if let Ok(content) = std::fs::read_to_string(&history_file) {
+            if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
+                mutate(&mut h);
+                if let Ok(json) = serde_json::to_string(&h) {
+                    if std::fs::write(&history_file, json).is_ok() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    Err(err_msg.into())
 }
 
 #[tauri::command]
@@ -478,11 +370,10 @@ pub fn save_file_with_history(
     content: String,
 ) -> Result<String, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
-    use tauri::Manager;
 
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
 
-    if let Ok(app_dir) = app.path().app_data_dir() {
+    if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
         let config = get_saved_coordinates();
         let max_copies = config.timeline_retention_copies.unwrap_or(50) as usize;
         let max_size_bytes = config.timeline_retention_size_mb.unwrap_or(100) as u64 * 1024 * 1024;
@@ -491,11 +382,6 @@ pub fn save_file_with_history(
             return Ok("Saved without history".into());
         }
 
-        let history_dir = app_dir.join("file_history");
-        std::fs::create_dir_all(&history_dir).unwrap_or_default();
-
-        let path_hash = format!("{:x}", md5::compute(&path));
-        let file_history_dir = history_dir.join(path_hash);
         std::fs::create_dir_all(&file_history_dir).unwrap_or_default();
 
         let timestamp = SystemTime::now()
@@ -544,11 +430,9 @@ pub fn save_file_with_history(
                 if unpinned_count <= max_copies && unpinned_size <= max_size_bytes {
                     break;
                 }
-                if !is_pinned {
-                    if let Ok(_) = std::fs::remove_file(&path) {
-                        unpinned_count = unpinned_count.saturating_sub(1);
-                        unpinned_size = unpinned_size.saturating_sub(size);
-                    }
+                if !is_pinned && std::fs::remove_file(&path).is_ok() {
+                    unpinned_count = unpinned_count.saturating_sub(1);
+                    unpinned_size = unpinned_size.saturating_sub(size);
                 }
             }
         }
@@ -565,13 +449,9 @@ pub fn save_file_silently(path: String, content: String) -> Result<String, Strin
 
 #[tauri::command]
 pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
-    use tauri::Manager;
     let mut history = Vec::new();
 
-    if let Ok(app_dir) = app.path().app_data_dir() {
-        let path_hash = format!("{:x}", md5::compute(&path));
-        let file_history_dir = app_dir.join("file_history").join(path_hash);
-
+    if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
         if file_history_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(file_history_dir) {
                 for entry in entries.flatten() {
@@ -604,39 +484,19 @@ pub fn toggle_pin_version(
     timestamp: u64,
     pinned: bool,
 ) -> Result<(), String> {
-    use tauri::Manager;
-    if let Ok(app_dir) = app.path().app_data_dir() {
-        let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir
-            .join("file_history")
-            .join(path_hash)
-            .join(format!("{}.json", timestamp));
-
-        if history_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&history_file) {
-                if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
-                    h.pinned = Some(pinned);
-                    if let Ok(json) = serde_json::to_string(&h) {
-                        let _ = std::fs::write(&history_file, json);
-                        return Ok(());
-                    }
-                }
-            }
-        }
-    }
-    Err("Failed to update pin status".into())
+    update_history_entry(
+        &app,
+        &path,
+        timestamp,
+        |h| h.pinned = Some(pinned),
+        "Failed to update pin status",
+    )
 }
 
 #[tauri::command]
 pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Result<(), String> {
-    use tauri::Manager;
-    if let Ok(app_dir) = app.path().app_data_dir() {
-        let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir
-            .join("file_history")
-            .join(path_hash)
-            .join(format!("{}.json", timestamp));
-
+    if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
+        let history_file = file_history_dir.join(format!("{}.json", timestamp));
         if history_file.exists() {
             let _ = std::fs::remove_file(history_file);
             return Ok(());
@@ -652,25 +512,11 @@ pub fn rename_version(
     timestamp: u64,
     name: String,
 ) -> Result<(), String> {
-    use tauri::Manager;
-    if let Ok(app_dir) = app.path().app_data_dir() {
-        let path_hash = format!("{:x}", md5::compute(&path));
-        let history_file = app_dir
-            .join("file_history")
-            .join(path_hash)
-            .join(format!("{}.json", timestamp));
-
-        if history_file.exists() {
-            if let Ok(content) = std::fs::read_to_string(&history_file) {
-                if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
-                    h.name = Some(name);
-                    if let Ok(json) = serde_json::to_string(&h) {
-                        let _ = std::fs::write(&history_file, json);
-                        return Ok(());
-                    }
-                }
-            }
-        }
-    }
-    Err("Failed to rename version".into())
+    update_history_entry(
+        &app,
+        &path,
+        timestamp,
+        |h| h.name = Some(name),
+        "Failed to rename version",
+    )
 }

@@ -1,60 +1,32 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[macro_use]
-pub mod state;
-#[macro_use]
-pub mod utils;
-#[macro_use]
-pub mod watchers;
-#[macro_use]
-pub mod commands;
+mod commands;
+mod game_logic;
+mod schema;
+mod state;
+mod telemetry;
+mod utils;
+mod watchers;
+
 use crate::commands::backups::*;
 use crate::commands::cache::*;
 use crate::commands::config::*;
 use crate::commands::deployment::*;
+use crate::commands::edge_network::*;
 use crate::commands::game_info::*;
 use crate::commands::library::*;
 use crate::commands::logs::*;
-use crate::commands::overrides::*;
 use crate::commands::radar::*;
 use crate::commands::shelter::*;
 use crate::commands::state_ops::*;
-use crate::commands::system::*;
-use crate::commands::edge_network::*;
 use crate::commands::supporter::*;
+use crate::commands::system::*;
 use crate::commands::webauthn::*;
 use crate::state::*;
-use crate::utils::*;
 use crate::watchers::*;
 
-use crate::commands::backups::*;
-use crate::commands::cache::*;
-use crate::commands::config::*;
-use crate::commands::deployment::*;
-use crate::commands::game_info::*;
-use crate::commands::library::*;
-use crate::commands::logs::*;
-use crate::commands::overrides::*;
-use crate::commands::radar::*;
-use crate::commands::shelter::*;
-use crate::commands::state_ops::*;
-use crate::commands::system::*;
-
-mod game_logic;
-pub mod schema;
-mod telemetry;
-
-use notify::Watcher;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::SystemTime;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 #[tauri::command]
 fn sync_security_definitions(
@@ -69,12 +41,6 @@ fn sync_security_definitions(
         *t = tier2;
     }
     Ok(())
-}
-
-use rayon::prelude::*;
-#[tauri::command]
-fn test_package_scanner(_: String) -> Result<String, String> {
-    Ok("Done".into())
 }
 
 #[tauri::command]
@@ -127,9 +93,7 @@ fn main() {
             scan_bunker,
             scan_sandbox,
             import_to_sandbox,
-            move_mod_between_lanes,
             delete_local_file,
-            get_sandbox_files,
             get_saved_coordinates,
             get_global_config,
             save_coordinates,
@@ -159,31 +123,17 @@ fn main() {
             evacuate_to_shelter,
             repopulate_from_shelter,
             wipe_symlinks,
-            reset_coordinates,
-            get_suggested_paths,
             get_quarantine_list,
             purge_quarantined_file,
-            purge_external_file,
             shred_external_file,
             check_file_exists,
             get_volatile_original_path,
             clear_volatile_original_path,
             restore_quarantined_file,
-            trigger_emp,
             move_to_lab,
-            purge_from_shelter,
             get_shelter_list,
             read_config_file,
             save_config_file,
-            test_package_scanner,
-            commission_mod,
-            move_to_vault,
-            set_mod_override,
-            undo_mod_override,
-            clear_overrides,
-            get_overrides,
-            get_config,
-            update_config,
             scan_game_logs,
             get_scrubbed_game_logs,
             clear_old_logs,
@@ -217,7 +167,6 @@ fn main() {
             toggle_pin_version,
             rename_version,
             delete_version,
-            overwrite_local_schema,
             read_local_directives,
             write_local_directive,
             get_screenshots_root_dir,
