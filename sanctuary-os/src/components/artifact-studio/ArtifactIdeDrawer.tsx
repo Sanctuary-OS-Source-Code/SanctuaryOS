@@ -137,7 +137,7 @@ export function ArtifactIdeDrawer({
                     <span>
                       {wbEditorState.problemsList.length} {t("syntax_error_title", "Syntax Error")}
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[color-mix(in_srgb,var(--danger)_25%,transparent)]">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]">
                       {t("line_label", "Line")} {wbEditorState.problemsList[0]?.line}
                     </span>
                   </span>

@@ -211,20 +211,21 @@ export default function ConflictResolutionSidebar({
           <div className="flex flex-col relative">
             {[conflict.modA, conflict.modB].map((modName, idx) => {
               const isActive = selectedMod === modName;
-              const vsBorderClass = isTier4
-                ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
+              const vsIconColor = isTier4
+                ? "text-[var(--danger)]"
                 : isTier3
-                  ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                  : "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]";
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--accent)]";
 
               return (
                 <Fragment key={modName}>
                   {idx === 1 && (
                     <div className="relative h-10 flex items-center justify-center z-20 shrink-0">
                       <div className="absolute left-6 right-6 h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] z-10 pointer-events-none" />
-                      <div
-                        className={`relative z-20 px-2.5 py-0.5 rounded-full bg-transparent border flex items-center justify-center text-[9px] font-black uppercase tracking-wider pointer-events-none ${vsBorderClass}`}
-                      >
+                      <div className="relative z-20 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-wider text-[var(--text)] pointer-events-none">
+                        <span className={`material-symbols-outlined !text-[12px] ${vsIconColor}`}>
+                          {t("icon_bolt", "bolt")}
+                        </span>
                         {t("vs", "VS")}
                       </div>
                     </div>
@@ -238,10 +239,10 @@ export default function ConflictResolutionSidebar({
                     }`}
                   >
                     <div
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border bg-transparent transition-all duration-300 ${
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] transition-all duration-300 ${
                         isActive
-                          ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] group-hover:text-[var(--text)]"
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                       }`}
                     >
                       <span className="material-symbols-outlined !text-[22px]">

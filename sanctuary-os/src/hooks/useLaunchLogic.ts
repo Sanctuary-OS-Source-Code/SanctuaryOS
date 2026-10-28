@@ -86,9 +86,9 @@ export function useLaunchLogic(
         livePath: config.live_path,
         modsPath: config.mods_path,
       });
-      setStatus(t(msg as string) || (msg as string));
+      setStatus(t(msg as string, msg as string));
     } catch (err) {
-      setStatus(`${t("status_launch_failed", "error LAUNCH FAILED")}: ${t(err as string) || err}`);
+      setStatus(`${t("status_launch_failed", "error LAUNCH FAILED")}: ${t(err as string, String(err))}`);
     }
   };
 

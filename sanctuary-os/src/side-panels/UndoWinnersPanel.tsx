@@ -183,12 +183,7 @@ export default function UndoWinnersPanel({
                   className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all"
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[20px]">
                         {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
                       </span>
@@ -199,14 +194,8 @@ export default function UndoWinnersPanel({
                           file.replace(getExtensionRegex(activeGameSchema), "")
                         )}
                       </span>
-                      <span
-                        className={`${VAULT_CHIP_CLASS} self-start`}
-                        style={{
-                          color: "var(--accent)",
-                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={`${VAULT_CHIP_CLASS} self-start`}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                           {isScript ? t("icon_code", "code") : t("icon_extension", "extension")}
                         </span>
                         <span>{fileLabel}</span>

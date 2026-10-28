@@ -4,15 +4,29 @@ import { useStore } from '../store';
 import { supabase, supabaseAuth } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { CustomDropdown, EmptyState } from "../shared";
+import {
+  CustomDropdown,
+  EmptyState,
+  SidePanel,
+  SidePanelHeroCard,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionButton,
+} from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import KeeperSupportSettings from "./KeeperSupportSettings";
+import {
+  getKeepersPipelineConfig,
+  saveKeepersPipelineConfig,
+  dispatchKeeperCustomEmail,
+} from "../utils/supporterManager";
 
 interface Ticket {
   id: string;
   author_id: string;
-  status: "open" | "resolved" | "rejected" | "escalated";
+  status: "open" | "resolved" | "rejected" | "escalated" | string;
   category?: string;
   ticket_type?: string;
   title: string;
@@ -25,26 +39,76 @@ interface Ticket {
   onEditMetadata?: (hash: string) => void;
 }
 
+type KeepersSupportTab =
+  | "overview"
+  | "bugs"
+  | "feedback"
+  | "contact"
+  | "partner_apps"
+  | "new"
+  | "pending"
+  | "closed"
+  | "settings";
+
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+
+function classifyKeeperTicket(t: Ticket): "bugs" | "feedback" | "contact" | "partner_apps" {
+  const typeStr = String(t.ticket_type || t.category || "").toLowerCase();
+  const titleStr = String(t.title || "").toLowerCase();
+  if (
+    typeStr.includes("partner spoke") ||
+    Boolean(t.metadata?.partner_application) ||
+    titleStr.startsWith("[partner spoke]")
+  ) {
+    return "partner_apps";
+  }
+  if (
+    typeStr.startsWith("direct contact") ||
+    Boolean(t.metadata?.contact_meta) ||
+    titleStr.startsWith("[contact")
+  ) {
+    return "contact";
+  }
+  if (
+    typeStr.includes("feature request") ||
+    typeStr.includes("public build feedback") ||
+    typeStr.includes("beta build feedback") ||
+    typeStr.startsWith("desktop app -") ||
+    typeStr.startsWith("website -") ||
+    typeStr.startsWith("mobile pwa -") ||
+    (Boolean(t.metadata?.feedback_meta) &&
+      t.metadata?.feedback_meta?.stream !== "Core Bug Report")
+  ) {
+    return "feedback";
+  }
+  return "bugs";
+}
+
+function isTicketClosedStatus(status?: string): boolean {
+  const s = String(status || "NEW").toUpperCase();
+  return ["RESOLVED", "REJECTED", "CLOSED"].includes(s);
+}
 
 export default function KeepersSupportTickets({
   userRole = "keeper",
   masonProfileId,
   onEditMetadata,
-  setStatus,
   initialTab
 }: {
   userRole?: string;
   masonProfileId?: string;
   onEditMetadata?: (hash: string) => void;
   setStatus?: any;
-  initialTab?: "overview" | "new" | "pending" | "closed" | "settings";
+  initialTab?: KeepersSupportTab;
 }) {
   const { t } = useLexicon();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed" | "settings">(initialTab || "overview");
+  const [activeFilter, setActiveFilter] = useState<KeepersSupportTab>(initialTab || "overview");
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [statusSubFilter, setStatusSubFilter] = useState<"all_active" | "new" | "pending" | "all">("all_active");
+  const [platformSubFilter, setPlatformSubFilter] = useState<string>("all");
+  const [streamSubFilter, setStreamSubFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
@@ -52,6 +116,132 @@ export default function KeepersSupportTickets({
   const [settingsStatusFilter, setSettingsStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const openCatRef = useRef<(() => void) | null>(null);
   const currentUserId = useStore(state => state.session?.user?.id);
+
+  // Keepers Core In-App Email Center & Custom Sender State
+  const [isEmailDrawerOpen, setIsEmailDrawerOpen] = useState(false);
+  const [supportSenderNameInput, setSupportSenderNameInput] = useState("Sanctuary OS Keepers Core");
+  const [supportEmailInput, setSupportEmailInput] = useState("support@sanctuaryos.gg");
+  const [supportReplyToInput, setSupportReplyToInput] = useState("support@sanctuaryos.gg");
+  const [supportEmailProvider, setSupportEmailProvider] = useState<"resend" | "webhook">("resend");
+  const [supportEmailApiKey, setSupportEmailApiKey] = useState("");
+  const [supportEmailWebhookUrl, setSupportEmailWebhookUrl] = useState("");
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+
+  // Direct Custom Email Compose State
+  const [emailComposeTo, setEmailComposeTo] = useState("");
+  const [emailComposeSubject, setEmailComposeSubject] = useState("");
+  const [emailComposeBody, setEmailComposeBody] = useState("");
+  const [isDispatchingEmail, setIsDispatchingEmail] = useState(false);
+  const [recentDispatches, setRecentDispatches] = useState<any[]>([]);
+
+  const loadEmailCenterData = async () => {
+    try {
+      const cfg = await getKeepersPipelineConfig();
+      if (cfg?.support_sender_name) setSupportSenderNameInput(cfg.support_sender_name);
+      if (cfg?.support_contact_email) setSupportEmailInput(cfg.support_contact_email);
+      if (cfg?.support_reply_to_email) setSupportReplyToInput(cfg.support_reply_to_email);
+      if (cfg?.support_email_provider) {
+        setSupportEmailProvider(
+          cfg.support_email_provider.toLowerCase() === "webhook"
+            ? "webhook"
+            : "resend"
+        );
+      }
+      if (cfg?.support_email_api_key) setSupportEmailApiKey(cfg.support_email_api_key);
+      if (cfg?.support_email_webhook_url) setSupportEmailWebhookUrl(cfg.support_email_webhook_url);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const { data: logs } = await supabaseAuth
+        .from("keeper_email_dispatches")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (logs) setRecentDispatches(logs);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    loadEmailCenterData();
+  }, []);
+
+  const handleSaveSupportEmail = async () => {
+    if (isSavingEmail) return;
+    setIsSavingEmail(true);
+    try {
+      const cleanedSender = supportSenderNameInput.trim() || "Sanctuary OS Keepers Core";
+      const cleanedEmail = supportEmailInput.trim() || "support@sanctuaryos.gg";
+      const cleanedReply = supportReplyToInput.trim() || cleanedEmail;
+      await saveKeepersPipelineConfig({
+        support_sender_name: cleanedSender,
+        support_contact_email: cleanedEmail,
+        support_reply_to_email: cleanedReply,
+        support_email_provider: supportEmailProvider,
+        support_email_api_key: supportEmailApiKey.trim(),
+        support_email_webhook_url: supportEmailWebhookUrl.trim(),
+      });
+      setSupportSenderNameInput(cleanedSender);
+      setSupportEmailInput(cleanedEmail);
+      setSupportReplyToInput(cleanedReply);
+      useStore
+        .getState()
+        .pushStatus(
+          t("keepers_support_email_saved", "Keepers Core Custom Email Sender configuration saved!"),
+          "success"
+        );
+    } catch (err: any) {
+      useStore.getState().pushStatus(err?.message || String(err), "error");
+    } finally {
+      setIsSavingEmail(false);
+    }
+  };
+
+  const handleDispatchCustomEmail = async () => {
+    if (
+      isDispatchingEmail ||
+      !emailComposeTo.trim().includes("@") ||
+      !emailComposeSubject.trim() ||
+      !emailComposeBody.trim()
+    ) {
+      return;
+    }
+    setIsDispatchingEmail(true);
+    try {
+      const res = await dispatchKeeperCustomEmail({
+        to_email: emailComposeTo.trim(),
+        subject: emailComposeSubject.trim(),
+        body_text: emailComposeBody.trim(),
+        from_name: supportSenderNameInput.trim() || "Sanctuary OS Keepers Core",
+        from_email: supportEmailInput.trim() || "support@sanctuaryos.gg",
+        reply_to: supportReplyToInput.trim() || supportEmailInput.trim() || "support@sanctuaryos.gg",
+      });
+      if (res.ok) {
+        useStore
+          .getState()
+          .pushStatus(
+            t("keeper_email_compose_sent", "Custom email dispatched from Keepers Core!"),
+            "success"
+          );
+        setEmailComposeTo("");
+        setEmailComposeSubject("");
+        setEmailComposeBody("");
+        loadEmailCenterData();
+      } else {
+        useStore
+          .getState()
+          .pushStatus(
+            res.error || t("keeper_email_compose_failed", "Failed to dispatch custom email."),
+            "error"
+          );
+      }
+    } finally {
+      setIsDispatchingEmail(false);
+    }
+  };
 
   useEffect(() => {
     if (initialTab) {
@@ -117,8 +307,10 @@ export default function KeepersSupportTickets({
         });
       }
 
-      let finalTickets = mergedTickets;
-      // Removed role-based escalation filtering for Keepers since Keepers see all OS-level tickets directly.
+      // Partner Spoke Applications live in Partner Spokes (KeepersActiveGames), not Support Center.
+      const finalTickets = mergedTickets.filter(
+        (tk) => classifyKeeperTicket(tk) !== "partner_apps"
+      );
 
       setTickets(finalTickets);
 
@@ -309,30 +501,61 @@ export default function KeepersSupportTickets({
     );
   };
 
-  const renderLanding = () => {
-    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status);
-    const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
+  const activeTickets = tickets.filter((tk) => !isTicketClosedStatus(tk.status));
+  const bugTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "bugs");
+  const feedbackTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "feedback");
+  const contactTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "contact");
+  const closedTickets = tickets.filter((tk) => isTicketClosedStatus(tk.status));
 
+  const renderLanding = () => {
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          title={t("recent_new_reports", "Recent New Reports") || "Recent New"}
-          icon={t("icon_new_releases", "new_releases")}
+          title={t("landing_fb_bug_title", "Core Platform Bug Reports")}
+          icon={t("icon_bug_report", "bug_report")}
           iconColorClass="text-[var(--danger)]"
-          isEmpty={newTickets.length === 0}
-          emptyState={<EmptyState icon={t("icon_support_agent", "support_agent")} title={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") || "No New Tickets"} className="py-8" />}
+          isEmpty={bugTickets.length === 0}
+          emptyState={
+            <EmptyState
+              icon={t("icon_bug_report", "bug_report")}
+              title={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")}
+              className="py-8"
+            />
+          }
         >
-          {newTickets.slice(0, 4).map(renderTicketCard)}
+          {bugTickets.slice(0, 4).map(renderTicketCard)}
         </HubOverviewSection>
 
         <HubOverviewSection
-          title={t("recent_pending", "Recent Pending") || "Recent Pending"}
-          icon={t("icon_pending_actions", "pending_actions")}
-          iconColorClass="text-[var(--warning)]"
-          isEmpty={pendingTickets.length === 0}
-          emptyState={<EmptyState icon={t("icon_done_all", "done_all")} title={t("no_tickets", "No Support Tickets") || "No Pending Tickets"} className="py-8" />}
+          title={t("keepers_tab_platform_feedback", "Platform Feedback (Desktop • Website • Mobile PWA)")}
+          icon={t("icon_rate_review", "rate_review")}
+          iconColorClass="text-[var(--accent)]"
+          isEmpty={feedbackTickets.length === 0}
+          emptyState={
+            <EmptyState
+              icon={t("icon_rate_review", "rate_review")}
+              title={t("no_tickets", "No Support Tickets")}
+              className="py-8"
+            />
+          }
         >
-          {pendingTickets.slice(0, 4).map(renderTicketCard)}
+          {feedbackTickets.slice(0, 4).map(renderTicketCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
+          title={t("landing_contact_card_title", "Direct Human Contact")}
+          icon={t("icon_support_agent", "support_agent")}
+          iconColorClass="text-[var(--warning)]"
+          isEmpty={contactTickets.length === 0}
+          emptyState={
+            <EmptyState
+              icon={t("icon_support_agent", "support_agent")}
+              title={t("no_tickets", "No Support Tickets")}
+              className="py-8"
+            />
+          }
+        >
+          {contactTickets.slice(0, 4).map(renderTicketCard)}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -343,25 +566,34 @@ export default function KeepersSupportTickets({
       id: "overview",
       label: t("overview", "Overview") || "Overview",
       icon: t("icon_dashboard", "dashboard"),
-      number: tickets.length.toString(),
+      number: activeTickets.length.toString(),
     },
     {
-      id: "new",
-      label: t("badge_new", "NEW"),
-      icon: t("icon_new_releases", "new_releases"),
-      number: tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status).length.toString(),
+      id: "bugs",
+      label: t("keepers_tab_core_bugs", "Core Bugs"),
+      icon: t("icon_bug_report", "bug_report"),
+      number: bugTickets.length.toString(),
+      colorClass: "text-[var(--danger)]",
     },
     {
-      id: "pending",
-      label: t("ticket_tab_claimed", "Claimed") || t("pending", "Pending"),
-      icon: t("icon_pending_actions", "pending_actions"),
-      number: tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length.toString(),
+      id: "feedback",
+      label: t("keepers_tab_feedback_short", "Platform Feedback"),
+      icon: t("icon_rate_review", "rate_review"),
+      number: feedbackTickets.length.toString(),
+      colorClass: "text-[var(--accent)]",
+    },
+    {
+      id: "contact",
+      label: t("landing_contact_card_title", "Direct Human Contact"),
+      icon: t("icon_support_agent", "support_agent"),
+      number: contactTickets.length.toString(),
+      colorClass: "text-[var(--warning)]",
     },
     {
       id: "closed",
       label: t("filter_closed", "Closed"),
       icon: t("icon_check_circle", "check_circle"),
-      number: tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length.toString(),
+      number: closedTickets.length.toString(),
       colorClass: "text-[var(--success)]",
     },
     {
@@ -372,6 +604,11 @@ export default function KeepersSupportTickets({
     }
   ];
 
+  const resolvedTab =
+    activeFilter === "new" || activeFilter === "pending"
+      ? "bugs"
+      : activeFilter;
+
   return (
     <ElevatedHubLayout
       headerTitle={t("support_tickets", "Support Tickets") || "Support Tickets"}
@@ -381,12 +618,17 @@ export default function KeepersSupportTickets({
       search={searchQuery}
       onSearchChange={setSearchQuery}
       searchPlaceholder={t("nav_search", "Search...")}
-      hideSearch={activeFilter === 'overview'}
+      hideSearch={resolvedTab === 'overview'}
       tabs={tabs}
-      activeTab={activeFilter}
-      onTabChange={(id) => setActiveFilter(id as any)}
+      activeTab={resolvedTab}
+      onTabChange={(id) => {
+        setActiveFilter(id as KeepersSupportTab);
+        setActiveCategory("all");
+        setPlatformSubFilter("all");
+        setStreamSubFilter("all");
+      }}
       primaryPopover={
-        activeFilter === 'settings'
+        resolvedTab === 'settings'
           ? {
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters") || "Filters",
@@ -410,12 +652,77 @@ export default function KeepersSupportTickets({
                 </div>
               )
             }
-          : activeFilter !== 'overview'
+          : resolvedTab !== 'overview'
             ? {
                 icon: t("icon_tune", "tune"),
                 label: t("filters", "Filters") || "Filters",
                 content: (
-                  <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                  <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                    {resolvedTab !== "closed" && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("status", "Status")}
+                        </span>
+                        <CustomDropdown
+                          flat={true}
+                          variant="pill"
+                          value={statusSubFilter}
+                          onChange={(v: string[]) =>
+                            setStatusSubFilter((v[0] as any) || "all_active")
+                          }
+                          options={[
+                            { id: "all_active", label: t("all", "All") },
+                            { id: "new", label: t("badge_new", "NEW") },
+                            { id: "pending", label: t("ticket_tab_claimed", "Claimed") },
+                            { id: "all", label: t("all_types", "All Types") },
+                          ]}
+                          disableTint={true}
+                        />
+                      </div>
+                    )}
+
+                    {(resolvedTab === "feedback" || resolvedTab === "bugs") && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("landing_feedback_form_platform", "Target Platform")}
+                        </span>
+                        <CustomDropdown
+                          flat={true}
+                          variant="pill"
+                          value={platformSubFilter}
+                          onChange={(v: string[]) => setPlatformSubFilter(v[0] || "all")}
+                          options={[
+                            { id: "all", label: t("all", "All") },
+                            { id: "Desktop App", label: t("landing_fb_desktop_title", "Desktop App") },
+                            { id: "Website", label: t("landing_fb_web_title", "Website") },
+                            { id: "Mobile PWA", label: t("landing_fb_pwa_title", "Mobile PWA") },
+                          ]}
+                          disableTint={true}
+                        />
+                      </div>
+                    )}
+
+                    {resolvedTab === "feedback" && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("landing_feedback_form_stream", "Feedback / Support Stream")}
+                        </span>
+                        <CustomDropdown
+                          flat={true}
+                          variant="pill"
+                          value={streamSubFilter}
+                          onChange={(v: string[]) => setStreamSubFilter(v[0] || "all")}
+                          options={[
+                            { id: "all", label: t("all", "All") },
+                            { id: "Feature Request", label: t("landing_fb_stream_feature", "Feature Request") },
+                            { id: "Public Build Feedback", label: t("landing_fb_stream_public", "Public Build Feedback") },
+                            { id: "Beta Build Feedback", label: t("landing_fb_stream_beta", "Beta Build Feedback") },
+                          ]}
+                          disableTint={true}
+                        />
+                      </div>
+                    )}
+
                     <div className="flex flex-col gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">{t("category", "Category") || "Category"}</span>
                       <CustomDropdown
@@ -433,8 +740,17 @@ export default function KeepersSupportTickets({
             : undefined
       }
       actions={
-        activeFilter === 'settings'
+        resolvedTab === 'settings'
           ? [
+              {
+                id: "config_support_email",
+                icon: t("icon_outgoing_mail", "outgoing_mail"),
+                label: t("keepers_email_center_btn", "In-App Email Center"),
+                onClick: () => {
+                  loadEmailCenterData();
+                  setIsEmailDrawerOpen(true);
+                },
+              },
               {
                 id: "add_cat",
                 icon: t("icon_add", "add"),
@@ -442,10 +758,20 @@ export default function KeepersSupportTickets({
                 onClick: () => openCatRef.current?.()
               }
             ]
-          : undefined
+          : [
+              {
+                id: "config_support_email",
+                icon: t("icon_outgoing_mail", "outgoing_mail"),
+                label: t("keepers_email_center_btn", "In-App Email Center"),
+                onClick: () => {
+                  loadEmailCenterData();
+                  setIsEmailDrawerOpen(true);
+                },
+              },
+            ]
       }
     >
-      {activeFilter === 'settings' ? (
+      {resolvedTab === 'settings' ? (
         <KeeperSupportSettings
           embedded={true}
           externalSearch={searchQuery}
@@ -453,7 +779,7 @@ export default function KeepersSupportTickets({
           openCatRef={openCatRef}
           onCountsChange={setSettingsCount}
         />
-      ) : activeFilter === 'overview' ? renderLanding() : (
+      ) : resolvedTab === 'overview' ? renderLanding() : (
         <div className="flex flex-col gap-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-40 opacity-50">
@@ -461,6 +787,51 @@ export default function KeepersSupportTickets({
             </div>
           ) : (() => {
             const filteredTickets = tickets.filter(t => {
+              if (resolvedTab === "closed") {
+                if (!isTicketClosedStatus(t.status)) return false;
+              } else {
+                const channel = classifyKeeperTicket(t);
+                if (channel !== resolvedTab) return false;
+                if (statusSubFilter === "all_active" && isTicketClosedStatus(t.status)) {
+                  return false;
+                }
+                if (statusSubFilter === "new") {
+                  const s = String(t.status || "NEW").toUpperCase();
+                  if (!["NEW", "OPEN"].includes(s) || Boolean(t.metadata?.claimed_by)) return false;
+                }
+                if (statusSubFilter === "pending") {
+                  const s = String(t.status || "NEW").toUpperCase();
+                  if (
+                    !["PENDING", "ESCALATED", "INVESTIGATING"].includes(s) &&
+                    !Boolean(t.metadata?.claimed_by)
+                  ) {
+                    return false;
+                  }
+                }
+              }
+
+              if (platformSubFilter !== "all") {
+                const plat =
+                  t.metadata?.feedback_meta?.platform ||
+                  (String(t.ticket_type || "").startsWith("Desktop App")
+                    ? "Desktop App"
+                    : String(t.ticket_type || "").startsWith("Website")
+                      ? "Website"
+                      : String(t.ticket_type || "").startsWith("Mobile PWA")
+                        ? "Mobile PWA"
+                        : "");
+                if (plat !== platformSubFilter && !String(t.title || "").includes(platformSubFilter)) {
+                  return false;
+                }
+              }
+
+              if (streamSubFilter !== "all") {
+                const strm = t.metadata?.feedback_meta?.stream || String(t.ticket_type || "");
+                if (!strm.includes(streamSubFilter) && !String(t.title || "").includes(streamSubFilter)) {
+                  return false;
+                }
+              }
+
               if (activeCategory !== "all") {
                 const tCat = t.ticket_type || t.category || "GENERAL";
                 if (tCat !== activeCategory) return false;
@@ -469,25 +840,11 @@ export default function KeepersSupportTickets({
                 const q = searchQuery.toLowerCase();
                 if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
               }
-              
-              const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
-              const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
-              
-              if (activeFilter === "new") {
-                  if (!['NEW', 'OPEN', 'new', 'open'].includes(t.status)) return false;
-                  if (isClaimedByOther || isClaimedByMe) return false;
-              } else if (activeFilter === "pending") {
-                  if (!['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
-                  if (!isClaimedByMe) return false;
-              } else if (activeFilter === "closed") {
-                  if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
-              }
-              
               return true;
             });
 
             if (filteredTickets.length === 0) return (
-              <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (activeFilter === 'new' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
+              <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (resolvedTab === 'bugs' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
             );
 
             return (
@@ -503,6 +860,7 @@ export default function KeepersSupportTickets({
         isOpen={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
         ticket={selectedTicket}
+        tableName="keeper_tickets"
         isReadOnly={false}
         canReply={true}
         availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
@@ -515,6 +873,198 @@ export default function KeepersSupportTickets({
           fetchTickets();
         }}
       />
+
+      <SidePanel
+        isOpen={isEmailDrawerOpen}
+        onClose={() => setIsEmailDrawerOpen(false)}
+        title={t("keepers_email_center_title", "In-App Email Center & Custom Sender")}
+        subtitle={t("keepers_title", "Keepers Core")}
+        icon={t("icon_outgoing_mail", "outgoing_mail")}
+        widthClass="w-[90vw] md:w-[680px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={isSavingEmail ? t("icon_sync", "sync") : t("icon_save", "save")}
+              tooltip={t("save", "Save")}
+              onClick={handleSaveSupportEmail}
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 pb-6">
+          <SidePanelHeroCard
+            icon={t("icon_outgoing_mail", "outgoing_mail")}
+            overline={t("keepers_email_center_overline", "Keepers Core • Direct Mail Relay")}
+            title={t("keepers_email_center_hero_title", "Custom Sender Identity & In-App Dispatch")}
+            description={t(
+              "keepers_email_center_hero_desc",
+              "Dispatch outbound emails directly from Keepers Core using your custom sender identity, or configure your mail relay credentials (Resend API / Custom SMTP Webhook) for automated ticket correspondence."
+            )}
+            variant="accent"
+          />
+
+          <UniversalGroup
+            title={t("keepers_email_compose_group", "Compose & Dispatch Custom Email")}
+            icon={t("icon_send", "send")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <UniversalInput
+                label={t("keeper_email_recipient_label", "Recipient Email Address")}
+                value={emailComposeTo}
+                onChange={setEmailComposeTo}
+                placeholder={t("keeper_email_recipient_placeholder", "citizen@domain.com")}
+              />
+              <UniversalInput
+                label={t("keepers_email_subject_label", "Subject Line")}
+                value={emailComposeSubject}
+                onChange={setEmailComposeSubject}
+                placeholder={t("keepers_email_subject_placeholder", "Official Sanctuary OS Correspondence")}
+              />
+            </div>
+            <UniversalTextArea
+              label={t("keepers_email_body_label", "Message Body")}
+              value={emailComposeBody}
+              onChange={setEmailComposeBody}
+              placeholder={t(
+                "keepers_email_body_placeholder",
+                "Write your message to be formatted and dispatched from Keepers Core..."
+              )}
+              className="min-h-[120px]"
+            />
+            <ActionButton
+              onClick={handleDispatchCustomEmail}
+              disabled={
+                isDispatchingEmail ||
+                !emailComposeTo.trim().includes("@") ||
+                !emailComposeSubject.trim() ||
+                !emailComposeBody.trim()
+              }
+              className="w-full"
+              icon={t("icon_outgoing_mail", "outgoing_mail")}
+              variant="accent"
+              label={
+                isDispatchingEmail
+                  ? t("btn_submitting", "Submitting...")
+                  : t("keepers_email_btn_dispatch_now", "Dispatch From Keepers Core")
+              }
+            />
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t("keepers_email_sender_group", "Custom Sender Identity & Mail Relay")}
+            icon={t("icon_alternate_email", "alternate_email")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <UniversalInput
+                label={t("keepers_email_sender_name_label", "Custom Sender Display Name")}
+                value={supportSenderNameInput}
+                onChange={setSupportSenderNameInput}
+                placeholder="Sanctuary OS Keepers Core"
+              />
+              <UniversalInput
+                label={t("keepers_email_sender_addr_label", "Custom Sender Email (From)")}
+                value={supportEmailInput}
+                onChange={setSupportEmailInput}
+                placeholder="support@sanctuaryos.gg"
+              />
+              <UniversalInput
+                label={t("keepers_email_reply_to_label", "Reply-To Address")}
+                value={supportReplyToInput}
+                onChange={setSupportReplyToInput}
+                placeholder="support@sanctuaryos.gg"
+              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("keepers_email_provider_label", "Mail Relay Transport")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={supportEmailProvider}
+                  onChange={(v: string[]) =>
+                    setSupportEmailProvider((v[0] as "resend" | "webhook") || "resend")
+                  }
+                  options={[
+                    {
+                      id: "resend",
+                      label: t("keepers_email_provider_resend", "Resend API (Custom Domain)"),
+                    },
+                    {
+                      id: "webhook",
+                      label: t("keepers_email_provider_webhook", "Custom SMTP / Webhook Relay"),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {supportEmailProvider === "resend" ? (
+              <UniversalInput
+                label={t("keepers_email_api_key_label", "Resend API Key (re_...)")}
+                value={supportEmailApiKey}
+                onChange={setSupportEmailApiKey}
+                placeholder={t(
+                  "keepers_email_api_key_placeholder",
+                  "re_... (or configured in Edge Function Secrets)"
+                )}
+              />
+            ) : (
+              <UniversalInput
+                label={t("keepers_email_webhook_label", "Custom SMTP / Webhook Relay URL")}
+                value={supportEmailWebhookUrl}
+                onChange={setSupportEmailWebhookUrl}
+                placeholder="https://mail-relay.sanctuaryos.gg/dispatch"
+              />
+            )}
+
+            <ActionButton
+              onClick={handleSaveSupportEmail}
+              disabled={isSavingEmail}
+              className="w-full"
+              icon={t("icon_save", "save")}
+              variant="glass"
+              label={t("keepers_email_btn_save_sender", "Save Custom Sender Configuration")}
+            />
+          </UniversalGroup>
+
+          {recentDispatches.length > 0 && (
+            <UniversalGroup
+              title={t("keeper_email_dispatches_title", "Outbound Custom Email Dispatches")}
+              icon={t("icon_history", "history")}
+            >
+              <div className="flex flex-col gap-2">
+                {recentDispatches.map((item) => (
+                  <div
+                    key={item.id}
+                    className="glass-surface px-4 py-2.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-[var(--text)] truncate">
+                        {item.subject}
+                      </span>
+                      <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
+                        {item.from_email} {"->"} {item.to_email}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] text-[var(--accent)]">
+                          {t("icon_mark_email_read", "mark_email_read")}
+                        </span>
+                        <span>{item.status || "DISPATCHED"}</span>
+                      </span>
+                      {item.created_at && (
+                        <span className="text-[10px] font-mono text-[var(--subtext)]">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </UniversalGroup>
+          )}
+        </div>
+      </SidePanel>
     </ElevatedHubLayout>
   );
 }

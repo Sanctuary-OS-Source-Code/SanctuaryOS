@@ -288,6 +288,8 @@ pub async fn scan_bunker(
 
                     let mut is_malware = false;
                     let mut signature_name = "NO SIGNATURE MATCH".to_string();
+                    let mut matched_entry_opt: Option<String> = None;
+                    let mut detection_type_str = "hash_blacklist".to_string();
 
                     if malware_hashes_set.contains(&dna_hash) {
                         is_malware = true;
@@ -298,13 +300,18 @@ pub async fn scan_bunker(
                             if let Some(sig) = cached_sig_opt {
                                 is_malware = true;
                                 signature_name = sig;
+                                detection_type_str = "heuristic_signature".to_string();
                             }
                         } else {
                             did_disk_scan = true;
-                            let sig_opt = check_heuristic_malware_compiled(&path, &compiled_sigs);
-                            if let Some(sig) = sig_opt.clone() {
+                            let detail_opt =
+                                check_heuristic_malware_detailed(&path, &compiled_sigs);
+                            let sig_opt = detail_opt.as_ref().map(|d| d.signature.clone());
+                            if let Some(detail) = detail_opt {
                                 is_malware = true;
-                                signature_name = sig;
+                                signature_name = detail.signature;
+                                matched_entry_opt = detail.matched_entry;
+                                detection_type_str = detail.detection_type;
                             }
                             if let Some(entry) = cache.get_mut(&path_str) {
                                 entry.heuristic_malware_sig = sig_opt;
@@ -342,6 +349,11 @@ pub async fn scan_bunker(
                         let malware_dir = vault_dir.join(".sanctuary_quarantine");
                         let _ = fs::create_dir_all(&reports_dir);
                         let _ = fs::create_dir_all(&malware_dir);
+                        let file_size_bytes = fs::metadata(&path).map(|m| m.len()).ok();
+                        let file_extension = path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| format!(".{}", e.to_lowercase()));
                         let target = malware_dir.join(path.file_name().unwrap_or_default());
                         let _ = fs::rename(&path, &target);
 
@@ -360,6 +372,12 @@ pub async fn scan_bunker(
                             original_shredded: false,
                             quarantined_file_shredded: false,
                             detected_at: chrono::Local::now().to_rfc3339(),
+                            source_moved: false,
+                            ingest_mode: Some("radar_sweep".to_string()),
+                            file_size_bytes,
+                            file_extension: file_extension.clone(),
+                            matched_entry: matched_entry_opt.clone(),
+                            detection_type: Some(detection_type_str.clone()),
                         };
                         let manifest_path = reports_dir.join(format!(
                             "{}.manifest.json",
@@ -383,7 +401,13 @@ pub async fn scan_bunker(
                                 "original_shredded": manifest.original_shredded,
                                 "original_path": manifest.original_path,
                                 "quarantine_path": manifest.quarantine_path,
-                                "matched_signature": manifest.signature
+                                "matched_signature": manifest.signature,
+                                "source_moved": manifest.source_moved,
+                                "ingest_mode": manifest.ingest_mode,
+                                "file_size_bytes": manifest.file_size_bytes,
+                                "file_extension": manifest.file_extension,
+                                "matched_entry": manifest.matched_entry,
+                                "detection_type": manifest.detection_type
                             }),
                         );
 
@@ -806,20 +830,26 @@ pub async fn ingest_dropped_file(
         let source_file_name = source.file_name().unwrap_or_default();
         let source_file_name_str = source_file_name.to_string_lossy().to_string();
 
-        // For single supported mod files, run Malware DNA + Heuristics check FIRST before duplicate checks
-        // so malicious files are immediately intercepted and their source path is captured in volatile memory.
-        if supported.contains(&ext) {
+        // For single files (including archives or any dropped file), run Malware DNA + Heuristics check FIRST
+        // before duplicate checks or extraction so malicious files are immediately intercepted.
+        {
             let file_hash = calculate_hash(&source).unwrap_or_default();
-            hash = file_hash.clone();
+            if supported.contains(&ext) {
+                hash = file_hash.clone();
+            }
             record_volatile_origin(&file_hash, &source_file_name_str, &source_full_str);
 
             let mut matched_sig = "NO SIGNATURE MATCH".to_string();
-            let mut is_malware = malware_hashes_set.contains(&file_hash);
-            let is_verified = tier2_hashes_set.contains(&file_hash);
+            let mut matched_entry_opt: Option<String> = None;
+            let mut detection_type_str = "hash_blacklist".to_string();
+            let mut is_malware = !file_hash.is_empty() && malware_hashes_set.contains(&file_hash);
+            let is_verified = !file_hash.is_empty() && tier2_hashes_set.contains(&file_hash);
             if !is_malware && !is_verified {
-                if let Some(sig) = check_heuristic_malware_compiled(source, &compiled_sigs) {
+                if let Some(detail) = check_heuristic_malware_detailed(source, &compiled_sigs) {
                     is_malware = true;
-                    matched_sig = sig;
+                    matched_sig = detail.signature;
+                    matched_entry_opt = detail.matched_entry;
+                    detection_type_str = detail.detection_type;
                 }
             }
 
@@ -828,8 +858,40 @@ pub async fn ingest_dropped_file(
                 let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                 let _ = std::fs::create_dir_all(&q_dir);
                 let _ = std::fs::create_dir_all(&reports_dir);
+                let file_size_bytes = fs::metadata(source).map(|m| m.len()).ok();
+                let file_extension = if !ext.is_empty() {
+                    Some(format!(".{}", ext))
+                } else {
+                    None
+                };
                 let q_target = q_dir.join(&source_file_name);
-                let _ = std::fs::copy(source, &q_target);
+                let mut source_was_moved = false;
+                if should_move_original {
+                    if std::fs::rename(source, &q_target).is_ok() {
+                        source_was_moved = true;
+                    } else if std::fs::copy(source, &q_target).is_ok() {
+                        if std::fs::remove_file(source).is_ok() {
+                            source_was_moved = true;
+                        }
+                    }
+                } else {
+                    let _ = std::fs::copy(source, &q_target);
+                }
+
+                let orig_still_exists = source.exists();
+                if source_was_moved && !orig_still_exists {
+                    if let Ok(mut map) = app.state::<SecurityState>().volatile_original_paths.lock() {
+                        map.remove(&file_hash.to_lowercase());
+                        map.remove(&source_file_name_str);
+                        map.remove(&source_file_name_str.to_lowercase());
+                    }
+                }
+
+                let ingest_mode_str = if should_move_original {
+                    "move".to_string()
+                } else {
+                    "copy".to_string()
+                };
 
                 let manifest = QuarantineManifest {
                     artifact_name: source_file_name_str.clone(),
@@ -838,10 +900,16 @@ pub async fn ingest_dropped_file(
                     quarantine_path: obscure_username(&q_target.to_string_lossy()),
                     original_path: Some(obscure_username(&source_full_str)),
                     original_hash_at_import: Some(file_hash.clone()),
-                    original_exists: true,
+                    original_exists: orig_still_exists,
                     original_shredded: false,
                     quarantined_file_shredded: false,
                     detected_at: chrono::Local::now().to_rfc3339(),
+                    source_moved: source_was_moved,
+                    ingest_mode: Some(ingest_mode_str),
+                    file_size_bytes,
+                    file_extension,
+                    matched_entry: matched_entry_opt,
+                    detection_type: Some(detection_type_str),
                 };
                 let manifest_path =
                     reports_dir.join(format!("{}.manifest.json", source_file_name_str));
@@ -862,9 +930,15 @@ pub async fn ingest_dropped_file(
                         "original_exists": manifest.original_exists,
                         "original_shredded": manifest.original_shredded,
                         "original_path": manifest.original_path,
-                        "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
+                        "volatile_original_path": if is_external_source && orig_still_exists { Some(source_full_str.clone()) } else { None },
                         "quarantine_path": manifest.quarantine_path,
-                        "matched_signature": manifest.signature
+                        "matched_signature": manifest.signature,
+                        "source_moved": manifest.source_moved,
+                        "ingest_mode": manifest.ingest_mode,
+                        "file_size_bytes": manifest.file_size_bytes,
+                        "file_extension": manifest.file_extension,
+                        "matched_entry": manifest.matched_entry,
+                        "detection_type": manifest.detection_type
                     }),
                 );
                 return Err("MALWARE".into());
@@ -982,67 +1056,108 @@ pub async fn ingest_dropped_file(
                 continue;
             }
             if sp.is_file() {
-                if let Some(e_str) = sp.extension().and_then(|s| s.to_str()) {
-                    if supported.contains(&e_str.to_lowercase()) {
-                        let sp_hash = calculate_hash(sp).unwrap_or_default();
-                        let sp_name = sp.file_name().unwrap_or_default().to_string_lossy().to_string();
-                        let sp_full = sp.to_string_lossy().to_string();
-                        record_volatile_origin(&sp_hash, &sp_name, &sp_full);
+                let sp_ext = sp
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| format!(".{}", s.to_lowercase()));
+                let sp_hash = calculate_hash(sp).unwrap_or_default();
+                let sp_name = sp.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let sp_full = sp.to_string_lossy().to_string();
+                record_volatile_origin(&sp_hash, &sp_name, &sp_full);
 
-                        let mut matched_sig = "NO SIGNATURE MATCH".to_string();
-                        let mut is_malware = malware_hashes_set.contains(&sp_hash);
-                        let is_verified = tier2_hashes_set.contains(&sp_hash);
-                        if !is_malware && !is_verified {
-                            if let Some(sig) = check_heuristic_malware_compiled(sp, &compiled_sigs) {
-                                is_malware = true;
-                                matched_sig = sig;
+                let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                let mut matched_entry_opt: Option<String> = None;
+                let mut detection_type_str = "hash_blacklist".to_string();
+                let mut is_malware = !sp_hash.is_empty() && malware_hashes_set.contains(&sp_hash);
+                let is_verified = !sp_hash.is_empty() && tier2_hashes_set.contains(&sp_hash);
+                if !is_malware && !is_verified {
+                    if let Some(detail) = check_heuristic_malware_detailed(sp, &compiled_sigs) {
+                        is_malware = true;
+                        matched_sig = detail.signature;
+                        matched_entry_opt = detail.matched_entry;
+                        detection_type_str = detail.detection_type;
+                    }
+                }
+                if is_malware {
+                    let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                    let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                    let _ = std::fs::create_dir_all(&q_dir);
+                    let _ = std::fs::create_dir_all(&reports_dir);
+                    let file_size_bytes = fs::metadata(sp).map(|m| m.len()).ok();
+                    let q_target = q_dir.join(&sp_name);
+                    let mut source_was_moved = false;
+                    if should_move_original {
+                        if std::fs::rename(sp, &q_target).is_ok() {
+                            source_was_moved = true;
+                        } else if std::fs::copy(sp, &q_target).is_ok() {
+                            if std::fs::remove_file(sp).is_ok() {
+                                source_was_moved = true;
                             }
                         }
-                        if is_malware {
-                            let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
-                            let reports_dir = Path::new(&config.vault_path).join("Quarantine");
-                            let _ = std::fs::create_dir_all(&q_dir);
-                            let _ = std::fs::create_dir_all(&reports_dir);
-                            let q_target = q_dir.join(&sp_name);
-                            let _ = std::fs::copy(sp, &q_target);
-
-                            let manifest = QuarantineManifest {
-                                artifact_name: sp_name.clone(),
-                                detected_hash: sp_hash.clone(),
-                                signature: matched_sig,
-                                quarantine_path: obscure_username(&q_target.to_string_lossy()),
-                                original_path: Some(obscure_username(&sp_full)),
-                                original_hash_at_import: Some(sp_hash.clone()),
-                                original_exists: true,
-                                original_shredded: false,
-                                quarantined_file_shredded: false,
-                                detected_at: chrono::Local::now().to_rfc3339(),
-                            };
-                            let manifest_path = reports_dir.join(format!("{}.manifest.json", sp_name));
-                            if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                                let _ = fs::write(manifest_path, json);
-                            }
-                            let _ = app.emit(
-                                "malware_detected",
-                                serde_json::json!({
-                                    "path": q_target.to_string_lossy().to_string(),
-                                    "name": sp_name,
-                                    "hash": sp_hash,
-                                    "status": "QUARANTINED",
-                                    "isLocalOverride": false,
-                                    "isVirtual": false,
-                                    "compliance_tier": 5,
-                                    "original_exists": manifest.original_exists,
-                                    "original_shredded": manifest.original_shredded,
-                                    "original_path": manifest.original_path,
-                                    "volatile_original_path": if is_external_source { Some(sp_full) } else { None },
-                                    "quarantine_path": manifest.quarantine_path,
-                                    "matched_signature": manifest.signature
-                                }),
-                            );
-                            return Err("MALWARE".into());
+                    } else {
+                        let _ = std::fs::copy(sp, &q_target);
+                    }
+                    let orig_still_exists = sp.exists();
+                    if source_was_moved && !orig_still_exists {
+                        if let Ok(mut map) = app.state::<SecurityState>().volatile_original_paths.lock() {
+                            map.remove(&sp_hash.to_lowercase());
+                            map.remove(&sp_name);
+                            map.remove(&sp_name.to_lowercase());
                         }
                     }
+                    let ingest_mode_str = if should_move_original {
+                        "move".to_string()
+                    } else {
+                        "copy".to_string()
+                    };
+
+                    let manifest = QuarantineManifest {
+                        artifact_name: sp_name.clone(),
+                        detected_hash: sp_hash.clone(),
+                        signature: matched_sig,
+                        quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                        original_path: Some(obscure_username(&sp_full)),
+                        original_hash_at_import: Some(sp_hash.clone()),
+                        original_exists: orig_still_exists,
+                        original_shredded: false,
+                        quarantined_file_shredded: false,
+                        detected_at: chrono::Local::now().to_rfc3339(),
+                        source_moved: source_was_moved,
+                        ingest_mode: Some(ingest_mode_str),
+                        file_size_bytes,
+                        file_extension: sp_ext,
+                        matched_entry: matched_entry_opt,
+                        detection_type: Some(detection_type_str),
+                    };
+                    let manifest_path = reports_dir.join(format!("{}.manifest.json", sp_name));
+                    if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                        let _ = fs::write(manifest_path, json);
+                    }
+                    let _ = app.emit(
+                        "malware_detected",
+                        serde_json::json!({
+                            "path": q_target.to_string_lossy().to_string(),
+                            "name": sp_name,
+                            "hash": sp_hash,
+                            "status": "QUARANTINED",
+                            "isLocalOverride": false,
+                            "isVirtual": false,
+                            "compliance_tier": 5,
+                            "original_exists": manifest.original_exists,
+                            "original_shredded": manifest.original_shredded,
+                            "original_path": manifest.original_path,
+                            "volatile_original_path": if is_external_source && orig_still_exists { Some(sp_full) } else { None },
+                            "quarantine_path": manifest.quarantine_path,
+                            "matched_signature": manifest.signature,
+                            "source_moved": manifest.source_moved,
+                            "ingest_mode": manifest.ingest_mode,
+                            "file_size_bytes": manifest.file_size_bytes,
+                            "file_extension": manifest.file_extension,
+                            "matched_entry": manifest.matched_entry,
+                            "detection_type": manifest.detection_type
+                        }),
+                    );
+                    return Err("MALWARE".into());
                 }
             }
         }
@@ -1311,14 +1426,18 @@ pub async fn ingest_dropped_file(
                                     }
                                     record_volatile_origin(&extracted_hash, &file_name_str, &source_full_str);
                                     let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                                    let mut matched_entry_opt: Option<String> = None;
+                                    let mut detection_type_str = "hash_blacklist".to_string();
                                     let mut is_malware = malware_hashes_set.contains(&extracted_hash);
                                     let is_verified = tier2_hashes_set.contains(&extracted_hash);
                                     if !is_malware && !is_verified {
-                                        if let Some(sig) =
-                                            check_heuristic_malware_compiled(&extract_target, &compiled_sigs)
+                                        if let Some(detail) =
+                                            check_heuristic_malware_detailed(&extract_target, &compiled_sigs)
                                         {
                                             is_malware = true;
-                                            matched_sig = sig;
+                                            matched_sig = detail.signature;
+                                            matched_entry_opt = detail.matched_entry.or_else(|| Some(file_name_str.clone()));
+                                            detection_type_str = detail.detection_type;
                                         }
                                     }
 
@@ -1329,9 +1448,30 @@ pub async fn ingest_dropped_file(
                                             Path::new(&config.vault_path).join("Quarantine");
                                         let _ = std::fs::create_dir_all(&q_dir);
                                         let _ = std::fs::create_dir_all(&reports_dir);
+                                        let file_size_bytes = fs::metadata(&extract_target).map(|m| m.len()).ok();
                                         let q_target = q_dir.join(&zf_file_name);
                                         let _ = std::fs::copy(&extract_target, &q_target);
                                         let _ = std::fs::remove_file(&extract_target);
+
+                                        let mut source_was_moved = false;
+                                        if should_move_original && source.exists() {
+                                            if std::fs::remove_file(source).is_ok() {
+                                                source_was_moved = true;
+                                            }
+                                        }
+                                        let orig_still_exists = source.exists();
+                                        if source_was_moved && !orig_still_exists {
+                                            if let Ok(mut map) = app.state::<SecurityState>().volatile_original_paths.lock() {
+                                                map.remove(&extracted_hash.to_lowercase());
+                                                map.remove(&file_name_str);
+                                                map.remove(&file_name_str.to_lowercase());
+                                            }
+                                        }
+                                        let ingest_mode_str = if should_move_original {
+                                            "move".to_string()
+                                        } else {
+                                            "copy".to_string()
+                                        };
 
                                         let manifest = QuarantineManifest {
                                             artifact_name: zf_file_name
@@ -1346,12 +1486,18 @@ pub async fn ingest_dropped_file(
                                                 &source.to_string_lossy(),
                                             )),
                                             original_hash_at_import: Some(
-                                                calculate_hash(&source).unwrap_or_default(),
+                                                calculate_hash(&source).unwrap_or_else(|_| extracted_hash.clone()),
                                             ),
-                                            original_exists: true,
+                                            original_exists: orig_still_exists,
                                             original_shredded: false,
                                             quarantined_file_shredded: false,
                                             detected_at: chrono::Local::now().to_rfc3339(),
+                                            source_moved: source_was_moved,
+                                            ingest_mode: Some(ingest_mode_str),
+                                            file_size_bytes,
+                                            file_extension: Some(zf_ext_with_dot.clone()),
+                                            matched_entry: matched_entry_opt,
+                                            detection_type: Some(detection_type_str),
                                         };
                                         let manifest_path = reports_dir.join(format!(
                                             "{}.manifest.json",
@@ -1374,9 +1520,15 @@ pub async fn ingest_dropped_file(
                                                 "original_exists": manifest.original_exists,
                                                 "original_shredded": manifest.original_shredded,
                                                 "original_path": manifest.original_path,
-                                                "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
+                                                "volatile_original_path": if is_external_source && orig_still_exists { Some(source_full_str.clone()) } else { None },
                                                 "quarantine_path": manifest.quarantine_path,
-                                                "matched_signature": manifest.signature
+                                                "matched_signature": manifest.signature,
+                                                "source_moved": manifest.source_moved,
+                                                "ingest_mode": manifest.ingest_mode,
+                                                "file_size_bytes": manifest.file_size_bytes,
+                                                "file_extension": manifest.file_extension,
+                                                "matched_entry": manifest.matched_entry,
+                                                "detection_type": manifest.detection_type
                                             }),
                                         );
                                         drop(out_file);
@@ -1566,6 +1718,86 @@ pub async fn ingest_dropped_file(
                         .and_then(|e| e.to_str())
                         .unwrap_or("")
                         .to_lowercase();
+                    if !vault_visible_exts.contains(&zf_ext) {
+                        let p_hash = calculate_hash(p).unwrap_or_default();
+                        let p_is_verified = !p_hash.is_empty() && tier2_hashes_set.contains(&p_hash);
+                        let mut p_is_malware = !p_hash.is_empty() && malware_hashes_set.contains(&p_hash);
+                        let mut p_sig = "NO SIGNATURE MATCH".to_string();
+                        let mut p_det_type = "hash_blacklist".to_string();
+                        if !p_is_malware && !p_is_verified {
+                            if let Some(detail) = check_heuristic_malware_detailed(p, &compiled_sigs) {
+                                p_is_malware = true;
+                                p_sig = detail.signature;
+                                p_det_type = detail.detection_type;
+                            }
+                        }
+                        if p_is_malware {
+                            let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
+                            let reports_dir = Path::new(&config.vault_path).join("Quarantine");
+                            let _ = std::fs::create_dir_all(&q_dir);
+                            let _ = std::fs::create_dir_all(&reports_dir);
+                            let p_fname = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            let file_size_bytes = fs::metadata(p).map(|m| m.len()).ok();
+                            let q_target = q_dir.join(&p_fname);
+                            let _ = std::fs::copy(p, &q_target);
+                            let mut source_was_moved = false;
+                            if should_move_original && source.exists() {
+                                if std::fs::remove_file(source).is_ok() {
+                                    source_was_moved = true;
+                                }
+                            }
+                            let orig_still_exists = source.exists();
+                            let manifest = QuarantineManifest {
+                                artifact_name: p_fname.clone(),
+                                detected_hash: p_hash.clone(),
+                                signature: p_sig,
+                                quarantine_path: obscure_username(&q_target.to_string_lossy()),
+                                original_path: Some(obscure_username(&source.to_string_lossy())),
+                                original_hash_at_import: Some(calculate_hash(&source).unwrap_or_else(|_| p_hash.clone())),
+                                original_exists: orig_still_exists,
+                                original_shredded: false,
+                                quarantined_file_shredded: false,
+                                detected_at: chrono::Local::now().to_rfc3339(),
+                                source_moved: source_was_moved,
+                                ingest_mode: Some(if should_move_original { "move".to_string() } else { "copy".to_string() }),
+                                file_size_bytes,
+                                file_extension: if !zf_ext.is_empty() { Some(format!(".{}", zf_ext)) } else { None },
+                                matched_entry: Some(rel_path.to_string_lossy().replace('\\', "/")),
+                                detection_type: Some(p_det_type),
+                            };
+                            let manifest_path = reports_dir.join(format!("{}.manifest.json", p_fname));
+                            if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                                let _ = std::fs::write(manifest_path, json);
+                            }
+                            let _ = app.emit(
+                                "malware_detected",
+                                serde_json::json!({
+                                    "path": q_target.to_string_lossy().to_string(),
+                                    "name": p_fname,
+                                    "hash": p_hash,
+                                    "status": "QUARANTINED",
+                                    "isLocalOverride": false,
+                                    "isVirtual": false,
+                                    "compliance_tier": 5,
+                                    "original_exists": manifest.original_exists,
+                                    "original_shredded": manifest.original_shredded,
+                                    "original_path": manifest.original_path,
+                                    "volatile_original_path": if is_external_source && orig_still_exists { Some(source_full_str.clone()) } else { None },
+                                    "quarantine_path": manifest.quarantine_path,
+                                    "matched_signature": manifest.signature,
+                                    "source_moved": manifest.source_moved,
+                                    "ingest_mode": manifest.ingest_mode,
+                                    "file_size_bytes": manifest.file_size_bytes,
+                                    "file_extension": manifest.file_extension,
+                                    "matched_entry": manifest.matched_entry,
+                                    "detection_type": manifest.detection_type
+                                }),
+                            );
+                            let _ = std::fs::remove_dir_all(&tmp_extract);
+                            let _ = std::fs::remove_dir_all(&target_base);
+                            return Err("MALWARE".into());
+                        }
+                    }
                     if vault_visible_exts.contains(&zf_ext) || p.file_name().unwrap_or_default().to_string_lossy().to_lowercase().contains("override") && zf_ext == "json" {
                         if let Some(zf_file_name) = p.file_name() {
                             let file_name_str = zf_file_name.to_string_lossy().to_string();
@@ -1638,14 +1870,18 @@ pub async fn ingest_dropped_file(
                                     calculate_hash(&extract_target).unwrap_or_default();
                                 record_volatile_origin(&extracted_hash, &file_name_str, &source_full_str);
                                 let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+                                let mut matched_entry_opt: Option<String> = None;
+                                let mut detection_type_str = "hash_blacklist".to_string();
                                 let mut is_malware = malware_hashes_set.contains(&extracted_hash);
                                 let is_verified = tier2_hashes_set.contains(&extracted_hash);
                                 if !is_malware && !is_verified {
-                                    if let Some(sig) =
-                                        check_heuristic_malware_compiled(&extract_target, &compiled_sigs)
+                                    if let Some(detail) =
+                                        check_heuristic_malware_detailed(&extract_target, &compiled_sigs)
                                     {
                                         is_malware = true;
-                                        matched_sig = sig;
+                                        matched_sig = detail.signature;
+                                        matched_entry_opt = detail.matched_entry.or_else(|| Some(file_name_str.clone()));
+                                        detection_type_str = detail.detection_type;
                                     }
                                 }
 
@@ -1656,9 +1892,30 @@ pub async fn ingest_dropped_file(
                                         Path::new(&config.vault_path).join("Quarantine");
                                     let _ = std::fs::create_dir_all(&q_dir);
                                     let _ = std::fs::create_dir_all(&reports_dir);
+                                    let file_size_bytes = fs::metadata(&extract_target).map(|m| m.len()).ok();
                                     let q_target = q_dir.join(&zf_file_name);
                                     let _ = std::fs::copy(&extract_target, &q_target);
                                     let _ = std::fs::remove_file(&extract_target);
+
+                                    let mut source_was_moved = false;
+                                    if should_move_original && source.exists() {
+                                        if std::fs::remove_file(source).is_ok() {
+                                            source_was_moved = true;
+                                        }
+                                    }
+                                    let orig_still_exists = source.exists();
+                                    if source_was_moved && !orig_still_exists {
+                                        if let Ok(mut map) = app.state::<SecurityState>().volatile_original_paths.lock() {
+                                            map.remove(&extracted_hash.to_lowercase());
+                                            map.remove(&file_name_str);
+                                            map.remove(&file_name_str.to_lowercase());
+                                        }
+                                    }
+                                    let ingest_mode_str = if should_move_original {
+                                        "move".to_string()
+                                    } else {
+                                        "copy".to_string()
+                                    };
 
                                     let manifest = QuarantineManifest {
                                         artifact_name: zf_file_name.to_string_lossy().to_string(),
@@ -1671,12 +1928,18 @@ pub async fn ingest_dropped_file(
                                             &source.to_string_lossy(),
                                         )),
                                         original_hash_at_import: Some(
-                                            calculate_hash(&source).unwrap_or_default(),
+                                            calculate_hash(&source).unwrap_or_else(|_| extracted_hash.clone()),
                                         ),
-                                        original_exists: true,
+                                        original_exists: orig_still_exists,
                                         original_shredded: false,
                                         quarantined_file_shredded: false,
                                         detected_at: chrono::Local::now().to_rfc3339(),
+                                        source_moved: source_was_moved,
+                                        ingest_mode: Some(ingest_mode_str),
+                                        file_size_bytes,
+                                        file_extension: Some(zf_ext_with_dot.clone()),
+                                        matched_entry: matched_entry_opt,
+                                        detection_type: Some(detection_type_str),
                                     };
                                     let manifest_path = reports_dir.join(format!(
                                         "{}.manifest.json",
@@ -1699,9 +1962,15 @@ pub async fn ingest_dropped_file(
                                             "original_exists": manifest.original_exists,
                                             "original_shredded": manifest.original_shredded,
                                             "original_path": manifest.original_path,
-                                            "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
+                                            "volatile_original_path": if is_external_source && orig_still_exists { Some(source_full_str.clone()) } else { None },
                                             "quarantine_path": manifest.quarantine_path,
-                                            "matched_signature": manifest.signature
+                                            "matched_signature": manifest.signature,
+                                            "source_moved": manifest.source_moved,
+                                            "ingest_mode": manifest.ingest_mode,
+                                            "file_size_bytes": manifest.file_size_bytes,
+                                            "file_extension": manifest.file_extension,
+                                            "matched_entry": manifest.matched_entry,
+                                            "detection_type": manifest.detection_type
                                         }),
                                     );
                                     let _ = std::fs::remove_dir_all(&tmp_extract);
@@ -1789,12 +2058,16 @@ pub async fn ingest_dropped_file(
             let file_name_str = file_name.to_string_lossy().to_string();
             record_volatile_origin(&file_hash, &file_name_str, &source_full_str);
             let mut matched_sig = "NO SIGNATURE MATCH".to_string();
+            let mut matched_entry_opt: Option<String> = None;
+            let mut detection_type_str = "hash_blacklist".to_string();
             let mut is_malware = malware_hashes_set.contains(&file_hash);
             let is_verified = tier2_hashes_set.contains(&file_hash);
             if !is_malware && !is_verified {
-                if let Some(sig) = check_heuristic_malware_compiled(source, &compiled_sigs) {
+                if let Some(detail) = check_heuristic_malware_detailed(source, &compiled_sigs) {
                     is_malware = true;
-                    matched_sig = sig;
+                    matched_sig = detail.signature;
+                    matched_entry_opt = detail.matched_entry;
+                    detection_type_str = detail.detection_type;
                 }
             }
 
@@ -1803,8 +2076,33 @@ pub async fn ingest_dropped_file(
                 let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                 let _ = std::fs::create_dir_all(&q_dir);
                 let _ = std::fs::create_dir_all(&reports_dir);
+                let file_size_bytes = fs::metadata(source).map(|m| m.len()).ok();
                 let q_target = q_dir.join(&file_name);
-                let _ = std::fs::copy(source, &q_target);
+                let mut source_was_moved = false;
+                if should_move_original {
+                    if std::fs::rename(source, &q_target).is_ok() {
+                        source_was_moved = true;
+                    } else if std::fs::copy(source, &q_target).is_ok() {
+                        if std::fs::remove_file(source).is_ok() {
+                            source_was_moved = true;
+                        }
+                    }
+                } else {
+                    let _ = std::fs::copy(source, &q_target);
+                }
+                let orig_still_exists = source.exists();
+                if source_was_moved && !orig_still_exists {
+                    if let Ok(mut map) = app.state::<SecurityState>().volatile_original_paths.lock() {
+                        map.remove(&file_hash.to_lowercase());
+                        map.remove(&file_name_str);
+                        map.remove(&file_name_str.to_lowercase());
+                    }
+                }
+                let ingest_mode_str = if should_move_original {
+                    "move".to_string()
+                } else {
+                    "copy".to_string()
+                };
 
                 let manifest = QuarantineManifest {
                     artifact_name: file_name.to_string_lossy().to_string(),
@@ -1813,10 +2111,16 @@ pub async fn ingest_dropped_file(
                     quarantine_path: obscure_username(&q_target.to_string_lossy()),
                     original_path: Some(obscure_username(&source.to_string_lossy())),
                     original_hash_at_import: Some(file_hash.clone()),
-                    original_exists: true,
+                    original_exists: orig_still_exists,
                     original_shredded: false,
                     quarantined_file_shredded: false,
                     detected_at: chrono::Local::now().to_rfc3339(),
+                    source_moved: source_was_moved,
+                    ingest_mode: Some(ingest_mode_str),
+                    file_size_bytes,
+                    file_extension: if !ext.is_empty() { Some(format!(".{}", ext)) } else { None },
+                    matched_entry: matched_entry_opt,
+                    detection_type: Some(detection_type_str),
                 };
                 let manifest_path =
                     reports_dir.join(format!("{}.manifest.json", file_name.to_string_lossy()));
@@ -1837,9 +2141,15 @@ pub async fn ingest_dropped_file(
                         "original_exists": manifest.original_exists,
                         "original_shredded": manifest.original_shredded,
                         "original_path": manifest.original_path,
-                        "volatile_original_path": if is_external_source { Some(source_full_str.clone()) } else { None },
+                        "volatile_original_path": if is_external_source && orig_still_exists { Some(source_full_str.clone()) } else { None },
                         "quarantine_path": manifest.quarantine_path,
-                        "matched_signature": manifest.signature
+                        "matched_signature": manifest.signature,
+                        "source_moved": manifest.source_moved,
+                        "ingest_mode": manifest.ingest_mode,
+                        "file_size_bytes": manifest.file_size_bytes,
+                        "file_extension": manifest.file_extension,
+                        "matched_entry": manifest.matched_entry,
+                        "detection_type": manifest.detection_type
                     }),
                 );
                 return Err("MALWARE".into());

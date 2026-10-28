@@ -71,11 +71,49 @@ export async function fetchAllTableRows(
   supabaseClient: any,
   table: string,
   selectCols: string,
-  orderBy?: string
+  orderBy?: string,
+  onFirstBatch?: (rows: any[], totalCount: number) => void
 ): Promise<any[]> {
   const PAGE_SIZE = 1000;
-  let all: any[] = [];
-  let from = 0;
+  let firstQuery = supabaseClient.from(table).select(selectCols, { count: "exact" });
+  if (orderBy) {
+    firstQuery = firstQuery.order(orderBy, { ascending: true });
+  }
+  const { data: firstBatch, error: firstError, count } = await firstQuery.range(0, PAGE_SIZE - 1);
+  if (firstError || !Array.isArray(firstBatch) || firstBatch.length === 0) {
+    return [];
+  }
+
+  const totalCount = typeof count === "number" ? count : firstBatch.length;
+  onFirstBatch?.(firstBatch, totalCount);
+
+  if (firstBatch.length < PAGE_SIZE || (typeof count === "number" && count <= PAGE_SIZE)) {
+    return firstBatch;
+  }
+
+  if (typeof count === "number" && count > PAGE_SIZE) {
+    const totalPages = Math.ceil(count / PAGE_SIZE);
+    const remainingPromises: Promise<any[]>[] = [];
+    for (let page = 1; page < totalPages; page++) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      remainingPromises.push(
+        (async () => {
+          let q = supabaseClient.from(table).select(selectCols);
+          if (orderBy) {
+            q = q.order(orderBy, { ascending: true });
+          }
+          const { data } = await q.range(from, to);
+          return Array.isArray(data) ? data : [];
+        })()
+      );
+    }
+    const remainingBatches = await Promise.all(remainingPromises);
+    return firstBatch.concat(...remainingBatches);
+  }
+
+  let all: any[] = [...firstBatch];
+  let from = PAGE_SIZE;
   while (true) {
     let query = supabaseClient.from(table).select(selectCols);
     if (orderBy) {

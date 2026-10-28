@@ -107,6 +107,27 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       priority_tiers: [...(preset.load_order?.priority_tiers || [])],
     };
   }
+  const presetCategories: any[] = Array.isArray(preset.mod_categories)
+    ? preset.mod_categories
+    : [];
+  if (!Array.isArray(safe.mod_categories) || safe.mod_categories.length === 0) {
+    safe.mod_categories = presetCategories.map((c: any) => ({
+      ...c,
+      subcategories: Array.isArray(c.subcategories) ? [...c.subcategories] : undefined,
+    }));
+  } else {
+    safe.mod_categories = safe.mod_categories.map((cat: any) => {
+      const match = presetCategories.find(
+        (p: any) => String(p.id || "").toLowerCase() === String(cat?.id || "").toLowerCase()
+      );
+      return {
+        ...match,
+        ...cat,
+        label: cat?.label || match?.label || cat?.id || "Category",
+        icon: cat?.icon || match?.icon || "category",
+      };
+    });
+  }
   return safe;
 };
 

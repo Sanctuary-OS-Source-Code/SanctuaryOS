@@ -1440,7 +1440,7 @@ export default function Blueprints({
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-[rgba(var(--text-rgb),0.06)]">
-                          <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--accent)]`}>
+                          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
                             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                               {t("icon_tag", "tag")}
                             </span>

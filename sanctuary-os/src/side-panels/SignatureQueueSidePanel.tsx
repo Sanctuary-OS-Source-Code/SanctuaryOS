@@ -21,9 +21,8 @@ import {
   ActionButton,
   DashboardStatTile,
   SidePanelHeroCard,
-  SidePanelTitleInput,
   UniversalGroup,
-  StatBox,
+  getModIcon,
   standardAccentGlassButtonClass,
   VAULT_CHIP_CLASS,
 } from "../shared";
@@ -37,7 +36,13 @@ import {
   ResolvedStagedPayload,
 } from "../utils/stagingCrypto";
 
-export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (index: number) => Promise<void> | void }) {
+export function SignatureQueueSidePanel({
+  equipPlaySet,
+  onOpenDossier,
+}: {
+  equipPlaySet?: (index: number) => Promise<void> | void;
+  onOpenDossier?: (mod: any) => void;
+}) {
   const { t, importLexicon } = useLexicon();
   const { importTheme } = useTheme();
   const session = useStore((state) => state.session);
@@ -58,11 +63,13 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
     setSideBrowserUrl,
     setBrowserTabs,
     setActiveBrowserTabId,
+    setNexusPreviewAsset,
   } = useModalStore();
 
   const [filterTab, setFilterTab] = useState<"ALL" | "OWNED" | "MISSING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isEditingBpTitle, setIsEditingBpTitle] = useState(false);
   const notifiedRowIdsRef = useRef<Set<string>>(new Set());
 
   // Cross-reference decrypted items against local Vault modList in volatile RAM
@@ -267,10 +274,6 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
           i.asset_type === "chameleon" ||
           i.asset_type === "workbench_template"
       ),
-    [selectedItems]
-  );
-  const ownedSelected = useMemo(
-    () => selectedItems.filter((i) => i.isOwned && !i.asset_type),
     [selectedItems]
   );
   const missingSelected = useMemo(
@@ -582,184 +585,184 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
       mod.asset_type === "chameleon" ||
       mod.asset_type === "workbench_template";
 
+    const handleCardClick = () => {
+      if (isNexusAsset && mod.asset_id && mod.asset_type) {
+        setNexusPreviewAsset({
+          id: String(mod.asset_id),
+          type: mod.asset_type,
+        });
+        return;
+      }
+
+      const localMatch = modList.find(
+        (m: any) =>
+          (mod.localModName && m.name === mod.localModName) ||
+          (mod.localHash && m.hash && m.hash === mod.localHash)
+      );
+
+      if (localMatch) {
+        onOpenDossier?.(localMatch);
+      } else {
+        onOpenDossier?.({
+          ...mod,
+          hash: mod.localHash || mod.hash,
+          dbId: (mod as any).dbId || mod.id,
+          status: (mod as any).status || "stable",
+          author: customAuthor || mod.author || "",
+          master_author: customAuthor || mod.author || "",
+          url: targetUrl || mod.url || "",
+          isNexusView: true,
+        });
+      }
+    };
+
     return (
       <div
         key={`${mod.id}_${idx}`}
-        className={`flex justify-between items-center glass-surface border p-4 rounded-2xl transition-all group shadow-md flex-wrap sm:flex-nowrap gap-3 ${
+        onClick={handleCardClick}
+        className={`glass-surface rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 cursor-pointer group ${
           mod.selected
-            ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-            : "border-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-50"
+            ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+            : "border-[color-mix(in_srgb,var(--text)_6%,transparent)] opacity-55"
         }`}
       >
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => toggleItemSelection(mod.id)}
-            className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-              mod.selected
-                ? "bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] text-[var(--accent)]"
-                : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-transparent"
-            }`}
-          >
-            <span className="material-symbols-outlined !text-[14px]">
-              {t("icon_check", "check")}
-            </span>
-          </button>
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[20px]">
+                {isNexusAsset
+                  ? mod.asset_type === "lexicon"
+                    ? t("icon_translate", "translate")
+                    : mod.asset_type === "chameleon"
+                      ? t("icon_palette", "palette")
+                      : t("icon_draw", "draw")
+                  : getModIcon(mod, activeGameSchema, t)}
+              </span>
+            </div>
 
-          {isBpMode && (
-            <span
-              className={`${VAULT_CHIP_CLASS} font-mono`}
-              style={{
-                color: "var(--subtext)",
-                borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+                {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                <span className="truncate">
+                  {customAuthor || t("unknown_mason", "Unknown {Mason}")}
+                </span>
+                {mod.dependencyOf && (
+                  <span className="text-[9px] font-bold text-[var(--accent)] truncate">
+                    • {t("staging_dep_of_prefix", "Required by")} {mod.dependencyOf}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenUrl(targetUrl);
               }}
+              className="w-8 h-8 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl transition-all group/btn relative cursor-pointer"
             >
-              <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_open_in_new", "open_in_new")}
+              </span>
+              <HoverTooltip
+                title={t("import_intel", "Open Creator Page")}
+                variant="default"
+                className="group-hover/btn:flex z-[200]"
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (mod.selected) {
+                  removeItemFromQueue(mod.id);
+                } else {
+                  toggleItemSelection(mod.id);
+                }
+              }}
+              className="w-8 h-8 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-xl transition-all group/btn relative cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {mod.selected ? t("icon_close", "close") : t("icon_undo", "undo")}
+              </span>
+              <HoverTooltip
+                title={
+                  mod.selected
+                    ? t("defcon_btn_skip", "Skip")
+                    : t("staging_btn_add_mod", "Add")
+                }
+                variant={mod.selected ? "danger" : "default"}
+                className="group-hover/btn:flex z-[200]"
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+          {isBpMode && (
+            <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                 {t("icon_tag", "tag")}
               </span>
               <span>#{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}</span>
             </span>
           )}
 
-          <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-[var(--text)] capitalize truncate group-hover:theme-text-accent transition-colors">
-                {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
+          {isNexusAsset ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                {t("icon_bolt", "bolt")}
               </span>
-
-              {isNexusAsset ? (
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--success)",
-                    borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
-                    {t("icon_bolt", "bolt")}
-                  </span>
-                  <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
-                </span>
-              ) : mod.isOwned ? (
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--success)",
-                    borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
-                    {t("icon_check_circle", "check_circle")}
-                  </span>
-                  <span>{t("status_in_vault", "In {Vault}")}</span>
-                </span>
-              ) : (
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
-                    {t("icon_download", "download")}
-                  </span>
-                  <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
-                </span>
-              )}
-
-              {mod.isDependency && (
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
-                    {t("icon_account_tree", "account_tree")}
-                  </span>
-                  <span>{t("staging_badge_dependency", "Dependency")}</span>
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap mt-1">
-              <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                {customAuthor || t("unknown_mason", "Unknown {Mason}")}
+              <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
+            </span>
+          ) : mod.isOwned ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                {t("icon_check_circle", "check_circle")}
               </span>
-              {mod.dependencyOf && (
-                <span className="text-[8px] font-bold text-[var(--accent)] opacity-80 capitalize tracking-wider">
-                  • {t("staging_dep_of_prefix", "Required by")} {mod.dependencyOf}
-                </span>
-              )}
-            </div>
-
-            {(mod.is_paid || mod.is_early_access) && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {mod.is_early_access && (
-                  <div
-                    className={VAULT_CHIP_CLASS}
-                    style={{
-                      color: "var(--accent)",
-                      borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
-                      {t("icon_science", "science")}
-                    </span>
-                    <span>{t("badge_early_access", "Early Access")}</span>
-                  </div>
-                )}
-                {mod.is_paid && (
-                  <div
-                    className={VAULT_CHIP_CLASS}
-                    style={{
-                      color: "var(--warning)",
-                      borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
-                      {t("icon_monetization_on", "monetization_on")}
-                    </span>
-                    <span>{t("badge_paid", "Paid")}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => removeItemFromQueue(mod.id)}
-            className="w-9 h-9 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-danger hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative cursor-pointer"
-          >
-            <span className="material-symbols-outlined !text-[16px]">
-              {t("icon_close", "close")}
+              <span>{t("status_in_vault", "In {Vault}")}</span>
             </span>
-            <HoverTooltip
-              title={t("defcon_btn_skip", "Skip")}
-              variant="danger"
-              className="group-hover/btn:flex z-[200]"
-            />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleOpenUrl(targetUrl)}
-            className="w-9 h-9 shrink-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:theme-bg-accent hover:text-[var(--bg)] rounded-xl transition-all text-[var(--text)] group/btn relative cursor-pointer"
-          >
-            <span className="material-symbols-outlined !text-[16px]">
-              {t("icon_open_in_new", "open_in_new")}
+          ) : (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_download", "download")}
+              </span>
+              <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
             </span>
-            <HoverTooltip
-              title={t("import_intel", "Open Creator Page")}
-              variant="default"
-              className="group-hover/btn:flex z-[200]"
-            />
-          </button>
+          )}
+
+          {mod.isDependency && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <span>{t("staging_badge_dependency", "Dependency")}</span>
+            </span>
+          )}
+
+          {mod.is_early_access && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_science", "science")}
+              </span>
+              <span>{t("badge_early_access", "Early Access")}</span>
+            </span>
+          )}
+
+          {mod.is_paid && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                {t("icon_monetization_on", "monetization_on")}
+              </span>
+              <span>{t("badge_paid", "Paid")}</span>
+            </span>
+          )}
         </div>
       </div>
     );
@@ -799,135 +802,83 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
         </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+      <div className="flex flex-col gap-3.5 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={isBpMode ? t("icon_map", "map") : t("icon_download", "download")}
-          overline={queue.payload.sourceDevice || "PWA / Web"}
-          title={
+          overline={`${queue.payload.sourceDevice || "PWA / Web"} • ${
             isBpMode
               ? t("staging_mode_blueprint", "Curated {Blueprint}")
               : t("staging_mode_mod_queue", "{Mod} Download Queue")
+          }`}
+          title={
+            isBpMode ? (
+              isEditingBpTitle ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={queue.payload.blueprintName || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
+                      prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
+                    );
+                  }}
+                  onBlur={() => setIsEditingBpTitle(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "Escape") {
+                      setIsEditingBpTitle(false);
+                    }
+                  }}
+                  placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] rounded-xl px-3 py-1 text-sm font-black text-[var(--text)] outline-none transition-colors"
+                />
+              ) : (
+                <div
+                  onClick={() => setIsEditingBpTitle(true)}
+                  className="inline-flex items-center gap-2 cursor-pointer group/editname max-w-full"
+                >
+                  <span className="truncate">
+                    {queue.payload.blueprintName ||
+                      t("staging_mode_blueprint", "Curated {Blueprint}")}
+                  </span>
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-60 group-hover/editname:opacity-100 group-hover/editname:text-[var(--accent)] transition-all shrink-0">
+                    {t("icon_edit", "edit")}
+                  </span>
+                </div>
+              )
+            ) : (
+              t("staging_mode_mod_queue", "{Mod} Download Queue")
+            )
           }
           description={
             queue.payload.notes ||
-            t("sig_queue_step_blueprint_desc", "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}.")
+            (missingSelected.length > 0
+              ? t(
+                  "sig_queue_step_browser_desc",
+                  "Opens missing {mods} in the Side Panel Browser to their {masons}' official download pages."
+                )
+              : t(
+                  "sig_queue_step_blueprint_desc",
+                  "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}."
+                ))
           }
           badge={t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}
           badgeIcon={t("icon_encrypted", "encrypted")}
-          variant="accent"
-        >
-          <div className="flex flex-col gap-3 w-full">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--success)",
-                  borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
-                  {t("icon_memory", "memory")}
-                </span>
-                <span>{t("sig_queue_volatile_badge", "VOLATILE RAM ONLY • 0 BYTES ON DISK")}</span>
-              </span>
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
-                  {t("icon_encrypted", "encrypted")}
-                </span>
-                <span>{t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")}</span>
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 w-full">
-              <StatBox
-                label={t("sig_queue_stat_owned", "Owned in {Vault}")}
-                value={ownedSelected.length}
-                icon={t("icon_check_circle", "check_circle")}
-                colorClass="text-[var(--success)]"
-              />
-              <StatBox
-                label={t("sig_queue_stat_missing", "Missing Artifacts")}
-                value={missingSelected.length}
-                icon={t("icon_download", "download")}
-                colorClass="text-[var(--accent)]"
-              />
-              <StatBox
-                label={t("sig_queue_stat_deps", "Child Dependencies")}
-                value={depsCount}
-                icon={t("icon_account_tree", "account_tree")}
-                colorClass="text-[var(--accent)]"
-              />
-            </div>
-          </div>
-        </SidePanelHeroCard>
-
-        <SidePanelTitleInput
-          value={queue.payload.blueprintName || ""}
-          onChange={(val) => {
-            setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
-              prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
-            );
-          }}
-          placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
-          subtitle={
-            isBpMode
-              ? t("staging_mode_blueprint", "Curated {Blueprint}")
-              : t("staging_mode_mod_queue", "{Mod} Download Queue")
+          badges={
+            depsCount > 0
+              ? [
+                  {
+                    label: `${depsCount} ${t("section_deps_title", "Deps")}`,
+                    icon: t("icon_account_tree", "account_tree"),
+                  },
+                ]
+              : undefined
           }
+          variant="accent"
         />
 
-        {/* Clear Step-by-Step Explanation Box */}
-        <UniversalGroup
-          title={t("sig_queue_what_happens_title", "What Happens When You Approve")}
-          icon={t("icon_info", "info")}
-        >
-          <div className="flex flex-col gap-2 text-[11px] font-bold text-[var(--subtext)] leading-relaxed">
-            {isBpMode && (
-              <div className="flex items-start gap-2">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--success)] shrink-0 mt-0.5">
-                  {t("icon_check_circle", "check_circle")}
-                </span>
-                <span>
-                  {t("sig_queue_step_blueprint_desc", "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}.")}
-                </span>
-              </div>
-            )}
-            {stagedAssetItems.length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="material-symbols-outlined !text-[15px] text-emerald-400 shrink-0 mt-0.5">
-                  {t("icon_bolt", "bolt")}
-                </span>
-                <span>
-                  {t("sig_queue_step_assets_desc", "Automatically installs selected {Chameleons}, Lexicons, and Templates directly into Sanctuary OS.")}
-                </span>
-              </div>
-            )}
-            {missingSelected.length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0 mt-0.5">
-                  {t("icon_open_in_new", "open_in_new")}
-                </span>
-                <span>
-                  {t("sig_queue_step_browser_desc", "Opens missing {mods} in the Side Panel Browser to their {masons}' official download pages.")}
-                </span>
-              </div>
-            )}
-          </div>
-        </UniversalGroup>
-
-        {/* Search & Filter Row */}
+        {/* Filter Tiles & Search Bar */}
         <div className="flex flex-col gap-3 w-full">
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_ph", "Search {mods}...")}
-          />
           <div className="grid grid-cols-3 gap-3 w-full">
             <DashboardStatTile
               variant="filter"
@@ -957,41 +908,33 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
               onClick={() => setFilterTab("MISSING")}
             />
           </div>
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={t("search_ph", "Search {mods}...")}
+          />
         </div>
-
-        {/* Premium / Early Access Notice Banner */}
-        {premiumItems.some((m) => m.selected) && (
-          <UniversalGroup
-            title={t("premium_detected", "Premium {Mods} Detected")}
-            icon={t("icon_auto_fix_high", "auto_fix_high")}
-            headerColorClass="text-[var(--warning)]"
-            headerActions={
-              <ActionButton
-                variant="glass"
-                icon={t("icon_skip_next", "skip_next")}
-                onClick={skipAllPremium}
-                className="!px-3 !py-1.5"
-              >
-                {t("btn_skip_premium", "Skip Premium")}
-              </ActionButton>
-            }
-          >
-            <span className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-wider opacity-80">
-              {premiumItems.filter((m) => m.is_paid).length} {t("badge_paid", "Paid")},{" "}
-              {premiumItems.filter((m) => m.is_early_access).length}{" "}
-              {t("badge_early_access", "Early Access")}
-            </span>
-          </UniversalGroup>
-        )}
 
         {/* Item-by-Item Diff Queue */}
         {premiumItems.length > 0 && (
           <UniversalGroup
-            title={t("premium_detected", "Premium {Mods} Detected")}
+            title={`${t("premium_detected", "Premium {Mods} Detected")} (${premiumItems.length})`}
             icon={t("icon_monetization_on", "monetization_on")}
             headerColorClass="text-[var(--warning)]"
+            headerActions={
+              premiumItems.some((m) => m.selected) ? (
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_skip_next", "skip_next")}
+                  onClick={skipAllPremium}
+                  className="!px-3 !py-1.5"
+                >
+                  {t("btn_skip_premium", "Skip Premium")}
+                </ActionButton>
+              ) : undefined
+            }
           >
-            <div className="flex flex-col gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
               {premiumItems.map((m, i) => renderArtifactRow(m, i))}
             </div>
           </UniversalGroup>
@@ -999,10 +942,10 @@ export function SignatureQueueSidePanel({ equipPlaySet }: { equipPlaySet?: (inde
 
         {standardItems.length > 0 && (
           <UniversalGroup
-            title={t("standard_artifacts", "Standard {Mods}")}
+            title={`${t("standard_artifacts", "Standard {Mods}")} (${standardItems.length})`}
             icon={t("icon_extension", "extension")}
           >
-            <div className="flex flex-col gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
               {standardItems.map((m, i) => renderArtifactRow(m, i))}
             </div>
           </UniversalGroup>

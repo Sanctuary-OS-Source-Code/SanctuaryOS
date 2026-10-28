@@ -798,16 +798,75 @@ export async function submitThreatManifestToSpoke(
             } catch {}
         }
 
-        const rowPayload = {
+        const rawStatus = String(item?.status || 'pending').trim().toLowerCase();
+        const normalizedStatus =
+            rawStatus === 'resolved' || rawStatus === 'dismissed'
+                ? rawStatus
+                : 'pending';
+
+        const inferredExt =
+            item?.file_extension ||
+            (artifactName.includes('.')
+                ? `.${artifactName.split('.').pop()!.toLowerCase()}`
+                : null);
+
+        const configuredIngestMode =
+            typeof localStorage !== 'undefined'
+                ? localStorage.getItem('sanctuary_ingest_file_mode') || 'copy'
+                : 'copy';
+        const ingestMode = String(item?.ingest_mode || configuredIngestMode).toLowerCase();
+        const sourceMoved = Boolean(
+            item?.source_moved ||
+                (ingestMode === 'move' && !item?.original_exists)
+        );
+        const isHeuristicHit =
+            Boolean(rawSig) &&
+            rawSig.toUpperCase() !== 'NO SIGNATURE MATCH' &&
+            rawSig.toUpperCase() !== 'MALWARE DNA MATCH' &&
+            rawSig.toUpperCase() !== 'KNOWN MALWARE HASH MATCH' &&
+            rawSig.toUpperCase() !== 'RADAR SWEEP DETECTION' &&
+            rawSig.toUpperCase() !== 'PERSISTENT QUARANTINE ARTIFACT';
+        const detectionType =
+            item?.detection_type ||
+            (isHeuristicHit ? 'heuristic_signature' : 'hash_blacklist');
+        const detectionSource =
+            item?.detection_source ||
+            (isHeuristicHit ? 'heuristics_scanner' : 'spoke_blacklist');
+        const osPlatform =
+            item?.os_platform ||
+            (typeof navigator !== 'undefined'
+                ? /win/i.test(navigator.userAgent)
+                    ? 'windows'
+                    : /mac/i.test(navigator.userAgent)
+                      ? 'macos'
+                      : /linux/i.test(navigator.userAgent)
+                        ? 'linux'
+                        : 'desktop'
+                : 'desktop');
+
+        const baseRowPayload = {
             artifact_name: artifactName,
             detected_hash: detectedHash,
             signature: cleanSig,
             original_hash_at_import: item?.original_hash_at_import || detectedHash || null,
-            original_exists: Boolean(item?.original_exists),
+            original_exists: sourceMoved ? false : Boolean(item?.original_exists),
             original_shredded: Boolean(item?.original_shredded),
             quarantined_file_shredded: Boolean(item?.quarantined_file_shredded),
             detected_at: detectedAt,
-            status: item?.status || 'pending',
+            status: normalizedStatus,
+        };
+
+        const extendedRowPayload = {
+            ...baseRowPayload,
+            source_moved: sourceMoved,
+            ingest_mode: ingestMode,
+            file_size_bytes:
+                typeof item?.file_size_bytes === 'number' ? item.file_size_bytes : null,
+            file_extension: inferredExt,
+            matched_entry: item?.matched_entry || null,
+            detection_type: detectionType,
+            detection_source: detectionSource,
+            os_platform: osPlatform,
         };
 
         let insertedData: any = null;
@@ -819,11 +878,18 @@ export async function submitThreatManifestToSpoke(
                 state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||
                 state.workspaces?.find((w: any) => w.id === wsId)?.schema_id ||
                 wsId;
-            const rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {
+            let rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {
                 p_game_id: targetGameId,
                 p_target: 'malware_reports',
-                p_payload: rowPayload,
+                p_payload: extendedRowPayload,
             });
+            if (rpcRes?.error) {
+                rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {
+                    p_game_id: targetGameId,
+                    p_target: 'malware_reports',
+                    p_payload: baseRowPayload,
+                });
+            }
             if (!rpcRes?.error && rpcRes?.data) {
                 insertedData = rpcRes.data;
             } else if (rpcRes?.error) {
@@ -840,10 +906,18 @@ export async function submitThreatManifestToSpoke(
                     error: lastError || new Error('Active Spoke database client is not connected.'),
                 };
             }
-            const { data, error } = await spokeClient
+            let { data, error } = await spokeClient
                 .from('malware_reports')
-                .insert(rowPayload)
+                .insert(extendedRowPayload)
                 .select();
+            if (error) {
+                const retryRes = await spokeClient
+                    .from('malware_reports')
+                    .insert(baseRowPayload)
+                    .select();
+                data = retryRes.data;
+                error = retryRes.error;
+            }
             if (error) {
                 return { data: null, error };
             }
@@ -867,16 +941,28 @@ export async function submitThreatManifestToSpoke(
 
 export async function updateThreatManifestShredStatus(
     detectedHash: string,
-    updates: { original_shredded?: boolean; original_exists?: boolean; quarantined_file_shredded?: boolean }
+    updates: {
+        original_shredded?: boolean;
+        original_exists?: boolean;
+        quarantined_file_shredded?: boolean;
+        source_moved?: boolean;
+    }
 ): Promise<void> {
     if (!detectedHash) return;
     try {
         const spokeClient = await resolveFallbackSpokeClient();
         if (spokeClient) {
-            await spokeClient
+            const { error } = await spokeClient
                 .from('malware_reports')
                 .update(updates)
                 .eq('detected_hash', detectedHash);
+            if (error && 'source_moved' in updates) {
+                const { source_moved: _, ...baseUpdates } = updates;
+                await spokeClient
+                    .from('malware_reports')
+                    .update(baseUpdates)
+                    .eq('detected_hash', detectedHash);
+            }
         }
     } catch (e) {
         console.warn('Failed to update threat manifest shred status on Spoke:', e);

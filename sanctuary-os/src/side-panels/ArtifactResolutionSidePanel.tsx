@@ -244,13 +244,7 @@ export default function ArtifactResolutionSidePanel({
                 className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div
-                    className="w-10 h-10 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
-                    style={{
-                      color: "var(--danger)",
-                      borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-[20px]">
                       {t("icon_extension", "extension")}
                     </span>
@@ -264,14 +258,8 @@ export default function ArtifactResolutionSidePanel({
                     </span>
                   </div>
                 </div>
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--danger)",
-                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                     {t("icon_block", "block")}
                   </span>
                   {t("icon_block", "Restricted")}
@@ -306,13 +294,7 @@ export default function ArtifactResolutionSidePanel({
                     className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--warning)] flex items-center justify-center shrink-0"
-                        style={{
-                          color: "var(--warning)",
-                          borderColor: "color-mix(in srgb, var(--warning) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_link", "link")}
                         </span>
@@ -321,14 +303,8 @@ export default function ArtifactResolutionSidePanel({
                         {dep.displayName || dep.name}
                       </span>
                     </div>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--warning)",
-                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                         {t("icon_link", "link")}
                       </span>
                       {t("bp_status_unstable", "Dependent")}
@@ -339,13 +315,7 @@ export default function ArtifactResolutionSidePanel({
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div
-                className="w-9 h-9 rounded-xl glass-surface border text-[var(--success)] flex items-center justify-center shrink-0"
-                style={{
-                  color: "var(--success)",
-                  borderColor: "color-mix(in srgb, var(--success) 25%, var(--border))",
-                }}
-              >
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--success)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_check_circle", "check_circle")}
                 </span>

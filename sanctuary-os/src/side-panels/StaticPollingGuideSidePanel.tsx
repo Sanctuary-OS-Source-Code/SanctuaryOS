@@ -403,9 +403,10 @@ export function StaticPollingGuideSidePanel({
                         {step.title}
                       </h4>
                     </div>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-lg bg-transparent border text-[9px] font-black uppercase tracking-widest shrink-0 ${step.accentClass}`}
-                    >
+                    <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-widest shrink-0 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {step.icon}
+                      </span>
                       {step.badge}
                     </span>
                   </div>
@@ -441,7 +442,10 @@ export function StaticPollingGuideSidePanel({
                         {opt.title}
                       </h4>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-widest shrink-0">
+                    <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-widest shrink-0 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                        {opt.icon}
+                      </span>
                       {opt.badge}
                     </span>
                   </div>

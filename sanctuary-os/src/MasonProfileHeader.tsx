@@ -1,4 +1,4 @@
-import { handleOpenUrl, HoverTooltip } from './shared';
+import { handleOpenUrl, HoverTooltip, VAULT_CHIP_CLASS } from './shared';
 
 export default function MasonProfileHeader({ mason, masonId, followerCount, isFollowing, isVerifiedSupporter, onOpenSupportModal, masonAlerts, toggleFollow, toggleMasonAlert, activeView, setActiveView, t, children }: any) {
   const isCompact = activeView && activeView !== 'OVERVIEW';
@@ -53,8 +53,8 @@ export default function MasonProfileHeader({ mason, masonId, followerCount, isFo
                 )}
 
                 {isVerifiedSupporter && (
-                  <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/35 flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined !text-[12px]">{t("icon_verified", "verified")}</span>
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">{t("icon_verified", "verified")}</span>
                     {t("supporter_badge_verified_patron", "VERIFIED SUPPORTER")}
                   </span>
                 )}

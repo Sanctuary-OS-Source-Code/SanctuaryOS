@@ -11,7 +11,6 @@ import {
   CustomDropdown,
   DashboardStatTile,
   EmptyState,
-  GlassSegmentedControl,
   HoverTooltip,
   PanelHeaderButton,
   PanelHeaderGroup,
@@ -582,154 +581,154 @@ export default function StagingPayloadEditor({
             });
           }
         }}
-        className="p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+        className="p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all cursor-pointer flex flex-col justify-between gap-3 group"
       >
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined !text-[20px]">
-              {isNexusAsset
-                ? item.asset_type === "lexicon"
-                  ? t("icon_translate", "translate")
-                  : item.asset_type === "chameleon"
-                    ? t("icon_palette", "palette")
-                    : t("icon_draw", "draw")
-                : getModIcon(item, activeGameSchema, t)}
-            </span>
-          </div>
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined !text-[20px]">
+                {isNexusAsset
+                  ? item.asset_type === "lexicon"
+                    ? t("icon_translate", "translate")
+                    : item.asset_type === "chameleon"
+                      ? t("icon_palette", "palette")
+                      : t("icon_draw", "draw")
+                  : getModIcon(item, activeGameSchema, t)}
+              </span>
+            </div>
 
-          <div className="flex flex-col min-w-0 flex-1 gap-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
+            <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors truncate">
                 {cleanSearchName(item.displayName || item.name, activeGameSchema)}
               </span>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-70 truncate">
-                {resolveKnownAuthor(item, t("unknown_mason", "Unknown {Mason}"))}
-              </span>
-              {item.dependencyOf && (
-                <span className="text-[9px] font-bold text-[var(--accent)] truncate">
-                  • {t("staging_dep_of_prefix", "Required by")} {item.dependencyOf}
+              <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                <span className="truncate">
+                  {resolveKnownAuthor(item, t("unknown_mason", "Unknown {Mason}"))}
                 </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_format_list_numbered", "format_list_numbered")}
-                </span>
-                <span>#{String((realIdx >= 0 ? realIdx : idx) + 1).padStart(3, "0")}</span>
-              </span>
-
-              {!isNexusAsset && stagingDraftMode === "blueprint" && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isReadOnly) cycleItemTier(item.id, currentTier);
-                  }}
-                  className={`${VAULT_CHIP_CLASS} ${
-                    !isReadOnly
-                      ? "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-colors"
-                      : ""
-                  }`}
-                >
-                  <span
-                    className={`material-symbols-outlined !text-[12px] ${tierMeta.iconColorClass}`}
-                  >
-                    {t("icon_low_priority", "low_priority")}
+                {item.dependencyOf && (
+                  <span className="text-[9px] font-bold text-[var(--accent)] truncate">
+                    • {t("staging_dep_of_prefix", "Required by")} {item.dependencyOf}
                   </span>
-                  <span>{t(tierMeta.labelKey, tierMeta.fallback)}</span>
-                </button>
-              )}
-
-              {isNexusAsset && (
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                    {t("icon_bolt", "bolt")}
-                  </span>
-                  <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
-                </span>
-              )}
-
-              {item.isDependency && (
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-cyan-400">
-                    {t("icon_account_tree", "account_tree")}
-                  </span>
-                  <span>{t("staging_badge_dependency", "Dependency")}</span>
-                </span>
-              )}
-
-              {item.is_early_access && (
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-purple-400">
-                    {t("icon_schedule", "schedule")}
-                  </span>
-                  <span>{t("badge_early_access", "Early Access")}</span>
-                </span>
-              )}
-
-              {item.is_paid && (
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                    {t("icon_workspace_premium", "workspace_premium")}
-                  </span>
-                  <span>{t("badge_paid", "Paid")}</span>
-                </span>
-              )}
+                )}
+              </div>
             </div>
           </div>
+
+          {!isReadOnly && (
+            <div
+              className="flex items-center gap-1.5 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {stagingDraftMode === "blueprint" && !isNexusAsset && (
+                <>
+                  <button
+                    type="button"
+                    disabled={realIdx <= 0}
+                    onClick={() => moveItem(realIdx, -1)}
+                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {t("icon_keyboard_arrow_up", "keyboard_arrow_up")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={realIdx < 0 || realIdx >= stagingDraftItems.length - 1}
+                    onClick={() => moveItem(realIdx, 1)}
+                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {t("icon_keyboard_arrow_down", "keyboard_arrow_down")}
+                    </span>
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-colors relative group/btn cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_close", "close")}
+                </span>
+                <HoverTooltip
+                  title={t("btn_remove", "{Remove}")}
+                  variant="danger"
+                  className="group-hover/btn:flex z-[200]"
+                />
+              </button>
+            </div>
+          )}
         </div>
 
-        {!isReadOnly && (
-          <div
-            className="flex items-center gap-1 shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {stagingDraftMode === "blueprint" && !isNexusAsset && (
-              <>
-                <button
-                  type="button"
-                  disabled={realIdx <= 0}
-                  onClick={() => moveItem(realIdx, -1)}
-                  className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {t("icon_keyboard_arrow_up", "keyboard_arrow_up")}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  disabled={realIdx < 0 || realIdx >= stagingDraftItems.length - 1}
-                  onClick={() => moveItem(realIdx, 1)}
-                  className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {t("icon_keyboard_arrow_down", "keyboard_arrow_down")}
-                  </span>
-                </button>
-              </>
-            )}
+        <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_tag", "tag")}
+            </span>
+            <span>#{String((realIdx >= 0 ? realIdx : idx) + 1).padStart(3, "0")}</span>
+          </span>
 
+          {!isNexusAsset && stagingDraftMode === "blueprint" && (
             <button
               type="button"
-              onClick={() => removeItem(item.id)}
-              className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-colors relative group/btn cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isReadOnly) cycleItemTier(item.id, currentTier);
+              }}
+              className={`${VAULT_CHIP_CLASS} ${
+                !isReadOnly
+                  ? "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-colors"
+                  : ""
+              }`}
             >
-              <span className="material-symbols-outlined !text-[16px]">
-                {t("icon_close", "close")}
+              <span
+                className={`material-symbols-outlined !text-[12px] ${tierMeta.iconColorClass}`}
+              >
+                {t("icon_low_priority", "low_priority")}
               </span>
-              <HoverTooltip
-                title={t("btn_remove", "{Remove}")}
-                variant="danger"
-                className="group-hover/btn:flex z-[200]"
-              />
+              <span>{t(tierMeta.labelKey, tierMeta.fallback)}</span>
             </button>
-          </div>
-        )}
+          )}
+
+          {isNexusAsset && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                {t("icon_bolt", "bolt")}
+              </span>
+              <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
+            </span>
+          )}
+
+          {item.isDependency && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <span>{t("staging_badge_dependency", "Dependency")}</span>
+            </span>
+          )}
+
+          {item.is_early_access && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_schedule", "schedule")}
+              </span>
+              <span>{t("badge_early_access", "Early Access")}</span>
+            </span>
+          )}
+
+          {item.is_paid && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                {t("icon_workspace_premium", "workspace_premium")}
+              </span>
+              <span>{t("badge_paid", "Paid")}</span>
+            </span>
+          )}
+        </div>
       </div>
     );
   };
@@ -1013,7 +1012,7 @@ export default function StagingPayloadEditor({
             )}
           </ViewHeader>
 
-          <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 shrink-0">
+          <div className="flex flex-col w-full gap-3 mb-5 md:mb-8 relative z-10 shrink-0">
             <StatTileCarousel>
               {subTabs.map((st) => (
                 <DashboardStatTile
@@ -1352,17 +1351,7 @@ export default function StagingPayloadEditor({
 
       {/* TAB 2: INCLUDED MODS (Full-Width Load Order Queue Grid) */}
       {activeSubTab === "INCLUDED" && (
-        <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <CommandScreenSectionHeading
-            title={t("blueprint_included", "Included {Mods}")}
-            breadcrumb={`${filteredItems.length}`}
-            subtitle={t(
-              "staging_local_memory_desc",
-              "Held in local device memory across reloads until you send it to the cloud or discard it."
-            )}
-            icon={t("icon_inventory_2", "inventory_2")}
-          />
-
+        <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {stagingDraftItems.length === 0 ? (
             <EmptyState
               icon={t("icon_map", "map")}
@@ -1373,7 +1362,7 @@ export default function StagingPayloadEditor({
               )}
             />
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
               {filteredItems.map((item: any, idx: number) =>
                 renderStagedModCard(item, idx, false)
               )}
@@ -1384,17 +1373,7 @@ export default function StagingPayloadEditor({
 
       {/* TAB 3: SAVED DRAFTS (Full-Width UniversalCard Bento Grid) */}
       {activeSubTab === "SAVED" && (
-        <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <CommandScreenSectionHeading
-            title={t("staging_tab_saved", "Saved Drafts")}
-            breadcrumb={`${savedLocalDrafts.length}`}
-            subtitle={t(
-              "staging_local_memory_desc",
-              "Held in local device memory across reloads until you send it to the cloud or discard it."
-            )}
-            icon={t("icon_bookmark", "bookmark")}
-          />
-
+        <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {savedLocalDrafts.length === 0 ? (
             <EmptyState
               icon={t("icon_bookmark", "bookmark")}
@@ -1414,20 +1393,7 @@ export default function StagingPayloadEditor({
 
       {/* TAB 4: ACTIVE PC QUEUE (Full-Width Cloud Queue View) */}
       {activeSubTab === "CLOUD" && (
-        <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <CommandScreenSectionHeading
-            title={
-              activeCloud?.payload?.blueprintName ||
-              t("staging_tab_cloud", "Active PC Queue")
-            }
-            breadcrumb={`${activeCloud?.resolvedItems?.length || 0}`}
-            subtitle={t(
-              "staging_security_card_desc",
-              "Your queue is encrypted in your browser before upload and permanently shredded from the cloud the instant you approve or reject it on desktop."
-            )}
-            icon={t("icon_phonelink_ring", "phonelink_ring")}
-          />
-
+        <div className="flex flex-col gap-4 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {!activeCloud ? (
             <EmptyState
               icon={t("icon_phonelink_ring", "phonelink_ring")}
@@ -1438,7 +1404,7 @@ export default function StagingPayloadEditor({
               )}
             />
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
               {(activeCloud.resolvedItems || []).map((mod: any, idx: number) =>
                 renderStagedModCard(mod, idx, true)
               )}
@@ -1702,7 +1668,7 @@ export default function StagingPayloadEditor({
               </PanelHeaderGroup>
             }
           >
-            <div className="flex flex-col gap-5 pb-10">
+            <div className="flex flex-col gap-3.5 pb-10">
               <SidePanelHeroCard
                 title={
                   inspectingPack.data?.displayName ||
@@ -1717,69 +1683,57 @@ export default function StagingPayloadEditor({
                 icon={t("icon_bookmark", "bookmark")}
                 variant="accent"
               >
-                <div className="flex flex-col gap-3 w-full">
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    <StatBox
-                      label={t("term_mods", "Items")}
-                      value={inspectedAllItems.length}
-                      icon={t("icon_inventory_2", "inventory_2")}
-                      iconColorClass="text-[var(--accent)]"
-                    />
-                    <StatBox
-                      label={t("staging_btn_added", "Added")}
-                      value={inspectedAllItems.filter((m: any) => isSingleModStaged(m)).length}
-                      icon={t("icon_check_circle", "check_circle")}
-                      iconColorClass="text-[var(--success)]"
-                    />
-                  </div>
-                  <ActionButton
-                    onClick={() => {
-                      loadSavedLocalDraft(inspectingPack.data.id);
-                      setInspectingPack(null);
-                      setActiveSubTab("INCLUDED");
-                    }}
-                    icon={t("icon_download", "download")}
-                    label={t("staging_btn_use_short", "Use {Blueprint}")}
-                    variant="accent"
-                    className="w-full !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
-                  />
-                </div>
+                <ActionButton
+                  onClick={() => {
+                    loadSavedLocalDraft(inspectingPack.data.id);
+                    setInspectingPack(null);
+                    setActiveSubTab("INCLUDED");
+                  }}
+                  icon={t("icon_download", "download")}
+                  label={t("staging_btn_use_short", "Use {Blueprint}")}
+                  variant="accent"
+                  className="w-full !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
+                />
               </SidePanelHeroCard>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <ActionPill
-                    searchQuery={inspectSearchQuery}
-                    setSearchQuery={setInspectSearchQuery}
-                    searchPlaceholder={t("search_ph", "Search {mods}...")}
+              <div className="flex flex-col gap-3 w-full">
+                <div className="grid grid-cols-3 gap-3 w-full">
+                  <DashboardStatTile
+                    variant="filter"
+                    className="!w-full"
+                    icon={t("icon_list", "list")}
+                    label={t("filter_all", "All")}
+                    number={inspectedAllItems.length.toString()}
+                    isActive={inspectFilterTab === "ALL"}
+                    onClick={() => setInspectFilterTab("ALL")}
+                  />
+                  <DashboardStatTile
+                    variant="filter"
+                    className="!w-full"
+                    icon={t("icon_check_circle", "check_circle")}
+                    label={t("staging_btn_added", "Added")}
+                    number={inspectedAllItems
+                      .filter((m: any) => isSingleModStaged(m))
+                      .length.toString()}
+                    isActive={inspectFilterTab === "STAGED"}
+                    onClick={() => setInspectFilterTab("STAGED")}
+                  />
+                  <DashboardStatTile
+                    variant="filter"
+                    className="!w-full"
+                    icon={t("icon_workspace_premium", "workspace_premium")}
+                    label={t("badge_premium", "Premium")}
+                    number={inspectedAllItems
+                      .filter((m: any) => m.is_paid || m.is_early_access)
+                      .length.toString()}
+                    isActive={inspectFilterTab === "PREMIUM"}
+                    onClick={() => setInspectFilterTab("PREMIUM")}
                   />
                 </div>
-                <GlassSegmentedControl
-                  activeTab={inspectFilterTab}
-                  setTab={(val: string) =>
-                    setInspectFilterTab(val as "ALL" | "STAGED" | "PREMIUM")
-                  }
-                  options={[
-                    {
-                      id: "ALL",
-                      label: `${t("filter_all", "All")} (${inspectedAllItems.length})`,
-                    },
-                    {
-                      id: "STAGED",
-                      label: `${t("staging_btn_added", "Added")} (${
-                        inspectedAllItems.filter((m: any) => isSingleModStaged(m)).length
-                      })`,
-                    },
-                    {
-                      id: "PREMIUM",
-                      label: `${t("badge_premium", "Premium")} (${
-                        inspectedAllItems.filter(
-                          (m: any) => m.is_paid || m.is_early_access
-                        ).length
-                      })`,
-                    },
-                  ]}
-                  className="shrink-0"
+                <ActionPill
+                  searchQuery={inspectSearchQuery}
+                  setSearchQuery={setInspectSearchQuery}
+                  searchPlaceholder={t("search_ph", "Search {mods}...")}
                 />
               </div>
 
@@ -1792,7 +1746,7 @@ export default function StagingPayloadEditor({
                     {t("no_results", "No matching {mods} found.")}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
                     {inspectedFilteredItems
                       .slice(0, inspectVisibleCount)
                       .map((mod: any, idx: number) => {
@@ -1815,70 +1769,82 @@ export default function StagingPayloadEditor({
                                 isNexusView: true,
                               });
                             }}
-                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                            className={`glass-surface p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 cursor-pointer group ${
                               staged
-                                ? "bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                                : "glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                                ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                             }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-                                #{String(idx + 1).padStart(3, "0")}
-                              </span>
-                              <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                                <span className="material-symbols-outlined !text-[18px]">
-                                  {getModIcon(mod, activeGameSchema, t)}
-                                </span>
-                              </div>
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-xs font-black text-[var(--text)] truncate">
+                            <div className="flex items-start justify-between gap-3 min-w-0">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                                  <span className="material-symbols-outlined !text-[20px]">
+                                    {getModIcon(mod, activeGameSchema, t)}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                  <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
                                     {cleanSearchName(
                                       mod.displayName || mod.name,
                                       activeGameSchema
                                     )}
                                   </span>
-                                  {mod.is_early_access && (
-                                    <span className={VAULT_CHIP_CLASS}>
-                                      {t("badge_early_access", "Early Access")}
-                                    </span>
-                                  )}
-                                  {mod.is_paid && (
-                                    <span className={VAULT_CHIP_CLASS}>
-                                      {t("badge_paid", "Paid")}
-                                    </span>
-                                  )}
+                                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                                    {resolveKnownAuthor(
+                                      mod,
+                                      resolveKnownAuthor(
+                                        inspectingPack?.data,
+                                        t("unknown_mason", "Unknown {Mason}")
+                                      )
+                                    )}
+                                  </span>
                                 </div>
-                                <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 truncate">
-                                  {resolveKnownAuthor(
-                                    mod,
-                                    resolveKnownAuthor(
-                                      inspectingPack?.data,
-                                      t("unknown_mason", "Unknown {Mason}")
-                                    )
-                                  )}
-                                </span>
+                              </div>
+
+                              <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                                <ActionButton
+                                  onClick={() =>
+                                    handleStageModWithAutoDeps({ ...mod, _stageSingle: true })
+                                  }
+                                  icon={
+                                    staged
+                                      ? t("icon_check", "check")
+                                      : t("icon_add", "add")
+                                  }
+                                  label={
+                                    staged
+                                      ? t("staging_btn_added", "Added")
+                                      : t("staging_btn_add_mod", "Add")
+                                  }
+                                  variant={staged ? "success" : "accent"}
+                                  className="!px-3 !py-1.5 !text-[9px] whitespace-nowrap"
+                                />
                               </div>
                             </div>
 
-                            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                              <ActionButton
-                                onClick={() =>
-                                  handleStageModWithAutoDeps({ ...mod, _stageSingle: true })
-                                }
-                                icon={
-                                  staged
-                                    ? t("icon_check", "check")
-                                    : t("icon_add", "add")
-                                }
-                                label={
-                                  staged
-                                    ? t("staging_btn_added", "Added")
-                                    : t("staging_btn_add_mod", "Add")
-                                }
-                                variant={staged ? "success" : "accent"}
-                                className="!px-3 !py-2 !text-[9px] whitespace-nowrap"
-                              />
+                            <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                              <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                  {t("icon_tag", "tag")}
+                                </span>
+                                <span>#{String(idx + 1).padStart(3, "0")}</span>
+                              </span>
+                              {mod.is_early_access && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                    {t("icon_schedule", "schedule")}
+                                  </span>
+                                  <span>{t("badge_early_access", "Early Access")}</span>
+                                </span>
+                              )}
+                              {mod.is_paid && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                    {t("icon_workspace_premium", "workspace_premium")}
+                                  </span>
+                                  <span>{t("badge_paid", "Paid")}</span>
+                                </span>
+                              )}
                             </div>
                           </div>
                         );
@@ -1890,7 +1856,7 @@ export default function StagingPayloadEditor({
                         onClick={() =>
                           setInspectVisibleCount((prev) => prev + 100)
                         }
-                        className="w-full py-3 mt-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        className="col-span-full w-full py-3 mt-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
                       >
                         <span className="material-symbols-outlined !text-[16px]">
                           {t("icon_expand_more", "expand_more")}

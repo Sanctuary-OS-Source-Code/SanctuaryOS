@@ -634,12 +634,16 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
                   </h1>
                   {isPassthrough && (
                     <span
-                      className="px-2 py-0.5 rounded-md bg-transparent border text-[8px] font-black uppercase tracking-wider"
-                      style={{
-                        borderColor: `color-mix(in srgb, ${currentTheme.accent || '#38bdf8'} 50%, transparent)`,
-                        color: currentTheme.accent || '#38bdf8',
-                      }}
+                      data-sandbox-glass="surface"
+                      style={chipBorderStyle}
+                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5"
                     >
+                      <span
+                        className="material-symbols-outlined !text-[12px]"
+                        style={{ color: currentTheme.accent || '#38bdf8' }}
+                      >
+                        {t('icon_desktop_windows', 'desktop_windows')}
+                      </span>
                       {t('forge_wp_desktop_passthrough', 'Desktop Passthrough')}
                     </span>
                   )}
@@ -928,13 +932,14 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             ].map((badge) => (
               <div
                 key={badge.key}
-                className="px-2.5 py-2 rounded-xl bg-transparent border flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider overflow-hidden"
-                style={{
-                  borderColor: `color-mix(in srgb, ${badge.color} 55%, transparent)`,
-                  color: badge.color,
-                }}
+                data-sandbox-glass="surface"
+                style={chipBorderStyle}
+                className="px-2.5 py-2 flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)] overflow-hidden"
               >
-                <span className="material-symbols-outlined !text-[12px] shrink-0">
+                <span
+                  className="material-symbols-outlined !text-[12px] shrink-0"
+                  style={{ color: badge.color }}
+                >
                   {badge.icon}
                 </span>
                 <span className="leading-none">{badge.label}</span>

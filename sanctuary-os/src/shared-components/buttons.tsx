@@ -74,13 +74,13 @@ export function ActionButton({
     case "primary":
     case "default":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--accent)_42%,rgba(255,255,255,0.35))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] hover:!text-[var(--accent)]";
+        "glass-surface !border-[color-mix(in_srgb,var(--accent)_42%,rgba(255,255,255,0.35))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] hover:!text-[var(--accent)] group-hover/card:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] group-hover/card:!text-[var(--accent)]";
       borderColorVar = "--accent";
       break;
     case "glass":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--text)_14%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--text)_28%,transparent)]";
-      borderColorVar = "--text";
+        "glass-surface !border-[color-mix(in_srgb,var(--text)_14%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.35))] hover:!text-[var(--accent)] group-hover/card:!border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.35))] group-hover/card:!text-[var(--accent)]";
+      borderColorVar = "--accent";
       break;
   }
 
@@ -89,7 +89,7 @@ export function ActionButton({
     : "px-6 py-3.5 rounded-xl";
 
   return (
-    <div className={`relative ${iconOnly ? "inline-block" : ""}`}>
+    <div className={`relative ${iconOnly ? "inline-block" : className.includes("w-full") ? "w-full" : ""}`}>
       <button
         type={type}
         form={form}

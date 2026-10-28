@@ -86,6 +86,17 @@ async function fetchVault() {
                   volatile_original_path: volatileOrig || undefined,
                   original_exists: Boolean(parsed.original_exists),
                   original_shredded: Boolean(parsed.original_shredded),
+                  quarantined_file_shredded: Boolean(parsed.quarantined_file_shredded),
+                  source_moved: Boolean(parsed.source_moved),
+                  ingest_mode: parsed.ingest_mode || undefined,
+                  file_size_bytes:
+                    typeof parsed.file_size_bytes === "number"
+                      ? parsed.file_size_bytes
+                      : undefined,
+                  file_extension: parsed.file_extension || undefined,
+                  matched_entry: parsed.matched_entry || undefined,
+                  detection_type: parsed.detection_type || undefined,
+                  detected_at: parsed.detected_at || undefined,
                   quarantine_path: parsed.quarantine_path || undefined,
                   status: "QUARANTINED",
                   compliance_tier: 5,

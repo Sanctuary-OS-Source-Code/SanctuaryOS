@@ -121,13 +121,7 @@ export function DropzoneSidePanel({
                 : "border-[color-mix(in_srgb,var(--text)_18%,transparent)]"
             }`}
           >
-            <div
-              className="w-16 h-16 rounded-2xl glass-surface border text-[var(--accent)] flex items-center justify-center"
-              style={{
-                borderColor:
-                  "color-mix(in srgb, var(--accent) 25%, var(--border))",
-              }}
-            >
+            <div className="w-16 h-16 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center">
               <span className="material-symbols-outlined !text-[34px] animate-bounce">
                 {t("icon_cloud", "cloud_upload")}
               </span>
@@ -149,13 +143,7 @@ export function DropzoneSidePanel({
                       key={i}
                       className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] flex items-center gap-3"
                     >
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--success)] flex items-center justify-center shrink-0"
-                        style={{
-                          borderColor:
-                            "color-mix(in srgb, var(--success) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--success)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_check_circle", "check_circle")}
                         </span>
@@ -170,13 +158,7 @@ export function DropzoneSidePanel({
             {dropzoneState === "ingesting" ? (
               <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_42%,transparent)] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                    style={{
-                      borderColor:
-                        "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined animate-spin !text-[18px]">
                       {t("icon_sync", "sync")}
                     </span>
@@ -185,15 +167,8 @@ export function DropzoneSidePanel({
                     {t("btn_importing", "Importing...")}
                   </span>
                 </div>
-                <span
-                  className={`${VAULT_CHIP_CLASS} font-mono`}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor:
-                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                     {t("icon_inventory_2", "inventory_2")}
                   </span>
                   {ingestProgress?.current || 0} / {ingestProgress?.total || 0}{" "}

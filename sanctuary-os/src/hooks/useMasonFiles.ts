@@ -169,6 +169,18 @@ export function useMasonFiles({
         const supabaseMod = await import("../supabase");
         const primaryClient = isKeepers ? supabaseMod.supabaseAuth : supabaseMod.supabase;
 
+        const storeState = useStore.getState() as any;
+        const activeWs = (storeState.workspaces || []).find(
+          (w: any) =>
+            String(w.id).toLowerCase() === String(storeState.activeWorkspaceId || "").toLowerCase() ||
+            String(w.schema_id || "").toLowerCase() === String(storeState.activeWorkspaceId || "").toLowerCase()
+        );
+        const spokeDisplayName =
+          activeWs?.name ||
+          storeState.activeGameSchema?.display_name ||
+          storeState.activeGameSchema?.name ||
+          "The Sims 4";
+
         if (internalCloudTarget === "sanctuary_lexicons") {
           const [primaryRes, spokeRes] = await Promise.all([
             primaryClient
@@ -188,12 +200,27 @@ export function useMasonFiles({
             setFetchError(null);
           }
 
+          const normalizeLexId = (rawId: string) => {
+            const lower = String(rawId || "").trim().toLowerCase();
+            if (lower === "simlish") return "Simlish";
+            if (lower === "en-sims") return "en-sims";
+            if (lower === "en-default") return "en-default";
+            if (lower === "en-sanctuary") return "en-sanctuary";
+            return String(rawId || "").trim();
+          };
+
           const rowMap = new Map<string, any>();
           for (const row of spokeRes.data || []) {
-            if (row?.id) rowMap.set(String(row.id), row);
+            if (row?.id) {
+              const cid = normalizeLexId(String(row.id));
+              rowMap.set(cid, { ...row, id: cid });
+            }
           }
           for (const row of primaryRes.data || []) {
-            if (row?.id) rowMap.set(String(row.id), row);
+            if (row?.id) {
+              const cid = normalizeLexId(String(row.id));
+              rowMap.set(cid, { ...row, id: cid });
+            }
           }
 
           const seedIds = isKeepers
@@ -204,7 +231,7 @@ export function useMasonFiles({
               rowMap.set(id, {
                 id,
                 name: id,
-                badge: id === "en-sims" || id === "Simlish" ? "The Sims 4" : "Sanctuary",
+                badge: id === "en-sims" || id === "Simlish" ? spokeDisplayName : "Sanctuary",
                 version: 1,
                 lexicon_data: BUNDLED_LEXICONS[id] || {},
               });
@@ -212,34 +239,54 @@ export function useMasonFiles({
           }
 
           let mapped = Array.from(rowMap.values()).map((row: any) => {
-            const id = String(row.id);
+            const id = normalizeLexId(String(row.id));
             const bundled = BUNDLED_LEXICONS[id];
-            const lexData = bundled || row.lexicon_data || {};
+            const lexData = bundled
+              ? { ...(row.lexicon_data || {}), ...bundled }
+              : row.lexicon_data || {};
+            const isKeepersCorePack = id === "en-default" || id === "en-sanctuary";
+            const isSpokeSeedPack = id === "en-sims" || id === "Simlish";
             const isOfficialCore = CORE_LEXICON_ORDER.includes(id);
+
+            const rawMetaName = lexData?._meta_name;
             const displayName =
-              lexData?._meta_name ||
-              (id === "en-default"
+              id === "en-default"
                 ? "English: Default"
                 : id === "en-sanctuary"
                   ? "English: Sanctuary"
                   : id === "en-sims"
-                    ? "English: The Sims"
+                    ? rawMetaName && rawMetaName !== "English: Sanctuary"
+                      ? rawMetaName
+                      : "English: The Sims"
                     : id === "Simlish"
-                      ? "Simlish"
-                      : row.name || id);
+                      ? rawMetaName && rawMetaName !== "English: Sanctuary"
+                        ? rawMetaName
+                        : "Simlish"
+                      : rawMetaName || row.name || id;
+
             const language = resolveLanguageLabel(
-              lexData?._meta_lang || (id === "Simlish" ? "Simlish" : "en")
+              id === "Simlish"
+                ? "Simlish"
+                : lexData?._meta_lang || "en"
             );
-            const community =
-              row.badge ||
-              lexData?._meta_badge ||
-              (id === "en-default" || id === "en-sanctuary"
-                ? "Sanctuary"
-                : id === "en-sims" || id === "Simlish"
-                  ? "The Sims 4"
-                  : "Community");
-            const author =
-              lexData?._meta_author || (isOfficialCore ? "Sanctuary Foundry" : "Community");
+
+            const rawBadge = row.badge || lexData?._meta_badge;
+            const community = isKeepersCorePack
+              ? "Sanctuary"
+              : isSpokeSeedPack || !isKeepers
+                ? rawBadge && rawBadge !== "Sanctuary" && rawBadge !== "Sanctuary Foundry"
+                  ? rawBadge
+                  : spokeDisplayName
+                : rawBadge || "Community";
+
+            const rawAuthor = lexData?._meta_author;
+            const author = isKeepersCorePack
+              ? "Sanctuary Foundry"
+              : isSpokeSeedPack || !isKeepers
+                ? rawAuthor && rawAuthor !== "Sanctuary Foundry" && rawAuthor !== "Sanctuary Core"
+                  ? rawAuthor
+                  : spokeDisplayName
+                : rawAuthor || "Community";
 
             return {
               name: `${id}.json`,
@@ -250,6 +297,7 @@ export function useMasonFiles({
               author,
               isOfficialCore,
               version: row.version || lexData?._meta_version || 1,
+              lexicon_data: lexData,
             };
           });
 
@@ -282,15 +330,37 @@ export function useMasonFiles({
         }
         const rowMap = new Map<string, any>();
         for (const row of data || []) {
-          if (row?.id) rowMap.set(String(row.id), row);
+          if (row?.id) {
+            const normId = String(row.id).trim().toLowerCase();
+            // In Spoke mode (!isKeepers), exclude Keepers Core 'default' baseline schema so it never duplicates the Spoke schema
+            if (
+              internalCloudTarget === "sanctuary_schemas" &&
+              !isKeepers &&
+              normId === "default"
+            ) {
+              continue;
+            }
+            rowMap.set(normId, { ...row, id: normId });
+          }
         }
         if (internalCloudTarget === "sanctuary_schemas") {
-          const activeGameSchema = useStore.getState().activeGameSchema;
-          const activeSchemaId = activeGameSchema?.id;
-          if (activeSchemaId && !rowMap.has(String(activeSchemaId))) {
-            rowMap.set(String(activeSchemaId), {
-              id: String(activeSchemaId),
-              name: activeGameSchema?.display_name || activeGameSchema?.name || String(activeSchemaId),
+          const activeGameSchema = storeState.activeGameSchema;
+          const rawActiveSchemaId = String(
+            activeWs?.schema_id || activeGameSchema?.id || "sims4"
+          )
+            .trim()
+            .toLowerCase();
+          const activeSchemaId =
+            !isKeepers && rawActiveSchemaId === "default" ? "sims4" : rawActiveSchemaId;
+
+          if (activeSchemaId && !rowMap.has(activeSchemaId)) {
+            rowMap.set(activeSchemaId, {
+              id: activeSchemaId,
+              name:
+                activeGameSchema?.display_name ||
+                activeGameSchema?.name ||
+                spokeDisplayName ||
+                activeSchemaId,
               schema_data: activeGameSchema,
               version: activeGameSchema?.schema_version || 1,
             });
@@ -312,17 +382,32 @@ export function useMasonFiles({
               } catch {}
             }
             const effectiveSchema = parsedDraft || schemaData || {};
+            const rowNameClean =
+              row?.name && String(row.name).toLowerCase() !== String(id).toLowerCase()
+                ? row.name
+                : null;
             const displayTitle =
-              row?.name ||
               effectiveSchema?.display_name ||
               effectiveSchema?.name ||
               effectiveSchema?.game_name ||
+              rowNameClean ||
+              (!isKeepers ? spokeDisplayName : null) ||
+              row?.name ||
               id;
+            const rawSchemaAuthor =
+              effectiveSchema?.author || effectiveSchema?._meta_author || "";
+            const resolvedAuthor = isKeepers
+              ? rawSchemaAuthor || "Sanctuary Foundry"
+              : rawSchemaAuthor &&
+                  rawSchemaAuthor !== "Sanctuary Core" &&
+                  rawSchemaAuthor !== "Sanctuary Foundry"
+                ? rawSchemaAuthor
+                : spokeDisplayName;
             return {
               name: `${id}.json`,
               path,
               displayTitle,
-              author: effectiveSchema?.author || effectiveSchema?._meta_author || "Sanctuary Core",
+              author: resolvedAuthor,
               version: row?.version || effectiveSchema?.schema_version || 1,
               updated_at: row?.updated_at || row?.created_at || null,
               schema_data: schemaData,
@@ -522,14 +607,18 @@ export function useMasonFiles({
                 .select("id, name, badge, version, lexicon_data")
                 .eq("id", fileId)
                 .maybeSingle();
-              const cloudKeys = Object.keys((data as any)?.lexicon_data || {});
+              const cloudLex = (data as any)?.lexicon_data || {};
+              const cloudKeys = Object.keys(cloudLex);
               const bundledKeys = Object.keys(bundledObj);
-              if (cloudKeys.length !== bundledKeys.length) {
+              if (
+                cloudKeys.length !== bundledKeys.length ||
+                cloudLex._meta_name !== bundledObj._meta_name ||
+                cloudLex._meta_badge !== bundledObj._meta_badge
+              ) {
                 const payload = {
                   id: fileId,
-                  name: (data as any)?.name || fileId,
+                  name: bundledObj._meta_name || (data as any)?.name || fileId,
                   badge:
-                    (data as any)?.badge ||
                     bundledObj._meta_badge ||
                     (fileId === "en-sims" || fileId === "Simlish" ? "The Sims 4" : "Sanctuary"),
                   version: (data as any)?.version || bundledObj._meta_version || 1,
@@ -614,8 +703,11 @@ export function useMasonFiles({
         if (BUNDLED_LEXICONS[fileId]) {
           try {
             const parsedDraft = JSON.parse(cachedDraft);
-            if (Object.keys(parsedDraft).length > 1400) {
-              // Discard stale pre-simplification 2,300+ key draft
+            if (
+              Object.keys(parsedDraft).length > 1400 ||
+              (fileId !== "en-sanctuary" && parsedDraft?._meta_name === "English: Sanctuary")
+            ) {
+              // Discard stale pre-simplification or mislabeled draft
               clearIdeCachedDraft(file.path);
               useCached = false;
             }

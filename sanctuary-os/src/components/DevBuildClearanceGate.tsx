@@ -75,15 +75,7 @@ export function DevBuildClearanceGate() {
           {/* Header Row */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0">
-              <div
-                className="w-14 h-14 rounded-2xl glass-surface flex items-center justify-center shrink-0 border"
-                style={{
-                  borderColor:
-                    "color-mix(in srgb, var(--accent) 40%, transparent)",
-                  backgroundColor:
-                    "color-mix(in srgb, var(--accent) 10%, transparent)",
-                }}
-              >
+              <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-[28px] text-[var(--accent)]">
                   {t("icon_bolt", "bolt")}
                 </span>

@@ -347,6 +347,11 @@ fn resolve_directive_file_path(slug: &str) -> Result<PathBuf, String> {
         "forking_guide" => "Sanctuary OS Forking & Architecture Guide.md",
         "master_architecture" => "Master Architecture & Feature Document.md",
         "master_protocols" => "Master Protocol List.md",
+        "compliance_protocol" => "Compliance Protocol.md",
+        "partners_agreement" => "Partners Agreement.md",
+        "eula" => "EULA.md",
+        "privacy" => "Privacy Policy.md",
+        "terms" => "Terms of Service.md",
         _ => return Err(format!("Unknown directive slug: {}", slug)),
     };
 
@@ -367,6 +372,11 @@ pub fn read_local_directives() -> Result<Vec<LocalDirectiveSnapshot>, String> {
         "forking_guide",
         "master_architecture",
         "master_protocols",
+        "compliance_protocol",
+        "partners_agreement",
+        "eula",
+        "privacy",
+        "terms",
     ];
     let mut results = Vec::new();
     for slug in slugs {

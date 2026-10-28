@@ -30,6 +30,7 @@ export default function KeepersCore() {
     web_news: t("keepers_tab_web_landing", "Web Landing"),
     web_legal: t("keepers_tab_web_landing", "Web Landing"),
     active_games: t("keepers_tab_partner_spokes", "Partner Spokes"),
+    partner_apps: t("keepers_tab_partner_apps", "Partner Applications"),
     ide: t("tab_schemas", "Master Schemas"),
     schemas: t("tab_schemas", "Master Schemas"),
     audit_logs: t("audit_logs", "Audit Logs"),
@@ -94,7 +95,7 @@ export default function KeepersCore() {
           <VerticalTabButton id="command_center" icon={t("icon_desktop_windows", "desktop_windows")} label={t("wf_tab_command", "Command Center")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="keepers_comms" icon={t("icon_satellite_alt", "satellite_alt")} label={t("wf_tab_dispatch", "Dispatch")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="web_directives" icon={t("icon_public", "public")} label={t("keepers_tab_web_landing", "Web Landing")} activeTab={isWebLandingTab ? "web_directives" : activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="active_games" icon={t("icon_dns", "dns")} label={t("keepers_tab_partner_spokes", "Partner Spokes")} activeTab={["active_games", "ide", "schemas", "audit_logs"].includes(activeTab) ? "active_games" : activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="active_games" icon={t("icon_dns", "dns")} label={t("keepers_tab_partner_spokes", "Partner Spokes")} activeTab={["active_games", "partner_apps", "ide", "schemas", "audit_logs"].includes(activeTab) ? "active_games" : activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="identities" icon={t("icon_group", "group")} label={t("citizen_oversight", "{Citizen} Management")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="heuristics" icon={t("icon_shield_lock", "shield_lock")} label={t("core_heuristics_tab", "Core Heuristics")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="support" icon={t("icon_support_agent", "support_agent")} label={t("support_tickets", "Support Center")} activeTab={activeTab === "support_settings" ? "support" : activeTab} setTab={setActiveTab} />
@@ -116,14 +117,16 @@ export default function KeepersCore() {
             }
           />
         )}
-        {["active_games", "ide", "schemas", "audit_logs"].includes(activeTab) && (
+        {["active_games", "partner_apps", "ide", "schemas", "audit_logs"].includes(activeTab) && (
           <KeepersActiveGames
             initialTab={
               activeTab === "ide" || activeTab === "schemas"
                 ? "schemas"
                 : activeTab === "audit_logs"
                   ? "audit_logs"
-                  : "workspaces"
+                  : activeTab === "partner_apps"
+                    ? "applications"
+                    : "overview"
             }
           />
         )}

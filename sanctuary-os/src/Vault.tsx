@@ -492,7 +492,7 @@ const Vault = React.memo(function Vault(props: any) {
         title={t("vault_title", "Your {Vault}")}
         subtitle={t("vault_subtitle", "Local library, secured assets, and installed {mods}")}
         icon={<span className="material-symbols-outlined !text-3xl text-[var(--accent)]">{t("icon_account_balance", "account_balance")}</span>}
-        breadcrumb={equipFilter !== "OVERVIEW" ? (t(`filter_${equipFilter.toLowerCase()}`) || equipFilter) : undefined}
+        breadcrumb={equipFilter !== "OVERVIEW" ? t(`filter_${equipFilter.toLowerCase()}`, equipFilter) : undefined}
         onTitleClick={() => setEquipFilter("OVERVIEW")}
       >
         {equipFilter !== "OVERVIEW" && (

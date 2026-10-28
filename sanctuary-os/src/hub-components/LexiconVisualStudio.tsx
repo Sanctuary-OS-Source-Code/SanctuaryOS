@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   useLexicon,
   CORE_GLOSSARY_TERMS,
@@ -25,8 +25,6 @@ const enDefault = enDefaultRaw as Record<string, any>;
 const enSanctuary = enSanctuaryRaw as Record<string, any>;
 const enSims = enSimsRaw as Record<string, any>;
 const simlish = simlishRaw as Record<string, any>;
-
-const MODULE_GRID_PAGE_SIZE = 18;
 
 type StudioMainTab = "glossary" | "modules" | "navigation" | "tools";
 
@@ -170,6 +168,7 @@ function classifyModuleKey(key: string): ModuleGroupId {
 
   if (
     k.startsWith("vault_") ||
+    k.startsWith("class_dd_") ||
     k.startsWith("mod_") ||
     k.startsWith("mods_") ||
     k.startsWith("pkg_") ||
@@ -205,7 +204,7 @@ function classifyNavSubGroup(key: string): NavSubGroupId {
 function humanizeKey(key: string): string {
   return key
     .replace(
-      /^(btn_|lbl_|label_|title_|tab_|nav_|msg_|err_|alert_|lex_studio_|schema_studio_|wb_|icon_|action_|filter_|status_|vault_cat_|dlc_type_|role_)/,
+      /^(btn_|lbl_|label_|title_|tab_|nav_|msg_|err_|alert_|lex_studio_|schema_studio_|wb_|icon_|action_|filter_|status_|vault_cat_|vault_sub_|class_dd_|dlc_type_|role_)/,
       ""
     )
     .split("_")
@@ -222,6 +221,7 @@ export interface LexiconVisualStudioProps {
   onAddMissing?: () => void;
   onPurgeDeprecated?: () => void;
   isKeepers?: boolean;
+  onOpenGuide?: () => void;
 }
 
 export default function LexiconVisualStudio({
@@ -230,15 +230,16 @@ export default function LexiconVisualStudio({
   referenceData,
   fileName = "",
   isKeepers = false,
+  onOpenGuide,
 }: LexiconVisualStudioProps) {
   const { t, registry, lexiconMeta } = useLexicon();
   const osRole = useStore((state) => state.osRole);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const canEditKeeperKeys = Boolean(isKeepers || osRole === "keeper");
 
   const [activeTab, setActiveTab] = useState<StudioMainTab>("glossary");
   const [expandedModuleId, setExpandedModuleId] = useState<ModuleGroupId>("vault");
   const [expandedNavGroupId, setExpandedNavGroupId] = useState<NavSubGroupId>("sidebar_views");
-  const [modulePageMap, setModulePageMap] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [onlyCustomized, setOnlyCustomized] = useState(false);
 
@@ -252,6 +253,10 @@ export default function LexiconVisualStudio({
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyValue, setNewKeyValue] = useState("");
   const [activeIconPickerKey, setActiveIconPickerKey] = useState<string | null>(null);
+  const [selectedIconTarget, setSelectedIconTarget] = useState<string>("icon_delete");
+  const [selectedIconReplacement, setSelectedIconReplacement] = useState<string>("delete_forever");
+  const [selectedIconCategory, setSelectedIconCategory] = useState<string>("core_os");
+  const [iconSearchQuery, setIconSearchQuery] = useState<string>("");
 
   const isBuiltinFullLexicon = useMemo(() => {
     const lower = (fileName || "").toLowerCase();
@@ -276,11 +281,42 @@ export default function LexiconVisualStudio({
   }, [content]);
 
   const effectiveReference = useMemo(() => {
-    if (referenceData && Object.keys(referenceData).length > 50) {
-      return referenceData;
+    const baseRef =
+      referenceData && Object.keys(referenceData).length > 50 ? referenceData : enDefault;
+    const merged: Record<string, any> = { ...baseRef };
+    const cats = Array.isArray(activeGameSchema?.mod_categories)
+      ? activeGameSchema.mod_categories
+      : [];
+    for (const c of cats) {
+      if (!c || typeof c !== "object") continue;
+      const cid = String(c.id || "").trim();
+      const lexKey =
+        typeof c.lexicon_key === "string" && c.lexicon_key.trim()
+          ? c.lexicon_key.trim()
+          : cid
+            ? `class_dd_${cid.toLowerCase().replace(/[^a-z0-9]/g, "_")}`
+            : "";
+      if (lexKey && !merged[lexKey]) {
+        merged[lexKey] = c.label || cid;
+      }
+      if (Array.isArray(c.subcategories)) {
+        for (const sub of c.subcategories) {
+          if (!sub || typeof sub !== "object") continue;
+          const sid = String(sub.id || "").trim();
+          const subKey =
+            typeof sub.lexicon_key === "string" && sub.lexicon_key.trim()
+              ? sub.lexicon_key.trim()
+              : sid
+                ? `vault_sub_${sid.toLowerCase().replace(/[^a-z0-9]/g, "_")}`
+                : "";
+          if (subKey && !merged[subKey]) {
+            merged[subKey] = sub.label || sid;
+          }
+        }
+      }
     }
-    return enDefault;
-  }, [referenceData]);
+    return merged;
+  }, [referenceData, activeGameSchema]);
 
   const packBaseline = useMemo(() => {
     const lower = (fileName || "").toLowerCase();
@@ -433,10 +469,6 @@ export default function LexiconVisualStudio({
       customizedCount: customTotal,
     };
   }, [allKeys, parsedDict, packBaseline, effectiveReference, isBuiltinFullLexicon]);
-
-  useEffect(() => {
-    setModulePageMap({});
-  }, [searchQuery, onlyCustomized]);
 
   const filterKeyList = (keys: string[]) => {
     const q = searchQuery.trim().toLowerCase();
@@ -810,10 +842,10 @@ export default function LexiconVisualStudio({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-36 gap-4 select-none">
+    <div className="@container flex flex-col h-full min-h-0 w-full overflow-y-auto custom-scrollbar px-5 pt-4 pb-36 gap-4 select-none">
       {/* 1. Sleek Header Bar + 1x4 DashboardStatTile Filter Grid (Zero Redundant Boxes) */}
       <div className="flex flex-col gap-3.5 pb-1 shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col @[860px]:flex-row @[860px]:items-center justify-between gap-3">
           <div className="flex-1 flex flex-col justify-start min-w-0">
             <input
               type="text"
@@ -829,23 +861,35 @@ export default function LexiconVisualStudio({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 w-full md:w-[300px]">
-            <CustomDropdown
-              className="h-10 w-full text-xs"
-              value={null}
-              options={terminologySourceOptions}
-              onChange={(val: any) => {
-                const picked = Array.isArray(val) ? val[0] : val;
-                if (picked) handleApplyTerminologyFromSource(String(picked));
-              }}
-              placeholder={
-                t("lex_studio_load_preset_dropdown", "Apply Terms From {Lexicon}...") as string
-              }
-            />
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="w-[270px] max-w-full">
+              <CustomDropdown
+                className="h-10 w-full text-xs"
+                value={null}
+                options={terminologySourceOptions}
+                onChange={(val: any) => {
+                  const picked = Array.isArray(val) ? val[0] : val;
+                  if (picked) handleApplyTerminologyFromSource(String(picked));
+                }}
+                placeholder={
+                  t("lex_studio_load_preset_dropdown", "Apply Terms From {Lexicon}...") as string
+                }
+              />
+            </div>
+            {onOpenGuide && (
+              <ActionButton
+                variant="glass"
+                icon={t("icon_menu_book", "menu_book")}
+                onClick={onOpenGuide}
+                className="!h-10 !px-3.5 !text-xs !rounded-xl shrink-0"
+              >
+                {t("lexicon_guide_btn", "{Lexicon} Guide")}
+              </ActionButton>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 w-full">
+        <div className="grid grid-cols-2 @[820px]:grid-cols-4 gap-3 w-full">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_auto_awesome", "auto_awesome")}
@@ -993,13 +1037,6 @@ export default function LexiconVisualStudio({
               const filtered = filterKeyList(rawKeys);
               const customInSec = countCustomizedInList(rawKeys);
               const isExpanded = expandedModuleId === sec.id;
-              const currentPage = modulePageMap[sec.id] || 0;
-              const totalPages = Math.max(1, Math.ceil(filtered.length / MODULE_GRID_PAGE_SIZE));
-              const safePage = Math.min(currentPage, totalPages - 1);
-              const pageSlice = filtered.slice(
-                safePage * MODULE_GRID_PAGE_SIZE,
-                (safePage + 1) * MODULE_GRID_PAGE_SIZE
-              );
 
               if (!isExpanded) {
                 return (
@@ -1071,43 +1108,13 @@ export default function LexiconVisualStudio({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {totalPages > 1 && (
-                        <div className="flex items-center gap-1.5">
-                          <ActionButton
-                            variant="glass"
-                            icon={t("icon_chevron_left", "chevron_left")}
-                            iconOnly={true}
-                            disabled={safePage === 0}
-                            onClick={() =>
-                              setModulePageMap((prev) => ({
-                                ...prev,
-                                [sec.id]: Math.max(0, safePage - 1),
-                              }))
-                            }
-                            className="!w-7 !h-7 !rounded-lg"
-                          />
-                          <span className="text-[10px] tabular-nums font-bold text-[var(--subtext)] px-2">
-                            {`${safePage + 1} / ${totalPages}`}
-                          </span>
-                          <ActionButton
-                            variant="glass"
-                            icon={t("icon_chevron_right", "chevron_right")}
-                            iconOnly={true}
-                            disabled={safePage >= totalPages - 1}
-                            onClick={() =>
-                              setModulePageMap((prev) => ({
-                                ...prev,
-                                [sec.id]: Math.min(totalPages - 1, safePage + 1),
-                              }))
-                            }
-                            className="!w-7 !h-7 !rounded-lg"
-                          />
-                        </div>
-                      )}
+                      <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] tabular-nums font-bold">
+                        {`${customInSec} / ${filtered.length}`}
+                      </span>
                     </div>
                   </div>
 
-                  {pageSlice.length === 0 ? (
+                  {filtered.length === 0 ? (
                     <EmptyState
                       icon={t("icon_search_off", "search_off")}
                       title={t("no_results", "No matching strings")}
@@ -1115,7 +1122,7 @@ export default function LexiconVisualStudio({
                     />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
-                      {pageSlice.map((k) => renderFieldGridCard(k, false))}
+                      {filtered.map((k) => renderFieldGridCard(k, false))}
                     </div>
                   )}
                 </div>
@@ -1160,14 +1167,6 @@ export default function LexiconVisualStudio({
               const filtered = filterKeyList(sec.keys);
               const customInSec = countCustomizedInList(sec.keys);
               const isExpanded = expandedNavGroupId === sec.id;
-              const pageKey = `nav_${sec.id}`;
-              const currentPage = modulePageMap[pageKey] || 0;
-              const totalPages = Math.max(1, Math.ceil(filtered.length / MODULE_GRID_PAGE_SIZE));
-              const safePage = Math.min(currentPage, totalPages - 1);
-              const pageSlice = filtered.slice(
-                safePage * MODULE_GRID_PAGE_SIZE,
-                (safePage + 1) * MODULE_GRID_PAGE_SIZE
-              );
 
               if (!isExpanded) {
                 return (
@@ -1239,43 +1238,13 @@ export default function LexiconVisualStudio({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {totalPages > 1 && (
-                        <div className="flex items-center gap-1.5">
-                          <ActionButton
-                            variant="glass"
-                            icon={t("icon_chevron_left", "chevron_left")}
-                            iconOnly={true}
-                            disabled={safePage === 0}
-                            onClick={() =>
-                              setModulePageMap((prev) => ({
-                                ...prev,
-                                [pageKey]: Math.max(0, safePage - 1),
-                              }))
-                            }
-                            className="!w-7 !h-7 !rounded-lg"
-                          />
-                          <span className="text-[10px] tabular-nums font-bold text-[var(--subtext)] px-2">
-                            {`${safePage + 1} / ${totalPages}`}
-                          </span>
-                          <ActionButton
-                            variant="glass"
-                            icon={t("icon_chevron_right", "chevron_right")}
-                            iconOnly={true}
-                            disabled={safePage >= totalPages - 1}
-                            onClick={() =>
-                              setModulePageMap((prev) => ({
-                                ...prev,
-                                [pageKey]: Math.min(totalPages - 1, safePage + 1),
-                              }))
-                            }
-                            className="!w-7 !h-7 !rounded-lg"
-                          />
-                        </div>
-                      )}
+                      <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] tabular-nums font-bold">
+                        {`${customInSec} / ${filtered.length}`}
+                      </span>
                     </div>
                   </div>
 
-                  {pageSlice.length === 0 ? (
+                  {filtered.length === 0 ? (
                     <EmptyState
                       icon={t("icon_search_off", "search_off")}
                       title={t("no_results", "No matching strings")}
@@ -1283,7 +1252,7 @@ export default function LexiconVisualStudio({
                     />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
-                      {pageSlice.map((k) => renderFieldGridCard(k, false))}
+                      {filtered.map((k) => renderFieldGridCard(k, false))}
                     </div>
                   )}
                 </div>
@@ -1376,25 +1345,38 @@ export default function LexiconVisualStudio({
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-4 text-xs font-bold text-[var(--subtext)]">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={wholeWord}
-                      onChange={(e) => setWholeWord(e.target.checked)}
-                      className="accent-[var(--accent)] w-4 h-4"
-                    />
-                    {t("lex_studio_whole_word", "Whole word")}
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={matchCase}
-                      onChange={(e) => setMatchCase(e.target.checked)}
-                      className="accent-[var(--accent)] w-4 h-4"
-                    />
-                    {t("lex_studio_match_case", "Match case")}
-                  </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setWholeWord(!wholeWord)}
+                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-3 cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-bold text-[var(--text)]">
+                      {t("lex_studio_whole_word", "Whole word")}
+                    </span>
+                    <div
+                      className={`sa-glass-toggle shrink-0 ${wholeWord ? "is-on" : ""}`}
+                      aria-checked={wholeWord}
+                    >
+                      <div className="sa-glass-toggle-thumb" />
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMatchCase(!matchCase)}
+                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-3 cursor-pointer transition-all"
+                  >
+                    <span className="text-xs font-bold text-[var(--text)]">
+                      {t("lex_studio_match_case", "Match case")}
+                    </span>
+                    <div
+                      className={`sa-glass-toggle shrink-0 ${matchCase ? "is-on" : ""}`}
+                      aria-checked={matchCase}
+                    >
+                      <div className="sa-glass-toggle-thumb" />
+                    </div>
+                  </button>
                 </div>
 
                 <ActionButton
@@ -1410,95 +1392,316 @@ export default function LexiconVisualStudio({
             </div>
           </UniversalGroup>
 
-          {/* Card 3: Add Custom Key & Material Icon Overrides */}
+          {/* Card 3: Guided Material Icon Overrides & Custom Keys */}
           <UniversalGroup
             title={t("lex_studio_add_key_btn", "Custom Keys & Icon Overrides")}
             icon={t("icon_interests", "interests")}
           >
-            <div className="flex flex-col gap-4 w-full">
-              <div className="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                    {t("lex_studio_new_key_ph", "Key ID")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newKeyName}
-                    onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="custom_key_name"
-                    className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                    {t("value", "Value")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newKeyValue}
-                    onChange={(e) => setNewKeyValue(e.target.value)}
-                    placeholder={t("lex_studio_new_val_ph", "Display text (supports {Mod}, {Vault}...)") as string}
-                    className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-                <ActionButton
-                  variant="accent"
-                  icon={t("icon_add", "add")}
-                  disabled={!newKeyName.trim()}
-                  onClick={handleAddCustomKey}
-                  className="!h-10 !px-4 !text-xs !rounded-xl"
-                >
-                  {t("add", "Add")}
-                </ActionButton>
-              </div>
+            {(() => {
+              const coreOsIcons = [
+                "inventory_2",
+                "hub",
+                "map",
+                "science",
+                "history",
+                "design_services",
+                "construction",
+                "shield",
+                "rocket_launch",
+                "bug_report",
+                "palette",
+                "translate",
+                "tune",
+                "delete",
+                "search",
+                "settings",
+                "verified",
+                "check_circle",
+                "warning",
+                "error",
+                "folder_open",
+                "download",
+                "upload",
+                "code",
+                "menu_book",
+                "auto_awesome",
+              ];
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                {ICON_CATEGORIES[0]?.icons.slice(0, 8).map((iconName) => {
-                  const iconKey = `icon_${iconName}`;
-                  const currentGlyph = parsedDict[iconKey] || iconName;
-                  return (
-                    <div
-                      key={iconKey}
-                      className="glass-surface rounded-2xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 relative"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                          <span className="material-symbols-outlined !text-[18px]">
-                            {currentGlyph}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-[var(--text)] truncate">
-                          {iconName}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setActiveIconPickerKey(
-                            activeIconPickerKey === iconKey ? null : iconKey
-                          )
-                        }
-                        className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase text-[var(--text)] cursor-pointer shrink-0"
-                      >
-                        {t("edit", "Edit")}
-                      </button>
+              const allKnownIcons = Array.from(
+                new Set([
+                  ...coreOsIcons,
+                  ...Object.keys(parsedDict)
+                    .filter((k) => k.startsWith("icon_"))
+                    .map((k) => k.replace(/^icon_/, "")),
+                  ...ICON_CATEGORIES.flatMap((c) => c.icons),
+                ])
+              );
 
-                      {activeIconPickerKey === iconKey && (
-                        <div className="absolute right-0 top-12 z-[200]">
-                          <IconPicker
-                            onSelect={(newGlyph: string) => {
-                              handleUpdateKey(iconKey, newGlyph);
-                              setActiveIconPickerKey(null);
-                            }}
-                            onClose={() => setActiveIconPickerKey(null)}
-                          />
-                        </div>
-                      )}
+              const targetIconDropdownOptions = allKnownIcons.map((glyph) => ({
+                id: `icon_${glyph}`,
+                label: `${humanizeKey(glyph)} (icon_${glyph})`,
+                searchText: `${glyph} ${humanizeKey(glyph)} icon_${glyph}`,
+                icon: glyph,
+              }));
+
+              const categoryDropdownOptions = [
+                {
+                  id: "core_os",
+                  label: t("lex_studio_icon_cat_core", "Core OS & Customized Icons"),
+                  icon: t("icon_auto_awesome", "auto_awesome"),
+                },
+                ...ICON_CATEGORIES.map((cat) => ({
+                  id: cat.name,
+                  label: cat.name,
+                  icon: cat.icons[0] || "apps",
+                })),
+              ];
+
+              const customizedIconNames = Object.keys(parsedDict)
+                .filter((k) => k.startsWith("icon_") && parsedDict[k])
+                .map((k) => k.replace(/^icon_/, ""));
+
+              const baseCategoryIcons =
+                selectedIconCategory === "core_os"
+                  ? Array.from(new Set([...customizedIconNames, ...coreOsIcons]))
+                  : ICON_CATEGORIES.find((c) => c.name === selectedIconCategory)?.icons ||
+                    coreOsIcons;
+
+              const visibleIcons = iconSearchQuery.trim()
+                ? allKnownIcons.filter((ic) =>
+                    ic.toLowerCase().includes(iconSearchQuery.trim().toLowerCase())
+                  )
+                : baseCategoryIcons;
+
+              return (
+                <div className="flex flex-col gap-4 w-full">
+                  {/* Guided Icon Override Builder Row (No Guessing!) */}
+                  <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("lex_studio_icon_builder_title", "Guided OS Icon Override Builder")}
+                      </span>
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75">
+                        {`${selectedIconTarget} → ${selectedIconReplacement}`}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+
+                    <div className="grid grid-cols-1 @[780px]:grid-cols-[1fr_240px_auto] gap-3 items-end">
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("lex_studio_icon_target_lbl", "1. Select OS Icon to Override")}
+                        </label>
+                        <CustomDropdown
+                          disableTint={true}
+                          searchable={true}
+                          value={selectedIconTarget}
+                          options={targetIconDropdownOptions}
+                          onChange={(val: string[]) => {
+                            const chosen = val[0] || "icon_delete";
+                            setSelectedIconTarget(chosen);
+                            const rawGlyph = chosen.replace(/^icon_/, "");
+                            setSelectedIconReplacement(parsedDict[chosen] || rawGlyph);
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 min-w-0 relative">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("lex_studio_icon_replacement_lbl", "2. Choose Replacement Icon")}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveIconPickerKey(
+                              activeIconPickerKey === "__builder__" ? null : "__builder__"
+                            )
+                          }
+                          className="h-10 w-full glass-panel rounded-xl px-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] flex items-center justify-between gap-2 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
+                              {selectedIconReplacement}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-[var(--text)] truncate">
+                              {selectedIconReplacement}
+                            </span>
+                          </div>
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
+                            {t("icon_apps", "apps")}
+                          </span>
+                        </button>
+
+                        {activeIconPickerKey === "__builder__" && (
+                          <div className="absolute right-0 top-12 z-[200]">
+                            <IconPicker
+                              onSelect={(newGlyph: string) => {
+                                setSelectedIconReplacement(newGlyph);
+                                setActiveIconPickerKey(null);
+                              }}
+                              onClose={() => setActiveIconPickerKey(null)}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <ActionButton
+                        variant="accent"
+                        icon={t("icon_check", "check")}
+                        onClick={() =>
+                          handleUpdateKey(selectedIconTarget, selectedIconReplacement)
+                        }
+                        className="!h-10 !px-4 !text-xs !rounded-xl shrink-0"
+                      >
+                        {t("apply", "Apply")}
+                      </ActionButton>
+                    </div>
+                  </div>
+
+                  {/* Browse & Edit OS Icons By Category or Search */}
+                  <div className="flex flex-col gap-3 pt-1">
+                    <div className="grid grid-cols-1 @[680px]:grid-cols-[260px_1fr] gap-3 items-center">
+                      <CustomDropdown
+                        disableTint={true}
+                        searchable={true}
+                        value={selectedIconCategory}
+                        options={categoryDropdownOptions}
+                        onChange={(val: string[]) =>
+                          setSelectedIconCategory(val[0] || "core_os")
+                        }
+                      />
+                      <input
+                        type="text"
+                        value={iconSearchQuery}
+                        onChange={(e) => setIconSearchQuery(e.target.value)}
+                        placeholder={
+                          t(
+                            "lex_studio_icon_search_ph",
+                            "Filter icons by name (e.g. delete, folder, shield, science)..."
+                          ) as string
+                        }
+                        className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {visibleIcons.slice(0, 32).map((iconName) => {
+                        const iconKey = `icon_${iconName}`;
+                        const currentGlyph = parsedDict[iconKey] || iconName;
+                        const isOverridden =
+                          Boolean(parsedDict[iconKey]) && parsedDict[iconKey] !== iconName;
+                        return (
+                          <div
+                            key={iconKey}
+                            className={`glass-surface rounded-2xl p-3 border flex items-center justify-between gap-2 relative transition-all ${
+                              isOverridden
+                                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                                <span className="material-symbols-outlined !text-[18px]">
+                                  {currentGlyph}
+                                </span>
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] font-bold text-[var(--text)] truncate">
+                                  {humanizeKey(iconName)}
+                                </span>
+                                <span className="text-[9px] font-mono text-[var(--subtext)] opacity-70 truncate">
+                                  {isOverridden
+                                    ? `${iconName} → ${currentGlyph}`
+                                    : `icon_${iconName}`}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isOverridden && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetKey(iconKey)}
+                                  className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[13px]">
+                                    {t("icon_restart_alt", "restart_alt")}
+                                  </span>
+                                  <HoverTooltip title={t("reset", "Reset")} />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveIconPickerKey(
+                                    activeIconPickerKey === iconKey ? null : iconKey
+                                  )
+                                }
+                                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase text-[var(--text)] cursor-pointer shrink-0"
+                              >
+                                {t("edit", "Edit")}
+                              </button>
+                            </div>
+
+                            {activeIconPickerKey === iconKey && (
+                              <div className="absolute right-0 top-12 z-[200]">
+                                <IconPicker
+                                  onSelect={(newGlyph: string) => {
+                                    handleUpdateKey(iconKey, newGlyph);
+                                    setActiveIconPickerKey(null);
+                                  }}
+                                  onClose={() => setActiveIconPickerKey(null)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom Text Key Addition */}
+                  <div className="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("lex_studio_new_key_ph", "Custom Key ID")}
+                      </label>
+                      <input
+                        type="text"
+                        value={newKeyName}
+                        onChange={(e) => setNewKeyName(e.target.value)}
+                        placeholder="custom_key_name"
+                        className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("value", "Value")}
+                      </label>
+                      <input
+                        type="text"
+                        value={newKeyValue}
+                        onChange={(e) => setNewKeyValue(e.target.value)}
+                        placeholder={
+                          t(
+                            "lex_studio_new_val_ph",
+                            "Display text (supports {Mod}, {Vault}...)"
+                          ) as string
+                        }
+                        className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_add", "add")}
+                      disabled={!newKeyName.trim()}
+                      onClick={handleAddCustomKey}
+                      className="!h-10 !px-4 !text-xs !rounded-xl"
+                    >
+                      {t("add", "Add")}
+                    </ActionButton>
+                  </div>
+                </div>
+              );
+            })()}
           </UniversalGroup>
         </div>
       )}

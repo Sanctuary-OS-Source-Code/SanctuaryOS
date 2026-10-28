@@ -188,7 +188,7 @@ export function ArtifactVersionHistorySection({
                 value={selectedSandboxVersionHash}
                 onChange={(val: string[]) => setSelectedSandboxVersionHash(val[0] || "")}
                 options={[
-                  { id: "", label: t("clear", "None") },
+                  { id: "", label: t("none", "None") },
                   ...unlinkedSandboxVersionOptions,
                 ]}
               />

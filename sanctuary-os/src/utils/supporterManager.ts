@@ -46,21 +46,37 @@ const LOCAL_STORAGE_KEY = "sanctuary_local_supporter_vault_v1";
 const NONCE_STORAGE_KEY = "sanctuary_redeemed_tx_hashes_v1";
 
 function readFallbackVault(userId: string): LocalSupporterStatePayload {
+  const isAuthenticatedUser = Boolean(userId && userId !== "local_citizen");
+  const defaultDevBuild: LocalDevBuildStatus = {
+    user_id: isAuthenticatedUser ? userId : "local_citizen",
+    dev_build_until: 0,
+    donation_credit_cents: 0,
+    total_months_unlocked: 0,
+    channel_enabled: false,
+    updated_at: Math.floor(Date.now() / 1000),
+  };
+
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      let resolvedDevBuild = defaultDevBuild;
+      if (isAuthenticatedUser) {
+        const byUser = parsed.dev_build_by_user?.[userId];
+        if (byUser && byUser.user_id === userId) {
+          resolvedDevBuild = byUser;
+        } else if (
+          parsed.dev_build &&
+          parsed.dev_build.user_id &&
+          parsed.dev_build.user_id === userId
+        ) {
+          resolvedDevBuild = parsed.dev_build;
+        }
+      }
       return {
         follows: Array.isArray(parsed.follows) ? parsed.follows : [],
         supporters: Array.isArray(parsed.supporters) ? parsed.supporters : [],
-        dev_build: parsed.dev_build || {
-          user_id: userId || "local_citizen",
-          dev_build_until: 0,
-          donation_credit_cents: 0,
-          total_months_unlocked: 0,
-          channel_enabled: false,
-          updated_at: Math.floor(Date.now() / 1000),
-        },
+        dev_build: resolvedDevBuild,
       };
     }
   } catch {
@@ -69,20 +85,42 @@ function readFallbackVault(userId: string): LocalSupporterStatePayload {
   return {
     follows: [],
     supporters: [],
-    dev_build: {
-      user_id: userId || "local_citizen",
-      dev_build_until: 0,
-      donation_credit_cents: 0,
-      total_months_unlocked: 0,
-      channel_enabled: false,
-      updated_at: Math.floor(Date.now() / 1000),
-    },
+    dev_build: defaultDevBuild,
   };
 }
 
 function writeFallbackVault(state: LocalSupporterStatePayload) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+    let existingByUser: Record<string, LocalDevBuildStatus> = {};
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.dev_build_by_user === "object") {
+        existingByUser = { ...parsed.dev_build_by_user };
+      }
+    }
+    const uid = state?.dev_build?.user_id;
+    if (uid && uid !== "local_citizen") {
+      existingByUser[uid] = state.dev_build;
+    }
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify({
+        ...state,
+        dev_build:
+          uid && uid !== "local_citizen"
+            ? state.dev_build
+            : {
+                user_id: "local_citizen",
+                dev_build_until: 0,
+                donation_credit_cents: 0,
+                total_months_unlocked: 0,
+                channel_enabled: false,
+                updated_at: Math.floor(Date.now() / 1000),
+              },
+        dev_build_by_user: existingByUser,
+      }),
+    );
   } catch {
     // ignore storage errors
   }
@@ -95,6 +133,9 @@ export async function getSupporterState(
   const effectiveVault = vaultPath || useStore.getState().vaultPath || "";
   const effectiveUser =
     userId || useStore.getState().session?.user?.id || "local_citizen";
+  const isAuthenticatedUser = Boolean(
+    effectiveUser && effectiveUser !== "local_citizen",
+  );
 
   let state: LocalSupporterStatePayload = readFallbackVault(effectiveUser);
 
@@ -108,7 +149,19 @@ export async function getSupporterState(
         },
       );
       if (sqliteState) {
-        state = sqliteState;
+        state = {
+          ...sqliteState,
+          dev_build: isAuthenticatedUser
+            ? sqliteState.dev_build
+            : {
+                user_id: "local_citizen",
+                dev_build_until: 0,
+                donation_credit_cents: 0,
+                total_months_unlocked: 0,
+                channel_enabled: false,
+                updated_at: Math.floor(Date.now() / 1000),
+              },
+        };
         writeFallbackVault(state);
       }
     } catch (err) {
@@ -116,20 +169,27 @@ export async function getSupporterState(
     }
   }
 
+  if (!isAuthenticatedUser) {
+    state.dev_build = {
+      user_id: "local_citizen",
+      dev_build_until: 0,
+      donation_credit_cents: 0,
+      total_months_unlocked: 0,
+      channel_enabled: false,
+      updated_at: Math.floor(Date.now() / 1000),
+    };
+    return state;
+  }
+
   // Sync cumulative Global Daily Dev Build status from Hub profile if authenticated & online
   const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
-  if (
-    !localOnly &&
-    navigator.onLine &&
-    effectiveUser &&
-    effectiveUser !== "local_citizen"
-  ) {
+  if (!localOnly && navigator.onLine && isAuthenticatedUser) {
     try {
       const client = supabaseAuth || supabase;
       const { data: profile } = await client
         .from("profiles")
         .select(
-          "dev_build_until, donation_credit_cents, total_months_unlocked",
+          "dev_build_until, donation_credit_cents, total_months_unlocked, web_dev_channel_enabled, role",
         )
         .eq("id", effectiveUser)
         .maybeSingle();
@@ -140,22 +200,42 @@ export async function getSupporterState(
           : 0;
         const cloudCredit = Number(profile.donation_credit_cents || 0);
         const cloudMonths = Number(profile.total_months_unlocked || 0);
+        const cloudWebChannel =
+          typeof (profile as any).web_dev_channel_enabled === "boolean"
+            ? Boolean((profile as any).web_dev_channel_enabled)
+            : undefined;
+        const localChannelPref = localStorage.getItem("sanctuary_dev_build_channel");
+        const resolvedChannelEnabled =
+          localChannelPref === "true"
+            ? true
+            : localChannelPref === "false"
+              ? false
+              : cloudWebChannel !== undefined
+                ? cloudWebChannel
+                : state.dev_build.channel_enabled;
 
         if (
           cloudUntilSecs > state.dev_build.dev_build_until ||
-          cloudMonths > state.dev_build.total_months_unlocked
+          cloudMonths > state.dev_build.total_months_unlocked ||
+          cloudCredit !== state.dev_build.donation_credit_cents ||
+          resolvedChannelEnabled !== state.dev_build.channel_enabled
         ) {
           state.dev_build = {
             ...state.dev_build,
+            user_id: effectiveUser,
             dev_build_until: Math.max(
               state.dev_build.dev_build_until,
               cloudUntilSecs,
             ),
-            donation_credit_cents: cloudCredit,
+            donation_credit_cents:
+              cloudUntilSecs >= state.dev_build.dev_build_until
+                ? cloudCredit
+                : Math.max(state.dev_build.donation_credit_cents || 0, cloudCredit),
             total_months_unlocked: Math.max(
               state.dev_build.total_months_unlocked,
               cloudMonths,
             ),
+            channel_enabled: resolvedChannelEnabled,
             updated_at: Math.floor(Date.now() / 1000),
           };
           writeFallbackVault(state);
@@ -316,6 +396,41 @@ export async function removeLocalMasonSupporterBridge(
   writeFallbackVault(fallback);
 }
 
+export async function clearExpiredLocalMasonSupporters(
+  expiredMasonIds?: string[],
+): Promise<LocalMasonSupporter[]> {
+  const vaultPath = useStore.getState().vaultPath || "";
+  const userId = useStore.getState().session?.user?.id || "local_citizen";
+  const now = Math.floor(Date.now() / 1000);
+
+  const fallback = readFallbackVault(userId);
+  const idsToClear =
+    Array.isArray(expiredMasonIds) && expiredMasonIds.length > 0
+      ? expiredMasonIds
+      : fallback.supporters
+          .filter((s) => Boolean(s.expires_at && s.expires_at <= now))
+          .map((s) => s.mason_id);
+
+  if (isDesktop() && vaultPath && vaultPath !== "web") {
+    await Promise.all(
+      idsToClear.map((masonId) =>
+        invoke("remove_local_mason_supporter", {
+          vaultPath,
+          masonId,
+        }).catch(() => {}),
+      ),
+    );
+  }
+
+  const idSet = new Set(idsToClear);
+  fallback.supporters = fallback.supporters.filter(
+    (s) =>
+      !idSet.has(s.mason_id) && !(s.expires_at && s.expires_at <= now),
+  );
+  writeFallbackVault(fallback);
+  return fallback.supporters;
+}
+
 export async function stackGlobalDevBuildDonation(params: {
   amountUsd: number;
   txNonce: string;
@@ -453,22 +568,97 @@ export async function stackGlobalDevBuildDonation(params: {
   };
 }
 
+export function hasDevBuildAccessClearance(devBuildUntil?: number): boolean {
+  const now = Math.floor(Date.now() / 1000);
+  if ((devBuildUntil || 0) > now) return true;
+  const storeState = useStore.getState();
+  const osRole = String(storeState.osRole || "").toLowerCase();
+  const userRole = String(storeState.userRole || "").toLowerCase();
+  const staffRoles = ["keeper", "wayfinder", "architect", "admin", "core_dev"];
+  return staffRoles.includes(osRole) || staffRoles.includes(userRole);
+}
+
+export function isClientOnDevBuildStream(
+  supporterState?: LocalSupporterStatePayload | number | null,
+): boolean {
+  if (typeof localStorage !== "undefined") {
+    const lsPref = localStorage.getItem("sanctuary_dev_build_channel");
+    if (lsPref === "true") return true;
+    if (lsPref === "false") return false;
+  }
+  if (
+    supporterState &&
+    typeof supporterState === "object" &&
+    supporterState.dev_build?.channel_enabled
+  ) {
+    return true;
+  }
+  try {
+    const envChannel = String(
+      (import.meta as any)?.env?.VITE_BUILD_CHANNEL ||
+        (import.meta as any)?.env?.MODE ||
+        "",
+    ).toLowerCase();
+    if (envChannel === "dev" || envChannel === "beta") {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  const installedMeta = getInstalledBuildMeta();
+  if (installedMeta?.channel === "dev") return true;
+  return false;
+}
+
 export async function setDevBuildChannelPreference(
   enabled: boolean,
+  userIdOverride?: string | null,
 ): Promise<LocalDevBuildStatus> {
   const vaultPath = useStore.getState().vaultPath || "";
-  const userId = useStore.getState().session?.user?.id || "local_citizen";
+  const userId =
+    userIdOverride || useStore.getState().session?.user?.id || "local_citizen";
   const state = await getSupporterState(vaultPath, userId);
-  const now = Math.floor(Date.now() / 1000);
-  const isUnlocked = state.dev_build.dev_build_until > now;
+  const isUnlocked = hasDevBuildAccessClearance(state.dev_build.dev_build_until);
   const finalEnabled = enabled && isUnlocked;
 
   state.dev_build.channel_enabled = finalEnabled;
   writeFallbackVault(state);
-  localStorage.setItem(
-    "sanctuary_dev_build_channel",
-    finalEnabled ? "true" : "false",
-  );
+  try {
+    localStorage.setItem(
+      "sanctuary_dev_build_channel",
+      finalEnabled ? "true" : "false",
+    );
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.buildChannel = finalEnabled
+        ? "dev"
+        : "public";
+    }
+  } catch {
+    // ignore storage errors
+  }
+
+  // Persist Web & Mobile PWA channel preference to Hub profile if authenticated
+  const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
+  if (!localOnly && navigator.onLine && userId && userId !== "local_citizen") {
+    try {
+      const client = supabaseAuth || supabase;
+      await client
+        .from("profiles")
+        .update({ web_dev_channel_enabled: finalEnabled })
+        .eq("id", userId);
+    } catch {
+      // non-fatal
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("sanctuary-supporter-updated"));
+    window.dispatchEvent(
+      new CustomEvent("sanctuary-build-channel-changed", {
+        detail: { channel: finalEnabled ? "dev" : "public" },
+      }),
+    );
+  }
 
   if (isDesktop() && vaultPath && vaultPath !== "web") {
     try {
@@ -516,15 +706,25 @@ export function findLocalMasonSupporterPass(
 export interface KeepersPipelineConfig {
   keepers_donation_url: string;
   keepers_payment_processor: string;
+  support_contact_email?: string;
+  support_sender_name?: string;
+  support_reply_to_email?: string;
+  support_email_provider?: string;
+  support_email_api_key?: string;
+  support_email_webhook_url?: string;
+  web_public_url?: string;
+  web_beta_url?: string;
   stable_version: string;
   stable_exe_url?: string;
   stable_msi_url?: string;
+  stable_dmg_url?: string;
   stable_published_at?: string;
   stable_release_notes?: string;
   stable_release_url?: string;
   dev_build_version: string;
   dev_build_endpoint: string;
   dev_build_download_url: string;
+  dev_build_dmg_url?: string;
   dev_build_notes: string;
   dev_published_at?: string;
   dev_release_url?: string;
@@ -532,16 +732,144 @@ export interface KeepersPipelineConfig {
   updated_at: string;
 }
 
+export interface DispatchKeeperEmailParams {
+  toEmail?: string;
+  to_email?: string;
+  subject: string;
+  bodyText?: string;
+  body_text?: string;
+  ticketId?: string | null;
+  ticket_id?: string | null;
+  fromEmail?: string;
+  from_email?: string;
+  fromName?: string;
+  from_name?: string;
+  replyTo?: string;
+  reply_to?: string;
+}
+
+export async function dispatchKeeperCustomEmail(
+  params: DispatchKeeperEmailParams,
+): Promise<{
+  ok: boolean;
+  status: string;
+  provider: string;
+  dispatch?: any;
+  dispatch_id?: string;
+  warning?: string;
+  error?: string;
+}> {
+  const cfg = await getKeepersPipelineConfig(false);
+  const resolvedToEmail = (params.toEmail || params.to_email || "").trim();
+  const resolvedBodyText = (params.bodyText || params.body_text || "").trim();
+  const resolvedTicketId = params.ticketId ?? params.ticket_id ?? null;
+  const fromEmail = (
+    params.fromEmail ||
+    params.from_email ||
+    cfg.support_contact_email ||
+    "support@sanctuaryos.gg"
+  ).trim();
+  const fromName = (
+    params.fromName ||
+    params.from_name ||
+    cfg.support_sender_name ||
+    "Sanctuary OS Keepers Core"
+  ).trim();
+  const replyTo = (
+    params.replyTo ||
+    params.reply_to ||
+    cfg.support_reply_to_email ||
+    fromEmail
+  ).trim();
+
+  const client = supabaseAuth || supabase;
+  try {
+    const { data, error } = await client.functions.invoke(
+      "keeper-email-dispatch",
+      {
+        body: {
+          to_email: resolvedToEmail,
+          subject: params.subject.trim(),
+          body_text: resolvedBodyText,
+          ticket_id: resolvedTicketId,
+          from_email: fromEmail,
+          from_name: fromName,
+          reply_to: replyTo,
+          api_key: cfg.support_email_api_key || undefined,
+          webhook_url: cfg.support_email_webhook_url || undefined,
+        },
+      },
+    );
+    if (!error && data?.ok) {
+      return {
+        ok: true,
+        status: data.status || "DELIVERED",
+        provider: data.provider || "KEEPERS_CORE_MAILBOX",
+        dispatch: data.dispatch,
+        dispatch_id: data.dispatch?.id || data.dispatch_id,
+        warning: data.warning,
+      };
+    }
+  } catch {
+    // Fallback to direct DB insert if Edge Function invocation fails
+  }
+
+  const uid = useStore.getState().session?.user?.id || null;
+  const { data: fallbackRow, error: dbErr } = await client
+    .from("keeper_email_dispatches")
+    .insert({
+      ticket_id: resolvedTicketId,
+      sender_user_id: uid && uid !== "local_citizen" ? uid : null,
+      from_name: fromName,
+      from_email: fromEmail,
+      reply_to: replyTo,
+      to_email: resolvedToEmail,
+      subject: params.subject.trim(),
+      body_text: resolvedBodyText,
+      provider: "KEEPERS_CORE_MAILBOX",
+      status: "DISPATCHED_IN_APP",
+    })
+    .select("*")
+    .maybeSingle();
+
+  if (dbErr) {
+    throw new Error(dbErr.message);
+  }
+
+  return {
+    ok: true,
+    status: "DISPATCHED_IN_APP",
+    provider: "KEEPERS_CORE_MAILBOX",
+    dispatch: fallbackRow,
+    dispatch_id: fallbackRow?.id,
+  };
+}
+
 const KEEPERS_PIPELINE_STORAGE_KEY = "sanctuary_keepers_pipeline_config_v1";
+const LEGACY_DEACTIVATED_STRIPE_URL =
+  "https://donate.stripe.com/00w28j4ZP3IU2HCgEl08g00";
+
+export function isMacClient(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const plat = String(navigator.platform || "");
+  const ua = String(navigator.userAgent || "");
+  return /Mac|iPod|iPhone|iPad/i.test(plat) || /Macintosh|Mac OS X/i.test(ua);
+}
 
 export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
-  keepers_donation_url: "https://donate.stripe.com/00w28j4ZP3IU2HCgEl08g00",
-  keepers_payment_processor: "STRIPE",
+  keepers_donation_url: "sandbox://checkout",
+  keepers_payment_processor: "SANDBOX",
+  support_contact_email: "support@sanctuaryos.gg",
+  support_sender_name: "Sanctuary OS Keepers Core",
+  support_reply_to_email: "support@sanctuaryos.gg",
+  support_email_provider: "RESEND",
   stable_version: "0.5.8",
   dev_build_version: "0.5.8-dev.1",
   dev_build_endpoint:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/dev-latest/latest.json",
   dev_build_download_url:
+    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
+  dev_build_dmg_url:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_notes:
     "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
@@ -614,11 +942,19 @@ export async function fetchLiveGitHubReleases(
         const msiAsset = stableRel.assets.find((a: any) =>
           String(a.name || "").endsWith(".msi"),
         );
+        const dmgAsset = stableRel.assets.find(
+          (a: any) =>
+            String(a.name || "").toLowerCase().endsWith(".dmg") ||
+            String(a.name || "").toLowerCase().endsWith(".app.tar.gz"),
+        );
         if (exeAsset?.browser_download_url) {
           result.stable_exe_url = exeAsset.browser_download_url;
         }
         if (msiAsset?.browser_download_url) {
           result.stable_msi_url = msiAsset.browser_download_url;
+        }
+        if (dmgAsset?.browser_download_url) {
+          result.stable_dmg_url = dmgAsset.browser_download_url;
         }
       }
     }
@@ -675,6 +1011,16 @@ export async function fetchLiveGitHubReleases(
           null
         );
       };
+      const findDmgAsset = (rel: any) => {
+        if (!Array.isArray(rel?.assets)) return null;
+        return (
+          rel.assets.find(
+            (a: any) =>
+              String(a.name || "").toLowerCase().endsWith(".dmg") ||
+              String(a.name || "").toLowerCase().endsWith(".app.tar.gz"),
+          ) || null
+        );
+      };
       const directExe = findExeAsset(devRel);
       if (directExe?.browser_download_url) {
         result.dev_build_download_url = directExe.browser_download_url;
@@ -685,6 +1031,20 @@ export async function fetchLiveGitHubReleases(
         const fallbackExe = findExeAsset(fallbackDevWithExe);
         if (fallbackExe?.browser_download_url) {
           result.dev_build_download_url = fallbackExe.browser_download_url;
+        }
+      }
+      const directDmg = findDmgAsset(devRel);
+      if (directDmg?.browser_download_url) {
+        result.dev_build_dmg_url = directDmg.browser_download_url;
+      } else {
+        const fallbackDevWithDmg = devReleases.find((r: any) =>
+          Boolean(findDmgAsset(r)?.browser_download_url),
+        );
+        const fallbackDmg = findDmgAsset(fallbackDevWithDmg);
+        if (fallbackDmg?.browser_download_url) {
+          result.dev_build_dmg_url = fallbackDmg.browser_download_url;
+        } else if (devRel.html_url) {
+          result.dev_build_dmg_url = devRel.html_url;
         }
       }
     } else {
@@ -708,7 +1068,15 @@ export async function getKeepersPipelineConfig(
   try {
     const raw = localStorage.getItem(KEEPERS_PIPELINE_STORAGE_KEY);
     if (raw) {
-      cached = { ...cached, ...JSON.parse(raw) };
+      const parsedLocal = JSON.parse(raw);
+      cached = { ...cached, ...parsedLocal };
+      if (
+        cached.keepers_donation_url &&
+        cached.keepers_donation_url.trim() === LEGACY_DEACTIVATED_STRIPE_URL
+      ) {
+        cached.keepers_donation_url = "sandbox://checkout";
+        cached.keepers_payment_processor = "SANDBOX";
+      }
     }
   } catch {
     // ignore
@@ -735,9 +1103,22 @@ export async function getKeepersPipelineConfig(
       fetchLiveGitHubReleases(forceGitHubRefresh),
     ]);
 
-    if (broadcastRes && (broadcastRes.content || broadcastRes.message)) {
+    if (
+      broadcastRes &&
+      (broadcastRes.description || broadcastRes.message || broadcastRes.content)
+    ) {
       try {
-        const parsed = JSON.parse(broadcastRes.content || broadcastRes.message);
+        const parsed = JSON.parse(
+          broadcastRes.description || broadcastRes.message || broadcastRes.content,
+        );
+        if (
+          parsed.keepers_donation_url &&
+          String(parsed.keepers_donation_url).trim() ===
+            LEGACY_DEACTIVATED_STRIPE_URL
+        ) {
+          parsed.keepers_donation_url = "sandbox://checkout";
+          parsed.keepers_payment_processor = "SANDBOX";
+        }
         cached = {
           ...cached,
           ...parsed,
@@ -745,6 +1126,29 @@ export async function getKeepersPipelineConfig(
         };
       } catch {
         // ignore parse error
+      }
+    } else if (
+      isDesktop() &&
+      cached.keepers_donation_url &&
+      cached.keepers_donation_url !== LEGACY_DEACTIVATED_STRIPE_URL
+    ) {
+      // Auto-sync Desktop pipeline config to Hub if missing on Supabase
+      try {
+        const client = supabaseAuth || supabase;
+        const payloadStr = JSON.stringify({ ...cached, ...ghReleases });
+        await client.from("keeper_system_broadcasts").insert([
+          {
+            title: `DEV_BUILD_PIPELINE_${cached.dev_build_version}`,
+            category: "PipelineConfig",
+            description: payloadStr,
+            message: payloadStr,
+            target_audience: "Internal_Pipeline",
+            is_active: true,
+            is_pinned: false,
+          },
+        ]);
+      } catch {
+        // ignore
       }
     }
 
@@ -798,10 +1202,10 @@ export async function saveKeepersPipelineConfig(
         .from("keeper_system_broadcasts")
         .update({
           title: `DEV_BUILD_PIPELINE_${next.dev_build_version}`,
-          content: payloadStr,
+          description: payloadStr,
           message: payloadStr,
           target_audience: "Internal_Pipeline",
-          is_active: false,
+          is_active: true,
           is_pinned: false,
         })
         .eq("id", existing.id);
@@ -810,10 +1214,10 @@ export async function saveKeepersPipelineConfig(
         {
           title: `DEV_BUILD_PIPELINE_${next.dev_build_version}`,
           category: "PipelineConfig",
-          content: payloadStr,
+          description: payloadStr,
           message: payloadStr,
           target_audience: "Internal_Pipeline",
-          is_active: false,
+          is_active: true,
           is_pinned: false,
         },
       ]);
@@ -856,25 +1260,31 @@ export async function savePartnerCommunityDonationConfig(params: {
 
   // Update sanctuary_games on the Hub
   const client = supabaseAuth || supabase;
-  if (params.gameId) {
-    const { error } = await client
-      .from("sanctuary_games")
-      .update({
-        donation_url: cleanUrl || null,
-        payment_processor: cleanProcessor,
-      })
-      .eq("id", params.gameId);
-    if (!error) return;
-  }
+  const isUuid =
+    typeof params.gameId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      params.gameId.trim(),
+    );
 
-  if (params.schemaId) {
+  if (isUuid && params.gameId) {
     await client
       .from("sanctuary_games")
       .update({
         donation_url: cleanUrl || null,
         payment_processor: cleanProcessor,
       })
-      .ilike("schema_id", params.schemaId);
+      .eq("id", params.gameId.trim());
+  }
+
+  const schemaLookup = (params.schemaId || (!isUuid ? params.gameId : "") || "").trim();
+  if (schemaLookup) {
+    await client
+      .from("sanctuary_games")
+      .update({
+        donation_url: cleanUrl || null,
+        payment_processor: cleanProcessor,
+      })
+      .ilike("schema_id", schemaLookup);
   }
 }
 
@@ -982,11 +1392,14 @@ export async function checkStableGitHubReleaseUpdate(
       isTargetVersionNewer(cleanCurrent, latestStable, false);
     if (!updateAvailable) return null;
 
-    const downloadUrl =
-      pipeline.stable_exe_url ||
-      pipeline.stable_msi_url ||
-      pipeline.stable_release_url ||
-      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
+    const downloadUrl = isMacClient()
+      ? pipeline.stable_dmg_url ||
+        pipeline.stable_release_url ||
+        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`
+      : pipeline.stable_exe_url ||
+        pipeline.stable_msi_url ||
+        pipeline.stable_release_url ||
+        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
 
     return {
       updateAvailable: true,
@@ -1029,10 +1442,14 @@ export async function checkSupporterDevBuildUpdate(
   const latestNotes = pipeline.dev_build_notes || "";
   const latestDate =
     pipeline.dev_published_at || pipeline.updated_at || new Date().toISOString();
-  const downloadUrl =
-    pipeline.dev_build_download_url ||
-    pipeline.dev_release_url ||
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+  const downloadUrl = isMacClient()
+    ? pipeline.dev_build_dmg_url ||
+      pipeline.dev_release_url ||
+      pipeline.dev_build_download_url ||
+      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+    : pipeline.dev_build_download_url ||
+      pipeline.dev_release_url ||
+      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
 
   const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
   const cleanTarget = (latestDevVersion || "").replace(/^v/i, "").trim();
@@ -1096,10 +1513,14 @@ export function buildChannelUpdatePayload(
     const latestDevDate =
       pipeline.dev_published_at || pipeline.updated_at || new Date().toISOString();
     const latestDevNotes = pipeline.dev_build_notes || "";
-    const latestDevDownloadUrl =
-      pipeline.dev_build_download_url ||
-      pipeline.dev_release_url ||
-      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+    const latestDevDownloadUrl = isMacClient()
+      ? pipeline.dev_build_dmg_url ||
+        pipeline.dev_release_url ||
+        pipeline.dev_build_download_url ||
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+      : pipeline.dev_build_download_url ||
+        pipeline.dev_release_url ||
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
 
     return {
       version: latestDevVersion,
@@ -1127,11 +1548,14 @@ export function buildChannelUpdatePayload(
   const latestStableDate =
     pipeline.stable_published_at || pipeline.updated_at || new Date().toISOString();
   const latestStableNotes = pipeline.stable_release_notes || "";
-  const latestStableDownloadUrl =
-    pipeline.stable_exe_url ||
-    pipeline.stable_msi_url ||
-    pipeline.stable_release_url ||
-    `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
+  const latestStableDownloadUrl = isMacClient()
+    ? pipeline.stable_dmg_url ||
+      pipeline.stable_release_url ||
+      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`
+    : pipeline.stable_exe_url ||
+      pipeline.stable_msi_url ||
+      pipeline.stable_release_url ||
+      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
 
   return {
     version: latestStableVersion,
@@ -1397,6 +1821,45 @@ export function buildPartnerCheckoutUrl(
   }
 }
 
+export function extractCheckoutReceiptNonce(rawInput: string): string {
+  const trimmed = (rawInput || "").trim();
+  if (!trimmed) return "";
+
+  // Match Stripe Checkout Session ID (cs_live_... or cs_test_...) inside URLs or plain text
+  const csMatch = trimmed.match(/\b(cs_(?:live|test)_[a-zA-Z0-9_]+)\b/);
+  if (csMatch && csMatch[1]) {
+    return `stripe_${csMatch[1]}`;
+  }
+
+  // Match Stripe PaymentIntent / Charge / Receipt IDs
+  const piMatch = trimmed.match(/\b((?:pi|ch|py|in|rcpt)_[a-zA-Z0-9_]+)\b/);
+  if (piMatch && piMatch[1]) {
+    return `stripe_${piMatch[1]}`;
+  }
+
+  // If user pasted a URL with session_id or receipt parameter
+  try {
+    const parsed = new URL(trimmed);
+    const sessionParam =
+      parsed.searchParams.get("session_id") ||
+      parsed.searchParams.get("checkout_session_id") ||
+      parsed.searchParams.get("payment_intent") ||
+      parsed.searchParams.get("tx_id");
+    if (sessionParam) {
+      return `web_${sessionParam.trim()}`;
+    }
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    const lastSeg = pathParts[pathParts.length - 1];
+    if (lastSeg && lastSeg.length >= 6) {
+      return `web_${lastSeg.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64)}`;
+    }
+  } catch {
+    // Not a URL; use cleaned token
+  }
+
+  return trimmed.replace(/\s+/g, "_").slice(0, 96);
+}
+
 export async function loadPartnerCommunitiesList(
   workspaces?: any[],
 ): Promise<any[]> {
@@ -1417,19 +1880,40 @@ export async function loadPartnerCommunitiesList(
         const localOverride =
           getLocalPartnerDonationOverride(g.schema_id) ||
           getLocalPartnerDonationOverride(g.id);
+        if (
+          isDesktop() &&
+          localOverride?.donation_url &&
+          !g.donation_url
+        ) {
+          // Auto-sync Desktop local partner donation override to Hub
+          savePartnerCommunityDonationConfig({
+            gameId: g.id,
+            schemaId: g.schema_id,
+            donationUrl: localOverride.donation_url,
+            paymentProcessor:
+              localOverride.payment_processor || g.payment_processor || "STRIPE",
+          }).catch(() => {});
+        }
+        const rawDonUrl =
+          localOverride?.donation_url !== undefined
+            ? localOverride.donation_url
+            : g.donation_url || "";
+        const resolvedDonUrl =
+          rawDonUrl.trim() === LEGACY_DEACTIVATED_STRIPE_URL
+            ? "sandbox://checkout"
+            : rawDonUrl;
         partnerList.push({
           id: g.id,
           name: g.name,
           schema_id: g.schema_id || "workspace",
           icon: g.icon || "sports_esports",
-          donation_url:
-            localOverride?.donation_url !== undefined
-              ? localOverride.donation_url
-              : g.donation_url || "",
+          donation_url: resolvedDonUrl,
           payment_processor: (
-            localOverride?.payment_processor ||
-            g.payment_processor ||
-            "STRIPE"
+            resolvedDonUrl === "sandbox://checkout"
+              ? "SANDBOX"
+              : localOverride?.payment_processor ||
+                g.payment_processor ||
+                "STRIPE"
           ).toUpperCase(),
         });
       }
@@ -1541,9 +2025,11 @@ export async function verifyDevBuildClearance(): Promise<DevBuildClearanceResult
     () => DEFAULT_KEEPERS_PIPELINE_CONFIG,
   );
   const stableVersion = pipeline.stable_version || "0.5.7";
-  const stableDownloadUrl =
-    pipeline.stable_exe_url ||
-    `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`;
+  const stableDownloadUrl = isMacClient()
+    ? pipeline.stable_dmg_url ||
+      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`
+    : pipeline.stable_exe_url ||
+      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`;
 
   const session = storeState.session;
   const userId = session?.user?.id;
@@ -1565,19 +2051,13 @@ export async function verifyDevBuildClearance(): Promise<DevBuildClearanceResult
       const client = supabaseAuth || supabase;
       const { data: profile, error } = await client
         .from("profiles")
-        .select("dev_build_until, role, os_role")
+        .select("dev_build_until, role")
         .eq("id", userId)
         .maybeSingle();
 
       if (!error && profile) {
         const remoteRole = String((profile as any).role || "").toLowerCase();
-        const remoteOsRole = String(
-          (profile as any).os_role || "",
-        ).toLowerCase();
-        if (
-          staffRoles.includes(remoteRole) ||
-          staffRoles.includes(remoteOsRole)
-        ) {
+        if (staffRoles.includes(remoteRole)) {
           return {
             isDevBinary: true,
             isAuthorized: true,

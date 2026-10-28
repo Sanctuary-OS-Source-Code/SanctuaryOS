@@ -199,13 +199,13 @@ const WorkbenchFileCard = React.memo(
           </div>
         }
         footer={
-          <div className="flex gap-2 items-center justify-between group">
+          <div className="flex gap-2 items-center justify-between w-full">
             <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
               {extLabel}
             </span>
             <button
               type="button"
-              className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0"
+              className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0"
             >
               {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
             </button>

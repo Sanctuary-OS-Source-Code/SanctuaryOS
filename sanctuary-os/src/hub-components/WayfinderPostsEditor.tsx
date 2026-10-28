@@ -148,7 +148,19 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     if (data) {
       const activeSchema = useStore.getState().activeGameSchema;
 
-      const hydratedData = data.map((post: any) => {
+      const internalCategories = new Set([
+        'PipelineConfig',
+        'CoreTitleAreaConfig',
+        'EULA',
+        'Privacy',
+        'Terms',
+        'ReleasePost_Public',
+        'ReleasePost_Dev',
+        'ReleaseNotesBlog',
+      ]);
+      const hydratedData = data
+        .filter((post: any) => !internalCategories.has(String(post.category || '')))
+        .map((post: any) => {
         let teamName = "Sanctuary OS";
         if (!isKeepers) {
           teamName = isOversight ? (activeSchema ? `${activeSchema.name} Oversight` : "Oversight") : (activeSchema ? `${activeSchema.name} Wayfinders` : "Wayfinders");

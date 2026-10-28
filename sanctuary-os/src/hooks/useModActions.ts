@@ -49,7 +49,7 @@ export function useModActions(
     try {
       if (active) {
         let msg = await invoke("wipe_symlinks");
-        setStatus(t(msg as string) || (msg as string));
+        setStatus(t(msg as string, msg as string));
       } else {
         if (activeSetName) await equipPlaySet(activeSetName);
         setStatus(t("status_bunker_reclaimed", "Loadout Reclaimed"));

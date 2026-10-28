@@ -15,6 +15,7 @@ import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/m
 import LexiconVisualStudio from "./LexiconVisualStudio";
 import SchemaVisualStudio from "./SchemaVisualStudio";
 import KeepersTitleAreaStudio from "./KeepersTitleAreaStudio";
+import { SchemaLexiconGuideSidePanel } from "../side-panels/SchemaLexiconGuideSidePanel";
 
 export default function MasonEditorPanel({
   t,
@@ -57,6 +58,7 @@ export default function MasonEditorPanel({
 }: any) {
   const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<"visual" | "split" | "raw">("visual");
+  const [isStudioGuideOpen, setIsStudioGuideOpen] = useState(false);
   const rightEditorRef = useRef<any>(null);
   const isSyncingScroll = useRef(false);
 
@@ -220,6 +222,7 @@ export default function MasonEditorPanel({
           onAddMissing={addMissingStrings}
           onPurgeDeprecated={purgeDeprecatedStrings}
           isKeepers={isKeepers}
+          onOpenGuide={() => setIsStudioGuideOpen(true)}
         />
       );
     }
@@ -230,6 +233,7 @@ export default function MasonEditorPanel({
           onChange={(val) => handleEditorChange && handleEditorChange(val)}
           fileName={activeFile.name}
           isKeepers={isKeepers}
+          onOpenGuide={() => setIsStudioGuideOpen(true)}
         />
       );
     }
@@ -435,6 +439,18 @@ export default function MasonEditorPanel({
             )}
 
             <PanelHeaderGroup className="ml-2">
+              {(isSchemaActive || isLexiconActive) && (
+                <PanelHeaderButton
+                  icon={t("icon_menu_book", "menu_book")}
+                  tooltip={
+                    isSchemaActive
+                      ? t("schema_guide_btn", "Schema Guide")
+                      : t("lexicon_guide_btn", "{Lexicon} Guide")
+                  }
+                  isActive={isStudioGuideOpen}
+                  onClick={() => setIsStudioGuideOpen(true)}
+                />
+              )}
               {hasReference &&
                 showReference &&
                 (!hasVisualStudio || editorViewMode === "raw") && (
@@ -853,6 +869,12 @@ export default function MasonEditorPanel({
           onClose={() => setShowTimeline && setShowTimeline(false)}
         />
       )}
+
+      <SchemaLexiconGuideSidePanel
+        isOpen={isStudioGuideOpen}
+        onClose={() => setIsStudioGuideOpen(false)}
+        initialMode={isLexiconActive ? "lexicon" : "schema"}
+      />
     </>
   );
 }

@@ -36,7 +36,12 @@ import {
   CANONICAL_DIRECTIVES,
   SPOKE_SCHEMA_SQL,
   HUB_SCHEMA_SQL,
+  COMPLIANCE_PROTOCOL_MD,
+  PARTNERS_AGREEMENT_MD,
+  fetchSyncedLegalAndCovenants,
 } from "../utils/directivesSync";
+import MarkdownRenderer from "../MarkdownRenderer";
+import { StructuredReleaseNotesView } from "../components/ReleaseNotesShowcase";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import { isCoreOnlyAuditRow } from "../lib/audit";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
@@ -133,6 +138,13 @@ export default function WayfinderMasterSchemas({
   const [sqlSchemaTab, setSqlSchemaTab] = useState<"spoke" | "hub">("spoke");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Partners Agreement & Compliance Protocol Viewer State
+  const [isCovenantPanelOpen, setIsCovenantPanelOpen] = useState(false);
+  const [covenantDocTab, setCovenantDocTab] = useState<
+    "partners_agreement" | "compliance_protocol"
+  >("partners_agreement");
+  const [covenantViewMode, setCovenantViewMode] = useState<"ui" | "normal">("ui");
+
   // Audit Logs & Keepers Support Counts & Overview Previews
   const [auditFilterAction, setAuditFilterAction] = useState("ALL");
   const [auditTimeRange, setAuditTimeRange] = useState("ALL");
@@ -147,6 +159,31 @@ export default function WayfinderMasterSchemas({
   >("all");
   const [ticketsCount, setTicketsCount] = useState<number>(0);
   const [overviewTickets, setOverviewTickets] = useState<any[]>([]);
+  const [syncedPartnersMd, setSyncedPartnersMd] = useState<string>(
+    PARTNERS_AGREEMENT_MD
+  );
+  const [syncedComplianceMd, setSyncedComplianceMd] = useState<string>(
+    COMPLIANCE_PROTOCOL_MD
+  );
+
+  useEffect(() => {
+    const loadSyncedCovenants = async () => {
+      const map = await fetchSyncedLegalAndCovenants();
+      if (map.PartnersAgreement?.content) {
+        setSyncedPartnersMd(map.PartnersAgreement.content);
+      }
+      if (map.ComplianceProtocol?.content) {
+        setSyncedComplianceMd(map.ComplianceProtocol.content);
+      }
+    };
+    loadSyncedCovenants();
+    window.addEventListener("sanctuary_directives_updated", loadSyncedCovenants);
+    return () =>
+      window.removeEventListener(
+        "sanctuary_directives_updated",
+        loadSyncedCovenants
+      );
+  }, []);
 
   // Master Schemas Cloud Files Hook
   const mason = useMasonFiles({
@@ -580,7 +617,7 @@ export default function WayfinderMasterSchemas({
     }
   };
 
-  const spokeAndSchemaCount = 4 + (schemaFiles?.length || 0);
+  const spokeAndSchemaCount = 5 + (schemaFiles?.length || 0);
   const totalOverviewItems = spokeAndSchemaCount + ticketsCount;
 
   // 4 Top StatTileCarousel Tabs — every single tile has a live number value & zero horizontal overflow
@@ -904,6 +941,69 @@ export default function WayfinderMasterSchemas({
     );
   };
 
+  const renderCovenantsCard = () => (
+    <UniversalCard
+      key="spoke_op_covenants"
+      layout="vertical"
+      onClick={() => {
+        setCovenantDocTab("partners_agreement");
+        setIsCovenantPanelOpen(true);
+      }}
+      icon={t("icon_gavel", "gavel")}
+      title={t("partner_covenants_title", "Partners Agreement & Compliance Protocol")}
+      subtitle={t(
+        "partner_covenants_subtitle",
+        "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+      )}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_verified", "verified")}
+            </span>
+            <span>{t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_handshake", "handshake")}
+            </span>
+            <span>{t("partner_agreement_title", "Partners Agreement")}</span>
+          </div>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_shield", "shield")}
+            </span>
+            <span>{t("compliance_protocol_title", "Compliance Protocol")}</span>
+          </div>
+        </>
+      }
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 flex items-center gap-1.5 truncate pr-2">
+            <span className="material-symbols-outlined !text-[12px] opacity-70">
+              {t("icon_gavel", "gavel")}
+            </span>
+            {t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_inspect", "Inspect")} <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
+    >
+      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+        {t(
+          "partner_covenants_desc",
+          "Inspect the binding Sanctuary OS Partners Agreement (V0.5.8) and Compliance Protocol (V5.8) governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
+        )}
+      </p>
+    </UniversalCard>
+  );
+
   const renderSchemaFileCard = (file: any) => {
     const isOpen = openFiles.some((f: any) => f.path === file.path);
     const hasUnsaved =
@@ -1014,7 +1114,7 @@ export default function WayfinderMasterSchemas({
             ? undefined
             : updatedDateStr
               ? `${t("wf_recent_last_updated", "Last Updated")}: ${updatedDateStr}`
-              : `${t("author", "Author")}: ${file.author || "Sanctuary Core"}`
+              : `${t("author", "Author")}: ${file.author || activeWs?.name || displayTitle}`
         }
         badges={
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1931,11 +2031,7 @@ export default function WayfinderMasterSchemas({
             icon={t("icon_schedule", "schedule")}
             iconColorClass="text-[var(--accent)]"
             title={t("chameleons_overview_recent", "Recent")}
-            isEmpty={
-              recentlyUpdatedSchemas.length === 0 &&
-              overviewAuditLogs.length === 0 &&
-              !activeWs
-            }
+            isEmpty={recentlyUpdatedSchemas.length === 0 && !activeWs}
             emptyIcon={t("icon_data_object", "data_object")}
             emptyTitle={t("no_files_found", "No files found")}
             gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -1943,47 +2039,6 @@ export default function WayfinderMasterSchemas({
             {recentlyUpdatedSchemas.slice(0, 2).map(renderSchemaFileCard)}
             {renderSpokeSetupCard()}
             {Boolean(donationUrl.trim()) && renderDonationsCard()}
-            {overviewAuditLogs.slice(0, 2).map((log) => (
-              <UniversalCard
-                key={`recent_log_${log.id}`}
-                layout="vertical"
-                onClick={() => setActiveTab("audit_logs")}
-                icon={t("icon_history", "history")}
-                title={log.action || t("action", "Action")}
-                subtitle={`${t("wf_recent_last_updated", "Last Updated")}: ${new Date(
-                  log.created_at
-                ).toLocaleDateString()}`}
-                imageOverlay={
-                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                    <div className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {t("icon_schedule", "schedule")}
-                      </span>
-                      <span>{t("wf_recent_last_updated", "Last Updated")}</span>
-                    </div>
-                  </div>
-                }
-                badges={
-                  <div className={VAULT_CHIP_CLASS}>
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                      {t("icon_history", "history")}
-                    </span>
-                    <span>{t("audit_logs", "Audit Logs")}</span>
-                  </div>
-                }
-                footer={
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 truncate">
-                      {log.target_table || "audit_logs"}
-                    </span>
-                    <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
-                      {t("btn_inspect", "Inspect")}{" "}
-                      <span className="text-base leading-none">&rarr;</span>
-                    </span>
-                  </div>
-                }
-              />
-            ))}
           </HubOverviewSection>
 
           <HubOverviewSection
@@ -2301,6 +2356,15 @@ export default function WayfinderMasterSchemas({
               ) &&
               renderDonationsCard()}
 
+            {showSpokeOps &&
+              matchesQuery(
+                `${t("partner_covenants_title", "Partners Agreement & Compliance Protocol")} ${t(
+                  "partner_agreement_title",
+                  "Partners Agreement"
+                )} ${t("compliance_protocol_title", "Compliance Protocol")}`
+              ) &&
+              renderCovenantsCard()}
+
             {showSchemas && filteredSchemaFiles.map(renderSchemaFileCard)}
           </div>
 
@@ -2468,6 +2532,208 @@ export default function WayfinderMasterSchemas({
               </ActionButton>
             </div>
           </UniversalGroup>
+
+          <UniversalGroup
+            title={t("partner_covenants_title", "Partners Agreement & Compliance Protocol")}
+            icon={t("icon_gavel", "gavel")}
+          >
+            <div className="flex flex-col gap-3 w-full">
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {t(
+                  "partner_covenants_desc",
+                  "Inspect the binding Sanctuary OS Partners Agreement (V0.5.8) and Compliance Protocol (V5.8) governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
+                )}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCovenantDocTab("partners_agreement");
+                    setIsCovenantPanelOpen(true);
+                  }}
+                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                        {t("icon_handshake", "handshake")}
+                      </span>
+                      {t("partner_agreement_title", "Partners Agreement")}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--accent)] uppercase">
+                      {t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-[var(--subtext)] opacity-80 leading-relaxed">
+                    {t(
+                      "partner_agreement_desc",
+                      "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
+                    )}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCovenantDocTab("compliance_protocol");
+                    setIsCovenantPanelOpen(true);
+                  }}
+                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
+                        {t("icon_shield", "shield")}
+                      </span>
+                      {t("compliance_protocol_title", "Compliance Protocol")}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--success)] uppercase">
+                      {t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-[var(--subtext)] opacity-80 leading-relaxed">
+                    {t(
+                      "compliance_protocol_desc",
+                      "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
+
+      {/* Stacked SidePanel: Partners Agreement & Compliance Protocol Viewer */}
+      <SidePanel
+        isOpen={isCovenantPanelOpen}
+        onClose={() => setIsCovenantPanelOpen(false)}
+        backdropZ="z-[100050]"
+        panelZ="z-[100051]"
+        title={
+          covenantDocTab === "partners_agreement"
+            ? t("partner_agreement_title", "Partners Agreement")
+            : t("compliance_protocol_title", "Compliance Protocol")
+        }
+        subtitle={t(
+          "partner_covenants_subtitle",
+          "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+        )}
+        icon={
+          covenantDocTab === "partners_agreement"
+            ? t("icon_handshake", "handshake")
+            : t("icon_shield", "shield")
+        }
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[92vw] md:w-[780px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_dashboard", "dashboard")}
+              tooltip={t("tab_visual", "Visual")}
+              onClick={() => setCovenantViewMode("ui")}
+              variant={covenantViewMode === "ui" ? "accent" : "default"}
+            />
+            <PanelHeaderButton
+              icon={t("icon_menu_book", "menu_book")}
+              tooltip={t("btn_post", "Post")}
+              onClick={() => setCovenantViewMode("normal")}
+              variant={covenantViewMode === "normal" ? "accent" : "default"}
+            />
+            <PanelHeaderButton
+              icon={t("icon_content_copy", "content_copy")}
+              tooltip={t("btn_copy", "Copy")}
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  covenantDocTab === "partners_agreement"
+                    ? syncedPartnersMd
+                    : syncedComplianceMd
+                );
+                pushStatus(t("copied_to_clipboard", "Copied to clipboard"), "success");
+              }}
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              icon={t("icon_handshake", "handshake")}
+              label={t("partner_agreement_title", "Partners Agreement")}
+              number={t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}
+              active={covenantDocTab === "partners_agreement"}
+              onClick={() => setCovenantDocTab("partners_agreement")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              icon={t("icon_shield", "shield")}
+              label={t("compliance_protocol_title", "Compliance Protocol")}
+              number={t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+              active={covenantDocTab === "compliance_protocol"}
+              onClick={() => setCovenantDocTab("compliance_protocol")}
+            />
+          </div>
+
+          <SidePanelHeroCard
+            icon={
+              covenantDocTab === "partners_agreement"
+                ? t("icon_handshake", "handshake")
+                : t("icon_shield", "shield")
+            }
+            overline={
+              covenantDocTab === "partners_agreement"
+                ? t("partner_agreement_badge", "V0.5.8 • Spoke Charter")
+                : t("compliance_protocol_badge", "V5.8 • Safety & Privacy")
+            }
+            title={
+              covenantDocTab === "partners_agreement"
+                ? t("partner_agreement_title", "Partners Agreement")
+                : t("compliance_protocol_title", "Compliance Protocol")
+            }
+            description={
+              covenantDocTab === "partners_agreement"
+                ? t(
+                    "partner_agreement_desc",
+                    "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
+                  )
+                : t(
+                    "compliance_protocol_desc",
+                    "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
+                  )
+            }
+            badge={activeWs?.schema_id || activeWorkspaceId || "SPOKE"}
+            variant="accent"
+          />
+
+          {covenantViewMode === "ui" ? (
+            <StructuredReleaseNotesView
+              content={
+                covenantDocTab === "partners_agreement"
+                  ? syncedPartnersMd
+                  : syncedComplianceMd
+              }
+            />
+          ) : (
+            <UniversalGroup
+              title={
+                covenantDocTab === "partners_agreement"
+                  ? t("partner_agreement_title", "Partners Agreement")
+                  : t("compliance_protocol_title", "Compliance Protocol")
+              }
+              icon={t("icon_gavel", "gavel")}
+            >
+              <div className="text-sm text-[var(--subtext)] leading-relaxed font-medium">
+                <MarkdownRenderer
+                  content={
+                    covenantDocTab === "partners_agreement"
+                      ? syncedPartnersMd
+                      : syncedComplianceMd
+                  }
+                />
+              </div>
+            </UniversalGroup>
+          )}
         </div>
       </SidePanel>
 

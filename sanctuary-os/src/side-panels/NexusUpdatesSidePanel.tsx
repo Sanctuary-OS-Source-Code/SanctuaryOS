@@ -2,10 +2,10 @@ import {
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
-  ActionButton,
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { useModalStore } from "../store/modalStore";
@@ -22,6 +22,20 @@ export function NexusUpdatesSidePanel() {
 
   if (!isNexusUpdatesPanelOpen) return null;
 
+  const getAssetIcon = (type: string) =>
+    type === "chameleon"
+      ? t("icon_palette", "palette")
+      : type === "lexicon"
+        ? t("icon_translate", "translate")
+        : t("icon_extension", "extension");
+
+  const getAssetTypeLabel = (type: string) =>
+    type === "chameleon"
+      ? t("tab_chameleons", "Chameleon")
+      : type === "lexicon"
+        ? t("tab_lexicons", "Lexicon")
+        : t("workbench_templates", "Template");
+
   return (
     <SidePanel
       isOpen={isNexusUpdatesPanelOpen}
@@ -33,7 +47,7 @@ export function NexusUpdatesSidePanel() {
       )}
       icon={t("icon_cloud_download", "cloud_download")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[680px]"
+      widthClass="w-[90vw] md:w-[760px]"
       backdropZ="z-[50000]"
       panelZ="z-[50001]"
       headerActions={
@@ -54,13 +68,10 @@ export function NexusUpdatesSidePanel() {
         <SidePanelHeroCard
           icon={t("icon_cloud_download", "cloud_download")}
           overline={t("nexus_updates_title", "Nexus Updates")}
-          title={t(
+          title={`${nexusAvailableUpdates.length} ${t("updates_available_title", "Updates Available")}`}
+          description={t(
             "nexus_updates_subtitle",
             "Available updates for your installed Nexus assets."
-          )}
-          description={t(
-            "no_updates_available",
-            "Inspect and synchronize the latest versions of your installed Chameleons, Lexicons, and Templates."
           )}
           badge={`${nexusAvailableUpdates.length}`}
           badgeIcon={t("icon_new_releases", "new_releases")}
@@ -68,7 +79,7 @@ export function NexusUpdatesSidePanel() {
         />
 
         <UniversalGroup
-          title={t("nexus_updates_title", "Available Updates")}
+          title={`${t("updates_available_title", "Updates Available")} (${nexusAvailableUpdates.length})`}
           icon={t("icon_new_releases", "new_releases")}
         >
           {nexusAvailableUpdates.length === 0 ? (
@@ -78,65 +89,53 @@ export function NexusUpdatesSidePanel() {
               minHeightClass="min-h-[180px]"
             />
           ) : (
-            <div className="flex flex-col gap-3">
-              {nexusAvailableUpdates.map((update, idx) => (
-                <div
-                  key={`${update.id}-${idx}`}
-                  onClick={() => {
-                    useStore.getState().setView("nexus");
-                    setNexusPreviewAsset({ id: update.id, type: update.type });
-                    setIsNexusUpdatesPanelOpen(false);
-                  }}
-                  className="cursor-pointer glass-surface rounded-xl px-4 py-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center justify-between gap-4 group"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[20px]">
-                        {update.type === "chameleon"
-                          ? t("icon_palette", "palette")
-                          : update.type === "lexicon"
-                            ? t("icon_translate", "translate")
-                            : t("icon_extension", "extension")}
-                      </span>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+              {nexusAvailableUpdates.map((update, idx) => {
+                const assetIcon = getAssetIcon(update.type);
+                const assetTypeLabel = getAssetTypeLabel(update.type);
 
-                    <div className="flex flex-col justify-center min-w-0 gap-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h3 className="font-black text-sm tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate m-0">
-                          {update.name}
-                        </h3>
-                        <span
-                          className={VAULT_CHIP_CLASS}
-                          style={{
-                            color: "var(--accent)",
-                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
-                            {update.type === "chameleon"
-                              ? t("icon_palette", "palette")
-                              : update.type === "lexicon"
-                                ? t("icon_translate", "translate")
-                                : t("icon_extension", "extension")}
-                          </span>
-                          <span>{update.type}</span>
+                const handleOpenUpdate = () => {
+                  useStore.getState().setView("nexus");
+                  setNexusPreviewAsset({ id: update.id, type: update.type });
+                  setIsNexusUpdatesPanelOpen(false);
+                };
+
+                return (
+                  <div
+                    key={`${update.id}-${idx}`}
+                    onClick={handleOpenUpdate}
+                    className="cursor-pointer glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all flex flex-col justify-between gap-3 group"
+                  >
+                    {/* Top Row: Full-Width Icon + Name/Subtitle Identity */}
+                    <div className="flex items-center gap-3 min-w-0 w-full">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                        <span className="material-symbols-rounded !text-[20px]">
+                          {assetIcon}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`${VAULT_CHIP_CLASS} line-through`}
-                          style={{
-                            color: "var(--danger)",
-                            borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                        <div className="relative group/nxtitle flex items-center min-w-0 w-fit max-w-full">
+                          <h3 className="font-black text-sm tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors leading-snug truncate m-0">
+                            {update.name}
+                          </h3>
+                          <HoverTooltip
+                            className="z-[200]"
+                            title={update.name}
+                            icon={assetIcon}
+                          />
+                        </div>
+                        <span className="text-[11px] font-bold text-[var(--subtext)] truncate">
+                          {assetTypeLabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Footer Row: Version Chips on Left | Inspect Action on Right */}
+                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className={`${VAULT_CHIP_CLASS} line-through opacity-75`}>
+                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                             {t("icon_history", "history")}
                           </span>
                           <span>v{update.oldVersion}</span>
@@ -144,45 +143,40 @@ export function NexusUpdatesSidePanel() {
                         <span className="material-symbols-rounded !text-[12px] text-[var(--subtext)] opacity-60">
                           {t("icon_arrow_forward", "arrow_forward")}
                         </span>
-                        <span
-                          className={VAULT_CHIP_CLASS}
-                          style={{
-                            color: "var(--success)",
-                            borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
                             {t("icon_new_releases", "new_releases")}
                           </span>
                           <span>v{update.newVersion}</span>
                         </span>
                       </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenUpdate();
+                          }}
+                          className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0 group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_open_in_new", "open_in_new")}
+                          </span>
+                          <HoverTooltip
+                            title={t("inspect", "Inspect")}
+                            variant="accent"
+                            className="group-hover/btn:flex z-[200] !right-0 !translate-x-0 !left-auto"
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="shrink-0 flex items-center justify-center text-[var(--subtext)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_chevron_right", "chevron_right")}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </UniversalGroup>
-
-        {nexusAvailableUpdates.length > 0 && (
-          <ActionButton
-            variant="glass"
-            icon={t("icon_done_all", "done_all")}
-            label={t("dismiss_all", "Dismiss All")}
-            onClick={() => {
-              setNexusUpdatesCount(0);
-              setIsNexusUpdatesPanelOpen(false);
-            }}
-            className="w-full"
-          />
-        )}
       </div>
     </SidePanel>
   );

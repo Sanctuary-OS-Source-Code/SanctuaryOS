@@ -25,6 +25,64 @@ import {
 import { ArtifactWorkspace, StudioTabId } from "../components/ArtifactStudioTabs";
 import { fetchAllTableRows, buildFamilyHierarchy } from "../components/artifact-studio/artifactStudioUtils";
 
+const REGISTRY_CACHE_TTL = 1000 * 60 * 10;
+let registryCache: {
+  cloudMods: any[] | null;
+  modRelationships: any[] | null;
+  masonsList: any[] | null;
+  lastFetch: number;
+} = {
+  cloudMods: null,
+  modRelationships: null,
+  masonsList: null,
+  lastFetch: 0,
+};
+let registryFetchPromise: Promise<void> | null = null;
+
+export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
+  const isFresh =
+    !forceRefresh &&
+    registryCache.cloudMods &&
+    registryCache.cloudMods.length > 0 &&
+    performance.now() - registryCache.lastFetch < REGISTRY_CACHE_TTL;
+  if (isFresh) return Promise.resolve();
+  if (registryFetchPromise) return registryFetchPromise;
+
+  registryFetchPromise = (async () => {
+    try {
+      const [modsData, relsData, masonsRes] = await Promise.all([
+        fetchAllTableRows(
+          supabase,
+          "mods",
+          "*, mod_versions(id, dna_hash, version_label, game_version)",
+          "name",
+          (firstBatch) => {
+            if (!registryCache.cloudMods || registryCache.cloudMods.length === 0) {
+              registryCache.cloudMods = firstBatch;
+            }
+          }
+        ),
+        fetchAllTableRows(
+          supabase,
+          "mod_relationships",
+          "id, parent_id, child_id, relationship_type"
+        ),
+        supabase.from("masons").select("id, name").order("name"),
+      ]);
+      if (modsData) registryCache.cloudMods = modsData;
+      if (relsData) registryCache.modRelationships = relsData;
+      if (masonsRes?.data) registryCache.masonsList = masonsRes.data;
+      registryCache.lastFetch = performance.now();
+    } catch (err) {
+      console.error("ArchitectRegistry prefetch error:", err);
+    } finally {
+      registryFetchPromise = null;
+    }
+  })();
+
+  return registryFetchPromise;
+}
+
 export function ArchitectRegistry({
   isActiveTab = true,
   initialSearch = "",
@@ -34,15 +92,17 @@ export function ArchitectRegistry({
   setStatus,
 }: any = {}) {
   const { t } = useLexicon();
-  const [cloudMods, setCloudMods] = useState<any[]>([]);
-  const [modRelationships, setModRelationships] = useState<any[]>([]);
+  const [cloudMods, setCloudMods] = useState<any[]>(() => registryCache.cloudMods || []);
+  const [modRelationships, setModRelationships] = useState<any[]>(
+    () => registryCache.modRelationships || []
+  );
   const [groupFamilies, setGroupFamilies] = useState<boolean>(true);
   const [studioTab, setStudioTab] = useState<StudioTabId>("overview");
-  const [, setTotalCount] = useState<number>(0);
+  const [, setTotalCount] = useState<number>(() => registryCache.cloudMods?.length || 0);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [activeMod, setActiveMod] = useState<any | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
-  const [masonsList, setMasonsList] = useState<any[]>([]);
+  const [masonsList, setMasonsList] = useState<any[]>(() => registryCache.masonsList || []);
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "stable" | "under_review" | "pending" | "unknown" | "unstable_corrupted"
@@ -52,7 +112,7 @@ export function ArchitectRegistry({
   const [activeSubType, setActiveSubType] = useState("ALL");
 
   const [page, setPage] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !registryCache.cloudMods);
   const PAGE_SIZE = 60;
 
   const [isMasonPanelOpen, setIsMasonPanelOpen] = useState(false);
@@ -81,19 +141,61 @@ export function ArchitectRegistry({
       "mod_relationships",
       "id, parent_id, child_id, relationship_type"
     );
-    if (data) setModRelationships(data);
+    if (data) {
+      registryCache.modRelationships = data;
+      setModRelationships(data);
+    }
   };
 
-  const fetchData = async (_reset = false) => {
-    setIsLoading(true);
+  const fetchData = async (forceRefresh = false) => {
+    const hasWarmCache =
+      Array.isArray(registryCache.cloudMods) && registryCache.cloudMods.length > 0;
+    const isFresh =
+      !forceRefresh &&
+      hasWarmCache &&
+      performance.now() - registryCache.lastFetch < REGISTRY_CACHE_TTL;
+
+    if (hasWarmCache) {
+      setCloudMods(registryCache.cloudMods!);
+      setTotalCount(registryCache.cloudMods!.length);
+      if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
+      if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
+      setIsLoading(false);
+    }
+
+    if (isFresh) return;
+
+    if (registryFetchPromise && !forceRefresh) {
+      if (!hasWarmCache) setIsLoading(true);
+      await registryFetchPromise;
+      if (registryCache.cloudMods) {
+        setCloudMods(registryCache.cloudMods);
+        setTotalCount(registryCache.cloudMods.length);
+      }
+      if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
+      if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!hasWarmCache) setIsLoading(true);
     try {
       const data = await fetchAllTableRows(
         supabase,
         "mods",
         "*, mod_versions(id, dna_hash, version_label, game_version)",
-        "name"
+        "name",
+        (firstBatch, totalCount) => {
+          if (!hasWarmCache) {
+            setCloudMods(firstBatch);
+            setTotalCount(totalCount);
+            setIsLoading(false);
+          }
+        }
       );
       if (data) {
+        registryCache.cloudMods = data;
+        registryCache.lastFetch = performance.now();
         setCloudMods(data);
         setTotalCount(data.length);
       }
@@ -103,8 +205,10 @@ export function ArchitectRegistry({
   };
 
   useEffect(() => {
-    fetchData(true);
-    fetchRelationships();
+    fetchData(false);
+    if (!registryCache.modRelationships) {
+      fetchRelationships();
+    }
   }, []);
 
   useEffect(() => {
@@ -112,9 +216,16 @@ export function ArchitectRegistry({
   }, [activeTab, activeCategory, activeSubType, statusFilter, searchTerm, groupFamilies]);
 
   useEffect(() => {
+    if (registryCache.masonsList && registryCache.masonsList.length > 0) {
+      setMasonsList(registryCache.masonsList);
+      return;
+    }
     const fetchMasons = async () => {
       const { data } = await supabase.from("masons").select("id, name").order("name");
-      if (data) setMasonsList(data);
+      if (data) {
+        registryCache.masonsList = data;
+        setMasonsList(data);
+      }
     };
     fetchMasons();
   }, []);
@@ -848,12 +959,27 @@ export function ArchitectRegistry({
 export function CustomClassificationDropdown({ value, onChange }: any) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+  const schemaCats = activeGameSchema?.mod_categories || [];
+  const hasUnknown = schemaCats.some(
+    (c: any) => String(c.id).toLowerCase() === "unknown"
+  );
   const options = [
-    { id: "Unknown", label: t("unknown", "Unknown") },
-    ...(activeGameSchema?.mod_categories || []).map((c: any) => ({
-      id: c.id,
-      label: t(c.lexicon_key, c.id),
-    })),
+    ...(!hasUnknown
+      ? [{ id: "Unknown", label: t("unknown", "Unknown"), icon: t("icon_help", "help") }]
+      : []),
+    ...schemaCats.map((c: any) => {
+      const fallbackLabel = c.label || c.name || c.id;
+      const resolvedIcon = c.icon
+        ? t(`icon_${c.icon}`, c.icon)
+        : c.icon_key
+          ? t(c.icon_key, "")
+          : undefined;
+      return {
+        id: c.id,
+        label: c.lexicon_key ? t(c.lexicon_key, fallbackLabel) : fallbackLabel,
+        icon: resolvedIcon || undefined,
+      };
+    }),
   ];
   return (
     <CustomDropdown

@@ -33,6 +33,7 @@ import {
 } from "./universal/UnifiedPostEditor";
 import {
   getKeepersPipelineConfig,
+  getSupporterState,
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
   KeepersPipelineConfig,
 } from "../utils/supporterManager";
@@ -1291,6 +1292,42 @@ export function ReleaseNotesShowcase({
 }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
+  const osRole = useStore((state: any) => state.osRole);
+  const userRole = useStore((state: any) => state.userRole);
+  const [isDevSupporter, setIsDevSupporter] = useState(false);
+
+  const isStaff = useMemo(() => {
+    const r1 = String(osRole || "").toLowerCase();
+    const r2 = String(userRole || "").toLowerCase();
+    return ["keeper", "wayfinder", "architect", "admin"].includes(r1) ||
+      ["keeper", "wayfinder", "architect", "admin"].includes(r2);
+  }, [osRole, userRole]);
+
+  useEffect(() => {
+    let active = true;
+    const checkSupporter = async () => {
+      const uid = session?.user?.id;
+      if (!uid || uid === "local_citizen") {
+        if (active) setIsDevSupporter(false);
+        return;
+      }
+      const sup = await getSupporterState("web", uid);
+      const until = sup?.dev_build?.dev_build_until || 0;
+      if (active) {
+        setIsDevSupporter(until > Math.floor(Date.now() / 1000));
+      }
+    };
+    checkSupporter();
+    const onUpdate = () => checkSupporter();
+    window.addEventListener("sanctuary-supporter-updated", onUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener("sanctuary-supporter-updated", onUpdate);
+    };
+  }, [session?.user?.id]);
+
+  const canSeeDevBuildCard =
+    isKeepers || (Boolean(session?.user?.id) && (isDevSupporter || isStaff));
 
   const seedPublicBlog = useMemo(() => parseSeedCommunityBlog(bundledCommunityBlog), []);
   const seedChangelog = useMemo(() => parseLatestChangelogBlock(bundledNerdChangelog), []);
@@ -1884,12 +1921,12 @@ export function ReleaseNotesShowcase({
           {/* Card 1: Public / Stable Release */}
           <div
             onClick={() => openReleasePanel("stable")}
-            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 group"
+            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group"
           >
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] group-hover:scale-110 transition-transform duration-300">
                     {t("icon_verified", "verified")}
                   </span>
                 </div>
@@ -1904,7 +1941,7 @@ export function ReleaseNotesShowcase({
                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]">
                   {t("release_notes_stable_channel_badge", "Stable Release")}
                 </span>
-                <h4 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
+                <h4 className="text-sm font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-300 tracking-tight leading-snug line-clamp-1">
                   {publicPost.title}
                 </h4>
               </div>
@@ -1919,7 +1956,7 @@ export function ReleaseNotesShowcase({
                 </span>
                 {stableDateDisplay}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("release_notes_read_notes_cta", "Read Release Notes")}
                 <span className="material-symbols-outlined !text-[14px]">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -1931,12 +1968,12 @@ export function ReleaseNotesShowcase({
           {/* Card 2: Daily Dev Build */}
           <div
             onClick={() => openReleasePanel("dev")}
-            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 group"
+            className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group"
           >
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)]">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--success)] group-hover:scale-110 transition-transform duration-300">
                     {t("icon_bolt", "bolt")}
                   </span>
                 </div>
@@ -1951,7 +1988,7 @@ export function ReleaseNotesShowcase({
                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--success)]">
                   {t("release_notes_dev_channel_badge", "Daily Dev Build")}
                 </span>
-                <h4 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1">
+                <h4 className="text-sm font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-300 tracking-tight leading-snug line-clamp-1">
                   {devPost.title}
                 </h4>
               </div>
@@ -1966,7 +2003,7 @@ export function ReleaseNotesShowcase({
                 </span>
                 {devDateDisplay}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("release_notes_read_dev_cta", "Read Dev Build Notes")}
                 <span className="material-symbols-outlined !text-[14px]">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -1976,7 +2013,11 @@ export function ReleaseNotesShowcase({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        <div
+          className={`grid grid-cols-1 ${
+            canSeeDevBuildCard ? "md:grid-cols-2" : "md:grid-cols-1 max-w-2xl"
+          } gap-6 w-full`}
+        >
           {/* Card 1: Public / Stable Release */}
           <UniversalCard
             layout="vertical"
@@ -1986,6 +2027,8 @@ export function ReleaseNotesShowcase({
               t("release_notes_stable_channel_badge", "Stable Release"),
               stableVersion
             )}
+            bannerTopLabel={`${t("release_notes_stable_channel_badge", "Stable Release")} • v${stableVersion}`}
+            bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${stablePlatformDisplay}`}
             onClick={() => openReleasePanel("stable")}
             className="w-full h-full"
             imageOverlay={
@@ -1999,14 +2042,14 @@ export function ReleaseNotesShowcase({
               </div>
             }
             footer={
-              <div className="flex items-center justify-between w-full mt-2">
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                   <span className="material-symbols-outlined !text-[12px]">
                     {t("icon_calendar_today", "calendar_today")}
                   </span>
                   {stableDateDisplay}
                 </span>
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                   {t("release_notes_read_notes_cta", "Read Release Notes")}{" "}
                   <span className="material-symbols-outlined !text-sm">
                     {t("icon_arrow_forward", "arrow_forward")}
@@ -2020,48 +2063,52 @@ export function ReleaseNotesShowcase({
             </p>
           </UniversalCard>
 
-          {/* Card 2: Daily Dev Build */}
-          <UniversalCard
-            layout="vertical"
-            icon={t("icon_bolt", "bolt")}
-            title={devPost.title}
-            subtitle={buildCommSubtitle(
-              t("release_notes_dev_channel_badge", "Daily Dev Build"),
-              devVersion
-            )}
-            onClick={() => openReleasePanel("dev")}
-            className="w-full h-full"
-            imageOverlay={
-              <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
-                <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                    {t("icon_bolt", "bolt")}
+          {/* Card 2: Daily Dev Build (Supporters & Authenticated Staff Only) */}
+          {canSeeDevBuildCard && (
+            <UniversalCard
+              layout="vertical"
+              icon={t("icon_bolt", "bolt")}
+              title={devPost.title}
+              subtitle={buildCommSubtitle(
+                t("release_notes_dev_channel_badge", "Daily Dev Build"),
+                devVersion
+              )}
+              bannerTopLabel={`${t("release_notes_dev_channel_badge", "Daily Dev Build")} • v${devVersion}`}
+              bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${devPlatformDisplay}`}
+              onClick={() => openReleasePanel("dev")}
+              className="w-full h-full"
+              imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                  <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                      {t("icon_bolt", "bolt")}
+                    </span>
+                    {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
                   </span>
-                  {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
-                </span>
-              </div>
-            }
-            footer={
-              <div className="flex items-center justify-between w-full mt-2">
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[12px]">
-                    {t("icon_calendar_today", "calendar_today")}
+                </div>
+              }
+              footer={
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_calendar_today", "calendar_today")}
+                    </span>
+                    {devDateDisplay}
                   </span>
-                  {devDateDisplay}
-                </span>
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-70 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
-                  {t("release_notes_read_dev_cta", "Read Dev Build Notes")}{" "}
-                  <span className="material-symbols-outlined !text-sm">
-                    {t("icon_arrow_forward", "arrow_forward")}
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                    {t("release_notes_read_dev_cta", "Read Dev Build Notes")}{" "}
+                    <span className="material-symbols-outlined !text-sm">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
                   </span>
-                </span>
-              </div>
-            }
-          >
-            <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-              {devPost.summary}
-            </p>
-          </UniversalCard>
+                </div>
+              }
+            >
+              <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
+                {devPost.summary}
+              </p>
+            </UniversalCard>
+          )}
         </div>
       )}
 

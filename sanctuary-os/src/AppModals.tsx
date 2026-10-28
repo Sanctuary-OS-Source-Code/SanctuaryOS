@@ -198,7 +198,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
 
       <ScoutQueueSidePanel scoutQueue={scoutQueue} setScoutQueue={setScoutQueue} onOpenScoutDossier={onOpenScoutDossier} />
 
-      <SignatureQueueSidePanel equipPlaySet={equipPlaySet} />
+      <SignatureQueueSidePanel equipPlaySet={equipPlaySet} onOpenDossier={props.onOpenDossier} />
       
       <SystemLogModal isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} statusLog={statusLog} clearStatusLog={clearStatusLog} logModalRef={logModalRef} handleLogPointerDown={handleLogPointerDown} handleLogPointerMove={handleLogPointerMove} handleLogPointerUp={handleLogPointerUp} />
       

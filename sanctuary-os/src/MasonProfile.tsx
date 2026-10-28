@@ -690,7 +690,7 @@ export default function MasonProfile({
                                   rawOpts = [
                                     {
                                       id: "ALL",
-                                      label: t("filter_mode", "All Modes"),
+                                      label: t("filter_all_modes", "All Modes"),
                                       icon: t("icon_folder", "folder"),
                                     },
                                     {
@@ -708,7 +708,7 @@ export default function MasonProfile({
                                   rawOpts = [
                                     {
                                       id: "ALL",
-                                      label: t("filter_type", "All Types"),
+                                      label: t("filter_all_types", "All Types"),
                                       icon: t("icon_folder", "folder"),
                                     },
                                   ];

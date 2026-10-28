@@ -293,12 +293,12 @@ export function LabVerificationBadge({
   if (!dnaHash) return null;
 
   const baseSizeClass = compact
-    ? "px-2 py-0.5 rounded-md text-[8px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0 bg-transparent border"
-    : "px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0 bg-transparent border";
+    ? "px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-black tracking-wider uppercase text-[var(--text)] flex items-center gap-1.5 shrink-0"
+    : "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black tracking-wider uppercase text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
   if (state.verified) {
     return (
-      <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}>
+      <span className={baseSizeClass}>
         <span className="material-symbols-outlined !text-[12px] text-[var(--success)] shrink-0">
           {t("icon_verified", "verified")}
         </span>
@@ -311,7 +311,7 @@ export function LabVerificationBadge({
 
   if (state.failed) {
     return (
-      <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]`}>
+      <span className={baseSizeClass}>
         <span className="material-symbols-outlined !text-[12px] text-[var(--danger)] shrink-0">
           {t("icon_error", "error")}
         </span>
@@ -325,7 +325,7 @@ export function LabVerificationBadge({
   if (!required) return null;
 
   return (
-    <span className={`${baseSizeClass} border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]`}>
+    <span className={baseSizeClass}>
       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)] shrink-0">
         {t("icon_science", "science")}
       </span>
@@ -770,8 +770,8 @@ export function LabVerificationGate({
       {isRunning && activeSession && (
         <div className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-2">
-            <div className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] text-[10px] font-black tracking-wide flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[15px] shrink-0">
+            <div className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wide flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
                 {t("icon_save", "save")}
               </span>
               <span className="leading-snug">
@@ -782,8 +782,8 @@ export function LabVerificationGate({
             </div>
 
             {activeSession.linked_files && activeSession.linked_files.length > 0 && (
-              <div className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] text-[10px] font-black tracking-wide flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[15px] shrink-0">
+              <div className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wide flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--success)]">
                   {t("icon_link", "link")}
                 </span>
                 <span className="leading-snug break-words">
@@ -845,8 +845,8 @@ export function LabVerificationGate({
               </span>
 
               {activeSession.pause_reason && (
-                <div className="mt-1.5 px-3 py-1.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-[14px] shrink-0">
+                <div className="mt-1.5 px-3 py-1.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
+                  <span className="material-symbols-outlined !text-[14px] shrink-0 text-[var(--warning)]">
                     {t("icon_pause_circle", "pause_circle")}
                   </span>
                   <span className="leading-snug">{getPauseReasonLabel(activeSession.pause_reason)}</span>

@@ -117,10 +117,10 @@ export default function BlueprintSwapSidePanel({
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
-                        className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                           isActive
-                            ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                            : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                            ? "text-[var(--success)]"
+                            : "text-[var(--accent)]"
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[20px]">

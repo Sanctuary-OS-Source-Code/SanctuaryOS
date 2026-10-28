@@ -109,15 +109,8 @@ export function EdgeOverrideSidePanel({
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
                   {t("label_verified_signature", "Verified Local Signature")}
                 </span>
-                <span
-                  className={`${VAULT_CHIP_CLASS} font-mono`}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor:
-                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                     {t("icon_verified", "verified")}
                   </span>
                   {activeHash.substring(0, 8)}...
@@ -139,15 +132,8 @@ export function EdgeOverrideSidePanel({
             {activeHash && (
               <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-2 font-mono text-xs">
                 <span className="truncate text-[var(--text)]">{activeHash}</span>
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor:
-                      "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                     {t("icon_fingerprint", "fingerprint")}
                   </span>
                   {t("label_target", "Target")}
@@ -160,15 +146,8 @@ export function EdgeOverrideSidePanel({
                 className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 font-mono text-xs"
               >
                 <span className="truncate text-[var(--subtext)]">{h}</span>
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--subtext)",
-                    borderColor:
-                      "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
                     {t("icon_archive", "archive")}
                   </span>
                   {t("label_archive", "Archive")}

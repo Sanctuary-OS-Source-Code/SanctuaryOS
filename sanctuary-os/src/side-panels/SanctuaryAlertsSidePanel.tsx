@@ -307,14 +307,8 @@ export function SanctuaryAlertsSidePanel({
                     >
                       {/* Top Header Bar */}
                       <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                        <span
-                          className={VAULT_CHIP_CLASS}
-                          style={{
-                            color: "var(--accent)",
-                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                             {isPinned
                               ? t("icon_warning", "warning")
                               : t("icon_podcasts", "podcasts")}
@@ -322,14 +316,8 @@ export function SanctuaryAlertsSidePanel({
                           <span>{categoryLabel}</span>
                         </span>
                         {isPinned && (
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: "var(--warning)",
-                              borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                               {t("icon_priority_high", "priority_high")}
                             </span>
                             <span>{t("urgent_alert", "Urgent")}</span>

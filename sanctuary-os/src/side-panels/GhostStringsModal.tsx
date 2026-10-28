@@ -131,28 +131,16 @@ export function GhostStringsModal({
               (meta.is_paid || meta.is_early_access) && (
                 <>
                   {meta.is_early_access && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {t("icon_science", "science")}
                       </span>
                       {t("badge_early_access", "Early Access")}
                     </span>
                   )}
                   {meta.is_paid && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--warning)",
-                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                         {t("icon_monetization_on", "monetization_on")}
                       </span>
                       {t("badge_paid", "Paid")}

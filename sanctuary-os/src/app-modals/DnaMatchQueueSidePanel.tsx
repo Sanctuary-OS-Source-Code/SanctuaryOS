@@ -357,7 +357,8 @@ export function DnaMatchQueueSidePanel({
           </div>
         }
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[500px] overflow-y-auto custom-scrollbar">
+        <div className="max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {group.map((match: any, index: number) => {
             let data: any = {};
             try {
@@ -375,26 +376,13 @@ export function DnaMatchQueueSidePanel({
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_network_wifi", "network_wifi")}
                       </span>
                     </div>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {t("icon_network_wifi", "network_wifi")}
                       </span>
                       {t("title_edge_override_detected", "Edge Override")}
@@ -441,6 +429,7 @@ export function DnaMatchQueueSidePanel({
               </div>
             );
           })}
+          </div>
         </div>
       </UniversalGroup>
     );
@@ -492,7 +481,8 @@ export function DnaMatchQueueSidePanel({
           </div>
         }
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[500px] overflow-y-auto custom-scrollbar">
+        <div className="max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {group.map((match: any, index: number) => {
             const newName = match.path
               ?.split(/[\\/]/)
@@ -530,26 +520,13 @@ export function DnaMatchQueueSidePanel({
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_difference", "difference")}
                       </span>
                     </div>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {overrideData
                           ? t("icon_network_wifi", "network_wifi")
                           : t("icon_difference", "difference")}
@@ -608,6 +585,7 @@ export function DnaMatchQueueSidePanel({
               </div>
             );
           })}
+          </div>
         </div>
       </UniversalGroup>
     );

@@ -630,9 +630,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 <button
                   type="button"
                   onClick={() => applyConsensusToForm(activeScout)}
-                  className="px-3 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                  className="px-3 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
                 >
-                  <span className="material-symbols-outlined !text-[13px]">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                     {t("icon_auto_fix_high", "auto_fix_high")}
                   </span>
                   <span>{t("scout_btn_apply_consensus", "Apply Top Consensus")}</span>
@@ -760,8 +760,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                               {row.label}
                             </span>
                             {row.candidates[0] && (
-                              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
-                                <span className="material-symbols-outlined !text-[11px]">
+                              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                                <span className="material-symbols-outlined !text-[11px] text-[var(--success)]">
                                   {t("icon_verified", "verified")}
                                 </span>
                                 {`${t("scout_most_likely_badge", "Most Likely")}: ${row.candidates[0].count}/${totalSubs} (${row.candidates[0].percent}%)`}
@@ -788,13 +788,12 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                                   }`}
                                 >
                                   <span className="truncate max-w-[340px]">{cand.display}</span>
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border bg-transparent shrink-0 ${
-                                      isTop
-                                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                        : "border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)]"
-                                    }`}
-                                  >
+                                  <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 shrink-0">
+                                    {isTop && (
+                                      <span className="material-symbols-outlined !text-[11px] text-[var(--success)]">
+                                        {t("icon_check_circle", "check_circle")}
+                                      </span>
+                                    )}
                                     {`${cand.count}/${totalSubs} (${cand.percent}%)`}
                                   </span>
                                 </button>
@@ -823,7 +822,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
+                            <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
                               {`#${idx + 1}`}
                             </span>
                             <span className="text-xs font-black text-[var(--text)] truncate">
@@ -860,7 +859,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
                                     : prev.compatible_versions,
                                 }));
                               }}
-                              className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                             >
                               {t("scout_btn_use_submission", "Load")}
                             </button>
@@ -938,7 +937,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </p>
             </UniversalGroup>
 
-            <UniversalGroup title={t("btn_view", "Classification")} icon={t("icon_info", "info")}>
+            <UniversalGroup title={t("section_classification_creator", "Classification & {Mason}")} icon={t("icon_info", "info")}>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "{Mason}")}</label>
                 <div className="flex items-center gap-2 relative">
@@ -991,7 +990,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("compliance_tier", "Compliance & Compatibility")} icon={t("icon_verified", "verified")}>
+            <UniversalGroup title={t("section_compliance_compatibility", "Compliance & Compatibility")} icon={t("icon_verified", "verified")}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("compliance_tier", "Compliance Tier")}</label>
@@ -1028,7 +1027,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
             <PanelHeaderButton
               icon={t("icon_check", "check")}
               variant="accent"
-              tooltip={t("create_btn_create", "Create Mason")}
+              tooltip={t("create_mason_btn", "Create {Mason}")}
               onClick={handleCreateMason}
               disabled={isCreatingMason || !newMasonName.trim()}
             />

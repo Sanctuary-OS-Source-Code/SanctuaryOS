@@ -342,7 +342,9 @@ export function isKeeperLockedLexiconKey(key: string): boolean {
   return k === 'sidebar_app_title' || k.startsWith('sidebar_app_subtitle');
 }
 
-const LexiconContext = createContext<any>(null);
+const LexiconContext: ReturnType<typeof createContext<any>> =
+  (globalThis as any).__SANCTUARY_LEXICON_CONTEXT__ ||
+  ((globalThis as any).__SANCTUARY_LEXICON_CONTEXT__ = createContext<any>(null));
 
 export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
@@ -842,9 +844,43 @@ export const LexiconProvider = ({ children }: any) => {
 
   const emojiRegex = /[\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{2328}\u{23CF}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{24C2}]/u;
 
+  const schemaFallbackMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (activeGameSchema?.lexicon_defaults && typeof activeGameSchema.lexicon_defaults === 'object') {
+      for (const [k, v] of Object.entries(activeGameSchema.lexicon_defaults)) {
+        if (typeof v === 'string' && v.trim()) {
+          map[k] = v;
+        }
+      }
+    }
+    const cats = Array.isArray(activeGameSchema?.mod_categories)
+      ? activeGameSchema.mod_categories
+      : [];
+    for (const c of cats) {
+      if (!c || typeof c !== 'object') continue;
+      const catLabel = c.label || c.name || c.id;
+      if (c.lexicon_key && catLabel) {
+        map[c.lexicon_key] = catLabel;
+      }
+      if (c.icon_key && c.icon) {
+        map[c.icon_key] = c.icon;
+      }
+      if (Array.isArray(c.subcategories)) {
+        for (const sub of c.subcategories) {
+          if (!sub || typeof sub !== 'object') continue;
+          const subLabel = sub.label || sub.name || sub.id;
+          if (sub.lexicon_key && subLabel) {
+            map[sub.lexicon_key] = subLabel;
+          }
+        }
+      }
+    }
+    return map;
+  }, [activeGameSchema]);
+
   const tCache = useMemo(
     () => new Map<string, any>(),
-    [dictionary, activeLangState, titleAreaConfig, previewSubtitleText]
+    [dictionary, schemaFallbackMap, activeLangState, titleAreaConfig, previewSubtitleText]
   );
 
   const t = useCallback((key: string, fallback?: string) => {
@@ -883,6 +919,9 @@ export const LexiconProvider = ({ children }: any) => {
     }
 
     if (val === undefined || val === "") {
+      val = schemaFallbackMap[key];
+    }
+    if (val === undefined || val === "") {
       val = (enDefault as any)[key];
     }
     if (val === undefined || val === "") {
@@ -899,6 +938,8 @@ export const LexiconProvider = ({ children }: any) => {
         val = "Wayfinder";
       } else if (key === "supporter_keepers_title" && (val === "Sanctuary OS (Keepers Core)" || val === "Sanctuary Foundry (Keepers Core)")) {
         val = "Sanctuary Foundry";
+      } else if (key === "icon_architecture" && val === "structure") {
+        val = "architecture";
       }
       if (emojiRegex.test(val) && (key.includes('icon') || key.startsWith('emote_'))) {
         tCache.set(cacheKey, "");
@@ -923,10 +964,14 @@ export const LexiconProvider = ({ children }: any) => {
       tCache.set(cacheKey, res);
       return res;
     }
-    const res = fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : `[${key}]`;
+    const res = fallback
+      ? interpolateGlossaryTokens(fallback, dictionary, activeLangState)
+      : fallback === "" || !key
+        ? ""
+        : `[${key}]`;
     tCache.set(cacheKey, res);
     return res;
-  }, [tCache, dictionary, activeLangState, titleAreaConfig, previewSubtitleText]);
+  }, [tCache, dictionary, schemaFallbackMap, activeLangState, titleAreaConfig, previewSubtitleText]);
 
   const importLexicon = (json: any, langCode: string) => {
     const updated = { ...registry, [langCode]: json };
@@ -1062,12 +1107,25 @@ export const useLexicon = () => {
   const ctx = useContext(LexiconContext);
   if (!ctx) {
     return {
-      t: (key: string, fallback?: string) =>
-        (enSanctuary as any)[key] ||
-        (enDefault as any)[key] ||
-        fallback ||
-        key.replace(/_/g, ' '),
-      td: (rawText: string) => rawText,
+      t: (key: string, fallback?: string) => {
+        if (!key) {
+          return fallback
+            ? interpolateGlossaryTokens(fallback, enSanctuary, 'en-sanctuary')
+            : '';
+        }
+        const raw =
+          (enSanctuary as any)[key] ||
+          (enDefault as any)[key] ||
+          fallback ||
+          (key.startsWith('icon_') ? key.slice(5) : key.replace(/_/g, ' '));
+        return typeof raw === 'string'
+          ? interpolateGlossaryTokens(raw, enSanctuary, 'en-sanctuary')
+          : raw;
+      },
+      td: (rawText: string) =>
+        typeof rawText === 'string'
+          ? interpolateGlossaryTokens(rawText, enSanctuary, 'en-sanctuary')
+          : rawText,
       translateDynamicAsync: async (rawText: string) => rawText,
       autoTranslateDynamic: true,
       setAutoTranslateDynamic: () => {},

@@ -147,16 +147,11 @@ export function LocalFolderModal({
                   className="glass-surface px-3.5 py-2.5 rounded-xl flex items-center gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                 >
                   <div
-                    className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                    className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                       isCollection
                         ? "text-[var(--accent)]"
                         : "text-[var(--success)]"
                     }`}
-                    style={{
-                      borderColor: isCollection
-                        ? "color-mix(in srgb, var(--accent) 25%, var(--border))"
-                        : "color-mix(in srgb, var(--success) 25%, var(--border))",
-                    }}
                   >
                     <span className="material-symbols-outlined !text-[18px]">
                       {isCollection

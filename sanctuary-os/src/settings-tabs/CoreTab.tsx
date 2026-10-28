@@ -418,14 +418,15 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         subtitle={obfuscatePath(dir.value)}
         icon={t("icon_folder", "folder")}
         onClick={() => pickPath(dir.rustKey, dir.label)}
-      >
-        <ActionButton
-          variant="glass"
-          icon={t("icon_sync", "sync")}
-          label={t("btn_calibrate", "Select Folder")}
-          className="w-full pointer-events-none mt-2"
-        />
-      </UniversalCard>
+        footer={
+          <ActionButton
+            variant="glass"
+            icon={t("icon_sync", "sync")}
+            label={t("btn_calibrate", "Select Folder")}
+            className="w-full justify-center pointer-events-none"
+          />
+        }
+      />
     );
   };
 
@@ -513,14 +514,15 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                   subtitle={t("auto_detect_desc", "Automatically scan your system to detect and configure your game installation, save files, and {vault} paths.")}
                   icon={t("icon_troubleshoot", "troubleshoot")}
                   onClick={handleAutoDetect}
-                >
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_troubleshoot", "troubleshoot")}
-                    label={t("auto_detect", "Auto Detect")}
-                    className="w-full pointer-events-none mt-2"
-                  />
-                </UniversalCard>
+                  footer={
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_troubleshoot", "troubleshoot")}
+                      label={t("auto_detect", "Auto Detect")}
+                      className="w-full justify-center pointer-events-none"
+                    />
+                  }
+                />
               </SettingsGrid>
             </TabContainer>
           </>

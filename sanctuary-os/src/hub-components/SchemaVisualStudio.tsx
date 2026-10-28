@@ -20,6 +20,7 @@ export interface SchemaVisualStudioProps {
   onChange: (newContent: string) => void;
   fileName?: string;
   isKeepers?: boolean;
+  onOpenGuide?: () => void;
 }
 
 function GlassNumberInput({
@@ -461,6 +462,7 @@ export default function SchemaVisualStudio({
   content,
   onChange,
   fileName = "",
+  onOpenGuide,
 }: SchemaVisualStudioProps) {
   const { t } = useLexicon();
   const [activeTab, setActiveTab] = useState<SchemaMainTab>("identity_paths");
@@ -533,7 +535,9 @@ export default function SchemaVisualStudio({
     next.game_id = preserveGameId;
     next.display_name = preserveDisplayName;
     next.name = preserveDisplayName;
-    if (parsedSchema.mod_categories) next.mod_categories = parsedSchema.mod_categories;
+    if (Array.isArray(parsedSchema.mod_categories) && parsedSchema.mod_categories.length > 0) {
+      next.mod_categories = parsedSchema.mod_categories;
+    }
     if (parsedSchema.exception_rules) next.exception_rules = parsedSchema.exception_rules;
     if (parsedSchema.lab_verification) next.lab_verification = parsedSchema.lab_verification;
     if (parsedSchema.taxonomy) next.taxonomy = parsedSchema.taxonomy;
@@ -565,6 +569,9 @@ export default function SchemaVisualStudio({
   const versionExtObj = parsedSchema.version_extraction || {};
   const routesArr: any[] = Array.isArray(parsedSchema.install_routes)
     ? parsedSchema.install_routes
+    : [];
+  const modCategoriesArr: any[] = Array.isArray(parsedSchema.mod_categories)
+    ? parsedSchema.mod_categories
     : [];
   const loadOrderObj = parsedSchema.load_order || {};
   const priorityTiers: any[] = Array.isArray(loadOrderObj.priority_tiers)
@@ -667,6 +674,16 @@ export default function SchemaVisualStudio({
             >
               {t("schema_studio_reset_defaults", "Populate Safe Defaults")}
             </ActionButton>
+            {onOpenGuide && (
+              <ActionButton
+                variant="glass"
+                icon={t("icon_menu_book", "menu_book")}
+                onClick={onOpenGuide}
+                className="!h-10 !px-3.5 !text-xs !rounded-xl"
+              >
+                {t("schema_guide_btn", "Schema Guide")}
+              </ActionButton>
+            )}
           </div>
         </div>
 
@@ -1447,6 +1464,450 @@ export default function SchemaVisualStudio({
                   />
                 </div>
               ))}
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={`${t("schema_studio_sec_categories", "Game {Mod} Categories & Subcategories")} (${modCategoriesArr.length})`}
+            icon={t("icon_category", "category")}
+            headerAction={
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_auto_fix_high", "auto_fix_high")}
+                  onClick={() => {
+                    const preset =
+                      GAME_ARCHITECTURE_PRESETS[selectedPresetId] ||
+                      resolvePresetForGameId(parsedSchema.game_id || parsedSchema.id || fileStem);
+                    if (Array.isArray(preset?.mod_categories)) {
+                      updateField(
+                        "mod_categories",
+                        JSON.parse(JSON.stringify(preset.mod_categories))
+                      );
+                    }
+                  }}
+                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                >
+                  {t("schema_studio_seed_defaults", "Seed Missing Defaults")}
+                </ActionButton>
+                <ActionButton
+                  variant="accent"
+                  icon={t("icon_add", "add")}
+                  onClick={() => {
+                    const nextNum = modCategoriesArr.length + 1;
+                    const nextId = `Category${nextNum}`;
+                    const nextCat = {
+                      id: nextId,
+                      label: `Custom Category ${nextNum}`,
+                      icon: "category",
+                      lexicon_key: `class_dd_custom_${nextNum}`,
+                      subcategories: [],
+                    };
+                    updateField("mod_categories", [...modCategoriesArr, nextCat]);
+                  }}
+                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                >
+                  {t("schema_studio_cat_add", "Add {Mod} Category")}
+                </ActionButton>
+              </div>
+            }
+          >
+            <div className="flex flex-col gap-3.5 w-full">
+              <p className="text-xs font-medium text-[var(--subtext)] opacity-85 leading-relaxed">
+                {t(
+                  "schema_studio_sec_categories_desc",
+                  "Define game-specific {Mod} categories, icons, and subcategories directly in this game's schema so core OS {Lexicon} files stay 100% game-agnostic."
+                )}
+              </p>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
+                {modCategoriesArr.map((cat, idx) => {
+                  const subList: string[] = Array.isArray(cat.subcategories)
+                    ? cat.subcategories
+                        .map((s: any) =>
+                          typeof s === "string" ? s : String(s?.label || s?.id || "")
+                        )
+                        .filter(Boolean)
+                    : [];
+                  return (
+                    <div
+                      key={`${cat.id || idx}-${idx}`}
+                      className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center text-[var(--accent)] shrink-0">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {cat.icon || "category"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {cat.label || cat.id || "Category"}
+                            </span>
+                            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                              {`${cat.id || "id"} • ${cat.lexicon_key || `class_dd_${String(cat.id || "").toLowerCase()}`}`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateField(
+                              "mod_categories",
+                              modCategoriesArr.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_delete", "delete")}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_id", "Category ID")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.id ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              const nextId = e.target.value;
+                              next[idx] = {
+                                ...cat,
+                                id: nextId,
+                                lexicon_key:
+                                  cat.lexicon_key ||
+                                  `class_dd_${nextId.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+                              };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. Vehicles / CAS / Quests"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_label", "Default Display Label")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.label ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, label: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. Vehicles & Handling"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_icon", "Material Symbol Icon")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.icon ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, icon: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. directions_car / checkroom / shield"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_lex_key", "{Lexicon} Override Key")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.lexicon_key ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, lexicon_key: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="class_dd_..."
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 min-w-0 pt-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("schema_studio_cat_subcats", "Subcategories (Optional)")}
+                        </label>
+                        <StringListBuilder
+                          mono={false}
+                          items={subList}
+                          onChange={(nextSubs) => {
+                            const next = [...modCategoriesArr];
+                            const existingSubs: any[] = Array.isArray(cat.subcategories)
+                              ? cat.subcategories
+                              : [];
+                            const mappedSubs = nextSubs.map((labelOrId) => {
+                              const found = existingSubs.find(
+                                (s: any) =>
+                                  String(s?.label || "").toLowerCase() ===
+                                    labelOrId.toLowerCase() ||
+                                  String(s?.id || "").toLowerCase() === labelOrId.toLowerCase()
+                              );
+                              if (found && typeof found === "object") return found;
+                              const cleanId = labelOrId.replace(/\s+/g, "");
+                              const slug = labelOrId
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "_")
+                                .replace(/^_+|_+$/g, "");
+                              return {
+                                id: cleanId || labelOrId,
+                                label: labelOrId,
+                                icon: cat.icon || "category",
+                                lexicon_key: `vault_sub_${slug}`,
+                              };
+                            });
+                            next[idx] = { ...cat, subcategories: mappedSubs };
+                            updateField("mod_categories", next);
+                          }}
+                          placeholder="Add subcategory (e.g. Hair, Add-On Vehicle, Combat)..."
+                          addButtonLabel={t("add", "Add")}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={`${t("schema_studio_sec_categories", "Game {Mod} Categories & Subcategories")} (${modCategoriesArr.length})`}
+            icon={t("icon_category", "category")}
+            headerAction={
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_auto_fix_high", "auto_fix_high")}
+                  onClick={() => {
+                    const preset =
+                      GAME_ARCHITECTURE_PRESETS[selectedPresetId] ||
+                      resolvePresetForGameId(parsedSchema.game_id || parsedSchema.id || fileStem);
+                    if (Array.isArray(preset?.mod_categories)) {
+                      updateField(
+                        "mod_categories",
+                        JSON.parse(JSON.stringify(preset.mod_categories))
+                      );
+                    }
+                  }}
+                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                >
+                  {t("schema_studio_seed_defaults", "Seed Missing Defaults")}
+                </ActionButton>
+                <ActionButton
+                  variant="accent"
+                  icon={t("icon_add", "add")}
+                  onClick={() => {
+                    const nextNum = modCategoriesArr.length + 1;
+                    const nextId = `Category${nextNum}`;
+                    const nextCat = {
+                      id: nextId,
+                      label: `Custom Category ${nextNum}`,
+                      icon: "category",
+                      lexicon_key: `class_dd_custom_${nextNum}`,
+                      subcategories: [],
+                    };
+                    updateField("mod_categories", [...modCategoriesArr, nextCat]);
+                  }}
+                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                >
+                  {t("schema_studio_cat_add", "Add {Mod} Category")}
+                </ActionButton>
+              </div>
+            }
+          >
+            <div className="flex flex-col gap-3.5 w-full">
+              <p className="text-xs font-medium text-[var(--subtext)] opacity-85 leading-relaxed">
+                {t(
+                  "schema_studio_sec_categories_desc",
+                  "Define game-specific {Mod} categories, icons, and subcategories directly in this game's schema so core OS {Lexicon} files stay 100% game-agnostic."
+                )}
+              </p>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
+                {modCategoriesArr.map((cat, idx) => {
+                  const subList: string[] = Array.isArray(cat.subcategories)
+                    ? cat.subcategories
+                        .map((s: any) =>
+                          typeof s === "string" ? s : String(s?.label || s?.id || "")
+                        )
+                        .filter(Boolean)
+                    : [];
+                  return (
+                    <div
+                      key={`${cat.id || idx}-${idx}`}
+                      className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center text-[var(--accent)] shrink-0">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {cat.icon || "category"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {cat.label || cat.id || "Category"}
+                            </span>
+                            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
+                              {`${cat.id || "id"} • ${cat.lexicon_key || `class_dd_${String(cat.id || "").toLowerCase()}`}`}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateField(
+                              "mod_categories",
+                              modCategoriesArr.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_delete", "delete")}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_id", "Category ID")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.id ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              const nextId = e.target.value;
+                              next[idx] = {
+                                ...cat,
+                                id: nextId,
+                                lexicon_key:
+                                  cat.lexicon_key ||
+                                  `class_dd_${nextId.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+                              };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. Vehicles / CAS / Quests"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_label", "Default Display Label")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.label ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, label: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. Vehicles & Handling"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_icon", "Material Symbol Icon")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.icon ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, icon: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="e.g. directions_car / checkroom / shield"
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("schema_studio_cat_lex_key", "{Lexicon} Override Key")}
+                          </label>
+                          <input
+                            type="text"
+                            value={cat.lexicon_key ?? ""}
+                            onChange={(e) => {
+                              const next = [...modCategoriesArr];
+                              next[idx] = { ...cat, lexicon_key: e.target.value };
+                              updateField("mod_categories", next);
+                            }}
+                            placeholder="class_dd_..."
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 min-w-0 pt-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("schema_studio_cat_subcats", "Subcategories (Optional)")}
+                        </label>
+                        <StringListBuilder
+                          mono={false}
+                          items={subList}
+                          onChange={(nextSubs) => {
+                            const next = [...modCategoriesArr];
+                            const existingSubs: any[] = Array.isArray(cat.subcategories)
+                              ? cat.subcategories
+                              : [];
+                            const mappedSubs = nextSubs.map((labelOrId) => {
+                              const found = existingSubs.find(
+                                (s: any) =>
+                                  String(s?.label || "").toLowerCase() ===
+                                    labelOrId.toLowerCase() ||
+                                  String(s?.id || "").toLowerCase() === labelOrId.toLowerCase()
+                              );
+                              if (found && typeof found === "object") return found;
+                              const cleanId = labelOrId.replace(/\s+/g, "");
+                              const slug = labelOrId
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "_")
+                                .replace(/^_+|_+$/g, "");
+                              return {
+                                id: cleanId || labelOrId,
+                                label: labelOrId,
+                                icon: cat.icon || "category",
+                                lexicon_key: `vault_sub_${slug}`,
+                              };
+                            });
+                            next[idx] = { ...cat, subcategories: mappedSubs };
+                            updateField("mod_categories", next);
+                          }}
+                          placeholder="Add subcategory (e.g. Hair, Add-On Vehicle, Combat)..."
+                          addButtonLabel={t("add", "Add")}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </UniversalGroup>
         </div>

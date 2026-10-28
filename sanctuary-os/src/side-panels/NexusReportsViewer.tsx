@@ -210,14 +210,11 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         subtitle={`${t("by_author", "BY")} ${report.reporter_name || t("anonymous", "Anonymous")}`}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-            <div
-              className={VAULT_CHIP_CLASS}
-              style={{
-                color: statusColorVar,
-                borderColor: `color-mix(in srgb, ${statusColorVar} 35%, var(--border))`,
-              }}
-            >
-              <span className="material-symbols-rounded !text-[12px] shrink-0">
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className="material-symbols-rounded !text-[12px] shrink-0"
+                style={{ color: statusColorVar }}
+              >
                 {statusIcon}
               </span>
               <span>{statusLabel}</span>
@@ -226,14 +223,8 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         }
         badges={
           <>
-            <div
-              className={VAULT_CHIP_CLASS}
-              style={{
-                color: "var(--accent)",
-                borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-              }}
-            >
-              <span className="material-symbols-rounded !text-[12px] shrink-0">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                 {report.source === "nexus"
                   ? t("icon_hub", "hub")
                   : report.source === "blueprint"
@@ -243,28 +234,16 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
               <span>{report.source.replace(/-/g, " ")}</span>
             </div>
             {report.metadata?.content_type && (
-              <div
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--subtext)",
-                  borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
                   {t("icon_category", "category")}
                 </span>
                 <span>{report.metadata.content_type}</span>
               </div>
             )}
             {report.metadata?.author && (
-              <div
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--subtext)",
-                  borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
                   {t("icon_person", "person")}
                 </span>
                 <span className="truncate max-w-[120px]">{String(report.metadata.author).substring(0, 12)}</span>

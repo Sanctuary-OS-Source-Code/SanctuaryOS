@@ -667,13 +667,16 @@ export function ArtifactRulesTab({
                       className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
                     >
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span
-                          className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
-                            sev === 4
-                              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
-                              : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
-                          }`}
-                        >
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1 shrink-0">
+                          <span
+                            className={`material-symbols-outlined !text-[11px] ${
+                              sev === 4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                            }`}
+                          >
+                            {sev === 4
+                              ? t("icon_crisis_alert", "crisis_alert")
+                              : t("icon_tune", "tune")}
+                          </span>
                           {sev === 4 ? "S4" : "S3"}
                         </span>
                         <span className="text-[11px] font-bold text-[var(--text)] truncate">

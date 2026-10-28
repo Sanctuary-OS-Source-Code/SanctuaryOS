@@ -228,12 +228,7 @@ export default function SidePanelMasonPin({
                           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                       }`}
                     >
-                      <div
-                        className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
-                        style={{
-                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                         {mod.image_url ? (
                           <img
                             src={mod.image_url}
@@ -263,14 +258,8 @@ export default function SidePanelMasonPin({
                         >
                           {mod.name}
                         </h3>
-                        <span
-                          className={`${VAULT_CHIP_CLASS} w-fit`}
-                          style={{
-                            color: "var(--accent)",
-                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className={`${VAULT_CHIP_CLASS} w-fit`}>
+                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                             {getModIcon(mod, activeGameSchema, t)}
                           </span>
                           <span className="truncate">
@@ -319,12 +308,7 @@ export default function SidePanelMasonPin({
                           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                       }`}
                     >
-                      <div
-                        className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
-                        style={{
-                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                         {bp.image_url ? (
                           <img
                             src={bp.image_url}
@@ -354,14 +338,8 @@ export default function SidePanelMasonPin({
                         >
                           {bp.name}
                         </h3>
-                        <span
-                          className={`${VAULT_CHIP_CLASS} w-fit`}
-                          style={{
-                            color: "var(--accent)",
-                            borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className={`${VAULT_CHIP_CLASS} w-fit`}>
+                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                             {bpIcon}
                           </span>
                           <span className="truncate">{t("blueprint", "{Blueprint}")}</span>
@@ -412,12 +390,7 @@ export default function SidePanelMasonPin({
                         : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                     }`}
                   >
-                    <div
-                      className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                       {asset.image_url ? (
                         <img
                           src={asset.image_url}
@@ -447,14 +420,8 @@ export default function SidePanelMasonPin({
                       >
                         {asset.name}
                       </h3>
-                      <span
-                        className={`${VAULT_CHIP_CLASS} w-fit`}
-                        style={{
-                          color: "var(--accent)",
-                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={`${VAULT_CHIP_CLASS} w-fit`}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                           {smIcon}
                         </span>
                         <span className="truncate">

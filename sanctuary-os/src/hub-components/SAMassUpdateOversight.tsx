@@ -492,7 +492,7 @@ export function MassUpdateOversight() {
               />
               <StatBox
                 label={t("mass_status_protocol", "Status Protocol")}
-                value={massStatus ? massStatus.toUpperCase() : t("filter_all", "Unchanged")}
+                value={massStatus ? massStatus.toUpperCase() : t("leave_unchanged", "-- Leave Unchanged --")}
                 icon="policy"
                 iconColorClass={massStatus ? "text-[var(--success)]" : "text-[var(--subtext)]"}
               />
@@ -508,11 +508,11 @@ export function MassUpdateOversight() {
                 value={massStatus}
                 onChange={(v: string[]) => setMassStatus(v[0])}
                 options={[
-                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
-                  { id: "verified", label: t("verified", "VERIFIED") },
-                  { id: "unverified", label: t("unverified", "UNVERIFIED") },
-                  { id: "deprecated", label: t("tab_inactive", "DEPRECATED") },
-                  { id: "quarantined", label: t("recent_quarantine", "QUARANTINED") }
+                  { id: "", label: t("leave_unchanged", "-- Leave Unchanged --") },
+                  { id: "verified", label: t("verified", "Verified") },
+                  { id: "unverified", label: t("unverified", "Unverified") },
+                  { id: "deprecated", label: t("status_deprecated", "Deprecated") },
+                  { id: "quarantined", label: t("status_quarantined", "Quarantined") }
                 ]}
               />
             </div>
@@ -525,11 +525,13 @@ export function MassUpdateOversight() {
                 value={massCompliance}
                 onChange={(v: string[]) => setMassCompliance(v[0])}
                 options={[
-                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
-                  { id: "0", label: t("tier_0_label", "Clean (Tier 0)") },
-                  { id: "1", label: t("tier_1_label", "NSFW 18+ (Tier 1)") },
-                  { id: "2", label: t("tier_2_label", "Explicit (Tier 2)") },
-                  { id: "3", label: t("tier_3_label", "Malware (Tier 3)") }
+                  { id: "", label: t("leave_unchanged", "-- Leave Unchanged --") },
+                  { id: "0", label: t("tier_0_label", "Clean / Safe (T0)") },
+                  { id: "1", label: t("tier_1_label", "Adult / NSFW (T1)") },
+                  { id: "2", label: t("tier_2_label", "Illicit / Substance (T2)") },
+                  { id: "3", label: t("tier_3_label", "Extreme / Violence (T3)") },
+                  { id: "4", label: t("tier_4_label", "Taboo / Sensitive (T4)") },
+                  { id: "5", label: t("tier_5_label", "Malware / Security Threat (T5)") }
                 ]}
               />
             </div>
@@ -542,7 +544,7 @@ export function MassUpdateOversight() {
                 value={massCategory}
                 onChange={(v: string[]) => setMassCategory(v[0])}
                 options={[
-                  { id: "", label: t("filter_all", "-- Leave Unchanged --") },
+                  { id: "", label: t("leave_unchanged", "-- Leave Unchanged --") },
                   ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
                     id: cat.id,
                     label: (t(cat.lexicon_key, cat.id) || cat.id).toUpperCase()

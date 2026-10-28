@@ -2784,7 +2784,8 @@ function App() {
       }, 5000);
       setLogWatcher(interval);
     } catch (err) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
     }
   }
   async function openWorkbench(modPath: string) {
@@ -3298,7 +3299,8 @@ function App() {
       }, 5000);
       setLogWatcher(interval as any);
     } catch (err) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
+      setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
     }
   };
 
@@ -3846,6 +3848,7 @@ function App() {
               setIsCorrectingMeta(true);
               useModalStore.getState().setIsSideBrowserOpen(false);
             }}
+            onOpenDossier={setActiveDossier}
             isBackingUp={isBackingUp}
             isRestoring={isRestoring}
             ingestProgress={ingestProgress}
@@ -3965,12 +3968,7 @@ function App() {
                   }}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[22px] animate-spin">
                         {t("icon_sync", "sync")}
                       </span>

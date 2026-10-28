@@ -279,7 +279,7 @@ export function ArtifactCard({
             )}
           </span>
         )}
-        <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+        <button className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0">
           {overrideActionLabel || t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
         </button>
       </div>
@@ -363,7 +363,7 @@ export function VaultCard({
       <span className="flex items-center gap-1.5 font-mono truncate pr-2 opacity-75">
         {String(setItem.id || "").slice(0, 8)}
       </span>
-      <button className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+      <button className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0">
         {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
       </button>
     </div>

@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:web:public": "vite build --mode production",
+    "build:web:beta": "vite build --mode beta",
     "preview": "vite preview",
     "kill-os": "taskkill /IM sanctuary-os.exe /F || exit 0",
     "tauri": "tauri"

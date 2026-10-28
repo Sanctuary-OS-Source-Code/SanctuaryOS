@@ -270,9 +270,15 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
   const category = schema?.mod_categories?.find(
     (c: any) => c.id.toLowerCase() === rawType,
   );
-  if (category && category.icon_key) {
-    const translation = t(category.icon_key);
-    if (translation && translation !== category.icon_key) return translation;
+  if (category) {
+    if (category.icon) {
+      const glyph = String(category.icon).trim();
+      if (glyph) return t(`icon_${glyph}`, glyph) || glyph;
+    }
+    if (category.icon_key) {
+      const translation = t(category.icon_key, category.icon || category.icon_key);
+      if (translation && translation !== category.icon_key) return translation;
+    }
   }
 
   if (

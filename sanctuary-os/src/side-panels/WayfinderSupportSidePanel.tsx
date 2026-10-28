@@ -395,12 +395,7 @@ export default function WayfinderSupportSidePanel({
             <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--danger)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -422,12 +417,8 @@ export default function WayfinderSupportSidePanel({
                                 <span
                                   key={i}
                                   className={VAULT_CHIP_CLASS}
-                                  style={{
-                                    color: "var(--danger)",
-                                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                                  }}
                                 >
-                                    <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
+                                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
                                     <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
                                 </span>
                             ))}
@@ -441,12 +432,7 @@ export default function WayfinderSupportSidePanel({
             <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)] group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--danger)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -462,12 +448,8 @@ export default function WayfinderSupportSidePanel({
                             <span
                               key={i}
                               className={VAULT_CHIP_CLASS}
-                              style={{
-                                color: "var(--danger)",
-                                borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                              }}
                             >
-                                <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
+                                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
                                 <span>T{mod.tier} • {mod.name}</span>
                             </span>
                         ))}
@@ -480,12 +462,7 @@ export default function WayfinderSupportSidePanel({
             <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
                 <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--warning)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--warning) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
@@ -501,12 +478,8 @@ export default function WayfinderSupportSidePanel({
                             <span
                               key={i}
                               className={VAULT_CHIP_CLASS}
-                              style={{
-                                color: "var(--warning)",
-                                borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                              }}
                             >
-                                <span className="material-symbols-rounded !text-[12px] shrink-0">{t("icon_extension", "extension")}</span>
+                                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">{t("icon_extension", "extension")}</span>
                                 <span>T{mod.tier} • {mod.name}</span>
                             </span>
                         ))}

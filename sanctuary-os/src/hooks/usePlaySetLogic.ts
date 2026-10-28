@@ -1736,7 +1736,8 @@ export function usePlaySetLogic() {
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
       precomputeBlueprintConflicts(setName, targetSet.mods, config.vault_path).catch(() => {});
     } catch (err) {
-      setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${typeof err === "string" ? t(err) : t((err as any)?.message || String(err))}`);
+      const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
+      setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${t(errStr, errStr)}`);
     }
   }
 

@@ -47,9 +47,14 @@ import {
 } from "../components/universal/DispatchPollAndMeta";
 import {
   CANONICAL_DIRECTIVES,
+  CANONICAL_LEGAL_DOCS,
+  LEGAL_DOC_CATEGORIES,
+  LegalDocCategory,
   DirectiveSlug,
   syncDirectivesBidirectional,
+  syncLegalAndCovenantsBidirectional,
   saveDirectiveBothWays,
+  saveLegalDocBothWays,
   pushCodebaseDirectivesToKeepersCore,
   pullKeepersCoreDirectivesToCodebase,
 } from "../utils/directivesSync";
@@ -58,6 +63,7 @@ import {
   DirectiveBuilderCard,
   DirectiveBuilderSubCard,
   extractDirectiveBuilderSchema,
+  parseMarkdownToDirectiveSchema,
   stripDirectiveBuilderComment,
   embedDirectiveBuilderSchema,
   compileDirectiveSchemaToMarkdown,
@@ -91,7 +97,7 @@ const NEWS_CATEGORIES = [
   "Maintenance",
 ];
 
-const LEGAL_CATEGORIES = ["EULA", "Privacy", "Terms"];
+const LEGAL_CATEGORIES: string[] = [...LEGAL_DOC_CATEGORIES];
 
 type EditorRecordKind = "directive" | "news" | "legal";
 type EditorViewMode = "visual" | "wysiwyg" | "markdown";
@@ -113,6 +119,8 @@ export default function KeepersWebDirectivesEditor({
     EULA: null,
     Privacy: null,
     Terms: null,
+    PartnersAgreement: null,
+    ComplianceProtocol: null,
   });
 
   const [title, setTitle] = useState("");
@@ -302,8 +310,35 @@ export default function KeepersWebDirectivesEditor({
         (editor.storage as any).markdown.getMarkdown()
       );
       setContent(md);
-    } else if (editorMode === "markdown" && editor && nextMode === "wysiwyg") {
-      editor.commands.setContent(stripDirectiveBuilderComment(content));
+      if (nextMode === "visual" && activeCanonicalSlug) {
+        const parsed = parseMarkdownToDirectiveSchema(md, activeCanonicalSlug, t);
+        if (parsed) {
+          setBuilderSchema({
+            ...parsed,
+            title: title.trim() || parsed.title,
+            summary: description.trim() || parsed.summary,
+            isActive,
+          });
+        }
+      }
+    } else if (editorMode === "markdown") {
+      if (editor && nextMode === "wysiwyg") {
+        editor.commands.setContent(stripDirectiveBuilderComment(content));
+      } else if (nextMode === "visual" && activeCanonicalSlug) {
+        const parsed = parseMarkdownToDirectiveSchema(
+          stripDirectiveBuilderComment(content),
+          activeCanonicalSlug,
+          t
+        );
+        if (parsed) {
+          setBuilderSchema({
+            ...parsed,
+            title: title.trim() || parsed.title,
+            summary: description.trim() || parsed.summary,
+            isActive,
+          });
+        }
+      }
     }
 
     setEditorMode(nextMode);
@@ -318,7 +353,11 @@ export default function KeepersWebDirectivesEditor({
       });
 
       const canonicalCards = syncedList.map((rec) => {
-        const extracted = extractDirectiveBuilderSchema(rec.content);
+        const extracted = extractDirectiveBuilderSchema(
+          rec.content,
+          rec.slug,
+          t
+        );
         return {
           id: rec.slug,
           slug: rec.slug,
@@ -368,29 +407,34 @@ export default function KeepersWebDirectivesEditor({
         );
       }
 
-      // 3. Legal Documents (EULA, Privacy, Terms)
-      const { data: legalData } = await supabaseAuth
-        .from("keeper_system_broadcasts")
-        .select("*")
-        .in("category", LEGAL_CATEGORIES)
-        .order("created_at", { ascending: false });
-
-      if (legalData) {
-        const latestLegal: Record<string, any> = {
-          EULA: null,
-          Privacy: null,
-          Terms: null,
-        };
-        legalData.forEach((doc: any) => {
-          if (!latestLegal[doc.category]) {
-            latestLegal[doc.category] = {
-              ...doc,
-              record_kind: "legal" as EditorRecordKind,
-            };
-          }
-        });
-        setLegalDocsMap(latestLegal);
+      // 3. Legal & Sovereign Covenant Documents (EULA, Privacy, Terms, PartnersAgreement, ComplianceProtocol)
+      const syncedLegalMap = await syncLegalAndCovenantsBidirectional({
+        canWriteHub: true,
+      });
+      const latestLegal: Record<string, any> = {
+        EULA: null,
+        Privacy: null,
+        Terms: null,
+        PartnersAgreement: null,
+        ComplianceProtocol: null,
+      };
+      for (const legalCat of LEGAL_DOC_CATEGORIES) {
+        const rec = syncedLegalMap[legalCat];
+        if (rec) {
+          latestLegal[legalCat] = {
+            id: rec.id,
+            title: rec.title,
+            message: rec.content,
+            category: rec.category,
+            file_name: rec.file_path,
+            created_at: rec.updated_at,
+            updated_at: rec.updated_at,
+            is_active: true,
+            record_kind: "legal" as EditorRecordKind,
+          };
+        }
       }
+      setLegalDocsMap(latestLegal);
 
       if (currentUserId) {
         if (currentUserId === "system") {
@@ -423,7 +467,7 @@ export default function KeepersWebDirectivesEditor({
         .pushStatus(
           t(
             "dir_sync_toast_synced",
-            "Directives synchronized between Keepers Core & Codebase (.md)!"
+            "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
           ),
           "success"
         );
@@ -445,7 +489,7 @@ export default function KeepersWebDirectivesEditor({
         .pushStatus(
           t(
             "dir_sync_toast_pushed",
-            "Pushed all 5 local .md files to Keepers Core!"
+            "Pushed all 10 local .md files to Keepers Core!"
           ),
           "success"
         );
@@ -465,7 +509,7 @@ export default function KeepersWebDirectivesEditor({
         .pushStatus(
           t(
             "dir_sync_toast_pulled",
-            "Pulled all 5 directives from Keepers Core to local .md files!"
+            "Pulled all 10 directives & covenants from Keepers Core to local .md files!"
           ),
           "success"
         );
@@ -534,6 +578,26 @@ export default function KeepersWebDirectivesEditor({
         desc: t(
           "desc_terms",
           "The rules and regulations users must agree to in order to use the service."
+        ),
+      },
+      {
+        id: "PartnersAgreement",
+        label: t("spoke_card_partners_title", "Partner Spoke Agreement"),
+        shortBadge: t("spoke_badge_covenant", "Covenant"),
+        icon: t("icon_handshake", "handshake"),
+        desc: t(
+          "spoke_card_partners_desc",
+          "Bilateral sovereignty charter, 0%-cut non-custodial donations, readiness verification, and unilateral Cut the Cord rights."
+        ),
+      },
+      {
+        id: "ComplianceProtocol",
+        label: t("spoke_card_compliance_title", "Safety & Compliance Protocol"),
+        shortBadge: t("spoke_badge_zero_malware", "21+17 AV"),
+        icon: t("icon_verified_user", "verified_user"),
+        desc: t(
+          "spoke_card_compliance_desc",
+          "Universal 21+17 heuristic malware matrix, Zero-PII telemetry guarantees, and age-gating rules."
         ),
       },
     ],
@@ -681,7 +745,11 @@ export default function KeepersWebDirectivesEditor({
       if (slug) {
         const extractedSchema =
           draft?.builderSchema ||
-          extractDirectiveBuilderSchema(post.content || post.message) ||
+          extractDirectiveBuilderSchema(
+            post.content || post.message,
+            slug,
+            t
+          ) ||
           getDefaultDirectiveBuilderSchema(slug, t);
         const resolvedActive =
           draft?.isActive !== undefined
@@ -1020,54 +1088,58 @@ export default function KeepersWebDirectivesEditor({
       setContent(finalMarkdownBody);
     }
 
-    // 1. Saving a Legal Document
+    // 1. Saving a Legal or Sovereign Covenant Document (Both Ways: Hub DB + Local .md)
     if (editingRecordKind === "legal") {
       if (!finalMarkdownBody.trim()) return;
       setIsSubmitting(true);
-      const legalTitle = title.trim() || category;
-      const existingDoc = legalDocsMap[category];
-      const payload: any = {
+      const legalCat = (LEGAL_DOC_CATEGORIES.includes(
+        category as LegalDocCategory
+      )
+        ? category
+        : "EULA") as LegalDocCategory;
+      const legalTitle = title.trim() || CANONICAL_LEGAL_DOCS[legalCat].title;
+      const existingDoc = legalDocsMap[legalCat];
+
+      const saveRes = await saveLegalDocBothWays({
+        category: legalCat,
         title: legalTitle,
-        message: finalMarkdownBody.trim(),
-        category,
-        target_audience: "Public",
-        is_active: true,
-      };
-      if (existingDoc?.id) {
-        payload.id = existingDoc.id;
-      }
+        content: finalMarkdownBody.trim(),
+        id:
+          existingDoc?.id && !String(existingDoc.id).startsWith("legal_")
+            ? existingDoc.id
+            : undefined,
+      });
 
-      const { error } = await supabaseAuth
-        .from("keeper_system_broadcasts")
-        .upsert(payload)
-        .select();
-
-      if (!error) {
+      if (!saveRes.error) {
         await logArchitectAction(
-          "Updated Legal Doc",
+          "Synced Legal & Covenant Doc (Hub + .md)",
           "keeper_system_broadcasts",
-          legalTitle,
+          `${legalTitle} (${CANONICAL_LEGAL_DOCS[legalCat].file_path})`,
           undefined,
           "Keepers Core",
           true,
           {
             title: { to: legalTitle },
-            category: { to: category },
+            category: { to: legalCat },
             is_active: { to: true },
           }
         );
+        window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
         closeEditor();
         await fetchPostsAndAssets();
         useStore
           .getState()
           .pushStatus(
-            t("legal_doc_updated", "Legal Document Updated"),
+            t(
+              "dir_sync_toast_saved",
+              "Saved to Keepers Core & local .md file!"
+            ),
             "success"
           );
       } else {
         useStore
           .getState()
-          .pushStatus(`Failed to save: ${error.message}`, "error");
+          .pushStatus(`Failed to save: ${saveRes.error.message}`, "error");
       }
       setIsSubmitting(false);
       return;
@@ -1082,11 +1154,19 @@ export default function KeepersWebDirectivesEditor({
         : null;
 
     if (canonicalSlug && builderSchema) {
+      const baseSchema =
+        editorMode !== "visual" && finalMarkdownBody.trim()
+          ? parseMarkdownToDirectiveSchema(
+              finalMarkdownBody,
+              canonicalSlug,
+              t
+            ) || builderSchema
+          : builderSchema;
       const syncedSchema: DirectiveBuilderSchema = {
-        ...builderSchema,
+        ...baseSchema,
         slug: canonicalSlug,
-        title: title.trim() || builderSchema.title,
-        summary: description.trim() || builderSchema.summary,
+        title: title.trim() || baseSchema.title,
+        summary: description.trim() || baseSchema.summary,
         isActive,
       };
       if (editorMode === "visual" || !finalMarkdownBody.trim()) {
@@ -1317,7 +1397,7 @@ export default function KeepersWebDirectivesEditor({
       "citizen_guide") as DirectiveSlug;
     const iconMeta = SLUG_ICON_MAP[slug] || SLUG_ICON_MAP.citizen_guide;
     const effectiveSchema =
-      extractDirectiveBuilderSchema(post.content || post.message) ||
+      extractDirectiveBuilderSchema(post.content || post.message, slug, t) ||
       getDefaultDirectiveBuilderSchema(slug, t);
 
     const totalTabs = effectiveSchema.tabs.length;
@@ -1371,7 +1451,7 @@ export default function KeepersWebDirectivesEditor({
             )}
           </div>
         }
-        title={post.title}
+        title={effectiveSchema.title || post.title}
         subtitle={`${t("by_author", "BY")} ${t("author_sanctuary_team", "Sanctuary Foundry")}`}
         badges={
           <>
@@ -1381,14 +1461,12 @@ export default function KeepersWebDirectivesEditor({
               </span>
               <span>{post.category}</span>
             </span>
-            <span
-              className={`${VAULT_CHIP_CLASS} ${
-                isLive
-                  ? "!border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]"
-                  : "!text-[var(--subtext)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[12px]">
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  isLive ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                }`}
+              >
                 {isLive
                   ? t("icon_cell_tower", "cell_tower")
                   : t("icon_portable_wifi_off", "portable_wifi_off")}
@@ -1506,14 +1584,12 @@ export default function KeepersWebDirectivesEditor({
         icon={def.icon}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-            <span
-              className={`${VAULT_CHIP_CLASS} ${
-                doc
-                  ? "!border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)]"
-                  : ""
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[12px]">
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  doc ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                }`}
+              >
                 {doc
                   ? t("icon_check_circle", "check_circle")
                   : t("icon_gavel", "gavel")}

@@ -2,16 +2,17 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   SidePanel,
   EmptyState,
-  ActionButton,
   SidePanelHeroCard,
-  StatBox,
   UniversalGroup,
-  VAULT_CHIP_CLASS,
+  HoverTooltip,
+  cleanSearchName,
+  getModIcon,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { LabVerificationBadge } from "../components/LabVerificationGate";
+import { formatCleanModTitle } from "../side-panels/CommandIncompatiblePanel";
 
 export function ScoutQueueSidePanel({
   scoutQueue,
@@ -38,36 +39,22 @@ export function ScoutQueueSidePanel({
       subtitle={t("queue_desc", "Unidentified {mods} detected.")}
       icon={t("icon_biotech", "biotech")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[680px]"
+      widthClass="w-[90vw] md:w-[760px]"
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_biotech", "biotech")}
           overline={t("queue_title", "Scout Verification Queue")}
-          title={t("queue_desc", "Unidentified {mods} detected.")}
-          badge={`${queueItems.length} ${t("term_mods", "Items")}`}
-          badgeIcon={t("icon_biotech", "biotech")}
+          title={`${queueItems.length} ${t("queue_target", "{Mod} Targets")}`}
+          description={t("queue_desc", "Unidentified {mods} detected.")}
+          badge={
+            requireScoutLabTest
+              ? t("action_required", "Required")
+              : t("status_stable", "Optional")
+          }
+          badgeIcon={t("icon_verified_user", "verified_user")}
           variant={!session || isBanned ? "danger" : "accent"}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <StatBox
-              label={t("queue_target", "{Mod} Target")}
-              value={queueItems.length}
-              icon={t("icon_biotech", "biotech")}
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("status", "Lab Verification")}
-              value={
-                requireScoutLabTest
-                  ? t("action_required", "Required")
-                  : t("status_stable", "Optional")
-              }
-              icon={t("icon_verified_user", "verified_user")}
-              iconColorClass="text-[var(--success)]"
-            />
-          </div>
-        </SidePanelHeroCard>
+        />
 
         {!session || isBanned ? (
           <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -103,83 +90,138 @@ export function ScoutQueueSidePanel({
             title={`${t("queue_title", "Scout Verification Queue")} (${queueItems.length})`}
             icon={t("icon_biotech", "biotech")}
           >
-            <div className="flex flex-col gap-3">
-              {queueItems.map((mod: any, index: number) => (
-                <div
-                  key={index}
-                  className="w-full glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col gap-3.5 text-left transition-all"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div
-                        className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                        style={{
-                          borderColor:
-                            "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+              {queueItems.map((mod: any, index: number) => {
+                const rawFileName =
+                  String(mod.name || mod.path || "")
+                    .split(/[\\/]/)
+                    .pop() || "";
+                const rawTitle =
+                  cleanSearchName(
+                    mod.displayName || rawFileName || mod.name,
+                    activeGameSchema
+                  ) ||
+                  rawFileName ||
+                  mod.name;
+                const cleanTitle = formatCleanModTitle(rawTitle) || rawTitle;
+                const extMatch = rawFileName.match(/\.[^.]+$/);
+                const extLabel = extMatch
+                  ? extMatch[0].toUpperCase()
+                  : t("term_mod", "{Mod}");
+                const modIcon = getModIcon(mod, activeGameSchema, t);
+
+                const handleUploadDossier = () => {
+                  onOpenScoutDossier(mod);
+                  setScoutQueue((prev: any[]) =>
+                    prev.filter((_: any, i: number) => i !== index)
+                  );
+                };
+
+                const handleMarkLocal = async () => {
+                  try {
+                    const config: any = await invoke("get_saved_coordinates");
+                    await invoke("mark_explicitly_local", {
+                      vaultPath: config.vault_path,
+                      filePath: mod.path || mod.name,
+                    });
+                    setScoutQueue((prev: any[]) =>
+                      prev.filter((_: any, i: number) => i !== index)
+                    );
+                  } catch (e) {
+                    console.error(e);
+                  }
+                };
+
+                return (
+                  <div
+                    key={`${mod.hash || mod.name || index}-${index}`}
+                    onClick={handleUploadDossier}
+                    className="w-full glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex flex-col justify-between gap-3 text-left transition-all cursor-pointer group"
+                  >
+                    {/* Top Row: Full-Width Icon + Title + Filename Identity */}
+                    <div className="flex items-center gap-3 min-w-0 w-full">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[20px]">
-                          {t("icon_biotech", "biotech")}
+                          {modIcon}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0 flex-1">
-                        <span
-                          className={`self-start ${VAULT_CHIP_CLASS}`}
-                          style={{
-                            color: "var(--accent)",
-                            borderColor:
-                              "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
-                            {t("icon_biotech", "biotech")}
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <div className="relative group/scouttitle flex items-center min-w-0 w-fit max-w-full">
+                          <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+                            {cleanTitle}
                           </span>
-                          {t("queue_target", "{Mod} Target")}
-                        </span>
-                        <span className="text-sm font-black text-[var(--text)] truncate">
-                          {mod.displayName || mod.name}
-                        </span>
+                          <HoverTooltip
+                            className="z-[200]"
+                            title={cleanTitle}
+                            icon={modIcon}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+                          <span className="opacity-85 shrink-0">{extLabel}</span>
+                          {rawFileName && (
+                            <>
+                              <span className="opacity-40 shrink-0">•</span>
+                              <span className="font-mono text-[10px] truncate opacity-80">
+                                {rawFileName}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <LabVerificationBadge dnaHash={mod.hash} required={requireScoutLabTest} />
-                  </div>
 
-                  <div className="flex items-center gap-2.5 w-full pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                    <ActionButton
-                      onClick={() => {
-                        onOpenScoutDossier(mod);
-                        setScoutQueue((prev: any[]) =>
-                          prev.filter((_: any, i: number) => i !== index)
-                        );
-                      }}
-                      icon={t("icon_cloud_upload", "cloud_upload")}
-                      label={t("queue_btn_upload", "Upload Dossier")}
-                      variant="glass"
-                      className="flex-1"
-                    />
-                    <ActionButton
-                      onClick={async () => {
-                        try {
-                          const config: any = await invoke("get_saved_coordinates");
-                          await invoke("mark_explicitly_local", {
-                            vaultPath: config.vault_path,
-                            filePath: mod.path || mod.name,
-                          });
-                          setScoutQueue((prev: any[]) =>
-                            prev.filter((_: any, i: number) => i !== index)
-                          );
-                        } catch (e) {
-                          console.error(e);
-                        }
-                      }}
-                      icon={t("icon_flag", "flag")}
-                      label={t("queue_btn_flag", "Mark Local")}
-                      variant="glass"
-                      className="flex-1"
-                    />
+                    {/* Bottom Footer Row: Lab Verification Badge on Left | Actions on Right */}
+                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <LabVerificationBadge
+                          dnaHash={mod.hash}
+                          required={requireScoutLabTest}
+                          compact
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkLocal();
+                          }}
+                          className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--text)] hover:text-[var(--warning)] flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[13px] text-[var(--warning)]">
+                            {t("icon_flag", "flag")}
+                          </span>
+                          <span>{t("queue_btn_flag", "Mark Local")}</span>
+                          <HoverTooltip
+                            title={t("queue_btn_flag", "Mark Local")}
+                            variant="warning"
+                            className="group-hover/btn:flex z-[200] !right-0 !translate-x-0 !left-auto"
+                          />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUploadDossier();
+                          }}
+                          className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0 group/btn relative"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_cloud_upload", "cloud_upload")}
+                          </span>
+                          <HoverTooltip
+                            title={t("queue_btn_upload", "Upload Dossier")}
+                            variant="accent"
+                            className="group-hover/btn:flex z-[200] !right-0 !translate-x-0 !left-auto"
+                          />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </UniversalGroup>
         )}

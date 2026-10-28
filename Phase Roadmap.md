@@ -1,6 +1,26 @@
 # Sanctuary OS — Master Phase Roadmap
 
-Reverse-chronological engineering timeline from Phase 12 (Agnostic Multi-Game Future, Sovereignty & Liquid Glass) down to Phase 1 (Genesis & Cartographer).
+Reverse-chronological engineering timeline from Phase 13 (V5.8 Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync) and Phase 12 down to Phase 1 (Genesis & Cartographer).
+
+---
+
+## Phase 13 (V5.8): Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync (October 2026 — Active Era)
+**Status:** `ACTIVE PHASE` | **Date Range:** `October 2026 — Present` | **Focus:** `Master Schema & Lexicon Visual Studios, Guided Icon Override Builder, Universal 21+17 Heuristic Scanner, Static Edge 6-Provider Auto-Push, Partner Covenants & Bilateral Codebase ↔ Cloud Sync`
+
+- **Master Schema Visual Studio & Cross-Platform Windows/macOS Parity (Completed: October 2026):**
+  - Built the 4-Tab **Master Schema Visual Studio** (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) with **7 Game Architecture Presets** (`The Sims 4`, `Cyberpunk 2077`, `Skyrim SE / Fallout 4`, `GTA V`, `Baldur's Gate 3`, `Stardew Valley`, `Universal`).
+  - Added full macOS `.app` bundle and `~/Documents` / `~/Library/Application Support` pathing, `install_routes` secondary deployment routing, game-agnostic `mod_categories`, and the **Dynamic Config Watcher** (`config_extensions`) with automatic root-stray deduplication.
+- **Lexicon Terminology Studio, Guided Icon Override Builder & Interactive Codex Guides (Completed: October 2026):**
+  - Upgraded the **Lexicon Visual Studio** with a **Guided OS Icon Override Builder** featuring searchable target icon and replacement Material Symbol dropdowns with live `Default → New` glyph previews.
+  - Added interactive **Master Schema Architecture Codex** and **Lexicon & Terminology Codex** drawers (`SidePanel`) with 1-click cross-switching.
+- **Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules) & Threat Manifest Telemetry (Completed: October 2026):**
+  - Expanded the Rust Heuristic Engine with in-memory Zlib/Zstd DBPF stream decompression and Base64/Hex string deobfuscation across **21 Core Heuristics (`keeper_heuristic_signatures`) + 17 Spoke Heuristics (`heuristic_signatures`)**.
+  - Added **Move-mode source disposition tracking** and optional **Zero-PII Threat Manifest** reporting from the Quarantine Lockdown SidePanel.
+- **Decentralized Static Edge Direct Push (`manifest.json` & `catalog.json`) (Completed: October 2026):**
+  - Engineered 1-click OS Auto-Push across 6 providers (`GitHub Repo / Cloudflare Pages`, `GitHub Gist`, `GitLab / Codeberg`, `Neocities`, `Personal WebDAV`, and `Local Synced Folder`) with automatic `previous_hashes` lineage rollover and single-URL multi-mod `catalog.json` support.
+- **Readiness-Gated Partner Onboarding, Covenants, Supporter Pipeline & Bilateral Cloud Sync (Completed: October 2026):**
+  - Integrated mandatory **Sanctuary Partners Agreement** and **Compliance Protocol** overlay inspection into both the Landing Page **Apply to be a Partner** pipeline and **Wayfinder Hub → Spoke Setup & Maintenance**.
+  - Launched the **$5 = +30 Days Daily Dev Build Supporter Pipeline** (Windows `.msi`/`.exe` & macOS `.dmg`/`.app.tar.gz`) and **Bilateral Offline Codebase ↔ Live Cloud Hub Synchronization** for all Directives, Legal Covenants, Schemas, and Lexicons.
 
 ---
 

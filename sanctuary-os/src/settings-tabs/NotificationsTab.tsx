@@ -603,16 +603,16 @@ export default function NotificationsTab() {
                   : t('icon_notifications', 'notifications')
             }
             actions={
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-transparent text-[9px] font-black uppercase tracking-wider ${
-                  isGranted
-                    ? 'border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]'
-                    : isDenied
-                      ? 'border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)]'
-                      : 'border-[color-mix(in_srgb,var(--accent)_42%,transparent)] text-[var(--accent)]'
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[11px]">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
+                <span
+                  className={`material-symbols-outlined !text-[11px] ${
+                    isGranted
+                      ? 'text-[var(--success)]'
+                      : isDenied
+                        ? 'text-[var(--danger)]'
+                        : 'text-[var(--accent)]'
+                  }`}
+                >
                   {isGranted
                     ? t('icon_check_circle', 'check_circle')
                     : isDenied
@@ -665,7 +665,7 @@ export default function NotificationsTab() {
             )}
             icon={t('icon_done_all', 'done_all')}
             actions={
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] text-[9px] font-black uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
                 <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
                   {selectedScope === 'global'
                     ? t('icon_public', 'public')
@@ -697,8 +697,8 @@ export default function NotificationsTab() {
             icon={t('icon_hub', 'hub')}
             actions={
               selectedScope !== 'global' ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider">
-                  <span className="material-symbols-outlined !text-[11px]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
+                  <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
                     {spokeHasCustomOverrides
                       ? t('icon_tune', 'tune')
                       : t('icon_public', 'public')}
@@ -797,7 +797,7 @@ export default function NotificationsTab() {
             icon={t('icon_notifications_active', 'notifications_active')}
             onClick={() => setShowMasonPanel(true)}
             actions={
-              <div className="px-2.5 py-1 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_36%,transparent)] flex items-center gap-1.5">
+              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[12px] theme-text-accent">
                   {t('icon_notifications_active', 'notifications_active')}
                 </span>

@@ -11,6 +11,7 @@ export function CustomDropdown({
   options,
   allowCustom,
   searchable,
+  searchPlaceholder,
   multiSelect: multiSelectProp,
   allowMultiSelect,
   disableTint,
@@ -146,9 +147,7 @@ export function CustomDropdown({
       effectiveValue !== null &&
       String(effectiveValue).trim() !== "";
 
-  const showSearch = Boolean(
-    searchable && (allowCustom || (options && options.length > 6)),
-  );
+  const showSearch = Boolean(searchable);
 
   const dropdownMenu = isOpen
     ? createPortal(
@@ -189,7 +188,7 @@ export function CustomDropdown({
                       type="text"
                       data-1p-ignore="true"
                       autoFocus
-                      placeholder={t("search", "Search...")}
+                      placeholder={searchPlaceholder || t("search", "Search...")}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       className="w-full bg-transparent border-none text-[11px] font-medium focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-60"
@@ -402,7 +401,7 @@ export function CustomDropdown({
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
           {multiSelect && selectedValues.length > 1 && (
-            <span className="px-1.5 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black leading-none">
+            <span className="px-1.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black leading-none">
               {selectedValues.length}
             </span>
           )}
@@ -1222,12 +1221,27 @@ export function CustomClassificationDropdown({
 }) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+  const schemaCats = activeGameSchema?.mod_categories || [];
+  const hasUnknown = schemaCats.some(
+    (c: any) => String(c.id).toLowerCase() === "unknown"
+  );
   const options = [
-    { id: "Unknown", label: t("unknown", "Unknown") || "Unknown" },
-    ...(activeGameSchema?.mod_categories || []).map((c: any) => ({
-      id: c.id,
-      label: t(c.lexicon_key) || c.id,
-    })),
+    ...(!hasUnknown
+      ? [{ id: "Unknown", label: t("unknown", "Unknown"), icon: t("icon_help", "help") }]
+      : []),
+    ...schemaCats.map((c: any) => {
+      const fallbackLabel = c.label || c.name || c.id;
+      const resolvedIcon = c.icon
+        ? t(`icon_${c.icon}`, c.icon)
+        : c.icon_key
+          ? t(c.icon_key, "")
+          : undefined;
+      return {
+        id: c.id,
+        label: c.lexicon_key ? t(c.lexicon_key, fallbackLabel) : fallbackLabel,
+        icon: resolvedIcon || undefined,
+      };
+    }),
   ];
 
   return (

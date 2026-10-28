@@ -181,10 +181,10 @@ export function DefconSidePanel({
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div
-                    className={`w-12 h-12 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
+                    className={`w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                       isDefconActive
-                        ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
-                        : "border-[color-mix(in_srgb,var(--success)_42%,transparent)] text-[var(--success)]"
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--success)]"
                     }`}
                   >
                     <span
@@ -224,14 +224,12 @@ export function DefconSidePanel({
                   </div>
                 </div>
 
-                <span
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-transparent flex items-center gap-1.5 shrink-0 ${
-                    isDefconActive
-                      ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
-                      : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
+                <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`material-symbols-outlined !text-[12px] ${
+                      isDefconActive ? "text-[var(--danger)]" : "text-[var(--success)]"
+                    }`}
+                  >
                     {isDefconActive
                       ? t("icon_lock", "lock")
                       : t("icon_check_circle", "check_circle")}
@@ -291,8 +289,8 @@ export function DefconSidePanel({
                   </span>
                 </div>
 
-                <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                     {t("icon_public", "public")}
                   </span>
                   {t("defcon_scope_global", "All Connected Clients")}

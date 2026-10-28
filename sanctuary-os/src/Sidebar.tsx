@@ -133,7 +133,7 @@ export function Sidebar({
     const container = document.getElementById('sanctuary-main-scroll');
     if (!container) return;
     const handleScroll = () => {
-      const sectionIds = ['workspaces', 'news', 'system_directives', 'download', 'eula'];
+      const sectionIds = ['workspaces', 'news', 'system_directives', 'download', 'feedback', 'contact', 'eula'];
       const containerTop = container.getBoundingClientRect().top;
       let current = 'workspaces';
       for (const id of sectionIds) {
@@ -294,6 +294,38 @@ export function Sidebar({
                   setHoveredTooltip={setHoveredTooltip}
                 />
               )}
+              <NavButton
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'feedback'}
+                onClick={() => {
+                  setActiveLandingSection('feedback');
+                  setView("landing");
+                  setTimeout(() => {
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('feedback');
+                    else window.location.href = `/#feedback`;
+                  }, 80);
+                }}
+                icon={t("icon_rate_review", "rate_review")}
+                label={t("landing_nav_feedback", "Feedback & Support")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              <NavButton
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'contact'}
+                onClick={() => {
+                  setActiveLandingSection('contact');
+                  setView("landing");
+                  setTimeout(() => {
+                    if (isDesktop() || isRootDomain()) scrollToLandingSection('contact');
+                    else window.location.href = `/#contact`;
+                  }, 80);
+                }}
+                icon={t("icon_handshake", "handshake")}
+                label={t("landing_nav_contact", "Contact & Partners")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'eula'}
                 onClick={() => {

@@ -993,83 +993,181 @@ export function IncompatibleModCard({
         isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
       } ${effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""}`}
     >
-      {/* Top Tier: Icon Well + Title/Creator Identity + Quick Action Buttons */}
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {image ? (
-            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-              <img src={image} alt={title} className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div
-              className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-opacity ${
-                isAmber
-                  ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
-                  : "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
-            </div>
-          )}
+      {/* Top Tier: Full-Width Icon Well + Title/Creator Identity */}
+      <div className="flex items-center gap-3 min-w-0 w-full">
+        {image ? (
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+            <img src={image} alt={title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-opacity ${
+              isAmber ? "text-[var(--warning)]" : "text-[var(--danger)]"
+            }`}
+          >
+            <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+          </div>
+        )}
 
-          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-            <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
-              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
-                {title}
-              </span>
-              <HoverTooltip
-                className="z-[100]"
-                title={title}
-                icon={modIcon}
-              />
-            </div>
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+              {title}
+            </span>
+            <HoverTooltip
+              className="z-[100]"
+              title={title}
+              icon={modIcon}
+            />
+          </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
-              {validCreator && (
-                <>
-                  <span className="truncate opacity-85">
-                    {formatCleanModTitle(validCreator)}
-                  </span>
-                  <span className="opacity-40 shrink-0">•</span>
-                </>
-              )}
-              <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
-              {hasUpdate && cleanNewVer ? (
-                <>
-                  <span className="opacity-40 shrink-0">•</span>
-                  <span className="relative group/verinline font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">
-                    ↑ v{cleanNewVer}
-                    <HoverTooltip
-                      className="z-[100]"
-                      title={
-                        cleanInstalledVer
-                          ? `v${cleanInstalledVer} → v${cleanNewVer}`
-                          : `v${cleanNewVer}`
-                      }
-                      icon={t("icon_update", "update")}
-                      variant="accent"
-                    />
-                  </span>
-                </>
-              ) : cleanInstalledVer ? (
-                <>
-                  <span className="opacity-40 shrink-0">•</span>
-                  <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
-                    v{cleanInstalledVer}
-                  </span>
-                </>
-              ) : null}
-            </div>
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+            {validCreator && (
+              <>
+                <span className="truncate opacity-85">
+                  {formatCleanModTitle(validCreator)}
+                </span>
+                <span className="opacity-40 shrink-0">•</span>
+              </>
+            )}
+            <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
+            {groupedMods.length > 1 && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="opacity-85 shrink-0">
+                  {groupedMods.length} {t("badge_modules_count", "Modules")}
+                </span>
+              </>
+            )}
+            {hasUpdate && cleanNewVer ? (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="relative group/verinline font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">
+                  ↑ v{cleanNewVer}
+                  <HoverTooltip
+                    className="z-[100]"
+                    title={
+                      cleanInstalledVer
+                        ? `v${cleanInstalledVer} → v${cleanNewVer}`
+                        : `v${cleanNewVer}`
+                    }
+                    icon={t("icon_update", "update")}
+                    variant="accent"
+                  />
+                </span>
+              </>
+            ) : cleanInstalledVer ? (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
+                  v{cleanInstalledVer}
+                </span>
+              </>
+            ) : null}
+            {groupedMods.length === 1 && primaryIssue?.detailValue && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="relative group/issueval font-mono text-[10px] font-semibold text-[var(--subtext)] opacity-80 truncate">
+                  {primaryIssue.detailValue}
+                  <HoverTooltip
+                    className="z-[100]"
+                    title={`${primaryIssue.issueLabel}: ${primaryIssue.detailValue}`}
+                    icon={primaryIssue.icon}
+                  />
+                </span>
+              </>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Top-Right Compact Action Buttons */}
-        <div className="flex items-center gap-1.5 shrink-0">
+      {/* Bottom Status & Action Bar: Single Status Badge on Left | Uniform Action Icon Buttons on Right */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {primaryIssue && (
+            <span className={`relative group/statusbadge ${VAULT_CHIP_CLASS}`}>
+              <span
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                  primaryIssue.type === "amber"
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--danger)]"
+                }`}
+              >
+                {primaryIssue.icon}
+              </span>
+              <span>{primaryIssue.issueLabel}</span>
+              {extraIssues.length > 0 && (
+                <span className="opacity-75">+{extraIssues.length}</span>
+              )}
+              <HoverTooltip
+                className="z-[100]"
+                title={
+                  [primaryIssue, ...extraIssues]
+                    .map((r) =>
+                      r.detailValue ? `${r.issueLabel}: ${r.detailValue}` : r.issueLabel
+                    )
+                    .join("\n")
+                }
+                icon={primaryIssue.icon}
+                content={
+                  <div className="flex flex-col items-start gap-1.5">
+                    {[primaryIssue, ...extraIssues].map((r, rIdx) => (
+                      <div
+                        key={rIdx}
+                        className="flex items-center gap-2 text-[11px] font-bold tracking-wide text-left leading-snug text-[var(--text)]"
+                      >
+                        <span
+                          className={`material-symbols-outlined !text-[15px] shrink-0 ${
+                            r.type === "amber"
+                              ? "text-[var(--warning)]"
+                              : "text-[var(--danger)]"
+                          }`}
+                        >
+                          {r.icon}
+                        </span>
+                        <span>
+                          {r.detailValue ? `${r.issueLabel}: ${r.detailValue}` : r.issueLabel}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                }
+              />
+            </span>
+          )}
+        </div>
+
+        {/* Bottom-Right Compact Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {groupedMods.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isExpanded
+                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${groupedMods.length} ${t("badge_modules_count", "Modules")}`}
+                icon={t("icon_account_tree", "account_tree")}
+              />
+            </button>
+          )}
+
           {hasUpdate && cleanNewVer && (
             <button
               type="button"
               onClick={openModUpdate}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_update", "update")}
@@ -1148,87 +1246,14 @@ export function IncompatibleModCard({
         </div>
       </div>
 
-      {/* Bottom Status Bar: Single Status Badge on Left | Modules Toggle or Subtle Detail on Right */}
-      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {primaryIssue && (
-            <span
-              className={`relative group/statusbadge ${VAULT_CHIP_CLASS} ${
-                primaryIssue.type === "amber"
-                  ? "!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)]"
-                  : "!border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[12px] shrink-0">
-                {primaryIssue.icon}
-              </span>
-              <span>{primaryIssue.issueLabel}</span>
-              {extraIssues.length > 0 && (
-                <span className="opacity-75">+{extraIssues.length}</span>
-              )}
-              <HoverTooltip
-                className="z-[100]"
-                title={
-                  [primaryIssue, ...extraIssues]
-                    .map((r) =>
-                      r.detailValue ? `${r.issueLabel}: ${r.detailValue}` : r.issueLabel
-                    )
-                    .join(" • ")
-                }
-                icon={primaryIssue.icon}
-              />
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {groupedMods.length > 1 ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded((prev) => !prev);
-              }}
-              className={`${VAULT_CHIP_CLASS} transition-all cursor-pointer ${
-                isExpanded
-                  ? "!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] !text-[var(--accent)]"
-                  : "hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_account_tree", "account_tree")}
-              </span>
-              <span>
-                {groupedMods.length} {t("badge_modules_count", "Modules")}
-              </span>
-              <span
-                className={`material-symbols-outlined !text-[13px] opacity-80 transition-transform duration-200 ${
-                  isExpanded ? "rotate-180 text-[var(--accent)]" : ""
-                }`}
-              >
-                {t("icon_expand_more", "expand_more")}
-              </span>
-            </button>
-          ) : primaryIssue?.detailValue ? (
-            <span className="relative group/issueval font-mono text-[10px] font-semibold text-[var(--subtext)] opacity-80 truncate max-w-[130px]">
-              {primaryIssue.detailValue}
-              <HoverTooltip
-                className="z-[100] !right-0 !translate-x-0 !left-auto"
-                title={`${primaryIssue.issueLabel}: ${primaryIssue.detailValue}`}
-                icon={primaryIssue.icon}
-              />
-            </span>
-          ) : null}
-        </div>
-      </div>
-
       {/* Compact Recessed Linked Modules Tray */}
       {isExpanded && groupedMods.length > 1 && (
         <div
           onClick={(e) => e.stopPropagation()}
           className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in fade-in slide-in-from-top-1 duration-200"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[196px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="max-h-[196px] overflow-y-auto custom-scrollbar pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {groupedMods.map((gm: any, gIdx: number) => {
               const gmName =
                 formatAddonModuleName(gm, activeGameSchema) ||
@@ -1329,6 +1354,7 @@ export function IncompatibleModCard({
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       )}
@@ -1528,13 +1554,14 @@ export function ConflictComparisonCard({
           const cardElement = (
             <div
               key={`${ac.pairId}-slot-${sIdx}`}
-              className={`glass-surface rounded-xl p-3 border transition-all flex items-center justify-between gap-2.5 min-w-0 ${
+              className={`glass-surface rounded-xl p-3 border transition-all flex flex-col justify-between gap-2.5 min-w-0 ${
                 slot.isWinner && !isTier4
                   ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
                   : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {/* Top Tier: Full-Width Icon + Title/Creator Identity */}
+              <div className="flex items-center gap-2.5 min-w-0 w-full">
                 <div className="w-9 h-9 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 overflow-hidden">
                   {slot.image ? (
                     <img
@@ -1571,79 +1598,91 @@ export function ConflictComparisonCard({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isTier4 ? (
-                  allow_write &&
-                  toggleInActiveSet && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toggleInActiveSet(
-                          slot.mod._originalSetName || slot.mod.name,
-                          true,
-                          true
-                        )
-                      }
-                      className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
-                    >
-                      <span className="material-symbols-outlined !text-[15px]">
-                        {t("icon_delete", "delete")}
-                      </span>
-                      <HoverTooltip
-                        className="z-[100] !right-0 !translate-x-0 !left-auto"
-                        title={t("btn_remove", "{Remove}")}
-                        icon={t("icon_delete", "delete")}
-                        variant="danger"
-                      />
-                    </button>
-                  )
-                ) : Number(ac.conflict?.severity_rank) === 3 ? (
-                  slot.isWinner ? (
-                    <div className={winnerBadgeClass}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                        {t("icon_check_circle", "check_circle")}
-                      </span>
-                      <span>{t("winner", "WINNING {MOD}")}</span>
-                    </div>
-                  ) : slot.isLoser ? (
-                    <div className={loserBadgeClass}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                        {t("icon_block", "block")}
-                      </span>
-                      <span>{t("bp_overridden_by_winner", "Overridden")}</span>
-                    </div>
-                  ) : (
+              {/* Bottom Tier: Type/Status Badge on Left | Action Button on Right */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {isScript
+                      ? t("icon_terminal", "terminal")
+                      : t("icon_deployed_code", "deployed_code")}
+                  </span>
+                  <span>{mTypeLabel}</span>
+                </span>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                  {isTier4 ? (
                     allow_write &&
-                    scopeName &&
-                    applyConflictOverride && (
+                    toggleInActiveSet && (
                       <button
                         type="button"
                         onClick={() =>
-                          applyConflictOverride(
+                          toggleInActiveSet(
                             slot.mod._originalSetName || slot.mod.name,
-                            ac.pairId,
-                            scopeName
+                            true,
+                            true
                           )
                         }
-                        className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                        className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
                       >
                         <span className="material-symbols-outlined !text-[15px]">
-                          {t("icon_check_circle", "check_circle")}
+                          {t("icon_delete", "delete")}
                         </span>
                         <HoverTooltip
                           className="z-[100] !right-0 !translate-x-0 !left-auto"
-                          title={t("bp_select_winning_artifact", "Select Winner")}
-                          icon={t("icon_check_circle", "check_circle")}
-                          variant="accent"
+                          title={t("btn_remove", "{Remove}")}
+                          icon={t("icon_delete", "delete")}
+                          variant="danger"
                         />
                       </button>
                     )
-                  )
-                ) : getPriorityDrop ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-28">{getPriorityDrop(slot.mod)}</div>
-                  </div>
-                ) : null}
+                  ) : Number(ac.conflict?.severity_rank) === 3 ? (
+                    slot.isWinner ? (
+                      <div className={winnerBadgeClass}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        <span>{t("winner", "WINNING {MOD}")}</span>
+                      </div>
+                    ) : slot.isLoser ? (
+                      <div className={loserBadgeClass}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                          {t("icon_block", "block")}
+                        </span>
+                        <span>{t("bp_overridden_by_winner", "Overridden")}</span>
+                      </div>
+                    ) : (
+                      allow_write &&
+                      scopeName &&
+                      applyConflictOverride && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            applyConflictOverride(
+                              slot.mod._originalSetName || slot.mod.name,
+                              ac.pairId,
+                              scopeName
+                            )
+                          }
+                          className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_check_circle", "check_circle")}
+                          </span>
+                          <HoverTooltip
+                            className="z-[100] !right-0 !translate-x-0 !left-auto"
+                            title={t("bp_select_winning_artifact", "Select Winner")}
+                            icon={t("icon_check_circle", "check_circle")}
+                            variant="accent"
+                          />
+                        </button>
+                      )
+                    )
+                  ) : getPriorityDrop ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-28">{getPriorityDrop(slot.mod)}</div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           );
@@ -1654,10 +1693,8 @@ export function ConflictComparisonCard({
                 {cardElement}
                 <div className="hidden sm:flex items-center justify-center">
                   <div
-                    className={`w-7 h-7 rounded-full glass-panel border flex items-center justify-center shrink-0 ${
-                      isTier4
-                        ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)] text-[var(--danger)]"
-                        : "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                    className={`w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                      isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
                     }`}
                   >
                     <span className="material-symbols-outlined !text-[14px]">

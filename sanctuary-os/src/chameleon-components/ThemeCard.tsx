@@ -437,10 +437,12 @@ export function DynamicBlueprintPreviewBanner({
                 </span>
               </div>
               <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                  row.isScript ? 'bg-[var(--success)]' : 'bg-[var(--accent)]'
+                className={`text-[6.5px] font-mono font-black uppercase tracking-wider shrink-0 ${
+                  row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
                 }`}
-              />
+              >
+                {row.isScript ? t('script', 'SCRIPT') : t('pkg_short', 'PKG')}
+              </span>
             </div>
           ))}
         </div>
@@ -963,7 +965,7 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
             <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between gap-2 z-20">
               <div className="flex items-center gap-1.5 flex-wrap">
                 {isActive && (
-                  <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]`}>
+                  <span className={VAULT_CHIP_CLASS}>
                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                       {t("icon_check_circle", "check_circle")}
                     </span>

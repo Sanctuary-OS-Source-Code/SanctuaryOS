@@ -123,14 +123,8 @@ export const WorkbenchTemplateGuide: React.FC<WorkbenchTemplateGuideProps> = ({ 
         >
           <div className="glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 text-[12px] opacity-90 leading-relaxed font-mono">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                   {t("icon_tune", "tune")}
                 </span>
                 {t("auto_supported_types", "Supported Types:")}

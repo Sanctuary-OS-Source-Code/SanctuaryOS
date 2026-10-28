@@ -190,13 +190,9 @@ export function MissingImportsAlert({
         >
           <div className="flex items-center gap-3.5 min-w-0 pr-2 flex-1">
             <div
-              className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+              className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
               style={{
                 color: mod.is_paid || mod.is_early_access ? "var(--warning)" : "var(--accent)",
-                borderColor:
-                  mod.is_paid || mod.is_early_access
-                    ? "color-mix(in srgb, var(--warning) 25%, var(--border))"
-                    : "color-mix(in srgb, var(--accent) 25%, var(--border))",
               }}
             >
               <span className="material-symbols-outlined !text-[20px]">
@@ -217,28 +213,16 @@ export function MissingImportsAlert({
               {(mod.is_paid || mod.is_early_access) && (
                 <div className="flex flex-wrap gap-2 mt-1">
                   {mod.is_early_access && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {t("icon_science", "science")}
                       </span>
                       {t("badge_early_access", "Early Access")}
                     </span>
                   )}
                   {mod.is_paid && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--warning)",
-                        borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                         {t("icon_monetization_on", "monetization_on")}
                       </span>
                       {t("badge_paid", "Paid")}

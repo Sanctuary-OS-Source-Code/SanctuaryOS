@@ -949,7 +949,7 @@ export default function ModDossier({
       if (flavorV)
         v = (flavorV.isLocalOverride && flavorV.version) || flavorV.mod_versions?.[0]?.version_label || flavorV.version;
     }
-    return v || t("unknown", "Local");
+    return v || t("source_local", "Local");
   })();
 
   const resolvedCreatedAt = (() => {
@@ -962,7 +962,7 @@ export default function ModDossier({
         .reverse();
       if (dates.length > 0) dt = dates[0];
     }
-    return dt ? new Date(dt).toLocaleDateString() : t("unknown", "Local");
+    return dt ? new Date(dt).toLocaleDateString() : t("source_local", "Local");
   })();
 
   const resolvedUpdatedAt = (() => {
@@ -975,7 +975,7 @@ export default function ModDossier({
         .reverse();
       if (dates.length > 0) dt = dates[0];
     }
-    return dt ? new Date(dt).toLocaleDateString() : t("unknown", "Local");
+    return dt ? new Date(dt).toLocaleDateString() : t("source_local", "Local");
   })();
 
   const coverImageUrl =
@@ -992,7 +992,7 @@ export default function ModDossier({
         isOpen={isDossierOpen}
         onClose={handleClose}
         title={cleanArtifactTitle}
-        subtitle={`${mod.author || t("unknown", "Local")} • ${statusLabel}`}
+        subtitle={`${mod.author || t("source_local", "Local")} • ${statusLabel}`}
         icon={getModIcon(mod, activeGameSchema, t)}
         iconColorClass={
           statusVariant === "danger"
@@ -1004,8 +1004,8 @@ export default function ModDossier({
                 : "text-[var(--accent)]"
         }
         widthClass="w-[820px] max-w-[100vw]"
-        backdropZ="z-[100001]"
-        panelZ="z-[100002]"
+        backdropZ="z-[100002]"
+        panelZ="z-[100003]"
         headerActions={
           <PanelHeaderGroup>
             {editMode ? (
@@ -1233,7 +1233,7 @@ export default function ModDossier({
             title={statusLabel}
             description={
               mod.status_reason ||
-              `${cleanArtifactTitle} • ${mod.author || t("unknown", "Local")}`
+              `${cleanArtifactTitle} • ${mod.author || t("source_local", "Local")}`
             }
             badge={
               mod.name?.includes(".")
@@ -1270,30 +1270,16 @@ export default function ModDossier({
                     />
                   )}
                   {(editMode ? metaInputs.is_early_access : mod.is_early_access) && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {t("icon_science", "science")}
                       </span>
                       {t("badge_early_access", "Early Access")}
                     </span>
                   )}
                   {(editMode ? metaInputs.is_paid : mod.is_paid) && (
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--warning)",
-                        borderColor:
-                          "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                         {t("icon_monetization_on", "monetization_on")}
                       </span>
                       {t("badge_paid", "Paid")}
@@ -1389,7 +1375,7 @@ export default function ModDossier({
                 <div className="grid grid-cols-2 gap-3">
                   <StatBox
                     label={t("mason", "{Mason}")}
-                    value={mod.author || t("unknown", "Local")}
+                    value={mod.author || t("source_local", "Local")}
                     icon={t("icon_person", "person")}
                     iconColorClass="text-[var(--accent)]"
                     onClick={
@@ -1488,13 +1474,7 @@ export default function ModDossier({
                 {(metaInputs.manifest_url || mod.manifest_url) && (
                   <div className="flex items-center justify-between gap-4 p-3.5 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                        style={{
-                          borderColor:
-                            "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {t("icon_network_wifi", "network_wifi")}
                         </span>
@@ -1687,57 +1667,6 @@ export default function ModDossier({
             )}
           </UniversalGroup>
 
-          {editMode && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <ActionButton
-                variant="glass"
-                icon={t("icon_close", "close")}
-                label={t("cancel", "Cancel")}
-                onClick={() => {
-                  setEditMode(false);
-                  setIsCorrecting(false);
-                }}
-                className="!w-full !h-11"
-              />
-              {isCorrecting &&
-              session &&
-              mod.compliance_tier !== 1 &&
-              mod.compliance_tier !== 2 ? (
-                <ActionButton
-                  variant="glass"
-                  icon={
-                    requireScoutLabTest && !isModLabVerified
-                      ? t("icon_lock", "lock")
-                      : t("icon_send", "send")
-                  }
-                  label={
-                    isSaving
-                      ? t("btn_submitting", "Submitting...")
-                      : t("btn_submit_corrections", "Submit Corrections")
-                  }
-                  onClick={handleSubmitToVault}
-                  disabled={
-                    isSaving || (requireScoutLabTest && !isModLabVerified)
-                  }
-                  className="!w-full !h-11 !text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-                />
-              ) : (
-                <ActionButton
-                  variant="glass"
-                  icon={t("hub_save", "save")}
-                  label={
-                    isSaving
-                      ? t("dossier_btn_saving", "Saving...")
-                      : t("btn_save_local", "Save Changes")
-                  }
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="!w-full !h-11 !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                />
-              )}
-            </div>
-          )}
-
           {kids.length > 0 && (
             <UniversalGroup
               title={`${t("manifest", "Manifest")} (${kids.length})`}
@@ -1821,15 +1750,8 @@ export default function ModDossier({
                           className="!hidden group-hover/title:!flex z-[100] left-0 bottom-full mb-1"
                         />
                         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: "var(--subtext)",
-                              borderColor:
-                                "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
                               {String(kid.name || "")
                                 .toLowerCase()
                                 .includes("ts4script")
@@ -1844,31 +1766,21 @@ export default function ModDossier({
                                   t("label_artifact", "{Mod}")
                                 ).toUpperCase()}
                           </span>
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: "var(--accent)",
-                              borderColor:
-                                "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                               {t("icon_history", "history")}
                             </span>
                             <span className="truncate max-w-[110px]">
                               {kid.mod_versions?.[0]?.version_label ||
                                 kid.version ||
-                                t("unknown", "Local")}
+                                t("source_local", "Local")}
                             </span>
                           </span>
-                          <span
-                            className={`${VAULT_CHIP_CLASS} max-w-[140px]`}
-                            style={{
-                              color: kidStatusVar,
-                              borderColor: `color-mix(in srgb, ${kidStatusVar} 35%, var(--border))`,
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={`${VAULT_CHIP_CLASS} max-w-[140px]`}>
+                            <span
+                              className="material-symbols-rounded !text-[12px] shrink-0"
+                              style={{ color: kidStatusVar }}
+                            >
                               {kidStatusIcon}
                             </span>
                             <span className="truncate">
@@ -1957,16 +1869,11 @@ export default function ModDossier({
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
-                          className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                          className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                             match
                               ? "text-[var(--accent)]"
                               : "text-[var(--danger)]"
                           }`}
-                          style={{
-                            borderColor: match
-                              ? "color-mix(in srgb, var(--accent) 25%, var(--border))"
-                              : "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                          }}
                         >
                           <span className="material-symbols-outlined !text-[18px]">
                             {match
@@ -1978,16 +1885,12 @@ export default function ModDossier({
                           {displayName}
                         </span>
                       </div>
-                      <span
-                        className={VAULT_CHIP_CLASS}
-                        style={{
-                          color: match ? "var(--accent)" : "var(--danger)",
-                          borderColor: match
-                            ? "color-mix(in srgb, var(--accent) 35%, var(--border))"
-                            : "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span
+                          className={`material-symbols-rounded !text-[12px] shrink-0 ${
+                            match ? "text-[var(--accent)]" : "text-[var(--danger)]"
+                          }`}
+                        >
                           {match
                             ? t("icon_extension", "extension")
                             : t("icon_error", "error")}
@@ -2016,13 +1919,7 @@ export default function ModDossier({
                       className="group flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all cursor-pointer"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div
-                          className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                          style={{
-                            borderColor:
-                              "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                          }}
-                        >
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined !text-[18px]">
                             {t("icon_account_tree", "account_tree")}
                           </span>
@@ -2031,15 +1928,8 @@ export default function ModDossier({
                           {displayName}
                         </span>
                       </div>
-                      <span
-                        className={VAULT_CHIP_CLASS}
-                        style={{
-                          color: "var(--accent)",
-                          borderColor:
-                            "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                           {t("icon_account_tree", "account_tree")}
                         </span>
                         {t("identity_twin", "Twin")}
@@ -2064,10 +1954,10 @@ export default function ModDossier({
           )
             .replace(/_/g, " ")
             .replace(/\.[^/.]+$/, "")}
-          subtitle={`${kidToRender.author || mod.author || t("unknown", "Local")} • ${
+          subtitle={`${kidToRender.author || mod.author || t("source_local", "Local")} • ${
             kidToRender.mod_versions?.[0]?.version_label ||
             kidToRender.version ||
-            t("unknown", "Local")
+            t("source_local", "Local")
           }`}
           icon={getModIcon(kidToRender, activeGameSchema, t)}
           iconColorClass="text-[var(--accent)]"
@@ -2110,7 +2000,7 @@ export default function ModDossier({
             <SidePanelHeroCard
               icon={getModIcon(kidToRender, activeGameSchema, t)}
               overline={
-                kidToRender.author || mod.author || t("unknown", "Local")
+                kidToRender.author || mod.author || t("source_local", "Local")
               }
               title={(
                 kidToRender.displayName ||
@@ -2123,7 +2013,7 @@ export default function ModDossier({
               badge={
                 kidToRender.mod_versions?.[0]?.version_label ||
                 kidToRender.version ||
-                t("unknown", "Local")
+                t("source_local", "Local")
               }
               badgeIcon={t("icon_tag", "tag")}
               variant="accent"
@@ -2149,7 +2039,7 @@ export default function ModDossier({
                   value={
                     kidToRender.created_at
                       ? new Date(kidToRender.created_at).toLocaleDateString()
-                      : t("unknown", "Local")
+                      : t("source_local", "Local")
                   }
                   icon={t("icon_calendar_today", "calendar_today")}
                 />
@@ -2158,7 +2048,7 @@ export default function ModDossier({
                   value={
                     kidToRender.updated_at
                       ? new Date(kidToRender.updated_at).toLocaleDateString()
-                      : t("unknown", "Local")
+                      : t("source_local", "Local")
                   }
                   icon={t("icon_update", "update")}
                 />

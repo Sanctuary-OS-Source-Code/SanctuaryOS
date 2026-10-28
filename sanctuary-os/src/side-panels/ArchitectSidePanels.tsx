@@ -247,8 +247,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               )}
 
               {successMsg && (
-                <div className="p-3.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)] text-xs font-bold text-center">
-                  {successMsg}
+                <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-xs font-bold text-center flex items-center justify-center gap-2">
+                  <span className="material-symbols-rounded !text-[16px] text-[var(--success)] shrink-0">
+                    {t("icon_check_circle", "check_circle")}
+                  </span>
+                  <span>{successMsg}</span>
                 </div>
               )}
             </div>
@@ -265,14 +268,9 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
               <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div
-                    className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                    className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
                     style={{
                       color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
-                      borderColor: statusState === 'MALWARE'
-                        ? 'color-mix(in srgb, var(--danger) 25%, var(--border))'
-                        : statusState === 'EXPLICIT'
-                          ? 'color-mix(in srgb, var(--warning) 25%, var(--border))'
-                          : 'color-mix(in srgb, var(--success) 25%, var(--border))',
                     }}
                   >
                     <span className="material-symbols-rounded !text-[20px]">
@@ -288,18 +286,13 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                     </span>
                   </div>
                 </div>
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
-                    borderColor: statusState === 'MALWARE'
-                      ? 'color-mix(in srgb, var(--danger) 35%, var(--border))'
-                      : statusState === 'EXPLICIT'
-                        ? 'color-mix(in srgb, var(--warning) 35%, var(--border))'
-                        : 'color-mix(in srgb, var(--success) 35%, var(--border))',
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span
+                    className="material-symbols-rounded !text-[12px] shrink-0"
+                    style={{
+                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
+                    }}
+                  >
                     {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_verified", "verified")}
                   </span>
                   {statusState}
@@ -422,10 +415,9 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
-                        className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0"
+                        className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
                         style={{
                           color: itemColor,
-                          borderColor: `color-mix(in srgb, ${itemColor} 25%, var(--border))`,
                         }}
                       >
                         <span className="material-symbols-rounded !text-[18px]">
@@ -448,14 +440,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                         </span>
                       </div>
                     </div>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: itemColor,
-                        borderColor: `color-mix(in srgb, ${itemColor} 35%, var(--border))`,
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span
+                        className="material-symbols-rounded !text-[12px] shrink-0"
+                        style={{ color: itemColor }}
+                      >
                         {itemIcon}
                       </span>
                       {itemLabel}

@@ -100,13 +100,7 @@ export function BulkModal({
                   key={i}
                   className="glass-surface px-3.5 py-2.5 rounded-xl flex items-center gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                 >
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                    style={{
-                      borderColor:
-                        "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-[18px]">
                       {t("icon_description", "description")}
                     </span>

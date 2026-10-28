@@ -4,7 +4,8 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   SidePanel, CustomDropdown, ActionButton,
-  SidePanelHeroCard, UniversalGroup, StatBox, VAULT_CHIP_CLASS
+  SidePanelHeroCard, UniversalGroup, StatBox, VAULT_CHIP_CLASS,
+  PanelHeaderGroup, PanelHeaderButton
 } from "../shared";
 import packageJson from "../../package.json";
 
@@ -194,14 +195,8 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
             title={t("keepers_spokes_network_title", "Federated Spoke Nodes")}
             icon={t("icon_dns", "dns")}
             headerActions={
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                   {t("icon_dns", "dns")}
                 </span>
                 <span>{spokeList.length}</span>
@@ -221,12 +216,7 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
                       className="glass-surface rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0"
-                          style={{
-                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                          }}
-                        >
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                           {spoke.icon && spoke.icon.startsWith("http") ? (
                             <img src={spoke.icon} alt="" className="w-5 h-5 object-contain" />
                           ) : (
@@ -244,16 +234,12 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
                           </span>
                         </div>
                       </div>
-                      <span
-                        className={`${VAULT_CHIP_CLASS} shrink-0`}
-                        style={{
-                          color: isOnline ? "var(--success)" : "var(--warning)",
-                          borderColor: isOnline
-                            ? "color-mix(in srgb, var(--success) 35%, var(--border))"
-                            : "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                        <span
+                          className={`material-symbols-rounded !text-[12px] shrink-0 ${
+                            isOnline ? "text-[var(--success)]" : "text-[var(--warning)]"
+                          }`}
+                        >
                           {isOnline
                             ? t("icon_check_circle", "check_circle")
                             : t("icon_schedule", "schedule")}
@@ -328,14 +314,8 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
               <span className="text-[9px] uppercase tracking-widest font-black text-[var(--subtext)] opacity-60">
                 {t("wf_db_sync", "Database Uplink")}
               </span>
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--success)",
-                  borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
                   {t("icon_check_circle", "check_circle")}
                 </span>
                 <span>{t("auto_synchronized", "SYNCHRONIZED")}</span>
@@ -612,6 +592,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
   const { t } = useLexicon();
   const [keepersProcessor, setKeepersProcessor] = useState("STRIPE");
   const [keepersUrl, setKeepersUrl] = useState("");
+  const [supportEmail, setSupportEmail] = useState("support@sanctuaryos.gg");
   const [liveStableVer, setLiveStableVer] = useState("0.5.7");
   const [liveStableDate, setLiveStableDate] = useState("");
   const [liveDevVer, setLiveDevVer] = useState("");
@@ -628,6 +609,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
       const cfg = await getKeepersPipelineConfig(forceRefresh);
       setKeepersProcessor(cfg.keepers_payment_processor || "STRIPE");
       setKeepersUrl(cfg.keepers_donation_url || "");
+      setSupportEmail(cfg.support_contact_email || "support@sanctuaryos.gg");
       setLiveStableVer(cfg.stable_version || "0.5.7");
       setLiveStableDate(cfg.stable_published_at || "");
       setLiveDevVer(cfg.dev_build_version || "");
@@ -693,6 +675,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
       await saveKeepersPipelineConfig({
         keepers_payment_processor: keepersProcessor,
         keepers_donation_url: keepersUrl.trim(),
+        support_contact_email: supportEmail.trim() || "support@sanctuaryos.gg",
       });
       useStore
         .getState()
@@ -723,6 +706,15 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
       icon={t("icon_rocket_launch", "rocket_launch")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={saving ? t("icon_sync", "sync") : t("icon_save", "save")}
+            tooltip={t("save", "Save")}
+            onClick={handleSave}
+          />
+        </PanelHeaderGroup>
+      }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
@@ -809,6 +801,18 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                {t("keepers_email_sender_addr_label", "Custom Sender Email (From)")}
+              </label>
+              <input
+                type="email"
+                value={supportEmail}
+                onChange={(e) => setSupportEmail(e.target.value)}
+                placeholder="support@sanctuaryos.gg"
+                className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
             <ActionButton
               variant="glass"
               icon={saving ? t("icon_sync", "sync") : t("icon_check", "check")}
@@ -841,15 +845,10 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
           <div className="flex flex-col gap-4 w-full">
             <div className="grid grid-cols-1 gap-3">
               {/* LIVE DAILY DEV BUILD */}
-              <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_35%,transparent)] flex flex-col gap-2.5">
+              <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--success)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--success) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--success)]">
                       <span className="material-symbols-outlined !text-[16px]">
                         {t("icon_bolt", "bolt")}
                       </span>
@@ -858,14 +857,8 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                       {t("keepers_github_live_dev_label", "Live Daily Dev Build (GitHub)")}
                     </span>
                   </div>
-                  <span
-                    className={`${VAULT_CHIP_CLASS} shrink-0`}
-                    style={{
-                      color: "var(--success)",
-                      borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
                       {t("icon_tag", "tag")}
                     </span>
                     <span>
@@ -896,15 +889,10 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
               </div>
 
               {/* LIVE STABLE RELEASE */}
-              <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2.5">
+              <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                       <span className="material-symbols-outlined !text-[16px]">
                         {t("icon_verified", "verified")}
                       </span>
@@ -913,14 +901,8 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                       {t("keepers_github_live_stable_label", "Live Stable Release (GitHub)")}
                     </span>
                   </div>
-                  <span
-                    className={`${VAULT_CHIP_CLASS} shrink-0`}
-                    style={{
-                      color: "var(--accent)",
-                      borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                       {t("icon_tag", "tag")}
                     </span>
                     <span>

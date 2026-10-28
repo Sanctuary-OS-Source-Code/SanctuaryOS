@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import ArchitectTemplateOversight from "./hub-components/ArchitectTemplateOversight";
 import { SharedMetadataEditorSidePanel } from "./side-panels/SharedMetadataEditorSidePanel";
-import { ArchitectRegistry } from "./hub-components/SharedRegistry";
+import { ArchitectRegistry, prefetchArchitectRegistry } from "./hub-components/SharedRegistry";
 import { ArchitectCommandScreen } from "./hub-components/CommandScreens";
 import { CollectionForge } from "./hub-components/SharedCollections";
 import { ScoutQueue } from "./hub-components/ArchitectScoutQueue";
@@ -27,6 +27,10 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   const [inspectMod, setInspectMod] = useState<any>(null);
   const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
   const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    prefetchArchitectRegistry(false);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "protocols" || activeTab === "structure" || activeTab === "matrix") {
@@ -239,11 +243,16 @@ export function CustomMasonDropdown({
   onChange: (val: string) => void;
 }) {
   const { t } = useLexicon();
-  const dropdownOptions = options.map((o) => ({ id: o.id, label: o.name }));
+  const dropdownOptions = (options || []).map((o) => ({
+    id: o.id,
+    label: o.name,
+    searchText: `${o.name || ""} ${o.id || ""}`,
+  }));
   return (
     <CustomDropdown
       disableTint={true}
       searchable={true}
+      searchPlaceholder={t("search_masons", "Search {Masons}...")}
       value={value}
       options={dropdownOptions}
       onChange={(v: string[]) => onChange(v[0])}

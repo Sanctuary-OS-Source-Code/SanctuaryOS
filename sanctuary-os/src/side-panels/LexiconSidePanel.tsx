@@ -230,7 +230,7 @@ export default function LexiconSidePanel({
           <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between gap-2 z-20">
             <div className="flex items-center gap-1.5">
               {isActive && (
-                <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]`}>
+                <span className={VAULT_CHIP_CLASS}>
                   <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                     {t("icon_check_circle", "check_circle")}
                   </span>

@@ -649,21 +649,13 @@ export default function VersionTimeline({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                      className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                         selectedMode === 'unsaved'
                           ? 'text-[var(--accent)]'
                           : hasUnsavedChanges
                             ? 'text-[var(--warning)]'
                             : 'text-[var(--subtext)]'
                       }`}
-                      style={{
-                        borderColor:
-                          selectedMode === 'unsaved'
-                            ? 'color-mix(in srgb, var(--accent) 25%, var(--border))'
-                            : hasUnsavedChanges
-                              ? 'color-mix(in srgb, var(--warning) 25%, var(--border))'
-                              : 'color-mix(in srgb, var(--subtext) 25%, var(--border))',
-                      }}
                     >
                       <span className="material-symbols-outlined !text-[18px]">
                         {t('icon_edit_note', 'edit_note')}
@@ -677,16 +669,12 @@ export default function VersionTimeline({
                       {t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')}
                     </span>
                   </div>
-                  <span
-                    className={VAULT_CHIP_CLASS}
-                    style={{
-                      color: hasUnsavedChanges ? 'var(--warning)' : 'var(--success)',
-                      borderColor: hasUnsavedChanges
-                        ? 'color-mix(in srgb, var(--warning) 35%, var(--border))'
-                        : 'color-mix(in srgb, var(--success) 35%, var(--border))',
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span
+                      className={`material-symbols-rounded !text-[12px] shrink-0 ${
+                        hasUnsavedChanges ? 'text-[var(--warning)]' : 'text-[var(--success)]'
+                      }`}
+                    >
                       {hasUnsavedChanges
                         ? t('icon_edit_note', 'edit_note')
                         : t('icon_check_circle', 'check_circle')}
@@ -796,14 +784,8 @@ export default function VersionTimeline({
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {entry.timestamp === currentActiveTs && !searchQuery && (
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: 'var(--accent)',
-                              borderColor: 'color-mix(in srgb, var(--accent) 35%, var(--border))',
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                               {t('icon_schedule', 'schedule')}
                             </span>
                             {t('active', 'Latest')}
@@ -925,14 +907,8 @@ export default function VersionTimeline({
                     !isRawIdentical && (
                       <div className="flex items-center gap-1.5">
                         {rawDiffCount > 0 && (
-                          <span
-                            className={`${VAULT_CHIP_CLASS} font-mono`}
-                            style={{
-                              color: 'var(--accent)',
-                              borderColor: 'color-mix(in srgb, var(--accent) 35%, var(--border))',
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                               {t('icon_difference', 'difference')}
                             </span>
                             {rawDiffIndex + 1}/{rawDiffCount}
@@ -1072,24 +1048,16 @@ export default function VersionTimeline({
                                 <HoverTooltip title={item.label} />
                               </span>
                               {item.isChanged && (
-                                <span
-                                  className={VAULT_CHIP_CLASS}
-                                  style={{
-                                    color:
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span
+                                    className={`material-symbols-rounded !text-[12px] shrink-0 ${
                                       item.status === 'added'
-                                        ? 'var(--success)'
+                                        ? 'text-[var(--success)]'
                                         : item.status === 'removed'
-                                          ? 'var(--danger)'
-                                          : 'var(--warning)',
-                                    borderColor:
-                                      item.status === 'added'
-                                        ? 'color-mix(in srgb, var(--success) 35%, var(--border))'
-                                        : item.status === 'removed'
-                                          ? 'color-mix(in srgb, var(--danger) 35%, var(--border))'
-                                          : 'color-mix(in srgb, var(--warning) 35%, var(--border))',
-                                  }}
-                                >
-                                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                                          ? 'text-[var(--danger)]'
+                                          : 'text-[var(--warning)]'
+                                    }`}
+                                  >
                                     {item.status === 'added'
                                       ? t('icon_add_circle', 'add_circle')
                                       : item.status === 'removed'

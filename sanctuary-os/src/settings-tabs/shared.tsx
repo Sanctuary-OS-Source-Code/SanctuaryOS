@@ -14,7 +14,7 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
 }
 
 export const TabContainer = ({ title, icon, actions, children }: any) => (
-  <div className="flex flex-col gap-5 animate-in fade-in duration-500 w-full relative">
+  <div className="flex flex-col gap-5 w-full relative">
     <div className="flex items-center justify-between w-full gap-4 relative z-10 min-w-0">
       <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
         {icon && (

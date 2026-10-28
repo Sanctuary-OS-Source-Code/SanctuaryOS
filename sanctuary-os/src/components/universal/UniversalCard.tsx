@@ -17,6 +17,8 @@ export interface UniversalCardProps {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   description?: React.ReactNode;
+  bannerTopLabel?: string;
+  bannerBottomLabel?: string;
 
   // Slots
   badges?: React.ReactNode;
@@ -47,6 +49,8 @@ export function UniversalCard({
   title,
   subtitle,
   description,
+  bannerTopLabel,
+  bannerBottomLabel,
   badges,
   imageOverlay,
   actions,
@@ -109,7 +113,9 @@ export function UniversalCard({
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
-  const hoverClasses = !isDisabled && isInteractive ? "hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] transition-all duration-300" : "transition-colors duration-300";
+  const hoverClasses = !isDisabled && isInteractive
+    ? "hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300"
+    : "transition-colors duration-300";
 
   const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
@@ -188,31 +194,132 @@ export function UniversalCard({
                         ? "var(--success)"
                         : "var(--accent)";
                 const isCompactBanner = layout === "vertical-compact";
-                const rawSubtitleSegment =
-                  typeof resolvedSubtitle === "string" && resolvedSubtitle.trim()
-                    ? resolvedSubtitle.split(/[•·|]/)[0]?.trim() || ""
+                const extractNodeText = (node: React.ReactNode): string => {
+                  if (typeof node === "string" || typeof node === "number") return String(node);
+                  if (Array.isArray(node)) {
+                    return node
+                      .map(extractNodeText)
+                      .filter(Boolean)
+                      .join(" ")
+                      .replace(/\s+/g, " ")
+                      .trim();
+                  }
+                  if (React.isValidElement(node)) {
+                    const props = (node.props as any) || {};
+                    const cls = String(props.className || "");
+                    if (
+                      cls.includes("material-symbols") ||
+                      cls.split(/\s+/).includes("hidden")
+                    ) {
+                      return "";
+                    }
+                    if (props.children) {
+                      return extractNodeText(props.children);
+                    }
+                  }
+                  return "";
+                };
+                const extractedTitleText = extractNodeText(resolvedTitle).trim();
+                const extractedSubtitleText = extractNodeText(resolvedSubtitle).trim();
+                const subtitleSegments = extractedSubtitleText
+                  ? extractedSubtitleText
+                      .split(/[•·|]/)
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  : [];
+                const extractedDescriptionText = (
+                  extractNodeText(resolvedDescription) || extractNodeText(children)
+                ).trim();
+                const badgeLabels = Array.isArray(badges)
+                  ? badges
+                      .map((b) =>
+                        typeof b?.label === "string" && b.label.trim()
+                          ? td
+                            ? td(b.label.trim())
+                            : b.label.trim()
+                          : ""
+                      )
+                      .filter(Boolean)
+                  : [];
+                const firstBadgeIcon =
+                  Array.isArray(badges) && typeof badges[0]?.icon === "string" && badges[0].icon.trim()
+                    ? badges[0].icon.trim()
                     : "";
-                const firstBadgeLabel =
-                  Array.isArray(badges) &&
-                  typeof badges[0]?.label === "string" &&
-                  badges[0].label.trim()
-                    ? (td ? td(badges[0].label.trim()) : badges[0].label.trim())
+                const footerLeftText = (() => {
+                  if (!React.isValidElement(footer)) return "";
+                  const rawChildren = (footer.props as any)?.children;
+                  const firstChild = Array.isArray(rawChildren) ? rawChildren[0] : rawChildren;
+                  const raw = extractNodeText(firstChild)
+                    .replace(/^last\s+synchronized:\s*/i, "")
+                    .trim();
+                  return raw.length <= 28 ? raw : "";
+                })();
+                const overlayText = extractNodeText(imageOverlay).trim();
+                const resolvedBannerTop =
+                  typeof bannerTopLabel === "string" && bannerTopLabel.trim()
+                    ? (td ? td(bannerTopLabel.trim()) : bannerTopLabel.trim())
                     : "";
-                const topLabel = firstBadgeLabel
-                  ? firstBadgeLabel
-                  : rawSubtitleSegment && rawSubtitleSegment.length <= 28
-                    ? rawSubtitleSegment
-                    : typeof status === "string" && status.trim() && !status.includes("-")
-                      ? status.trim()
-                      : typeof resolvedTitle === "string" && resolvedTitle.trim() && resolvedTitle.trim().length <= 24
-                        ? resolvedTitle.trim()
-                        : t("status_active", "Active");
-                const bottomLabel =
-                  typeof resolvedTitle === "string" && resolvedTitle.trim()
-                    ? resolvedTitle.trim()
-                    : rawSubtitleSegment
-                      ? rawSubtitleSegment
-                      : t("overview", "Overview");
+                const resolvedBannerBottom =
+                  typeof bannerBottomLabel === "string" && bannerBottomLabel.trim()
+                    ? (td ? td(bannerBottomLabel.trim()) : bannerBottomLabel.trim())
+                    : "";
+                const topLabel = resolvedBannerTop
+                  ? resolvedBannerTop
+                  : subtitleSegments.length >= 2 && subtitleSegments[1].length <= 32
+                    ? subtitleSegments[1]
+                    : badgeLabels[0]
+                      ? badgeLabels[0]
+                      : subtitleSegments[0] && subtitleSegments[0].length <= 32
+                        ? subtitleSegments[0]
+                        : typeof status === "string" && status.trim() && !status.includes("-")
+                          ? status.trim()
+                          : overlayText && overlayText.length <= 24
+                            ? overlayText
+                            : extractedTitleText && extractedTitleText.length <= 24
+                              ? extractedTitleText
+                              : t("status_active", "Active");
+                const topRightLabel = (() => {
+                  const normTop = topLabel.toLowerCase();
+                  if (footerLeftText && footerLeftText.toLowerCase() !== normTop) {
+                    return footerLeftText;
+                  }
+                  const distinctBadge = badgeLabels.find((b) => b.toLowerCase() !== normTop);
+                  if (distinctBadge && distinctBadge.length <= 24) {
+                    return distinctBadge;
+                  }
+                  if (
+                    subtitleSegments[0] &&
+                    subtitleSegments[0].toLowerCase() !== normTop &&
+                    subtitleSegments[0].length <= 24
+                  ) {
+                    return subtitleSegments[0];
+                  }
+                  if (
+                    typeof status === "string" &&
+                    status.trim() &&
+                    !status.includes("-") &&
+                    status.trim().toLowerCase() !== normTop
+                  ) {
+                    return status.trim();
+                  }
+                  if (overlayText && overlayText.length <= 22 && overlayText.toLowerCase() !== normTop) {
+                    return overlayText;
+                  }
+                  return "";
+                })();
+                const bottomLabel = resolvedBannerBottom
+                  ? resolvedBannerBottom
+                  : extractedDescriptionText &&
+                      extractedDescriptionText.toLowerCase() !== extractedTitleText.toLowerCase()
+                    ? extractedDescriptionText
+                    : subtitleSegments.length >= 2
+                      ? subtitleSegments.join(" • ")
+                      : subtitleSegments[0] &&
+                          subtitleSegments[0].toLowerCase() !== topLabel.toLowerCase()
+                        ? subtitleSegments[0]
+                        : extractedTitleText
+                          ? extractedTitleText
+                          : t("overview", "Overview");
 
                 return (
                   <div
@@ -242,7 +349,7 @@ export function UniversalCard({
                         <span
                           className={`material-symbols-outlined ${
                             isCompactBanner ? "!text-[16px]" : "!text-[20px]"
-                          } group-hover:scale-110 transition-transform duration-300`}
+                          } ${!isDisabled && isInteractive ? "group-hover/card:scale-110 group-hover:scale-110" : ""} transition-transform duration-300`}
                           style={{ color: headerAccentVar }}
                         >
                           {resolvedBannerIcon}
@@ -251,42 +358,37 @@ export function UniversalCard({
 
                       {/* Right Mini-Header Console */}
                       <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
-                        <div className="grid grid-cols-2 gap-1 flex-1 min-h-0">
-                          <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-stretch gap-1 flex-1 min-h-0">
+                          <div className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
                             <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: headerAccentVar }}
-                            />
-                            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-90 truncate">
+                              className="material-symbols-outlined !text-[10px] opacity-85 shrink-0"
+                              style={{ color: headerAccentVar }}
+                            >
+                              {firstBadgeIcon || t("icon_verified", "verified")}
+                            </span>
+                            <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--text)] opacity-90 truncate">
                               {topLabel}
                             </span>
                           </div>
-                          <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-end gap-1 min-w-0">
-                            <div
-                              className="w-5 h-1.5 rounded-full opacity-80"
-                              style={{ backgroundColor: headerAccentVar }}
-                            />
-                            <div className="w-3 h-1.5 rounded-full bg-[var(--text)] opacity-30" />
-                            <div className="w-2 h-1.5 rounded-full bg-[var(--subtext)] opacity-20" />
-                          </div>
+                          {topRightLabel && (
+                            <div className="shrink-0 max-w-[46%] px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center min-w-0">
+                              <span className="text-[7px] font-mono font-black uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
+                                {topRightLabel}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex-1 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span
-                              className="material-symbols-outlined !text-[10px] opacity-80 shrink-0"
-                              style={{ color: headerAccentVar }}
-                            >
-                              {resolvedBannerIcon}
-                            </span>
-                            <span className="text-[7.5px] font-bold text-[var(--text)] opacity-85 truncate">
-                              {bottomLabel}
-                            </span>
-                          </div>
+                        <div className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
                           <span
-                            className="w-1.5 h-1.5 rounded-full shrink-0 opacity-85"
-                            style={{ backgroundColor: headerAccentVar }}
-                          />
+                            className="material-symbols-outlined !text-[10px] opacity-80 shrink-0"
+                            style={{ color: headerAccentVar }}
+                          >
+                            {resolvedBannerIcon}
+                          </span>
+                          <span className="text-[7.5px] font-bold text-[var(--subtext)] opacity-90 truncate">
+                            {bottomLabel}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -354,7 +456,7 @@ export function UniversalCard({
             <div className={`flex min-w-0 w-full ${layout === 'stat' ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
               {/* Removed large inline icon since it now renders in the banner */}
 
-              <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title group-hover:theme-text-accent transition-colors`}>
+              <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title ${!isDisabled && isInteractive ? 'group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)]' : ''} transition-colors duration-300`}>
                 {resolvedTitle}
               </span>
               {/* layout !== 'stat' && typeof title === 'string' && (
@@ -392,9 +494,9 @@ export function UniversalCard({
 
         {/* Footer Area */}
         {footer && (
-          <div className="w-full shrink-0">
+          <div className="w-full shrink-0 mt-auto">
             {(layout === 'vertical' || layout === 'vertical-compact') && <div className="relative h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent w-full flex items-center justify-center shrink-0" />}
-            <div className={`w-full ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'}`}>
+            <div className={`sanctuary-card-footer w-full ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'}`}>
               {footer}
             </div>
           </div>

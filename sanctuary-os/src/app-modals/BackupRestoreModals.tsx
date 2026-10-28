@@ -362,13 +362,7 @@ export function BackupRestoreModals({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[22px] animate-pulse">
                         {t("icon_warning_amber", "warning")}
                       </span>
@@ -385,15 +379,8 @@ export function BackupRestoreModals({
                     </div>
                   </div>
 
-                  <span
-                    className={VAULT_CHIP_CLASS}
-                    style={{
-                      color: "var(--danger)",
-                      borderColor:
-                        "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                       {t("icon_shield", "shield")}
                     </span>
                     {t("defcon_patch_detected", "Patch Detected")}
@@ -411,13 +398,7 @@ export function BackupRestoreModals({
               <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_archive", "archive")}
                       </span>
@@ -428,28 +409,14 @@ export function BackupRestoreModals({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {t("icon_public", "public")}
                       </span>
                       {t("world_state", "World State")}
                     </span>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--danger)",
-                        borderColor:
-                          "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                         {t("icon_settings", "settings")}
                       </span>
                       {t("engine_full", "Engine Core")}
@@ -520,16 +487,11 @@ export function BackupRestoreModals({
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
                         isDangerTheme
                           ? "text-[var(--danger)]"
                           : "text-[var(--accent)]"
                       }`}
-                      style={{
-                        borderColor: isDangerTheme
-                          ? "color-mix(in srgb, var(--danger) 25%, var(--border))"
-                          : "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
                     >
                       <span className="material-symbols-outlined !text-[22px] animate-pulse">
                         {activeIcon}

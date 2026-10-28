@@ -130,6 +130,18 @@ pub struct QuarantineManifest {
     pub original_shredded: bool,
     pub quarantined_file_shredded: bool,
     pub detected_at: String,
+    #[serde(default)]
+    pub source_moved: bool,
+    #[serde(default)]
+    pub ingest_mode: Option<String>,
+    #[serde(default)]
+    pub file_size_bytes: Option<u64>,
+    #[serde(default)]
+    pub file_extension: Option<String>,
+    #[serde(default)]
+    pub matched_entry: Option<String>,
+    #[serde(default)]
+    pub detection_type: Option<String>,
 }
 
 #[derive(Serialize)]

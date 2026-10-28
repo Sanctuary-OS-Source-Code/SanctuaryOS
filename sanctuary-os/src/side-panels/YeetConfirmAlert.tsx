@@ -76,12 +76,7 @@ export function YeetConfirmAlert({
                 className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border text-[var(--danger)] flex items-center justify-center shrink-0"
-                    style={{
-                      borderColor: "color-mix(in srgb, var(--danger) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined !text-[16px]">
                       {t("icon_delete", "delete")}
                     </span>
@@ -90,14 +85,8 @@ export function YeetConfirmAlert({
                     {String(c).replace(/_/g, " ")}
                   </span>
                 </div>
-                <span
-                  className={`${VAULT_CHIP_CLASS} shrink-0`}
-                  style={{
-                    color: "var(--danger)",
-                    borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                     {t("icon_link_off", "link_off")}
                   </span>
                   <span>{t("protocol_override", "Dependent")}</span>

@@ -179,13 +179,7 @@ export function LinkAssetSidePanel({
                     className="text-left px-4 py-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:theme-border-accent transition-all flex items-center justify-between gap-3 group"
                   >
                     <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                        style={{
-                          borderColor:
-                            "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
                           {assetIcon}
                         </span>
@@ -194,15 +188,8 @@ export function LinkAssetSidePanel({
                         {asset.name}
                       </span>
                     </div>
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor:
-                          "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {assetIcon}
                       </span>
                       {asset.type}

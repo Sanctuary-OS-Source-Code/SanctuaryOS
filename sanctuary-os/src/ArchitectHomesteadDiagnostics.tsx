@@ -1315,7 +1315,7 @@ export function HomesteadDiagnostics({
                     )}
                   </div>
 
-                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex flex-col gap-2.5">
+                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
@@ -1430,8 +1430,8 @@ export function HomesteadDiagnostics({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[12px]">
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                           {t("icon_verified_user", "verified_user")}
                         </span>
                         {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}

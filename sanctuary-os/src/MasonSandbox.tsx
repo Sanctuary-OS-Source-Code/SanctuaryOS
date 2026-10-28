@@ -1237,7 +1237,7 @@ export function MasonSandbox({
                         { id: "ALL", label: t("filter_all", "All") },
                         ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
                           id: c.id,
-                          label: t(c.lexicon_key) || c.id,
+                          label: t(c.lexicon_key, c.id),
                         })),
                       ]}
                     />

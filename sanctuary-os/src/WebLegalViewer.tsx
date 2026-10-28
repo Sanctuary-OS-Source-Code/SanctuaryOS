@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import MarkdownRenderer from "./MarkdownRenderer";
+import {
+  CANONICAL_LEGAL_DOCS,
+  fetchSyncedLegalAndCovenants,
+  LegalDocCategory,
+} from "./utils/directivesSync";
 import {
   SidePanel,
   SidePanelHeroCard,
@@ -25,14 +29,32 @@ export default function WebLegalViewer() {
       const hash = window.location.hash.replace("#", "").toLowerCase();
       if (["eula", "privacy", "terms"].includes(hash)) {
         setActiveLegal(hash);
-      } else {
+      } else if (!hash) {
         setActiveLegal(null);
       }
     };
 
+    const handleOpenLegalEvent = (e: Event) => {
+      const detail = String((e as CustomEvent)?.detail || "")
+        .trim()
+        .toLowerCase();
+      const map: Record<string, string> = {
+        eula: "eula",
+        privacy: "privacy",
+        terms: "terms",
+      };
+      if (map[detail]) {
+        setActiveLegal(map[detail]);
+      }
+    };
+
     window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("open_legal_doc", handleOpenLegalEvent);
     handleHashChange();
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("open_legal_doc", handleOpenLegalEvent);
+    };
   }, []);
 
   useEffect(() => {
@@ -44,40 +66,55 @@ export default function WebLegalViewer() {
     const fetchLegal = async () => {
       setLoading(true);
 
-      const catMap: Record<string, string> = {
+      const catMap: Record<string, LegalDocCategory> = {
         eula: "EULA",
         privacy: "Privacy",
         terms: "Terms",
       };
 
-      const { data } = await supabase
-        .from("keeper_system_broadcasts")
-        .select("*")
-        .eq("category", catMap[activeLegal])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const targetCategory = catMap[activeLegal] || "EULA";
+      const canonicalDoc = CANONICAL_LEGAL_DOCS[targetCategory];
+      const syncedMap = await fetchSyncedLegalAndCovenants();
+      const syncedRec = syncedMap[targetCategory];
 
       setLegalContent(
-        data || {
-          message: t("legal_not_found", "No {doc} document found.").replace(
-            "{doc}",
-            t(`landing_${activeLegal}`, catMap[activeLegal])
-          ),
-        }
+        syncedRec
+          ? {
+              title: syncedRec.title,
+              category: targetCategory,
+              message: syncedRec.content,
+            }
+          : {
+              title: canonicalDoc.title,
+              category: canonicalDoc.category,
+              message: canonicalDoc.bundledContent,
+            }
       );
       setLoading(false);
     };
 
     fetchLegal();
+    const handleUpdated = () => fetchLegal();
+    window.addEventListener("sanctuary_directives_updated", handleUpdated);
+    return () =>
+      window.removeEventListener("sanctuary_directives_updated", handleUpdated);
   }, [activeLegal, t]);
+
+  const handleClose = () => {
+    setActiveLegal(null);
+    if (
+      ["eula", "privacy", "terms"].includes(
+        window.location.hash.replace("#", "").toLowerCase()
+      )
+    ) {
+      window.location.hash = "";
+    }
+  };
 
   return (
     <SidePanel
       isOpen={!!activeLegal}
-      onClose={() => {
-        window.location.hash = "";
-      }}
+      onClose={handleClose}
       icon={t("icon_gavel", "gavel")}
       iconColorClass="text-[var(--accent)]"
       title={
@@ -112,9 +149,7 @@ export default function WebLegalViewer() {
             label={t("btn_view", "View")}
             number={t("landing_eula", "EULA")}
             isActive={activeLegal === "eula"}
-            onClick={() => {
-              window.location.hash = "eula";
-            }}
+            onClick={() => setActiveLegal("eula")}
           />
           <DashboardStatTile
             variant="filter"
@@ -122,9 +157,7 @@ export default function WebLegalViewer() {
             label={t("btn_view", "View")}
             number={t("landing_privacy", "Privacy")}
             isActive={activeLegal === "privacy"}
-            onClick={() => {
-              window.location.hash = "privacy";
-            }}
+            onClick={() => setActiveLegal("privacy")}
           />
           <DashboardStatTile
             variant="filter"
@@ -132,9 +165,7 @@ export default function WebLegalViewer() {
             label={t("btn_view", "View")}
             number={t("landing_terms", "Terms")}
             isActive={activeLegal === "terms"}
-            onClick={() => {
-              window.location.hash = "terms";
-            }}
+            onClick={() => setActiveLegal("terms")}
           />
         </StatTileCarousel>
 

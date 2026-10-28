@@ -9,6 +9,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionButton,
+  HoverTooltip,
   getNormalizedArtifactName,
 } from "./shared";
 import { useLexicon } from "./LexiconContext";
@@ -17,6 +18,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useModalStore } from "./store/modalStore";
 import { packageBlueprintLoadOrder } from "./hooks/usePlaySetLogic";
+import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -424,51 +426,83 @@ export default function BlueprintMatrix({
               </button>
             }
           >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               <p className="text-[11px] font-bold text-[var(--danger)] opacity-80">
                 {t("matrix_tier_warning_desc", "The following {mods} violate process compliance and cannot be synced:")}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto custom-scrollbar pr-1">
-                {blockedMods.map((mod: any) => (
-                  <div
-                    key={mod.name}
-                    className="flex flex-col justify-between gap-2.5 p-3.5 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] transition-all group/item"
-                  >
-                    <div className="flex items-start justify-between gap-2.5 min-w-0">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[18px]">
-                            {t("icon_gpp_bad", "gpp_bad")}
-                          </span>
-                        </div>
-                        <span className="text-xs font-black text-[var(--text)] truncate">
-                          {formatDisplayName(mod.name)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveArtifact(mod.name)}
-                        className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              <div className="max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                  {blockedMods.map((mod: any) => {
+                    const cleanTitle =
+                      formatCleanModTitle(formatDisplayName(mod.displayName || mod.name)) ||
+                      formatDisplayName(mod.name);
+                    const isScript = /\.ts4script$/i.test(String(mod.name || ""));
+                    const typeLabel = isScript
+                      ? t("type_script", "Script")
+                      : t("type_package", "Package");
+                    return (
+                      <div
+                        key={mod.name}
+                        className="flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] transition-all group/item"
                       >
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {t("icon_delete", "delete")}
-                        </span>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-[rgba(var(--text-rgb),0.06)]">
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                          {t("icon_shield", "shield")}
-                        </span>
-                        <span>
-                          {mod.compliance_tier >= 1
-                            ? `${t("stat_tier", "Tier")} ${mod.compliance_tier}`
-                            : t("unverified", "Unverified")}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                        {/* Top Row: Full-Width Icon + Title/Subtitle Identity */}
+                        <div className="flex items-center gap-3 min-w-0 w-full">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {t("icon_gpp_bad", "gpp_bad")}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <div className="relative group/blktitle flex items-center min-w-0 w-fit max-w-full">
+                              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                                {cleanTitle}
+                              </span>
+                              <HoverTooltip
+                                className="z-[200]"
+                                title={cleanTitle}
+                                icon={t("icon_gpp_bad", "gpp_bad")}
+                                variant="danger"
+                              />
+                            </div>
+                            <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-85 truncate">
+                              {typeLabel}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Bottom Footer Row: Compliance Badge on Left | Remove Button on Right */}
+                        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                              {t("icon_shield", "shield")}
+                            </span>
+                            <span>
+                              {mod.compliance_tier >= 1
+                                ? `${t("stat_tier", "Tier")} ${mod.compliance_tier}`
+                                : t("unverified", "Unverified")}
+                            </span>
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveArtifact(mod.name)}
+                            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0 ml-auto"
+                          >
+                            <span className="material-symbols-outlined !text-[15px]">
+                              {t("icon_delete", "delete")}
+                            </span>
+                            <HoverTooltip
+                              className="z-[200] !right-0 !translate-x-0 !left-auto"
+                              title={t("btn_remove", "{Remove}")}
+                              icon={t("icon_delete", "delete")}
+                              variant="danger"
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </UniversalGroup>
@@ -487,33 +521,105 @@ export default function BlueprintMatrix({
               </span>
             }
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_extension", "extension")}
-                </span>
-                <span>
-                  {packagedLoadOrder.load_order.length} {t("term_mods", "Items")}
-                </span>
-              </span>
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_low_priority", "low_priority")}
-                </span>
-                <span>
-                  {Object.keys(packagedLoadOrder.mod_tiers).length}{" "}
-                  {t("lo_priority_tier", "Priority Tier")}
-                </span>
-              </span>
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                  {t("icon_tune", "tune")}
-                </span>
-                <span>
-                  {packagedLoadOrder.load_rules.length}{" "}
-                  {t("load_order_rules", "Load Order Rules")}
-                </span>
-              </span>
+            <div className="flex flex-col gap-3 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <StatBox
+                  label={t("term_mods", "Items")}
+                  value={packagedLoadOrder.load_order.length}
+                  icon={t("icon_extension", "extension")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("lo_priority_tier", "Priority Tier")}
+                  value={Object.keys(packagedLoadOrder.mod_tiers).length}
+                  icon={t("icon_low_priority", "low_priority")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("load_order_rules", "Load Order Rules")}
+                  value={packagedLoadOrder.load_rules.length}
+                  icon={t("icon_tune", "tune")}
+                  iconColorClass="text-[var(--warning)]"
+                />
+              </div>
+
+              {(Object.keys(packagedLoadOrder.mod_tiers).length > 0 ||
+                packagedLoadOrder.load_rules.length > 0) && (
+                <div className="max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  <div className="flex flex-col gap-2">
+                    {Object.entries(packagedLoadOrder.mod_tiers).map(([modKey, tierId]) => {
+                      const matchedTier = packagedLoadOrder.compiled?.priorityTiers?.find(
+                        (pt: any) => pt.id === tierId || pt.folder === tierId
+                      );
+                      const tierLabel = matchedTier?.label || String(tierId);
+                      const cleanModTitle =
+                        formatCleanModTitle(formatDisplayName(modKey)) ||
+                        formatDisplayName(modKey);
+                      return (
+                        <div
+                          key={`tier-${modKey}`}
+                          className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                              {t("icon_low_priority", "low_priority")}
+                            </span>
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {cleanModTitle}
+                            </span>
+                          </div>
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_layers", "layers")}
+                            </span>
+                            <span>{tierLabel}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {packagedLoadOrder.load_rules.map((rule: any, rIdx: number) => {
+                      const modALabel =
+                        formatCleanModTitle(formatDisplayName(rule.modA || "")) ||
+                        formatDisplayName(rule.modA || "");
+                      const modBLabel =
+                        formatCleanModTitle(formatDisplayName(rule.modB || "")) ||
+                        formatDisplayName(rule.modB || "");
+                      return (
+                        <div
+                          key={rule.id || `rule-${rIdx}`}
+                          className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
+                              {t("icon_tune", "tune")}
+                            </span>
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {modALabel}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
+                            <span className="text-xs font-bold text-[var(--subtext)] truncate">
+                              {modBLabel}
+                            </span>
+                          </div>
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                              {t("icon_swap_vert", "swap_vert")}
+                            </span>
+                            <span>
+                              {rule.type === "before"
+                                ? t("lo_loads_before", "Loads Before")
+                                : t("lo_loads_after", "Loads After")}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </UniversalGroup>
         )}

@@ -180,14 +180,8 @@ export function MasonSettingsSidePanel({
         >
           <div className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <span
-                className={`${VAULT_CHIP_CLASS} w-fit`}
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={`${VAULT_CHIP_CLASS} w-fit`}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                   {t("icon_verified", "verified")}
                 </span>
                 {t("supporter_zero_fee_badge", "0% PLATFORM FEE • NON-CUSTODIAL")}

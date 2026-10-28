@@ -472,9 +472,15 @@ pub async fn download_and_install_update(
         .to_string();
     let want_dev = is_dev.unwrap_or_else(|| clean_ver.to_lowercase().contains("dev"));
 
+    let is_macos_target = cfg!(target_os = "macos");
+
     let is_direct_installer = |url: &str| -> bool {
         let path_part = url.split('?').next().unwrap_or(url).to_lowercase();
-        path_part.ends_with(".exe") || path_part.ends_with(".msi")
+        if is_macos_target {
+            path_part.ends_with(".dmg") || path_part.ends_with(".app.tar.gz")
+        } else {
+            path_part.ends_with(".exe") || path_part.ends_with(".msi")
+        }
     };
 
     let mut resolved_url = if is_direct_installer(&download_url) {
@@ -483,8 +489,8 @@ pub async fn download_and_install_update(
         String::new()
     };
 
-    // If the provided URL is a GitHub release page rather than a direct .exe/.msi binary,
-    // resolve the direct installer asset URL from the GitHub Releases API.
+    // If the provided URL is a GitHub release page rather than a direct OS installer binary,
+    // resolve the direct installer asset URL from the GitHub Releases API for the active OS.
     if resolved_url.is_empty() {
         let gh_resp = client
             .get("https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases?per_page=25")
@@ -497,7 +503,28 @@ pub async fn download_and_install_update(
             if let Ok(releases) = gh_resp.json::<Vec<serde_json::Value>>().await {
                 let pick_installer_from_release = |rel: &serde_json::Value| -> Option<String> {
                     let assets = rel.get("assets")?.as_array()?;
-                    // Priority 1: NSIS *-setup.exe
+                    if is_macos_target {
+                        // macOS Priority 1: .dmg
+                        for asset in assets {
+                            let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                            if name.ends_with(".dmg") {
+                                if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                    return Some(u.to_string());
+                                }
+                            }
+                        }
+                        // macOS Priority 2: .app.tar.gz
+                        for asset in assets {
+                            let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                            if name.ends_with(".app.tar.gz") {
+                                if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                    return Some(u.to_string());
+                                }
+                            }
+                        }
+                        return None;
+                    }
+                    // Windows Priority 1: NSIS *-setup.exe
                     for asset in assets {
                         let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
                         if name.ends_with("-setup.exe") || name.ends_with("_x64-setup.exe") {
@@ -506,7 +533,7 @@ pub async fn download_and_install_update(
                             }
                         }
                     }
-                    // Priority 2: any .exe
+                    // Windows Priority 2: any .exe
                     for asset in assets {
                         let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
                         if name.ends_with(".exe") {
@@ -515,7 +542,7 @@ pub async fn download_and_install_update(
                             }
                         }
                     }
-                    // Priority 3: any .msi
+                    // Windows Priority 3: any .msi
                     for asset in assets {
                         let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
                         if name.ends_with(".msi") {
@@ -583,6 +610,9 @@ pub async fn download_and_install_update(
     }
 
     if resolved_url.is_empty() {
+        if is_macos_target {
+            return Err("No direct macOS installer asset (.dmg or .app.tar.gz) found on GitHub Releases for this build.".into());
+        }
         return Err("No direct Windows installer asset (.exe or .msi) found on GitHub Releases for this build.".into());
     }
 
@@ -610,13 +640,23 @@ pub async fn download_and_install_update(
         }),
     );
 
-    let is_msi = resolved_url
+    let lower_resolved_path = resolved_url
         .split('?')
         .next()
         .unwrap_or(&resolved_url)
-        .to_lowercase()
-        .ends_with(".msi");
-    let ext = if is_msi { "msi" } else { "exe" };
+        .to_lowercase();
+    let is_msi = lower_resolved_path.ends_with(".msi");
+    let is_dmg = lower_resolved_path.ends_with(".dmg");
+    let is_app_tar = lower_resolved_path.ends_with(".app.tar.gz");
+    let ext = if is_dmg {
+        "dmg"
+    } else if is_app_tar {
+        "app.tar.gz"
+    } else if is_msi {
+        "msi"
+    } else {
+        "exe"
+    };
     let safe_ver: String = clean_ver
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
@@ -683,6 +723,40 @@ pub async fn download_and_install_update(
                 .creation_flags(CREATE_NO_WINDOW)
                 .spawn()
                 .map_err(|e| format!("Failed to launch silent setup installer: {}", e))?;
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let installer_str = installer_path.to_string_lossy().to_string();
+        if is_dmg {
+            // Mount the DMG in the background, copy .app bundle to /Applications if writable (or open the mounted DMG), and relaunch
+            let mac_update_script = format!(
+                "sleep 1; MOUNT_DIR=$(hdiutil attach -nobrowse -readonly \"{}\" | grep '/Volumes/' | sed 's/.*\\(\\/Volumes\\/.*\\)/\\1/' | head -n 1); \
+                if [ -n \"$MOUNT_DIR\" ]; then \
+                    APP_BUNDLE=$(find \"$MOUNT_DIR\" -maxdepth 2 -name \"*.app\" | head -n 1); \
+                    if [ -n \"$APP_BUNDLE\" ] && [ -w \"/Applications\" ]; then \
+                        rm -rf \"/Applications/Sanctuary OS.app\"; \
+                        cp -R \"$APP_BUNDLE\" \"/Applications/\"; \
+                        hdiutil detach \"$MOUNT_DIR\" -quiet; \
+                        open \"/Applications/Sanctuary OS.app\"; \
+                    else \
+                        open \"$MOUNT_DIR\"; \
+                    fi; \
+                else \
+                    open \"{}\"; \
+                fi",
+                installer_str, installer_str
+            );
+            std::process::Command::new("sh")
+                .args(["-c", &mac_update_script])
+                .spawn()
+                .map_err(|e| format!("Failed to launch macOS DMG updater: {}", e))?;
+        } else {
+            std::process::Command::new("open")
+                .arg(&installer_str)
+                .spawn()
+                .map_err(|e| format!("Failed to open macOS update package: {}", e))?;
         }
     }
 

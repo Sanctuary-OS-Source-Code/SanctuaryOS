@@ -197,7 +197,7 @@ export function SharedMetadataEditorSidePanel({
             />
 
             <UniversalGroup
-              title={t("btn_view", "Classification & Creator")}
+              title={t("section_classification_creator", "Classification & {Mason}")}
               icon={t("icon_info", "info")}
             >
               <div className="flex flex-col gap-1.5">
@@ -319,7 +319,7 @@ export function SharedMetadataEditorSidePanel({
             </UniversalGroup>
 
             <UniversalGroup
-              title={t("compliance_tier", "Status, Safety & Dates")}
+              title={t("section_status_safety_dates", "Status, Safety & Dates")}
               icon={t("icon_verified", "verified")}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

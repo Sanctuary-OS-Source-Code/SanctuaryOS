@@ -183,13 +183,7 @@ export default function MasonRecentRepliesSidePanel({
                   {/* Card Header Bar */}
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                        style={{
-                          color: "var(--accent)",
-                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                         {interaction.type === 'like' ? (
                           <span className="material-symbols-outlined !text-[18px]">
                             {t("icon_favorite", "favorite")}
@@ -210,14 +204,8 @@ export default function MasonRecentRepliesSidePanel({
                       </div>
                     </div>
 
-                    <span
-                      className={VAULT_CHIP_CLASS}
-                      style={{
-                        color: "var(--accent)",
-                        borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {interaction.type === 'like'
                           ? t("icon_favorite", "favorite")
                           : t("icon_forum", "forum")}
@@ -240,13 +228,7 @@ export default function MasonRecentRepliesSidePanel({
 
                     <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2.5 mt-auto">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                          style={{
-                            color: "var(--accent)",
-                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                          }}
-                        >
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                           <span className="material-symbols-outlined !text-[16px]">
                             {interaction.type === 'like'
                               ? t("icon_newspaper", "newspaper")

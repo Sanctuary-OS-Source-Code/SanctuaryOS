@@ -342,16 +342,16 @@ export function SidePanelPillToggle({
 
   return (
     <label
-      className={`w-full glass-surface rounded-xl px-4 ${description ? "py-3" : "h-12"} flex items-center justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
+      className={`w-full glass-surface rounded-xl px-4 ${description ? "py-3.5" : "h-12"} flex ${description ? "items-start" : "items-center"} justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
         checked
           ? `!border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)]`
           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
+      <div className={`flex ${description ? "items-start" : "items-center"} gap-3 min-w-0 flex-1 pr-3`}>
         {icon && (
           <div
-            className={`w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center shrink-0 transition-colors ${
+            className={`w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center shrink-0 transition-colors ${description ? "mt-0.5" : ""} ${
               checked
                 ? `text-[var(${colorVar})]`
                 : "text-[var(--subtext)] group-hover:text-[var(--text)]"
@@ -360,9 +360,9 @@ export function SidePanelPillToggle({
             <span className="material-symbols-outlined !text-[16px]">{icon}</span>
           </div>
         )}
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span
-            className={`text-xs font-bold tracking-wide transition-colors truncate ${
+            className={`text-xs font-bold tracking-wide transition-colors ${description ? "leading-snug whitespace-normal break-words" : "truncate"} ${
               checked
                 ? "text-[var(--text)]"
                 : "text-[var(--subtext)] group-hover:text-[var(--text)]"
@@ -371,14 +371,14 @@ export function SidePanelPillToggle({
             {label}
           </span>
           {description && (
-            <span className="text-[10px] font-medium text-[var(--subtext)] opacity-75 truncate">
+            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-85 leading-relaxed whitespace-normal break-words">
               {description}
             </span>
           )}
         </div>
       </div>
       <div
-        className={`sa-glass-toggle ${checked ? "is-on" : ""}`}
+        className={`sa-glass-toggle shrink-0 ${description ? "mt-1" : ""} ${checked ? "is-on" : ""}`}
         style={{ "--toggle-accent": `var(${colorVar})` } as React.CSSProperties}
       >
         <div className="sa-glass-toggle-thumb" />

@@ -988,8 +988,11 @@ export function MasonNexus({
                         {uploadState.fileContent.supported_mod_versions.map((v: string) => (
                           <span
                             key={v}
-                            className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black text-[var(--accent)]"
+                            className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black text-[var(--text)] flex items-center gap-1.5"
                           >
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_sell", "sell")}
+                            </span>
                             {v}
                           </span>
                         ))}

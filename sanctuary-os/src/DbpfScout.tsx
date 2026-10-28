@@ -617,7 +617,7 @@ export const DbpfScout = () => {
                         activeTab !== "COMMAND"
                             ? activeTab === "LOAD_ORDER"
                                 ? t("tab_load_order", "Load Order")
-                                : (t(`tab_${activeTab.toLowerCase()}`) || activeTab)
+                                : t(`tab_${activeTab.toLowerCase()}`, activeTab)
                             : undefined
                     }
                     onTitleClick={() => setActiveTab("COMMAND")}

@@ -600,12 +600,7 @@ export function UpdateSidePanel() {
 
             <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
               <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--accent)]"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                  }}
-                >
+                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                   <span className="material-symbols-outlined !text-[20px]">
                     {t("icon_memory", "memory")}
                   </span>

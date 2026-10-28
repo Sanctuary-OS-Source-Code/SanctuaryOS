@@ -471,9 +471,9 @@ export function KnownErrorDiagnosisBanner({
             <button
               type="button"
               onClick={() => handleOpenCreateFromLog(true)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] bg-transparent text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[14px]">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--success)]">
                 {t("icon_bug_report", "bug_report")}
               </span>
               {t("exc_rules_btn_add_game_bug", "Add Normal Game Bug")}
@@ -481,9 +481,9 @@ export function KnownErrorDiagnosisBanner({
             <button
               type="button"
               onClick={() => handleOpenCreateFromLog(false)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[14px]">
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                 {t("icon_edit_note", "edit_note")}
               </span>
               {t("exc_rules_btn_create_from_log", "Explain / Edit Known Error Rule")}
@@ -501,17 +501,13 @@ export function KnownErrorDiagnosisBanner({
             }
             const isCrit = normSev === "corrupted";
             const isBenign = normSev === "unrelated";
-            const borderClass = isCrit
-              ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
-              : isBenign
-              ? "border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-              : "border-[color-mix(in_srgb,var(--warning)_35%,transparent)]";
+            const borderClass = "border-[color-mix(in_srgb,var(--text)_10%,transparent)]";
 
-            const badgeColor = isCrit
-              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-transparent"
+            const iconColorClass = isCrit
+              ? "text-[var(--danger)]"
               : isBenign
-              ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent"
-              : "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-transparent";
+              ? "text-[var(--success)]"
+              : "text-[var(--warning)]";
 
             return (
               <div
@@ -521,10 +517,8 @@ export function KnownErrorDiagnosisBanner({
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase border flex items-center gap-1 ${badgeColor}`}
-                      >
-                        <span className="material-symbols-outlined !text-[11px]">
+                      <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black tracking-widest uppercase text-[var(--text)] flex items-center gap-1.5">
+                        <span className={`material-symbols-outlined !text-[11px] ${iconColorClass}`}>
                           {isCrit
                             ? t("icon_gpp_maybe", "gpp_maybe")
                             : isBenign
@@ -538,15 +532,15 @@ export function KnownErrorDiagnosisBanner({
                           : t("exc_rules_badge_unstable", "UNSTABLE • UI / RANDOM BUGS")}
                       </span>
                       {isBenign && (
-                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest uppercase text-[var(--success)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] glass-surface flex items-center gap-1">
-                          <span className="material-symbols-outlined !text-[11px]">
+                        <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] glass-surface flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[11px] text-[var(--success)]">
                             {t("icon_verified", "verified")}
                           </span>
                           {t("exc_rules_badge_no_autofail", "WON'T FAIL TEST")}
                         </span>
                       )}
                       {rule.file_hint && (
-                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-mono text-[var(--subtext)] bg-transparent border border-[rgba(var(--text-rgb),0.12)]">
+                        <span className="px-2.5 py-1 rounded-lg text-[9px] font-mono text-[var(--text)] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
                           {rule.file_hint}
                         </span>
                       )}
@@ -1011,9 +1005,9 @@ export function KnownErrorRuleEditorSidePanel({
               <button
                 type="button"
                 onClick={handleExtractFromRawLog}
-                className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[12px]">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_auto_fix", "auto_fix_high")}
                 </span>
                 {t("exc_rules_btn_extract_pattern", "Auto-Extract Signature from Log")}
@@ -1119,8 +1113,8 @@ export function KnownErrorRuleEditorSidePanel({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
-                  <span className="material-symbols-outlined !text-[12px]">
+                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                     {t("icon_verified_user", "verified_user")}
                   </span>
                   {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
@@ -1276,9 +1270,9 @@ export function KnownErrorRulesManager({
                   setDefaultAsGameBug(true);
                   setIsEditorOpen(true);
                 }}
-                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-transparent text-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[15px]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--success)]">
                   {t("icon_bug_report", "bug_report")}
                 </span>
                 {t("exc_rules_btn_add_game_bug", "Add Normal Game Bug")}
@@ -1290,9 +1284,9 @@ export function KnownErrorRulesManager({
                   setDefaultAsGameBug(false);
                   setIsEditorOpen(true);
                 }}
-                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[15px]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_add", "add")}
                 </span>
                 {t("exc_rules_btn_add_rule", "Add Known Error Rule")}

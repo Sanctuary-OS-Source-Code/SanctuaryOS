@@ -97,7 +97,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     });
     return s;
   }, [stagingDraftItems]);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<any[]>(() => window.__sanctuaryCache!.nexus?.nexusItems || []);
   const [loadingMods, setLoadingMods] = useState(false);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,9 +159,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
 
-  const [stats, setStats] = useState({ artifacts: 0, blueprints: 0, lexicons: 0, chameleons: 0, templates: 0 });
-  const [recentFeed, setRecentFeed] = useState<any[]>([]);
-  const [loadingHome, setLoadingHome] = useState(true);
+  const [stats, setStats] = useState(
+    () => window.__sanctuaryCache!.nexus?.homeStats || { artifacts: 0, blueprints: 0, lexicons: 0, chameleons: 0, templates: 0 }
+  );
+  const [recentFeed, setRecentFeed] = useState<any[]>(
+    () => (window.__sanctuaryCache!.nexus?.recentFeed || []).filter((item: any) => item.is_public !== false)
+  );
+  const [loadingHome, setLoadingHome] = useState(() => !window.__sanctuaryCache!.nexus?.homeStats);
 
   useEffect(() => {
     if (marketSearchQuery) {
@@ -172,10 +176,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
   useEffect(() => {
     if (marketTab === 'HOME' && !isOffline) {
-      // Trigger background pre-fetches for other tabs so they load instantly when clicked
-      fetchNexus(false, true);
-      fetchNexusAssets(false, true);
-
       const fetchHomeData = async () => {
         const isCacheFresh = window.__sanctuaryCache!.nexus!.homeStats && window.__sanctuaryCache!.nexus!.lastHomeFetch > 0 && (performance.now() - window.__sanctuaryCache!.nexus!.lastHomeFetch < CACHE_TTL);
 
@@ -187,25 +187,38 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         }
 
         if (isCacheFresh) {
+          fetchNexus(false, true);
+          fetchNexusAssets(false, true);
           return;
         }
 
         if (!window.__sanctuaryCache!.nexus!.homeStats) setLoadingHome(true);
         try {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const selectFields = "*";
           const [
             { count: artifactsCount },
             { count: blueprintsCount },
             { count: lexiconsCount },
             { count: chameleonsCount },
-            { count: templatesCount }
+            { count: templatesCount },
+            { data: recentModsRawData },
+            { data: recentBps },
+            { data: recentAssets }
           ] = await Promise.all([
             supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
             supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('compliance_tier', 0),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
-            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null')
+            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null'),
+            supabase
+              .from('mods')
+              .select(selectFields)
+              .eq('compliance_tier', 0)
+              .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+              .order('created_at', { ascending: false })
+              .limit(100),
+            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
+            supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
           ]);
 
           const newStats = {
@@ -218,15 +231,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
           setStats(newStats);
           window.__sanctuaryCache!.nexus!.homeStats = newStats;
-
-          const selectFields = "*";
-          const { data: recentModsRawData } = await supabase
-            .from('mods')
-            .select(selectFields)
-            .eq('compliance_tier', 0)
-            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
-            .order('created_at', { ascending: false })
-            .limit(100);
 
           let recentModsRaw = recentModsRawData ? recentModsRawData.filter(m => !m.name?.toLowerCase().includes('manual flag')).slice(0, 50) : [];
 
@@ -241,24 +245,22 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             const relations = [...(relationsAsChild || []), ...(relationsAsParent || [])];
 
             const parentIdsToFetch = relationsAsChild?.map(r => r.parent_id).filter(id => !modIds.includes(id as any)) || [];
-            let fetchedParents: any[] = [];
-            if (parentIdsToFetch.length > 0) {
-              const { data: pMods } = await supabase
-                .from('mods')
-                .select(selectFields)
-                .in('id', parentIdsToFetch)
-                .eq('compliance_tier', 0)
-                .neq('status', 'unverified');
-              if (pMods) fetchedParents = pMods;
-            }
-
             const allParentIds = Array.from(new Set(relations.map(r => r.parent_id)));
             const allSetIds = Array.from(new Set(collections?.map(c => c.set_id) || []));
 
-            const [{ data: allSiblings }, { data: allSetMembers }] = await Promise.all([
-              allParentIds.length > 0 ? supabase.from('mod_relationships').select('child_id, parent_id').in('parent_id', allParentIds).in('relationship_type', ['twin', 'addon', 'flavor', 'set_item', 'beta']) : { data: [] },
-              allSetIds.length > 0 ? supabase.from('collection_members').select('mod_id, set_id').in('set_id', allSetIds) : { data: [] }
+            const [fetchedParentsRes, { data: allSiblings }, { data: allSetMembers }] = await Promise.all([
+              parentIdsToFetch.length > 0
+                ? supabase
+                    .from('mods')
+                    .select(selectFields)
+                    .in('id', parentIdsToFetch)
+                    .eq('compliance_tier', 0)
+                    .neq('status', 'unverified')
+                : Promise.resolve({ data: [] as any[] }),
+              allParentIds.length > 0 ? supabase.from('mod_relationships').select('child_id, parent_id').in('parent_id', allParentIds).in('relationship_type', ['twin', 'addon', 'flavor', 'set_item', 'beta']) : Promise.resolve({ data: [] as any[] }),
+              allSetIds.length > 0 ? supabase.from('collection_members').select('mod_id, set_id').in('set_id', allSetIds) : Promise.resolve({ data: [] as any[] })
             ]);
+            const fetchedParents: any[] = fetchedParentsRes.data || [];
 
             const trueFamilyCounts = new Map();
             allSiblings?.forEach((s: any) => {
@@ -359,14 +361,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             processedRecentMods = Array.from(nameMap.values()).slice(0, 20);
           }
 
-          const [
-            { data: recentBps },
-            { data: recentAssets }
-          ] = await Promise.all([
-            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
-            supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
-          ]);
-
           let combined = [
             ...(processedRecentMods).map((m: any) => ({ ...m, feed_type: 'artifact' })),
             ...(recentBps || []).map((b: any) => ({ ...b, feed_type: 'blueprint' })),
@@ -392,6 +386,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           console.error("NEXUS LOG ERROR: Failed to fetch home data:", err);
         } finally {
           setLoadingHome(false);
+          fetchNexus(false, true);
+          fetchNexusAssets(false, true);
         }
       };
       fetchHomeData();
@@ -451,22 +447,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   }, []);
 
   useEffect(() => {
-    if (!isOffline) {
+    if (!isOffline && marketTab !== 'HOME') {
       fetchNexusAssets();
     }
-  }, [isOffline]);
+  }, [isOffline, marketTab]);
 
   useEffect(() => {
     if (marketTab === 'MODS') {
-      if (gameVersions.length > 0) fetchNexus();
+      fetchNexus();
     }
-  }, [marketTab, gameVersions]);
-
-  useEffect(() => {
-    if (marketTab === 'HOME' && gameVersions.length > 0 && !window.__sanctuaryCache!.nexus!.nexusItems) {
-      fetchNexus(false, true);
-    }
-  }, [marketTab, gameVersions]);
+  }, [marketTab]);
 
   useEffect(() => {
     if (marketSearchQuery) {
@@ -844,55 +834,65 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     if (!isSilent && !window.__sanctuaryCache!.nexus!.nexusItems) setLoadingMods(true);
     nexusFetchPromise = (async () => {
       try {
-        const { count, error: countError } = await supabase
-          .from("mods")
-          .select("id", { count: "exact", head: true })
-          .eq('compliance_tier', 0)
-          .in('status', ['stable', 'unstable', 'corrupted', 'pending']);
-
-        if (countError) throw countError;
-
         const BATCH_SIZE = 1000;
-        const pages = Math.ceil((count || 0) / BATCH_SIZE);
-        let allMods: any[] = [];
-
-        for (let i = 0; i < pages; i++) {
-          const res = await supabase
-            .from("mods")
-            .select("id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)")
-            .eq('compliance_tier', 0)
-            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
-            .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1);
-
-          if (res.error) throw res.error;
-          if (res.data) allMods = [...allMods, ...res.data];
-        }
-
-        const authorNames = Array.from(new Set(allMods?.map(m => m.master_author).filter(Boolean)));
-        let verifiedMap: Record<string, boolean> = {};
-        if (authorNames.length > 0) {
-          const { data: verifiedAuthors } = await supabase.from('masons').select('name, is_verified').in('name', authorNames);
-          verifiedAuthors?.forEach(p => {
-            verifiedMap[p.name] = p.is_verified;
-          });
-        }
-        if (allMods) {
-          allMods = allMods.map(m => ({ ...m, is_verified: verifiedMap[m.master_author] || false }));
-        }
+        const modSelectCols =
+          "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
 
         const [
+          firstModsRes,
+          verifiedAuthorsRes,
           flavorGroupsRes,
           collectionsRes,
           relationshipsRes,
           flavorMembersRes,
           setMembersRes
         ] = await Promise.all([
+          supabase
+            .from("mods")
+            .select(modSelectCols, { count: "exact" })
+            .eq('compliance_tier', 0)
+            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+            .range(0, BATCH_SIZE - 1),
+          supabase.from('masons').select('name, is_verified'),
           supabase.from("flavor_groups").select("*"),
           supabase.from("collections").select("*"),
           supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
           supabase.from("flavor_group_members").select("group_id, mod_hash"),
           supabase.from("collection_members").select("set_id, mod_id")
         ]);
+
+        if (firstModsRes.error) throw firstModsRes.error;
+
+        let allMods: any[] = firstModsRes.data || [];
+        const totalCount = firstModsRes.count || allMods.length;
+        const pages = Math.ceil(totalCount / BATCH_SIZE);
+
+        if (pages > 1) {
+          const remainingPagePromises = [];
+          for (let i = 1; i < pages; i++) {
+            remainingPagePromises.push(
+              supabase
+                .from("mods")
+                .select(modSelectCols)
+                .eq('compliance_tier', 0)
+                .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+                .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1)
+            );
+          }
+          const remainingResponses = await Promise.all(remainingPagePromises);
+          for (const res of remainingResponses) {
+            if (res.error) throw res.error;
+            if (res.data) allMods = allMods.concat(res.data);
+          }
+        }
+
+        const verifiedMap: Record<string, boolean> = {};
+        verifiedAuthorsRes.data?.forEach((p: any) => {
+          if (p.name) verifiedMap[p.name] = p.is_verified;
+        });
+        if (allMods) {
+          allMods = allMods.map(m => ({ ...m, is_verified: verifiedMap[m.master_author] || false }));
+        }
 
         const modsData = allMods;
         const flavorGroups = flavorGroupsRes.data;
@@ -904,10 +904,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         let allItems: any[] = [];
 
         const modsById = new Map<string, any>();
+        const hashToModMap = new Map<string, { modId: string; mod: any }>();
         if (modsData) {
           modsData.forEach((mod: any) => {
             if (mod.compliance_tier > 0) return;
-            modsById.set(String(mod.id), mod);
+            const strId = String(mod.id);
+            modsById.set(strId, mod);
+            if (Array.isArray(mod.mod_versions)) {
+              for (const v of mod.mod_versions) {
+                if (v?.dna_hash && !hashToModMap.has(v.dna_hash)) {
+                  hashToModMap.set(v.dna_hash, { modId: strId, mod });
+                }
+              }
+            }
           });
         }
 
@@ -977,15 +986,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
             if (flavorMembers.length > 0) {
               for (const fm of flavorMembers) {
-                for (const [modId, mod] of modsById.entries()) {
-                  if (mod.mod_versions?.some((v: any) => v.dna_hash === fm.mod_hash)) {
-                    if (!memberIds.has(modId)) {
-                      members.push(mod);
-                      memberIds.add(modId);
-                      processedMods.add(modId);
-                    }
-                    break;
-                  }
+                const match = hashToModMap.get(fm.mod_hash);
+                if (match && !memberIds.has(match.modId)) {
+                  members.push(match.mod);
+                  memberIds.add(match.modId);
+                  processedMods.add(match.modId);
                 }
               }
             }
@@ -1406,7 +1411,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           subtitle={`${t("subtitle_suffix", "Community index, {mod} discovery, and metadata links")}`}
           icon={t("icon_hub", "hub")}
           iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
-          breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview', 'Overview') : marketTab === 'STAGING' ? t('tab_staging', 'Staging') : t(`tab_${marketTab.toLowerCase()}`) || marketTab) : undefined}
+          breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview', 'Overview') : marketTab === 'STAGING' ? t('tab_staging', 'Staging') : t(`tab_${marketTab.toLowerCase()}`, marketTab)) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
         >
           {marketTab !== 'HOME' && marketTab !== 'STAGING' && (
@@ -1546,7 +1551,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 key={tab}
                 variant="tab"
                 icon={tab === 'HOME' ? 'dashboard' : tab === 'MODS' ? "extension" : tab === 'BLUEPRINTS' ? "map" : tab === 'LEXICONS' ? "translate" : tab === 'TEMPLATES' ? "draw" : "palette"}
-                label={tab === 'HOME' ? t('tab_overview', 'Overview') : t(`tab_${tab.toLowerCase()}`) || tab}
+                label={tab === 'HOME' ? t('tab_overview', 'Overview') : t(`tab_${tab.toLowerCase()}`, tab)}
                 number={tab === 'HOME' ? (stats.artifacts + stats.blueprints + stats.lexicons + stats.chameleons + stats.templates) : tab === 'MODS' ? stats.artifacts : tab === 'BLUEPRINTS' ? stats.blueprints : tab === 'LEXICONS' ? stats.lexicons : tab === 'CHAMELEONS' ? stats.chameleons : tab === 'TEMPLATES' ? stats.templates : ""}
                 onClick={() => setMarketTab(tab as any)}
                 isActive={marketTab === tab}

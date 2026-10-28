@@ -282,65 +282,88 @@
   "mod_categories": [
     {
       "id": "Unknown",
+      "label": "Unknown",
+      "icon": "help",
       "icon_key": "ui_icon_unknown",
       "lexicon_key": "class_dd_unknown"
     },
     {
       "id": "Core",
+      "label": "Core Library",
+      "icon": "memory",
       "icon_key": "ui_icon_core",
       "lexicon_key": "class_dd_core"
     },
     {
       "id": "Script",
+      "label": "Executable Script",
+      "icon": "code",
       "icon_key": "ui_icon_scroll",
       "lexicon_key": "class_dd_script"
     },
     {
       "id": "Tuning",
+      "label": "Tuning",
+      "icon": "tune",
       "icon_key": "ui_icon_tuning",
       "lexicon_key": "class_dd_tuning"
     },
     {
       "id": "Override",
+      "label": "Override",
+      "icon": "find_replace",
       "icon_key": "ui_icon_override",
       "lexicon_key": "class_dd_override"
     },
     {
       "id": "BuildBuy",
+      "label": "Build / Buy",
+      "icon": "chair",
       "icon_key": "ui_icon_couch",
       "lexicon_key": "class_dd_buildbuy"
     },
     {
       "id": "CAS",
+      "label": "Create-A-Sim (CAS)",
+      "icon": "checkroom",
       "icon_key": "ui_icon_shirt",
       "lexicon_key": "class_dd_cas",
       "subcategories": [
         {
           "id": "Tattoo",
+          "label": "Tattoo",
           "lexicon_key": "vault_sub_tattoo"
         },
         {
           "id": "Hair",
+          "label": "Hair",
           "lexicon_key": "vault_sub_hair"
         },
         {
           "id": "Clothing",
+          "label": "Clothing",
           "lexicon_key": "vault_sub_clothing"
         }
       ]
     },
     {
       "id": "Animation",
+      "label": "Animation",
+      "icon": "movie",
       "icon_key": "ui_icon_clapper",
       "lexicon_key": "class_dd_animation"
     },
     {
       "id": "Trait",
+      "label": "Trait",
+      "icon": "psychology",
       "icon_key": "ui_icon_trait",
       "lexicon_key": "class_dd_trait"
     },
     {
       "id": "Career",
+      "label": "Career",
+      "icon": "work",
       "icon_key": "ui_icon_career",
       "lexicon_key": "class_dd_career"
     }

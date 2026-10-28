@@ -37,6 +37,7 @@ import {
 import { useTheme } from "../ThemeContext";
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/monacoTheme";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
+import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -44,18 +45,20 @@ const VAULT_CHIP_CLASS =
 export default function KeepersActiveGames({
   initialTab = "overview",
 }: {
-  initialTab?: "overview" | "workspaces" | "schemas" | "audit_logs";
+  initialTab?: "overview" | "workspaces" | "applications" | "schemas" | "audit_logs";
 } = {}) {
   const { t } = useLexicon();
   const pushStatus = useStore((state: any) => state.pushStatus);
   const [games, setGames] = useState<any[]>([]);
+  const [partnerApps, setPartnerApps] = useState<any[]>([]);
+  const [selectedPartnerApp, setSelectedPartnerApp] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [auditLogsCount, setAuditLogsCount] = useState<number>(0);
 
-  const [activeTab, setActiveTab] = useState<"overview" | "workspaces" | "schemas" | "audit_logs">(
-    initialTab
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "workspaces" | "applications" | "schemas" | "audit_logs"
+  >(initialTab);
   const [workspaceStatusFilter, setWorkspaceStatusFilter] = useState<"all" | "active" | "inactive">(
     "all"
   );
@@ -197,14 +200,24 @@ export default function KeepersActiveGames({
 
   const fetchGames = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("sanctuary_games")
-      .select(
-        "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor"
-      )
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: appsData }] = await Promise.all([
+      supabase
+        .from("sanctuary_games")
+        .select(
+          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor"
+        )
+        .order("created_at", { ascending: false }),
+      supabaseAuth
+        .from("keeper_tickets")
+        .select("*")
+        .eq("ticket_type", "Partner Spoke Application")
+        .order("created_at", { ascending: false }),
+    ]);
     if (!error && data) {
       setGames(data);
+    }
+    if (appsData) {
+      setPartnerApps(appsData);
     }
     setLoading(false);
   };
@@ -663,6 +676,12 @@ export default function KeepersActiveGames({
       label: t("keepers_tab_partner_spokes", "Partner Spokes"),
       icon: t("icon_dns", "dns"),
       number: games.length.toString(),
+    },
+    {
+      id: "applications",
+      label: t("keepers_tab_partner_apps", "Partner Applications"),
+      icon: t("icon_handshake", "handshake"),
+      number: partnerApps.length.toString(),
     },
     {
       id: "schemas",
@@ -1336,6 +1355,81 @@ export default function KeepersActiveGames({
           </HubOverviewSection>
 
           <HubOverviewSection
+            icon={t("icon_handshake", "handshake")}
+            iconColorClass="text-[var(--success)]"
+            title={t("keepers_tab_partner_apps", "Partner Applications")}
+            isEmpty={partnerApps.length === 0 && !loading}
+            emptyIcon={t("icon_handshake", "handshake")}
+            emptyTitle={t("keepers_no_partner_apps", "No Partner Spoke Applications Yet")}
+            gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            {partnerApps.slice(0, 4).map((app) => {
+              const meta = app.metadata?.partner_application || {};
+              const statusUpper = String(app.status || "NEW").toUpperCase();
+              const isResolved = statusUpper === "RESOLVED";
+              return (
+                <UniversalCard
+                  key={app.id}
+                  layout="vertical"
+                  onClick={() => setSelectedPartnerApp(app)}
+                  icon={t("icon_handshake", "handshake")}
+                  title={meta.game_title || app.title || "Partner Spoke Application"}
+                  subtitle={
+                    meta.lead_contact ||
+                    new Date(app.created_at).toLocaleDateString()
+                  }
+                  badges={
+                    <>
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            isResolved ? "text-[var(--success)]" : "text-[var(--accent)]"
+                          }`}
+                        >
+                          {isResolved
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_schedule", "schedule")}
+                        </span>
+                        <span>{statusUpper}</span>
+                      </div>
+                      {meta.primary_extensions && (
+                        <div className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_extension", "extension")}
+                          </span>
+                          <span>{meta.primary_extensions}</span>
+                        </div>
+                      )}
+                      {meta.team_size && (
+                        <div className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                            {t("icon_groups", "groups")}
+                          </span>
+                          <span>{meta.team_size}</span>
+                        </div>
+                      )}
+                    </>
+                  }
+                  footer={
+                    <div className="flex justify-between items-center w-full">
+                      <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 truncate">
+                        {meta.infra_readiness || new Date(app.created_at).toLocaleDateString()}
+                      </span>
+                      <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
+                        {t("dossier_subtitle", "Ticket Dossier")} &rarr;
+                      </span>
+                    </div>
+                  }
+                >
+                  <p className="text-[11px] text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1">
+                    {meta.vision_summary || app.description}
+                  </p>
+                </UniversalCard>
+              );
+            })}
+          </HubOverviewSection>
+
+          <HubOverviewSection
             icon={t("icon_warning", "warning")}
             iconColorClass="text-[var(--warning)]"
             title={t("chameleons_overview_anomalies", "Anomalies")}
@@ -1415,6 +1509,137 @@ export default function KeepersActiveGames({
                   className="col-span-full py-16"
                 />
               )}
+            </div>
+          )}
+        </div>
+      ) : activeTab === "applications" ? (
+        <div className="flex flex-col gap-4 pb-16">
+          {loading ? (
+            <div className="p-12 font-black animate-pulse capitalize tracking-widest text-[var(--accent)]">
+              {t("ui_fetching_nodes", "Fetching Nodes...")}
+            </div>
+          ) : partnerApps.length === 0 ? (
+            <EmptyState
+              icon={t("icon_handshake", "handshake")}
+              title={t("keepers_no_partner_apps", "No Partner Spoke Applications Yet")}
+              className="py-16"
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {partnerApps
+                .filter((app) => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    app.title?.toLowerCase().includes(q) ||
+                    app.description?.toLowerCase().includes(q) ||
+                    app.metadata?.partner_application?.game_title?.toLowerCase().includes(q) ||
+                    app.metadata?.partner_application?.lead_contact?.toLowerCase().includes(q)
+                  );
+                })
+                .map((app) => {
+                  const meta = app.metadata?.partner_application || {};
+                  const statusUpper = String(app.status || "NEW").toUpperCase();
+                  const isResolved = statusUpper === "RESOLVED";
+                  return (
+                    <UniversalCard
+                      key={app.id}
+                      layout="vertical"
+                      onClick={() => setSelectedPartnerApp(app)}
+                      icon={t("icon_handshake", "handshake")}
+                      title={meta.game_title || app.title || "Partner Spoke Application"}
+                      subtitle={
+                        meta.lead_contact ||
+                        new Date(app.created_at).toLocaleDateString()
+                      }
+                      badges={
+                        <>
+                          <div className={VAULT_CHIP_CLASS}>
+                            <span
+                              className={`material-symbols-outlined !text-[12px] ${
+                                isResolved ? "text-[var(--success)]" : "text-[var(--accent)]"
+                              }`}
+                            >
+                              {isResolved
+                                ? t("icon_check_circle", "check_circle")
+                                : t("icon_schedule", "schedule")}
+                            </span>
+                            <span>{statusUpper}</span>
+                          </div>
+                          {meta.primary_extensions && (
+                            <div className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_extension", "extension")}
+                              </span>
+                              <span>{meta.primary_extensions}</span>
+                            </div>
+                          )}
+                          {meta.team_size && (
+                            <div className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                                {t("icon_groups", "groups")}
+                              </span>
+                              <span>{meta.team_size}</span>
+                            </div>
+                          )}
+                        </>
+                      }
+                      actions={
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rawGameTitle = String(meta.game_title || app.title || "")
+                              .replace(/^\[Partner Spoke\]\s*/i, "")
+                              .trim();
+                            const cleanSchemaId = rawGameTitle
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]+/g, "_")
+                              .replace(/^_+|_+$/g, "")
+                              .slice(0, 20);
+                            setHandshakeStatus(null);
+                            setFormData({
+                              id: "",
+                              name: rawGameTitle,
+                              schema_id: cleanSchemaId,
+                              supabase_url: "",
+                              supabase_anon_key: "",
+                              supabase_service_key: "",
+                              icon: "",
+                              is_active: true,
+                              founder_identifier: meta.lead_contact || "",
+                              donation_url: "",
+                              payment_processor: "STRIPE",
+                            });
+                            setSidePanelMode("add");
+                          }}
+                          className="h-8 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[13px]">
+                            {t("icon_add_link", "add_link")}
+                          </span>
+                          <span>
+                            {t("keepers_provision_from_app", "Provision Spoke from Application")}
+                          </span>
+                        </button>
+                      }
+                      footer={
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 truncate">
+                            {meta.infra_readiness || new Date(app.created_at).toLocaleDateString()}
+                          </span>
+                          <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
+                            {t("dossier_subtitle", "Ticket Dossier")} &rarr;
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1">
+                        {meta.vision_summary || app.description}
+                      </p>
+                    </UniversalCard>
+                  );
+                })}
             </div>
           )}
         </div>
@@ -1573,6 +1798,35 @@ export default function KeepersActiveGames({
           </UniversalGroup>
         </div>
       </SidePanel>
+
+      <TicketDossierSidePanel
+        isOpen={!!selectedPartnerApp}
+        onClose={() => setSelectedPartnerApp(null)}
+        ticket={selectedPartnerApp}
+        tableName="keeper_tickets"
+        isReadOnly={false}
+        canReply={true}
+        availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
+        onTakeAction={async (actionType, reason) => {
+          if (!selectedPartnerApp) return;
+          const nextMeta = {
+            ...(selectedPartnerApp.metadata || {}),
+            resolution_reason: reason,
+          };
+          const { error } = await supabaseAuth
+            .from("keeper_tickets")
+            .update({ status: actionType, metadata: nextMeta })
+            .eq("id", selectedPartnerApp.id);
+          if (!error) {
+            pushStatus(t("alert_saved", "Saved"), "success");
+            setSelectedPartnerApp(null);
+            fetchGames();
+          }
+        }}
+        onReplyAdded={() => {
+          fetchGames();
+        }}
+      />
     </ElevatedHubLayout>
   );
 }

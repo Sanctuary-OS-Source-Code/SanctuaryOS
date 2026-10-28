@@ -592,14 +592,11 @@ export default function NotificationSidebar({
                     imageOverlay={
                       <div className="absolute top-2.5 inset-x-3 flex items-center justify-between gap-2 z-30 pointer-events-none">
                         {/* Single-line combined Origin + Category badge so it never wraps over the top-12 inner mini-console */}
-                        <span
-                          className="px-2.5 py-1 rounded-lg bg-transparent border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 min-w-0 max-w-[calc(100%-2.25rem)] pointer-events-auto"
-                          style={{
-                            color: `var(${colorVar})`,
-                            borderColor: `color-mix(in srgb, var(${colorVar}) 38%, transparent)`,
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 min-w-0 max-w-[calc(100%-2.25rem)] pointer-events-auto">
+                          <span
+                            className="material-symbols-rounded !text-[12px] shrink-0"
+                            style={{ color: `var(${colorVar})` }}
+                          >
                             {getNotificationIcon(n.type)}
                           </span>
                           <span className="truncate">

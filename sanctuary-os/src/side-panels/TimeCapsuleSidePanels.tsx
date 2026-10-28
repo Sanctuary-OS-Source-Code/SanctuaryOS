@@ -1215,10 +1215,9 @@ export function TimeCapsuleSnapshotDossier({
                       {/* Col 1: File & Folder */}
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0"
+                          className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
                           style={{
                             color: catInfo.colorVar,
-                            borderColor: `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
                           }}
                         >
                           <span className="material-symbols-rounded !text-[16px]">
@@ -1242,14 +1241,11 @@ export function TimeCapsuleSnapshotDossier({
 
                       {/* Col 3: Status Badge */}
                       <div className="flex justify-center">
-                        <span
-                          className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}
-                          style={{
-                            color: badgeColorVar,
-                            borderColor: `color-mix(in srgb, ${badgeColorVar} 35%, var(--border))`,
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[12px] shrink-0">
+                        <span className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}>
+                          <span
+                            className="material-symbols-rounded !text-[12px] shrink-0"
+                            style={{ color: badgeColorVar }}
+                          >
                             {badgeIcon}
                           </span>
                           <span>{badgeLabel}</span>
@@ -1360,14 +1356,11 @@ export function TimeCapsuleSnapshotDossier({
                               ? t("icon_chevron_right", "chevron_right")
                               : t("icon_expand_more", "expand_more")}
                           </span>
-                          <span
-                            className={VAULT_CHIP_CLASS}
-                            style={{
-                              color: group.colorVar,
-                              borderColor: `color-mix(in srgb, ${group.colorVar} 35%, var(--border))`,
-                            }}
-                          >
-                            <span className="material-symbols-rounded !text-[12px] shrink-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span
+                              className="material-symbols-rounded !text-[12px] shrink-0"
+                              style={{ color: group.colorVar }}
+                            >
                               {group.icon}
                             </span>
                             <span>{group.label}</span>
@@ -1425,12 +1418,13 @@ export function TimeCapsuleSnapshotDossier({
                               {/* Col 1: File & Folder */}
                               <div className="flex items-center gap-3 min-w-0">
                                 <div
-                                  className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0 transition-colors"
+                                  className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors ${
+                                    isSelected
+                                      ? "border-[var(--accent)]"
+                                      : "border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]"
+                                  }`}
                                   style={{
                                     color: isSelected ? "var(--accent)" : catInfo.colorVar,
-                                    borderColor: isSelected
-                                      ? "var(--accent)"
-                                      : `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
                                   }}
                                 >
                                   <span className="material-symbols-rounded !text-[16px]">
@@ -1457,14 +1451,11 @@ export function TimeCapsuleSnapshotDossier({
 
                               {/* Col 3: Category Badge */}
                               <div className="flex justify-center">
-                                <span
-                                  className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}
-                                  style={{
-                                    color: catInfo.colorVar,
-                                    borderColor: `color-mix(in srgb, ${catInfo.colorVar} 35%, var(--border))`,
-                                  }}
-                                >
-                                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                                <span className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}>
+                                  <span
+                                    className="material-symbols-rounded !text-[12px] shrink-0"
+                                    style={{ color: catInfo.colorVar }}
+                                  >
                                     {catInfo.icon}
                                   </span>
                                   <span>{catInfo.label}</span>
@@ -1619,10 +1610,9 @@ export function TimeCapsuleSnapshotDossier({
                     {/* Col 1: File & Folder */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-9 h-9 rounded-xl border glass-surface flex items-center justify-center shrink-0"
+                        className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
                         style={{
                           color: catInfo.colorVar,
-                          borderColor: `color-mix(in srgb, ${catInfo.colorVar} 25%, var(--border))`,
                         }}
                       >
                         <span className="material-symbols-outlined !text-[16px]">
@@ -1646,14 +1636,11 @@ export function TimeCapsuleSnapshotDossier({
 
                     {/* Col 3: Status Badge */}
                     <div className="flex justify-center">
-                      <span
-                        className={VAULT_CHIP_CLASS}
-                        style={{
-                          color: badgeColorVar,
-                          borderColor: `color-mix(in srgb, ${badgeColorVar} 35%, var(--border))`,
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span
+                          className="material-symbols-rounded !text-[12px] shrink-0"
+                          style={{ color: badgeColorVar }}
+                        >
                           {badgeIcon}
                         </span>
                         <span>

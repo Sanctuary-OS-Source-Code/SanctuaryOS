@@ -206,7 +206,7 @@ export function WorkspaceSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("workspace_sidebar", "Workspaces")}
+      title={t("landing_workspaces", "Active Workspaces")}
       subtitle={t("workspace_select_subtitle", "Select Your Workspace")}
       icon={t("icon_view_quilt", "view_quilt")}
       iconColorClass="text-[var(--accent)]"
@@ -274,17 +274,11 @@ export function WorkspaceSidePanel({
 
         {/* Workspace Cards Grid */}
         <UniversalGroup
-          title={t("workspace_sidebar", "Workspaces")}
+          title={t("landing_workspaces", "Active Workspaces")}
           icon={t("icon_sports_esports", "sports_esports")}
           headerAction={
-            <span
-              className={VAULT_CHIP_CLASS}
-              style={{
-                color: "var(--subtext)",
-                borderColor: "color-mix(in srgb, var(--text) 18%, var(--border))",
-              }}
-            >
-              <span className="material-symbols-rounded !text-[12px] shrink-0">
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                 {t("icon_view_quilt", "view_quilt")}
               </span>
               <span>{filteredCards.length}</span>
@@ -322,16 +316,11 @@ export function WorkspaceSidePanel({
                 {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
                 <div className="flex justify-between items-start gap-3 relative z-10">
                   <div
-                    className={`w-10 h-10 rounded-xl border glass-surface flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
                       isActive
                         ? "text-[var(--accent)]"
                         : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
                     }`}
-                    style={{
-                      borderColor: isActive
-                        ? "color-mix(in srgb, var(--accent) 40%, var(--border))"
-                        : "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
                   >
                     {game.icon ? (
                       <img
@@ -348,27 +337,15 @@ export function WorkspaceSidePanel({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     {isActive ? (
-                      <span
-                        className={VAULT_CHIP_CLASS}
-                        style={{
-                          color: "var(--accent)",
-                          borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                           {t("icon_check_circle", "check_circle")}
                         </span>
                         <span>{t("active", "Active")}</span>
                       </span>
                     ) : (
-                      <span
-                        className={VAULT_CHIP_CLASS}
-                        style={{
-                          color: "var(--success)",
-                          borderColor: "color-mix(in srgb, var(--success) 35%, var(--border))",
-                        }}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
                           {t("icon_check_circle", "check_circle")}
                         </span>
                         <span>
@@ -382,10 +359,10 @@ export function WorkspaceSidePanel({
                     <button
                       type="button"
                       onClick={(e) => togglePin(ws.id, e)}
-                      className={`w-7 h-7 rounded-lg border bg-transparent flex items-center justify-center transition-all relative group/pin cursor-pointer ${
+                      className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all relative group/pin cursor-pointer ${
                         isPinned
                           ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-60 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]"
                       }`}
                     >
                       <span

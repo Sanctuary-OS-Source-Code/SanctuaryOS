@@ -284,14 +284,11 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                       {date.toLocaleDateString()}
                     </span>
                   </div>
-                  <div
-                    className={`${VAULT_CHIP_CLASS} mt-0.5`}
-                    style={{
-                      color: typeColorVar,
-                      borderColor: `color-mix(in srgb, ${typeColorVar} 35%, var(--border))`,
-                    }}
-                  >
-                    <span className="material-symbols-rounded !text-[12px] shrink-0">
+                  <div className={`${VAULT_CHIP_CLASS} mt-0.5`}>
+                    <span
+                      className="material-symbols-rounded !text-[12px] shrink-0"
+                      style={{ color: typeColorVar }}
+                    >
                       {typeBadgeIcon}
                     </span>
                     <span>{type}</span>
@@ -396,12 +393,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
               onClick={() => handleCardClick(idx)}
               className="glass-surface group relative border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 rounded-xl cursor-pointer flex items-center gap-3.5 px-4 py-3.5"
             >
-              <div
-                className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                style={{
-                  borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                }}
-              >
+              <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                 <span className="material-symbols-rounded !text-[20px]">
                   {icon}
                 </span>
@@ -516,12 +508,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
                         key={i}
                         className="glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-colors p-3.5 rounded-xl flex flex-col items-center justify-center text-center gap-2.5 group"
                       >
-                        <div
-                          className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                          style={{
-                            borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                          }}
-                        >
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                           <span className="material-symbols-rounded !text-[20px]">
                             {t("icon_extension", "extension")}
                           </span>

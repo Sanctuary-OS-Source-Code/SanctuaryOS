@@ -24,8 +24,8 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
 
   const resolveText = (k?: string, fallback?: string) => {
       if (!k) return fallback || "";
-      const tr = t(k);
-      if (tr === `[${k}]`) return k;
+      const tr = t(k, fallback || k);
+      if (tr === `[${k}]`) return fallback || k;
       return tr;
   };
 

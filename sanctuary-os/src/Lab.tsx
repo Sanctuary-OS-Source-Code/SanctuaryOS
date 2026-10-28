@@ -1371,7 +1371,7 @@ export default function Lab({
           activeTab === "KNOWN_ERRORS"
             ? t("exc_rules_user_tab_title", "Known Errors")
             : activeTab !== "DASHBOARD"
-              ? t(`tab_lab_${activeTab.toLowerCase()}`) || activeTab
+              ? t(`tab_lab_${activeTab.toLowerCase()}`, activeTab)
               : undefined
         }
         onTitleClick={() => setActiveTab("DASHBOARD")}
@@ -1684,10 +1684,10 @@ export default function Lab({
                   >
                     <div className="flex items-center gap-4 h-full relative z-10">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 bg-transparent border ${
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${
                           testSaveStatus?.has_test_save
-                            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--warning)]"
                         }`}
                       >
                         <span className="material-symbols-outlined !text-[26px]">
@@ -1901,7 +1901,7 @@ export default function Lab({
                           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                             {t("icon_science", "science")}
                           </span>
-                          <span className="text-[var(--accent)]">
+                          <span>
                             {t("subject_isolation", "Subject Isolation")}
                           </span>
                         </span>
@@ -2204,12 +2204,12 @@ export default function Lab({
                       <span className={VAULT_CHIP_CLASS}>
                         <span
                           className={`material-symbols-outlined !text-[12px] ${
-                            isError ? "text-rose-400" : "text-emerald-400"
+                            isError ? "text-[var(--danger)]" : "text-[var(--success)]"
                           }`}
                         >
                           {isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                         </span>
-                        <span className={isError ? "text-rose-400" : "text-emerald-400"}>
+                        <span>
                           {isError
                             ? t("fatal_collision", "Fatal Collision")
                             : t("successful_injection", "Successful Injection")}
@@ -2223,7 +2223,7 @@ export default function Lab({
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                           {t("icon_terminal", "terminal")}
                         </span>
-                        <span className="font-mono text-[var(--accent)]">
+                        <span className="font-mono">
                           {`Lab_Report_${cardReportNum}`}
                         </span>
                       </span>
@@ -2232,14 +2232,14 @@ export default function Lab({
                           <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                             {t("icon_deployed_code", "deployed_code")}
                           </span>
-                          <span className="text-[var(--subtext)]">{modExt}</span>
+                          <span>{modExt}</span>
                         </span>
                       )}
                       <span className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                           {t("icon_sell", "sell")}
                         </span>
-                        <span className="text-[var(--subtext)]">
+                        <span>
                           {modVer ? `v${modVer}` : selectedVersion || t("unknown", "Unknown")}
                         </span>
                       </span>
@@ -2537,12 +2537,12 @@ export default function Lab({
                     }`}
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-transparent ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${
                         secureCardState === "done"
-                          ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                          ? "text-[var(--success)]"
                           : isError
-                            ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
-                            : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                            ? "text-[var(--danger)]"
+                            : "text-[var(--success)]"
                       }`}
                     >
                       <span
@@ -2778,9 +2778,9 @@ export default function Lab({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)] flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[12px]">
-                          verified_user
+                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                          {t("icon_verified_user", "verified_user")}
                         </span>
                         {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
                       </span>

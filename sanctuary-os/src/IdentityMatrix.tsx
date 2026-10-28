@@ -724,13 +724,7 @@ export function SharedIdentityEditor({
                 </span>
                 {isLockedStaffProfile ? (
                   <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center gap-3 w-full">
-                    <div
-                      className="w-9 h-9 rounded-xl glass-surface border text-[var(--warning)] flex items-center justify-center shrink-0"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--warning) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[18px]">
                         {t("icon_lock", "lock")}
                       </span>

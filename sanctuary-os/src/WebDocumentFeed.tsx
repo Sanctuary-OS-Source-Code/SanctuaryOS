@@ -34,6 +34,7 @@ import {
 import {
   extractDirectiveBuilderSchema,
   stripDirectiveBuilderComment,
+  getDefaultDirectiveBuilderSchema,
 } from "./utils/directivesBuilderSchema";
 
 type DirectiveModuleId =
@@ -91,11 +92,11 @@ export default function WebDocumentFeed() {
 
   // 2. Phase Roadmap Timeline State (3 Static Top Tiles + 2-Column Cards with Inline Drawer)
   const [roadmapFilter, setRoadmapFilter] = useState<"all" | "active" | "completed">("all");
-  const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(12);
+  const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(13);
 
   // 3. Forking & Spoke Provisioning Guide State (3 Static Top Tiles)
   const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
-  const [forkModeIdx, setForkModeIdx] = useState<0 | 1>(0);
+  const [forkModeIdx, setForkModeIdx] = useState<number>(0);
   const [sqlSchemaTab, setSqlSchemaTab] = useState<"spoke" | "hub">("spoke");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -1274,31 +1275,60 @@ export default function WebDocumentFeed() {
     return stripDirectiveBuilderComment(raw);
   }, [activeModule, directivesMap]);
 
-  // Extract any Keepers Core Visual Builder overrides saved in `system_directives` / `.md`
+  // Extract any Keepers Core Visual Builder / Live Markdown schemas synced via `system_directives` / `.md`
   const customGuideSchema = useMemo(
-    () => extractDirectiveBuilderSchema(directivesMap.citizen_guide?.content),
-    [directivesMap.citizen_guide?.content]
+    () =>
+      extractDirectiveBuilderSchema(
+        directivesMap.citizen_guide?.content || bundledCitizenGuide,
+        "citizen_guide",
+        t
+      ) || getDefaultDirectiveBuilderSchema("citizen_guide", t),
+    [directivesMap.citizen_guide?.content, t]
   );
   const customRoadmapSchema = useMemo(
-    () => extractDirectiveBuilderSchema(directivesMap.phase_roadmap?.content),
-    [directivesMap.phase_roadmap?.content]
+    () =>
+      extractDirectiveBuilderSchema(
+        directivesMap.phase_roadmap?.content || bundledRoadmapDoc,
+        "phase_roadmap",
+        t
+      ) || getDefaultDirectiveBuilderSchema("phase_roadmap", t),
+    [directivesMap.phase_roadmap?.content, t]
+  );
+  const customForkSchema = useMemo(
+    () =>
+      extractDirectiveBuilderSchema(
+        directivesMap.forking_guide?.content || bundledForkingGuide,
+        "forking_guide",
+        t
+      ) || getDefaultDirectiveBuilderSchema("forking_guide", t),
+    [directivesMap.forking_guide?.content, t]
   );
   const customArchSchema = useMemo(
     () =>
-      extractDirectiveBuilderSchema(directivesMap.master_architecture?.content),
-    [directivesMap.master_architecture?.content]
+      extractDirectiveBuilderSchema(
+        directivesMap.master_architecture?.content || bundledArchitectureDoc,
+        "master_architecture",
+        t
+      ) || getDefaultDirectiveBuilderSchema("master_architecture", t),
+    [directivesMap.master_architecture?.content, t]
   );
   const customProtoSchema = useMemo(
     () =>
-      extractDirectiveBuilderSchema(directivesMap.master_protocols?.content),
-    [directivesMap.master_protocols?.content]
+      extractDirectiveBuilderSchema(
+        directivesMap.master_protocols?.content || bundledProtocolList,
+        "master_protocols",
+        t
+      ) || getDefaultDirectiveBuilderSchema("master_protocols", t),
+    [directivesMap.master_protocols?.content, t]
   );
 
   const activePanelMeta = useMemo(() => {
     switch (activeModule) {
       case "guide":
         return {
-          title: t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
+          title:
+            customGuideSchema?.title ||
+            t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
           subtitle: t(
             "sd_card_guide_sub",
             "Guided OS Tour • Citizen & Elevated Clearances"
@@ -1307,13 +1337,20 @@ export default function WebDocumentFeed() {
         };
       case "roadmap":
         return {
-          title: t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap"),
-          subtitle: t("sd_card_roadmap_sub", "Evolution Timeline • Phase 12 Active"),
+          title:
+            customRoadmapSchema?.title ||
+            t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap"),
+          subtitle: t(
+            "sd_card_roadmap_sub",
+            "Evolution Timeline • Phase 13 Active"
+          ),
           icon: t("icon_timeline", "timeline"),
         };
       case "forking":
         return {
-          title: t("sd_card_fork_title", "Forking & Spoke Provisioning Guide"),
+          title:
+            customForkSchema?.title ||
+            t("sd_card_fork_title", "Forking & Spoke Provisioning Guide"),
           subtitle: t(
             "sd_card_fork_sub",
             "Standalone Codebase Fork & Partner Uplink"
@@ -1322,14 +1359,18 @@ export default function WebDocumentFeed() {
         };
       case "architecture":
         return {
-          title: t("sd_card_arch_title", "Master Architecture & Engine Systems"),
+          title:
+            customArchSchema?.title ||
+            t("sd_card_arch_title", "Master Architecture & Engine Systems"),
           subtitle: t("sd_card_arch_sub", "Hub-and-Spoke Federation & Rust Core"),
           icon: t("icon_architecture", "architecture"),
         };
       case "protocols":
       default:
         return {
-          title: t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
+          title:
+            customProtoSchema?.title ||
+            t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
           subtitle: t(
             "sd_card_proto_sub",
             "Governance, Security & Compliance Tiers"
@@ -1337,7 +1378,15 @@ export default function WebDocumentFeed() {
           icon: t("icon_policy", "policy"),
         };
     }
-  }, [activeModule, t]);
+  }, [
+    activeModule,
+    customGuideSchema?.title,
+    customRoadmapSchema?.title,
+    customForkSchema?.title,
+    customArchSchema?.title,
+    customProtoSchema?.title,
+    t,
+  ]);
 
   // Render Interactive OS Walkthrough (3 Static Top Tiles + 2-Column Cards where Selected Card Expands Alone on Its Row)
   const renderInteractiveGuide = () => {
@@ -1408,8 +1457,11 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_play_circle", "play_circle")}
-            label={t("dir_guide_mode_walk_lbl", "7 STAGES")}
-            number={t("dir_guide_mode_walk_val", "OS Walkthrough")}
+            label={`${effectiveWalkStages.length} ${t("dir_guide_stages_unit", "STAGES")}`}
+            number={
+              customWalkTab?.value ||
+              t("dir_guide_mode_walk_val", "OS Walkthrough")
+            }
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "walkthrough"}
             onClick={() => setGuideMode("walkthrough")}
@@ -1417,8 +1469,11 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_explore", "explore")}
-            label={t("dir_guide_mode_mod_lbl", "9 MODULES")}
-            number={t("dir_guide_mode_mod_val", "Citizen Tools")}
+            label={`${effectiveCitizenSteps.length} ${t("dir_guide_modules_unit", "MODULES")}`}
+            number={
+              customModTab?.value ||
+              t("dir_guide_mode_mod_val", "Citizen Tools")
+            }
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "modules"}
             onClick={() => setGuideMode("modules")}
@@ -1426,8 +1481,8 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
-            label={t("dir_pr_t1_lbl", "6 TIERS")}
-            number={t("dir_wt_t8_val", "Role Tiers")}
+            label={`${effectiveRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
+            number={customRoleTab?.value || t("dir_wt_t8_val", "Role Tiers")}
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "roles"}
             onClick={() => setGuideMode("roles")}
@@ -1981,6 +2036,32 @@ export default function WebDocumentFeed() {
                         </p>
                       </div>
 
+                      {(role as any).subCards?.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                          {(role as any).subCards.map(
+                            (sc: any, scIdx: number) => (
+                              <div
+                                key={`${sc.id || scIdx}`}
+                                className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                                    {sc.icon ||
+                                      t("icon_check_circle", "check_circle")}
+                                  </span>
+                                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                    {renderCleanInlineText(sc.title)}
+                                  </h4>
+                                </div>
+                                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                  {renderCleanInlineText(sc.desc)}
+                                </p>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         <ActionButton
                           variant="glass"
@@ -2024,29 +2105,41 @@ export default function WebDocumentFeed() {
   // Render Interactive Phase Roadmap Timeline (3 Filter Tabs + 2-Column Card Grid where Selected Phase Expands Alone on Its Row)
   const renderInteractiveRoadmap = () => {
     const customPhasesTab = customRoadmapSchema?.tabs?.find(
-      (tab) => tab.id === "all"
+      (tab) => tab.id === "all" || tab.id === "phases"
     );
+    const totalCustomPhases = customPhasesTab?.cards?.length || 13;
     const effectivePhases =
       customPhasesTab && customPhasesTab.cards.length > 0
-        ? customPhasesTab.cards.map((c, idx) => ({
-            num:
-              parseInt((c.overline || "").replace(/\D+/g, ""), 10) ||
-              Math.max(1, 12 - idx),
-            code: t("", c.overline || `Phase ${Math.max(1, 12 - idx)}`),
-            title: t("", c.title || ""),
-            sub: t("", c.footerMeta || ""),
-            status: (c.status || (idx === 0 ? "active" : "completed")) as
-              | "active"
-              | "completed",
-            icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
-            desc: t("", c.desc || ""),
-            milestones: (c.subCards || []).map((sc) => ({
-              title: t("", sc.title || ""),
-              desc: t("", sc.desc || ""),
-              pending: Boolean(sc.pending),
-            })),
-          }))
+        ? customPhasesTab.cards.map((c, idx) => {
+            const phaseMatch = (c.overline || c.title || "").match(
+              /\bPhase\s+(\d+)/i
+            );
+            const parsedNum = phaseMatch
+              ? parseInt(phaseMatch[1], 10)
+              : Math.max(1, totalCustomPhases - idx);
+            return {
+              num: parsedNum,
+              code: t(
+                "",
+                c.overline || `Phase ${Math.max(1, totalCustomPhases - idx)}`
+              ),
+              title: t("", c.title || ""),
+              sub: t("", c.footerMeta || ""),
+              status: (c.status || (idx === 0 ? "active" : "completed")) as
+                | "active"
+                | "completed",
+              icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
+              desc: t("", c.desc || ""),
+              milestones: (c.subCards || []).map((sc) => ({
+                title: t("", sc.title || ""),
+                desc: t("", sc.desc || ""),
+                pending: Boolean(sc.pending),
+              })),
+            };
+          })
         : roadmapPhases;
+
+    const topPhaseNum = effectivePhases[0]?.num || 13;
 
     const filteredPhases = effectivePhases.filter((p) => {
       if (roadmapFilter === "active") return p.status === "active";
@@ -2065,37 +2158,37 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_timeline", "timeline")}
-            label={t("dir_roadmap_tile_all", "12 Phases")}
+            label={`${effectivePhases.length} ${t("dir_roadmap_phases_unit", "Phases")}`}
             number={t("sd_roadmap_filter_all_val", "Full Timeline")}
             colorClass="text-[var(--accent)]"
             isActive={roadmapFilter === "all"}
             onClick={() => {
               setRoadmapFilter("all");
-              setSelectedPhaseNum(12);
+              setSelectedPhaseNum(topPhaseNum);
             }}
           />
           <DashboardStatTile
             variant="filter"
             icon={t("icon_rocket_launch", "rocket_launch")}
             label={t("dir_phase_tab_active_lbl", "Current Era")}
-            number={t("dir_phase_tab_active_val", "Phase 12 Active")}
+            number={`${t("dir_phase_word", "Phase")} ${topPhaseNum} ${t("active", "Active")}`}
             colorClass="text-[var(--accent)]"
             isActive={roadmapFilter === "active"}
             onClick={() => {
               setRoadmapFilter("active");
-              setSelectedPhaseNum(12);
+              setSelectedPhaseNum(topPhaseNum);
             }}
           />
           <DashboardStatTile
             variant="filter"
             icon={t("icon_check_circle", "check_circle")}
             label={t("dir_roadmap_tile_done", "Completed")}
-            number={t("dir_phase_tab_done_val", "Phases 11 → 1")}
+            number={`${t("dir_roadmap_phases_unit", "Phases")} ${Math.max(1, topPhaseNum - 1)} → 1`}
             colorClass="text-[var(--success)]"
             isActive={roadmapFilter === "completed"}
             onClick={() => {
               setRoadmapFilter("completed");
-              setSelectedPhaseNum(11);
+              setSelectedPhaseNum(Math.max(1, topPhaseNum - 1));
             }}
           />
         </StatTileCarousel>
@@ -2531,6 +2624,65 @@ export default function WebDocumentFeed() {
                 </p>
               </div>
             </div>
+
+            {/* Additional Synced Cards from Spoke Setup Tab (e.g. Partner Spoke Agreement & Readiness Covenants) */}
+            {(customForkSchema?.tabs
+              .find((tb) => tb.id === "spoke")
+              ?.cards.slice(1) || []
+            ).map((extraCard, eIdx) => (
+              <div
+                key={`fork-spoke-extra-${extraCard.id || eIdx}`}
+                className="glass-surface rounded-2xl p-4 flex flex-col gap-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {extraCard.icon || t("icon_handshake", "handshake")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        {t("", extraCard.overline || "")}
+                      </span>
+                      <h4 className="text-sm sm:text-base font-black text-[var(--text)] leading-snug m-0">
+                        {t("", extraCard.title || "")}
+                      </h4>
+                    </div>
+                  </div>
+                  {extraCard.badge && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                      <span>{t("", extraCard.badge)}</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                  {t("", extraCard.desc || "")}
+                </p>
+                {(extraCard.subCards || []).length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    {(extraCard.subCards || []).map((sc, sIdx) => (
+                      <div
+                        key={`sc-${sc.id || sIdx}`}
+                        className="glass-surface rounded-xl p-3.5 flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                            {sc.icon || t("icon_check_circle", "check_circle")}
+                          </span>
+                          <h5 className="text-xs font-bold text-[var(--text)] leading-snug m-0">
+                            {t("", sc.title || "")}
+                          </h5>
+                        </div>
+                        <p className="text-[11px] font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                          {t("", sc.desc || "")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -2908,6 +3060,109 @@ export default function WebDocumentFeed() {
                 </div>
               )}
             </div>
+
+            {/* Additional Synced Mode Cards from Fork Modes Tab (e.g. Master Schema Studio & Lexicon Visual Studio) */}
+            {(customForkSchema?.tabs
+              .find((tb) => tb.id === "standalone")
+              ?.cards.slice(2) || []
+            ).map((extraCard, eIdx) => {
+              const modeIndex = eIdx + 2;
+              const isSelectedMode = forkModeIdx === modeIndex;
+              return (
+                <div
+                  key={`fork-mode-extra-${extraCard.id || modeIndex}`}
+                  role={!isSelectedMode ? "button" : undefined}
+                  tabIndex={!isSelectedMode ? 0 : undefined}
+                  onClick={
+                    !isSelectedMode
+                      ? () => setForkModeIdx(modeIndex)
+                      : undefined
+                  }
+                  onKeyDown={
+                    !isSelectedMode
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setForkModeIdx(modeIndex);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                    isSelectedMode
+                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
+                      : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
+                          isSelectedMode
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {extraCard.icon || t("icon_data_object", "data_object")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span
+                          className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                            isSelectedMode
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)]"
+                          }`}
+                        >
+                          {t("", extraCard.overline || "")}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {t("", extraCard.title || "")}
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                      <span>
+                        {isSelectedMode
+                          ? t("active", "Active")
+                          : t("", extraCard.badge || "")}
+                      </span>
+                    </span>
+                  </div>
+                  {isSelectedMode && (
+                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
+                        {t("", extraCard.desc || "")}
+                      </p>
+                      {(extraCard.subCards || []).length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          {(extraCard.subCards || []).map((sc, sIdx) => (
+                            <div
+                              key={`mode-sc-${sc.id || sIdx}`}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                                  {sc.icon ||
+                                    t("icon_check_circle", "check_circle")}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                  {t("", sc.title || "")}
+                                </h4>
+                              </div>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
+                                {t("", sc.desc || "")}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -3803,6 +4058,11 @@ export default function WebDocumentFeed() {
           }))
         : protocolDomains;
 
+    const totalProtoRules = effectiveProtocolDomains.reduce(
+      (acc, d) => acc + (d.rules?.length || 0),
+      0
+    );
+
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
@@ -3810,7 +4070,7 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
-            label={t("dir_pr_t1_lbl", "6 TIERS")}
+            label={`${effectiveProtoRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
             number={t("dir_pr_t1_val", "Role Matrix")}
             colorClass="text-[var(--accent)]"
             isActive={protoTab === "roles"}
@@ -3828,7 +4088,7 @@ export default function WebDocumentFeed() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_policy", "policy")}
-            label={t("dir_pr_t3_lbl", "32 RULES")}
+            label={`${totalProtoRules} ${t("dir_proto_rules_unit", "RULES")}`}
             number={t("dir_pr_t3_val", "OS Protocols")}
             colorClass="text-[var(--accent)]"
             isActive={protoTab === "list"}
@@ -4335,6 +4595,36 @@ export default function WebDocumentFeed() {
     );
   }, [posts]);
 
+  const guideWalkCount =
+    customGuideSchema?.tabs.find((tb) => tb.id === "walkthrough")?.cards
+      .length || 10;
+  const guideModCount =
+    customGuideSchema?.tabs.find((tb) => tb.id === "modules")?.cards.length ||
+    12;
+  const roadmapPhaseCount =
+    customRoadmapSchema?.tabs[0]?.cards.length || 13;
+  const forkTotalTabs = customForkSchema?.tabs.length || 3;
+  const forkTotalCards =
+    customForkSchema?.tabs.reduce((acc, tb) => acc + (tb.cards?.length || 0), 0) ||
+    7;
+  const archSubCardCount =
+    customArchSchema?.tabs.reduce(
+      (acc, tb) =>
+        acc +
+        (tb.cards || []).reduce(
+          (cAcc, c) => cAcc + (c.subCards?.length || 0),
+          0
+        ),
+      0
+    ) || 18;
+  const protoDomainTab = customProtoSchema?.tabs.find((tb) => tb.id === "list");
+  const protoDomainCount = protoDomainTab?.cards.length || 5;
+  const protoRuleCount =
+    protoDomainTab?.cards.reduce(
+      (acc, c) => acc + (c.subCards?.length || 0),
+      0
+    ) || 36;
+
   return (
     <div className="w-full flex flex-col gap-6">
       {/* Row 1: 2 Primary Featured Interactive Experiences (OS Tutorial & Phase Timeline) */}
@@ -4343,10 +4633,16 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_school", "school")}
-          title={t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")}
+          title={
+            customGuideSchema?.title ||
+            directivesMap.citizen_guide?.title ||
+            t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")
+          }
           subtitle={buildDirectiveSubtitle(
             t("sd_card_guide_sub", "Walkthrough")
           )}
+          bannerTopLabel={t("sd_card_guide_badge", "CITIZEN GUIDE")}
+          bannerBottomLabel={`${t("dir_guide_mode_walk_val", "OS Walkthrough")} • ${t("dir_guide_mode_mod_val", "Citizen Tools")} • ${t("dir_wt_t8_val", "Role Tiers")}`}
           onClick={() => openDirectiveModule("guide")}
           className="w-full h-full"
           imageOverlay={
@@ -4360,14 +4656,14 @@ export default function WebDocumentFeed() {
             </div>
           }
           footer={
-            <div className="flex items-center justify-between w-full mt-2">
+            <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_explore", "explore")}
                 </span>
-                {t("sd_card_guide_meta", "9 Interactive Modules")}
+                {`${guideWalkCount} ${t("dir_guide_stages_unit", "Stages")} • ${guideModCount} ${t("dir_guide_modules_unit", "Modules")}`}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_guide_cta", "Launch OS Tutorial")}{" "}
                 <span className="material-symbols-outlined !text-sm">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -4377,7 +4673,12 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t("sd_card_guide_desc", "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, and Elevated Clearances.")}
+            {customGuideSchema?.summary ||
+              directivesMap.citizen_guide?.summary ||
+              t(
+                "sd_card_guide_desc",
+                "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, Static Edge Auto-Push, Master Schema & Lexicon Studios, and Elevated Clearances."
+              )}
           </p>
         </UniversalCard>
 
@@ -4385,10 +4686,16 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_timeline", "timeline")}
-          title={t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")}
+          title={
+            customRoadmapSchema?.title ||
+            directivesMap.phase_roadmap?.title ||
+            t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
+          }
           subtitle={buildDirectiveSubtitle(
             t("sd_card_roadmap_sub", "Roadmap")
           )}
+          bannerTopLabel={`${t("dir_roadmap_phases_unit", "PHASES")} 1–${roadmapPhaseCount}`}
+          bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${t("sd_card_roadmap_sub", "Roadmap")}`}
           onClick={() => openDirectiveModule("roadmap")}
           className="w-full h-full"
           imageOverlay={
@@ -4397,19 +4704,19 @@ export default function WebDocumentFeed() {
                 <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                   {t("icon_rocket_launch", "rocket_launch")}
                 </span>
-                {t("sd_card_roadmap_badge", "PHASES 1–12")}
+                {`${t("dir_roadmap_phases_unit", "PHASES")} 1–${roadmapPhaseCount}`}
               </span>
             </div>
           }
           footer={
-            <div className="flex items-center justify-between w-full mt-2">
+            <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_timeline", "timeline")}
                 </span>
-                {t("sd_card_roadmap_meta", "12 Architecture Phases")}
+                {`${roadmapPhaseCount} ${t("dir_roadmap_phases_unit", "Phases")}`}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_roadmap_cta", "Explore Timeline")}{" "}
                 <span className="material-symbols-outlined !text-sm">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -4419,10 +4726,12 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t(
-              "sd_card_roadmap_desc",
-              "Interactive milestone timeline tracking Sanctuary OS from Phase 1 (Local Symlink Core) through Phase 11 (Liquid Glass & FIDO2 Security) into Phase 12 (Game-Agnostic Multi-Spoke Future)."
-            )}
+            {customRoadmapSchema?.summary ||
+              directivesMap.phase_roadmap?.summary ||
+              t(
+                "sd_card_roadmap_desc",
+                "Interactive milestone timeline tracking Sanctuary OS from Phase 1 (Local Symlink Core) through Phase 12 (Multi-Spoke Sovereignty) into Phase 13 (V5.8 Multi-Engine Studios, 21+17 Heuristics & Bilateral Cloud Sync)."
+              )}
           </p>
         </UniversalCard>
       </div>
@@ -4433,9 +4742,18 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_call_split", "call_split")}
-          title={t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")}
+          title={
+            customForkSchema?.title ||
+            directivesMap.forking_guide?.title ||
+            t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")
+          }
           subtitle={buildDirectiveSubtitle(
             t("sd_card_fork_sub", "Provisioning")
+          )}
+          bannerTopLabel={t("sd_card_fork_badge", "SPOKE & FORK")}
+          bannerBottomLabel={t(
+            "sd_card_fork_sub",
+            "Standalone Codebase Fork & Partner Uplink"
           )}
           onClick={() => openDirectiveModule("forking")}
           className="w-full h-full"
@@ -4450,14 +4768,14 @@ export default function WebDocumentFeed() {
             </div>
           }
           footer={
-            <div className="flex items-center justify-between w-full mt-2">
+            <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_hub", "hub")}
                 </span>
-                {t("sd_card_fork_meta", "3-Step Provisioning")}
+                {`${forkTotalTabs} ${t("dir_builder_tabs_lbl", "Tabs")} • ${forkTotalCards} ${t("dir_builder_cards_lbl", "Cards")}`}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_fork_cta", "Open Forking Guide")}{" "}
                 <span className="material-symbols-outlined !text-sm">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -4467,7 +4785,12 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t("sd_card_fork_desc", "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Dynamic Game Schemas and Cut the Cord.")}
+            {customForkSchema?.summary ||
+              directivesMap.forking_guide?.summary ||
+              t(
+                "sd_card_fork_desc",
+                "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Master Schema & Lexicon Studios and Cut the Cord."
+              )}
           </p>
         </UniversalCard>
 
@@ -4475,9 +4798,18 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_architecture", "architecture")}
-          title={t("sd_card_arch_title", "Master Architecture & Engine Systems")}
+          title={
+            customArchSchema?.title ||
+            directivesMap.master_architecture?.title ||
+            t("sd_card_arch_title", "Master Architecture & Engine Systems")
+          }
           subtitle={buildDirectiveSubtitle(
             t("sd_card_arch_sub", "Architecture")
+          )}
+          bannerTopLabel={t("sd_card_arch_badge", "CORE ENGINE")}
+          bannerBottomLabel={t(
+            "sd_card_arch_sub",
+            "Hub-and-Spoke Federation & Rust Core"
           )}
           onClick={() => openDirectiveModule("architecture")}
           className="w-full h-full"
@@ -4492,14 +4824,14 @@ export default function WebDocumentFeed() {
             </div>
           }
           footer={
-            <div className="flex items-center justify-between w-full mt-2">
+            <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_layers", "layers")}
                 </span>
-                {t("sd_card_arch_meta", "6 System Layers")}
+                {`${customArchSchema?.tabs.length || 3} ${t("dir_builder_tabs_lbl", "Tabs")} • ${archSubCardCount} ${t("dir_builder_cards_lbl", "Cards")}`}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_arch_cta", "Inspect Architecture")}{" "}
                 <span className="material-symbols-outlined !text-sm">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -4509,10 +4841,12 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t(
-              "sd_card_arch_desc",
-              "Deep-dive interactive explorer into the Tauri v2 Rust core, Hub-and-Spoke database federation, Symlink Airgap 2.5, Decentralized Static Edge Manifests, and Atomic Logic."
-            )}
+            {customArchSchema?.summary ||
+              directivesMap.master_architecture?.summary ||
+              t(
+                "sd_card_arch_desc",
+                "Deep-dive interactive explorer into the Tauri v2 Rust core, Hub-and-Spoke database federation, Offline Codebase Baseline + Live Cloud Sync, Symlink Airgap 2.5, Static Edge Auto-Push, and Universal 21+17 Heuristics."
+              )}
           </p>
         </UniversalCard>
 
@@ -4520,9 +4854,18 @@ export default function WebDocumentFeed() {
         <UniversalCard
           layout="vertical"
           icon={t("icon_policy", "policy")}
-          title={t("sd_card_proto_title", "Master Protocol & Clearance Matrix")}
+          title={
+            customProtoSchema?.title ||
+            directivesMap.master_protocols?.title ||
+            t("sd_card_proto_title", "Master Protocol & Clearance Matrix")
+          }
           subtitle={buildDirectiveSubtitle(
             t("sd_card_proto_sub", "Governance")
+          )}
+          bannerTopLabel={`${protoRuleCount} ${t("dir_proto_rules_unit", "PROTOCOLS")}`}
+          bannerBottomLabel={t(
+            "sd_card_proto_sub",
+            "Governance, Security & Compliance Tiers"
           )}
           onClick={() => openDirectiveModule("protocols")}
           className="w-full h-full"
@@ -4532,19 +4875,19 @@ export default function WebDocumentFeed() {
                 <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                   {t("icon_policy", "policy")}
                 </span>
-                {t("sd_card_proto_badge", "32 PROTOCOLS")}
+                {`${protoRuleCount} ${t("dir_proto_rules_unit", "PROTOCOLS")}`}
               </span>
             </div>
           }
           footer={
-            <div className="flex items-center justify-between w-full mt-2">
+            <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_shield", "shield")}
                 </span>
-                {t("sd_card_proto_meta", "5 Protocol Domains")}
+                {`${protoDomainCount} ${t("sd_card_proto_meta", "Protocol Domains")} • ${protoRuleCount} ${t("dir_proto_rules_unit", "Rules")}`}
               </span>
-              <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+              <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_proto_cta", "Browse Protocols")}{" "}
                 <span className="material-symbols-outlined !text-sm">
                   {t("icon_arrow_forward", "arrow_forward")}
@@ -4554,10 +4897,12 @@ export default function WebDocumentFeed() {
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {t(
-              "sd_card_proto_desc",
-              "Interactive directory of all 32 Sanctuary OS operational protocols, Florida Compliance Tiers 0–5, Dual-Tier Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
-            )}
+            {customProtoSchema?.summary ||
+              directivesMap.master_protocols?.summary ||
+              t(
+                "sd_card_proto_desc",
+                "Interactive directory of all 36 Sanctuary OS operational protocols across 5 domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+              )}
           </p>
         </UniversalCard>
       </div>
@@ -4589,14 +4934,14 @@ export default function WebDocumentFeed() {
                   </div>
                 }
                 footer={
-                  <div className="flex items-center justify-between w-full mt-2">
-                    <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
                       <span className="material-symbols-outlined !text-[12px]">
                         {t("icon_calendar_today", "calendar_today")}
                       </span>
                       {new Date(p.created_at).toLocaleDateString()}
                     </span>
-                    <span className="text-[10px] font-black capitalize tracking-widest opacity-80 group-hover/card:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                       {t("btn_view", "View")}{" "}
                       <span className="material-symbols-outlined !text-sm">
                         {t("icon_arrow_forward", "arrow_forward")}

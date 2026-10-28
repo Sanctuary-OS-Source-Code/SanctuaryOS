@@ -57,7 +57,10 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
       const latency = Date.now() - start;
 
       const { count: gamesCount } = await supabase.from('sanctuary_games').select('id', { count: 'exact', head: true });
-      const { count: ticketsCount } = await supabase.from('keeper_tickets').select('*', { count: 'exact', head: true }).in('status', ['open', 'in_progress']);
+      const { count: ticketsCount } = await supabase
+        .from('keeper_tickets')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'open', 'in_progress', 'new', 'pending']);
 
       const { count: themesCount } = await supabase.from('sanctuary_themes').select('*', { count: 'exact', head: true });
       const { count: lexiconsCount } = await supabase.from('sanctuary_lexicons').select('*', { count: 'exact', head: true });
@@ -98,7 +101,12 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
     };
 
     const fetchRecentItems = async () => {
-        const { data } = await supabase.from('keeper_tickets').select('*').in('status', ['open', 'in_progress']).order('created_at', { ascending: false }).limit(6);
+        const { data } = await supabase
+          .from('keeper_tickets')
+          .select('*')
+          .in('status', ['NEW', 'OPEN', 'PENDING', 'ESCALATED', 'open', 'in_progress', 'new', 'pending'])
+          .order('created_at', { ascending: false })
+          .limit(6);
         if (data) setRecentSupport(data);
     };
 
@@ -133,26 +141,31 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
             <div className="flex flex-col gap-4 w-full">
               <CommandScreenSectionHeading title={t("ql_support", "Support Queue")} icon={t("icon_local_activity", "local_activity")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentSupport.map((item: any) => (
+                  {recentSupport.map((item: any) => {
+                      const isPartnerApp =
+                        String(item.ticket_type || item.category || "").toLowerCase().includes("partner spoke") ||
+                        Boolean(item.metadata?.partner_application) ||
+                        String(item.title || "").toLowerCase().startsWith("[partner spoke]");
+                      return (
                       <UniversalCard 
                           key={`support-${item.id}`} 
                           layout="vertical" 
-                          title={item.subject || t("support_tickets", "Support Tickets")} 
-                          icon={t("icon_local_activity", "local_activity")} 
-                          onClick={() => setTab("support")}
+                          title={item.title || item.subject || t("support_tickets", "Support Tickets")} 
+                          icon={isPartnerApp ? t("icon_handshake", "handshake") : t("icon_local_activity", "local_activity")} 
+                          onClick={() => setTab(isPartnerApp ? "partner_apps" : "support")}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                                   <div className={VAULT_CHIP_CLASS}>
                                       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
-                                      <span>{t("status_open", "Open")}</span>
+                                      <span>{item.status || t("status_open", "Open")}</span>
                                   </div>
                               </div>
                           }
                           badges={
                               <div className={VAULT_CHIP_CLASS}>
                                   <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
-                                  <span>{t("wf_tab_tickets", "Support Queue")}</span>
+                                  <span>{item.ticket_type || item.category || t("wf_tab_tickets", "Support Queue")}</span>
                               </div>
                           }
                           footer={
@@ -167,7 +180,8 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
                               {item.description || t("status_open", "Open")}
                           </p>
                       </UniversalCard>
-                  ))}
+                      );
+                  })}
               </div>
             </div>
           )}

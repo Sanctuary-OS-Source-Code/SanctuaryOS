@@ -370,7 +370,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               }}
             />
 
-            <UniversalGroup title={t("btn_view", "Classification")} icon={t("icon_info", "info")}>
+            <UniversalGroup title={t("section_classification_creator", "Classification & {Mason}")} icon={t("icon_info", "info")}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("mason", "{Mason}")}</label>
@@ -410,7 +410,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               </div>
             </UniversalGroup>
 
-            <UniversalGroup title={t("compliance_tier", "Compliance & Compatibility")} icon={t("icon_verified", "verified")}>
+            <UniversalGroup title={t("section_compliance_compatibility", "Compliance & Compatibility")} icon={t("icon_verified", "verified")}>
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("compliance_tier", "Compliance Tier")}</label>
                 <CustomComplianceDropdown value={editForm.compliance_tier || 0} onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })} maxTier={4} />

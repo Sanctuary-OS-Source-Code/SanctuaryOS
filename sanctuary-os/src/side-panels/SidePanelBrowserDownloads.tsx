@@ -37,8 +37,8 @@ export function SidePanelBrowserDownloads({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-            <span className="material-symbols-outlined !text-[12px]">
+          <span className="glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5">
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_inventory_2", "inventory_2")}
             </span>
             {downloadsQueue.length}

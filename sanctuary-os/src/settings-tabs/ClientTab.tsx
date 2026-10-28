@@ -76,22 +76,23 @@ export default function ClientTab({ config, updateConfig }: any) {
             "Choose whether dragged and dropped {mod} files and archives are copied into your {Vault} or moved (automatically cleaning up the original source file after import)."
           )}
           icon={t("icon_drive_file_move", "drive_file_move")}
-        >
-          <CustomSettingsDropdown
-            value={ingestFileMode}
-            onChange={(val: any) => handleIngestFileModeChange(val)}
-            options={[
-              {
-                id: "copy",
-                label: t("settings_ingest_mode_copy", "Copy Original (Keep Source File)"),
-              },
-              {
-                id: "move",
-                label: t("settings_ingest_mode_move", "Move Original (Auto-Clean Source)"),
-              },
-            ]}
-          />
-        </UniversalCard>
+          footer={
+            <CustomSettingsDropdown
+              value={ingestFileMode}
+              onChange={(val: any) => handleIngestFileModeChange(val)}
+              options={[
+                {
+                  id: "copy",
+                  label: t("settings_ingest_mode_copy", "Copy Original (Keep Source File)"),
+                },
+                {
+                  id: "move",
+                  label: t("settings_ingest_mode_move", "Move Original (Auto-Clean Source)"),
+                },
+              ]}
+            />
+          }
+        />
 
         <UniversalCard 
           title={t("local_only", "Local Network Only")} 

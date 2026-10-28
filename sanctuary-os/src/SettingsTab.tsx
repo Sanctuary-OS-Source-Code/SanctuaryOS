@@ -159,7 +159,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   }
 
   return (
-    <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
+    <div className="flex flex-col gap-0 pb-32">
       <ViewHeader
         title={t("settings_title", "System Preferences") || "Settings"}
         breadcrumb={TABS.find(tab => tab.id === activeTab)?.label}
@@ -196,7 +196,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       </ViewHeader>
 
       {TABS.length > 0 && (
-        <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
+        <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 shrink-0">
           <StatTileCarousel>
             {TABS.map(tab => (
               <DashboardStatTile

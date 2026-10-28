@@ -13,6 +13,11 @@ const DIRECTIVE_FILE_MAP: Record<string, string> = {
   forking_guide: "Sanctuary OS Forking & Architecture Guide.md",
   master_architecture: "Master Architecture & Feature Document.md",
   master_protocols: "Master Protocol List.md",
+  compliance_protocol: "Compliance Protocol.md",
+  partners_agreement: "Partners Agreement.md",
+  eula: "EULA.md",
+  privacy: "Privacy Policy.md",
+  terms: "Terms of Service.md",
 };
 
 function devLexiconSyncPlugin() {

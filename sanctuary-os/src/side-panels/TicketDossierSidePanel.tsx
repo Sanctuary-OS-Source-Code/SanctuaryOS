@@ -1,7 +1,7 @@
 import { useStore } from "../store";
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
-import { supabase } from "../supabase";
+import { supabase, supabaseAuth } from "../supabase";
 import {
   SidePanel,
   SidePanelHeroCard,
@@ -15,7 +15,8 @@ import {
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import { UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
+import { UniversalInput, UniversalTextArea, SidePanelPillToggle } from "../components/universal/UniversalLayout";
+import { dispatchKeeperCustomEmail, getKeepersPipelineConfig } from "../utils/supporterManager";
 import TicketLogViewer from "./TicketLogViewer";
 
 interface TicketDossierProps {
@@ -60,6 +61,37 @@ export default function TicketDossierSidePanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<string>("");
+  const [sendEmailCopy, setSendEmailCopy] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState("");
+  const [senderIdentityLabel, setSenderIdentityLabel] = useState("Sanctuary OS Keepers Core <support@sanctuaryos.gg>");
+
+  useEffect(() => {
+    const isKeepersTicket = (ticket?.table_name || tableName) === "keeper_tickets";
+    if (!isKeepersTicket || !ticket) {
+      setSendEmailCopy(false);
+      setEmailRecipient("");
+      return;
+    }
+
+    getKeepersPipelineConfig().then((cfg) => {
+      setSenderIdentityLabel(
+        `${cfg.support_sender_name || "Sanctuary OS Keepers Core"} <${cfg.support_contact_email || "support@sanctuaryos.gg"}>`
+      );
+    });
+
+    const rawContact =
+      ticket.metadata?.contact_meta?.reply_contact ||
+      ticket.metadata?.partner_application?.lead_contact ||
+      "";
+    const emailMatch = String(rawContact).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (emailMatch) {
+      setEmailRecipient(emailMatch[0]);
+      setSendEmailCopy(true);
+    } else {
+      setEmailRecipient("");
+      setSendEmailCopy(false);
+    }
+  }, [ticket, tableName]);
 
   useEffect(() => {
     const targetModId = ticket?.target_mod_id || ticket?.metadata?.target_mod_id;
@@ -131,6 +163,13 @@ export default function TicketDossierSidePanel({
               });
           }
         });
+    } else if (ticket) {
+      const fallbackAuthor =
+        ticket.metadata?.partner_application?.lead_contact ||
+        ticket.metadata?.contact_meta?.reply_contact ||
+        ticket.metadata?.feedback_meta?.author_label ||
+        "VISITOR";
+      setAuthorName(fallbackAuthor);
     }
 
     if (ticket?.metadata?.replies) {
@@ -169,17 +208,56 @@ export default function TicketDossierSidePanel({
     };
 
     const targetTable = ticket.table_name || tableName || "sanctuary_tickets";
-    const { error } = await supabase
+    const dbClient = targetTable === "keeper_tickets" ? supabaseAuth : supabase;
+    const { error } = await dbClient
       .from(targetTable)
       .update({ metadata: newMetadata })
       .eq("id", ticket.id);
 
     setIsSubmitting(false);
     if (!error) {
-      setReplies(newMetadata.replies);
+      let updatedMeta = newMetadata;
+
+      if (
+        targetTable === "keeper_tickets" &&
+        sendEmailCopy &&
+        emailRecipient.trim().includes("@")
+      ) {
+        const emailResult = await dispatchKeeperCustomEmail({
+          to_email: emailRecipient.trim(),
+          subject: `Re: ${ticket.title || "Sanctuary OS Support Inquiry"}`,
+          body_text: replyText.trim(),
+          ticket_id: ticket.id,
+        });
+
+        const dispatchBadge = {
+          id: emailResult.dispatch_id || crypto.randomUUID(),
+          to_email: emailRecipient.trim(),
+          from_identity: senderIdentityLabel,
+          status: emailResult.status,
+          sent_at: new Date().toISOString(),
+        };
+
+        updatedMeta = {
+          ...newMetadata,
+          email_dispatches: [
+            ...(Array.isArray(newMetadata.email_dispatches)
+              ? newMetadata.email_dispatches
+              : []),
+            dispatchBadge,
+          ],
+        };
+      }
+
+      setReplies(updatedMeta.replies);
       setReplyText("");
-      if (onReplyAdded) onReplyAdded(newMetadata);
-      useStore.getState().pushStatus(t("support_success", "Reply sent"), "success");
+      if (onReplyAdded) onReplyAdded(updatedMeta);
+      useStore.getState().pushStatus(
+        targetTable === "keeper_tickets" && sendEmailCopy && emailRecipient.trim().includes("@")
+          ? t("keeper_email_reply_dispatched", "Reply saved & custom email dispatched from Keepers Core")
+          : t("support_success", "Reply sent"),
+        "success"
+      );
 
       if (ticket.author_id && user && ticket.author_id !== user.id) {
         await supabase.from("notifications").insert({
@@ -329,12 +407,8 @@ export default function TicketDossierSidePanel({
                     <span
                       key={i}
                       className={`${VAULT_CHIP_CLASS} font-mono`}
-                      style={{
-                        color: "var(--danger)",
-                        borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                      }}
                     >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                         {t("icon_extension", "extension")}
                       </span>
                       <span>{v.replace(/[-_]/g, " ")}</span>
@@ -355,12 +429,7 @@ export default function TicketDossierSidePanel({
             {ticket.metadata?.claimed_by && (
               <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                    style={{
-                      borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                     <span className="material-symbols-rounded !text-[18px]">
                       {t("icon_back_hand", "back_hand")}
                     </span>
@@ -369,14 +438,8 @@ export default function TicketDossierSidePanel({
                     {t("ticket_claimed_by", "Claimed By")}
                   </span>
                 </div>
-                <span
-                  className={VAULT_CHIP_CLASS}
-                  style={{
-                    color: "var(--accent)",
-                    borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                  }}
-                >
-                  <span className="material-symbols-rounded !text-[12px] shrink-0">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                     {t("icon_person", "person")}
                   </span>
                   <span>
@@ -391,12 +454,7 @@ export default function TicketDossierSidePanel({
             {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
               <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-                    style={{
-                      borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                     <span className="material-symbols-rounded !text-[18px]">
                       {t("icon_extension", "extension")}
                     </span>
@@ -439,6 +497,102 @@ export default function TicketDossierSidePanel({
           </div>
         </UniversalGroup>
 
+        {ticket.metadata?.feedback_meta && (
+          <UniversalGroup
+            title={t("landing_feedback_section_title", "Platform Feedback & Core Support")}
+            icon={t("icon_rate_review", "rate_review")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <StatBox
+                label={t("landing_feedback_form_platform", "Target Platform")}
+                value={ticket.metadata.feedback_meta.platform || "Core OS"}
+                icon={t("icon_devices", "devices")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_feedback_form_stream", "Feedback / Support Stream")}
+                value={ticket.metadata.feedback_meta.stream || ticket.ticket_type || "Feedback"}
+                icon={t("icon_alt_route", "alt_route")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_feedback_form_sentiment", "Sentiment")}
+                value={ticket.metadata.feedback_meta.sentiment || "Constructive"}
+                icon={t("icon_mood", "mood")}
+                iconColorClass="text-[var(--accent)]"
+              />
+            </div>
+          </UniversalGroup>
+        )}
+
+        {ticket.metadata?.contact_meta && (
+          <UniversalGroup
+            title={t("landing_contact_card_title", "Direct Human Contact")}
+            icon={t("icon_support_agent", "support_agent")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <StatBox
+                label={t("landing_contact_form_channel", "Inquiry Channel")}
+                value={ticket.metadata.contact_meta.channel || ticket.ticket_type || "General"}
+                icon={t("icon_mail", "mail")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_contact_form_reply_to", "Reply Contact")}
+                value={ticket.metadata.contact_meta.reply_contact || "Account Profile"}
+                icon={t("icon_alternate_email", "alternate_email")}
+                iconColorClass="text-[var(--accent)]"
+              />
+            </div>
+          </UniversalGroup>
+        )}
+
+        {ticket.metadata?.partner_application && (
+          <UniversalGroup
+            title={t("landing_partner_drawer_title", "Partner Game Spoke Application")}
+            icon={t("icon_handshake", "handshake")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <StatBox
+                label={t("landing_partner_game_title", "Target Game Title & Engine")}
+                value={ticket.metadata.partner_application.game_title || "N/A"}
+                icon={t("icon_sports_esports", "sports_esports")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_partner_extensions", "Primary {Mod} File Formats")}
+                value={ticket.metadata.partner_application.primary_extensions || "N/A"}
+                icon={t("icon_extension", "extension")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_partner_lead_contact", "Lead Wayfinder Contact")}
+                value={ticket.metadata.partner_application.lead_contact || "N/A"}
+                icon={t("icon_person", "person")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_partner_team_size", "Moderation Team Size")}
+                value={ticket.metadata.partner_application.team_size || "N/A"}
+                icon={t("icon_groups", "groups")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_partner_community_url", "Community / GitHub URL")}
+                value={ticket.metadata.partner_application.community_url || "N/A"}
+                icon={t("icon_link", "link")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("landing_partner_infra_ready", "Supabase Infrastructure")}
+                value={ticket.metadata.partner_application.infra_readiness || "N/A"}
+                icon={t("icon_dns", "dns")}
+                iconColorClass="text-[var(--accent)]"
+              />
+            </div>
+          </UniversalGroup>
+        )}
+
         {ticket.metadata?.logs &&
           ticket.metadata.logs !== "null" &&
           ticket.metadata.logs.trim() !== "" && (
@@ -463,12 +617,7 @@ export default function TicketDossierSidePanel({
                 >
                   <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface flex items-center justify-center shrink-0 border text-[var(--accent)]"
-                        style={{
-                          borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                        }}
-                      >
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                         <span className="text-xs font-black">
                           {(r.author || "U").charAt(0).toUpperCase()}
                         </span>
@@ -495,6 +644,50 @@ export default function TicketDossierSidePanel({
           </UniversalGroup>
         )}
 
+        {Array.isArray(ticket.metadata?.email_dispatches) &&
+          ticket.metadata.email_dispatches.length > 0 && (
+            <UniversalGroup
+              title={t("keeper_email_dispatches_title", "Outbound Custom Email Dispatches")}
+              icon={t("icon_outgoing_mail", "outgoing_mail")}
+            >
+              <div className="flex flex-col gap-2">
+                {ticket.metadata.email_dispatches.map((ed: any, idx: number) => (
+                  <div
+                    key={ed.id || idx}
+                    className="glass-surface px-4 py-2.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="material-symbols-rounded !text-[16px] text-[var(--accent)] shrink-0">
+                        {t("icon_mark_email_read", "mark_email_read")}
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-[var(--text)] truncate">
+                          {ed.to_email}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
+                          {ed.from_identity || senderIdentityLabel}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] text-[var(--success)]">
+                          {t("icon_verified", "verified")}
+                        </span>
+                        <span>{ed.status || "DISPATCHED"}</span>
+                      </span>
+                      {ed.sent_at && (
+                        <span className="text-[10px] font-mono text-[var(--subtext)]">
+                          {new Date(ed.sent_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </UniversalGroup>
+          )}
+
         {canReply &&
           !isReadOnly &&
           !["resolved", "rejected"].includes(statusLower) && (
@@ -510,16 +703,55 @@ export default function TicketDossierSidePanel({
                   "Write your response..."
                 )}
               />
+
+              {(ticket.table_name || tableName) === "keeper_tickets" && (
+                <div className="flex flex-col gap-2.5 pt-1">
+                  <SidePanelPillToggle
+                    label={t(
+                      "keeper_email_toggle_label",
+                      "Also Dispatch Custom Email From Keepers Core"
+                    )}
+                    description={senderIdentityLabel}
+                    icon={t("icon_outgoing_mail", "outgoing_mail")}
+                    checked={sendEmailCopy}
+                    onChange={setSendEmailCopy}
+                  />
+                  {sendEmailCopy && (
+                    <UniversalInput
+                      label={t("keeper_email_recipient_label", "Recipient Email Address")}
+                      value={emailRecipient}
+                      onChange={setEmailRecipient}
+                      placeholder={t(
+                        "keeper_email_recipient_placeholder",
+                        "citizen@domain.com"
+                      )}
+                    />
+                  )}
+                </div>
+              )}
+
               <ActionButton
                 onClick={handleSendReply}
-                disabled={!replyText.trim() || isSubmitting}
+                disabled={
+                  !replyText.trim() ||
+                  isSubmitting ||
+                  ((ticket.table_name || tableName) === "keeper_tickets" &&
+                    sendEmailCopy &&
+                    !emailRecipient.trim().includes("@"))
+                }
                 className="w-full"
                 icon={t("icon_send", "send")}
                 variant="glass"
                 label={
                   isSubmitting
                     ? t("btn_submitting", "Submitting...")
-                    : t("dossier_btn_send_transmission", "Send {Dispatch}")
+                    : (ticket.table_name || tableName) === "keeper_tickets" &&
+                        sendEmailCopy
+                      ? t(
+                          "keeper_email_btn_send_reply_and_email",
+                          "Send Reply & Dispatch Custom Email"
+                        )
+                      : t("dossier_btn_send_transmission", "Send {Dispatch}")
                 }
               />
             </UniversalGroup>

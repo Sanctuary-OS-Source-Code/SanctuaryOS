@@ -284,7 +284,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         icon={t("icon_satellite_alt", "satellite_alt")}
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         shape="circle"
-        breadcrumb={activeTab !== "OVERVIEW" ? (t(`tab_${activeTab.toLowerCase()}`) || activeTab) : undefined}
+        breadcrumb={activeTab !== "OVERVIEW" ? t(`tab_${activeTab.toLowerCase()}`, activeTab) : undefined}
         onTitleClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }}
       >
         {activeTab !== "OVERVIEW" && (

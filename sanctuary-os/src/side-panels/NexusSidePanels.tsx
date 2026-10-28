@@ -760,12 +760,7 @@ export function MarketBlueprintPanel({
       >
         <HoverTooltip title={mod.name} />
         <div className="flex justify-between items-start gap-2 relative z-10">
-          <div
-            className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 text-[var(--accent)]"
-            style={{
-              borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-            }}
-          >
+          <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
             <span className="material-symbols-rounded !text-[16px]">
               {cleaned.ext === "PACKAGE"
                 ? t("icon_inventory_2", "inventory_2")
@@ -776,14 +771,8 @@ export function MarketBlueprintPanel({
           </div>
           <div className="flex gap-1.5 flex-wrap justify-end">
             {mod.is_early_access && (
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                   {t("icon_science", "science")}
                 </span>
                 <span>{t("badge_early_access", "Early Access")}</span>
@@ -791,14 +780,8 @@ export function MarketBlueprintPanel({
               </span>
             )}
             {mod.is_paid && (
-              <span
-                className={VAULT_CHIP_CLASS}
-                style={{
-                  color: "var(--warning)",
-                  borderColor: "color-mix(in srgb, var(--warning) 35%, var(--border))",
-                }}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                   {t("icon_monetization_on", "monetization_on")}
                 </span>
                 <span>{t("badge_paid", "Paid")}</span>
