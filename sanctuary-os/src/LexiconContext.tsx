@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
+import { isRootDomain } from './utils/routingUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
@@ -362,11 +363,24 @@ async function resolveVaultLexiconRoots(): Promise<{ masterVault: string; spokeV
 
 export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const wsId = activeWorkspaceId || 'default';
+  const isWebHubRoot = !isDesktop() && isRootDomain();
+  const wsId = isWebHubRoot ? 'default_workspace' : (activeWorkspaceId || 'default');
 
   const BUILTIN_LEXICON_IDS = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
 
   const resolveGameDefaultLexicon = (schema: any, metaList?: any[]) => {
+    const cleanSchemaId = String(schema?.id || '').toLowerCase().trim();
+    if (
+      isWebHubRoot ||
+      wsId === 'default' ||
+      wsId === 'default_workspace' ||
+      !cleanSchemaId ||
+      cleanSchemaId === 'default' ||
+      cleanSchemaId === 'default_schema' ||
+      cleanSchemaId === 'default_workspace'
+    ) {
+      return 'en-sanctuary';
+    }
     if (schema?.default_lexicon) return schema.default_lexicon;
     if (schema?.lexicon_id) return schema.lexicon_id;
     if (schema?.schema_json?.default_lexicon) return schema.schema_json.default_lexicon;

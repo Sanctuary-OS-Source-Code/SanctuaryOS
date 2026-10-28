@@ -66,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v42';
+export const SHADER_REV = 'webgl_glass_v43';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -102,15 +102,16 @@ void main() {
   }
 
   float glassKind = v_meta.y; // 0.0 = panel, 1.0 = sidebar/drawer/dock, 2.0 = nested surface
-  float isSideDrawer = v_meta.w; // 2.0 = SidePanel drawer
-  if (isSideDrawer > 1.5 && v_fragPx.x > v_rect.x + v_rect.z) {
+  float isSideDrawer = v_meta.w; // 2.0 = SidePanel drawer, 1.5 = Mobile Dock / Mobile Menu Overlay
+  float isMobileOverlay = (isSideDrawer > 1.25 && isSideDrawer < 1.75) ? 1.0 : 0.0;
+  if (isSideDrawer > 1.75 && v_fragPx.x > v_rect.x + v_rect.z) {
     discard;
   }
 
   // 2. Signed Distance Field (sdRoundedBox) & Analytical 2D Surface Normal
-  // For right-anchored SidePanel drawers (isSideDrawer > 1.5), extend the SDF box past the right window edge
+  // For right-anchored SidePanel drawers (isSideDrawer > 1.75), extend the SDF box past the right window edge
   // so only the left corners are rounded by the theme radius (--radius) while the right edge and right corners stay 0px flush.
-  vec4 effRect = (isSideDrawer > 1.5) ? vec4(v_rect.xy, v_rect.z + 96.0, v_rect.w) : v_rect;
+  vec4 effRect = (isSideDrawer > 1.75) ? vec4(v_rect.xy, v_rect.z + 96.0, v_rect.w) : v_rect;
   vec2 halfSize = effRect.zw * 0.5;
   vec2 center = effRect.xy + halfSize;
   vec2 rel = v_fragPx - center;
@@ -146,12 +147,14 @@ void main() {
   // 3. True 3D Liquid Glass Lens & Meniscus Profile
   float minDim = min(panelHalfSize.x, panelHalfSize.y);
   float compactFactor = smoothstep(7.0, 18.0, minDim);
-  float isLargeSlab = (isSideDrawer > 1.5 || (glassKind > 0.5 && glassKind < 1.5 && minDim > 80.0)) ? 1.0 : 0.0;
+  float isLargeSlab = (isSideDrawer > 1.75 || (glassKind > 0.5 && glassKind < 1.5 && isMobileOverlay < 0.5 && minDim > 80.0)) ? 1.0 : 0.0;
   float rawBezel = (glassKind > 1.5)
     ? clamp(minDim * 0.34, 5.0, 12.0)
-    : (isLargeSlab > 0.5)
-      ? clamp(minDim * 0.28, 16.0, 38.0)
-      : clamp(minDim * 0.58, 11.0, 26.0);
+    : (isMobileOverlay > 0.5)
+      ? clamp(minDim * 0.42, 10.0, 20.0)
+      : (isLargeSlab > 0.5)
+        ? clamp(minDim * 0.28, 16.0, 38.0)
+        : clamp(minDim * 0.58, 11.0, 26.0);
   float bezelWidth = clamp(rawBezel * u_bezelScale, 4.0, max(4.5, minDim * 0.78));
 
   float normY = clamp((panelRel.y / max(1.0, panelHalfSize.y)) * 0.5 + 0.5, 0.0, 1.0);
@@ -164,7 +167,7 @@ void main() {
   float outerLip = pow(t, 4.2);
 
   // 4. Strong Physical Snell's Law Lens Refraction (Visible Background Bending Around Rounded Corners)
-  float refractAmp = ((glassKind > 1.5) ? 16.0 : (isLargeSlab > 0.5 ? 42.0 : 34.0)) * (0.35 + 0.65 * compactFactor) * u_refractScale;
+  float refractAmp = ((glassKind > 1.5) ? 16.0 : (isMobileOverlay > 0.5 ? 28.0 : (isLargeSlab > 0.5 ? 42.0 : 34.0))) * (0.35 + 0.65 * compactFactor) * u_refractScale;
   float bodyMag = ((glassKind > 1.5) ? 0.012 : 0.022) * (0.40 + 0.60 * compactFactor) * u_refractScale;
   vec2 lensOffsetPx = -normal2D * (rimSlope * refractAmp - outerLip * (refractAmp * 0.24)) - panelRel * bodyMag;
 
@@ -177,7 +180,7 @@ void main() {
 
   // Interior has a delicate silky optical frost (blurCol); curved perimeter meniscus transitions smoothly
   // into 100% crystal-clear refracted glass (sharpCol) so background shapes visibly bend around the edges
-  float rimClarity = smoothstep(0.04, 0.78, rimSlope) * (u_isLight > 0.5 ? 0.90 : 0.86) * (0.35 + 0.65 * compactFactor);
+  float rimClarity = smoothstep(0.04, 0.78, rimSlope) * (u_isLight > 0.5 ? (isMobileOverlay > 0.5 ? 0.68 : 0.90) : (isMobileOverlay > 0.5 ? 0.58 : 0.86)) * (0.35 + 0.65 * compactFactor);
   vec3 refractedCol = mix(blurCol, sharpCol, rimClarity);
 
   // 5. Ultra-Sheer Liquid Glass Transmittance (See-Through Optical Crystal, Never Flat Opaque Paint)
@@ -186,18 +189,20 @@ void main() {
 
   if (u_isLight > 0.5) {
     // Light Theme: Pure Water-Droplet / Clear Quartz Lens (84%–96% transparent refracted backdrop)
-    float lightReadability = (isSideDrawer > 1.5)
+    float lightReadability = (isSideDrawer > 1.75)
       ? clamp(0.12 + opScale * 0.22, 0.11, 0.26)
-      : (glassKind > 0.5 && glassKind < 1.5)
-        ? clamp(0.10 + opScale * 0.20, 0.09, 0.22)
-        : (glassKind > 1.5)
-          ? clamp(0.06 + opScale * 0.14, 0.05, 0.16)
-          : clamp(0.08 + opScale * 0.18, 0.07, 0.20);
+      : (isMobileOverlay > 0.5)
+        ? clamp(0.14 + opScale * 0.24, 0.12, 0.28)
+        : (glassKind > 0.5 && glassKind < 1.5)
+          ? clamp(0.10 + opScale * 0.20, 0.09, 0.22)
+          : (glassKind > 1.5)
+            ? clamp(0.06 + opScale * 0.14, 0.05, 0.16)
+            : clamp(0.08 + opScale * 0.18, 0.07, 0.20);
 
     // Meniscus rim is nearly 100% clear water-droplet refraction; body blends subtle quartz tint instead of chalky white
-    float bodyMix = lightReadability * (1.0 - rimSlope * 0.88);
+    float bodyMix = lightReadability * (1.0 - rimSlope * (isMobileOverlay > 0.5 ? 0.68 : 0.88));
     vec3 lightBodyTone = mix(vec3(0.94, 0.96, 0.99), u_tintRgb, 0.65);
-    crystalCol = mix(refractedCol, lightBodyTone, clamp(bodyMix, 0.0, 0.34));
+    crystalCol = mix(refractedCol, lightBodyTone, clamp(bodyMix, 0.0, 0.38));
 
     // Glossy diagonal glass reflection across the top-left dome
     float glassReflection = pow(clamp(1.0 - diagCoord, 0.0, 1.0), 3.0) * (glassKind > 1.5 ? 0.12 : 0.18) * u_specScale;
@@ -208,16 +213,18 @@ void main() {
     crystalCol = mix(crystalCol, vec3(0.70, 0.77, 0.86), clamp(bottomQuartzDepth * (1.0 - rimSlope * 0.45), 0.0, 0.26));
   } else {
     // Dark Theme: Translucent Smoked-Obsidian Lens (68%–92% transparent refracted backdrop)
-    float darkReadability = (isSideDrawer > 1.5)
+    float darkReadability = (isSideDrawer > 1.75)
       ? clamp(0.30 + opScale * 0.38, 0.28, 0.54)
-      : (glassKind > 0.5 && glassKind < 1.5)
-        ? clamp(0.22 + opScale * 0.34, 0.20, 0.46)
-        : (glassKind > 1.5)
-          ? clamp(0.12 + opScale * 0.24, 0.10, 0.30)
-          : clamp(0.20 + opScale * 0.34, 0.18, 0.44);
+      : (isMobileOverlay > 0.5)
+        ? clamp(0.34 + opScale * 0.40, 0.32, 0.58)
+        : (glassKind > 0.5 && glassKind < 1.5)
+          ? clamp(0.22 + opScale * 0.34, 0.20, 0.46)
+          : (glassKind > 1.5)
+            ? clamp(0.12 + opScale * 0.24, 0.10, 0.30)
+            : clamp(0.20 + opScale * 0.34, 0.18, 0.44);
 
-    float bodyMix = darkReadability * (1.0 - rimSlope * 0.82);
-    crystalCol = mix(refractedCol, u_tintRgb, clamp(bodyMix, 0.0, 0.65));
+    float bodyMix = darkReadability * (1.0 - rimSlope * (isMobileOverlay > 0.5 ? 0.62 : 0.82));
+    crystalCol = mix(refractedCol, u_tintRgb, clamp(bodyMix, 0.0, 0.68));
 
     // Glossy diagonal glass reflection across the top-left dome
     float glassReflection = pow(clamp(1.0 - diagCoord, 0.0, 1.0), 3.2) * (glassKind > 1.5 ? 0.07 : 0.12) * u_specScale;
@@ -284,6 +291,7 @@ interface CachedElementMeta {
   scrollClipEl: HTMLElement | null;
   isOverlay: boolean;
   isSideDrawer: boolean;
+  isMobileOverlay: boolean;
 }
 
 const MAX_INSTANCES = 360;
@@ -538,6 +546,7 @@ export function SystemBackground() {
         scrollClipEl,
         isOverlay,
         isSideDrawer: isSidePanel,
+        isMobileOverlay,
       };
       metaCache.set(el, meta);
       return meta;
@@ -794,7 +803,7 @@ export function SystemBackground() {
         instanceData[base + 8] = Math.min(meta.radiusPx, Math.min(rawRect.width, rawRect.height) * 0.5);
         instanceData[base + 9] = meta.glassKind;
         instanceData[base + 10] = rawOpacity;
-        instanceData[base + 11] = meta.isSideDrawer ? 2.0 : (meta.glassKind > 1.5 ? 0.5 : 1.0);
+        instanceData[base + 11] = meta.isSideDrawer ? 2.0 : (meta.isMobileOverlay ? 1.5 : (meta.glassKind > 1.5 ? 0.5 : 1.0));
 
         count++;
         return new DOMRect(rectLeft, rectTop, rawRect.width, rawRect.height);
@@ -975,7 +984,7 @@ export function SystemBackground() {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
 
         // Generate clamped-border lightly-frosted texture so background shapes stay recognizable & visibly refract
-        const bw = 1440;
+        const bw = Math.min(1440, Math.max(540, Math.round(vw * 1.15)));
         const bh = Math.max(320, Math.round(bw / targetAspect));
         const blurPx = rawBlur <= 0
           ? 0
@@ -1142,11 +1151,12 @@ export function SystemBackground() {
         prop !== 'height' &&
         prop !== 'grid-template-rows' &&
         prop !== 'transform' &&
+        prop !== 'translate' &&
         prop !== 'margin-bottom'
       ) {
         return;
       }
-      if (prop === 'transform') {
+      if (prop === 'transform' || prop === 'translate') {
         const tgt = e.target as HTMLElement | null;
         if (
           !tgt?.classList ||
@@ -1342,18 +1352,14 @@ export function SystemBackground() {
 
   return (
     <div
-      className="fixed pointer-events-none z-[0] overflow-hidden"
+      className="fixed inset-0 pointer-events-none z-[0] overflow-hidden"
       style={{
-        top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-        bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
-        left: 'calc(-1 * env(safe-area-inset-left, 0px))',
-        right: 'calc(-1 * env(safe-area-inset-right, 0px))',
-        minHeight: 'calc(100lvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
+        width: '100%',
+        height: '100%',
+        minHeight: '100lvh',
         backgroundColor: isTransparentPassthrough
           ? 'transparent'
-          : currentTheme.bgImage
-            ? 'var(--bg, #050b16)'
-            : 'var(--bg, #050b16)',
+          : 'var(--bg, #040812)',
         backgroundImage: currentTheme.bgImage ? `url("${currentTheme.bgImage}")` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',

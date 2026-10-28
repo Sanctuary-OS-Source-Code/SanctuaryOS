@@ -27,8 +27,8 @@ function MobileNavItem({
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group border-0 cursor-pointer ${
         active
-          ? 'sa-glass-active text-[var(--sidebartext)] opacity-100'
-          : 'text-[var(--sidebartext)] opacity-75 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--sidebartext)_6%,transparent)]'
+          ? 'sa-glass-active text-[var(--text)] opacity-100'
+          : 'text-[var(--text)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)]'
       }`}
     >
       <div
@@ -46,8 +46,8 @@ function MobileNavItem({
             iconColorClass
               ? iconColorClass
               : active
-                ? 'text-[var(--accent)]'
-                : 'text-[var(--sidebartext)] group-hover:text-[var(--accent)]'
+                ? 'text-[var(--accent)] opacity-100'
+                : 'text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)]'
           }`}
         >
           {icon}
@@ -60,7 +60,7 @@ function MobileNavItem({
         {label}
       </span>
       {typeof badge === 'number' && badge > 0 && (
-        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_16%,transparent)] text-[9px] font-black text-[var(--sidebartext)] opacity-85 shrink-0 flex items-center justify-center leading-none">
+        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[9px] font-black text-[var(--text)] opacity-85 shrink-0 flex items-center justify-center leading-none">
           {badge}
         </span>
       )}
@@ -180,7 +180,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     } else if (isLandingContext) {
       setIsMenuOpen(false);
       setIsHubNavOpen(false);
-      if (['overview', 'workspaces', 'news', 'directives', 'system_directives', 'download', 'support', 'feedback', 'contact', 'legal', 'eula'].includes(tabId)) {
+      if (['overview', 'workspaces', 'news', 'directives', 'system_directives', 'download', 'support', 'feedback', 'contact', 'partners', 'partner_spokes', 'legal', 'eula', 'donations', 'donate'].includes(tabId)) {
         const norm = normalizeLandingTab(tabId);
         setActiveLandingSection(norm);
         setView('landing');
@@ -194,6 +194,14 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       setView(tabId);
     }
   };
+
+  useEffect(() => {
+    (window as any).__sanctuaryRenderWebGLGlass?.(true);
+    const timer = window.setTimeout(() => {
+      (window as any).__sanctuaryRenderWebGLGlass?.(true);
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [isMenuOpen, isHubNavOpen, view, activeLandingSection]);
 
   const hasRoleHubs =
     !isLandingContext || ["core_dev", "admin", "keeper"].includes(osRole);
@@ -218,12 +226,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       <div
         className="md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[999999] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
         style={{
-          backgroundColor: 'var(--glass-sidebar-bg)',
+          backgroundColor: 'var(--glass-base-fill)',
           borderTopColor: 'var(--glass-border-top)',
           borderLeftColor: 'var(--glass-border-left)',
           borderRightColor: 'var(--glass-border-right)',
           borderBottomColor: 'var(--glass-border-bottom)',
-          boxShadow: 'var(--glass-sidebar-shadow, var(--glass-outer-shadow), var(--glass-inset-highlight))',
+          boxShadow: '0 8px 24px -6px rgba(0, 0, 0, 0.36), var(--glass-inset-highlight)',
         }}
       >
         <div className="relative z-10 w-full h-full flex items-center justify-around px-2 py-1.5 gap-1.5">
@@ -239,26 +247,26 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 onClick={() => handleTabClick(tab.id)}
                 className={`flex flex-col items-center justify-center h-full py-1.5 gap-1 rounded-2xl transition-all duration-300 relative cursor-pointer ${
                   isActive
-                    ? 'sa-glass-active flex-[1.5] shrink-0 px-3 text-[var(--sidebartext)] opacity-100'
-                    : 'flex-1 min-w-0 px-1 text-[var(--sidebartext)] opacity-60 hover:opacity-90'
+                    ? 'sa-glass-active flex-[1.5] shrink-0 px-3 text-[var(--text)] opacity-100'
+                    : 'flex-1 min-w-0 px-1 text-[var(--text)] opacity-70 hover:opacity-100'
                 }`}
               >
                 <div className="relative flex items-center justify-center">
                   <span
                     className={`material-symbols-outlined relative z-10 leading-none shrink-0 transition-all duration-300 !text-[20px] ${
-                      isActive ? 'text-[var(--accent)]' : 'text-[var(--sidebartext)]'
+                      isActive ? 'text-[var(--accent)] opacity-100' : 'text-[var(--text)] opacity-85'
                     }`}
                   >
                     {tab.icon}
                   </span>
                   {typeof tab.badge === "number" && tab.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-[15px] h-[15px] px-1 rounded-md glass-surface border border-[color-mix(in_srgb,var(--sidebartext)_22%,transparent)] text-[var(--sidebartext)] text-[8px] font-black flex items-center justify-center shadow-sm z-20">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[15px] h-[15px] px-1 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)] text-[8px] font-black flex items-center justify-center shadow-sm z-20">
                       {tab.badge}
                     </span>
                   )}
                 </div>
                 {isActive && (
-                  <span className="text-[9.5px] font-bold text-center leading-tight capitalize tracking-[0.04em] text-[var(--sidebartext)] opacity-95 whitespace-nowrap relative z-10">
+                  <span className="text-[9.5px] font-bold text-center leading-tight capitalize tracking-[0.04em] text-[var(--text)] opacity-95 whitespace-nowrap relative z-10">
                     {tab.label}
                   </span>
                 )}
@@ -270,8 +278,8 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Mobile "More" Menu Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-          isMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
+          isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
         <div
@@ -279,12 +287,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{
-            backgroundColor: 'var(--glass-sidebar-bg)',
+            backgroundColor: 'var(--glass-base-fill)',
             borderTopColor: 'var(--glass-border-top)',
             borderLeftColor: 'var(--glass-border-left)',
             borderRightColor: 'var(--glass-border-right)',
             borderBottomColor: 'var(--glass-border-bottom)',
-            boxShadow: 'var(--glass-sidebar-shadow, var(--glass-outer-shadow), var(--glass-inset-highlight))',
+            boxShadow: 'var(--glass-outer-shadow), var(--glass-inset-highlight)',
           }}
         >
           <div className="relative z-10 flex flex-col w-full max-h-[68vh] overflow-hidden">
@@ -341,7 +349,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   }}
                   icon={t("icon_add_to_home_screen", "add_to_home_screen")}
                   label={t("pwa_btn_install", "Install App")}
-                  iconColorClass="text-[var(--accent)]"
                 />
               )}
 
@@ -352,35 +359,30 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                     onClick={() => handleTabClick('download')}
                     icon={t("icon_download", "download")}
                     label={t("landing_download_sidebar", "Download Sanctuary OS")}
-                    iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'support'}
                     onClick={() => handleTabClick('support')}
                     icon={t("icon_support_agent", "support_agent")}
                     label={t("landing_nav_feedback", "Feedback & Support")}
-                    iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'partners'}
                     onClick={() => handleTabClick('partners')}
                     icon={t("icon_handshake", "handshake")}
                     label={t("landing_partners_tab", "Partner Spokes")}
-                    iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'legal'}
                     onClick={() => handleTabClick('legal')}
                     icon={t("icon_gavel", "gavel")}
                     label={t("landing_legal_tab", "Legal")}
-                    iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'donations'}
                     onClick={() => handleTabClick('donations')}
                     icon={t("icon_volunteer_activism", "volunteer_activism")}
                     label={t("wf_tab_donations", "Donations")}
-                    iconColorClass="text-[var(--accent)]"
                   />
                 </>
               )}
@@ -397,7 +399,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   }}
                   icon={t("icon_public", "public")}
                   label={t("return_to_hub", "Return to the Hub") || t("workspace_sidebar", "Workspaces")}
-                  iconColorClass="text-[var(--accent)]"
                 />
               )}
 
@@ -411,7 +412,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   }}
                   icon={t("icon_key", "key")}
                   label={t("sidebar_signin", "Authenticate")}
-                  iconColorClass="text-[var(--accent)]"
                 />
               )}
 
@@ -423,11 +423,10 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 }}
                 icon={t("icon_settings", "settings")}
                 label={t("term_settings", "Settings")}
-                iconColorClass="text-[var(--accent)]"
               />
 
               {hasRoleHubs && (
-                <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--sidebartext)_14%,transparent)] to-transparent my-1.5 shrink-0" />
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_14%,transparent)] to-transparent my-1.5 shrink-0" />
               )}
 
               {!isLandingContext && (
@@ -446,7 +445,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   onClick={() => handleTabClick('ArchitectHub')}
                   icon={t("icon_analytics", "analytics")}
                   label={t("hub_title", "Moderator Console")}
-                  iconColorClass="text-[var(--accent)]"
                 />
               )}
 
@@ -466,7 +464,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   onClick={() => handleTabClick('WayfinderHub')}
                   icon={t("icon_terminal", "terminal")}
                   label={t("wf_hub_title", "Wayfinder Operations")}
-                  iconColorClass="text-[var(--accent)]"
                 />
               )}
 
@@ -486,8 +483,8 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Hub Navigation Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-          isHubNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
+          isHubNavOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
         <div
@@ -495,12 +492,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
             isHubNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{
-            backgroundColor: 'var(--glass-sidebar-bg)',
+            backgroundColor: 'var(--glass-base-fill)',
             borderTopColor: 'var(--glass-border-top)',
             borderLeftColor: 'var(--glass-border-left)',
             borderRightColor: 'var(--glass-border-right)',
             borderBottomColor: 'var(--glass-border-bottom)',
-            boxShadow: 'var(--glass-sidebar-shadow, var(--glass-outer-shadow), var(--glass-inset-highlight))',
+            boxShadow: 'var(--glass-outer-shadow), var(--glass-inset-highlight)',
           }}
         >
           <div className="relative z-10 flex flex-col w-full max-h-[calc(100dvh-120px)] overflow-hidden">

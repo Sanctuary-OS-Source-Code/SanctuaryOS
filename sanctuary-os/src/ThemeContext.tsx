@@ -4,6 +4,7 @@ import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists }
 import { supabase } from './supabase';
 import { createClient } from '@supabase/supabase-js';
 import { isDesktop } from './utils/envUtils';
+import { isRootDomain } from './utils/routingUtils';
 
 import { useStore } from './store';
 
@@ -411,11 +412,11 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-card-icon-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.04, Math.min(0.14, nestedSurfaceAlpha * 1.25)).toFixed(3)})`;
     vars['--glass-card-icon-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.16, Math.min(0.28, borderOpacity * 1.05)).toFixed(3)})`;
     vars['--glass-card-icon-shadow'] = `0 8px 20px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 0.95).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)}), inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.32)`;
-    const navDarkR = Math.round(nestedTintR * 0.65 + accR * 0.35);
-    const navDarkG = Math.round(nestedTintG * 0.65 + accG * 0.35);
-    const navDarkB = Math.round(nestedTintB * 0.65 + accB * 0.35);
-    vars['--glass-nav-active-bg'] = `rgba(${navDarkR}, ${navDarkG}, ${navDarkB}, ${Math.max(0.07, Math.min(0.22, 0.05 + darkPanelAlpha * 0.35)).toFixed(3)})`;
-    vars['--glass-nav-active-sheen'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.85).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.55).toFixed(3)}) 52%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.85).toFixed(3)}) 100%)`;
+    const navDarkR = Math.round(baseR * 0.84 + accR * 0.16);
+    const navDarkG = Math.round(baseG * 0.84 + accG * 0.16);
+    const navDarkB = Math.round(baseB * 0.84 + accB * 0.16);
+    vars['--glass-nav-active-bg'] = `rgba(${navDarkR}, ${navDarkG}, ${navDarkB}, ${Math.max(0.055, Math.min(0.15, 0.035 + darkPanelAlpha * 0.24)).toFixed(3)})`;
+    vars['--glass-nav-active-sheen'] = `linear-gradient(135deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.72).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.45).toFixed(3)}) 52%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.55).toFixed(3)}) 100%)`;
     vars['--glass-nav-active-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.28, topBorderAlpha * 0.54).toFixed(3)})`;
     vars['--glass-nav-active-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.20, leftBorderAlpha * 0.48).toFixed(3)})`;
     vars['--glass-nav-active-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.08, rightBorderAlpha * 0.44).toFixed(3)})`;
@@ -426,7 +427,7 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const GLASS_OPTICS_REV = "rev_49";
+const GLASS_OPTICS_REV = "rev_50";
 
 export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   if (!themeObj || typeof document === 'undefined') return 'dark';
@@ -497,11 +498,15 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   const colorScheme: 'light' | 'dark' = yiq >= 128 ? 'light' : 'dark';
   root.style.colorScheme = colorScheme;
   if (document.body) {
-    document.body.style.backgroundColor = safeBg;
+    document.body.style.backgroundColor = themeObj.bgImage ? 'transparent' : safeBg;
     document.body.style.colorScheme = colorScheme;
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeColorMeta) {
+  if (themeObj.bgImage && !isDesktop()) {
+    if (themeColorMeta) {
+      themeColorMeta.remove();
+    }
+  } else if (themeColorMeta) {
     themeColorMeta.setAttribute('content', fallbackThemeColor);
   }
   const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
@@ -552,7 +557,10 @@ function writeSharedThemeMap(wsId: string, suffix: 'custom_themes' | 'dev_themes
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces) || [];
-  const wsId = activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default';
+  const isWebHubRoot = !isDesktop() && isRootDomain();
+  const wsId = isWebHubRoot
+    ? 'default_workspace'
+    : (activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default');
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);

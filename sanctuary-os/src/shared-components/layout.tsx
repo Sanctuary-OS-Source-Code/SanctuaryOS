@@ -715,22 +715,25 @@ export function DashboardStatTile({
     isSpecial && hasValue && isNaN(Number(strVal.replace(/[,.\s%+]/g, "")));
 
   if (isModal || isTextSpecial) {
-    sizeClass = "text-xs sm:text-sm md:text-base";
+    sizeClass =
+      strVal.length > 13
+        ? "text-[11px] sm:text-xs md:text-sm"
+        : "text-xs sm:text-sm md:text-base";
   } else if (strVal.length > 15) sizeClass = "text-sm sm:text-base xl:text-lg";
   else if (strVal.length > 10) sizeClass = "text-base sm:text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-lg sm:text-xl lg:text-2xl xl:text-3xl";
 
   const paddingClass =
     variant === "tab" || variant === "filter" || isModal
-      ? "py-2.5 px-3 sm:py-3 sm:px-4 md:py-4 md:px-4"
+      ? "py-2.5 px-3 sm:py-3 sm:px-3.5 md:py-3.5 md:px-4"
       : "py-2.5 px-3 sm:py-3 sm:px-4 md:py-4 md:px-5 lg:p-5";
   const iconSizeClass =
-    isFilter || isTextSpecial
+    isFilter || isTextSpecial || (isSpecial && !hasValue)
       ? "w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"
       : "w-8 h-8 sm:w-9 sm:h-9 md:w-12 md:h-12";
   const iconTextClass =
-    isFilter || isTextSpecial
-      ? "!text-[16px] sm:!text-[18px] md:!text-[22px]"
+    isFilter || isTextSpecial || (isSpecial && !hasValue)
+      ? "!text-[16px] sm:!text-[18px] md:!text-[20px]"
       : "!text-[18px] sm:!text-[20px] md:!text-[26px]";
 
   const sizeConstraintClass =
@@ -755,7 +758,7 @@ export function DashboardStatTile({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={mergedStyle}
-      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-2.5 sm:gap-3 md:gap-4 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${isSpecial && !hasPulse ? "text-[var(--text)]" : `${cleanColorClass} ${textColor}`} relative group transition duration-300 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
+      className={`${sizeConstraintClass} h-auto self-stretch flex flex-row items-center justify-start text-left ${paddingClass} gap-2.5 sm:gap-3 md:gap-3.5 rounded-2xl glass-panel ${isModal ? "before:!hidden" : ""} ${isSpecial && !hasPulse ? "text-[var(--text)]" : `${cleanColorClass} ${textColor}`} relative group transition duration-300 ${disabled ? "opacity-50 cursor-not-allowed" : onClick ? "cursor-pointer" : ""} ${activeStyles} ${className}`}
     >
       <div className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-[inherit]" />
 
@@ -777,7 +780,7 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-0.5 sm:py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[9px] sm:text-[10px] mb-0.5 tracking-wider" : "text-[10px] sm:text-xs md:text-sm tracking-wider sm:tracking-widest"} uppercase font-black transition-colors duration-300 truncate w-full ${
+          className={`${hasValue ? "text-[9px] sm:text-[10px] mb-0.5 tracking-wider truncate" : "text-[10px] sm:text-[11px] md:text-xs tracking-wide leading-snug line-clamp-2 whitespace-normal"} uppercase font-black transition-colors duration-300 w-full ${
             resolvedActive
               ? "text-[var(--text)] opacity-100"
               : hasValue

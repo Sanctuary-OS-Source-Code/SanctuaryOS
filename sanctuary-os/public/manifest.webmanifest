@@ -5,8 +5,8 @@
   "description": "Decentralized Mod Management, Conflict Radar & Community Telemetry OS",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
-  "display_override": ["standalone", "window-controls-overlay"],
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "window-controls-overlay"],
   "scope_extensions": [
     { "origin": "https://sanctuaryos.net" },
     { "origin": "https://www.sanctuaryos.net" }

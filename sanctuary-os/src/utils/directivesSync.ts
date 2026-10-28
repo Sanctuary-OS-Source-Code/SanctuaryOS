@@ -473,7 +473,7 @@ export async function syncDirectivesBidirectional(options?: {
         dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion"));
     const localIsNewer =
       (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
-      (dbSchemaVer > 0 && dbSchemaVer < 74) ||
+      (dbSchemaVer > 0 && dbSchemaVer < 75) ||
       localBulletCount > dbBulletCount ||
       dbHasBrokenTabs;
 

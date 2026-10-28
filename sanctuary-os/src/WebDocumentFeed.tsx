@@ -1306,17 +1306,23 @@ export default function WebDocumentFeed() {
       customRoadmapSchema?.tabs?.[0]?.cards ||
       [];
     if (cards.length === 0) return 14;
+    const idMatch = (cards[0]?.id || "").match(/^phase_(\d+)$/i);
+    if (idMatch) return parseInt(idMatch[1], 10);
     const firstMatch = (cards[0]?.overline || cards[0]?.title || "").match(
       /\bPhase\s+(\d+)/i
     );
     return firstMatch ? parseInt(firstMatch[1], 10) : cards.length;
   }, [customRoadmapSchema]);
 
+  const lastTopRoadmapPhaseRef = useRef<number>(topRoadmapPhaseNum);
   useEffect(() => {
-    if (topRoadmapPhaseNum >= 14 && selectedPhaseNum === 13) {
-      setSelectedPhaseNum(topRoadmapPhaseNum);
+    if (lastTopRoadmapPhaseRef.current !== topRoadmapPhaseNum) {
+      lastTopRoadmapPhaseRef.current = topRoadmapPhaseNum;
+      if (roadmapFilter !== "completed") {
+        setSelectedPhaseNum(topRoadmapPhaseNum);
+      }
     }
-  }, [topRoadmapPhaseNum, selectedPhaseNum]);
+  }, [topRoadmapPhaseNum, roadmapFilter]);
   const customForkSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
@@ -2129,24 +2135,27 @@ export default function WebDocumentFeed() {
         (tab) => tab.id === "all" || tab.id === "phases"
       ) || customRoadmapSchema?.tabs?.[0];
     const totalCustomPhases = customPhasesTab?.cards?.length || 14;
-    const effectivePhases =
+    const rawPhases =
       customPhasesTab && customPhasesTab.cards.length > 0
         ? customPhasesTab.cards.map((c, idx) => {
+            const idMatch = (c.id || "").match(/^phase_(\d+)$/i);
             const phaseMatch = (c.overline || c.title || "").match(
               /\bPhase\s+(\d+)/i
             );
-            const parsedNum = phaseMatch
-              ? parseInt(phaseMatch[1], 10)
-              : Math.max(1, totalCustomPhases - idx);
+            const parsedNum = idMatch
+              ? parseInt(idMatch[1], 10)
+              : phaseMatch
+                ? parseInt(phaseMatch[1], 10)
+                : Math.max(1, totalCustomPhases - idx);
             return {
               num: parsedNum,
               code: t(
                 "",
-                c.overline || `Phase ${Math.max(1, totalCustomPhases - idx)}`
+                c.overline || `Phase ${parsedNum}`
               ),
               title: t("", c.title || ""),
               sub: t("", c.footerMeta || ""),
-              status: (c.status || (idx === 0 ? "active" : "completed")) as
+              status: (idx === 0 ? "active" : "completed") as
                 | "active"
                 | "completed",
               icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
@@ -2160,7 +2169,19 @@ export default function WebDocumentFeed() {
           })
         : roadmapPhases;
 
-    const topPhaseNum = effectivePhases[0]?.num || 13;
+    const seenPhaseNums = new Set<number>();
+    const effectivePhases = rawPhases.filter((p) => {
+      if (seenPhaseNums.has(p.num)) return false;
+      seenPhaseNums.add(p.num);
+      return true;
+    });
+
+    const topPhaseNum = effectivePhases[0]?.num || 14;
+    const completedPhases = effectivePhases.filter(
+      (p) => p.status === "completed"
+    );
+    const topCompletedPhaseNum =
+      completedPhases[0]?.num ?? Math.max(1, topPhaseNum - 1);
 
     const filteredPhases = effectivePhases.filter((p) => {
       if (roadmapFilter === "active") return p.status === "active";
@@ -2168,8 +2189,15 @@ export default function WebDocumentFeed() {
       return true;
     });
 
+    const resolvedSelectedPhaseNum =
+      selectedPhaseNum === 0
+        ? 0
+        : filteredPhases.some((p) => p.num === selectedPhaseNum)
+          ? selectedPhaseNum
+          : filteredPhases[0]?.num ?? 0;
+
     const activePhaseIdx = filteredPhases.findIndex(
-      (p) => p.num === selectedPhaseNum
+      (p) => p.num === resolvedSelectedPhaseNum
     );
 
     return (
@@ -2204,25 +2232,25 @@ export default function WebDocumentFeed() {
             variant="filter"
             icon={t("icon_check_circle", "check_circle")}
             label={t("dir_roadmap_tile_done", "Completed")}
-            number={`${t("dir_roadmap_phases_unit", "Phases")} ${Math.max(1, topPhaseNum - 1)} → 1`}
+            number={`${t("dir_roadmap_phases_unit", "Phases")} ${topCompletedPhaseNum} → 1`}
             colorClass="text-[var(--success)]"
             isActive={roadmapFilter === "completed"}
             onClick={() => {
               setRoadmapFilter("completed");
-              setSelectedPhaseNum(Math.max(1, topPhaseNum - 1));
+              setSelectedPhaseNum(topCompletedPhaseNum);
             }}
           />
         </StatTileCarousel>
 
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
-          {filteredPhases.map((phase) => {
+          {filteredPhases.map((phase, idx) => {
             const isActivePhase = phase.status === "active";
-            const isExpanded = selectedPhaseNum === phase.num;
+            const isExpanded = resolvedSelectedPhaseNum === phase.num;
 
             return (
               <div
-                key={phase.code}
+                key={`phase-${phase.num}-${idx}`}
                 ref={isExpanded ? roadmapDrawerRef : undefined}
                 role={!isExpanded ? "button" : undefined}
                 tabIndex={!isExpanded ? 0 : undefined}

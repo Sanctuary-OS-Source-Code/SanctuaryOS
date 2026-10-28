@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 74;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 75;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -409,7 +409,14 @@ export function parseMarkdownToDirectiveSchema(
   // Syncs headings (`## Phase N`, `## Stage N`, `## Pillar N`, etc.) and `- **Title:** Desc` bullets
   // directly from the repository `.md` files or Hub DB markdown into `baseSchema.tabs`.
   if (slug === "phase_roadmap") {
-    const phaseMatches = [...clean.matchAll(/^###?\s+(Phase\s+(\d+)[^\n]*)$/gim)];
+    const rawPhaseMatches = [...clean.matchAll(/^##\s+(Phase\s+(\d+)[^\n]*)$/gim)];
+    const seenNums = new Set<number>();
+    const phaseMatches = rawPhaseMatches.filter((pm) => {
+      const n = parseInt(pm[2], 10);
+      if (seenNums.has(n)) return false;
+      seenNums.add(n);
+      return true;
+    });
     if (phaseMatches.length > 0 && baseSchema.tabs[0]) {
       const defaultCards = baseSchema.tabs[0].cards;
       const updatedCards: DirectiveBuilderCard[] = phaseMatches.map((pm, idx) => {
@@ -446,10 +453,7 @@ export function parseMarkdownToDirectiveSchema(
           focusText = fallback?.footerMeta || t("", focusMatch[1].trim());
         }
 
-        const statusMatch = sectionBody.match(/\*\*Status:\*\*\s*`?([^`\n|]+)`?/i);
-        const isActiveStatus = statusMatch
-          ? /(?:ACTIVE|IN PROGRESS)/i.test(statusMatch[1]) && phaseNum >= 13
-          : fallback?.status === "active";
+        const isActiveStatus = idx === 0;
 
         const dateMatch = sectionBody.match(
           /\*\*(?:Date Range|Start Date|Target Launch):\*\*\s*([^\n|]+)/i
@@ -468,6 +472,13 @@ export function parseMarkdownToDirectiveSchema(
           t
         );
 
+        const resolvedSubCards =
+          phaseNum <= 12 && fallback?.subCards && fallback.subCards.length > 0
+            ? fallback.subCards
+            : extractedSubs.length > 0
+              ? extractedSubs
+              : fallback?.subCards || [];
+
         return {
           id: fallback?.id || `phase_${phaseNum}`,
           icon:
@@ -481,8 +492,7 @@ export function parseMarkdownToDirectiveSchema(
           footerMeta: focusText || fallback?.footerMeta || "",
           desc: fallback?.desc || focusText || title,
           status: isActiveStatus ? "active" : "completed",
-          subCards:
-            extractedSubs.length > 0 ? extractedSubs : fallback?.subCards || [],
+          subCards: resolvedSubCards,
         };
       });
 

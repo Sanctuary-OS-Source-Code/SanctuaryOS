@@ -721,12 +721,19 @@ nav.firefox-safe-glass {
 }
 
 .sa-side-panel-window,
-.sa-mobile-glass-overlay,
 .sa-floating-glass-pill {
   isolation: isolate;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+  background-image: none !important;
+}
+
+.sa-mobile-glass-overlay {
+  isolation: isolate;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: var(--glass-base-fill, var(--glass-sidebar-bg, rgba(8, 12, 20, 0.45))) !important;
   background-image: none !important;
 }
 
@@ -1356,12 +1363,17 @@ input[type="date"].custom-date-input {
 html {
   font-size: var(--fontSizeBase, 16px) !important;
   font-family: var(--fontFamily, 'Inter, sans-serif');
-  background-color: var(--bg, #000000) !important;
+  background-color: var(--bg, #040812) !important;
+  background-image: var(--boot-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 body {
   font-family: var(--fontFamily, 'Inter, sans-serif');
-  background-color: var(--bg, #000000) !important;
+  background-color: transparent !important;
 }
 
 .material-symbols-outlined {
