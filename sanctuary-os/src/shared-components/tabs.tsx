@@ -1,4 +1,5 @@
 import React from "react";
+import { useLexicon } from "../LexiconContext";
 import { SidebarFooterButton } from "./buttons";
 import { MobileSegmentedControl } from "./layout";
 
@@ -63,6 +64,7 @@ export function HoverTabDrawer({
   onHoverChange,
   hideMobilePills = true,
 }: any) {
+  const { t } = useLexicon();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const isLeft = position === "left";
   const extractedTabs: any[] = [];
@@ -118,7 +120,7 @@ export function HoverTabDrawer({
         >
           <div className="w-full px-6 mb-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 shrink-0">
             <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
-              {isLeft ? "folder_open" : "swipe_left"}
+              {isLeft ? t("icon_folder_open", "folder_open") : t("icon_swipe_left", "swipe_left")}
             </span>
             <div className="font-black text-[10px] tracking-widest text-[var(--subtext)] capitalize">
               {title}

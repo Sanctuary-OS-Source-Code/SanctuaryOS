@@ -270,6 +270,16 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
       icon={t("icon_settings_ethernet", "settings_ethernet")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_sync_lock", "sync_lock")}
+            tooltip={t("wf_uplink_btn_update_keys", "Update Active Uplink Keys")}
+            disabled={updatingKeys || !uplinkServiceKey.trim()}
+            onClick={handleUpdateKeys}
+          />
+        </PanelHeaderGroup>
+      }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
@@ -363,15 +373,6 @@ export function ServerHealthSidePanel({ isOpen, onClose, stats, isKeepers = fals
               placeholder={t("ui_supabase_service_key", "Supabase Service Key")}
               className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
             />
-            <ActionButton
-              variant="glass"
-              icon={t("icon_sync_lock", "sync_lock")}
-              onClick={handleUpdateKeys}
-              disabled={updatingKeys || !uplinkServiceKey.trim()}
-              className="w-full justify-center !py-3 mt-1"
-            >
-              {t("wf_uplink_btn_update_keys", "Update Active Uplink Keys")}
-            </ActionButton>
           </div>
         </UniversalGroup>
 
@@ -491,6 +492,16 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={saving ? t("icon_sync", "sync") : t("icon_save", "save")}
+            tooltip={t("wf_donation_save_btn", "Save Donation Settings")}
+            disabled={saving}
+            onClick={handleSave}
+          />
+        </PanelHeaderGroup>
+      }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
@@ -532,14 +543,14 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
                 value={processor}
                 onChange={(val: any) => setProcessor(Array.isArray(val) ? val[0] : val)}
                 options={[
-                  { id: "STRIPE", label: "Stripe Checkout / Payment Link" },
+                  { id: "STRIPE", label: t("proc_stripe_checkout", "Stripe Checkout / Payment Link") },
                   { id: "KO-FI", label: "Ko-fi" },
                   { id: "PATREON", label: "Patreon" },
                   { id: "PAYPAL", label: "PayPal" },
                   { id: "FOURTHWALL", label: "Fourthwall" },
                   { id: "OPENCOLLECTIVE", label: "OpenCollective" },
-                  { id: "SANDBOX", label: "Sandbox Test Processor (Testing)" },
-                  { id: "CUSTOM", label: "Custom Direct Processor" },
+                  { id: "SANDBOX", label: t("proc_sandbox_test", "Sandbox Test Processor (Testing)") },
+                  { id: "CUSTOM", label: t("proc_custom_direct", "Custom Direct Processor") },
                 ]}
               />
             </div>
@@ -559,16 +570,6 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
-
-            <ActionButton
-              variant="glass"
-              icon={saving ? t("icon_sync", "sync") : t("icon_check", "check")}
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full justify-center !py-3.5 mt-1"
-            >
-              {t("wf_donation_save_btn", "Save Donation Settings")}
-            </ActionButton>
           </div>
         </UniversalGroup>
 
@@ -776,13 +777,13 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                   setKeepersProcessor(Array.isArray(val) ? val[0] : val)
                 }
                 options={[
-                  { id: "STRIPE", label: "Stripe Checkout" },
-                  { id: "STRIPE / GITHUB SPONSORS", label: "Stripe / GitHub Sponsors" },
+                  { id: "STRIPE", label: t("proc_stripe_checkout", "Stripe Checkout / Payment Link") },
+                  { id: "STRIPE / GITHUB SPONSORS", label: t("proc_stripe_github", "Stripe / GitHub Sponsors") },
                   { id: "PATREON", label: "Patreon" },
                   { id: "KO-FI", label: "Ko-fi" },
                   { id: "PAYPAL", label: "PayPal" },
-                  { id: "SANDBOX", label: "Sandbox Test Processor (Testing)" },
-                  { id: "CUSTOM", label: "Custom Direct Processor" },
+                  { id: "SANDBOX", label: t("proc_sandbox_test", "Sandbox Test Processor (Testing)") },
+                  { id: "CUSTOM", label: t("proc_custom_direct", "Custom Direct Processor") },
                 ]}
               />
             </div>
@@ -813,15 +814,6 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
-            <ActionButton
-              variant="glass"
-              icon={saving ? t("icon_sync", "sync") : t("icon_check", "check")}
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full justify-center !py-3 mt-1"
-            >
-              {t("keepers_save_donation_btn", "Save Keepers Donation Link")}
-            </ActionButton>
           </div>
         </UniversalGroup>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { CustomDropdown, ModSearchDropdown, ActionButton, getExtensionRegex, LoadingScreen, SidePanel } from "./shared";
+import { CustomDropdown, ModSearchDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelPillToggle, getExtensionRegex, LoadingScreen, SidePanel } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -183,8 +183,6 @@ export default function SupportHub() {
     return grouped;
   }, [modList]);
 
-  const totalExtremeMods = React.useMemo(() => vaultExtremeMods.reduce((sum: number, mod: any) => sum + mod.count, 0), [vaultExtremeMods]);
-
   const activeAdultMods = React.useMemo(() => {
     if (!activeSet?.mods) return [];
     const adultModsInDB = modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
@@ -288,7 +286,7 @@ export default function SupportHub() {
       params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("dossier_attached_logs", "Attached Logs") || "Diagnostic Telemetry", required: false });
     }
 
-    params.push({ id: 'review', type: 'REVIEW', label: "Review & Submit", required: false });
+    params.push({ id: 'review', type: 'REVIEW', label: t("support_ready_to_submit", "Ready to Submit"), required: false });
 
     return params;
   }, [activeCategory, t]);
@@ -530,6 +528,16 @@ export default function SupportHub() {
   }
 
   const isFormDisabled = vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0);
+  const currentCard = cards[activeCardIndex];
+  const isCurrentCardInvalid = Boolean(
+    currentCard && (
+      (currentCard.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
+      (currentCard.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
+      (currentCard.type === 'CUSTOM' && currentCard.field?.required && (!customFieldsData[currentCard.id] || (Array.isArray(customFieldsData[currentCard.id]) && customFieldsData[currentCard.id].length === 0))) ||
+      (currentCard.type === 'DESCRIPTION' && currentCard.required && !description.trim()) ||
+      (currentCard.type === 'DESCRIPTION' && String(activeCategory?.show_title_box) !== "false" && !title.trim())
+    )
+  );
 
   return (
     <>
@@ -541,6 +549,29 @@ export default function SupportHub() {
         icon={t("icon_support_agent", "support_agent")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[800px]"
+        headerActions={
+          !showDraftPrompt && currentCard ? (
+            <PanelHeaderGroup>
+              {currentCard.type === 'REVIEW' ? (
+                <PanelHeaderButton
+                  icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
+                  tooltip={isSubmitting || isScanning ? t("scanning", "Scanning...") : t("support_submit", "Submit Ticket")}
+                  variant="accent"
+                  disabled={isSubmitting || isScanning || isFormDisabled}
+                  onClick={submitTicket}
+                />
+              ) : (
+                <PanelHeaderButton
+                  icon={t("icon_done", "done")}
+                  tooltip={t("confirm", "Confirm")}
+                  variant="accent"
+                  disabled={isCurrentCardInvalid || (isFormDisabled && currentCard.type !== 'CLASSIFICATION')}
+                  onClick={() => setActiveCardIndex(Math.min(cards.length - 1, activeCardIndex + 1))}
+                />
+              )}
+            </PanelHeaderGroup>
+          ) : undefined
+        }
       >
         {showDraftPrompt ? (
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -601,7 +632,7 @@ export default function SupportHub() {
                   </button>
                 </div>
                 {policyViolations.length > 0 && (
-                  <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                  <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                     <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
                     <div className="flex flex-wrap gap-2">
                       {policyViolations.map((mod, i) => (
@@ -625,7 +656,7 @@ export default function SupportHub() {
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
                     <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
-                      {t("support_vault_lock_desc", `Your vault contains ${totalExtremeMods} severe artifact(s) (Tier 3-5). Support submissions are disabled until purged.`)}
+                      {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
                     </span>
                     <button onClick={() => setResolutionType('vault')} className="mt-3 self-start px-4 py-2 rounded-xl glass-surface text-[var(--danger)] border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_delete", "delete")}</span> {t("resolve_issues", "Resolve")}
@@ -644,7 +675,7 @@ export default function SupportHub() {
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
                     <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
                     <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
-                      {t("support_adult_mods_desc", `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`)}
+                      {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
                     </span>
                     <button onClick={() => setResolutionType('blueprint')} className="mt-3 self-start px-4 py-2 rounded-xl glass-surface text-[var(--warning)] border border-[color-mix(in_srgb,var(--warning)_42%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer">
                       <span className="material-symbols-outlined !text-[16px]">{t("icon_engineering", "engineering")}</span> {t("resolve_issues", "Resolve Anomalies")}
@@ -671,7 +702,7 @@ export default function SupportHub() {
                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] opacity-80">{t("completed_step", "Step Completed") || "Completed Step"}</span>
                           <span className="text-sm font-black text-[var(--text)] tracking-widest">{card.label}</span>
                         </div>
-                        <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 p-2 rounded-lg">edit</span>
+                        <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-0 group-hover:opacity-100 transition-opacity glass-surface p-2 rounded-lg">{t("icon_edit", "edit")}</span>
                       </div>
                     );
                   }
@@ -705,7 +736,7 @@ export default function SupportHub() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] drop-shadow-sm mb-2 flex items-center justify-between gap-2 w-full">
                           <span>{isActive ? (t("active_protocol", "Current Question") || "Active Step") : (t("completed_step", "Step Completed") || "Completed Step")}</span>
                           <span className="opacity-60">
-                            STEP {idx + 1} / {cards.length}
+                            {idx + 1} / {cards.length}
                           </span>
                         </span>
                         <h2 className="text-2xl font-black text-[var(--text)] leading-snug">
@@ -734,12 +765,12 @@ export default function SupportHub() {
                               onClear={() => setTargetModId("")}
                             />
                             {matchedSupporterPass && (
-                              <div className="glass-surface rounded-2xl p-4 border border-emerald-500/35 bg-emerald-500/10 flex items-start gap-3.5 animate-in fade-in duration-300">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-start gap-3.5 animate-in fade-in duration-300">
+                                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--success)] shrink-0">
                                   <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt", "bolt")}</span>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                  <span className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                                  <span className="text-xs font-black uppercase tracking-widest text-[var(--success)] flex items-center gap-1.5">
                                     {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Expedited Support Routing Active")}
                                   </span>
                                   <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
@@ -801,16 +832,15 @@ export default function SupportHub() {
                                   label={t("label_yes", "Yes") || "Yes"}
                                 />
                               ) : (
-                                <div className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-2.5">
                                   {card.field.options.map((opt: string) => {
                                     const isChecked = card.field.allow_multi_select ? (customFieldsData[card.id] || []).includes(opt) : customFieldsData[card.id] === opt;
                                     return (
-                                      <label key={opt} className={`flex items-center gap-4 py-4 px-6 rounded-xl cursor-pointer transition-all border ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]' : 'bg-black/40 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-black/60 hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
-                                        <div className={`w-6 h-6 rounded-[6px] flex items-center justify-center border transition-all shrink-0 ${isChecked ? 'bg-[var(--accent)] border-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.5)]' : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_30%,transparent)]'}`}>
-                                          {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check") || "check"}</span>}
-                                        </div>
-                                        <span className={`text-base font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)]'}`}>{opt}</span>
-                                        <input type="checkbox" className="hidden" checked={isChecked} onChange={() => {
+                                      <SidePanelPillToggle
+                                        key={opt}
+                                        checked={isChecked}
+                                        label={opt}
+                                        onChange={() => {
                                           setCustomFieldsData(prev => {
                                             if (card.field.allow_multi_select) {
                                               const arr = (Array.isArray(prev[card.id]) ? prev[card.id] : []) as string[];
@@ -820,8 +850,8 @@ export default function SupportHub() {
                                               return { ...prev, [card.id]: isChecked ? "" : opt };
                                             }
                                           });
-                                        }} />
-                                      </label>
+                                        }}
+                                      />
                                     );
                                   })}
                                 </div>
@@ -889,20 +919,20 @@ export default function SupportHub() {
                             {String(activeCategory?.show_logs_box) !== "false" && (
                               <div className="w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-1 min-h-[200px] flex flex-col relative group">
                                 <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
-                                  <button onClick={(e) => { e.stopPropagation(); attachLog(); }} className="pointer-events-auto text-[10px] px-4 py-2 rounded-xl glass-panel text-[var(--text)] hover:text-[var(--accent)] transition-all font-black uppercase flex items-center gap-2 shadow-md border border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[var(--accent)] group/btn">
-                                    <span className="material-symbols-outlined !text-[14px] group-hover/btn:-translate-y-0.5 transition-transform">upload</span> {t("attach_logs", "Attach Logs")}
+                                  <button onClick={(e) => { e.stopPropagation(); attachLog(); }} className="pointer-events-auto text-[10px] px-4 py-2 rounded-xl glass-surface text-[var(--text)] hover:text-[var(--accent)] transition-all font-black uppercase flex items-center gap-2 shadow-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] group/btn">
+                                    <span className="material-symbols-outlined !text-[14px] group-hover/btn:-translate-y-0.5 transition-transform">{t("icon_upload", "upload")}</span> {t("attach_logs", "Attach Logs")}
                                   </button>
                                 </div>
                                 {logs ? (
                                   <textarea
                                     value={logs}
                                     onChange={(e) => setLogs(e.target.value)}
-                                    className="w-full bg-black/20 text-[#e6edf3] text-[11px] font-mono focus:outline-none resize-none custom-scrollbar h-[200px] p-6 pt-16 relative z-0 rounded-[14px]"
+                                    className="w-full glass-surface text-[var(--text)] text-[11px] font-mono focus:outline-none resize-none custom-scrollbar h-[200px] p-6 pt-16 relative z-0 rounded-[14px]"
                                     placeholder={t("support_placeholder_logs", "No logs attached.")}
                                   />
                                 ) : (
                                   <div onClick={attachLog} className="flex-1 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] m-3 rounded-xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--accent)] min-h-[160px]">
-                                    <span className="material-symbols-outlined !text-4xl opacity-50 drop-shadow-sm">cloud_upload</span>
+                                    <span className="material-symbols-outlined !text-4xl opacity-50 drop-shadow-sm">{t("icon_cloud_upload", "cloud_upload")}</span>
                                     <div className="flex flex-col items-center">
                                       <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)] drop-shadow-md">{t("attach_logs", "Attach Logs")}</span>
                                       <span className="text-[9px] font-bold opacity-70 mt-1">{t("click_to_browse", "Click to Browse")}</span>
@@ -917,14 +947,14 @@ export default function SupportHub() {
                         {card.type === 'REVIEW' && (
                           <div className="flex flex-col items-center justify-center text-center gap-6 py-12">
                             <div className="w-24 h-24 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shadow-[0_0_40px_rgba(var(--accent-rgb),0.3)] mb-4">
-                              <span className="material-symbols-outlined !text-[48px] text-[var(--accent)] drop-shadow-md">task_alt</span>
+                              <span className="material-symbols-outlined !text-[48px] text-[var(--accent)] drop-shadow-md">{t("icon_task_alt", "task_alt")}</span>
                             </div>
                             <h3 className="text-2xl font-black tracking-widest uppercase text-[var(--text)] drop-shadow-md">{t("support_ready_to_submit", "Ready to Submit") || "Ready to Submit"}</h3>
                             <p className="text-[var(--subtext)] text-sm max-w-sm">{t("support_ready_desc", "Ensure all provided details are correct. Processing may take up to 48 hours.") || "Ensure all provided details are correct. Processing may take up to 48 hours."}</p>
 
                             <div className="mt-8">
                               <ActionButton
-                                icon={isSubmitting || isScanning ? "sync" : "send"}
+                                icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
                                 label={isSubmitting || isScanning ? t("scanning", "Scanning...") : t("support_submit", "Submit Ticket")}
                                 variant="accent"
                                 disabled={isSubmitting || isScanning}

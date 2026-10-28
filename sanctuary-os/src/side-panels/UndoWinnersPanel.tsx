@@ -143,16 +143,6 @@ export default function UndoWinnersPanel({
               iconColorClass="text-[var(--accent)]"
             />
           </div>
-
-          {overrides.length > 0 && (
-            <ActionButton
-              variant="glass"
-              icon={t("icon_delete_sweep", "delete_sweep")}
-              label={t("nav_clear_all", "Clear All")}
-              onClick={clearAllOverrides}
-              className="w-full"
-            />
-          )}
         </SidePanelHeroCard>
 
         {loading ? (

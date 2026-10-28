@@ -632,7 +632,7 @@ export const DbpfScout = () => {
                                     rightContent={
                                         <div className="flex items-center h-full px-1">
                                             <button onClick={() => setIsSidePanelOpen(true)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)]">
-                                                <span className="material-symbols-outlined !text-[20px]">tune</span>
+                                                <span className="material-symbols-outlined !text-[20px]">{t("icon_tune", "tune")}</span>
                                             </button>
                                         </div>
                                     }

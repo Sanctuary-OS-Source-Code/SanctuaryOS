@@ -31,7 +31,7 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onPointerDown={(e) => { e.stopPropagation(); clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-red-400 rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
+          <button onPointerDown={(e) => { e.stopPropagation(); clearStatusLog(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--danger)_20%,transparent)]">
             <span className="material-symbols-outlined !text-[16px]">{t("icon_delete_sweep", "delete_sweep")}</span>
           </button>
           <button onPointerDown={(e) => { e.stopPropagation(); setIsLogExpanded(false); }} className="p-2 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] rounded-xl transition-all border border-transparent hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -102,14 +102,13 @@ export function SystemLogModal({ isLogExpanded, setIsLogExpanded, statusLog, cle
           const isSucc = log.type === 'success' || logIcon === 'check_circle' || logIcon === 'done' || logIcon === 'verified';
           const isWarn = log.type === 'warning' || logIcon === 'warning' || logIcon === 'priority_high';
 
-          const logColor = isErr ? 'text-red-400 drop-shadow-md' : isSucc ? 'text-emerald-400 drop-shadow-md' : isWarn ? 'text-amber-400 drop-shadow-md' : 'text-[var(--accent)] drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]';
-          const bgHover = isErr ? 'hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_25%,transparent)]' : isSucc ? 'hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_25%,transparent)]' : isWarn ? 'hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_25%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_25%,transparent)]';
-          const iconBg = isErr ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_20%,transparent)]' : isSucc ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border-[color-mix(in_srgb,var(--success)_20%,transparent)]' : isWarn ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_20%,transparent)]' : 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_20%,transparent)]';
+          const logColor = isErr ? 'text-[var(--danger)]' : isSucc ? 'text-[var(--success)]' : isWarn ? 'text-[var(--warning)]' : 'text-[var(--accent)]';
+          const bgHover = isErr ? 'hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]' : isSucc ? 'hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]' : isWarn ? 'hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
 
           return (
-            <div key={log.id} className={`flex items-start gap-4 p-4 rounded-[1rem] glass-surface border border-[rgba(var(--text-rgb,255,255,255),0.08)] transition-all duration-300 group ${bgHover}`}>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border shadow-inner ${iconBg}`}>
-                <span className={`material-symbols-outlined !text-[18px] ${logColor}`}>{logIcon}</span>
+            <div key={log.id} className={`flex items-start gap-4 p-4 rounded-[1rem] glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all duration-300 group ${bgHover}`}>
+              <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                <span className={`material-symbols-outlined !text-[18px] ${logColor}`}>{t(`icon_${logIcon}`, logIcon)}</span>
               </div>
               <div className="flex flex-col gap-1.5 min-w-0 pt-0.5">
                 <div className="text-[10px] font-bold text-[var(--text)] capitalize tracking-wider whitespace-pre-wrap leading-relaxed break-words opacity-90 group-hover:opacity-100 transition-opacity">{logTextNode}</div>

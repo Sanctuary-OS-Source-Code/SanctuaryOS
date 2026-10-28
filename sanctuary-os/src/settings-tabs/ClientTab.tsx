@@ -150,7 +150,7 @@ export default function ClientTab({ config, updateConfig }: any) {
         <UniversalCard 
           title={t("btn_reset_all_local", "Reset All Local Overrides")} 
           subtitle={t("reset_all_local_desc", "Permanently clear all locally saved metadata overrides for all {mods}.")} 
-          icon="delete_forever"
+          icon={t("icon_delete_forever", "delete_forever")}
           statusColor="border-red-500"
           onClick={() => {
             localStorage.removeItem('sanctuary_local_overrides');
@@ -158,7 +158,7 @@ export default function ClientTab({ config, updateConfig }: any) {
           }}
           actions={
             <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
-              <span className="material-symbols-outlined !text-[20px]">warning</span>
+              <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
             </div>
           }
         />

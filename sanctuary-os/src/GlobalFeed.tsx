@@ -262,14 +262,14 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
   if (isOffline) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 gap-6">
-        <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
+        <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">{t("icon_wifi_off", "wifi_off")}</span>
         <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title", "Offline Mode")}</h2>
         <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc", "This module requires a secure network connection. Please restore your connection or disable Local Network Only mode in preferences.")}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
-          <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
+          <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">{t("icon_refresh", "refresh")}</span>
           {t("offline_mode_refresh", "Refresh Connection")}
         </button>
       </div>

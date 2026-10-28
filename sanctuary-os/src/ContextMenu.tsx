@@ -432,7 +432,7 @@ export function ContextMenu() {
           onMouseDown={(e) => { e.preventDefault(); handleAction("cut"); }}
           className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
         >
-          <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_cut</span>
+          <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_cut", "content_cut")}</span>
           {t("ctx_cut", "Cut")}
         </button>
       )}
@@ -440,7 +440,7 @@ export function ContextMenu() {
         onMouseDown={(e) => { e.preventDefault(); handleAction("copy"); }}
         className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
       >
-        <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_copy</span>
+        <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_copy", "content_copy")}</span>
         {t("btn_copy", "Copy")}
       </button>
       {!isReadOnly && (
@@ -449,7 +449,7 @@ export function ContextMenu() {
             onMouseDown={(e) => { e.preventDefault(); handleAction("paste"); }}
             className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
-            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">content_paste</span>
+            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_paste", "content_paste")}</span>
             {t("ctx_paste", "Paste")}
           </button>
           {supportsIcons && (
@@ -460,10 +460,10 @@ export function ContextMenu() {
                 className={`px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center justify-start text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}`}
               >
                 <div className="flex items-center gap-3">
-                   <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">add_reaction</span>
+                   <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_add_reaction", "add_reaction")}</span>
                    {t("editor_tt_icon", "Insert Icon")}
                 </div>
-                <span className="material-symbols-outlined !text-[16px] opacity-50">{showIconPicker ? 'expand_less' : 'chevron_right'}</span>
+                <span className="material-symbols-outlined !text-[16px] opacity-50">{showIconPicker ? t("icon_expand_less", "expand_less") : t("icon_chevron_right", "chevron_right")}</span>
               </button>
             </>
           )}
@@ -472,7 +472,7 @@ export function ContextMenu() {
             onMouseDown={(e) => { e.preventDefault(); handleAction("selectAll"); }}
             className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
           >
-            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">select_all</span>
+            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_select_all", "select_all")}</span>
             {t("btn_select_all", "Select All")}
           </button>
         </>

@@ -441,7 +441,7 @@ export function DynamicBlueprintPreviewBanner({
                   row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
                 }`}
               >
-                {row.isScript ? t('script', 'SCRIPT') : t('pkg_short', 'PKG')}
+                {row.isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG')}
               </span>
             </div>
           ))}
@@ -587,26 +587,34 @@ export function DynamicArtifactPreviewBanner({
   const typeCode = isSuite
     ? t('badge_suite', 'SUITE')
     : isScript
-      ? t('script', 'SCRIPT')
+      ? t('scr_short', 'SCR')
       : t('pkg_short', 'PKG');
 
-  const rawVer = data?.latest_version || data?.version || data?.local_version || '';
+  const rawVer = String(data?.latest_version || data?.version || data?.local_version || '').trim();
+  const isLocalVer = /^v?\.?local$/i.test(rawVer);
+  const formatVerBadge = (v: any): string => {
+    const s = String(v || '').trim();
+    if (!s || /^v?\.?local$/i.test(s)) return t('source_local', 'Local');
+    const stripped = s.replace(/^v\.?/i, '');
+    return /^\d/.test(stripped) ? `v${stripped.slice(0, 7)}` : stripped.slice(0, 8);
+  };
+
   const cleanVer = rawVer
-    ? `v${String(rawVer).replace(/^v\.?/i, '').slice(0, 7)}`
+    ? formatVerBadge(rawVer)
     : isSuite && moduleCount > 1
-      ? `${moduleCount} ${t('term_mods', 'Mods')}`
+      ? `${moduleCount} ${t('pkg_short', 'PKG')}`
       : isScript
-        ? '.TS4SCRIPT'
+        ? '.SCRIPT'
         : '.PACKAGE';
 
   // Category / Role pill
   const categoryLabel = (() => {
-    if (catStr && !['mod', 'artifact', 'unknown'].includes(catStr.toLowerCase())) {
+    if (catStr && !['mod', 'artifact', 'unknown', 'script'].includes(catStr.toLowerCase())) {
       return catStr;
     }
     if (isSuite) return t('collection', 'Collection');
-    if (isScript) return t('script', 'Script');
-    return t('term_mod', 'Artifact');
+    if (isScript) return t('scr_short_label', 'Script');
+    return t('package', 'Package');
   })();
 
   // Patch / Version pill
@@ -617,15 +625,15 @@ export function DynamicArtifactPreviewBanner({
         ? data.required_versions
         : [];
     if (compatArr.length > 0 && compatArr[0]) {
-      return `v${String(compatArr[0]).replace(/^v\.?/i, '').slice(0, 9)}`;
+      return formatVerBadge(compatArr[0]);
     }
     if (data?.game_version) {
-      return `v${String(data.game_version).replace(/^v\.?/i, '').slice(0, 9)}`;
+      return formatVerBadge(data.game_version);
     }
     if (rawVer) {
-      return `v${String(rawVer).replace(/^v\.?/i, '').slice(0, 9)}`;
+      return formatVerBadge(rawVer);
     }
-    return t('verified', 'Ready');
+    return t('source_local', 'Local');
   })();
 
   // Requirements / Modules pill
@@ -651,7 +659,7 @@ export function DynamicArtifactPreviewBanner({
     if (isSuite && moduleCount > 1) {
       return {
         icon: t('icon_account_tree', 'account_tree'),
-        label: `${moduleCount} ${t('badge_modules_count', 'Modules')}`,
+        label: `+${moduleCount}`,
         color: 'var(--accent)',
       };
     }
@@ -669,9 +677,14 @@ export function DynamicArtifactPreviewBanner({
         color: 'var(--accent)',
       };
     }
+    const isLocalLabel =
+      isLocalVer ||
+      !rawVer ||
+      patchOrVerLabel.toLowerCase() === t('source_local', 'Local').toLowerCase() ||
+      patchOrVerLabel.toLowerCase() === 'local';
     return {
-      icon: t('icon_check_circle', 'check_circle'),
-      label: t('standalone', 'Standalone'),
+      icon: isLocalLabel ? '' : t('icon_check_circle', 'check_circle'),
+      label: patchOrVerLabel,
       color: 'var(--success)',
     };
   })();
@@ -703,9 +716,9 @@ export function DynamicArtifactPreviewBanner({
     }
     const creator = String(data?.author || data?.master_author || '').trim();
     if (creator && creator.toLowerCase() !== 'unknown') {
-      return creator.slice(0, 14);
+      return creator.slice(0, 12);
     }
-    return isScript ? '.TS4SCRIPT' : '.PACKAGE';
+    return isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG');
   })();
 
   const accentColorVar = isScript ? 'var(--success)' : 'var(--accent)';
@@ -759,9 +772,9 @@ export function DynamicArtifactPreviewBanner({
 
         {/* Right Mod Info Stack */}
         <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
-          {/* Row 1: Category + Patch/Version + Scope/Reqs */}
-          <div className={`grid ${compact ? 'grid-cols-2' : 'grid-cols-3'} gap-1 flex-1 min-h-0`}>
-            <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1 min-w-0">
+          {/* Row 1: Category (flex-1) + Scope/Version Badge (shrink-0) */}
+          <div className="flex items-stretch gap-1 flex-1 min-h-0">
+            <div className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
               <span
                 className="material-symbols-outlined !text-[10px] shrink-0"
                 style={{ color: accentColorVar }}
@@ -773,25 +786,16 @@ export function DynamicArtifactPreviewBanner({
               </span>
             </div>
 
-            {!compact && (
-              <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1 min-w-0">
-                <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)] opacity-80 shrink-0">
-                  {t('icon_sports_esports', 'sports_esports')}
+            <div className="shrink-0 max-w-[46%] px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center gap-1 min-w-0">
+              {scopePill.icon && (
+                <span
+                  className="material-symbols-outlined !text-[10px] shrink-0"
+                  style={{ color: scopePill.color }}
+                >
+                  {scopePill.icon}
                 </span>
-                <span className="text-[7.5px] font-mono font-black text-[var(--subtext)] opacity-90 truncate">
-                  {patchOrVerLabel}
-                </span>
-              </div>
-            )}
-
-            <div className="px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1 min-w-0">
-              <span
-                className="material-symbols-outlined !text-[10px] shrink-0"
-                style={{ color: scopePill.color }}
-              >
-                {scopePill.icon}
-              </span>
-              <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--text)] opacity-90 truncate">
+              )}
+              <span className="text-[7px] font-mono font-black uppercase tracking-wider text-[var(--text)] opacity-90 truncate">
                 {scopePill.label}
               </span>
             </div>

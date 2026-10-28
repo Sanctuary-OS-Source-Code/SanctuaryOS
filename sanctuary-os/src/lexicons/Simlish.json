@@ -1020,6 +1020,7 @@
   "recent_quarantine": "Recent Breaches",
   "redesignate_label": "New Name",
   "rejected": "Dismissed",
+  "release_notes_github_changelog_title": "Full Change Log",
   "release_notes_meta_channel_dev": "Dev",
   "release_notes_meta_channel_public": "Public",
   "release_notes_stable_channel_badge": "Stable Update",
@@ -2161,5 +2162,12 @@
   "landing_contact_alert_overline": "Human Contact & Spoke Governance",
   "landing_contact_alert_title": "Direct Human Review & Spoke Qualification Notice",
   "landing_contact_alert_callout": "No AI Deflection Bots • Community Spokes Only",
-  "landing_contact_alert_desc": "Every Direct Contact message is read by a real human Keeper in Keepers Core and replied to directly via our in-app email center—never sent to AI bots! Partner Spoke applications are strictly for community-run Game Workspaces, not personal creator or streamer badges."
+  "landing_contact_alert_desc": "Every Direct Contact message is read by a real human Keeper in Keepers Core and replied to directly via our in-app email center—never sent to AI bots! Partner Spoke applications are strictly for community-run Game Workspaces, not personal creator or streamer badges.",
+  "proc_stripe_checkout": "Stripe Checkout / Payment Link",
+  "proc_stripe_github": "Stripe / GitHub Sponsors",
+  "proc_sandbox_test": "Sandbox Test Processor (Testing)",
+  "proc_custom_direct": "Custom Direct Processor",
+  "support_esc_none": "None (Never Escalate)",
+  "support_esc_standard": "Standard (72 Hours)",
+  "support_esc_urgent": "Urgent (24 Hours)"
 }

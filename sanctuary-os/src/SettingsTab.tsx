@@ -150,7 +150,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     { id: 'AESTHETICS', icon: t("icon_format_paint", "format_paint") || "format_paint", label: t("tab_aesthetics", "Aesthetics") || "Aesthetics" },
     { id: 'LOGIC', icon: t("icon_flag", "flag") || "flag", label: t("tab_logic", "Logic Integrity") || "Logic" }
   ];
-  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull", "skull") || "skull", label: t("malware_btn", "Configure Malware Process") || "Nuclear Override" });
+  if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull", "skull") || "skull", label: t("malware_btn", "Nuclear Override") || "Nuclear Override" });
 
   if (!isDesktop()) {
     TABS = TABS.filter(t => ['CORE', 'SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));

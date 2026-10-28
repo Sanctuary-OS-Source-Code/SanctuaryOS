@@ -54,7 +54,6 @@ export function SystemStatusBar({
     isNexusUpdatesPanelOpen,
     setIsUpdatePanelOpen,
     isUpdatePanelOpen,
-    setShowQuarantineModal,
     volatileSignatureQueue,
     isSignatureQueueOpen,
     setIsSignatureQueueOpen,
@@ -373,7 +372,7 @@ export function SystemStatusBar({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShowQuarantineModal(true);
+                        setView("vault");
                       }}
                       className="h-7 px-2 rounded-xl shrink-0 cursor-pointer transition-all flex items-center gap-1.5 text-[var(--danger)] opacity-90 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] group/btn relative"
                     >

@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 58;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 71;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -82,6 +82,121 @@ export function stripDirectiveBuilderComment(content: string): string {
 }
 
 /**
+ * Extracts `- **Title:** Description` bullets from a Markdown section, supporting both
+ * single-line bullets and parent `- **Title:**` bullets followed by indented `  - Sub-bullet` lines.
+ */
+function extractMarkdownSubCards(
+  sectionBody: string,
+  idPrefix: string,
+  fallbackSubs: DirectiveBuilderSubCard[] | undefined,
+  t: (key: string, fallback?: string) => string
+): DirectiveBuilderSubCard[] {
+  const lines = sectionBody.replace(/\r\n/g, "\n").split("\n");
+  const rawItems: { title: string; inlineDesc: string; subLines: string[]; isPending: boolean }[] = [];
+
+  for (const rawLine of lines) {
+    const indentMatch = rawLine.match(/^([ \t]*)(.*)$/);
+    const indent = (indentMatch?.[1] || "").replace(/\t/g, "  ").length;
+    const trimmed = (indentMatch?.[2] || "").trim();
+    if (!trimmed || trimmed === "---") continue;
+
+    if (indent <= 1) {
+      const topMatch = trimmed.match(/^[-*]\s+\*\*([^*]+?):?\*\*:?\s*(.*)$/);
+      if (topMatch) {
+        const rawHeading = topMatch[1].trim();
+        const rawRest = topMatch[2].trim();
+        const isPending =
+          /\(In Progress\)/i.test(rawHeading) ||
+          /\(In Progress\)/i.test(rawRest) ||
+          rawHeading.includes("⏳") ||
+          rawRest.includes("⏳");
+        const cleanTitle = rawHeading
+          .replace(/\s*\((?:Completed|In Progress)[^)]*\)/gi, "")
+          .replace(/:\s*$/, "")
+          .trim();
+        const cleanInline = rawRest
+          .replace(/^\((?:Completed|In Progress)[^)]*\):?\s*/i, "")
+          .trim();
+        rawItems.push({
+          title: cleanTitle,
+          inlineDesc: cleanInline,
+          subLines: [],
+          isPending,
+        });
+        continue;
+      }
+    }
+
+    if (indent >= 2 && rawItems.length > 0 && /^[-*]\s+/.test(trimmed)) {
+      const subText = trimmed
+        .replace(/^[-*]\s+/, "")
+        .replace(/\*\*([^*]+?)\*\*/g, "$1")
+        .trim();
+      if (subText) {
+        rawItems[rawItems.length - 1].subLines.push(subText);
+      }
+    }
+  }
+
+  const results: DirectiveBuilderSubCard[] = [];
+  for (const item of rawItems) {
+    const combinedDesc = [item.inlineDesc, ...item.subLines]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\*\*([^*]+?)\*\*/g, "$1")
+      .trim();
+    if (!item.title || combinedDesc.length < 8) continue;
+    const subIdx = results.length;
+    const fb = fallbackSubs?.[subIdx];
+    const isPending = item.isPending || fb?.pending || false;
+    results.push({
+      id: fb?.id || `${idPrefix}_${subIdx + 1}`,
+      icon:
+        fb?.icon ||
+        (isPending
+          ? t("icon_rocket_launch", "rocket_launch")
+          : t("icon_check_circle", "check_circle")),
+      title: item.title,
+      desc: combinedDesc,
+      pending: isPending,
+    });
+  }
+
+  return results;
+}
+
+function extractSectionIntroParagraph(sectionBody: string, fallbackDesc: string): string {
+  const lines = sectionBody.replace(/\r\n/g, "\n").split("\n");
+  const introLines: string[] = [];
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed === "---") {
+      if (introLines.length > 0) break;
+      continue;
+    }
+    if (
+      trimmed.startsWith("#") ||
+      trimmed.startsWith("- ") ||
+      trimmed.startsWith("* ") ||
+      trimmed.startsWith("1. ") ||
+      trimmed.startsWith("```") ||
+      /^\*\*(?:Status|Date Range|Start Date|Target Launch|Focus):?\*\*/i.test(trimmed)
+    ) {
+      if (introLines.length > 0) break;
+      continue;
+    }
+    const cleanedLine = trimmed
+      .replace(/^\*[^*]+•[^*]+\*\s*/, "")
+      .replace(/\*\*([^*]+?)\*\*/g, "$1")
+      .trim();
+    if (cleanedLine) {
+      introLines.push(cleanedLine);
+    }
+  }
+  return introLines.join(" ").trim() || fallbackDesc;
+}
+
+/**
  * Dynamically parses raw Markdown headings (`#`, `##`, `###`) and bullet points (`- **Title:** Desc`)
  * so that editing a `.md` file in the codebase or updating markdown in the cloud database
  * automatically updates the directive's cards, tabs, and subCards even if the JSON comment wasn't manually rebuilt.
@@ -101,8 +216,11 @@ export function parseMarkdownToDirectiveSchema(
 
   for (let i = 0; i < Math.min(lines.length, 25); i++) {
     const line = lines[i].trim();
-    if (line.startsWith("# ")) {
-      const extractedTitle = line.replace(/^#\s+/, "").replace(/^Sanctuary OS\s*[—–-]\s*/i, "").trim();
+    if (line.startsWith("# ") && !/^#\s+Part\s+\d+/i.test(line)) {
+      const extractedTitle = line
+        .replace(/^#\s+/, "")
+        .replace(/^Sanctuary OS\s*[—–:-]\s*/i, "")
+        .trim();
       if (extractedTitle) docTitle = extractedTitle;
     } else if (line.startsWith("> ") && !line.toLowerCase().includes("version:")) {
       const extractedQuote = line.replace(/^>\s+/, "").replace(/\*\*/g, "").trim();
@@ -115,14 +233,16 @@ export function parseMarkdownToDirectiveSchema(
       !line.startsWith("#") &&
       !line.startsWith("-") &&
       !line.startsWith("*") &&
-      !line.startsWith("!")
+      !line.startsWith("!") &&
+      !line.toLowerCase().startsWith("document version:") &&
+      !line.toLowerCase().startsWith("last updated:")
     ) {
       docSummary = line.replace(/\*\*/g, "").trim();
       break;
     }
   }
 
-  // Check if markdown was compiled by compileDirectiveSchemaToMarkdown (`## LABEL — VALUE` & `### OVERLINE: TITLE`)
+  // 1. Check if markdown was compiled by compileDirectiveSchemaToMarkdown (`## LABEL — VALUE` & `### OVERLINE: TITLE`)
   const compiledTabMatches = [...clean.matchAll(/^##\s+([^—\n]+?)\s+—\s+([^\n]+)$/gm)];
   if (compiledTabMatches.length >= baseSchema.tabs.length) {
     const parsedTabs: DirectiveBuilderTab[] = [];
@@ -160,36 +280,41 @@ export function parseMarkdownToDirectiveSchema(
         const cLines = cardBody.split("\n");
         let badge = fallbackCard?.badge || "";
         let footerMeta = fallbackCard?.footerMeta || "";
+        let parsedMetaLine = false;
         const descLines: string[] = [];
-        const subCards: DirectiveBuilderSubCard[] = [];
         let tip: string | undefined = fallbackCard?.tip;
 
         for (const cl of cLines) {
           const trimmed = cl.trim();
           if (!trimmed || trimmed === "---") continue;
-          if (/^\*[^*]+\*$/.test(trimmed) && !badge) {
-            const metaParts = trimmed.slice(1, -1).split("•").map((s) => s.trim());
+          const leadingMetaMatch = trimmed.match(/^\*([^*]+?)\*(?:\s+(.*))?$/);
+          if (leadingMetaMatch && !parsedMetaLine) {
+            parsedMetaLine = true;
+            const metaParts = leadingMetaMatch[1].split("•").map((s) => s.trim());
             badge = metaParts[0] || badge;
             footerMeta = metaParts.slice(1).join(" • ") || footerMeta;
-          } else if (trimmed.startsWith("- **") || trimmed.startsWith("* **")) {
-            const subMatch = trimmed.match(/^[-*]\s+\*\*([^*]+?):?\*\*:?\s*(.*)$/);
-            if (subMatch) {
-              subCards.push({
-                id: `sub_${tIdx}_${cIdx}_${subCards.length + 1}`,
-                icon:
-                  fallbackCard?.subCards?.[subCards.length]?.icon ||
-                  t("icon_check_circle", "check_circle"),
-                title: subMatch[1].trim(),
-                desc: subMatch[2].trim(),
-                pending: fallbackCard?.subCards?.[subCards.length]?.pending,
-              });
+            if (leadingMetaMatch[2]?.trim()) {
+              descLines.push(leadingMetaMatch[2].trim());
             }
+          } else if (trimmed.startsWith("- **") || trimmed.startsWith("* **") || /^\s+[-*]\s+/.test(cl)) {
+            continue;
           } else if (/^>\s*\*\*Tip:?\*\*/i.test(trimmed)) {
             tip = trimmed.replace(/^>\s*\*\*Tip:?\*\*:?\s*/i, "").trim();
           } else if (!trimmed.startsWith("```")) {
-            descLines.push(trimmed);
+            descLines.push(trimmed.replace(/^\*[^*]+•[^*]+\*\s*/, "").trim());
           }
         }
+
+        const subCards = extractMarkdownSubCards(
+          cardBody,
+          `sub_${tIdx}_${cIdx}`,
+          fallbackCard?.subCards,
+          t
+        );
+
+        const cleanedDesc = (descLines.join(" ").trim() || fallbackCard?.desc || "")
+          .replace(/^\*[^*]+•[^*]+\*\s*/, "")
+          .trim();
 
         return {
           id: fallbackCard?.id || `card_${tIdx}_${cIdx + 1}`,
@@ -198,7 +323,7 @@ export function parseMarkdownToDirectiveSchema(
           badge: badge || overline,
           title,
           footerMeta: footerMeta || badge,
-          desc: descLines.join(" ").trim() || fallbackCard?.desc || "",
+          desc: cleanedDesc,
           tip,
           status: fallbackCard?.status,
           subCards: subCards.length > 0 ? subCards : fallbackCard?.subCards || [],
@@ -229,6 +354,329 @@ export function parseMarkdownToDirectiveSchema(
     }
   }
 
+  // 2. Native `.md` Section & Bullet Overlay Parser:
+  // Syncs headings (`## Phase N`, `## Stage N`, `## Pillar N`, etc.) and `- **Title:** Desc` bullets
+  // directly from the repository `.md` files or Hub DB markdown into `baseSchema.tabs`.
+  if (slug === "phase_roadmap") {
+    const phaseMatches = [...clean.matchAll(/^##\s+(Phase\s+(\d+)[^\n]*)$/gim)];
+    if (phaseMatches.length > 0 && baseSchema.tabs[0]) {
+      const defaultCards = baseSchema.tabs[0].cards;
+      const updatedCards: DirectiveBuilderCard[] = phaseMatches.map((pm, idx) => {
+        const fullHeading = pm[1].trim();
+        const phaseNum = parseInt(pm[2], 10);
+        const startPos = (pm.index || 0) + pm[0].length;
+        const endPos =
+          idx + 1 < phaseMatches.length
+            ? phaseMatches[idx + 1].index || clean.length
+            : clean.length;
+        const sectionBody = clean.slice(startPos, endPos).trim();
+
+        const fallback = defaultCards.find((c) => {
+          if (c.id === `phase_${phaseNum}`) return true;
+          const m = (c.overline || c.title || "").match(/\bPhase\s+(\d+)\b/i);
+          return m && parseInt(m[1], 10) === phaseNum;
+        });
+
+        let title = fallback?.title || fullHeading;
+        const colonIdx = fullHeading.indexOf(":");
+        if (colonIdx > 0) {
+          title =
+            fullHeading
+              .slice(colonIdx + 1)
+              .replace(/\s*\([^)]*(?:2026|2025|Active|Progress|Completed|V0\.|V5\.)[^)]*\)\s*$/i, "")
+              .trim() || title;
+        }
+
+        let focusText = fallback?.footerMeta || "";
+        const focusMatch = sectionBody.match(/\*\*Focus:\*\*\s*`?([^`\n|]+)`?/i);
+        if (focusMatch && focusMatch[1]) {
+          focusText = focusMatch[1].trim();
+        }
+
+        const statusMatch = sectionBody.match(/\*\*Status:\*\*\s*`?([^`\n|]+)`?/i);
+        const isActiveStatus = statusMatch
+          ? /(?:ACTIVE|IN PROGRESS)/i.test(statusMatch[1]) && phaseNum >= 13
+          : fallback?.status === "active";
+
+        const dateMatch = sectionBody.match(
+          /\*\*(?:Date Range|Start Date|Target Launch):\*\*\s*([^\n|]+)/i
+        );
+        const versionMatch = fullHeading.match(/\((V[0-9.]+[^)]*)\)/i);
+        const computedOverline =
+          fallback?.overline ||
+          `Phase ${phaseNum}${versionMatch ? ` (${versionMatch[1]})` : ""}${
+            dateMatch ? ` • ${dateMatch[1].trim()}` : ""
+          }${isActiveStatus ? " — Active Era" : ""}`;
+
+        const extractedSubs = extractMarkdownSubCards(
+          sectionBody,
+          `p${phaseNum}_m`,
+          fallback?.subCards,
+          t
+        );
+
+        return {
+          id: fallback?.id || `phase_${phaseNum}`,
+          icon:
+            fallback?.icon ||
+            (isActiveStatus
+              ? t("icon_auto_awesome", "auto_awesome")
+              : t("icon_rocket_launch", "rocket_launch")),
+          overline: computedOverline,
+          badge: isActiveStatus ? "Active Phase" : "Completed",
+          title,
+          footerMeta: focusText || fallback?.footerMeta || "",
+          desc: fallback?.desc || focusText || title,
+          status: isActiveStatus ? "active" : "completed",
+          subCards:
+            extractedSubs.length > 0 ? extractedSubs : fallback?.subCards || [],
+        };
+      });
+
+      const maxPhase = updatedCards.reduce((acc, c) => {
+        const m = c.id.match(/^phase_(\d+)$/);
+        return m ? Math.max(acc, parseInt(m[1], 10)) : acc;
+      }, updatedCards.length);
+
+      return {
+        ...baseSchema,
+        title:
+          docTitle.includes("Phase ")
+            ? docTitle
+            : `Engineering Phase Roadmap (Phase ${maxPhase} → Phase 1)`,
+        summary: docSummary,
+        _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
+        _bodySig: computeBodySig(clean),
+        tabs: [
+          {
+            ...baseSchema.tabs[0],
+            label: `${updatedCards.length} Phases`,
+            cards: updatedCards,
+          },
+        ],
+      };
+    }
+  }
+
+  if (slug === "citizen_guide") {
+    const nextTabs = [...baseSchema.tabs];
+
+    // Tab 0: Stage 1..N under `# Part 1`
+    const stageMatches = [...clean.matchAll(/^##\s+Stage\s+(\d+):\s*([^\n]+)$/gim)];
+    if (stageMatches.length > 0 && nextTabs[0]) {
+      const defaultStageCards = nextTabs[0].cards;
+      const stageCards: DirectiveBuilderCard[] = stageMatches.map((sm, idx) => {
+        const stageNum = parseInt(sm[1], 10);
+        const stageTitle = sm[2].trim();
+        const startPos = (sm.index || 0) + sm[0].length;
+        const endPos =
+          idx + 1 < stageMatches.length
+            ? stageMatches[idx + 1].index || clean.length
+            : clean.indexOf("# Part 2") > startPos
+              ? clean.indexOf("# Part 2")
+              : clean.length;
+        const sectionBody = clean.slice(startPos, endPos).trim();
+        const fb =
+          defaultStageCards.find((c) => c.id === `walk_${stageNum}`) ||
+          defaultStageCards[idx];
+        const subs = extractMarkdownSubCards(
+          sectionBody,
+          `walk_${stageNum}_c`,
+          fb?.subCards,
+          t
+        );
+        const introDesc = extractSectionIntroParagraph(
+          sectionBody,
+          fb?.desc || stageTitle
+        ).replace(/:$/, ".");
+
+        return {
+          id: fb?.id || `walk_${stageNum}`,
+          icon: fb?.icon || t("icon_play_circle", "play_circle"),
+          overline: `STAGE ${stageNum} OF ${stageMatches.length}`,
+          badge: fb?.badge || `${stageNum}. Stage ${stageNum}`,
+          title: fb?.title || stageTitle,
+          footerMeta: fb?.footerMeta || stageTitle,
+          desc: fb?.desc || introDesc,
+          subCards: subs.length > 0 ? subs : fb?.subCards || [],
+        };
+      });
+      nextTabs[0] = {
+        ...nextTabs[0],
+        label: `${stageCards.length} STAGES`,
+        cards: stageCards,
+      };
+    }
+
+    // Tab 1: Numbered modules `1. **Module:** Desc` under `# Part 2`
+    const part2Idx = clean.search(/^#\s+Part\s+2:/im);
+    const part3Idx = clean.search(/^#\s+Part\s+3:/im);
+    if (part2Idx >= 0 && nextTabs[1]) {
+      const part2Body = clean.slice(
+        part2Idx,
+        part3Idx > part2Idx ? part3Idx : clean.length
+      );
+      const modMatches = [
+        ...part2Body.matchAll(/^(\d+)\.\s+\*\*([^*]+?):?\*\*:?\s*(.+)$/gm),
+      ];
+      if (modMatches.length > 0) {
+        const defaultModCards = nextTabs[1].cards;
+        const modCards: DirectiveBuilderCard[] = modMatches.map((mm, idx) => {
+          const modNum = parseInt(mm[1], 10);
+          const rawModTitle = mm[2].trim();
+          const rawModDesc = mm[3].trim();
+          const fb =
+            defaultModCards.find((c) => c.id === `mod_${modNum}`) ||
+            defaultModCards[idx];
+          return {
+            id: fb?.id || `mod_${modNum}`,
+            icon: fb?.icon || t("icon_explore", "explore"),
+            overline: `MODULE ${modNum} OF ${modMatches.length}`,
+            badge: fb?.badge || `${modNum}. ${rawModTitle}`,
+            title: fb?.title || rawModTitle,
+            footerMeta: fb?.footerMeta || rawModTitle.toUpperCase(),
+            desc: fb?.desc || rawModDesc,
+            tip: fb?.tip,
+            subCards: fb?.subCards || [],
+          };
+        });
+        nextTabs[1] = {
+          ...nextTabs[1],
+          label: `${modCards.length} MODULES`,
+          cards: modCards,
+        };
+      }
+    }
+
+    return {
+      ...baseSchema,
+      title: docTitle,
+      summary: docSummary,
+      _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
+      _bodySig: computeBodySig(clean),
+      tabs: nextTabs,
+    };
+  }
+
+  if (slug === "master_architecture") {
+    const pillarMatches = [...clean.matchAll(/^##\s+Pillar\s+(\d+):\s*([^\n]+)$/gim)];
+    if (pillarMatches.length > 0) {
+      const updatedTabs: DirectiveBuilderTab[] = pillarMatches.map((pm, idx) => {
+        const pillarNum = parseInt(pm[1], 10);
+        const pillarTitle = pm[2].trim();
+        const startPos = (pm.index || 0) + pm[0].length;
+        const endPos =
+          idx + 1 < pillarMatches.length
+            ? pillarMatches[idx + 1].index || clean.length
+            : clean.length;
+        const sectionBody = clean.slice(startPos, endPos).trim();
+        const fbTab = baseSchema.tabs[idx] || baseSchema.tabs[0];
+        const fbCard = fbTab?.cards?.[0];
+        const subs = extractMarkdownSubCards(
+          sectionBody,
+          `arch_p${pillarNum}_c`,
+          fbCard?.subCards,
+          t
+        );
+        const introDesc = extractSectionIntroParagraph(
+          sectionBody,
+          fbCard?.desc || pillarTitle
+        ).replace(/:$/, ".");
+
+        return {
+          id: fbTab?.id || `p${pillarNum}`,
+          icon: fbTab?.icon || t("icon_memory", "memory"),
+          label: `PILLAR ${pillarNum}`,
+          value: fbTab?.value || `Pillar ${pillarNum}`,
+          cards: [
+            {
+              id: fbCard?.id || `arch_p${pillarNum}`,
+              icon: fbCard?.icon || t("icon_memory", "memory"),
+              overline:
+                fbCard?.overline ||
+                `ARCHITECTURE PILLAR ${pillarNum} • SANCTUARY OS`,
+              badge: fbCard?.badge || t("active", "Active"),
+              title: fbCard?.title || pillarTitle,
+              footerMeta: fbCard?.footerMeta || pillarTitle,
+              desc: fbCard?.desc || introDesc,
+              subCards: subs.length > 0 ? subs : fbCard?.subCards || [],
+            },
+          ],
+        };
+      });
+
+      return {
+        ...baseSchema,
+        title: docTitle,
+        summary: docSummary,
+        _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
+        _bodySig: computeBodySig(clean),
+        tabs: updatedTabs,
+      };
+    }
+  }
+
+  if (slug === "master_protocols") {
+    const nextTabs = [...baseSchema.tabs];
+    const domainMatches = [
+      ...clean.matchAll(/^##\s+([2-5])\.\s+([^\n]+)$/gm),
+    ];
+    if (domainMatches.length > 0 && nextTabs[2]) {
+      const defaultDomainCards = nextTabs[2].cards;
+      let totalProtocols = 0;
+      const domainCards: DirectiveBuilderCard[] = domainMatches.map((dm, idx) => {
+        const secNum = parseInt(dm[1], 10);
+        const domainNum = secNum - 1;
+        const domainTitle = dm[2].trim();
+        const startPos = (dm.index || 0) + dm[0].length;
+        const endPos =
+          idx + 1 < domainMatches.length
+            ? domainMatches[idx + 1].index || clean.length
+            : clean.length;
+        const sectionBody = clean.slice(startPos, endPos).trim();
+        const fb =
+          defaultDomainCards.find((c) => c.id === `proto_d${domainNum}`) ||
+          defaultDomainCards[idx];
+        const subs = extractMarkdownSubCards(
+          sectionBody,
+          `proto_d${domainNum}_r`,
+          fb?.subCards,
+          t
+        );
+        const finalSubs = subs.length > 0 ? subs : fb?.subCards || [];
+        totalProtocols += finalSubs.length;
+
+        return {
+          id: fb?.id || `proto_d${domainNum}`,
+          icon: fb?.icon || t("icon_policy", "policy"),
+          overline: `DOMAIN ${domainNum} • ${finalSubs.length} PROTOCOLS`,
+          badge: `DOMAIN ${domainNum}`,
+          title: domainTitle || fb?.title || `Domain ${domainNum}`,
+          footerMeta: `DOMAIN ${domainNum} • ${finalSubs.length} PROTOCOLS`,
+          desc:
+            fb?.desc ||
+            `${domainTitle} (${finalSubs.length} operational protocols).`,
+          subCards: finalSubs,
+        };
+      });
+
+      nextTabs[2] = {
+        ...nextTabs[2],
+        label: `${totalProtocols || 33} RULES`,
+        cards: domainCards,
+      };
+    }
+
+    return {
+      ...baseSchema,
+      title: docTitle,
+      summary: docSummary,
+      _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
+      _bodySig: computeBodySig(clean),
+      tabs: nextTabs,
+    };
+  }
+
   return {
     ...baseSchema,
     title: docTitle,
@@ -253,19 +701,27 @@ export function extractDirectiveBuilderSchema(
 
   if (match && match[1]) {
     try {
-      const parsed = JSON.parse(match[1]) as DirectiveBuilderSchema;
-      if (parsed && Array.isArray(parsed.tabs)) {
-        const effectiveSlug = (slug || parsed.slug || "citizen_guide") as DirectiveSlug;
-        // If the embedded JSON is from an older schema version (< 58) and hasn't been custom-edited in V5.8,
-        // upgrade to the V5.8 schema so new stages/modules/cards automatically appear!
-        if ((parsed._schemaVersion || 0) < CURRENT_DIRECTIVE_SCHEMA_VERSION) {
-          return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
+      const rawJsonStr = match[1];
+      if (!rawJsonStr.includes("[sd_") && !rawJsonStr.includes("[dir_")) {
+        const parsed = JSON.parse(rawJsonStr) as DirectiveBuilderSchema;
+        if (parsed && Array.isArray(parsed.tabs)) {
+          const effectiveSlug = (slug || parsed.slug || "citizen_guide") as DirectiveSlug;
+          if ((parsed._schemaVersion || 0) < CURRENT_DIRECTIVE_SCHEMA_VERSION) {
+            return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
+          }
+          if (parsed._bodySig && parsed._bodySig !== currentBodySig) {
+            return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
+          }
+          // Sanitize any leftover italic meta prefix on card descriptions
+          parsed.tabs = parsed.tabs.map((tb) => ({
+            ...tb,
+            cards: (tb.cards || []).map((c) => ({
+              ...c,
+              desc: (c.desc || "").replace(/^\*[^*]+•[^*]+\*\s*/, "").trim(),
+            })),
+          }));
+          return parsed;
         }
-        // If the markdown body above the comment was edited directly (signature changed), re-parse from markdown
-        if (parsed._bodySig && parsed._bodySig !== currentBodySig) {
-          return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
-        }
-        return parsed;
       }
     } catch {
       // Fall through to dynamic markdown parser
@@ -1576,10 +2032,136 @@ export function getDefaultDirectiveBuilderSchema(
   if (slug === "phase_roadmap") {
     const roadmapCards: DirectiveBuilderCard[] = [
       {
+        id: "phase_14",
+        icon: t("icon_science", "science"),
+        overline: g("PHASE 14 (V0.6.0) • NOVEMBER 2026 — ACTIVE ERA"),
+        badge: g("ACTIVE PHASE"),
+        title: g(
+          "Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform {Vault} Companion"
+        ),
+        footerMeta: g(
+          "External Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV), GTA V .rpf Isolation, FOMOD/Flavor Installer, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
+        ),
+        desc: g(
+          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside Homestead {Lab}, live Multi-Engine Manifest Compilers & GTA V .rpf Copy-on-Write / LML isolation, Guided FOMOD & Flavor Package Installer, Save-Game {Blueprint} Lock (Save Doctor), Homestead Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
+        ),
+        status: "active",
+        subCards: [
+          {
+            id: "phase_14_m1",
+            icon: t("icon_handyman", "handyman"),
+            title: g("External Creator & World-Building Tool Bridge + {Lab} Save Airgap"),
+            desc: g(
+              "Launch World Architect, CakeView, Sims 4 Studio, OpenIV, and xEdit inside a Save-Airgapped {Lab} session—physically isolating legacy saves while developing worlds or testing {mods} and restoring saves automatically on exit."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m2",
+            icon: t("icon_extension", "extension"),
+            title: g("Multi-Engine Manifest Compilers & GTA V .rpf / mods/ Isolation"),
+            desc: g(
+              "Native compilers for BG3 (modsettings.lsx), Creation Engine (plugins.txt), Cyberpunk 2077 (REDmod), SMAPI (manifest.json), plus GTA V .rpf Copy-on-Write hardlink staging and OpenIV / LML VFS integration."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m3",
+            icon: t("icon_inventory_2", "inventory_2"),
+            title: g("Guided Multi-Option Package Installer (FOMOD & {Mason} Flavor Wizard)"),
+            desc: g(
+              "Intercepts multi-variant archives on drop/download with a Guided Package Installer SidePanel that parses fomod/ModuleConfig.xml and {Mason} Dossier Flavors with auto-checked compatibility patches."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m4",
+            icon: t("icon_health_and_safety", "health_and_safety"),
+            title: g("Save-Game {Blueprint} Lock & Pre-Launch Save Doctor"),
+            desc: g(
+              "Pairs save states with the deployed {Blueprint} DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by the latest save."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m5",
+            icon: t("icon_troubleshoot", "troubleshoot"),
+            title: g("{Citizen}-Facing Homestead Crash & Exception Decoder (Desktop + Web)"),
+            desc: g(
+              "Watches schema log_files (lastException.txt, Papyrus, SMAPI, redscript) and cross-references stack traces against installed {Vault} {mods} and KnownExceptionRules to surface plain-English Crash Diagnosis Cards."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m6",
+            icon: t("icon_sports_esports", "sports_esports"),
+            title: g("SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity)"),
+            desc: g(
+              "Parses Steam libraryfolders.vdf and maps ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix for out-of-the-box Steam Deck and Linux support."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m7",
+            icon: t("icon_phonelink_ring", "phonelink_ring"),
+            title: g("Mobile PWA / Web 'My {Vault} Patch Radar' (Zero-PII Cloud Companion)"),
+            desc: g(
+              "Optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} on Mobile PWA or Web immediately see which of their installed {mods} broke in a game patch and can queue updates remotely."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m8",
+            icon: t("icon_playlist_play", "playlist_play"),
+            title: g("Realtime Queue Handshake & Side Browser Guided Batch Updater"),
+            desc: g(
+              "Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each {Mason}'s download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m9",
+            icon: t("icon_terminal", "terminal"),
+            title: g("Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms)"),
+            desc: g(
+              "Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, activating {Blueprints}, navigating all 18 OS views, and triggering {Mason}/Architect actions."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m10",
+            icon: t("icon_compare", "compare"),
+            title: g("Conflict Radar 2.0 — Resource-Level Overlap & Diff Inspector"),
+            desc: g(
+              "Breaks down conflicting files inside ConflictResolutionSidebar.tsx into Visual/Texture Overrides (DDS/Mesh) vs. Gameplay Tuning/Script Collisions (XML/SimData) with side-by-side Monaco XML diffing."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m11",
+            icon: t("icon_difference", "difference"),
+            title: g("In-Game Config Watcher → Workbench Interactive Diff Timeline"),
+            desc: g(
+              "Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the {Citizen}'s Workbench Diff Timeline."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m12",
+            icon: t("icon_verified", "verified"),
+            title: g("Automated Protocol Regression & Stability Suite (Vitest + Cargo Test)"),
+            desc: g(
+              "Automated test coverage for compileLoadOrder, check_heuristic_malware_detailed (21+17 rules & Zlib/Zstd DBPF streams), interpolateGlossaryTokens, and parseMarkdownToDirectiveSchema."
+            ),
+            pending: true,
+          },
+        ],
+      },
+      {
         id: "phase_13",
         icon: t("icon_auto_awesome", "auto_awesome"),
-        overline: g("PHASE 13 (V5.8) • OCTOBER 2026 — ACTIVE ERA"),
-        badge: g("ACTIVE PHASE"),
+        overline: g("PHASE 13 (V5.8) • OCTOBER 2026"),
+        badge: g("COMPLETED"),
         title: g(
           "Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync"
         ),
@@ -1589,7 +2171,7 @@ export function getDefaultDirectiveBuilderSchema(
         desc: g(
           "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Universal Heuristic Scanner (21 Core + 17 Spoke rules with Zlib/Zstd DBPF & Base64/Hex deobfuscation), added 6-provider Static Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync."
         ),
-        status: "active",
+        status: "completed",
         subCards: [
           {
             id: "phase_13_m1",
@@ -2303,15 +2885,15 @@ export function getDefaultDirectiveBuilderSchema(
     return {
       slug: "phase_roadmap",
       _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
-      title: g("Engineering Phase Roadmap (Phase 13 → Phase 1)"),
+      title: g("Engineering Phase Roadmap (Phase 14 → Phase 1)"),
       summary: g(
-        "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from Phase 13 (V5.8 Multi-Engine Studios, Universal Heuristics & Bilateral Cloud Sync) and Phase 12 down to Phase 1."
+        "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1."
       ),
       tabs: [
         {
           id: "all",
           icon: t("icon_timeline", "timeline"),
-          label: g("13 Phases"),
+          label: g("14 Phases"),
           value: g("Full Timeline"),
           cards: roadmapCards,
         },
@@ -2323,69 +2905,49 @@ export function getDefaultDirectiveBuilderSchema(
     return {
       slug: "forking_guide",
       _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
-      title: t("sd_card_fork_title", "Forking & Spoke Provisioning Matrix"),
-      summary: t(
-        "sd_card_fork_desc",
+      title: g("Forking & Spoke Provisioning Matrix"),
+      summary: g(
         "Interactive schematic for deploying a Sovereign Community Spoke (SANCTUARY-UPLINK://), reviewing Partner Covenants, launching a 1-file Standalone Codebase Fork (src/supabase.ts), or building cross-platform Master Schemas."
       ),
       tabs: [
         {
           id: "spoke",
           icon: t("icon_hub", "hub"),
-          label: t("dir_fk_t1_lbl", "STEP 1"),
-          value: t("dir_fk_t1_val", "Spoke Setup"),
+          label: g("STEP 1"),
+          value: g("Spoke Setup"),
           cards: [
             {
               id: "fork_spoke_setup",
               icon: t("icon_hub", "hub"),
-              overline: t(
-                "sd_fork_spoke_hero_badge",
-                "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"
-              ),
+              overline: g("OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"),
               badge: t("active", "Active"),
-              title: t(
-                "sd_fork_spoke_hero_title",
-                "Connect a Sovereign Community Spoke in 3 Steps"
-              ),
+              title: g("Connect a Sovereign Community Spoke in 3 Steps"),
               footerMeta: "SANCTUARY-UPLINK:// • schema.sql",
-              desc: t(
-                "sd_fork_spoke_hero_desc",
+              desc: g(
                 "Join the official Sanctuary OS multi-game network while retaining 100% ownership of your community's Supabase PostgreSQL database. No client forking or code edits required."
               ),
               subCards: [
                 {
                   id: "fork_spoke_s1",
                   icon: t("icon_database", "database"),
-                  title: t(
-                    "sd_fork_spoke_step1_title",
-                    "Step 1: Initialize Your Supabase Spoke (schema.sql)"
-                  ),
-                  desc: t(
-                    "sd_fork_spoke_step1_desc",
+                  title: g("Step 1: Initialize Your Supabase Spoke (schema.sql)"),
+                  desc: g(
                     "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 36 community tables, RLS policies, immutable audit triggers, and role functions."
                   ),
                 },
                 {
                   id: "fork_spoke_s2",
                   icon: t("icon_key", "key"),
-                  title: t(
-                    "sd_fork_spoke_step2_title",
-                    "Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"
-                  ),
-                  desc: t(
-                    "sd_fork_spoke_step2_desc",
+                  title: g("Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"),
+                  desc: g(
                     "In Keepers Core -> Active Workspaces (or Wayfinder Hub), paste your Supabase URL, Anon Key, and Service Role Key to generate an encrypted SANCTUARY-UPLINK:// handshake bundle."
                   ),
                 },
                 {
                   id: "fork_spoke_s3",
                   icon: t("icon_rocket_launch", "rocket_launch"),
-                  title: t(
-                    "sd_fork_spoke_step3_title",
-                    "Step 3: Verify Handshake & Provision Founding Wayfinder"
-                  ),
-                  desc: t(
-                    "sd_fork_spoke_step3_desc",
+                  title: g("Step 3: Verify Handshake & Provision Founding Wayfinder"),
+                  desc: g(
                     "Click 'Test Handshake & Verify Schema'. The game-gateway Edge Function verifies table readiness, seeds global_network_status, and automatically promotes your founder account to Wayfinder."
                   ),
                 },
@@ -2394,54 +2956,35 @@ export function getDefaultDirectiveBuilderSchema(
             {
               id: "fork_spoke_covenants",
               icon: t("icon_gavel", "gavel"),
-              overline: t(
-                "sd_fork_covenants_badge",
-                "PARTNER APPLICATION • SOVEREIGN COVENANTS"
-              ),
+              overline: g("PARTNER APPLICATION • SOVEREIGN COVENANTS"),
               badge: t("verified", "Verified"),
-              title: t(
-                "sd_fork_covenants_title",
-                "Readiness-Gated Partner Application & Sovereign Covenants"
-              ),
+              title: g("Readiness-Gated Partner Application & Sovereign Covenants"),
               footerMeta: "Partners Agreement • Compliance Protocol",
-              desc: t(
-                "sd_fork_covenants_desc",
+              desc: g(
                 "Prospective community leaders can apply directly from the Landing Page after inspecting and accepting the Sanctuary Partners Agreement and Compliance Protocol."
               ),
               subCards: [
                 {
                   id: "fork_cov_s1",
                   icon: t("icon_handshake", "handshake"),
-                  title: t(
-                    "sd_fork_cov_s1_title",
-                    "Mandatory Partners Agreement & Compliance Review"
-                  ),
-                  desc: t(
-                    "sd_fork_cov_s1_desc",
+                  title: g("Mandatory Partners Agreement & Compliance Review"),
+                  desc: g(
                     "Both covenants open in an interactive overlay drawer during Step 1 of the Partner Application and remain permanently accessible inside Wayfinder Hub -> Spoke Maintenance."
                   ),
                 },
                 {
                   id: "fork_cov_s2",
                   icon: t("icon_link_off", "link_off"),
-                  title: t(
-                    "sd_fork_cord_community_title",
-                    "Community-Initiated Severance ('Cut the Cord')"
-                  ),
-                  desc: t(
-                    "sd_fork_cord_community_desc",
+                  title: g("Community-Initiated Severance ('Cut the Cord')"),
+                  desc: g(
                     "A Wayfinder can double-click 'Cut the Cord' in Wayfinder Hub at any time—writing an immutable audit log, setting is_active = false, and scrubbing the Spoke's service key from the Hub."
                   ),
                 },
                 {
                   id: "fork_cov_s3",
                   icon: t("icon_volunteer_activism", "volunteer_activism"),
-                  title: t(
-                    "sd_fork_cord_keeper_title",
-                    "0% Platform Tax & Non-Custodial Community Donations"
-                  ),
-                  desc: t(
-                    "sd_fork_cord_keeper_desc",
+                  title: g("0% Platform Tax & Non-Custodial Community Donations"),
+                  desc: g(
                     "Sanctuary OS takes 0% of {mason} Patreon/Ko-fi revenue and 0% of Partner community donations. Export your SANCTUARY-UPLINK:// bundle at any time."
                   ),
                 },
@@ -2452,60 +2995,41 @@ export function getDefaultDirectiveBuilderSchema(
         {
           id: "standalone",
           icon: t("icon_call_split", "call_split"),
-          label: t("dir_fk_t2_lbl", "FORK MODES"),
-          value: t("dir_fk_t2_val", "Standalone & Hub"),
+          label: g("FORK MODES"),
+          value: g("Standalone & Hub"),
           cards: [
             {
               id: "fork_mode_standalone",
               icon: t("icon_call_split", "call_split"),
-              overline: t(
-                "sd_fork_mode_standalone_badge",
-                "MODE 1 • 1-DATABASE STANDALONE"
-              ),
-              badge: t("dir_fk_t2_val", "1-File Fork"),
-              title: t(
-                "sd_fork_mode_standalone_title",
-                "1-File Standalone Fork (Single Database)"
-              ),
+              overline: g("MODE 1 • 1-DATABASE STANDALONE"),
+              badge: g("1-File Fork"),
+              title: g("1-File Standalone Fork (Single Database)"),
               footerMeta: "schema.sql • src/supabase.ts",
-              desc: t(
-                "sd_fork_mode_standalone_desc",
+              desc: g(
                 "Run your own independent Sanctuary OS build backed by a single Supabase project (schema.sql) and a 1-file edit in src/supabase.ts with zero Edge Functions."
               ),
               subCards: [
                 {
                   id: "fork_m1_s1",
                   icon: t("icon_bolt", "bolt"),
-                  title: t(
-                    "sd_fork_standalone_s1_title",
-                    "1. Unified Auth & Direct RPC Engine"
-                  ),
-                  desc: t(
-                    "sd_fork_standalone_s1_desc",
+                  title: g("1. Unified Auth & Direct RPC Engine"),
+                  desc: g(
                     "When mode is set to 'standalone', Sanctuary OS automatically routes all 15 secure_* RPCs directly against your single Supabase database with zero Edge Function dependency."
                   ),
                 },
                 {
                   id: "fork_m1_s2",
                   icon: t("icon_verified", "verified"),
-                  title: t(
-                    "sd_fork_standalone_s2_title",
-                    "2. Automatic Founding Wayfinder Promotion"
-                  ),
-                  desc: t(
-                    "sd_fork_standalone_s2_desc",
+                  title: g("2. Automatic Founding Wayfinder Promotion"),
+                  desc: g(
                     "The on_auth_user_created_spoke trigger in schema.sql detects when your standalone database has 0 Wayfinders and automatically promotes the very first registered user to Founding Wayfinder."
                   ),
                 },
                 {
                   id: "fork_m1_s3",
                   icon: t("icon_storage", "storage"),
-                  title: t(
-                    "sd_fork_standalone_s3_title",
-                    "3. Transparent OS-to-Spoke Table Mapping"
-                  ),
-                  desc: t(
-                    "sd_fork_standalone_s3_desc",
+                  title: g("3. Transparent OS-to-Spoke Table Mapping"),
+                  desc: g(
                     "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
                   ),
                 },
@@ -2514,66 +3038,43 @@ export function getDefaultDirectiveBuilderSchema(
             {
               id: "fork_mode_hub",
               icon: t("icon_hub", "hub"),
-              overline: t(
-                "sd_fork_mode_hub_badge",
-                "MODE 2 • FULL HUB & SPOKE FEDERATION"
-              ),
-              badge: t("dir_ar_t2_val", "Hub & Spokes"),
-              title: t(
-                "sd_fork_mode_hub_title",
-                "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
-              ),
+              overline: g("MODE 2 • FULL HUB & SPOKE FEDERATION"),
+              badge: g("Hub & Spokes"),
+              title: g("Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"),
               footerMeta: "schema_os.sql + schema.sql • game-gateway",
-              desc: t(
-                "sd_fork_mode_hub_desc",
+              desc: g(
                 "Self-host your own central Sanctuary OS Hub (schema_os.sql + game-gateway Edge Function) that authenticates users once and routes across multiple independent community Spoke databases (schema.sql)."
               ),
               subCards: [
                 {
                   id: "fork_m2_s1",
                   icon: t("icon_memory", "memory"),
-                  title: t(
-                    "sd_fork_hub_s1_title",
-                    "1. Provision Core Hub Database (schema_os.sql)"
-                  ),
-                  desc: t(
-                    "sd_fork_hub_s1_desc",
+                  title: g("1. Provision Core Hub Database (schema_os.sql)"),
+                  desc: g(
                     "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
                   ),
                 },
                 {
                   id: "fork_m2_s2",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: t(
-                    "sd_fork_hub_s2_title",
-                    "2. Deploy game-gateway Edge Function"
-                  ),
-                  desc: t(
-                    "sd_fork_hub_s2_desc",
+                  title: g("2. Deploy game-gateway Edge Function"),
+                  desc: g(
                     "Deploy supabase/functions/game-gateway to your Hub project (supabase functions deploy game-gateway). It validates Hub JWTs, checks roles, and executes cross-database mutations against each Spoke."
                   ),
                 },
                 {
                   id: "fork_m2_s3",
                   icon: t("icon_code", "code"),
-                  title: t(
-                    "sd_fork_hub_s3_title",
-                    "3. Point src/supabase.ts at Your Core Hub"
-                  ),
-                  desc: t(
-                    "sd_fork_hub_s3_desc",
+                  title: g("3. Point src/supabase.ts at Your Core Hub"),
+                  desc: g(
                     "Keep mode set to 'hub_and_spoke' in src/supabase.ts (or set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env) pointing to your central Hub project's URL and Anon Key."
                   ),
                 },
                 {
                   id: "fork_m2_s4",
                   icon: t("icon_storage", "storage"),
-                  title: t(
-                    "sd_fork_hub_s4_title",
-                    "4. Provision & Link Child Spoke Databases (schema.sql)"
-                  ),
-                  desc: t(
-                    "sd_fork_hub_s4_desc",
+                  title: g("4. Provision & Link Child Spoke Databases (schema.sql)"),
+                  desc: g(
                     "For each game community, create a separate Supabase project, run schema.sql, and register its URL, Anon Key, and Service Role Key (or SANCTUARY-UPLINK:// bundle) in Keepers Core -> Active Workspaces."
                   ),
                 },
@@ -2582,42 +3083,27 @@ export function getDefaultDirectiveBuilderSchema(
             {
               id: "fork_mode_schema",
               icon: t("icon_schema", "schema"),
-              overline: t(
-                "sd_fork_mode_schema_badge",
-                "MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM"
-              ),
-              badge: t("sd_fork_mode_schema_short", "7 Engine Presets"),
-              title: t(
-                "sd_fork_mode_schema_title",
-                "Master Schema Studio & Windows/macOS Build Pipeline"
-              ),
+              overline: g("MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM"),
+              badge: g("7 Engine Presets"),
+              title: g("Master Schema Studio & Windows/macOS Build Pipeline"),
               footerMeta: "sims4.json • Universal Darwin .dmg & Windows .msi",
-              desc: t(
-                "sd_fork_mode_schema_desc",
+              desc: g(
                 "Adapt Sanctuary OS to any game engine without touching Rust or React code by configuring a declarative Master Schema JSON in Wayfinder or Keepers IDE."
               ),
               subCards: [
                 {
                   id: "fork_m3_s1",
                   icon: t("icon_schema", "schema"),
-                  title: t(
-                    "sd_fork_m3_s1_title",
-                    "7 Built-In Engine Architecture Presets"
-                  ),
-                  desc: t(
-                    "sd_fork_m3_s1_desc",
+                  title: g("7 Built-In Engine Architecture Presets"),
+                  desc: g(
                     "1-click templates for DBPF + Python, REDengine 4, Creation Engine, RAGE / OpenIV, Larian .pak, SMAPI, and Universal engines."
                   ),
                 },
                 {
                   id: "fork_m3_s2",
                   icon: t("icon_laptop_mac", "laptop_mac"),
-                  title: t(
-                    "sd_fork_m3_s2_title",
-                    "Windows (.exe) & macOS (.app) Native Parity"
-                  ),
-                  desc: t(
-                    "sd_fork_m3_s2_desc",
+                  title: g("Windows (.exe) & macOS (.app) Native Parity"),
+                  desc: g(
                     "Supports Windows %USERPROFILE% and macOS ~/Documents & /Applications/*.app bundles, plus universal-apple-darwin .dmg builds."
                   ),
                 },
@@ -2628,18 +3114,17 @@ export function getDefaultDirectiveBuilderSchema(
         {
           id: "sql",
           icon: t("icon_database", "database"),
-          label: t("dir_fk_t3_lbl", "STEP 3"),
-          value: t("dir_fk_t3_val", "SQL Schemas"),
+          label: g("STEP 3"),
+          value: g("SQL Schemas"),
           cards: [
             {
               id: "fork_sql_spoke",
               icon: t("icon_storage", "storage"),
-              overline: t("dir_fork_sql_spoke_sub", "Spoke & Standalone DB • 36 Tables"),
+              overline: g("Spoke & Standalone DB • 36 Tables"),
               badge: "schema.sql",
-              title: t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)"),
+              title: g("schema.sql (36 Tables)"),
               footerMeta: "Community Spoke & Standalone Fork SQL",
-              desc: t(
-                "dir_fork_sql_spoke_desc",
+              desc: g(
                 "Complete community registry schema (mods, blueprints, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
               ),
               subCards: [],
@@ -2647,12 +3132,11 @@ export function getDefaultDirectiveBuilderSchema(
             {
               id: "fork_sql_hub",
               icon: t("icon_dns", "dns"),
-              overline: t("dir_fork_sql_hub_sub", "Core Hub Federation DB • SSO & Security"),
+              overline: g("Core Hub Federation DB • SSO & Security"),
               badge: "schema_os.sql",
-              title: t("dir_fork_sql_hub_val", "schema_os.sql (Core Hub DB)"),
+              title: g("schema_os.sql (Core Hub DB)"),
               footerMeta: "Central Multi-Game Federation SQL",
-              desc: t(
-                "dir_fork_sql_hub_desc",
+              desc: g(
                 "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, global lexicons/themes, and core heuristics)."
               ),
               subCards: [],
@@ -2667,69 +3151,59 @@ export function getDefaultDirectiveBuilderSchema(
     return {
       slug: "master_architecture",
       _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
-      title: t("sd_card_arch_title", "Master Architecture & Feature Blueprint"),
-      summary: t(
-        "sd_card_arch_desc",
+      title: g("Master Architecture & Feature Blueprint"),
+      summary: g(
         "Deep-dive interactive explorer into the Tauri v2 Rust core, Master Schema & Lexicon Visual Studios, Hub-and-Spoke Cloud Federation with Bilateral Codebase Sync, Symlink Airgap 2.5, and the Universal 21+17 Heuristic Scanner."
       ),
       tabs: [
         {
           id: "p1",
           icon: t("icon_memory", "memory"),
-          label: t("dir_ar_t1_lbl", "PILLAR 1"),
-          value: t("dir_ar_t1_val", "Core & Glass"),
+          label: g("PILLAR 1"),
+          value: g("Core & Glass"),
           cards: [
             {
               id: "arch_p1",
               icon: t("icon_memory", "memory"),
-              overline: t(
-                "dir_arch_p1_badge",
-                "ARCHITECTURE PILLAR 1 • CORE ENGINE, OPTICS & STUDIOS"
-              ),
+              overline: g("ARCHITECTURE PILLAR 1 • CORE ENGINE, OPTICS & STUDIOS"),
               badge: t("active", "Active"),
-              title: t(
-                "dir_arch_p1_heading",
+              title: g(
                 "Tauri v2 Rust Kernel, Liquid Glass V3, Schema Studio & Lexicon Engine"
               ),
               footerMeta: "Tauri v2 • React 18 • Liquid Glass V3 • Win & Mac",
-              desc: t(
-                "dir_arch_p1_summary",
+              desc: g(
                 "Sanctuary OS combines a zero-overhead native Rust backend across Windows and macOS with a GPU-pinned 3D refractive Liquid Glass interface, a 4-Tab Master Schema Studio, and a 21-token Lexicon Engine."
               ),
               subCards: [
                 {
                   id: "arch_p1_c1",
                   icon: t("icon_auto_awesome", "auto_awesome"),
-                  title: t("sd_arch_stack_c1_title", "Frontend & Liquid Glass V3 UI"),
-                  desc: t(
-                    "dir_arch_p1_b1",
+                  title: g("Frontend & Liquid Glass V3 UI"),
+                  desc: g(
                     "Zero-Tearing Liquid Glass Engine (.glass-panel / .glass-surface) with 6 live Theme Forge optical sliders (Opacity, Blur, Saturation, Rim Light, Glare, Depth)."
                   ),
                 },
                 {
                   id: "arch_p1_c2",
                   icon: t("icon_memory", "memory"),
-                  title: t("sd_arch_stack_c2_title", "Tauri v2 Native Rust Core (Win & Mac)"),
-                  desc: t(
-                    "dir_arch_p1_b2",
+                  title: g("Tauri v2 Native Rust Core (Win & Mac)"),
+                  desc: g(
                     "Native Tauri v2 Rust core: pelite PE & macOS Info.plist version ripper, SQLite .sanctuary_cache.db mtime delta scanner, WebAuthn FIDO2 bridge, and .msi/.dmg auto-updater."
                   ),
                 },
                 {
                   id: "arch_p1_c3",
                   icon: t("icon_schema", "schema"),
-                  title: t("dir_arch_p1_c3_title", "Master Schema Visual Studio & 7 Engine Presets"),
-                  desc: t(
-                    "dir_arch_p1_c3_desc",
+                  title: g("Master Schema Visual Studio & 7 Engine Presets"),
+                  desc: g(
                     "Declarative Master Schema JSON editor governing binaries, secondary install_routes, config_extensions watcher, load order strategies, mod_categories, and exception matchers."
                   ),
                 },
                 {
                   id: "arch_p1_c4",
                   icon: t("icon_translate", "translate"),
-                  title: t("sd_roadmap_p6_title", "Lexicon Studio & Guided Icon Overrides"),
-                  desc: t(
-                    "dir_arch_p1_b4",
+                  title: g("Lexicon Studio & Guided Icon Overrides"),
+                  desc: g(
                     "21 Dynamic {Glossary} Tokens interpolated across 1,700+ keys with smart article grammar, plus the Guided Searchable Material Icon Override Builder."
                   ),
                 },
@@ -2740,72 +3214,51 @@ export function getDefaultDirectiveBuilderSchema(
         {
           id: "p2",
           icon: t("icon_hub", "hub"),
-          label: t("dir_ar_t2_lbl", "PILLAR 2"),
-          value: t("dir_ar_t2_val", "Hub & Spokes"),
+          label: g("PILLAR 2"),
+          value: g("Hub & Spokes"),
           cards: [
             {
               id: "arch_p2",
               icon: t("icon_hub", "hub"),
-              overline: t(
-                "dir_arch_p2_badge",
-                "ARCHITECTURE PILLAR 2 • FEDERATION, SYNC & STATIC EDGE"
-              ),
+              overline: g("ARCHITECTURE PILLAR 2 • FEDERATION, SYNC & STATIC EDGE"),
               badge: t("active", "Active"),
-              title: t(
-                "dir_arch_p2_heading",
+              title: g(
                 "Decoupled Hub-and-Spoke Cloud, Bilateral Sync & Static Edge Polling"
               ),
               footerMeta: "schema_os.sql • schema.sql • Static Edge • Cloud Sync",
-              desc: t(
-                "dir_arch_p2_summary",
+              desc: g(
                 "Uses bundled codebase files as the offline baseline while syncing Directives, Legal Covenants, Schemas, and Lexicons live from the Hub database—paired with community-owned Spoke DBs and 6-provider Static Edge polling."
               ),
               subCards: [
                 {
                   id: "arch_p2_c1",
                   icon: t("icon_hub", "hub"),
-                  title: t(
-                    "sd_arch_stack_c3_title",
-                    "Core OS Hub vs. Sovereign Community Spoke DBs"
-                  ),
-                  desc: t(
-                    "dir_arch_p2_b1",
+                  title: g("Core OS Hub vs. Sovereign Community Spoke DBs"),
+                  desc: g(
                     "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 36 community tables."
                   ),
                 },
                 {
                   id: "arch_p2_c2",
                   icon: t("icon_sync", "sync"),
-                  title: t(
-                    "dir_arch_p2_c2_title",
-                    "Offline Codebase Baseline + Live Cloud Sync"
-                  ),
-                  desc: t(
-                    "dir_arch_p2_c2_desc",
+                  title: g("Offline Codebase Baseline + Live Cloud Sync"),
+                  desc: g(
                     "First-time launch and offline sessions boot from bundled .md, schema, and lexicon files; connected clients pull live updates from the Hub DB without requiring an app update."
                   ),
                 },
                 {
                   id: "arch_p2_c3",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: t(
-                    "sd_arch_vault_c3_title",
-                    "Decentralized Static Edge Direct Push (manifest.json & catalog.json)"
-                  ),
-                  desc: t(
-                    "dir_arch_p2_b4",
+                  title: g("Decentralized Static Edge Direct Push (manifest.json & catalog.json)"),
+                  desc: g(
                     "6-provider 1-click OS Auto-Push and HTTP GET polling with automatic previous_hashes lineage rollover and in-place file upgrades."
                   ),
                 },
                 {
                   id: "arch_p2_c4",
-                  icon: t("icon_Favorite", "favorite"),
-                  title: t(
-                    "dir_arch_p2_c4_title",
-                    "0%-Cut Partner Covenants & $5 = +30 Days Supporter Pipeline"
-                  ),
-                  desc: t(
-                    "dir_arch_p2_c4_desc",
+                  icon: t("icon_favorite", "favorite"),
+                  title: g("0%-Cut Partner Covenants & $5 = +30 Days Supporter Pipeline"),
+                  desc: g(
                     "Readiness-gated Partner Spoke onboarding with mandatory Partners Agreement & Compliance Protocol review, 0%-cut community donations, and Stripe-verified Daily Dev Builds."
                   ),
                 },
@@ -2816,73 +3269,107 @@ export function getDefaultDirectiveBuilderSchema(
         {
           id: "p3",
           icon: t("icon_shield", "shield"),
-          label: t("dir_ar_t3_lbl", "PILLAR 3"),
-          value: t("dir_ar_t3_val", "{Vault} & Lab"),
+          label: g("PILLAR 3"),
+          value: g("{Vault} & Lab"),
           cards: [
             {
               id: "arch_p3",
               icon: t("icon_inventory_2", "inventory_2"),
-              overline: t(
-                "dir_arch_p3_badge",
-                "ARCHITECTURE PILLAR 3 • {VAULT}, COMPILER & UNIVERSAL AV"
-              ),
+              overline: g("ARCHITECTURE PILLAR 3 • {VAULT}, COMPILER & WORKBENCH"),
               badge: t("active", "Active"),
-              title: t(
-                "dir_arch_p3_heading",
-                "Symlink Airgap 2.5, Config Watcher, Topological Compiler & 21+17 Heuristics"
+              title: g(
+                "Symlink Airgap 2.5, Config Watcher, Topological Compiler & Workbench"
               ),
-              footerMeta: "Symlink Airgap • Config Watcher • 21+17 Rust AV",
-              desc: t(
-                "dir_arch_p3_summary",
-                "Protects your game installation and accounts via zero-copy symlink projection, live in-game config syncing, hardlink Time Capsules, FIDO2 WebAuthn passkeys, and full-OS malware quarantine."
+              footerMeta: "Symlink Airgap • Config Watcher • Load Order Compiler",
+              desc: g(
+                "Protects your game installation via zero-copy symlink projection, automatic root config deduplication, schema-driven topological load order compilation, and 60 FPS visual config editing."
               ),
               subCards: [
                 {
                   id: "arch_p3_c1",
                   icon: t("icon_inventory_2", "inventory_2"),
-                  title: t(
-                    "sd_arch_vault_c2_title",
-                    "Symlink Airgap 2.5, Custom Routes & Dynamic Config Watcher"
-                  ),
-                  desc: t(
-                    "dir_arch_p3_b1",
+                  title: g("Symlink Airgap 2.5, Custom Routes & Dynamic Config Watcher"),
+                  desc: g(
                     "Projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while syncing in-game config_extensions writes back to the {Vault}."
                   ),
                 },
                 {
                   id: "arch_p3_c2",
                   icon: t("icon_layers", "layers"),
-                  title: t(
-                    "sd_arch_vault_c4_title",
-                    "Topological Load Order Compiler (compileLoadOrder)"
-                  ),
-                  desc: t(
-                    "dir_arch_p3_b2",
+                  title: g("Topological Load Order Compiler (compileLoadOrder)"),
+                  desc: g(
                     "Schema-Driven Load Order Compiler (folder_priority + dynamic Resource.cfg, manifest_list, numeric_prefix, timestamp) with topological cycle breaking."
                   ),
                 },
                 {
                   id: "arch_p3_c3",
-                  icon: t("icon_security", "security"),
-                  title: t(
-                    "dir_arch_p3_c3_title",
-                    "Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules)"
-                  ),
-                  desc: t(
-                    "dir_arch_p3_c3_desc",
-                    "Decompresses Zlib/Zstd DBPF streams and deobfuscates Base64/Hex strings in memory to catch credential stealers, webhooks, and shell spawners before execution."
+                  icon: t("icon_tune", "tune"),
+                  title: g("{Citizen}'s Workbench & 2-Column Timeline Diff"),
+                  desc: g(
+                    "60 FPS 2-column Visual Config Editor with Category Pill Bar, Min/Max range steppers, No-Code Template Builder, and side-by-side Visual/Raw Diff."
                   ),
                 },
                 {
                   id: "arch_p3_c4",
-                  icon: t("icon_gpp_bad", "gpp_bad"),
-                  title: t(
-                    "dir_walk_s7_c3_name",
-                    "Quarantine SidePanel Lockdown & Zero-PII Threat Manifest"
+                  icon: t("icon_science", "science"),
+                  title: g("Homestead {Lab} & Hardlink {Backups}"),
+                  desc: g(
+                    "100% Nuke sandbox isolation, 1v1 Conflict Stability testing, schema-driven exception log diagnosis, and zero-bloat hardlink snapshots."
                   ),
-                  desc: t(
-                    "dir_arch_p4_b4",
-                    "Locks the OS shell on Tier 5 Malware, tracks Move-mode source disposition, offers optional Zero-PII Threat Manifest telemetry, and enforces Secure Shred."
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "p4",
+          icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+          label: g("PILLAR 4"),
+          value: g("6-Tier & AV"),
+          cards: [
+            {
+              id: "arch_p4",
+              icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+              overline: g("ARCHITECTURE PILLAR 4 • GOVERNANCE, PASSKEYS & MALWARE LOCKDOWN"),
+              badge: t("active", "Active"),
+              title: g(
+                "6-Tier Clearance Matrix, 2-Column Hub Overviews, FIDO2 Passkeys & Malware Lockdown"
+              ),
+              footerMeta: "6 Role Tiers • FIDO2 Passkey {Vault} • 21+17 Rust AV",
+              desc: g(
+                "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed WebAuthn Passkey gates, and full-OS Tier 5 Malware quarantine."
+              ),
+              subCards: [
+                {
+                  id: "arch_p4_c1",
+                  icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+                  title: g("6-Tier Clearance Hierarchy ({Citizen} to Keeper)"),
+                  desc: g(
+                    "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper)."
+                  ),
+                },
+                {
+                  id: "arch_p4_c2",
+                  icon: t("icon_space_dashboard", "space_dashboard"),
+                  title: g("Standardized 2-Column Recent & Anomalies Hub Overviews"),
+                  desc: g(
+                    "Every Elevated Hub opens to a 2-column Recent and Anomalies overview surfacing live schema/lexicon edits and actionable configuration alerts."
+                  ),
+                },
+                {
+                  id: "arch_p4_c3",
+                  icon: t("icon_passkey", "passkey"),
+                  title: g("FIDO2 Passkey & TOTP Security {Vault}"),
+                  desc: g(
+                    "Hardware-bound WebAuthn Passkeys (Windows Hello, Touch ID, YubiKey) and TOTP gates protect Elevated Hubs inside a right-hand SidePanel."
+                  ),
+                },
+                {
+                  id: "arch_p4_c4",
+                  icon: t("icon_gpp_bad", "gpp_bad"),
+                  title: g("Dual-Tier Heuristic Scanner & Quarantine Lockdown"),
+                  desc: g(
+                    "Merges 21 Core + 17 Spoke rules with Zlib/Zstd decompression to lock the OS shell on Tier 5 Malware and enforce a {Citizen}-signed Secure Shred."
                   ),
                 },
               ],
@@ -2897,34 +3384,32 @@ export function getDefaultDirectiveBuilderSchema(
   return {
     slug: "master_protocols",
     _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
-    title: t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
-    summary: t(
-      "sd_card_proto_desc",
-      "Interactive directory of all 36 Sanctuary OS operational protocols across 5 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+    title: g("Master Protocol List & 6-Tier Clearance Matrix"),
+    summary: g(
+      "Interactive directory of all 33 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
     ),
     tabs: [
       {
         id: "roles",
         icon: t("icon_admin_panel_settings", "admin_panel_settings"),
-        label: t("dir_pr_t1_lbl", "6 TIERS"),
-        value: t("dir_pr_t1_val", "Role Matrix"),
+        label: g("6 TIERS"),
+        value: g("Role Matrix"),
         cards: elevatedRolesCards,
       },
       {
         id: "compliance",
         icon: t("icon_shield", "shield"),
-        label: t("dir_pr_t2_lbl", "TIERS 0–5"),
-        value: t("dir_pr_t2_val", "Safety & AV"),
+        label: g("TIERS 0–5"),
+        value: g("Safety & AV"),
         cards: [
           {
             id: "comp_t0",
             icon: t("icon_check_circle", "check_circle"),
-            overline: t("sd_proto_tier0_badge", "TIER 0 • PUBLIC SAFE"),
+            overline: g("TIER 0 • PUBLIC SAFE"),
             badge: "TIER 0",
-            title: t("sd_proto_tier0_title", "Standard Verified & General Audience"),
-            footerMeta: t("sd_proto_tier0_badge", "TIER 0 • PUBLIC SAFE"),
-            desc: t(
-              "sd_proto_tier0_desc",
+            title: g("Standard Verified & General Audience"),
+            footerMeta: g("TIER 0 • PUBLIC SAFE"),
+            desc: g(
               "Eligible for full public indexing across The Nexus, shared Cloud {Blueprints} (SNCXXX), and public {Mason} Profiles. Full {Citizen} Support Desk access."
             ),
             subCards: [],
@@ -2932,15 +3417,13 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "comp_t12",
             icon: t("icon_visibility_off", "visibility_off"),
-            overline: t("sd_proto_tier12_badge", "TIERS 1–2 • EXPLICIT / ILLICIT"),
+            overline: g("TIERS 1–2 • EXPLICIT / ILLICIT"),
             badge: "TIERS 1–2",
-            title: t(
-              "sd_proto_tier12_title",
+            title: g(
               "Adult (NSFW) & Illicit Themes — Local & Static Edge Allowed, Public Scrubbed"
             ),
-            footerMeta: t("sd_proto_tier12_badge", "TIERS 1–2 • EXPLICIT / ILLICIT"),
-            desc: t(
-              "sd_proto_tier12_desc",
+            footerMeta: g("TIERS 1–2 • EXPLICIT / ILLICIT"),
+            desc: g(
               "Permitted in local Vaults and decentralized Static Edge manifests (manifest.json / catalog.json). Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints}. Eligible for Support Desk with automated 'Dirty Log' sanitization."
             ),
             subCards: [],
@@ -2948,12 +3431,11 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "comp_t34",
             icon: t("icon_lock", "lock"),
-            overline: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
+            overline: g("TIERS 3–4 • SEVERE / RESTRICTED"),
             badge: "TIERS 3–4",
-            title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
-            footerMeta: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
-            desc: t(
-              "sd_proto_tier34_desc",
+            title: g("Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
+            footerMeta: g("TIERS 3–4 • SEVERE / RESTRICTED"),
+            desc: g(
               "Permitted strictly within isolated local Vaults and Static Edge manifests. Scrubbed from all public feeds and Cloud {Blueprints}. Equipping or storing Tier 3–4 {mods} engages a {Vault} Lock that restricts {Citizen} Support Desk ticket submissions until removed."
             ),
             subCards: [],
@@ -2961,15 +3443,13 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "comp_t5",
             icon: t("icon_gpp_bad", "gpp_bad"),
-            overline: t("sd_proto_tier5_badge", "TIER 5 • CONFIRMED MALWARE"),
+            overline: g("TIER 5 • CONFIRMED MALWARE"),
             badge: "TIER 5",
-            title: t(
-              "sd_proto_tier5_title",
+            title: g(
               "Zero-Choice OS Lockdown, Move-Mode Isolation & Secure Shred"
             ),
-            footerMeta: t("sd_proto_tier5_badge", "TIER 5 • CONFIRMED MALWARE"),
-            desc: t(
-              "sd_proto_tier5_desc",
+            footerMeta: g("TIER 5 • CONFIRMED MALWARE"),
+            desc: g(
               "Malicious payloads, webhook exfiltrators, credential stealers, or unauthorized executables detected via SHA-256 DNA or Universal 21+17 Rust Heuristics. Immediately halts game launch, moves/isolates the file in Quarantine, locks the OS shell, and requires a Secure Shred signature."
             ),
             subCards: [],
@@ -2977,18 +3457,15 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "comp_av",
             icon: t("icon_security", "security"),
-            overline: t(
-              "sd_proto_heuristics_v58_badge",
+            overline: g(
               "UNIVERSAL 21+17 RUST AV • DBPF & BYTECODE DECOMPRESSION"
             ),
             badge: "21+17 RULES",
-            title: t(
-              "sd_proto_heuristics_title",
+            title: g(
               "Universal Multi-Format Heuristic & Decompression Scanner"
             ),
             footerMeta: "21 Core + 17 Spoke Signatures • Zlib/Zstd/Base64",
-            desc: t(
-              "sd_proto_heuristics_desc",
+            desc: g(
               "Combines 21 Core Heuristics (keeper_heuristic_signatures) and 17+ Spoke Heuristics (heuristic_signatures) with in-memory Zlib/Zstd DBPF decompression and Base64/Hex deobfuscation to inspect .zip, .package, .ts4script, .asi, .dll, .exe, and .pyc bytecode."
             ),
             subCards: [],
@@ -2996,18 +3473,13 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "comp_nuclear",
             icon: t("icon_policy", "policy"),
-            overline: t(
-              "sd_proto_nuclear_badge",
-              "NUCLEAR OVERRIDE & ZERO-PII THREAT MANIFEST"
-            ),
+            overline: g("NUCLEAR OVERRIDE & ZERO-PII THREAT MANIFEST"),
             badge: "PRIVACY-FIRST",
-            title: t(
-              "sd_proto_nuclear_title",
+            title: g(
               "Decoupled Hardware Ban Ledger & Anonymous Threat Telemetry"
             ),
             footerMeta: "hardware_bans • Zero-PII Threat Manifest",
-            desc: t(
-              "sd_proto_nuclear_desc",
+            desc: g(
               "Sanctuary OS never tracks Hardware IDs on normal users. Quarantined files offer an optional Zero-PII Threat Manifest report (SHA-256 + matched rule IDs only), while the 5-click Nuclear Override records a one-way hash in hardware_bans and severs cloud access."
             ),
             subCards: [],
@@ -3017,98 +3489,311 @@ export function getDefaultDirectiveBuilderSchema(
       {
         id: "list",
         icon: t("icon_policy", "policy"),
-        label: t("dir_pr_t3_v58_lbl", "36 RULES"),
-        value: t("dir_pr_t3_val", "OS Protocols"),
+        label: g("33 RULES"),
+        value: g("OS Protocols"),
         cards: [
-          ...[1, 2, 3, 4].map((d) => ({
-            id: `proto_d${d}`,
-            icon:
-              d === 1
-                ? t("icon_hub", "hub")
-                : d === 2
-                  ? t("icon_inventory_2", "inventory_2")
-                  : d === 3
-                    ? t("icon_radar", "radar")
-                    : t("icon_shield", "shield"),
-            overline: t(`sd_proto_d${d}_badge`, `DOMAIN ${d}`),
-            badge: `DOMAIN ${d}`,
-            title: t(`sd_proto_d${d}_title`, `Domain ${d}`),
-            footerMeta: t(`sd_proto_d${d}_badge`, `DOMAIN ${d}`),
-            desc: t(`sd_proto_d${d}_desc`, ""),
-            subCards: [1, 2, 3, 4, 5, 6].map((r) => ({
-              id: `proto_d${d}_r${r}`,
-              icon: t("icon_check_circle", "check_circle"),
-              title: t(`sd_proto_d${d}_r${r}_title`, ""),
-              desc: t(`sd_proto_d${d}_r${r}_desc`, ""),
-            })),
-          })),
           {
-            id: "proto_d5",
-            icon: t("icon_schema", "schema"),
-            overline: t("sd_proto_d5_badge", "DOMAIN 5 • 6 PROTOCOLS"),
-            badge: "DOMAIN 5",
-            title: t(
-              "sd_proto_d5_title",
-              "Master Schema Studio, Lexicon Engine, Covenants & Supporter Pipeline"
+            id: "proto_d1",
+            icon: t("icon_hub", "hub"),
+            overline: g("DOMAIN 1 • 10 PROTOCOLS"),
+            badge: "DOMAIN 1",
+            title: g(
+              "System Foundation, Cross-Platform (Windows + macOS) & Bilateral Sync Protocols"
             ),
-            footerMeta: t("sd_proto_d5_badge", "DOMAIN 5 • 6 PROTOCOLS"),
-            desc: t(
-              "sd_proto_d5_desc",
-              "Cross-platform engine schemas, Dynamic Config Watcher, 21-token Lexicon interpolation with Guided Icon Overrides, Partner Covenants, and the $5 = +30 Days Supporter Pipeline."
+            footerMeta: g("DOMAIN 1 • 10 PROTOCOLS"),
+            desc: g(
+              "Cross-platform binary reconnaissance, macOS TCC/Gatekeeper handling, Master Schema & Lexicon Studios, Turnkey Spoke Uplinks, Bilateral Severance, and Codebase-to-Hub Sync."
             ),
             subCards: [
               {
-                id: "proto_d5_r1",
+                id: "proto_d1_r1",
+                icon: t("icon_explore", "explore"),
+                title: g("The Cartographer"),
+                desc: g(
+                  "Automated first-boot reconnaissance system that locates the Game Bin (executable_subdir), live {Mods} directory, and external {Vault} archive path across Windows and macOS."
+                ),
+              },
+              {
+                id: "proto_d1_r2",
+                icon: t("icon_memory", "memory"),
+                title: g("Cross-Platform Version Ripper (pelite + macOS Info.plist)"),
+                desc: g(
+                  "In-process Rust binary inspector that extracts genuine patch versions directly from Windows .exe PE headers and macOS .app/Contents/Info.plist without spawning external processes."
+                ),
+              },
+              {
+                id: "proto_d1_r3",
+                icon: t("icon_laptop_mac", "laptop_mac"),
+                title: g("macOS Full Disk Access & Gatekeeper Quarantine Protocol"),
+                desc: g(
+                  "Detects macOS TCC permission blocks on ~/Documents and ~/Library/Application Support, deep-links to macOS System Settings, and strips com.apple.quarantine attributes."
+                ),
+              },
+              {
+                id: "proto_d1_r4",
                 icon: t("icon_schema", "schema"),
-                title: t("sd_proto_d5_r1_title", "Master Schema Studio & 7 Engine Presets"),
-                desc: t(
-                  "sd_proto_d5_r1_desc",
-                  "Declarative per-game JSON schemas governing Windows/macOS binaries, secondary install_routes, mod_categories, and exception log diagnostic rules."
+                title: g("100% Agnostic Master Schema & Secondary Install Route Protocol"),
+                desc: g(
+                  "Supports 7 pre-calibrated Engine Architecture Presets, secondary install_routes, dlc_subdirs, launch_args_dlc_mask_template, save_airgap_targets, and lab_verification.save_extensions."
                 ),
               },
               {
-                id: "proto_d5_r2",
-                icon: t("icon_sync_saved_locally", "sync_saved_locally"),
-                title: t("sd_proto_d5_r2_title", "Dynamic Config Watcher & Stray Deduplication"),
-                desc: t(
-                  "sd_proto_d5_r2_desc",
-                  "Watches config_extensions (.cfg, .ini, .json, .toml, .yaml) in the live game folder, syncs changes back to the {Vault}, and purges duplicate root strays."
+                id: "proto_d1_r5",
+                icon: t("icon_menu_book", "menu_book"),
+                title: g("Master Schema & Lexicon Architecture Codex"),
+                desc: g(
+                  "Interactive in-app SidePanel manual with mode-switchable documentation and 2-column field reference grids explaining every schema and lexicon directive."
                 ),
               },
               {
-                id: "sd_proto_d5_r3",
+                id: "proto_d1_r6",
                 icon: t("icon_translate", "translate"),
-                title: t("sd_proto_d5_r3_title", "21-Token Lexicon Protocol & Guided Icon Builder"),
-                desc: t(
-                  "sd_proto_d5_r3_desc",
-                  "Runtime {Glossary} token interpolation with automatic casing and a/an grammar, paired with the searchable Material Symbol override builder."
+                title: g("Dynamic Glossary Token & Guided Icon Override Protocol"),
+                desc: g(
+                  "Interpolates 21 core domain tokens ({Mod}, {Vault}, {Blueprint}, {Mason}, {Citizen}, {Backups}, {Lab}, {Settings}) with automatic casing and article grammar, paired with a searchable Guided OS Icon Override Builder."
                 ),
               },
               {
-                id: "sd_proto_d5_r4",
-                icon: t("icon_cloud_upload", "cloud_upload"),
-                title: t("sd_proto_d5_r4_title", "Static Edge 6-Provider Auto-Push & catalog.json"),
-                desc: t(
-                  "sd_proto_d5_r4_desc",
-                  "1-click direct push to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic previous_hashes lineage rollover."
+                id: "proto_d1_r7",
+                icon: t("icon_key", "key"),
+                title: g("Turnkey Spoke Uplink Handshake (SANCTUARY-UPLINK://)"),
+                desc: g(
+                  "1-click onboarding protocol (verify_and_bootstrap_spoke) that validates all 36 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
                 ),
               },
               {
-                id: "sd_proto_d5_r5",
-                icon: t("icon_gavel", "gavel"),
-                title: t("sd_proto_d5_r5_title", "Readiness-Gated Partner Application & Covenants"),
-                desc: t(
-                  "sd_proto_d5_r5_desc",
-                  "Requires reviewing and accepting the Sanctuary Partners Agreement and Compliance Protocol before Spoke onboarding, with 0%-cut community donations."
+                id: "proto_d1_r8",
+                icon: t("icon_link_off", "link_off"),
+                title: g("Bilateral Severance Protocol ('Cut the Cord')"),
+                desc: g(
+                  "Self-service sovereignty protocol executable by either a Keeper or a Spoke's Wayfinder that writes immutable audit logs and scrubs the Spoke's service key from the Hub."
                 ),
               },
               {
-                id: "sd_proto_d5_r6",
-                icon: t("icon_favorite", "favorite"),
-                title: t("sd_proto_d5_r6_title", "$5 = +30 Days Supporter Pipeline & Cloud Sync"),
-                desc: t(
-                  "sd_proto_d5_r6_desc",
-                  "Stripe-verified Daily Dev Build access (Windows .msi & macOS .dmg) and bilateral offline codebase ↔ live Hub database synchronization."
+                id: "proto_d1_r9",
+                icon: t("icon_call_split", "call_split"),
+                title: g("Single-File Standalone Fork Protocol (src/supabase.ts)"),
+                desc: g(
+                  "Allows any community to fork Sanctuary OS against a single schema.sql Supabase project by editing only SANCTUARY_CONFIG in src/supabase.ts."
+                ),
+              },
+              {
+                id: "proto_d1_r10",
+                icon: t("icon_sync", "sync"),
+                title: g("Bilateral Codebase-to-Keepers-Core Directive & Legal Sync"),
+                desc: g(
+                  "Automatically synchronizes core documentation directives and canonical legal/covenant documents between local repository .md files and Keepers Core."
+                ),
+              },
+            ],
+          },
+          {
+            id: "proto_d2",
+            icon: t("icon_inventory_2", "inventory_2"),
+            overline: g("DOMAIN 2 • 7 PROTOCOLS"),
+            badge: "DOMAIN 2",
+            title: g(
+              "{Vault} Airgap, Config Deduplication, Static Edge & {Mod} Management Protocols"
+            ),
+            footerMeta: g("DOMAIN 2 • 7 PROTOCOLS"),
+            desc: g(
+              "Zero-copy symlink projection, root config deduplication, decentralized Static Edge polling, parent suite grouping, 3-tile studio, Workbench diffing, and live key validation."
+            ),
+            subCards: [
+              {
+                id: "proto_d2_r1",
+                icon: t("icon_inventory_2", "inventory_2"),
+                title: g("Symlink Airgap 2.5"),
+                desc: g(
+                  "Projects {mods} from the isolated {Vault}/{Mods}/ archive into the live game directory via zero-copy OS symlinks and secondary install_routes."
+                ),
+              },
+              {
+                id: "proto_d2_r2",
+                icon: t("icon_sync_saved_locally", "sync_saved_locally"),
+                title: g("Automatic Root Config Deduplication Protocol"),
+                desc: g(
+                  "Syncs newer timestamped config data into the {mod}'s subfolder copy, removes duplicate root config strays, and suppresses watcher feedback loops."
+                ),
+              },
+              {
+                id: "proto_d2_r3",
+                icon: t("icon_cloud_done", "cloud_done"),
+                title: g("Decentralized Static Edge Polling (manifest.json & override.json)"),
+                desc: g(
+                  "Binds a {mod}'s SHA-256 hash lineage in .sanctuary_cache.db and polls creator HTTP endpoints directly during Radar Sweeps for serverless updates."
+                ),
+              },
+              {
+                id: "proto_d2_r4",
+                icon: t("icon_folder_copy", "folder_copy"),
+                title: g("{Mod} Suite Parent Grouping"),
+                desc: g(
+                  "Automatically groups multi-file {mod} suites (e.g., MC Command Center and its submodules) into a single clean Parent Card with an expandable Linked Modules drawer."
+                ),
+              },
+              {
+                id: "proto_d2_r5",
+                icon: t("icon_handyman", "handyman"),
+                title: g("Unified 3-Tile {Mod} Studio"),
+                desc: g(
+                  "Standardized 3-step workflow (Details & Versions, Files & Folders, Rules & Upload) across both the {Mason} Workshop and Architect Console."
+                ),
+              },
+              {
+                id: "proto_d2_r6",
+                icon: t("icon_tune", "tune"),
+                title: g("Reimagined {Citizen}'s Workbench & Visual Timeline Diff"),
+                desc: g(
+                  "2-column 60 FPS Visual Config Editor with category pills, Min/Max range controls, No-Code Visual Template Builder, and 2-Column Interactive Timeline & Diff."
+                ),
+              },
+              {
+                id: "proto_d2_r7",
+                icon: t("icon_verified", "verified"),
+                title: g("Floating Liquid Glass Key Validator Alert"),
+                desc: g(
+                  "Real-time floating alert card in the Master Schema and Lexicon IDEs validating active files against the Keepers Core Default Schema or en-default.json Baseline."
+                ),
+              },
+            ],
+          },
+          {
+            id: "proto_d3",
+            icon: t("icon_radar", "radar"),
+            overline: g("DOMAIN 3 • 7 PROTOCOLS"),
+            badge: "DOMAIN 3",
+            title: g("Stability, Load Order & Atomic Logic Protocols"),
+            footerMeta: g("DOMAIN 3 • 7 PROTOCOLS"),
+            desc: g(
+              "Topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander Flavor eviction, Nuclear Family twins, Deep Yeet cascades, Homestead {Lab}, and hardlink {Backups}."
+            ),
+            subCards: [
+              {
+                id: "proto_d3_r1",
+                icon: t("icon_layers", "layers"),
+                title: g("Schema-Driven Load Order Engine (compileLoadOrder)"),
+                desc: g(
+                  "Compiles deployment priority using folder_priority, manifest_list, numeric_prefix, or timestamp, complete with topological sorting and DFS circular-loop breaking."
+                ),
+              },
+              {
+                id: "proto_d3_r2",
+                icon: t("icon_radar", "radar"),
+                title: g("Conflict Radar Casual vs. Advanced Mode"),
+                desc: g(
+                  "Casual Mode provides 1-click 'Pick a Winner' resolution for Severity 3 Tuning Overlaps; Advanced Mode unlocks directional Must Load After/Before rules."
+                ),
+              },
+              {
+                id: "proto_d3_r3",
+                icon: t("icon_filter_1", "filter_1"),
+                title: g("The Highlander Rule"),
+                desc: g(
+                  "Automatically evicts rival Flavor files when equipping a chosen Flavor."
+                ),
+              },
+              {
+                id: "proto_d3_r4",
+                icon: t("icon_join_inner", "join_inner"),
+                title: g("Nuclear Family Cohesion (Twins)"),
+                desc: g(
+                  "Bidirectionally links companion .package and .ts4script files so they equip and unequip together."
+                ),
+              },
+              {
+                id: "proto_d3_r5",
+                icon: t("icon_delete_sweep", "delete_sweep"),
+                title: g("Recursive Dependencies (Chain-Link) & Deep Yeet 2.0"),
+                desc: g(
+                  "Automatically equips required master {mods} when enabling an add-on, and intercepts master {mod} deletion to queue all dependent child {mods}."
+                ),
+              },
+              {
+                id: "proto_d3_r6",
+                icon: t("icon_science", "science"),
+                title: g("100% Nuke Injection & 1v1 Stability Arena (Homestead {Lab})"),
+                desc: g(
+                  "Isolates vanilla saves via save_airgap_targets, strips active symlinks to test suspect {mods} in total isolation, and diagnoses crash logs using schema-driven exception_rules."
+                ),
+              },
+              {
+                id: "proto_d3_r7",
+                icon: t("icon_history", "history"),
+                title: g("Incremental Hardlink {Backups} & Differential Rollback"),
+                desc: g(
+                  "Snapshots World State and Engine Core using OS hardlinks so unchanged files consume 0 extra bytes, restoring via differential byte comparison."
+                ),
+              },
+            ],
+          },
+          {
+            id: "proto_d4",
+            icon: t("icon_shield", "shield"),
+            overline: g("DOMAIN 4 • 7 PROTOCOLS"),
+            badge: "DOMAIN 4",
+            title: g(
+              "Security, FIDO2 Passkeys, Non-Custodial Supporter Bridge & Quarantine Protocols"
+            ),
+            footerMeta: g("DOMAIN 4 • 7 PROTOCOLS"),
+            desc: g(
+              "FIDO2 Passkey gates, 0%-cut Partner & {Mason} Supporter Bridge, 21+17 Multi-Format Heuristic Scanner, Full-OS Quarantine Lockdown, Florida Compliance Tiers 1–4, DEFCON 1, and Nuclear Override."
+            ),
+            subCards: [
+              {
+                id: "proto_d4_r1",
+                icon: t("icon_passkey", "passkey"),
+                title: g("FIDO2 Passkey & TOTP Security {Vault} (SecurityVaultSidePanel)"),
+                desc: g(
+                  "Requires hardware-bound WebAuthn/FIDO2 Passkeys or TOTP verification for all Elevated Clearances, locking Elevated Hubs inside a right-hand SidePanel until verified."
+                ),
+              },
+              {
+                id: "proto_d4_r2",
+                icon: t("icon_volunteer_activism", "volunteer_activism"),
+                title: g("Non-Custodial Supporter Bridge & Community Donations"),
+                desc: g(
+                  "Connects Partner Spoke communities and Verified {Masons} directly to their own payment processors with a 0% Sanctuary cut, crediting +30 days of Daily Dev Builds per $5 donated."
+                ),
+              },
+              {
+                id: "proto_d4_r3",
+                icon: t("icon_security", "security"),
+                title: g("Dual-Tier Multi-Format Heuristic Scanner"),
+                desc: g(
+                  "Merges global Core Heuristics and community Spoke Heuristics using pre-compiled OnceLock Rust regex sets to scan ZIP containers, raw binaries, and .pyc/.pyo bytecode."
+                ),
+              },
+              {
+                id: "proto_d4_r4",
+                icon: t("icon_gpp_bad", "gpp_bad"),
+                title: g("Full-OS Quarantine SidePanel Lockdown & External Secure Shred"),
+                desc: g(
+                  "Confirmed Tier 5 Malware locks the entire OS shell, displays the exact Triggered By rule and Detection Source, and requires a {Citizen}'s Signature for multi-pass Secure Shred."
+                ),
+              },
+              {
+                id: "proto_d4_r5",
+                icon: t("icon_visibility_off", "visibility_off"),
+                title: g("Florida Compliance Tiers 1–4 & {Blueprint} Auto-Purge"),
+                desc: g(
+                  "Permits Tiers 1–4 in local Vaults while scrubbing them from public Nexus feeds and automatically stripping flagged hashes from Cloud {Blueprints}."
+                ),
+              },
+              {
+                id: "proto_d4_r6",
+                icon: t("icon_warning", "warning"),
+                title: g("DEFCON 1 Network Shield"),
+                desc: g(
+                  "Real-time Supabase listener on global_network_status that intercepts game launches during breaking game patches and forces a Pre-Patch {Backups} snapshot."
+                ),
+              },
+              {
+                id: "proto_d4_r7",
+                icon: t("icon_policy", "policy"),
+                title: g("The Nuclear Override & Decoupled hardware_bans"),
+                desc: g(
+                  "Revealed by clicking the {Settings} subtitle 5 times; bypasses local quarantine at the cost of recording the machine's hardware hash in hardware_bans and revoking cloud access."
                 ),
               },
             ],

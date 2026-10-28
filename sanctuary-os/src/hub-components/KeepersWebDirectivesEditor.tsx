@@ -59,6 +59,7 @@ import {
   pullKeepersCoreDirectivesToCodebase,
 } from "../utils/directivesSync";
 import {
+  CURRENT_DIRECTIVE_SCHEMA_VERSION,
   DirectiveBuilderSchema,
   DirectiveBuilderCard,
   DirectiveBuilderSubCard,
@@ -186,16 +187,25 @@ export default function KeepersWebDirectivesEditor({
   const wayfinderDrafts = useStore((state) => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore((state) => state.setWayfinderDrafts);
 
-  // Clean up any stale auto-generated canonical drafts that were created without user edits
+  const isStaleCanonicalDraft = (key: string, draftObj: any): boolean => {
+    if (!CANONICAL_DIRECTIVES[key as DirectiveSlug]) return false;
+    if (!draftObj?.isDirty || !draftObj?.userModified) return true;
+    const schemaVer = Number(draftObj?.builderSchema?._schemaVersion || 0);
+    if (schemaVer < CURRENT_DIRECTIVE_SCHEMA_VERSION) return true;
+    const serialized = JSON.stringify(draftObj?.builderSchema || "");
+    if (serialized.includes("[sd_") || serialized.includes("Phase 12 → Phase 1")) {
+      return true;
+    }
+    return false;
+  };
+
+  // Clean up any stale or auto-triggered canonical drafts
   useEffect(() => {
     setWayfinderDrafts((prev) => {
       let changed = false;
       const next = { ...prev };
       Object.keys(next).forEach((k) => {
-        if (
-          CANONICAL_DIRECTIVES[k as DirectiveSlug] &&
-          !(next[k] as any)?.isDirty
-        ) {
+        if (isStaleCanonicalDraft(k, next[k])) {
           delete next[k];
           changed = true;
         }
@@ -249,6 +259,7 @@ export default function KeepersWebDirectivesEditor({
         isActive,
         builderSchema,
         isDirty: true,
+        userModified: true,
       },
     }));
   }, [
@@ -269,13 +280,16 @@ export default function KeepersWebDirectivesEditor({
   ]);
 
   const updateTimeoutRef = useRef<any>(null);
+  const suppressEditorUpdateRef = useRef<boolean>(false);
 
   const editor = useEditor({
     extensions: [StarterKit, Markdown, IconPlugin, Image, Link],
     content: content,
     onUpdate: ({ editor }) => {
+      if (suppressEditorUpdateRef.current) return;
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
+        if (suppressEditorUpdateRef.current) return;
         const md = stripDirectiveBuilderComment(
           (editor.storage as any).markdown.getMarkdown()
         );
@@ -291,6 +305,16 @@ export default function KeepersWebDirectivesEditor({
     },
   });
 
+  const setEditorContentSilently = (nextMarkdown: string) => {
+    if (!editor) return;
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    suppressEditorUpdateRef.current = true;
+    editor.commands.setContent(nextMarkdown, { emitUpdate: false });
+    setTimeout(() => {
+      suppressEditorUpdateRef.current = false;
+    }, 450);
+  };
+
   const switchEditorMode = (nextMode: EditorViewMode) => {
     if (nextMode === editorMode) return;
 
@@ -302,9 +326,7 @@ export default function KeepersWebDirectivesEditor({
       };
       const compiled = compileDirectiveSchemaToMarkdown(syncedSchema);
       setContent(compiled);
-      if (editor) {
-        editor.commands.setContent(compiled);
-      }
+      setEditorContentSilently(compiled);
     } else if (editorMode === "wysiwyg" && editor) {
       const md = stripDirectiveBuilderComment(
         (editor.storage as any).markdown.getMarkdown()
@@ -323,7 +345,7 @@ export default function KeepersWebDirectivesEditor({
       }
     } else if (editorMode === "markdown") {
       if (editor && nextMode === "wysiwyg") {
-        editor.commands.setContent(stripDirectiveBuilderComment(content));
+        setEditorContentSilently(stripDirectiveBuilderComment(content));
       } else if (nextMode === "visual" && activeCanonicalSlug) {
         const parsed = parseMarkdownToDirectiveSchema(
           stripDirectiveBuilderComment(content),
@@ -344,7 +366,17 @@ export default function KeepersWebDirectivesEditor({
     setEditorMode(nextMode);
   };
 
-  const fetchPostsAndAssets = async () => {
+  const clearCanonicalDirectiveDrafts = () => {
+    setWayfinderDrafts((prev) => {
+      const next = { ...prev };
+      Object.keys(CANONICAL_DIRECTIVES).forEach((slug) => {
+        delete next[slug];
+      });
+      return next;
+    });
+  };
+
+  const fetchPostsAndAssets = async (refreshOpenDirective = false) => {
     setIsSyncing(true);
     try {
       // 1. Canonical Directives + Directive Broadcasts
@@ -365,8 +397,8 @@ export default function KeepersWebDirectivesEditor({
           is_canonical_directive: true,
           file_name: rec.file_path,
           version_tag: rec.version,
-          title: rec.title,
-          description: rec.summary,
+          title: extracted?.title || rec.title,
+          description: extracted?.summary || rec.summary,
           content: rec.content,
           message: rec.content,
           category: rec.category,
@@ -384,6 +416,33 @@ export default function KeepersWebDirectivesEditor({
       });
 
       setDirectivePosts(canonicalCards);
+
+      if (refreshOpenDirective && isEditorOpen && activeCanonicalSlug) {
+        const updatedCard = canonicalCards.find(
+          (c) => c.slug === activeCanonicalSlug
+        );
+        if (updatedCard) {
+          const freshSchema =
+            extractDirectiveBuilderSchema(
+              updatedCard.content,
+              activeCanonicalSlug,
+              t
+            ) || getDefaultDirectiveBuilderSchema(activeCanonicalSlug, t);
+          const cleanMd = stripDirectiveBuilderComment(updatedCard.content);
+          setIsDirty(false);
+          setEditingPost(updatedCard);
+          setTitle(updatedCard.title || freshSchema.title);
+          setDescription(updatedCard.description || freshSchema.summary);
+          setContent(cleanMd);
+          setEditorContentSilently(cleanMd);
+          setBuilderSchema({
+            ...freshSchema,
+            title: updatedCard.title || freshSchema.title,
+            summary: updatedCard.description || freshSchema.summary,
+            isActive: updatedCard.is_active !== false,
+          });
+        }
+      }
 
       // 2. Website News Posts (Announcement, Blog, Press, Update, Maintenance)
       const { data: newsData } = await supabaseAuth
@@ -460,7 +519,8 @@ export default function KeepersWebDirectivesEditor({
   const handleTwoWaySync = async () => {
     setIsSyncing(true);
     try {
-      await fetchPostsAndAssets();
+      clearCanonicalDirectiveDrafts();
+      await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       useStore
         .getState()
@@ -479,10 +539,11 @@ export default function KeepersWebDirectivesEditor({
   const handlePushCodebaseToHub = async () => {
     setIsSyncing(true);
     try {
+      clearCanonicalDirectiveDrafts();
       await pushCodebaseDirectivesToKeepersCore(
         currentUserId || "Keepers Core"
       );
-      await fetchPostsAndAssets();
+      await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       useStore
         .getState()
@@ -501,8 +562,9 @@ export default function KeepersWebDirectivesEditor({
   const handlePullHubToCodebase = async () => {
     setIsSyncing(true);
     try {
+      clearCanonicalDirectiveDrafts();
       await pullKeepersCoreDirectivesToCodebase();
-      await fetchPostsAndAssets();
+      await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       useStore
         .getState()
@@ -627,7 +689,15 @@ export default function KeepersWebDirectivesEditor({
 
     const draftId = post ? post.id : `new_${recordKind}`;
     const rawDraft = useStore.getState().wayfinderDrafts[draftId] as any;
-    const draft = rawDraft?.isDirty ? rawDraft : undefined;
+    const isStale = isStaleCanonicalDraft(draftId, rawDraft);
+    if (isStale && rawDraft) {
+      setWayfinderDrafts((prev) => {
+        const next = { ...prev };
+        delete next[draftId];
+        return next;
+      });
+    }
+    const draft = !isStale && rawDraft?.isDirty ? rawDraft : undefined;
     setIsDirty(Boolean(draft?.isDirty));
 
     if (recordKind === "legal") {
@@ -656,9 +726,7 @@ export default function KeepersWebDirectivesEditor({
       setIsActive(true);
       setBuilderSchema(null);
       setContent(nextContent);
-      if (editor) {
-        editor.commands.setContent(nextContent);
-      }
+      setEditorContentSilently(nextContent);
       setEditorMode("wysiwyg");
       setIsEditorOpen(true);
       return;
@@ -737,9 +805,7 @@ export default function KeepersWebDirectivesEditor({
         draft?.content ?? parsedMeta.cleanContent
       );
       setContent(cleanMarkdown);
-      if (editor) {
-        editor.commands.setContent(cleanMarkdown);
-      }
+      setEditorContentSilently(cleanMarkdown);
       setImageUrl(draft?.imageUrl ?? parsedImage);
 
       if (slug) {
@@ -757,11 +823,17 @@ export default function KeepersWebDirectivesEditor({
             : extractedSchema.isActive !== undefined
             ? extractedSchema.isActive
             : post.is_active !== false;
+        const resolvedTitle =
+          draft?.title ?? (extractedSchema.title || nextTitle);
+        const resolvedSummary =
+          draft?.description ?? (extractedSchema.summary || nextDesc);
+        setTitle(resolvedTitle);
+        setDescription(resolvedSummary);
         setIsActive(resolvedActive);
         setBuilderSchema({
           ...extractedSchema,
-          title: nextTitle || extractedSchema.title,
-          summary: nextDesc || extractedSchema.summary,
+          title: resolvedTitle,
+          summary: resolvedSummary,
           isActive: resolvedActive,
         });
         setEditorMode("visual");
@@ -789,9 +861,7 @@ export default function KeepersWebDirectivesEditor({
       setPollData(draft?.pollData ?? null);
       const nextContent = draft?.content ?? "";
       setContent(nextContent);
-      if (editor) {
-        editor.commands.setContent(nextContent);
-      }
+      setEditorContentSilently(nextContent);
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
       setShowCodeInput(!!draft?.codeSnippet);
@@ -842,22 +912,31 @@ export default function KeepersWebDirectivesEditor({
 
   const handleResetBuilderToDefault = () => {
     if (!activeCanonicalSlug) return;
-    const freshSchema = getDefaultDirectiveBuilderSchema(
-      activeCanonicalSlug,
-      t
-    );
+    setWayfinderDrafts((prev) => {
+      const next = { ...prev };
+      delete next[activeCanonicalSlug];
+      return next;
+    });
+    const rawSource =
+      editingPost?.content ||
+      editingPost?.message ||
+      CANONICAL_DIRECTIVES[activeCanonicalSlug]?.bundledContent ||
+      "";
+    const freshSchema =
+      parseMarkdownToDirectiveSchema(rawSource, activeCanonicalSlug, t) ||
+      getDefaultDirectiveBuilderSchema(activeCanonicalSlug, t);
     setBuilderSchema(freshSchema);
     setTitle(freshSchema.title);
     setDescription(freshSchema.summary);
-    const compiled = compileDirectiveSchemaToMarkdown(freshSchema);
-    setContent(compiled);
-    if (editor) {
-      editor.commands.setContent(compiled);
-    }
+    const cleanMd =
+      stripDirectiveBuilderComment(rawSource) ||
+      compileDirectiveSchemaToMarkdown(freshSchema);
+    setContent(cleanMd);
+    setEditorContentSilently(cleanMd);
     setActiveBuilderTabIdx(0);
     setSelectedBuilderCardIdx(0);
     setEditingSubCardIdx(null);
-    setIsDirty(true);
+    setIsDirty(false);
     useStore
       .getState()
       .pushStatus(
@@ -1172,9 +1251,7 @@ export default function KeepersWebDirectivesEditor({
       if (editorMode === "visual" || !finalMarkdownBody.trim()) {
         finalMarkdownBody = compileDirectiveSchemaToMarkdown(syncedSchema);
         setContent(finalMarkdownBody);
-        if (editor) {
-          editor.commands.setContent(finalMarkdownBody);
-        }
+        setEditorContentSilently(finalMarkdownBody);
       }
       const payloadContent = embedDirectiveBuilderSchema(
         finalMarkdownBody,

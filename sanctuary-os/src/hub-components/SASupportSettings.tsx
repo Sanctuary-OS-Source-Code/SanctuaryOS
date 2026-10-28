@@ -667,9 +667,9 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                             value={draft.escalation_path || 'standard'}
                             onChange={(val: string[]) => setDraft({ ...draft, escalation_path: val[0] as any })}
                             options={[
-                                { id: "none", label: "None (Never Escalate)" },
-                                { id: "standard", label: "Standard (72 Hours)" },
-                                { id: "urgent", label: "Urgent (24 Hours)" }
+                                { id: "none", label: t("support_esc_none", "None (Never Escalate)") },
+                                { id: "standard", label: t("support_esc_standard", "Standard (72 Hours)") },
+                                { id: "urgent", label: t("support_esc_urgent", "Urgent (24 Hours)") }
                             ]}
                         />
                     </div>

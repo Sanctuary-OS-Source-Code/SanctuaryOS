@@ -583,36 +583,103 @@ export default function StagingPayloadEditor({
         }}
         className="p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all cursor-pointer flex flex-col justify-between gap-3 group"
       >
-        <div className="flex items-start justify-between gap-3 min-w-0">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[20px]">
-                {isNexusAsset
-                  ? item.asset_type === "lexicon"
-                    ? t("icon_translate", "translate")
-                    : item.asset_type === "chameleon"
-                      ? t("icon_palette", "palette")
-                      : t("icon_draw", "draw")
-                  : getModIcon(item, activeGameSchema, t)}
-              </span>
-            </div>
+        <div className="flex items-start gap-3 min-w-0 w-full">
+          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined !text-[20px]">
+              {isNexusAsset
+                ? item.asset_type === "lexicon"
+                  ? t("icon_translate", "translate")
+                  : item.asset_type === "chameleon"
+                    ? t("icon_palette", "palette")
+                    : t("icon_draw", "draw")
+                : getModIcon(item, activeGameSchema, t)}
+            </span>
+          </div>
 
-            <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors truncate">
-                {cleanSearchName(item.displayName || item.name, activeGameSchema)}
-              </span>
+          <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors truncate">
+              {cleanSearchName(item.displayName || item.name, activeGameSchema)}
+            </span>
 
-              <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                <span className="truncate">
-                  {resolveKnownAuthor(item, t("unknown_mason", "Unknown {Mason}"))}
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+              <span className="truncate">
+                {resolveKnownAuthor(item, t("unknown_mason", "Unknown {Mason}"))}
+              </span>
+              {item.dependencyOf && (
+                <span className="text-[9px] font-bold text-[var(--accent)] truncate">
+                  • {t("staging_dep_of_prefix", "Required by")} {item.dependencyOf}
                 </span>
-                {item.dependencyOf && (
-                  <span className="text-[9px] font-bold text-[var(--accent)] truncate">
-                    • {t("staging_dep_of_prefix", "Required by")} {item.dependencyOf}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_tag", "tag")}
+              </span>
+              <span>#{String((realIdx >= 0 ? realIdx : idx) + 1).padStart(3, "0")}</span>
+            </span>
+
+            {!isNexusAsset && stagingDraftMode === "blueprint" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isReadOnly) cycleItemTier(item.id, currentTier);
+                }}
+                className={`${VAULT_CHIP_CLASS} ${
+                  !isReadOnly
+                    ? "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-colors"
+                    : ""
+                }`}
+              >
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${tierMeta.iconColorClass}`}
+                >
+                  {t("icon_low_priority", "low_priority")}
+                </span>
+                <span>{t(tierMeta.labelKey, tierMeta.fallback)}</span>
+              </button>
+            )}
+
+            {isNexusAsset && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                  {t("icon_bolt", "bolt")}
+                </span>
+                <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
+              </span>
+            )}
+
+            {item.isDependency && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_account_tree", "account_tree")}
+                </span>
+                <span>{t("staging_badge_dependency", "Dependency")}</span>
+              </span>
+            )}
+
+            {item.is_early_access && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_schedule", "schedule")}
+                </span>
+                <span>{t("badge_early_access", "Early Access")}</span>
+              </span>
+            )}
+
+            {item.is_paid && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_workspace_premium", "workspace_premium")}
+                </span>
+                <span>{t("badge_paid", "Paid")}</span>
+              </span>
+            )}
           </div>
 
           {!isReadOnly && (
@@ -626,9 +693,9 @@ export default function StagingPayloadEditor({
                     type="button"
                     disabled={realIdx <= 0}
                     onClick={() => moveItem(realIdx, -1)}
-                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
+                    className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[16px]">
+                    <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_keyboard_arrow_up", "keyboard_arrow_up")}
                     </span>
                   </button>
@@ -636,9 +703,9 @@ export default function StagingPayloadEditor({
                     type="button"
                     disabled={realIdx < 0 || realIdx >= stagingDraftItems.length - 1}
                     onClick={() => moveItem(realIdx, 1)}
-                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
+                    className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors disabled:opacity-25 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[16px]">
+                    <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_keyboard_arrow_down", "keyboard_arrow_down")}
                     </span>
                   </button>
@@ -648,9 +715,9 @@ export default function StagingPayloadEditor({
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
-                className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-colors relative group/btn cursor-pointer"
+                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-colors relative group/btn cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[16px]">
+                <span className="material-symbols-outlined !text-[15px]">
                   {t("icon_close", "close")}
                 </span>
                 <HoverTooltip
@@ -660,73 +727,6 @@ export default function StagingPayloadEditor({
                 />
               </button>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-              {t("icon_tag", "tag")}
-            </span>
-            <span>#{String((realIdx >= 0 ? realIdx : idx) + 1).padStart(3, "0")}</span>
-          </span>
-
-          {!isNexusAsset && stagingDraftMode === "blueprint" && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isReadOnly) cycleItemTier(item.id, currentTier);
-              }}
-              className={`${VAULT_CHIP_CLASS} ${
-                !isReadOnly
-                  ? "hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-colors"
-                  : ""
-              }`}
-            >
-              <span
-                className={`material-symbols-outlined !text-[12px] ${tierMeta.iconColorClass}`}
-              >
-                {t("icon_low_priority", "low_priority")}
-              </span>
-              <span>{t(tierMeta.labelKey, tierMeta.fallback)}</span>
-            </button>
-          )}
-
-          {isNexusAsset && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                {t("icon_bolt", "bolt")}
-              </span>
-              <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
-            </span>
-          )}
-
-          {item.isDependency && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_account_tree", "account_tree")}
-              </span>
-              <span>{t("staging_badge_dependency", "Dependency")}</span>
-            </span>
-          )}
-
-          {item.is_early_access && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_schedule", "schedule")}
-              </span>
-              <span>{t("badge_early_access", "Early Access")}</span>
-            </span>
-          )}
-
-          {item.is_paid && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                {t("icon_workspace_premium", "workspace_premium")}
-              </span>
-              <span>{t("badge_paid", "Paid")}</span>
-            </span>
           )}
         </div>
       </div>
@@ -1682,19 +1682,7 @@ export default function StagingPayloadEditor({
                 label={inspectingPack.data?.code || "LOCAL"}
                 icon={t("icon_bookmark", "bookmark")}
                 variant="accent"
-              >
-                <ActionButton
-                  onClick={() => {
-                    loadSavedLocalDraft(inspectingPack.data.id);
-                    setInspectingPack(null);
-                    setActiveSubTab("INCLUDED");
-                  }}
-                  icon={t("icon_download", "download")}
-                  label={t("staging_btn_use_short", "Use {Blueprint}")}
-                  variant="accent"
-                  className="w-full !px-4 !py-2.5 !text-[10px] whitespace-nowrap"
-                />
-              </SidePanelHeroCard>
+              />
 
               <div className="flex flex-col gap-3 w-full">
                 <div className="grid grid-cols-3 gap-3 w-full">
@@ -1775,30 +1763,55 @@ export default function StagingPayloadEditor({
                                 : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-3 min-w-0">
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                                  <span className="material-symbols-outlined !text-[20px]">
-                                    {getModIcon(mod, activeGameSchema, t)}
+                            <div className="flex items-start gap-3 min-w-0 w-full">
+                              <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                                <span className="material-symbols-outlined !text-[20px]">
+                                  {getModIcon(mod, activeGameSchema, t)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+                                  {cleanSearchName(
+                                    mod.displayName || mod.name,
+                                    activeGameSchema
+                                  )}
+                                </span>
+                                <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                                  {resolveKnownAuthor(
+                                    mod,
+                                    resolveKnownAuthor(
+                                      inspectingPack?.data,
+                                      t("unknown_mason", "Unknown {Mason}")
+                                    )
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                    {t("icon_tag", "tag")}
                                   </span>
-                                </div>
-                                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                  <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
-                                    {cleanSearchName(
-                                      mod.displayName || mod.name,
-                                      activeGameSchema
-                                    )}
+                                  <span>#{String(idx + 1).padStart(3, "0")}</span>
+                                </span>
+                                {mod.is_early_access && (
+                                  <span className={VAULT_CHIP_CLASS}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                      {t("icon_schedule", "schedule")}
+                                    </span>
+                                    <span>{t("badge_early_access", "Early Access")}</span>
                                   </span>
-                                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                                    {resolveKnownAuthor(
-                                      mod,
-                                      resolveKnownAuthor(
-                                        inspectingPack?.data,
-                                        t("unknown_mason", "Unknown {Mason}")
-                                      )
-                                    )}
+                                )}
+                                {mod.is_paid && (
+                                  <span className={VAULT_CHIP_CLASS}>
+                                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                      {t("icon_workspace_premium", "workspace_premium")}
+                                    </span>
+                                    <span>{t("badge_paid", "Paid")}</span>
                                   </span>
-                                </div>
+                                )}
                               </div>
 
                               <div onClick={(e) => e.stopPropagation()} className="shrink-0">
@@ -1816,35 +1829,10 @@ export default function StagingPayloadEditor({
                                       ? t("staging_btn_added", "Added")
                                       : t("staging_btn_add_mod", "Add")
                                   }
-                                  variant={staged ? "success" : "accent"}
-                                  className="!px-3 !py-1.5 !text-[9px] whitespace-nowrap"
+                                  variant="glass"
+                                  className="!px-2.5 !py-1 !text-[9px] whitespace-nowrap"
                                 />
                               </div>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                              <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                  {t("icon_tag", "tag")}
-                                </span>
-                                <span>#{String(idx + 1).padStart(3, "0")}</span>
-                              </span>
-                              {mod.is_early_access && (
-                                <span className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                    {t("icon_schedule", "schedule")}
-                                  </span>
-                                  <span>{t("badge_early_access", "Early Access")}</span>
-                                </span>
-                              )}
-                              {mod.is_paid && (
-                                <span className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                                    {t("icon_workspace_premium", "workspace_premium")}
-                                  </span>
-                                  <span>{t("badge_paid", "Paid")}</span>
-                                </span>
-                              )}
                             </div>
                           </div>
                         );

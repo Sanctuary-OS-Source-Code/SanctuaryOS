@@ -109,7 +109,7 @@ function formatReadableUrlTitle(urlStr?: string | null, customTitle?: string | n
 export default function SidePanelBrowser() {
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
-  const { isSideBrowserOpen, setIsSideBrowserOpen, sideBrowserUrl, sideBrowserTrigger, browserTabs, setBrowserTabs, activeBrowserTabId, setActiveBrowserTabId, browserBookmarks, setBrowserBookmarks, browserHistory, setBrowserHistory, maxActiveWebviews, downloadsQueue, setDownloadsQueue, dnaMatchQueue, confirmDialog, showQuarantineModal, snapshotModal, bulkModal, renameModal, localFolderModal, yeetConfirmPending, isBackingUp, isRestoring, showDefconAlert } = useModalStore();
+  const { isSideBrowserOpen, setIsSideBrowserOpen, sideBrowserUrl, sideBrowserTrigger, browserTabs, setBrowserTabs, activeBrowserTabId, setActiveBrowserTabId, browserBookmarks, setBrowserBookmarks, browserHistory, setBrowserHistory, maxActiveWebviews, downloadsQueue, setDownloadsQueue, dnaMatchQueue, confirmDialog, bulkModal, localFolderModal, yeetConfirmPending, isBackingUp, isRestoring } = useModalStore();
 
   // Compute theme-harmonized background colors for the Webview & corner mask
   const browserThemeColors = useMemo(() => {
@@ -152,15 +152,11 @@ export default function SidePanelBrowser() {
   const isBlockingModalOpen =
     dnaMatchQueue.length > 0 ||
     !!confirmDialog ||
-    showQuarantineModal ||
-    snapshotModal ||
     bulkModal ||
-    !!renameModal ||
     localFolderModal ||
     !!yeetConfirmPending ||
     isBackingUp ||
-    isRestoring ||
-    showDefconAlert;
+    isRestoring;
 
   const blockingModalRef = useRef(isBlockingModalOpen);
 

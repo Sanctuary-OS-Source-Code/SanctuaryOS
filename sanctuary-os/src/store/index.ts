@@ -1013,7 +1013,7 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
         .neq('is_active', false);
 
       if (error) {
-        alert(`HUB DB ERROR: ${error.message}. If this says JWT invalid, you need to sign out and sign back in!`);
+        useStore.getState().pushStatus(`HUB DB ERROR: ${error.message}`, "error");
       }
 
       if (games && games.length > 0) {

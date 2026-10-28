@@ -7,7 +7,7 @@ pub fn update_active_game_schema(
     schema: crate::schema::GameSchema,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    *state.active_schema.lock().unwrap() = Some(schema);
+    *state.active_schema.lock().unwrap_or_else(|e| e.into_inner()) = Some(schema);
     Ok(())
 }
 

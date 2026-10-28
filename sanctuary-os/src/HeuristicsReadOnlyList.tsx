@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { EmptyState, SidePanel, StatBox, HoverTooltip } from './shared';
+import { EmptyState, SidePanel, StatBox, VAULT_CHIP_CLASS } from './shared';
 import { SidePanelHeroCard, SidePanelTitleInput } from './components/layouts/ElevatedHubLayout';
 import { UniversalGroup, UniversalInput, UniversalTextArea } from './components/universal/UniversalLayout';
+import { UniversalCard } from './components/universal/UniversalCard';
 
 export function HeuristicsReadOnlyList({
   onEditClick,
@@ -73,16 +74,33 @@ export function HeuristicsReadOnlyList({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredSignatures.map(sig => {
-            const isMalware = sig.severity === 'malware';
-            const isExplicit = sig.severity === 'explicit';
-            const sColor = isMalware ? 'text-[var(--danger)]' : isExplicit ? 'text-[var(--warning)]' : 'theme-text-accent';
-            const sBorder = isMalware ? 'border-[color-mix(in_srgb,var(--danger)_25%,transparent)]' : isExplicit ? 'border-[color-mix(in_srgb,var(--warning)_25%,transparent)]' : 'border-[color-mix(in_srgb,var(--accent)_25%,transparent)]';
-            const sHoverBorder = isMalware ? 'hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]' : isExplicit ? 'hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]';
-            const bgClass = isMalware ? 'from-[color-mix(in_srgb,var(--danger)_5%,transparent)]' : isExplicit ? 'from-[color-mix(in_srgb,var(--warning)_8%,transparent)]' : 'from-[color-mix(in_srgb,var(--accent)_5%,transparent)]';
-
             return (
-              <div
+              <UniversalCard
                 key={sig.id}
+                layout="vertical"
+                className={!sig.enabled ? 'opacity-55' : ''}
+                icon={scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
+                subtitle={`${sig.severity || "rule"} • ${sig.match_type || "pattern"}`}
+                title={sig.signature}
+                description={sig.notes || undefined}
+                bannerTopLabel={scope === "core" ? t("core_os_badge", "Core OS") : t("spoke_badge", "Spoke")}
+                bannerBottomLabel={sig.match_type || sig.severity}
+                badges={
+                  <div className="flex items-center gap-1.5">
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className={`material-symbols-rounded !text-[12px] shrink-0 ${scope === "core" ? "text-[var(--accent)]" : "text-[var(--warning)]"}`}>
+                        {scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
+                      </span>
+                      <span>{scope === "core" ? t("core_os_badge", "Core OS") : t("spoke_badge", "Spoke")}</span>
+                    </span>
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className={`material-symbols-rounded !text-[12px] shrink-0 ${sig.enabled ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                        {sig.enabled ? t("icon_verified", "verified") : t("icon_block", "block")}
+                      </span>
+                      <span>{sig.enabled ? t("status_active", "Active") : t("status_disabled", "Disabled")}</span>
+                    </span>
+                  </div>
+                }
                 onClick={() => {
                   if (readOnly || !onEditClick) {
                     setInspectingSig(sig);
@@ -90,69 +108,21 @@ export function HeuristicsReadOnlyList({
                     onEditClick(sig);
                   }
                 }}
-                className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-4 shadow-xl min-h-[13rem] overflow-hidden group ${sHoverBorder} transition-all duration-300 cursor-pointer ${!sig.enabled ? 'opacity-50 grayscale hover:opacity-100 hover:grayscale-0' : ''}`}
-              >
-                <div className={`absolute inset-0 rounded-[inherit] bg-gradient-to-br ${bgClass} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
-
-                <div className="flex justify-between items-start relative z-10">
-                  <div className={`w-12 h-12 rounded-xl theme-glass-panel border ${sBorder} shadow-[inset_0_0_20px_rgba(255,255,255,0.05),0_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center shrink-0`}>
-                    <span className={`material-symbols-outlined !text-[24px] ${sColor} opacity-90 drop-shadow-lg`}>
-                      {scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
+                footer={
+                  <div className="flex items-center justify-between w-full text-[10px] font-bold">
+                    <span className="text-[var(--subtext)] opacity-60 font-mono flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px]">{t("icon_fingerprint", "fingerprint")}</span>
+                      {sig.id?.substring(0, 8) || "GLOBAL"}
                     </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                      <span className={`material-symbols-outlined !text-[12px] ${scope === "core" ? "text-[var(--accent)]" : "text-[var(--warning)]"}`}>
-                        {scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
+                    <span className="text-[var(--text)] opacity-80 group-hover/card:text-[var(--accent)] group-hover/card:opacity-100 transition-colors flex items-center gap-1.5 font-black uppercase tracking-widest">
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {readOnly ? t("icon_visibility", "visibility") : t("icon_edit", "edit")}
                       </span>
-                      <span>{scope === "core" ? t("core_os_badge", "Core OS") : t("spoke_badge", "Spoke")}</span>
-                    </div>
-                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                        {t("icon_fingerprint", "fingerprint")}
-                      </span>
-                      <span className="text-[var(--subtext)]">{sig.id?.substring(0, 8) || 'GLOBAL'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col relative z-10 mt-1">
-                  <h3 className="text-lg font-black text-[var(--text)] tracking-tighter leading-none mb-2.5 truncate">
-                    {sig.signature}
-                    <HoverTooltip title={sig.signature} />
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[9px] font-black ${sColor} capitalize tracking-widest`}>{sig.severity}</span>
-                    <span className="text-[var(--subtext)] opacity-50">&bull;</span>
-                    <span className="text-[9px] font-black text-[var(--subtext)] lowercase tracking-widest truncate flex items-center gap-1">
-                      <span className="material-symbols-outlined !text-[10px]">{t("icon_account_tree", "account_tree")}</span>
-                      {sig.match_type}
-                    </span>
-                  </div>
-                  {sig.notes && (
-                    <p className="text-[11px] font-bold text-[var(--subtext)] opacity-70 line-clamp-2 mt-2">
-                      {sig.notes}
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-auto relative z-20 h-10">
-                  <div className="absolute inset-0 rounded-[inherit] flex gap-2 transition-all duration-300 opacity-100 translate-y-0">
-                    <button
-                      className={`flex-[2] h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest text-[var(--text)] hover:${sColor} bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all rounded-xl shadow-sm`}
-                    >
-                      <span className="material-symbols-outlined !text-sm">{readOnly ? t("icon_visibility", "visibility") : t("icon_edit", "edit")}</span>
                       {t("btn_inspect", "Inspect {Mod}")}
-                    </button>
-                    <div
-                      className={`flex-1 h-full flex items-center justify-center gap-2 text-[10px] font-black capitalize tracking-widest ${sig.enabled ? 'text-[var(--success)]' : 'text-[var(--danger)]'} bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl`}
-                    >
-                      <span className="material-symbols-outlined !text-sm">{sig.enabled ? t("icon_verified", "verified") : t("icon_block", "block")}</span>
-                    </div>
+                    </span>
                   </div>
-                </div>
-              </div>
+                }
+              />
             );
           })}
           {filteredSignatures.length === 0 && (
@@ -201,8 +171,8 @@ export function HeuristicsReadOnlyList({
                     ? t("status_active", "Active")
                     : t("status_disabled", "Disabled"),
                   colorClass: inspectingSig.enabled
-                    ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-                    : "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)]",
+                    ? "text-[var(--success)]"
+                    : "text-[var(--danger)]",
                 },
               ]}
             >

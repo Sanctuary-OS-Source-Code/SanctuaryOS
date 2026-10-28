@@ -4,7 +4,6 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { MissingImportsAlert } from "./side-panels/MissingImportsAlert";
 import { YeetConfirmAlert } from "./side-panels/YeetConfirmAlert";
-import { DefconAlert } from "./DefconAlert";
 import { GlobalConfirmDialog } from "./app-modals/GlobalConfirmDialog";
 import { DropzoneSidePanel } from "./app-modals/DropzoneSidePanel";
 import { DnaMatchQueueSidePanel } from "./app-modals/DnaMatchQueueSidePanel";
@@ -14,11 +13,8 @@ import { SignatureQueueSidePanel } from "./side-panels/SignatureQueueSidePanel";
 import { SystemStatusPanel } from "./side-panels/SystemStatusPanel";
 import SidePanelBrowser from "./side-panels/SidePanelBrowser";
 import { MalwareAlertModal } from "./app-modals/MalwareAlertModal";
-import { SnapshotModal } from "./app-modals/SnapshotModal";
 import { BulkModal } from "./app-modals/BulkModal";
-import { RenameModal } from "./app-modals/RenameModal";
 import { LocalFolderModal } from "./app-modals/LocalFolderModal";
-import { QuarantineModal } from "./app-modals/QuarantineModal";
 import { BackupRestoreModals } from "./app-modals/BackupRestoreModals";
 import { IngestProgressModal } from "./app-modals/IngestProgressModal";
 import { SystemLogModal } from "./app-modals/SystemLogModal";
@@ -53,7 +49,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
-  const { snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, executeSnapshot, playSets, activePlaySetIndex, toggleInActiveSet, bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName, renameModal, setRenameModal, executeRename, renameTarget, setRenameTarget, nameInput, setNameInput, confirmRename, localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder, missingImportMods, pendingImportSet, setMissingImportMods, setPendingImportSet, finalizeImport, setIsDropzoneOpen, isDropzoneOpen, isDragging, dropzoneState, droppedFiles, setDropzoneState, setDroppedFiles, setIsDragging, handleDroppedFiles, runRadarSweep, modList, showQuarantineModal, setShowQuarantineModal, quarantineList, restoreMod, purgeMod, isBackingUp, isRestoring, ingestProgress, isScanning, showDefconAlert, yeetConfirmPending, setYeetConfirmPending, dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog, scoutQueue, setScoutQueue, onOpenScoutDossier, malwareAlert, setMalwareAlert, setPlaySets, isSidebarCollapsed, equipPlaySet } = props;
+  const { playSets, activePlaySetIndex, toggleInActiveSet, bulkModal, setBulkModal, bulkName, setBulkName, executeBulkDraft, selectedMods, resolveDisplayName, localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, createLocalFolder, missingImportMods, pendingImportSet, setMissingImportMods, setPendingImportSet, finalizeImport, setIsDropzoneOpen, isDropzoneOpen, isDragging, dropzoneState, droppedFiles, setDropzoneState, setDroppedFiles, setIsDragging, handleDroppedFiles, runRadarSweep, modList, isBackingUp, isRestoring, ingestProgress, isScanning, showDefconAlert, yeetConfirmPending, setYeetConfirmPending, dnaMatchQueue, setDnaMatchQueue, ignoredHashesRef, setStatus, statusLog, clearStatusLog, scoutQueue, setScoutQueue, onOpenScoutDossier, malwareAlert, setMalwareAlert, setPlaySets, isSidebarCollapsed, equipPlaySet } = props;
 
   const status = useStore((state) => state.status);
   const activeConflictCount = useStore((state) => state.activeConflictCount) || { total: 0, tier3: 0, tier4: 0 };
@@ -170,11 +166,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
   return (
     <>
       <MalwareAlertModal malwareAlert={malwareAlert} setMalwareAlert={setMalwareAlert} droppedFiles={droppedFiles} runRadarSweep={runRadarSweep} setStatus={setStatus} />
-      <SnapshotModal snapshotModal={snapshotModal} setSnapshotModal={setSnapshotModal} snapshotName={snapshotName} setSnapshotName={setSnapshotName} executeSnapshot={executeSnapshot} />
       <BulkModal bulkModal={bulkModal} setBulkModal={setBulkModal} bulkName={bulkName} setBulkName={setBulkName} executeBulkDraft={executeBulkDraft} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
-      <RenameModal renameModal={renameModal} setRenameModal={setRenameModal} executeRename={executeRename} renameTarget={renameTarget} setRenameTarget={setRenameTarget} nameInput={nameInput} setNameInput={setNameInput} confirmRename={confirmRename} />
       <LocalFolderModal localFolderModal={localFolderModal} setLocalFolderModal={setLocalFolderModal} localFolderType={localFolderType} setLocalFolderType={setLocalFolderType} localFolderName={localFolderName} setLocalFolderName={setLocalFolderName} createLocalFolder={createLocalFolder} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
-      <QuarantineModal showQuarantineModal={showQuarantineModal} setShowQuarantineModal={setShowQuarantineModal} quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod} />
       
       {(missingImportMods && missingImportMods.length > 0) && pendingImportSet && (
         <MissingImportsAlert missingImportMods={missingImportMods} setMissingImportMods={setMissingImportMods} pendingImportSet={pendingImportSet} setPendingImportSet={setPendingImportSet} finalizeImport={finalizeImport} setIsDropzoneOpen={setIsDropzoneOpen} />
@@ -187,8 +180,6 @@ export const AppModals = React.memo(function AppModals(props: any) {
       <BackupRestoreModals isBackingUp={isBackingUp} isRestoring={isRestoring} backupType={backupType} restoreType={restoreType} t={useLexicon().t} />
       
       <IngestProgressModal ingestProgress={ingestProgress} />
-      
-      {showDefconAlert && <DefconAlert />}
       
       {yeetConfirmPending && <YeetConfirmAlert yeetConfirmPending={yeetConfirmPending} setYeetConfirmPending={setYeetConfirmPending} />}
       

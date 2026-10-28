@@ -865,34 +865,4 @@ export function InlineFilterGroup({
     </div>
   );
 }
-export function GlassSegmentedControl({
-  options,
-  activeTab,
-  setTab,
-  className = "",
-  buttonClassName = "",
-}: any) {
-  return (
-    <div
-      className={`flex items-center glass-panel rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-inner overflow-x-auto hide-scrollbar w-max min-w-full md:min-w-0 md:w-auto ${className}`}
-    >
-      {options.map((opt: any) => {
-        const isActive = activeTab === opt.id;
-        const activeClass = `sa-glass-active !text-[var(--text)] !opacity-100`;
-        const inactiveClass =
-          "text-[var(--subtext)] opacity-65 hover:opacity-100 hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
-
-        return (
-          <button
-            key={opt.id}
-            onClick={() => setTab(opt.id)}
-            className={`relative overflow-hidden ${buttonClassName || "px-4 md:px-5 h-10 md:h-12 text-[10px] md:text-xs"} font-black capitalize tracking-widest transition-all shrink-0 flex-1 md:flex-none text-center whitespace-nowrap ${isActive ? activeClass : inactiveClass}`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 

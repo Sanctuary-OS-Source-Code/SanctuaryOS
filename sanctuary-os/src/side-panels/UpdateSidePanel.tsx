@@ -32,10 +32,13 @@ import {
   parseSeedCommunityBlog,
   parseLatestChangelogBlock,
   deserializeReleasePostRow,
+  isBundledVersionNewer,
 } from "../components/ReleaseNotesShowcase";
 import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
+import bundledDevBlog from "../../../Release Notes (Dev).md?raw";
 import bundledNerdChangelog from "../../../changelog.md?raw";
+import bundledRunningChangelog from "../../../changelog (running).md?raw";
 
 const GITHUB_RELEASES_WEB_URL =
   "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
@@ -58,6 +61,7 @@ export function UpdateSidePanel() {
   const [liveReleaseNotes, setLiveReleaseNotes] = useState<string | null>(null);
 
   const seedPublicBlog = useMemo(() => parseSeedCommunityBlog(bundledCommunityBlog), []);
+  const seedDevBlog = useMemo(() => parseSeedCommunityBlog(bundledDevBlog), []);
   const seedChangelog = useMemo(() => parseLatestChangelogBlock(bundledNerdChangelog), []);
 
   const [pipelineConfig, setPipelineConfig] = useState<KeepersPipelineConfig>(
@@ -73,20 +77,22 @@ export function UpdateSidePanel() {
 
   const defaultStableVersion = (
     (!isDevUpdate && rawPayloadVersion) ||
+    seedPublicBlog.version ||
     pipelineConfig.stable_version ||
     packageJson.version.split("-")[0] ||
     packageJson.version ||
-    "0.5.8"
+    "0.6.0"
   )
     .replace(/^v/i, "")
     .trim();
 
   const defaultDevVersion = (
     (isDevUpdate && rawPayloadVersion) ||
+    seedDevBlog.version ||
     pipelineConfig.dev_build_version ||
     seedChangelog.version ||
     packageJson.version ||
-    `${defaultStableVersion}-dev.1`
+    `${defaultStableVersion}-Dev.1`
   )
     .replace(/^v/i, "")
     .trim();
@@ -97,9 +103,11 @@ export function UpdateSidePanel() {
       ? new Date(pipelineConfig.stable_published_at).toLocaleDateString()
       : seedChangelog.date || new Date().toLocaleDateString());
 
-  const defaultDevDate = pipelineConfig.dev_published_at
-    ? new Date(pipelineConfig.dev_published_at).toLocaleDateString()
-    : seedChangelog.date || new Date().toLocaleDateString();
+  const defaultDevDate =
+    seedDevBlog.releaseDate ||
+    (pipelineConfig.dev_published_at
+      ? new Date(pipelineConfig.dev_published_at).toLocaleDateString()
+      : seedChangelog.date || new Date().toLocaleDateString());
 
   const defaultPublicPost = useMemo<Omit<KeepersReleasePostRecord, "id">>(
     () => ({
@@ -112,7 +120,7 @@ export function UpdateSidePanel() {
         ),
       version: defaultStableVersion,
       releaseDate: defaultStableDate,
-      platform: t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
+      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
@@ -123,25 +131,29 @@ export function UpdateSidePanel() {
 
   const defaultDevPost = useMemo<Omit<KeepersReleasePostRecord, "id">>(
     () => ({
-      title: `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
-      summary: seedChangelog.heading
-        ? `${seedChangelog.heading} — ${t(
-            "release_notes_dev_card_desc",
-            "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-          )}`
-        : t(
-            "release_notes_dev_card_desc",
-            "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-          ),
+      title:
+        seedDevBlog.mainTitle ||
+        `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
+      summary:
+        seedDevBlog.summary ||
+        (seedChangelog.heading
+          ? `${seedChangelog.heading} — ${t(
+              "release_notes_dev_card_desc",
+              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+            )}`
+          : t(
+              "release_notes_dev_card_desc",
+              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+            )),
       version: defaultDevVersion,
       releaseDate: defaultDevDate,
-      platform: t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
+      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
-      body: seedChangelog.markdown,
+      body: seedDevBlog.cleanBody || seedChangelog.markdown,
     }),
-    [seedChangelog, defaultDevVersion, defaultDevDate, t]
+    [seedDevBlog, seedChangelog, defaultDevVersion, defaultDevDate, t]
   );
 
   const [publicPost, setPublicPost] = useState<KeepersReleasePostRecord>({
@@ -156,7 +168,7 @@ export function UpdateSidePanel() {
   const loadPostsAndReleases = useCallback(
     async (forceRefreshGitHub = false) => {
       try {
-        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v1");
+        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v4");
         if (cachedRaw) {
           const parsedCache = JSON.parse(cachedRaw);
           if (parsedCache?.publicPost) setPublicPost(parsedCache.publicPost);
@@ -201,7 +213,7 @@ export function UpdateSidePanel() {
 
           try {
             localStorage.setItem(
-              "sanctuary_keepers_release_posts_v1",
+              "sanctuary_keepers_release_posts_v4",
               JSON.stringify({
                 publicPost: resolvedPublic,
                 devPost: resolvedDev,
@@ -400,13 +412,17 @@ export function UpdateSidePanel() {
     );
   };
 
-  const stableGitHubChangelog = isDetailedChangelog(pipelineConfig.stable_release_notes)
-    ? pipelineConfig.stable_release_notes!.trim()
-    : bundledNerdChangelog;
+  const stableGitHubChangelog =
+    isDetailedChangelog(pipelineConfig.stable_release_notes) &&
+    isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
+      ? pipelineConfig.stable_release_notes!.trim()
+      : bundledRunningChangelog || bundledNerdChangelog;
 
-  const devGitHubChangelog = isDetailedChangelog(pipelineConfig.dev_build_notes)
-    ? pipelineConfig.dev_build_notes!.trim()
-    : seedChangelog.markdown || bundledNerdChangelog;
+  const devGitHubChangelog =
+    isDetailedChangelog(pipelineConfig.dev_build_notes) &&
+    isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
+      ? pipelineConfig.dev_build_notes!.trim()
+      : bundledNerdChangelog || seedChangelog.markdown;
 
   const resolvedChangelogMarkdown = (() => {
     if (isDetailedChangelog(liveReleaseNotes)) {
@@ -420,8 +436,18 @@ export function UpdateSidePanel() {
 
   const activeTitle =
     activeView === "changelog"
-      ? t("release_notes_github_changelog_title", "Full Change Log (GitHub Release Notes)")
+      ? t("release_notes_github_changelog_title", "Full Change Log")
       : activePostRecord.title;
+
+  const activeChangelogHeading =
+    parseLatestChangelogBlock(resolvedChangelogMarkdown).heading || seedChangelog.heading;
+
+  const activeGroupTitle =
+    activeView === "changelog"
+      ? activeChangelogHeading || t("release_notes_tile_changelog", "Changelog")
+      : activeChangelogHeading ||
+        activePostRecord.summary ||
+        t("release_notes_blog_panel_title", "Community Release Notes");
 
   const activeMarkdownContent =
     activeView === "changelog"
@@ -669,21 +695,25 @@ export function UpdateSidePanel() {
           </SidePanelHeroCard>
 
           {/* Structured Card-Based Release Notes Body */}
-          {activeMarkdownContent ? (
-            <StructuredReleaseNotesView content={activeMarkdownContent} />
-          ) : (
-            <UniversalGroup
-              title={activeTitle}
-              icon={t("icon_menu_book", "menu_book")}
-            >
+          <UniversalGroup
+            title={activeGroupTitle}
+            icon={
+              activeView === "changelog"
+                ? t("icon_terminal", "terminal")
+                : t("icon_menu_book", "menu_book")
+            }
+          >
+            {activeMarkdownContent ? (
+              <StructuredReleaseNotesView content={activeMarkdownContent} />
+            ) : (
               <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
                 <span className="material-symbols-outlined !text-[24px]">
                   {t("icon_visibility_off", "visibility_off")}
                 </span>
                 {t("update_panel_no_notes", "No Release Notes Provided")}
               </div>
-            </UniversalGroup>
-          )}
+            )}
+          </UniversalGroup>
 
           {activeView === "post" && activePostRecord.codeSnippet && (
             <UniversalGroup

@@ -1097,9 +1097,9 @@ export default function MasonProfile({
                       if (vals[0]) setBridgeProvider(vals[0]);
                     }}
                     options={[
-                      { id: "patreon", label: "Patreon (OAuth v2 Bridge)" },
-                      { id: "kofi", label: "Ko-fi Supporter Pass" },
-                      { id: "stripe", label: "Stripe / Direct Receipt" },
+                      { id: "patreon", label: t("supporter_bridge_opt_patreon", "Patreon (OAuth v2 Bridge)") },
+                      { id: "kofi", label: t("supporter_bridge_opt_kofi", "Ko-fi Supporter Pass") },
+                      { id: "stripe", label: t("proc_stripe_checkout", "Stripe Checkout / Payment Link") },
                     ]}
                     allowMultiSelect={false}
                   />

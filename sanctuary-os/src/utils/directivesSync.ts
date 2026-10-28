@@ -151,9 +151,9 @@ export const CANONICAL_DIRECTIVES: Record<
   },
   phase_roadmap: {
     slug: "phase_roadmap",
-    title: "Engineering Phase Roadmap (Phase 13 → Phase 1)",
+    title: "Engineering Phase Roadmap (Phase 14 → Phase 1)",
     summary:
-      "Reverse-chronological engineering timeline from Phase 13 (V5.8 Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync) and Phase 12 down to Phase 1 (Genesis & Cartographer).",
+      "Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1 (Genesis & Cartographer).",
     category: "Phase Roadmap",
     file_path: "Phase Roadmap.md",
     bundledContent: phaseRoadmapRaw,
@@ -171,7 +171,7 @@ export const CANONICAL_DIRECTIVES: Record<
     slug: "master_protocols",
     title: "Master Protocol List & 6-Tier Clearance Matrix",
     summary:
-      "Interactive directory of all 36 Sanctuary OS operational protocols across 5 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy.",
+      "Interactive directory of all 33 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy.",
     category: "Master Protocol List",
     file_path: "Master Protocol List.md",
     bundledContent: masterProtocolsRaw,
@@ -188,6 +188,64 @@ export const DIRECTIVE_ORDER: DirectiveSlug[] = [
 
 const normalizeMarkdown = (txt: string): string =>
   (txt || "").replace(/\r\n/g, "\n").trim();
+
+export function extractDirectiveMetaFromMarkdown(
+  content: string,
+  fallbackTitle: string,
+  fallbackSummary: string,
+  slug?: DirectiveSlug
+): { title: string; summary: string } {
+  if (!content) return { title: fallbackTitle, summary: fallbackSummary };
+  const clean = content
+    .replace(/\n*<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:[\s\S]*?-->\s*$/, "")
+    .replace(/\r\n/g, "\n");
+  const lines = clean.split("\n");
+  let title = fallbackTitle;
+  let summary = fallbackSummary;
+
+  for (let i = 0; i < Math.min(lines.length, 25); i++) {
+    const line = lines[i].trim();
+    if (line.startsWith("# ") && !/^#\s+Part\s+\d+/i.test(line)) {
+      const extracted = line
+        .replace(/^#\s+/, "")
+        .replace(/^Sanctuary OS\s*[—–:-]\s*/i, "")
+        .trim();
+      if (extracted) title = extracted;
+    } else if (line.startsWith("> ") && !line.toLowerCase().includes("version:")) {
+      const quote = line.replace(/^>\s+/, "").replace(/\*\*/g, "").trim();
+      if (quote.length > 25) {
+        summary = quote;
+        break;
+      }
+    } else if (
+      line.length > 35 &&
+      !line.startsWith("#") &&
+      !line.startsWith("-") &&
+      !line.startsWith("*") &&
+      !line.startsWith("!") &&
+      !line.toLowerCase().startsWith("document version:") &&
+      !line.toLowerCase().startsWith("last updated:")
+    ) {
+      summary = line.replace(/\*\*/g, "").trim();
+      break;
+    }
+  }
+
+  if (slug === "phase_roadmap") {
+    const phaseMatches = [...clean.matchAll(/^##\s+Phase\s+(\d+)\b/gim)];
+    if (phaseMatches.length > 0) {
+      const maxPhase = phaseMatches.reduce(
+        (acc, m) => Math.max(acc, parseInt(m[1], 10)),
+        0
+      );
+      if (maxPhase > 0 && !title.includes(`Phase ${maxPhase}`)) {
+        title = `Engineering Phase Roadmap (Phase ${maxPhase} → Phase 1)`;
+      }
+    }
+  }
+
+  return { title, summary };
+}
 
 async function readAllLocalDocSnapshots(): Promise<
   Record<string, LocalDirectiveSnapshot>
@@ -318,15 +376,22 @@ export async function syncDirectivesBidirectional(options?: {
     const canonical = CANONICAL_DIRECTIVES[slug];
     const localSnap = localMap[slug];
     const dbRow = dbMap.get(slug);
+    const localContent = localSnap?.content || canonical.bundledContent;
+    const localMeta = extractDirectiveMetaFromMarkdown(
+      localContent,
+      canonical.title,
+      canonical.summary,
+      slug
+    );
 
     if (!dbRow) {
       const record: SystemDirectiveRecord = {
         slug,
-        title: canonical.title,
-        summary: canonical.summary,
+        title: localMeta.title,
+        summary: localMeta.summary,
         category: canonical.category,
         file_path: canonical.file_path,
-        content: localSnap?.content || canonical.bundledContent,
+        content: localContent,
         version: "v0.5.8-Dev.5",
         updated_at: new Date().toISOString(),
         updated_by: "Sanctuary Foundry",
@@ -360,15 +425,31 @@ export async function syncDirectivesBidirectional(options?: {
     }
 
     const dbContent = dbRow.content || "";
-    const localContent = localSnap?.content || canonical.bundledContent;
     const isSameContent =
       normalizeMarkdown(dbContent) === normalizeMarkdown(localContent);
 
     if (isSameContent) {
+      if (
+        canWriteHub &&
+        (dbRow.title !== localMeta.title || dbRow.summary !== localMeta.summary)
+      ) {
+        await supabaseAuth.from("system_directives").upsert({
+          slug,
+          title: localMeta.title,
+          summary: localMeta.summary,
+          category: dbRow.category || canonical.category,
+          file_path: canonical.file_path,
+          content: localContent,
+          version: dbRow.version || "v0.5.8-Dev.5",
+          updated_at: dbRow.updated_at || new Date().toISOString(),
+          updated_by: dbRow.updated_by || "Codebase Auto-Sync",
+        });
+      }
+
       syncedRecords.push({
         slug,
-        title: dbRow.title || canonical.title,
-        summary: dbRow.summary || canonical.summary,
+        title: localMeta.title,
+        summary: localMeta.summary,
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
@@ -382,42 +463,51 @@ export async function syncDirectivesBidirectional(options?: {
 
     const dbEpochMs = dbRow.updated_at ? new Date(dbRow.updated_at).getTime() : 0;
     const localEpochMs = localSnap?.modified_epoch_ms || 0;
+    const localIsNewer = localEpochMs > 0 && localEpochMs > dbEpochMs + 2000;
 
     // 1. If we have real filesystem mtime (`localEpochMs > 0`) and local file was edited more recently than DB:
-    if (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000 && canWriteHub) {
+    if (localIsNewer) {
       const nowIso = new Date(localEpochMs).toISOString();
-      await supabaseAuth.from("system_directives").upsert({
-        slug,
-        title: canonical.title,
-        summary: canonical.summary,
-        category: dbRow.category || canonical.category,
-        file_path: canonical.file_path,
-        content: localContent,
-        version: "v0.5.8-Dev.5",
-        updated_at: nowIso,
-        updated_by: "Codebase Auto-Sync",
-      });
+      if (canWriteHub) {
+        await supabaseAuth.from("system_directives").upsert({
+          slug,
+          title: localMeta.title,
+          summary: localMeta.summary,
+          category: dbRow.category || canonical.category,
+          file_path: canonical.file_path,
+          content: localContent,
+          version: "v0.5.8-Dev.5",
+          updated_at: nowIso,
+          updated_by: "Codebase Auto-Sync",
+        });
+      }
 
       syncedRecords.push({
         slug,
-        title: canonical.title,
-        summary: canonical.summary,
+        title: localMeta.title,
+        summary: localMeta.summary,
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
         version: "v0.5.8-Dev.5",
         updated_at: nowIso,
         updated_by: "Codebase Auto-Sync",
-        sync_state: "pushed_to_hub",
+        sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
       });
     } else if (dbContent.trim().length > 200) {
       // 2. Cloud-First Update Model: Desktop & Web pull live updates from Hub DB (`system_directives`)
       // and update local `.md` backup file when running in Desktop / Dev mode.
       await writeLocalDirectiveFile(slug, dbContent);
+      const dbMeta = extractDirectiveMetaFromMarkdown(
+        dbContent,
+        dbRow.title || canonical.title,
+        dbRow.summary || canonical.summary,
+        slug
+      );
       syncedRecords.push({
         slug,
-        title: dbRow.title || canonical.title,
-        summary: dbRow.summary || canonical.summary,
+        title: dbMeta.title,
+        summary: dbMeta.summary,
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: dbContent,
@@ -429,8 +519,8 @@ export async function syncDirectivesBidirectional(options?: {
     } else {
       syncedRecords.push({
         slug,
-        title: canonical.title,
-        summary: canonical.summary,
+        title: localMeta.title,
+        summary: localMeta.summary,
         category: canonical.category,
         file_path: canonical.file_path,
         content: localContent,
@@ -525,35 +615,35 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
         ? new Date(dbRow.created_at).getTime()
         : 0;
       const localEpochMs = localSnap?.modified_epoch_ms || 0;
+      const localIsNewer =
+        !isSame && localEpochMs > 0 && localEpochMs > dbEpochMs + 2000;
 
-      if (
-        (!isSame &&
-          localEpochMs > 0 &&
-          localEpochMs > dbEpochMs + 2000 &&
-          canWriteHub) ||
-        (forcePushLocal && canWriteHub)
-      ) {
+      if (localIsNewer || forcePushLocal) {
         const nowIso =
           localEpochMs > 0
             ? new Date(localEpochMs).toISOString()
             : new Date().toISOString();
-        const { data: updated } = await supabaseAuth
-          .from("keeper_system_broadcasts")
-          .upsert({
-            id: dbRow.id,
-            title: canonical.title,
-            message: localContent,
-            category: cat,
-            target_audience: "Public",
-            action_required: "No Action Required",
-            is_pinned: false,
-            is_active: true,
-            created_at: nowIso,
-          })
-          .select()
-          .maybeSingle();
+        let updated = dbRow;
+        if (canWriteHub) {
+          const { data } = await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .upsert({
+              id: dbRow.id,
+              title: canonical.title,
+              message: localContent,
+              category: cat,
+              target_audience: "Public",
+              action_required: "No Action Required",
+              is_pinned: false,
+              is_active: true,
+              created_at: nowIso,
+            })
+            .select()
+            .maybeSingle();
+          if (data) updated = data;
+        }
         result[cat] = {
-          ...(updated || dbRow),
+          ...updated,
           title: canonical.title,
           message: localContent,
           file_path: canonical.file_path,
@@ -706,13 +796,20 @@ export async function pushCodebaseDirectivesToKeepersCore(
   const rows = DIRECTIVE_ORDER.map((slug) => {
     const canonical = CANONICAL_DIRECTIVES[slug];
     const snap = localMap[slug];
+    const content = snap?.content || canonical.bundledContent;
+    const meta = extractDirectiveMetaFromMarkdown(
+      content,
+      canonical.title,
+      canonical.summary,
+      slug
+    );
     return {
       slug,
-      title: canonical.title,
-      summary: canonical.summary,
+      title: meta.title,
+      summary: meta.summary,
       category: canonical.category,
       file_path: canonical.file_path,
-      content: snap?.content || canonical.bundledContent,
+      content,
       version: "v0.5.8-Dev.5",
       updated_at: nowIso,
       updated_by: updatedBy,

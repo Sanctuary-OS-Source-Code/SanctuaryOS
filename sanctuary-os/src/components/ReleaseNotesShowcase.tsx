@@ -39,7 +39,9 @@ import {
 } from "../utils/supporterManager";
 import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
+import bundledDevBlog from "../../../Release Notes (Dev).md?raw";
 import bundledNerdChangelog from "../../../changelog.md?raw";
+import bundledRunningChangelog from "../../../changelog (running).md?raw";
 
 export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
@@ -80,13 +82,16 @@ export function cleanPostBodyForViewer(markdown: string): string {
     if (
       !skippedTopHeading &&
       i < 6 &&
-      (/^\\?#\s+sanctuary\s+os\s+[—–-]\s+version\b/i.test(trimmed) ||
+      (/^\\?#\s+(?:sanctuary\s+os|state\s+of\s+the\s+sanctuary)\b/i.test(
+        stripEmojiPrefix(trimmed.replace(/^\\?#\s+/, "# "))
+      ) ||
+        /^\\?#\s+[^#]/.test(trimmed) ||
         /^\\?##\s+\*".*"\*\s*$/.test(trimmed))
     ) {
       skippedTopHeading = true;
       continue;
     }
-    if (i < 6 && /^\\?##\s+\*".*"\*\s*$/.test(trimmed)) {
+    if (i < 6 && (/^\\?##\s+\*".*"\*\s*$/.test(trimmed) || /^\\?###\s+/.test(trimmed))) {
       continue;
     }
     if (i < 8 && /^\*\*(Release Date|Date|Version):/i.test(trimmed)) {
@@ -533,17 +538,14 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
     if (introIcon) introIcon = undefined;
   }
 
-  // If the first heading block at the top of the post has only prose paragraphs (zero bullet items) before the first bulleted section,
-  // treat that heading as the Intro Title and its lines as the Intro paragraph.
-  const hasInitialIntroLines = introLines.some((l) => l.trim().length > 0);
-  if (
-    !hasInitialIntroLines &&
+  // Fold any leading heading blocks that contain zero bullet items (e.g. top-level release theme headings)
+  // into the intro prose without duplicating the heading inside the body, since UniversalGroup's header bar displays it.
+  while (
+    !introLines.some((l) => l.trim().length > 0) &&
     blocks.length > 1 &&
     !blocks[0].lines.some((l) => /^\s*(?:[*-]|\d+\.)\s+/.test(l))
   ) {
     const firstBlock = blocks.shift()!;
-    introTitle = firstBlock.title;
-    introIcon = firstBlock.icon;
     introLines.push(...firstBlock.lines);
   }
 
@@ -734,36 +736,12 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
     })
     .filter((l) => l && !l.endsWith(":"));
 
-  if (!introTitle && nonEmptyIntroLines.length >= 2) {
-    const { icon: firstLineIcon, title: firstLinePlain } =
-      extractHeadingIconAndTitle(nonEmptyIntroLines[0]);
-    if (firstLinePlain.length >= 2 && firstLinePlain.length <= 100) {
-      introTitle = firstLinePlain;
-      if (firstLineIcon) introIcon = firstLineIcon;
-      nonEmptyIntroLines.shift();
-    }
-  }
-
-  let cleanedIntro = nonEmptyIntroLines
+  const cleanedIntro = nonEmptyIntroLines
     .map(cleanCardParagraph)
     .filter(Boolean)
     .join(" ")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
     .trim();
-
-  if (!introTitle && cleanedIntro) {
-    const inlineWelcomeMatch = cleanedIntro.match(
-      /^(Welcome to [^*!.\n]{2,60}\*{0,2}!)\s+(.+)$/i
-    );
-    if (inlineWelcomeMatch) {
-      const { icon: wIcon, title: wTitle } = extractHeadingIconAndTitle(
-        inlineWelcomeMatch[1]
-      );
-      introTitle = wTitle;
-      if (wIcon) introIcon = wIcon;
-      cleanedIntro = inlineWelcomeMatch[2].trim();
-    }
-  }
 
   return {
     introTitle,
@@ -1135,7 +1113,9 @@ export function StructuredReleaseNotesView({
 export function parseSeedCommunityBlog(markdown: string) {
   const lines = (markdown || "").split(/\r?\n/);
   let mainTitle = `Sanctuary OS v${packageJson.version}`;
+  let subtitle = "";
   let releaseDate = "";
+  let version = "";
   let intro = "";
   const tldrBullets: string[] = [];
   let inTldr = false;
@@ -1146,9 +1126,17 @@ export function parseSeedCommunityBlog(markdown: string) {
       mainTitle = stripEmojiPrefix(line.replace(/^#\s+/, ""));
       continue;
     }
+    if (!subtitle && line.startsWith("### ")) {
+      subtitle = stripEmojiPrefix(line.replace(/^###\s+/, ""));
+      continue;
+    }
     if (!releaseDate && /release date:/i.test(line)) {
       const m = line.match(/release date:\s*\*{0,2}([^|*]+)/i);
       if (m && m[1]) releaseDate = m[1].trim();
+    }
+    if (!version && /version:/i.test(line)) {
+      const vm = line.match(/version:\s*\*{0,2}([0-9A-Za-z._-]+)/i);
+      if (vm && vm[1]) version = vm[1].trim();
     }
     if (line.startsWith("## ")) {
       const heading = line.replace(/^##\s+/, "").toLowerCase();
@@ -1173,9 +1161,37 @@ export function parseSeedCommunityBlog(markdown: string) {
   return {
     mainTitle,
     releaseDate,
-    summary: intro || tldrBullets[0] || "",
+    version,
+    summary: subtitle || intro || tldrBullets[0] || "",
     cleanBody: cleanPostBodyForViewer(markdown),
   };
+}
+
+export function isBundledVersionNewer(bundledVer?: string, dbVer?: string): boolean {
+  const cleanA = String(bundledVer || "")
+    .replace(/^v/i, "")
+    .trim();
+  const cleanB = String(dbVer || "")
+    .replace(/^v/i, "")
+    .trim();
+  if (!cleanA) return false;
+  if (!cleanB) return true;
+  if (cleanA.toLowerCase() === cleanB.toLowerCase()) return false;
+  const parseNums = (v: string) =>
+    v
+      .split(/[^0-9]+/)
+      .filter(Boolean)
+      .map((n) => parseInt(n, 10) || 0);
+  const a = parseNums(cleanA);
+  const b = parseNums(cleanB);
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const na = a[i] ?? 0;
+    const nb = b[i] ?? 0;
+    if (na > nb) return true;
+    if (na < nb) return false;
+  }
+  return false;
 }
 
 export function parseLatestChangelogBlock(changelog: string) {
@@ -1218,10 +1234,11 @@ function serializeReleasePostMessage(record: Omit<KeepersReleasePostRecord, "id"
     summary: record.summary || "",
     version: record.version || "",
     releaseDate: record.releaseDate || "",
-    platform: record.platform || "Windows / Mac (Planned)",
+    platform: record.platform || "Windows & macOS",
     imageUrl: record.imageUrl || "",
     codeSnippet: record.codeSnippet || "",
     pollData: record.pollData || null,
+    customEdited: true,
   };
   return `<!-- RELEASE_META:${JSON.stringify(meta)} -->\n${(record.body || "").trim()}`;
 }
@@ -1254,6 +1271,13 @@ export function deserializeReleasePostRow(
     body = legacyParsed.cleanBody || rawMessage;
   }
 
+  if (
+    isBundledVersionNewer(fallback.version, parsedMeta.version) ||
+    (!isBundledVersionNewer(parsedMeta.version, fallback.version) && !parsedMeta.customEdited)
+  ) {
+    return { id: row.id || null, ...fallback };
+  }
+
   const rawTitle = String(row.title || "").trim();
   const isInternalTitle =
     rawTitle === LEGACY_BLOG_BROADCAST_TITLE ||
@@ -1269,7 +1293,7 @@ export function deserializeReleasePostRow(
         : row.description || fallback.summary,
     version: parsedMeta.version || fallback.version,
     releaseDate: parsedMeta.releaseDate || fallback.releaseDate,
-    platform: parsedMeta.platform || fallback.platform || "Windows / Mac (Planned)",
+    platform: parsedMeta.platform || fallback.platform || "Windows & macOS",
     imageUrl: parsedMeta.imageUrl !== undefined ? parsedMeta.imageUrl : fallback.imageUrl || "",
     codeSnippet:
       parsedMeta.codeSnippet !== undefined
@@ -1330,6 +1354,7 @@ export function ReleaseNotesShowcase({
     isKeepers || (Boolean(session?.user?.id) && (isDevSupporter || isStaff));
 
   const seedPublicBlog = useMemo(() => parseSeedCommunityBlog(bundledCommunityBlog), []);
+  const seedDevBlog = useMemo(() => parseSeedCommunityBlog(bundledDevBlog), []);
   const seedChangelog = useMemo(() => parseLatestChangelogBlock(bundledNerdChangelog), []);
 
   const [pipelineConfig, setPipelineConfig] = useState<KeepersPipelineConfig>(
@@ -1338,19 +1363,21 @@ export function ReleaseNotesShowcase({
 
   const defaultStableVersion = (
     versionLabel ||
+    seedPublicBlog.version ||
     pipelineConfig.stable_version ||
     packageJson.version.split("-")[0] ||
     packageJson.version ||
-    "0.5.8"
+    "0.6.0"
   )
     .replace(/^v/i, "")
     .trim();
 
   const defaultDevVersion = (
+    seedDevBlog.version ||
     pipelineConfig.dev_build_version ||
     seedChangelog.version ||
     packageJson.version ||
-    `${defaultStableVersion}-dev.1`
+    `${defaultStableVersion}-Dev.1`
   )
     .replace(/^v/i, "")
     .trim();
@@ -1361,9 +1388,11 @@ export function ReleaseNotesShowcase({
       ? new Date(pipelineConfig.stable_published_at).toLocaleDateString()
       : seedChangelog.date || new Date().toLocaleDateString());
 
-  const defaultDevDate = pipelineConfig.dev_published_at
-    ? new Date(pipelineConfig.dev_published_at).toLocaleDateString()
-    : seedChangelog.date || new Date().toLocaleDateString();
+  const defaultDevDate =
+    seedDevBlog.releaseDate ||
+    (pipelineConfig.dev_published_at
+      ? new Date(pipelineConfig.dev_published_at).toLocaleDateString()
+      : seedChangelog.date || new Date().toLocaleDateString());
 
   const defaultPublicPost = useMemo<Omit<KeepersReleasePostRecord, "id">>(
     () => ({
@@ -1376,7 +1405,7 @@ export function ReleaseNotesShowcase({
         ),
       version: defaultStableVersion,
       releaseDate: defaultStableDate,
-      platform: t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
+      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
@@ -1387,25 +1416,29 @@ export function ReleaseNotesShowcase({
 
   const defaultDevPost = useMemo<Omit<KeepersReleasePostRecord, "id">>(
     () => ({
-      title: `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
-      summary: seedChangelog.heading
-        ? `${seedChangelog.heading} — ${t(
-            "release_notes_dev_card_desc",
-            "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-          )}`
-        : t(
-            "release_notes_dev_card_desc",
-            "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-          ),
+      title:
+        seedDevBlog.mainTitle ||
+        `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
+      summary:
+        seedDevBlog.summary ||
+        (seedChangelog.heading
+          ? `${seedChangelog.heading} — ${t(
+              "release_notes_dev_card_desc",
+              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+            )}`
+          : t(
+              "release_notes_dev_card_desc",
+              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+            )),
       version: defaultDevVersion,
       releaseDate: defaultDevDate,
-      platform: t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
+      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
-      body: seedChangelog.markdown,
+      body: seedDevBlog.cleanBody || seedChangelog.markdown,
     }),
-    [seedChangelog, defaultDevVersion, defaultDevDate, t]
+    [seedDevBlog, seedChangelog, defaultDevVersion, defaultDevDate, t]
   );
 
   const [publicPost, setPublicPost] = useState<KeepersReleasePostRecord>({
@@ -1460,7 +1493,7 @@ export function ReleaseNotesShowcase({
   const loadPostsAndReleases = useCallback(
     async (forceRefreshGitHub = false) => {
       try {
-        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v1");
+        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v4");
         if (cachedRaw) {
           const parsedCache = JSON.parse(cachedRaw);
           if (parsedCache?.publicPost) setPublicPost(parsedCache.publicPost);
@@ -1505,7 +1538,7 @@ export function ReleaseNotesShowcase({
 
           try {
             localStorage.setItem(
-              "sanctuary_keepers_release_posts_v1",
+              "sanctuary_keepers_release_posts_v4",
               JSON.stringify({
                 publicPost: resolvedPublic,
                 devPost: resolvedDev,
@@ -1719,7 +1752,7 @@ export function ReleaseNotesShowcase({
 
       try {
         localStorage.setItem(
-          "sanctuary_keepers_release_posts_v1",
+          "sanctuary_keepers_release_posts_v4",
           JSON.stringify({
             publicPost: nextPublic,
             devPost: nextDev,
@@ -1776,11 +1809,13 @@ export function ReleaseNotesShowcase({
   const devDateDisplay = formatCompactReleaseDate(devPost.releaseDate || defaultDevDate);
 
   const stablePlatformDisplay =
-    publicPost.platform || t("release_notes_meta_platform_default", "Windows / Mac (Planned)");
+    publicPost.platform || t("release_notes_meta_platform_default", "Windows & macOS");
   const devPlatformDisplay =
-    devPost.platform || t("release_notes_meta_platform_default", "Windows / Mac (Planned)");
+    devPost.platform || t("release_notes_meta_platform_default", "Windows & macOS");
 
-  // Full Change Logs pulled from GitHub Release Notes (with fallback to changelog.md)
+  // Full Change Logs:
+  // - Stable Build -> changelog (running).md (all dev builds since last stable build)
+  // - Dev Build -> changelog.md (current dev build changes)
   const isDetailedChangelog = (raw?: string | null): boolean => {
     const trimmed = String(raw || "").trim();
     if (!trimmed) return false;
@@ -1797,18 +1832,29 @@ export function ReleaseNotesShowcase({
   };
 
   const stableGitHubChangelog = useMemo(() => {
-    if (isDetailedChangelog(pipelineConfig.stable_release_notes)) {
+    if (
+      isDetailedChangelog(pipelineConfig.stable_release_notes) &&
+      isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
+    ) {
       return pipelineConfig.stable_release_notes!.trim();
     }
-    return bundledNerdChangelog;
-  }, [pipelineConfig.stable_release_notes]);
+    return bundledRunningChangelog || bundledNerdChangelog;
+  }, [pipelineConfig.stable_release_notes, pipelineConfig.stable_version, defaultStableVersion]);
 
   const devGitHubChangelog = useMemo(() => {
-    if (isDetailedChangelog(pipelineConfig.dev_build_notes)) {
+    if (
+      isDetailedChangelog(pipelineConfig.dev_build_notes) &&
+      isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
+    ) {
       return pipelineConfig.dev_build_notes!.trim();
     }
-    return seedChangelog.markdown || bundledNerdChangelog;
-  }, [pipelineConfig.dev_build_notes, seedChangelog.markdown]);
+    return bundledNerdChangelog || seedChangelog.markdown;
+  }, [
+    pipelineConfig.dev_build_notes,
+    pipelineConfig.dev_build_version,
+    defaultDevVersion,
+    seedChangelog.markdown,
+  ]);
 
   const openReleasePanel = (channel: "stable" | "dev") => {
     setActiveChannel(channel);
@@ -1846,8 +1892,23 @@ export function ReleaseNotesShowcase({
 
   const activeTitle =
     activeView === "changelog"
-      ? t("release_notes_github_changelog_title", "Full Change Log (GitHub Release Notes)")
+      ? t("release_notes_github_changelog_title", "Full Change Log")
       : activePostRecord.title;
+
+  const activeChangelogHeading = useMemo(
+    () =>
+      parseLatestChangelogBlock(
+        isDevActive ? devGitHubChangelog : stableGitHubChangelog
+      ).heading || seedChangelog.heading,
+    [isDevActive, devGitHubChangelog, stableGitHubChangelog, seedChangelog.heading]
+  );
+
+  const activeGroupTitle =
+    activeView === "changelog"
+      ? activeChangelogHeading || t("release_notes_tile_changelog", "Changelog")
+      : activeChangelogHeading ||
+        activePostRecord.summary ||
+        t("release_notes_blog_panel_title", "Community Release Notes");
 
   const activeMarkdownContent =
     activeView === "changelog"
@@ -2213,11 +2274,7 @@ export function ReleaseNotesShowcase({
           </SidePanelHeroCard>
 
           <UniversalGroup
-            title={
-              activeView === "changelog"
-                ? t("release_notes_tile_changelog", "Changelog")
-                : t("release_notes_blog_panel_title", "Community Release Notes")
-            }
+            title={activeGroupTitle}
             icon={
               activeView === "changelog"
                 ? t("icon_terminal", "terminal")

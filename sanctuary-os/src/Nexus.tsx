@@ -1318,14 +1318,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   if (isOffline) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 gap-6">
-        <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">wifi_off</span>
+        <span className="material-symbols-outlined !text-[6rem] opacity-20 text-[var(--text)] drop-shadow-lg">{t("icon_wifi_off", "wifi_off")}</span>
         <h2 className="text-2xl font-black capitalize tracking-[0.2em] opacity-50">{t("offline_mode_title", "Offline Mode")}</h2>
         <p className="text-xs font-bold capitalize tracking-widest opacity-40 text-center max-w-md">{t("offline_mode_desc", "This module requires a secure network connection. Please restore your connection or disable Local Network Only mode in preferences.")}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 px-8 py-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-xl hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]  active:scale-95 transition-all flex items-center gap-3 text-[10px] font-black capitalize tracking-widest group"
         >
-          <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">refresh</span>
+          <span className="material-symbols-outlined !text-lg opacity-60 group-hover:opacity-100 group-hover:rotate-180 transition-all duration-500">{t("icon_refresh", "refresh")}</span>
           {t("loading", "Loading")}
         </button>
       </div>
@@ -1333,10 +1333,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   }
 
   const viewFilterOptions = useMemo(() => [
-    { id: "hide_installed", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">download_done</span> {t("filter_hide_installed", "Hide Installed")}</span> },
-    { id: "hide_paid", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">monetization_on</span> {t("filter_hide_paid", "Hide Paid")}</span> },
-    { id: "hide_ea", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">science</span> {t("filter_hide_early_access", "Hide Early Access")}</span> },
-    { id: "hide_missing_dlc", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">extension</span> {t("filter_hide_dlc", "Hide Missing DLC")}</span> }
+    { id: "hide_installed", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_download_done", "download_done")}</span> {t("filter_hide_installed", "Hide Installed")}</span> },
+    { id: "hide_paid", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_monetization_on", "monetization_on")}</span> {t("filter_hide_paid", "Hide Paid")}</span> },
+    { id: "hide_ea", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_science", "science")}</span> {t("filter_hide_early_access", "Hide Early Access")}</span> },
+    { id: "hide_missing_dlc", label: <span className="flex items-center gap-2"><span className="material-symbols-outlined !text-[14px]">{t("icon_extension", "extension")}</span> {t("filter_hide_dlc", "Hide Missing DLC")}</span> }
   ], [t]);
 
   const activeViewFilters = useMemo(() => {
@@ -1567,12 +1567,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
                     title={t("recent_activity", "Recent Activity")}
-                    icon="history"
+                    icon={t("icon_history", "history")}
                   />
                   <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {loadingHome ? (
                       <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse flex flex-col items-center gap-4">
-                        <span className="material-symbols-outlined animate-spin theme-text-accent">autorenew</span>
+                        <span className="material-symbols-outlined animate-spin theme-text-accent">{t("icon_autorenew", "autorenew")}</span>
                         {t("loading", "Loading")}
                       </div>
                     ) : recentFeed.length > 0 ? recentFeed.map((item, index) => {
@@ -1884,7 +1884,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       );
                     }) : (
                       <div className="col-span-full glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
-                        <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">history</span>
+                        <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">{t("icon_history", "history")}</span>
                         <span className="text-xl">{t("no_recent_activity", "No Recent Activity")}</span>
                       </div>
                     )}
@@ -1892,10 +1892,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon="bolt">
+              <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_bolt", "bolt")}>
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
-                    icon="extension"
+                    icon={t("icon_extension", "extension")}
                     title={t("tab_mods", "{Mods}")}
                     subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.artifacts} ${t("tab_mods", "{Mods}")}`}
                     onClick={() => setMarketTab('MODS')}
@@ -2501,7 +2501,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               </span>
                             )}
                             <span className="flex items-center gap-1 text-[10px] font-black text-[var(--accent)] capitalize tracking-widest">
-                              <span className="material-symbols-outlined !text-[14px]">download</span>
+                              <span className="material-symbols-outlined !text-[14px]">{t("icon_download", "download")}</span>
                               {asset.downloads || 0} <span className="opacity-70">{t("sort_downloads", "DOWNLOADS")}</span>
                             </span>
                           </div>

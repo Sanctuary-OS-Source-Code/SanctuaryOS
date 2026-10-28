@@ -1,99 +1,60 @@
-# Sanctuary OS — Version 0.5.7 Update
-## *"Sovereignty, Frosted Glass & The Open Workshop"*
+# State of the Sanctuary — Version 0.6.0
+### Liquid Glass Surface Unification, Multi-Game Support, Native Mac App & Deep Mod Protection
+**Release Date:** October 28, 2026 | **Version:** 0.6.0
 
-**Release Date:** October 17, 2026 | **Version:** 0.5.7
-
-Welcome to **Sanctuary OS 0.5.7**! This is one of our biggest updates yet—touching almost every corner of the app. Whether you’re a player organizing your mod folder, a creator packaging your next release, or a community leader running your own game hub, here is everything new in plain English.
+Welcome to **Sanctuary OS 0.6.0**! This is our biggest update yet—touching almost every corner of the app on Desktop, Web, and Mobile. Whether you're a player organizing your mod folder, a creator sharing your next release, or a community leader running your own game hub, here is everything new in plain English.
 
 ---
 
 ## ⚡ TL;DR — The 60-Second Summary
 
-* **True Frosted Glass UI:** We toned down the harsh neon outlines and rebuilt the interface with smooth, authentic frosted glass that lets your theme wallpaper shine through cleanly.
-* **Casual vs. Advanced Load Order:** Keep the simple 1-click *"Pick a Winner"* button in **Casual Mode**, or flip to **Advanced Mode** to build custom *"Must Load After / Before"* rules and fix circular load-order loops with one click.
-* **Open Creator Workshop & Direct Mod Updates:** Anyone can now use the local **Mason Workshop** to test mods, build themes, and export releases that update directly from a creator’s own website or GitHub—no central database required.
-* **Interactive Polls & Scannable Alerts:** Official dispatches now have a built-in *"At a Glance"* summary box at the top and support live community polls right inside the feed.
-* **Community Independence ("Cut the Cord"):** Game communities can now connect—or completely disconnect—their own database at any time with zero data loss, and forking Sanctuary OS into your own standalone app now requires editing **just one file**.
+* **3D Liquid Glass & True Glass Mode:** We rebuilt the visual interface with real-time 3D glass refraction that bends light around every card and panel, plus a 1-click **True Glass** mode and **Auto-Tune** button in the Theme Editor.
+* **Built for Any Moddable Game:** Sanctuary OS now supports any game out of the box—with built-in setups for *The Sims 4*, *GTA V*, *Skyrim SE*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, *WWE 2K*, and custom games.
+* **Native Mac App & 1-Click Updates:** Sanctuary OS is now available natively on both **Windows** and **Mac**, complete with a silent in-app updater that downloads and installs updates without opening your browser.
+* **Smarter Mod Security Scanner:** Every downloaded archive, script, and package file is now scanned inside and out before it touches your mod folder—catching hidden threats while never falsely flagging popular script mods.
+* **1-Click Creator Publishing:** Every registered user can now open the Creator Workshop to package mods, build settings templates, and publish updates directly to GitHub, Cloudflare, S3, Nexus Mods, or a local zip file.
+* **Cleaner Cards & Floating Mobile Dock:** Mod titles now have the full width of every card without getting cut off, and phone users get a smooth floating glass bottom bar with swipeable top tabs.
 
 ---
 
-## 🎮 For Players (Citizens)
+## 💎 Visual Overhaul: 3D Liquid Glass & Easier-to-Read Cards
 
-### 1. A Cleaner, True Frosted-Glass Look
-We heard your feedback that some menus felt too dark, had harsh neon borders, or showed weird miniature copies of the background wallpaper inside dropdowns.
-* **Authentic Frosted Glass:** Menus, cards, tooltips, the top title bar, and the bottom notification dock now use true translucent frosted glass that naturally blends with your active theme.
-* **Top-Row Navigation Everywhere:** Instead of hiding tabs inside a collapsible side drawer, all major screens (including **System Preferences**) now use a clean, scrollable row of tab tiles across the top so you can jump between sections in one click.
-* **Streamlined Side Panels:** We removed the cluttered *"Cancel / Abort"* button bars at the bottom of slide-out panels. Actions like *Save* and *Delete* now live cleanly in the top-right corner of the panel (and *Delete* still requires a double-click so you never delete anything by accident).
-
-### 2. Conflict Radar: Casual Mode vs. Advanced Load Order
-Different players want different levels of control when two mods edit the same game files:
-* **Casual Mode (Default):** Keeps the effortless 1-click **"Pick a Winner"** workflow. Tell Sanctuary which mod should win, and it handles the folders and priority files behind the scenes.
-* **Advanced Mode (New!):** Flip the toggle in the top bar to unlock the full **Load Order** tab. You can create custom directional rules (*"Mod A Must Load After Mod B"*), assign Priority Tiers, and even switch how the game orders mods. If you accidentally create an impossible loop (*A loads after B, B loads after A*), Sanctuary spots it automatically and gives you a **1-Click Break Loop** button.
-
-### 3. Decentralized Mod Updates (Straight from Creators)
-Not every mod creator uses a central mod site—many host their files on Patreon, itch.io, Cloudflare, or GitHub.
-* Creators can now include a tiny `override.json` update link inside their mod’s `.zip` download.
-* When you drag and drop that `.zip` into Sanctuary, you’ll be asked if you want to link the mod to the creator's update feed.
-* Once linked, Sanctuary checks the creator's link directly during Radar Sweeps to notify you of new versions and automatically apply the creator's recommended conflict and DLC rules!
-
-### 4. Interactive Polls & Built-In Dispatch Summaries
-* **No More Wall-of-Text Alerts:** Official system announcements now feature a built-in 2x2 summary header at the top showing the **Alert Type**, **Who It Affects** (hover to see the full list of communities or roles), **Priority**, and **Action Required**.
-* **Live Community Polls:** You can now vote in single-choice or multiple-choice polls directly inside system dispatches and watch the live results update in real time.
-
-### 5. Smarter Security, Faster Scans & Better Privacy
-* **Instant, Antivirus-Friendly Version Detection:** Sanctuary now reads your game version directly from the game `.exe` in memory instead of running background scripts—making scans faster and preventing false-positive Windows Defender alerts.
-* **Universal Malware Protection:** Our built-in security scanner now inspects all mod file types (not just script files) using both global security rules and community-specific rules to catch hidden malicious code before it ever touches your game.
-* **Privacy-First Hardware Protection:** Sanctuary **never** tracks or stores your PC's hardware ID on your profile. A hardware signature is only ever recorded in a separate ban list if someone actively tries to bypass malware quarantine.
-* **Offline Blueprint Links Stay Intact:** If you add custom author names or download URLs to your local mods and export a **Blueprint** to share with a friend, those custom links now travel inside the Blueprint file automatically—even offline.
+* **Real 3D Liquid Glass:** Cards, sidebars, and panels now behave like real optical glass—gently bending your background wallpaper around rounded corners with soft depth and zero harsh neon outlines.
+* **True Glass & 1-Click Auto-Tune:** Flip on **True Glass** in the Theme Editor for a crystal-clear look, or click **Auto-Tune Glass** and **Auto-Harmonize** to automatically match your glass settings and colors to your wallpaper.
+* **Full-Width Mod Titles on Every Card:** We moved action buttons (like *Update*, *Ignore*, *Delete*, and *Modules*) to the bottom-right corner of cards so long mod names have the entire top row to breathe without getting cut off.
+* **Calm, Consistent Status Badges:** Status tags across the entire app now use a clean, neutral glass style where only the small icon is colored—making your mod library and alerts much easier on the eyes.
+* **Live Card Previews & Bundled Theme Sharing:** Every mod, modpack, theme, and language pack card now displays a live mini-preview header. Exporting a theme automatically packs your custom wallpaper and preview image along with it.
+* **Floating Mobile Dock & Fullscreen Web App:** On phones and tablets, the bottom navigation bar now floats like a rounded glass dock and matches your theme color all the way to the bottom edge of your screen.
 
 ---
 
-## 🛠️ For Mod Creators & Theme Makers (Masons)
+## 🎮 Multi-Game Support, Native Mac App & Faster Mod Management
 
-### 1. The Mason Workshop is Now Open to Everyone
-You no longer need special approval just to use Sanctuary's creation tools on your own PC!
-* **Open Local Workshop:** Every user now has access to the **Mason Workshop** for local development—including the isolated **Dev Sandbox**, the built-in **Code Editor (IDE)**, the **Theme Builder**, and the **Creator Notepad**.
-* **1-Click Release Exporter:** Package your mod into a clean `<mod>_v<version>.zip` bundle with one click. Sanctuary automatically calculates your file hashes and generates ready-to-upload `manifest.json` and `override.json` files so your players can get automatic update alerts from wherever you host your mods.
-* **Verified Mason Fast-Lane:** Creators who are verified on the network get a dedicated priority approval queue (separate from community crowd-sourced submissions) and can publish directly to the public Nexus catalog.
-
-### 2. Redesigned Creator Profiles & Blueprint Showcases
-* **Glassmorphic Profile Banners:** Creator profiles have been completely restyled with frosted glass badges, follower counts, and social links.
-* **Blueprints Showcase & 3-Tab Pinning:** You can now feature a **Blueprint** right below your featured Mods on your profile overview, and our new 3-tab Pin Selector lets you easily highlight your favorite **Mods**, **Blueprints**, and **Themes/Translations**.
-
-### 3. Visual Theme Builder (No Coding Required)
-* We replaced the old raw CSS code box in the **Chameleon Theme Forge** with an interactive **Background Builder**. Pick colors from visual swatches, drag angle sliders for linear or radial gradients, and preview your theme live in the **Holographic Sandbox** before applying it to your app.
+* **Ready for 8+ Game Engines:** Switch between *The Sims 4*, *Grand Theft Auto V*, *Skyrim Special Edition*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, *WWE 2K*, or any custom game from the top bar—each with its own folders, categories, and load rules.
+* **Safe Vanilla Game Folders:** For games where mods go directly into the main game folder (like *Skyrim* or *GTA V*), Sanctuary OS tracks every file it places and backs up original files automatically—so disabling mods never breaks your clean game install.
+* **Native Mac App (.dmg) & Silent Updates:** Mac players on Apple Silicon and Intel can now download Sanctuary OS natively. When a new version drops, clicking **Install & Restart** updates the app right inside the window on both Windows and Mac.
+* **Instant Library & Nexus Loading:** Opening huge mod libraries, switching between games, and browsing **The Nexus** or **Conflict Radar** is now dramatically faster thanks to background loading and smarter caching.
+* **4-Tab Phone-to-PC Modpack Queue:** Browse mods on your phone or browser and send them straight to your home PC. Our updated 4-tab Modpack Builder automatically grabs required parent mods (like adding *MC Command Center* when you pick *MC Woohoo*).
+* **No More Duplicate Settings Files:** Fixed an issue where live mod config files (like `mc_settings.cfg`) could create a duplicate copy in your main Mods folder when updated while the game was running.
 
 ---
 
-## 🌐 For Community Managers & Server Owners (Wayfinders & Forkers)
+## 🛡️ Deeper Mod Protection, Privacy & Safe Testing
 
-### 1. 5-Minute Community Setup (`SANCTUARY-UPLINK://`)
-Connecting a new game community database to Sanctuary OS used to take a lot of manual wiring. Now it’s copy-and-paste simple:
-* **Copy & Paste SQL Setup:** Our updated `schema.sql` file sets up your entire community database in one paste inside the Supabase SQL Editor.
-* **1-Paste Handshake & Auto-Founder Setup:** Paste your credentials (or a `SANCTUARY-UPLINK://` bundle) into the workspace setup panel, click **Test Handshake**, and Sanctuary automatically verifies every table and promotes your account to **Founding Wayfinder**.
-
-### 2. "Cut the Cord" — True Community Sovereignty
-We believe communities should always own their data—never be held hostage by a platform.
-* **Self-Service Disconnect:** Previously, only core Sanctuary developers could disconnect a community database. Now, any community **Wayfinder** can open the **Server Health & Sovereignty** panel and click **Cut the Cord** at any time.
-* **Clean Break, Zero Data Loss:** Cutting the cord immediately removes your database’s secret key from the Sanctuary Hub and deactivates the connection, while leaving **100% of your community's database, mods, and blueprints untouched** in your own Supabase account.
-
-### 3. Forking Sanctuary OS Now Takes Editing Just One File
-If your community wants to launch its own completely independent version of Sanctuary OS (or transition to your own app after cutting the cord):
-* You no longer need to set up a second "Hub" database or deploy complex cloud functions.
-* Simply open **`src/supabase.ts`**, paste your `SANCTUARY-UPLINK://` string (or set `mode: "standalone"` with your database URL and key), and launch the app.
-* The very first person to sign up on a fresh standalone database is **automatically promoted to Founding Wayfinder** with full admin tools unlocked out of the box.
+* **Deep Archive & Package Scanning:** Before a downloaded mod ever enters your library, Sanctuary OS checks inside zip/rar/7z archives, script files, and compressed package files to block hidden malware, scripts, and credential stealers.
+* **Clean Move-to-Quarantine Tracking:** If you use **Move** mode when importing mods and a dangerous file is caught, Sanctuary OS moves the original file straight into quarantine and clearly shows **Moved to Quarantine** so nothing is left behind in your Downloads folder.
+* **Protected Save Games in Homestead Lab:** Starting a mod test run automatically moves your real save files to a safe backup vault and loads a dedicated test save—so testing new or broken mods can never corrupt your actual family or campaign saves.
+* **Live In-Game Test Timer & Crash Plain-English Helper:** The Homestead Lab timer only counts down while you are actively playing in-game (pausing if you Alt-Tab out), and explains common game errors in plain English while scrubbing your computer username from crash logs.
+* **Passkey & Biometric Security:** Protect your account with 2-Factor Authenticator codes, or use Windows Hello, Touch ID, or a hardware security key when opening creator and admin tools.
+* **Focused Security & Backup Screens:** When a critical malware alert, game patch warning, or backup restore is running, Sanctuary OS locks the background screen so you never accidentally click away mid-operation.
 
 ---
 
-## 🧹 Bug Fixes & Quality-of-Life Polish
+## 🛠️ For Creators & Community Leaders: Open Workshop, Guides & Direct Support
 
-* **Fixed Draft Saving Errors:** Resolved a browser storage limit bug (`QuotaExceededError`) that could crash the Dispatch Editor when saving drafts with large translation packs installed.
-* **Much Smoother Mobile Experience:**
-  * Fixed the mobile bottom navigation bar getting pushed off-screen by browser address bars.
-  * Collapsed crowded mobile filter buttons into a clean slide-up bottom sheet across 33+ screens.
-  * Disabled sticky hover tooltips on touchscreens so popups don't get stuck on your screen after tapping.
-  * Fixed mobile scrolling lag on glass panels.
-* **Restored Quick Tools in Elevated Hubs:** Brought back the **Creator Notepad**, **Mason Settings**, **View Profile**, and **Check File Hash** buttons so they stay accessible in the top action bar across every tab in their hubs.
-* **Cleaner Post Cards:** Removed redundant *View / Edit / Delete* hover buttons from Dispatch and News cards (clicking any card opens it directly, and *Delete* now lives safely in the panel header).
-* **Smarter Popovers & Calendars:** Opening a dropdown or date picker now automatically closes any other open menu, and date pickers automatically flip upward if they are near the bottom of the screen.
-
+* **Creator Workshop Open to Everyone:** Every registered player can now open the **Mason Workshop** to package mods, link add-ons and script files together, design custom themes, and build visual settings screens for their mods.
+* **1-Click Cloud Publishing (Zero Lock-In):** Creators can push mod updates directly to **GitHub Releases**, **Cloudflare R2**, **Amazon S3 / Backblaze**, **Supabase**, or **Nexus Mods** with one click—or export a ready-to-share zip file for Patreon, itch.io, or CurseForge.
+* **Interactive Visual Settings & Diff Timeline:** Players and creators can tweak mod settings with simple sliders and toggles in the **Citizen's Workbench**, and compare current changes side-by-side against saved backups before applying them.
+* **Built-In Schema & Language Guides + Icon Picker:** Customizing a game workspace or language pack now includes an interactive field-by-field guide explaining every setting in plain English, plus a visual searchable **Icon Picker** so you never have to guess icon names.
+* **0%-Cut Community Donations & Daily Dev Builds:** Supporting Sanctuary OS or any Partner Community gives 100% of your donation directly to that community, and every **$5 adds +30 days** of early **Daily Dev Build** access across Desktop, Web, and Mobile.
+* **Direct Human Support & Partner Community Applications:** Send platform feedback, report bugs (with automatic log attachment), reach a real human on the Sanctuary team (never an AI bot), or apply to launch a new Partner Game Community right from the home page.

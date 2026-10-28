@@ -1,11 +1,46 @@
 # Sanctuary OS — Master Phase Roadmap
 
-Reverse-chronological engineering timeline from Phase 13 (V5.8 Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync) and Phase 12 down to Phase 1 (Genesis & Cartographer).
+Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Live Adapters, Save-Airgapped External Creator Tool Bridge, Guided Package & Crash Diagnostics, Cross-Platform Vault Companion & Protocol Regression Suite) and Phase 13 (V5.8) down to Phase 1 (Genesis & Cartographer).
 
 ---
 
-## Phase 13 (V5.8): Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync (October 2026 — Active Era)
-**Status:** `ACTIVE PHASE` | **Date Range:** `October 2026 — Present` | **Focus:** `Master Schema & Lexicon Visual Studios, Guided Icon Override Builder, Universal 21+17 Heuristic Scanner, Static Edge 6-Provider Auto-Push, Partner Covenants & Bilateral Codebase ↔ Cloud Sync`
+## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion (November 2026 — Active Era)
+**Status:** `ACTIVE PHASE` | **Date Range:** `November 2026 — Present` | **Focus:** `External Creator & World-Building Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV) with Lab Save Airgap, Multi-Engine Compilers & GTA V .rpf Isolation, Guided FOMOD/Flavor Installer, Save Doctor, Crash & Exception Decoder, SteamOS/Proton Prefix Resolver, Mobile/Web Patch Radar, Guided Side Browser Queue, Global Command Palette (Ctrl+K), Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and Automated Protocol Regression Suite`
+
+- **External Creator & World-Building Tool Bridge + Lab Save-Airgapped Sessions (`World Architect`, `CakeView`, `Sims 4 Studio`, `OpenIV`): (In Progress)**
+  - First-class `external_tools` schema and **Homestead Lab** integration allowing Citizens and Masons to register and launch essential third-party modding and world-building tools (`World Architect`, `CakeView`, `Sims 4 Studio`, `OpenIV`, `xEdit`, `WolvenKit`) directly inside a **Hardware-Airgapped Lab Creator Session**.
+  - Built specifically for high-risk development workflows like **World Architect** (where creators must never test with legacy saves and are advised to remove saves from the game completely while building worlds): Sanctuary physically airgaps real/legacy saves out of the live game folder into the protected Vault before launching the external tool or test session, mounts an isolated throwaway Lab Test Save + symlinked development files, and automatically restores real saves only when the creator exits the Lab session.
+- **Multi-Engine Manifest Compilers & GTA V `.rpf` Copy-on-Write / Hardlink `mods/` Isolation ("Beyond Sims 4"): (In Progress)**
+  - Engine-specific deployment compilers for **Baldur's Gate 3** (`modsettings.lsx` XML generator + `.pak` header UUID parser), **Creation Engine (`Skyrim SE` / `Fallout 4` / `Starfield`)** (`plugins.txt` + `loadorder.txt` compiler with ESL/ESP/ESM flag inspection), **Cyberpunk 2077** (`REDmod` manifest compiler + `archive/pc/mod` routing), and **Stardew Valley (`SMAPI`)** (`manifest.json` UniqueID dependency graph parser).
+  - **GTA V `.rpf` Archive & `mods/` Folder Isolation Strategy:** Solves multi-gigabyte `.rpf` archive modding without duplicating 80+ GB of vanilla files or risking base-game corruption—combining zero-duplication OS hardlink / Copy-on-Write `.rpf` staging into `mods/` with **OpenIV (`OpenIV.asi`)** and **Lenny's Mod Loader (`LML` VFS)** streaming package support so vanilla Rockstar `.rpf` archives remain 100% untouched.
+- **Guided Multi-Option Package Installer (`FOMOD` & Mason Flavor Selector on Drop): (In Progress)**
+  - Intercepts multi-variant archives on Dropzone or Side Browser ingestion with a Liquid Glass **Guided Package Installer `<SidePanel>`** that parses both native `fomod/ModuleConfig.xml` definitions and Mason Dossier Flavor matrices—rendering option descriptions, preview cards, and **auto-checked compatibility patches** based on DNA hashes already present in the Citizen's Vault.
+- **Save-Game Blueprint Lock & Pre-Launch "Save Doctor" (`TimeCapsule.tsx` / `Blueprints.tsx`): (In Progress)**
+  - Stamps a lightweight local `.sanctuary-save-manifest.json` snapshot pairing the active save state with the deployed Blueprint DNA manifest whenever a play session ends.
+  - Before launching the game after switching Blueprints, performs a **Save Compatibility Pre-Flight Check**—warning the Citizen if the active Blueprint is missing mods that were baked into their latest save, with 1-click **"Switch to Matching Blueprint"** or **"Re-Enable Missing Mods"** actions.
+- **Citizen-Facing "Homestead Crash & Exception Decoder" (`Desktop` + `Web` + `PWA`): (In Progress)**
+  - Automatically monitors schema-defined `log_files` (`lastException.txt`, `lastCrash.txt`, `Papyrus.0.log`, `SMAPI-latest.log`, `redscript.log`) on game exit, cross-referencing stack-trace filenames and tuning IDs against the Citizen's installed Vault mods and the Spoke's `KnownExceptionRules`.
+  - Surfaces an instant plain-English **Crash Diagnosis Card** (*"Caused by outdated Mod X — v2.1 available"* or *"Known Vanilla Game Bug — Safe to Ignore"*) with 1-click actions to disable the culprit, open the Mason's update page in the Side Browser, or attach the scrubbed trace to a Support Ticket—plus a drag-and-drop **Web/PWA Log Decoder Card**.
+- **SteamOS / Linux Proton Prefix Auto-Resolver (`Steam Deck` & Linux Parity): (In Progress)**
+  - Parses Steam's `libraryfolders.vdf` in the Rust backend and automatically maps `~/Documents` and `%APPDATA%` Master Schema tokens into each game's Proton `compatdata/<AppID>/pfx/` prefix so symlinks, config watching, and Lab Save Airgapping work out-of-the-box on Steam Deck and Linux desktops.
+- **Mobile PWA / Web "My Vault Patch Radar" (Zero-PII Encrypted Cloud Companion): (In Progress)**
+  - Optional 1-click encrypted sync of the Citizen's active Blueprint DNA hash list to their profile so they can inspect their Vault health from the **Mobile PWA** or **Web OS** while away from their PC—immediately alerting them when a game patch or Architect Mass Update marks any of their installed mods as Broken or Updated, with 1-click remote queuing.
+- **Realtime "Queue to Desktop" Handshake & Side Browser Guided Batch Updater (`SidePanelBrowser.tsx`): (In Progress)**
+  - Adds a **"Launch Guided Update Queue (1 of N)"** stepper bar inside `SidePanelBrowser.tsx` for batch-updating outdated Vault mods or processing remotely queued Mobile PWA / Web items—sequentially opening each creator's official page, highlighting the expected file/version target, and **automatically advancing to the next mod** the instant the Rust download interceptor catches and verifies the archive.
+- **Global `Ctrl+K` / `Cmd+K` Command Palette (`Desktop` + `Web` + `Mobile PWA`): (In Progress)**
+  - Unified Liquid Glass **`Ctrl+K` / `Cmd+K` Command Palette** (and mobile quick-search sheet) providing instant fuzzy-search across installed Vault mods (jump to Dossier or toggle in Blueprint), Blueprints (1-click activate), all 18 OS views, System Preferences toggles, and Mason/Architect quick actions.
+- **Conflict Radar 2.0 — Resource-Level Overlap & Diff Inspector (`ConflictResolutionSidebar.tsx`): (In Progress)**
+  - Upgrades Conflict Radar with a human-readable **Resource Overlap Breakdown** inside `ConflictResolutionSidebar.tsx` that classifies collisions into **Visual / Texture Overrides** (`DDS` / `Mesh` — safe load-order preference) vs. **Gameplay Tuning / Script Collisions** (`XML` / `SimData` / `REDscript` — hard conflict), complete with side-by-side Monaco diffing for text/XML tuning resources.
+- **In-Game Config Watcher → Citizen's Workbench Interactive Diff Timeline & Mason Workshop 2.0: (In Progress)**
+  - **Live In-Game Config Edit Timeline (`initialize_airgap_watch` → `Workbench`):** Automatically captures live `.cfg`, `.ini`, `.json`, and `.toml` modifications written by the game engine or in-game mod menus during a play session and records them as timestamped **`[In-Game Engine Edit]`** entries inside the **Citizen's Workbench 2-Column Interactive Timeline & Diff Workspace**, allowing Citizens to visually diff what changed during gameplay and roll back with one click.
+  - **Mason Workshop 2.0:** Live Remote `catalog.json` Inspector & 1-Click Entry Editor + Auto-Diff Release Changelog Generator.
+- **Automated Protocol Regression & Stability Suite (`Vitest` + `Cargo Test`): (In Progress)**
+  - Automated frontend (`Vitest`) and Rust (`cargo test`) regression suites verifying `compileLoadOrder` (topological sort, Highlander flavor eviction, Twin bonds, DFS cycle breaker), `check_heuristic_malware_detailed` (21 Core + 17 Spoke rules, Zlib/Zstd DBPF stream decompression, Base64/Hex deobfuscation), `interpolateGlossaryTokens` (21 dynamic glossary tokens, casing, indefinite articles), and `parseMarkdownToDirectiveSchema`.
+
+---
+
+## Phase 13 (V5.8): Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync (October 2026)
+**Status:** `COMPLETED` | **Date Range:** `October 2026` | **Focus:** `Master Schema & Lexicon Visual Studios, Guided Icon Override Builder, Universal 21+17 Heuristic Scanner, Static Edge 6-Provider Auto-Push, Partner Covenants & Bilateral Codebase ↔ Cloud Sync`
 
 - **Master Schema Visual Studio & Cross-Platform Windows/macOS Parity (Completed: October 2026):**
   - Built the 4-Tab **Master Schema Visual Studio** (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) with **7 Game Architecture Presets** (`The Sims 4`, `Cyberpunk 2077`, `Skyrim SE / Fallout 4`, `GTA V`, `Baldur's Gate 3`, `Stardew Valley`, `Universal`).

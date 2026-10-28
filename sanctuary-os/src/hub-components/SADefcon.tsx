@@ -2,7 +2,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { SidePanel, StatBox, ActionButton } from "../shared";
+import {
+  SidePanel,
+  StatBox,
+  ActionButton,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  SidePanelHeroCard,
+  UniversalGroup,
+  VAULT_CHIP_CLASS,
+} from "../shared";
 import { logArchitectAction } from "../lib/audit";
 
 export function DefconSidePanel({
@@ -156,6 +165,29 @@ export function DefconSidePanel({
       widthClass="w-[90vw] md:w-[680px]"
       isResizable={true}
       defaultWidth={680}
+      headerActions={
+        !loading ? (
+          <PanelHeaderGroup>
+            {isDefconActive ? (
+              <PanelHeaderButton
+                icon={t("icon_lock_open", "lock_open")}
+                tooltip={t("defcon_stand_down", "Stand Down (Return To Normal)")}
+                variant="success"
+                disabled={submitting}
+                onClick={() => setConfirmMode("standDown")}
+              />
+            ) : (
+              <PanelHeaderButton
+                icon={t("icon_warning_amber", "warning")}
+                tooltip={t("defcon_execute", "Engage DEFCON 1 Lockdown")}
+                variant="danger"
+                disabled={submitting}
+                onClick={() => setConfirmMode("execute")}
+              />
+            )}
+          </PanelHeaderGroup>
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-4 mt-2 pb-6">
         {loading ? (
@@ -170,78 +202,36 @@ export function DefconSidePanel({
         ) : (
           <>
             {/* 1. Global Network Status & Telemetry Card */}
-            <div
-              className="glass-panel rounded-2xl p-6 border flex flex-col gap-5 relative overflow-hidden"
-              style={{
-                borderColor: isDefconActive
-                  ? "color-mix(in srgb, var(--danger) 42%, transparent)"
-                  : "color-mix(in srgb, var(--text) 10%, transparent)",
-              }}
+            <SidePanelHeroCard
+              icon={
+                isDefconActive
+                  ? t("icon_warning_amber", "warning")
+                  : t("icon_verified_user", "verified_user")
+              }
+              overline={t("defcon_override_title", "Global Network Override")}
+              title={
+                isDefconActive
+                  ? t("defcon_active", "Defcon 1 Active")
+                  : t("defcon_normal", "Defcon 5 Normal")
+              }
+              description={
+                isDefconActive
+                  ? t("defcon_active_sub", "{Vault} lockdown engaged across all clients")
+                  : t("defcon_normal_sub", "Network Secure — All Systems Nominal")
+              }
+              badge={
+                isDefconActive
+                  ? t("defcon_status_locked_badge", "Lockdown Active")
+                  : t("defcon_status_nominal_badge", "Systems Nominal")
+              }
+              badgeIcon={
+                isDefconActive
+                  ? t("icon_lock", "lock")
+                  : t("icon_check_circle", "check_circle")
+              }
+              variant={isDefconActive ? "danger" : "success"}
             >
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div
-                    className={`w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
-                      isDefconActive
-                        ? "text-[var(--danger)]"
-                        : "text-[var(--success)]"
-                    }`}
-                  >
-                    <span
-                      className={`material-symbols-outlined !text-[24px] ${
-                        isDefconActive ? "animate-pulse" : ""
-                      }`}
-                    >
-                      {isDefconActive
-                        ? t("icon_warning_amber", "warning")
-                        : t("icon_verified_user", "verified_user")}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                        isDefconActive
-                          ? "text-[var(--danger)]"
-                          : "text-[var(--success)]"
-                      }`}
-                    >
-                      {t("defcon_override_title", "Global Network Override")}
-                    </span>
-                    <h3 className="text-lg md:text-xl font-black tracking-tight text-[var(--text)] m-0 leading-snug">
-                      {isDefconActive
-                        ? t("defcon_active", "Defcon 1 Active")
-                        : t("defcon_normal", "Defcon 5 Normal")}
-                    </h3>
-                    <span className="text-xs font-medium text-[var(--subtext)]">
-                      {isDefconActive
-                        ? t("defcon_active_sub", "{Vault} lockdown engaged across all clients")
-                        : t(
-                            "defcon_normal_sub",
-                            "Network Secure — All Systems Nominal"
-                          )}
-                    </span>
-                  </div>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                  <span
-                    className={`material-symbols-outlined !text-[12px] ${
-                      isDefconActive ? "text-[var(--danger)]" : "text-[var(--success)]"
-                    }`}
-                  >
-                    {isDefconActive
-                      ? t("icon_lock", "lock")
-                      : t("icon_check_circle", "check_circle")}
-                  </span>
-                  {isDefconActive
-                    ? t("defcon_status_locked_badge", "Lockdown Active")
-                    : t("defcon_status_nominal_badge", "Systems Nominal")}
-                </span>
-              </div>
-
-              {/* 2-Column Wide StatBox Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                 <StatBox
                   icon={t("icon_public", "public")}
                   iconColorClass={
@@ -275,28 +265,21 @@ export function DefconSidePanel({
                   }
                 />
               </div>
-            </div>
+            </SidePanelHeroCard>
 
             {/* 2. Operational Impact & Protocol Directives Card */}
-            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                    {t("icon_gavel", "gavel")}
-                  </span>
-                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-                    {t("defcon_warnings_title", "Operational Impact")}
-                  </span>
-                </div>
-
-                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+            <UniversalGroup
+              title={t("defcon_warnings_title", "Operational Impact")}
+              icon={t("icon_gavel", "gavel")}
+              headerActions={
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                     {t("icon_public", "public")}
                   </span>
-                  {t("defcon_scope_global", "All Connected Clients")}
+                  <span>{t("defcon_scope_global", "All Connected Clients")}</span>
                 </span>
-              </div>
-
+              }
+            >
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "defcon_warning",
@@ -304,7 +287,7 @@ export function DefconSidePanel({
                 )}
               </p>
 
-              <div className="rounded-xl p-3.5 border bg-transparent border-[color-mix(in_srgb,var(--danger)_38%,transparent)] flex items-center gap-3">
+              <div className="rounded-xl p-3.5 border glass-surface border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_threat_intelligence", "warning")}
@@ -317,7 +300,7 @@ export function DefconSidePanel({
                   )}
                 </p>
               </div>
-            </div>
+            </UniversalGroup>
 
             {/* 3. Live Action Status Banner (if active) */}
             {actionStatus && (

@@ -471,7 +471,7 @@ export default function CommandCenter({
                         vAlign="bottom"
                       />
                       <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">warning</span>}
+                        icon={<span className="material-symbols-outlined ">{t("icon_warning", "warning")}</span>}
                         number="!"
                         label={t("perm_restricted", "Permissions Restricted")}
                         disableBgStrip={true}
@@ -524,7 +524,7 @@ export default function CommandCenter({
                         vAlign="bottom"
                       />
                       <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">gpp_bad</span>}
+                        icon={<span className="material-symbols-outlined ">{t("icon_gpp_bad", "gpp_bad")}</span>}
                         number={radarTier4Count + radarBrokenCount}
                         label={t("crit_fail", "critical failures") || "Critical Failures"}
                         disableBgStrip={true}

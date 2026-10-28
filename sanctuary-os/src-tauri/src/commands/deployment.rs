@@ -15,7 +15,7 @@ pub fn launch_game(
     mods_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let game_schema = &state.active_schema.lock().unwrap().clone();
+    let game_schema = &state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let doc_dir = crate::game_logic::resolve_user_data_root(&mods_path, game_schema);
 
     let check_and_delete = |dir: &std::path::Path| {
@@ -404,7 +404,7 @@ pub fn get_lab_test_save_status(
     docs_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabTestSaveStatus, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let docs_dir = resolve_docs_root(&docs_path, &game_schema);
     Ok(compute_lab_test_save_status(&docs_dir, &game_schema))
 }
@@ -416,7 +416,7 @@ pub async fn configure_lab_test_save(
     source_save_name: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabTestSaveStatus, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
         let targets = resolve_save_airgap_targets(&game_schema);
@@ -550,7 +550,7 @@ pub async fn airgap_saves(
     enable: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         apply_save_airgap(&docs_path, enable, &game_schema)
     })
@@ -563,7 +563,7 @@ pub async fn get_airgap_status(
     docs_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<AirgapStatus, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
         let targets = resolve_save_airgap_targets(&game_schema);
@@ -646,7 +646,7 @@ pub fn launch_external_tool(
         return Err("Blocked system shell or binary.".to_string());
     }
 
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     if enforce_airgap.unwrap_or(true) {
         let resolved_docs = docs_path.unwrap_or_default();
         let _ = apply_save_airgap(&resolved_docs, true, &game_schema);
@@ -842,7 +842,7 @@ pub async fn deploy_playset_bulk(
     vault_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
     let is_deploying = state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
@@ -1425,7 +1425,12 @@ pub async fn deploy_playset_bulk(
 pub fn wipe_symlinks() -> Result<String, String> {
     let config = get_saved_coordinates();
     cleanup_routed_links(&config.vault_path);
-    let mods_dir = std::path::PathBuf::from(&config.live_path);
+    let target_mods_path = if !config.mods_path.trim().is_empty() {
+        &config.mods_path
+    } else {
+        &config.live_path
+    };
+    let mods_dir = std::path::PathBuf::from(target_mods_path);
     if !mods_dir.exists() {
         return Ok("No Mods folder".into());
     }
@@ -2559,7 +2564,7 @@ pub async fn deploy_mod_for_lab_test(
     vault_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let is_deploying = state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
     is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -2594,7 +2599,7 @@ pub async fn start_lab_verification_session(
     linked_files: Option<Vec<String>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabVerificationStatus, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
         let exe_names = crate::game_logic::get_executable_names(&game_schema);
@@ -2721,7 +2726,7 @@ pub async fn poll_lab_verification_session(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<LabVerificationStatus>, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut guard = get_lab_session_mutex().lock().map_err(|e| e.to_string())?;
         let session = match guard.as_mut() {

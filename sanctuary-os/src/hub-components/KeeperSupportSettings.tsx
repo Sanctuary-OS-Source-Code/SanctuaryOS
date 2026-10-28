@@ -26,7 +26,7 @@ interface SupportCategory {
     category_name: string;
     description: string;
     is_active: boolean;
-    ticket_destination: 'mod_author' | 'architect' | 'oversight' | 'wayfinder';
+    ticket_destination: 'mod_author' | 'architect' | 'oversight' | 'wayfinder' | 'keepers_core';
     escalation_path: 'none' | 'standard' | 'urgent';
     requires_target_mod: boolean;
     requires_target_user: boolean;
@@ -82,14 +82,14 @@ export default function KeeperSupportSettings({
 
     const openEditor = (cat?: SupportCategory) => {
         if (cat) {
-            setEditingCat({ ...cat });
+            setEditingCat({ ...cat, ticket_destination: 'keepers_core' });
         } else {
             setEditingCat({
                 category_code: "",
                 category_name: "",
                 description: "",
                 is_active: true,
-                ticket_destination: 'wayfinder',
+                ticket_destination: 'keepers_core',
                 escalation_path: 'standard',
                 requires_target_mod: false,
                 requires_target_user: false,
@@ -106,19 +106,19 @@ export default function KeeperSupportSettings({
         {
             id: "overview",
             label: t("overview", "Overview") || "Overview",
-            icon: "dashboard",
+            icon: t("icon_dashboard", "dashboard"),
             number: categories.length.toString(),
         },
         {
             id: "ACTIVE",
             label: t("support_active_only", "Active Only") || "Active",
-            icon: "category",
+            icon: t("icon_category", "category"),
             number: categories.filter(c => c.is_active).length.toString(),
         },
         {
             id: "INACTIVE",
             label: t("support_inactive_only", "Inactive Only") || "Inactive",
-            icon: "block",
+            icon: t("icon_block", "block"),
             number: categories.filter(c => !c.is_active).length.toString(),
         }
     ];
@@ -168,7 +168,11 @@ export default function KeeperSupportSettings({
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                             {t("icon_hub", "hub")}
                         </span>
-                        <span>{cat.ticket_destination?.replace(/_/g, " ") || t("wayfinder", "Wayfinder")}</span>
+                        <span>
+                            {!cat.ticket_destination || cat.ticket_destination === "wayfinder" || cat.ticket_destination === "keepers_core"
+                                ? t("sidebar_keepers_core", "Keepers Core")
+                                : cat.ticket_destination.replace(/_/g, " ")}
+                        </span>
                     </div>
                     <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
@@ -232,20 +236,20 @@ export default function KeeperSupportSettings({
             <HubOverviewLanding>
                 <HubOverviewSection
                     title={t("recent_active_categories", "Recent Active Categories") || "Recent Active"}
-                    icon="category"
+                    icon={t("icon_category", "category")}
                     iconColorClass="text-[var(--accent)]"
                     isEmpty={activeCats.length === 0}
-                    emptyState={<EmptyState icon="category" title={t("support_no_cats", "No categories found") || "No Active Categories"} className="py-8" />}
+                    emptyState={<EmptyState icon={t("icon_category", "category")} title={t("support_no_cats", "No categories found") || "No Active Categories"} className="py-8" />}
                 >
                     {activeCats.slice(0, 4).map(renderCategoryCard)}
                 </HubOverviewSection>
 
                 <HubOverviewSection
                     title={t("recent_inactive_categories", "Recent Inactive Categories") || "Recent Inactive"}
-                    icon="block"
+                    icon={t("icon_block", "block")}
                     iconColorClass="text-[var(--danger)]"
                     isEmpty={inactiveCats.length === 0}
-                    emptyState={<EmptyState icon="block" title={t("support_no_cats", "No categories found") || "No Inactive Categories"} className="py-8" />}
+                    emptyState={<EmptyState icon={t("icon_block", "block")} title={t("support_no_cats", "No categories found") || "No Inactive Categories"} className="py-8" />}
                 >
                     {inactiveCats.slice(0, 4).map(renderCategoryCard)}
                 </HubOverviewSection>
@@ -278,7 +282,7 @@ export default function KeeperSupportSettings({
         <ElevatedHubLayout
             headerTitle={t("tab_support", "Support Settings") || "Support Settings"}
             headerSubtitle={t("support_settings_desc", "Manage ticket categories and custom fields.") || "Manage ticket categories and custom fields."}
-            headerIcon="category"
+            headerIcon={t("icon_category", "category")}
             headerIconColorClass="theme-text-accent"
             search={searchQuery}
             onSearchChange={setSearchQuery}
@@ -291,7 +295,7 @@ export default function KeeperSupportSettings({
             onTabChange={(id) => setFilter(id)}
             primaryPopover={
                 filter !== 'overview' && filter !== 'ALL' ? {
-                    icon: "tune",
+                    icon: t("icon_tune", "tune"),
                     label: t("filters", "Filters") || "Filters",
                     content: (
                         <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
@@ -452,9 +456,9 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
             headerActions={
                 <PanelHeaderGroup>
                     {draft.id && (
-                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge", "Delete")} onClick={handleDelete} disabled={isSaving} />
+                        <PanelHeaderButton icon={t("icon_delete", "delete")} variant="danger" tooltip={t("purge", "Delete")} onClick={handleDelete} disabled={isSaving} />
                     )}
-                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : t("save", "Save")} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} />
+                    <PanelHeaderButton icon={t("icon_check", "check")} variant="success" tooltip={isSaving ? t("loading", "...") : t("save", "Save")} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name} />
                 </PanelHeaderGroup>
             }
         >
@@ -470,7 +474,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <StatBox
                             label={t("support_destination", "Destination")}
-                            value="WAYFINDER"
+                            value={t("sidebar_keepers_core", "Keepers Core")}
                             icon={t("icon_hub", "hub")}
                         />
                         <StatBox
@@ -490,7 +494,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
 
                 <SidePanelPillToggle
                     label={t("support_active_status", "Category Active")}
-                    icon="category"
+                    icon={t("icon_category", "category")}
                     checked={draft.is_active}
                     onChange={(checked) => setDraft({ ...draft, is_active: checked })}
                 />
@@ -507,8 +511,8 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 <div className="flex gap-4 w-full">
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
                         <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_destination", "Destination")}</label>
-                        <div className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--subtext)] text-sm font-bold font-mono capitalize opacity-50 select-none">
-                            WAYFINDER
+                        <div className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--subtext)] text-sm font-bold font-mono uppercase opacity-50 select-none">
+                            {t("sidebar_keepers_core", "Keepers Core")}
                         </div>
                     </div>
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
@@ -517,9 +521,9 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                             value={draft.escalation_path || 'standard'}
                             onChange={(val: string[]) => setDraft({ ...draft, escalation_path: val[0] as any })}
                             options={[
-                                { id: "none", label: "None (Never Escalate)" },
-                                { id: "standard", label: "Standard (72 Hours)" },
-                                { id: "urgent", label: "Urgent (24 Hours)" }
+                                { id: "none", label: t("support_esc_none", "None (Never Escalate)") },
+                                { id: "standard", label: t("support_esc_standard", "Standard (72 Hours)") },
+                                { id: "urgent", label: t("support_esc_urgent", "Urgent (24 Hours)") }
                             ]}
                         />
                     </div>
@@ -632,37 +636,37 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                     <SidePanelPillToggle
                         label={t("support_req_target_mod", "Requires Target {Mod} Uuid")}
-                        icon="extension"
+                        icon={t("icon_extension", "extension")}
                         checked={draft.requires_target_mod || false}
                         onChange={val => setDraft({...draft, requires_target_mod: val})}
                     />
                     <SidePanelPillToggle
                         label={t("support_req_target_user", "Requires Target User Uuid")}
-                        icon="person"
+                        icon={t("icon_person", "person")}
                         checked={draft.requires_target_user || false}
                         onChange={val => setDraft({...draft, requires_target_user: val})}
                     />
                     <SidePanelPillToggle
                         label={t("support_show_title", "Show Title Box")}
-                        icon="title"
+                        icon={t("icon_title", "title")}
                         checked={draft.show_title_box || false}
                         onChange={val => setDraft({...draft, show_title_box: val})}
                     />
                     <SidePanelPillToggle
                         label={t("support_show_desc", "Show Description Box")}
-                        icon="description"
+                        icon={t("icon_description", "description")}
                         checked={draft.show_description_box || false}
                         onChange={val => setDraft({...draft, show_description_box: val})}
                     />
                     <SidePanelPillToggle
                         label={t("support_show_logs", "Show Logs")}
-                        icon="history"
+                        icon={t("icon_history", "history")}
                         checked={draft.show_logs_box || false}
                         onChange={val => setDraft({...draft, show_logs_box: val})}
                     />
                     <SidePanelPillToggle
                         label={t("support_attach_blueprints", "Attach {Blueprints}")}
-                        icon="architecture"
+                        icon={t("icon_architecture", "architecture")}
                         checked={draft.attach_blueprints || false}
                         onChange={val => setDraft({...draft, attach_blueprints: val})}
                     />

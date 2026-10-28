@@ -1,7 +1,7 @@
 import React from 'react';
 import { EmptyState } from '../../shared-components/layout';
 import { HoverTooltip } from '../../shared-components/alerts';
-import { normalizeAllCapsForThemeCase } from '../../LexiconContext';
+import { normalizeAllCapsForThemeCase, useLexicon } from '../../LexiconContext';
 
 // ==========================================
 // HUB OVERVIEW LANDING & SECTION (GOLD STANDARD)
@@ -480,6 +480,7 @@ export function UniversalSearch({
   inputClassName = "",
   ...rest
 }: UniversalSearchProps) {
+  const { t } = useLexicon();
   return (
     <div className={`relative shrink-0 ${wrapperClassName}`}>
       <input
@@ -490,7 +491,7 @@ export function UniversalSearch({
         className={`w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] rounded-xl px-4 pl-10 text-xs font-bold text-[var(--text)] focus:border-[var(--accent)] transition-all placeholder:text-[var(--subtext)] placeholder:opacity-50 focus:outline-none ${inputClassName}`}
       />
       <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 !text-[18px] pointer-events-none">
-        search
+        {t("icon_search", "search")}
       </span>
       {value.trim() !== "" && (
         <button
@@ -498,7 +499,7 @@ export function UniversalSearch({
           onClick={() => onChange("")}
           className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 hover:opacity-100 hover:text-[var(--danger)] transition-all"
         >
-          <span className="material-symbols-outlined !text-[16px]">close</span>
+          <span className="material-symbols-outlined !text-[16px]">{t("icon_close", "close")}</span>
         </button>
       )}
     </div>

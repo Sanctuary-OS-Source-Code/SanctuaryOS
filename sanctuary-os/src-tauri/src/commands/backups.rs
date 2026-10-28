@@ -13,7 +13,7 @@ pub async fn sanitize_vault(
 ) -> Result<String, String> {
     let is_deploying = state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         struct SanitizeGuard(
             Arc<std::sync::atomic::AtomicBool>,
@@ -109,6 +109,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         let mut files = vec![];
         let config = get_saved_coordinates();
         let base = PathBuf::from(&vault_path).join("Backups");
+        let mut pending_size_calcs: Vec<(PathBuf, PathBuf, PathBuf)> = Vec::new();
 
         let mut process_dir = |dir: &std::path::Path| {
             if let Ok(entries) = std::fs::read_dir(dir) {
@@ -142,14 +143,11 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                         };
 
                         if !size_file.exists() || !diff_size_file.exists() {
-                            let p_clone = e.path().clone();
-                            let s_clone = size_file.clone();
-                            let d_clone = diff_size_file.clone();
-                            std::thread::spawn(move || {
-                                let (log_size, diff_size) = crate::utils::calculate_sizes(&p_clone);
-                                let _ = std::fs::write(&s_clone, log_size.to_string());
-                                let _ = std::fs::write(&d_clone, diff_size.to_string());
-                            });
+                            pending_size_calcs.push((
+                                e.path().clone(),
+                                size_file.clone(),
+                                diff_size_file.clone(),
+                            ));
                         }
 
                         files.push(BackupInfo {
@@ -199,6 +197,17 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
             if world_dir != base.join("World") {
                 process_dir(&world_dir);
             }
+        }
+
+        if !pending_size_calcs.is_empty() {
+            std::thread::spawn(move || {
+                use rayon::prelude::*;
+                pending_size_calcs.par_iter().for_each(|(p_clone, s_clone, d_clone)| {
+                    let (log_size, diff_size) = crate::utils::calculate_sizes(p_clone);
+                    let _ = std::fs::write(s_clone, log_size.to_string());
+                    let _ = std::fs::write(d_clone, diff_size.to_string());
+                });
+            });
         }
 
         let extract_ts = |name: &str| -> u64 {
@@ -355,7 +364,7 @@ pub async fn backup_universe(
         let _ = std::fs::create_dir_all(&backup_path);
 
         let app_state = app.state::<AppState>();
-        let game_schema = app_state.active_schema.lock().unwrap().clone();
+        let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
@@ -563,7 +572,7 @@ pub async fn backup_engine_full(
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
         let app_state = app.state::<AppState>();
-        let game_schema = app_state.active_schema.lock().unwrap().clone();
+        let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let base_path = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
         let backup_name = format!(
             "Engine_Core--{}--{}",
@@ -1134,7 +1143,7 @@ pub async fn extract_backup_file(
     file_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let parsed_rel = Path::new(&file_path);
         if file_path.trim().is_empty()
@@ -1181,7 +1190,7 @@ pub async fn diff_backup(
     backup_name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<DiffEntry>, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let backup_dir = match crate::utils::find_backup(&vault_path, &backup_name) {
             Some(dir) => dir,
@@ -1311,7 +1320,7 @@ pub async fn restore_game_data(
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
         let app_state = app.state::<AppState>();
-        let game_schema = app_state.active_schema.lock().unwrap().clone();
+        let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let arc =
             find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
 

@@ -270,14 +270,4 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through the **Lex
    - Community leaders applying via **Apply to be a Partner** on the Landing Page can inspect both the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer before testing their `schema.sql` Spoke handshake.
    - Once active, Wayfinders can review both covenants at any time inside **Wayfinder Operations → Spoke Control → Spoke Setup & Maintenance**, configure **0%-cut non-custodial community donations**, or execute unilateral **Cut the Cord** severance.
 
-# Part 6: Supporter Pipeline, Partner Spoke Covenants & Offline/Cloud Sync Architecture
-
-1. **Offline Codebase Baseline + Live Cloud Sync:**
-   - Bundled `.md` Directives, Legal Covenants, Master Schemas (`sims4.json`), and Lexicons (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`) serve as the zero-latency first-launch and 100% offline backup.
-   - When connected to the network, Sanctuary OS automatically pulls live updates from the Hub database (`public.system_directives`, `public.keeper_system_broadcasts`, `public.sanctuary_schemas`) without requiring a desktop app reinstall.
-2. **Global Supporter Pipeline (`$5 = +30 Days` Daily Dev Builds):**
-   - Every `$5` contribution adds `+30 days` of automated Daily Dev Build access (`Windows .msi/.exe` and `macOS .dmg/.app.tar.gz`), redeemable via Stripe Receipt / Order ID on both the Web OS and Desktop OS.
-3. **Readiness-Gated Partner Spoke Onboarding & Sovereign Covenants:**
-   - Community leaders applying via **Apply to be a Partner** on the Landing Page can inspect both the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer before testing their `schema.sql` Spoke handshake.
-   - Once active, Wayfinders can review both covenants at any time inside **Wayfinder Operations → Spoke Control → Spoke Setup & Maintenance**, configure **0%-cut non-custodial community donations**, or execute unilateral **Cut the Cord** severance.
 

@@ -893,7 +893,7 @@ const Vault = React.memo(function Vault(props: any) {
                       }}
                       className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-black capitalize tracking-widest text-[var(--accent)] flex items-center gap-3 transition-colors mb-1"
                     >
-                      <span className="material-symbols-outlined !text-[16px]">edit</span>
+                      <span className="material-symbols-outlined !text-[16px]">{t("icon_edit", "edit")}</span>
                       {t("manage_node", "Manage Folder")}
                     </button>
                   )}
@@ -905,7 +905,7 @@ const Vault = React.memo(function Vault(props: any) {
                   >
                     <button className="w-[calc(100%-8px)] mx-1 rounded-md text-left px-3 py-2 hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[11px] font-bold capitalize tracking-widest text-[var(--text)] flex items-center justify-start transition-colors">
                       <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture", "structure")}</span>
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_architecture", "architecture")}</span>
                         {t("add_to_blueprint", "Add to {Blueprint}")}
                       </div>
                       <span className="material-symbols-outlined !text-[16px] opacity-50">{t("icon_chevron_right", "chevron_right")}</span>

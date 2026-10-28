@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, getExtensionRegex, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
+import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, SidePanelPillToggle, getExtensionRegex, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -392,25 +392,24 @@ export default function WayfinderSupportSidePanel({
           variant="accent"
         />
         {error && (
-            <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none" />
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-rose-400 tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
-                        <span className="text-xs font-bold text-rose-200/80 leading-relaxed pr-4">{error}</span>
+                        <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
+                        <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">{error}</span>
                     </div>
                     <button 
                       onClick={() => { setError(""); setPolicyViolations([]); }} 
-                      className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-rose-400 hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
+                      className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
                     </button>
                 </div>
                 {policyViolations.length > 0 && (
-                    <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                    <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                         <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
                         <div className="flex flex-wrap gap-2">
                             {policyViolations.map((mod, i) => (
@@ -429,8 +428,7 @@ export default function WayfinderSupportSidePanel({
         )}
 
         {vaultExtremeMods.length > 0 && (
-            <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--danger-rgb),0.15)] group mt-2">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--danger)_5%,transparent)] to-transparent pointer-events-none" />
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
@@ -438,11 +436,11 @@ export default function WayfinderSupportSidePanel({
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
                         <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged") || "Vault Lock Engaged"}</span>
                         <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.") || `Your vault contains ${vaultExtremeMods.length} severe artifact(s) (Tier 3-5). Support submissions are completely disabled until these artifacts are purged from the system.`}
+                            {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
                         </span>
                     </div>
                 </div>
-                <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                     <div className="flex flex-wrap gap-2">
                         {vaultExtremeMods.map((mod: any, i: number) => (
                             <span
@@ -459,8 +457,7 @@ export default function WayfinderSupportSidePanel({
         )}
 
         {vaultExtremeMods.length === 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-            <div className="bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-[0_0_30px_rgba(var(--warning-rgb),0.15)] group mt-2">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent pointer-events-none" />
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
                 <div className="flex items-start gap-4 p-5 relative z-10">
                     <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
                         <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
@@ -468,11 +465,11 @@ export default function WayfinderSupportSidePanel({
                     <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
                         <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
                         <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.") || `Your active blueprint contains ${activeAdultMods.length} adult/NSFW mod(s). If your ticket is related to one of these, please ensure you tag it appropriately or contact the author directly.`}
+                            {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
                         </span>
                     </div>
                 </div>
-                <div className="bg-black/30 p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
                     <div className="flex flex-wrap gap-2">
                         {activeAdultMods.map((mod: any, i: number) => (
                             <span
@@ -609,31 +606,25 @@ export default function WayfinderSupportSidePanel({
                       : currentValue === opt;
 
                     return (
-           <label key={opt} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl relative ${isChecked ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${isChecked ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
-                           {isChecked && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check")}</span>}
-                         </div>
-                         <span className={`text-sm font-bold transition-colors ${isChecked ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{opt}</span>
-                         <input
-                           type="checkbox"
-                           className="hidden"
-                           checked={isChecked}
-                           onChange={() => {
-                             setCustomFieldsData(prev => {
-                                if (isMulti) {
-                                  const arr = (Array.isArray(prev[field.id]) ? prev[field.id] : []) as string[];
-                                  if (arr.includes(opt)) {
-                                    return { ...prev, [field.id]: arr.filter((x: string) => x !== opt) };
-                                  } else {
-                                    return { ...prev, [field.id]: [...arr, opt] };
-                                  }
-                                } else {
-                                  return { ...prev, [field.id]: isChecked ? "" : opt };
-                                }
-                             });
-                           }}
-                         />
-                      </label>
+                      <SidePanelPillToggle
+                        key={opt}
+                        checked={isChecked}
+                        label={opt}
+                        onChange={() => {
+                          setCustomFieldsData(prev => {
+                            if (isMulti) {
+                              const arr = (Array.isArray(prev[field.id]) ? prev[field.id] : []) as string[];
+                              if (arr.includes(opt)) {
+                                return { ...prev, [field.id]: arr.filter((x: string) => x !== opt) };
+                              } else {
+                                return { ...prev, [field.id]: [...arr, opt] };
+                              }
+                            } else {
+                              return { ...prev, [field.id]: isChecked ? "" : opt };
+                            }
+                          });
+                        }}
+                      />
                     );
                   })}
                 </div>
@@ -650,28 +641,20 @@ export default function WayfinderSupportSidePanel({
                    if (!source) return null;
                    const isOptedOut = optedOutSources.includes(sourceId);
                    return (
-           <label key={sourceId} className={`flex items-center gap-4 cursor-pointer group rounded-2xl px-5 py-4 transition-all border backdrop-blur-xl shadow-xl relative ${!isOptedOut ? 'glass-panel border-[color-mix(in_srgb,var(--accent)_30%,transparent)] shadow-[inset_0_0_20px_rgba(var(--accent-rgb),0.1)]' : 'glass-surface border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}>
-                         <div className={`w-6 h-6 rounded-[0.4rem] flex items-center justify-center border transition-all shrink-0 backdrop-blur-md shadow-inner relative z-10 ${!isOptedOut ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]' : 'bg-black/20 border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] group-hover:bg-black/30'}`}>
-                           {!isOptedOut && <span className="material-symbols-outlined !text-[16px] text-white font-black drop-shadow-md">{t("icon_check", "check")}</span>}
-                         </div>
-                         <div className="flex flex-col">
-                           <span className={`text-sm font-bold transition-colors ${!isOptedOut ? 'text-[var(--text)]' : 'text-[var(--subtext)] group-hover:text-[var(--text)]'}`}>{source.label}</span>
-                           <span className="text-[10px] font-bold opacity-50">{source.description || source.file_pattern}</span>
-                         </div>
-                         <input
-                           type="checkbox"
-                           className="hidden"
-                           checked={!isOptedOut}
-                           onChange={(e) => {
-                             if (e.target.checked) {
-                               setOptedOutSources(prev => prev.filter(id => id !== sourceId));
-                             } else {
-                               setOptedOutSources(prev => [...prev, sourceId]);
-                             }
-                           }}
-                         />
-                      </label>
-                   )
+                     <SidePanelPillToggle
+                       key={sourceId}
+                       checked={!isOptedOut}
+                       label={source.label}
+                       description={source.description || source.file_pattern}
+                       onChange={(checked) => {
+                         if (checked) {
+                           setOptedOutSources(prev => prev.filter(id => id !== sourceId));
+                         } else {
+                           setOptedOutSources(prev => [...prev, sourceId]);
+                         }
+                       }}
+                     />
+                   );
                  })}
                </div>
              </div>

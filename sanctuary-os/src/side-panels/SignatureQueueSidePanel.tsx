@@ -23,7 +23,6 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   getModIcon,
-  standardAccentGlassButtonClass,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { unpackBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
@@ -626,35 +625,96 @@ export function SignatureQueueSidePanel({
             : "border-[color-mix(in_srgb,var(--text)_6%,transparent)] opacity-55"
         }`}
       >
-        <div className="flex items-start justify-between gap-3 min-w-0">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[20px]">
-                {isNexusAsset
-                  ? mod.asset_type === "lexicon"
-                    ? t("icon_translate", "translate")
-                    : mod.asset_type === "chameleon"
-                      ? t("icon_palette", "palette")
-                      : t("icon_draw", "draw")
-                  : getModIcon(mod, activeGameSchema, t)}
-              </span>
-            </div>
+        <div className="flex items-start gap-3 min-w-0 w-full">
+          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined !text-[20px]">
+              {isNexusAsset
+                ? mod.asset_type === "lexicon"
+                  ? t("icon_translate", "translate")
+                  : mod.asset_type === "chameleon"
+                    ? t("icon_palette", "palette")
+                    : t("icon_draw", "draw")
+                : getModIcon(mod, activeGameSchema, t)}
+            </span>
+          </div>
 
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
-                {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+              {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+              <span className="truncate">
+                {customAuthor || t("unknown_mason", "Unknown {Mason}")}
               </span>
-              <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                <span className="truncate">
-                  {customAuthor || t("unknown_mason", "Unknown {Mason}")}
+              {mod.dependencyOf && (
+                <span className="text-[9px] font-bold text-[var(--accent)] truncate">
+                  • {t("staging_dep_of_prefix", "Required by")} {mod.dependencyOf}
                 </span>
-                {mod.dependencyOf && (
-                  <span className="text-[9px] font-bold text-[var(--accent)] truncate">
-                    • {t("staging_dep_of_prefix", "Required by")} {mod.dependencyOf}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            {isBpMode && (
+              <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                  {t("icon_tag", "tag")}
+                </span>
+                <span>#{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}</span>
+              </span>
+            )}
+
+            {isNexusAsset ? (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                  {t("icon_bolt", "bolt")}
+                </span>
+                <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
+              </span>
+            ) : mod.isOwned ? (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                  {t("icon_check_circle", "check_circle")}
+                </span>
+                <span>{t("status_in_vault", "In {Vault}")}</span>
+              </span>
+            ) : (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                  {t("icon_download", "download")}
+                </span>
+                <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
+              </span>
+            )}
+
+            {mod.isDependency && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                  {t("icon_account_tree", "account_tree")}
+                </span>
+                <span>{t("staging_badge_dependency", "Dependency")}</span>
+              </span>
+            )}
+
+            {mod.is_early_access && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                  {t("icon_science", "science")}
+                </span>
+                <span>{t("badge_early_access", "Early Access")}</span>
+              </span>
+            )}
+
+            {mod.is_paid && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                  {t("icon_monetization_on", "monetization_on")}
+                </span>
+                <span>{t("badge_paid", "Paid")}</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -664,9 +724,9 @@ export function SignatureQueueSidePanel({
                 e.stopPropagation();
                 handleOpenUrl(targetUrl);
               }}
-              className="w-8 h-8 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-xl transition-all group/btn relative cursor-pointer"
+              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all group/btn relative cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[15px]">
+              <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_open_in_new", "open_in_new")}
               </span>
               <HoverTooltip
@@ -686,9 +746,9 @@ export function SignatureQueueSidePanel({
                   toggleItemSelection(mod.id);
                 }
               }}
-              className="w-8 h-8 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-xl transition-all group/btn relative cursor-pointer"
+              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg transition-all group/btn relative cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[15px]">
+              <span className="material-symbols-outlined !text-[14px]">
                 {mod.selected ? t("icon_close", "close") : t("icon_undo", "undo")}
               </span>
               <HoverTooltip
@@ -702,67 +762,6 @@ export function SignatureQueueSidePanel({
               />
             </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-          {isBpMode && (
-            <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                {t("icon_tag", "tag")}
-              </span>
-              <span>#{String((mod.load_order_index ?? idx) + 1).padStart(3, "0")}</span>
-            </span>
-          )}
-
-          {isNexusAsset ? (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
-                {t("icon_bolt", "bolt")}
-              </span>
-              <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
-            </span>
-          ) : mod.isOwned ? (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
-                {t("icon_check_circle", "check_circle")}
-              </span>
-              <span>{t("status_in_vault", "In {Vault}")}</span>
-            </span>
-          ) : (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                {t("icon_download", "download")}
-              </span>
-              <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
-            </span>
-          )}
-
-          {mod.isDependency && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                {t("icon_account_tree", "account_tree")}
-              </span>
-              <span>{t("staging_badge_dependency", "Dependency")}</span>
-            </span>
-          )}
-
-          {mod.is_early_access && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                {t("icon_science", "science")}
-              </span>
-              <span>{t("badge_early_access", "Early Access")}</span>
-            </span>
-          )}
-
-          {mod.is_paid && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                {t("icon_monetization_on", "monetization_on")}
-              </span>
-              <span>{t("badge_paid", "Paid")}</span>
-            </span>
-          )}
         </div>
       </div>
     );
@@ -788,11 +787,21 @@ export function SignatureQueueSidePanel({
             disabled={isProcessing}
             onClick={handleRejectAndShred}
           />
+          {isBpMode && (
+            <PanelHeaderButton
+              icon={t("icon_save", "save")}
+              tooltip={t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
+              disabled={isProcessing || selectedItems.length === 0}
+              onClick={() => handleSignAndExecute(false)}
+            />
+          )}
           <PanelHeaderButton
             icon={isBpMode ? t("icon_rocket_launch", "rocket_launch") : t("icon_open_in_new", "open_in_new")}
             tooltip={
               isBpMode
-                ? t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
+                ? missingSelected.length > 0
+                  ? t("sig_queue_btn_deploy_and_download", "Deploy {Blueprint} & Open Missing Downloads")
+                  : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
                 : t("sig_queue_btn_continue_browser", "Continue to Creator Pages")
             }
             variant="success"
@@ -951,88 +960,22 @@ export function SignatureQueueSidePanel({
           </UniversalGroup>
         )}
 
-        {/* Citizen Signature & Zero-Trace Shredding Footer Card */}
+        {/* Citizen Signature & Zero-Trace Shredding Notice */}
         <UniversalGroup
           title={t("sig_queue_title", "Citizen Signature")}
           icon={t("icon_verified_user", "verified_user")}
         >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">
-                <span className="material-symbols-outlined !text-[15px]">
-                  {t("icon_verified_user", "verified_user")}
-                </span>
-                {t("sig_queue_shred_notice", "Approving or rejecting immediately shreds and wipes the temporary staging record from the cloud database.")}
-              </div>
-              {missingSelected.length > 0 && (
-                <p className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
-                  {t("sig_queue_no_asset_hosting_note", "No Silent Downloads: Approved missing {mods} open directly on the creators' original download pages in the Side Panel Browser.")}
-                </p>
-              )}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-[10px] font-black text-[var(--accent)] uppercase tracking-widest">
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_verified_user", "verified_user")}
+              </span>
+              {t("sig_queue_shred_notice", "Approving or rejecting immediately shreds and wipes the temporary staging record from the cloud database.")}
             </div>
-
-            {isBpMode ? (
-              <div className="flex flex-col gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
-                <button
-                  type="button"
-                  disabled={isProcessing || selectedItems.length === 0}
-                  onClick={() => handleSignAndExecute(true)}
-                  className={`w-full py-3.5 px-6 rounded-xl font-black text-[10.5px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
-                >
-                  <span className="material-symbols-outlined !text-[17px]">
-                    {t("icon_rocket_launch", "rocket_launch")}
-                  </span>
-                  {missingSelected.length > 0
-                    ? t("sig_queue_btn_deploy_and_download", "Deploy {Blueprint} & Open Missing Downloads")
-                    : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")}
-                </button>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_save", "save")}
-                    disabled={isProcessing || selectedItems.length === 0}
-                    onClick={() => handleSignAndExecute(false)}
-                    className="w-full justify-center !py-3"
-                  >
-                    {t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
-                  </ActionButton>
-
-                  <ActionButton
-                    variant="danger"
-                    icon={t("icon_delete_forever", "delete_forever")}
-                    disabled={isProcessing}
-                    onClick={handleRejectAndShred}
-                    className="w-full justify-center !py-3"
-                  >
-                    {t("sig_queue_btn_reject_shred", "Reject & Shred")}
-                  </ActionButton>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full">
-                <ActionButton
-                  variant="danger"
-                  icon={t("icon_delete_forever", "delete_forever")}
-                  disabled={isProcessing}
-                  onClick={handleRejectAndShred}
-                  className="w-full justify-center !py-3.5"
-                >
-                  {t("sig_queue_btn_reject_shred", "Reject & Shred")}
-                </ActionButton>
-
-                <button
-                  type="button"
-                  disabled={isProcessing || selectedItems.length === 0}
-                  onClick={() => handleSignAndExecute(true)}
-                  className={`w-full py-3.5 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 shadow-lg ${standardAccentGlassButtonClass}`}
-                >
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {t("icon_open_in_new", "open_in_new")}
-                  </span>
-                  {t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
-                </button>
-              </div>
+            {missingSelected.length > 0 && (
+              <p className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
+                {t("sig_queue_no_asset_hosting_note", "No Silent Downloads: Approved missing {mods} open directly on the creators' original download pages in the Side Panel Browser.")}
+              </p>
             )}
           </div>
         </UniversalGroup>
