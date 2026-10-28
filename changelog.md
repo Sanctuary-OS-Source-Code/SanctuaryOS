@@ -1,5 +1,5 @@
 **Date: October 28, 2026**
-**Version: 0.6.0-Dev.1**
+**Version: 0.6.0-Dev.0**
 
 ## Liquid Glass Surface Unification & Typography Polish
 
