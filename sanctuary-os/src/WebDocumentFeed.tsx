@@ -15,7 +15,10 @@ import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { SidePanelHeroCard, UniversalGroup } from "./components/layouts/ElevatedHubLayout";
 import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
-import { StructuredReleaseNotesView } from "./components/ReleaseNotesShowcase";
+import {
+  StructuredReleaseNotesView,
+  renderCleanInlineText,
+} from "./components/ReleaseNotesShowcase";
 import bundledCitizenGuide from "../../Citizen Guide.md?raw";
 import bundledRoadmapDoc from "../../Phase Roadmap.md?raw";
 import bundledForkingGuide from "../../Sanctuary OS Forking & Architecture Guide.md?raw";
@@ -1765,18 +1768,18 @@ export default function WebDocumentFeed() {
                                   {card.icon}
                                 </span>
                                 <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {card.title}
+                                  {renderCleanInlineText(card.title)}
                                 </h4>
                               </div>
-                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {card.desc}
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                                {renderCleanInlineText(card.desc)}
                               </p>
                             </div>
                           ))}
                         </div>
 
                         {step.tip && (
-                          <div className="glass-surface rounded-2xl p-4 flex items-start gap-2.5 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
+                          <div className="glass-surface rounded-2xl p-4 flex items-start gap-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
                             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
                               {t("icon_lightbulb", "lightbulb")}
                             </span>
@@ -1784,8 +1787,8 @@ export default function WebDocumentFeed() {
                               <span className="text-sm font-bold text-[var(--text)] leading-snug">
                                 {t("sd_guide_pro_tip_label", "{Citizen} Pro Tip")}
                               </span>
-                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {step.tip}
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                                {renderCleanInlineText(step.tip)}
                               </p>
                             </div>
                           </div>
@@ -1973,8 +1976,8 @@ export default function WebDocumentFeed() {
                           </div>
                         </div>
 
-                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                          {role.desc}
+                        <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
+                          {renderCleanInlineText(role.desc)}
                         </p>
                       </div>
 
@@ -2251,8 +2254,8 @@ export default function WebDocumentFeed() {
                         </div>
                       </div>
 
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {phase.desc}
+                      <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
+                        {renderCleanInlineText(phase.desc)}
                       </p>
                     </div>
 
@@ -2280,11 +2283,13 @@ export default function WebDocumentFeed() {
                                     : t("icon_check_circle", "check_circle")}
                                 </span>
                                 <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {m.title.replace(/^(✅|⏳)\s*/, "")}
+                                  {renderCleanInlineText(
+                                    m.title.replace(/^(✅|⏳)\s*/, "")
+                                  )}
                                 </h4>
                               </div>
-                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {m.desc}
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                                {renderCleanInlineText(m.desc)}
                               </p>
                             </div>
                           );
@@ -4652,7 +4657,7 @@ export default function WebDocumentFeed() {
                 icon: t("icon_verified", "verified"),
                 label: t("verified", "Verified"),
                 colorClass:
-                  "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+                  "text-[var(--text)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
               },
             ]}
           />

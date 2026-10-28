@@ -717,7 +717,7 @@ export default function LexiconVisualStudio({
     return (
       <div
         key={key}
-        className={`glass-surface rounded-xl p-2.5 px-3 border flex flex-col justify-between gap-1.5 transition-all ${
+        className={`glass-surface rounded-xl px-3.5 py-2.5 border flex flex-col justify-between gap-1.5 transition-all ${
           isLockedField
             ? "border-[color-mix(in_srgb,var(--warning)_22%,transparent)] opacity-75"
             : isCustomized
@@ -725,7 +725,7 @@ export default function LexiconVisualStudio({
               : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
         } ${isLong ? "md:col-span-2" : ""}`}
       >
-        <div className="flex items-center justify-between gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-2 min-w-0 px-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
             {isLockedField && (
               <span className="material-symbols-outlined !text-[13px] text-[var(--warning)] shrink-0">
@@ -749,9 +749,12 @@ export default function LexiconVisualStudio({
                 <button
                   type="button"
                   onClick={() => handleUpdateKey(key, sancVal)}
-                  className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-transparent text-[9px] font-black text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all cursor-pointer"
+                  className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer"
                 >
-                  {t("lex_studio_preset_sanctuary", "Sanctuary")}
+                  <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                    {t("icon_auto_awesome", "auto_awesome")}
+                  </span>
+                  <span>{t("lex_studio_preset_sanctuary", "Sanctuary")}</span>
                   <HoverTooltip title={String(sancVal)} />
                 </button>
               )}
@@ -759,9 +762,12 @@ export default function LexiconVisualStudio({
               <button
                 type="button"
                 onClick={() => handleResetKey(key)}
-                className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_18%,transparent)] bg-transparent text-[9px] font-black text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer"
               >
-                {t("reset", "Reset")}
+                <span className="material-symbols-outlined !text-[11px] text-[var(--subtext)]">
+                  {t("icon_restart_alt", "restart_alt")}
+                </span>
+                <span>{t("reset", "Reset")}</span>
                 <HoverTooltip title={String(refVal)} />
               </button>
             )}
@@ -776,7 +782,7 @@ export default function LexiconVisualStudio({
             value={rawVal ?? ""}
             placeholder={String(refVal)}
             onChange={(e) => handleUpdateKey(key, e.target.value)}
-            className={`w-full glass-panel rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] resize-y ${
+            className={`w-full glass-surface rounded-lg px-3.5 py-1.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] resize-y ${
               isLockedField ? "cursor-not-allowed opacity-75" : ""
             }`}
           />
@@ -788,7 +794,7 @@ export default function LexiconVisualStudio({
             value={rawVal ?? ""}
             placeholder={String(refVal)}
             onChange={(e) => handleUpdateKey(key, e.target.value)}
-            className={`w-full h-[34px] glass-panel rounded-lg px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] ${
+            className={`w-full h-[34px] glass-surface rounded-lg px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)] ${
               isLockedField ? "cursor-not-allowed opacity-75" : ""
             }`}
           />
@@ -902,13 +908,13 @@ export default function LexiconVisualStudio({
                   return (
                     <div
                       key={term.key}
-                      className={`glass-surface rounded-xl p-2.5 px-3 border flex flex-col justify-between gap-1.5 transition-all ${
+                      className={`glass-surface rounded-xl px-3.5 py-2.5 border flex flex-col justify-between gap-1.5 transition-all ${
                         isCustom
                           ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
                           : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 px-0.5">
                         <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5 truncate">
                           <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
                             {t(`icon_${term.icon}`, term.icon)}
@@ -918,7 +924,7 @@ export default function LexiconVisualStudio({
                           </span>
                         </label>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
+                          <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-mono font-bold text-[var(--text)]">
                             {`{${term.token}}`}
                           </span>
                           {isCustom && (
@@ -940,7 +946,7 @@ export default function LexiconVisualStudio({
                         value={rawVal ?? ""}
                         placeholder={String(refVal)}
                         onChange={(e) => handleUpdateKey(term.key, e.target.value)}
-                        className="w-full h-[34px] glass-panel rounded-lg px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full h-[34px] glass-surface rounded-lg px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                       />
                     </div>
                   );
@@ -966,13 +972,13 @@ export default function LexiconVisualStudio({
                 <button
                   type="button"
                   onClick={() => setOnlyCustomized(!onlyCustomized)}
-                  className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                  className={`h-8 px-3 rounded-xl glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
                     onlyCustomized
-                      ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                      : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                      ? "sa-glass-pill-active text-[var(--text)]"
+                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                   }`}
                 >
-                  <span className="material-symbols-outlined !text-[14px]">
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                     {t("icon_tune", "tune")}
                   </span>
                   <span>{t("modified", "Customized")}</span>
@@ -1011,7 +1017,7 @@ export default function LexiconVisualStudio({
                     className="glass-panel rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
@@ -1027,7 +1033,7 @@ export default function LexiconVisualStudio({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] tabular-nums font-bold">
                         {`${customInSec} / ${filtered.length}`}
                       </span>
                       <ActionButton
@@ -1080,7 +1086,7 @@ export default function LexiconVisualStudio({
                             }
                             className="!w-7 !h-7 !rounded-lg"
                           />
-                          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] px-2">
+                          <span className="text-[10px] tabular-nums font-bold text-[var(--subtext)] px-2">
                             {`${safePage + 1} / ${totalPages}`}
                           </span>
                           <ActionButton
@@ -1134,13 +1140,13 @@ export default function LexiconVisualStudio({
                 <button
                   type="button"
                   onClick={() => setOnlyCustomized(!onlyCustomized)}
-                  className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
+                  className={`h-8 px-3 rounded-xl glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
                     onlyCustomized
-                      ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                      : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                      ? "sa-glass-pill-active text-[var(--text)]"
+                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                   }`}
                 >
-                  <span className="material-symbols-outlined !text-[14px]">
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                     {t("icon_tune", "tune")}
                   </span>
                   <span>{t("modified", "Customized")}</span>
@@ -1179,7 +1185,7 @@ export default function LexiconVisualStudio({
                     className="glass-panel rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-60 hover:opacity-95 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[17px]">
                           {sec.icon}
                         </span>
@@ -1195,7 +1201,7 @@ export default function LexiconVisualStudio({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] bg-transparent text-[var(--subtext)] text-[10px] font-mono font-bold">
+                      <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] tabular-nums font-bold">
                         {`${customInSec} / ${filtered.length}`}
                       </span>
                       <ActionButton
@@ -1248,7 +1254,7 @@ export default function LexiconVisualStudio({
                             }
                             className="!w-7 !h-7 !rounded-lg"
                           />
-                          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] px-2">
+                          <span className="text-[10px] tabular-nums font-bold text-[var(--subtext)] px-2">
                             {`${safePage + 1} / ${totalPages}`}
                           </span>
                           <ActionButton
@@ -1472,7 +1478,7 @@ export default function LexiconVisualStudio({
                             activeIconPickerKey === iconKey ? null : iconKey
                           )
                         }
-                        className="px-2.5 py-1 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase text-[var(--subtext)] hover:text-[var(--accent)] cursor-pointer shrink-0"
+                        className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase text-[var(--text)] cursor-pointer shrink-0"
                       >
                         {t("edit", "Edit")}
                       </button>

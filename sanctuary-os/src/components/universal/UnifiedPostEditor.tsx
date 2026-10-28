@@ -12,6 +12,7 @@ import {
   parseMarkdownIntoReleaseSections,
   ParsedReleaseSection,
   ParsedReleaseCard,
+  renderCleanInlineText,
 } from "../ReleaseNotesShowcase";
 import { DispatchPollBuilder, DispatchPollData } from "./DispatchPollAndMeta";
 
@@ -454,7 +455,7 @@ export function UnifiedPostBodyEditor({
         }}
         className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
           active
-            ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] scale-105"
+            ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_18%,transparent)] scale-105"
             : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[rgba(var(--text-rgb),0.06)] border border-transparent"
         }`}
       >
@@ -486,7 +487,7 @@ export function UnifiedPostBodyEditor({
           {/* Top Action Bar (Quick Add Section, Add Card, Add/Edit Intro) */}
           <div className="glass-panel p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
-              <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+              <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                   {t("icon_dashboard", "dashboard")}
                 </span>
@@ -500,7 +501,7 @@ export function UnifiedPostBodyEditor({
               <button
                 type="button"
                 onClick={handleAddIntro}
-                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_short_text", "short_text")}
@@ -514,7 +515,7 @@ export function UnifiedPostBodyEditor({
               <button
                 type="button"
                 onClick={() => handleQuickAddCard("top")}
-                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_add_box", "add_box")}
@@ -524,9 +525,9 @@ export function UnifiedPostBodyEditor({
               <button
                 type="button"
                 onClick={() => handleAddSection("top")}
-                className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[15px]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_post_add", "post_add")}
                 </span>
                 <span>{t("visual_editor_new_section", "New Section")}</span>
@@ -538,10 +539,10 @@ export function UnifiedPostBodyEditor({
           {hasIntro && (
             <div className="flex flex-col gap-2.5 w-full">
               {activeTarget === "intro" ? (
-                <div className="glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                <div className="glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[rgba(var(--text-rgb),0.08)]">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[14px]">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                         {t("icon_short_text", "short_text")}
                       </span>
                       {t("overview", "Overview")}
@@ -550,9 +551,9 @@ export function UnifiedPostBodyEditor({
                       <button
                         type="button"
                         onClick={() => handleDeleteIntro()}
-                        className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                        className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                       >
-                        <span className="material-symbols-outlined !text-[13px]">
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
                           {t("icon_delete", "delete")}
                         </span>
                         <span>{t("btn_delete", "{Delete}")}</span>
@@ -560,9 +561,9 @@ export function UnifiedPostBodyEditor({
                       <button
                         type="button"
                         onClick={() => setActiveTarget(null)}
-                        className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                       >
-                        <span className="material-symbols-outlined !text-[13px]">
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                           {t("icon_check", "check")}
                         </span>
                         <span>{t("btn_done", "Done")}</span>
@@ -578,9 +579,9 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro" ? null : "intro"
                           )
                         }
-                        className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                        className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                       >
-                        <span className="material-symbols-outlined !text-[18px]">
+                        <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                           {resolveSectionIcon(
                             visualDoc.introTitle || "Welcome",
                             visualDoc.introIcon || "verified"
@@ -654,9 +655,9 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro-view" ? null : "intro-view"
                           )
                         }
-                        className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
+                        className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1 cursor-pointer transition-all"
                       >
-                        <span className="material-symbols-outlined !text-[14px]">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                           {t("icon_add_reaction", "add_reaction")}
                         </span>
                         <span className="text-[9px] font-black uppercase tracking-wider">
@@ -713,7 +714,7 @@ export function UnifiedPostBodyEditor({
                           iconPickerFor === "intro-view" ? null : "intro-view"
                         );
                       }}
-                      className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
+                      className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                     >
                       <span className="material-symbols-outlined !text-[17px]">
                         {resolveSectionIcon(
@@ -725,12 +726,14 @@ export function UnifiedPostBodyEditor({
                     </button>
                     {visualDoc.introTitle && (
                       <h3 className="text-sm sm:text-base font-black text-[var(--text)]">
-                        {visualDoc.introTitle}
+                        {renderCleanInlineText(visualDoc.introTitle)}
                       </h3>
                     )}
                   </div>
-                  <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-85 leading-relaxed pr-12">
-                    {visualDoc.intro || t("edit", "Click to edit...")}
+                  <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed pr-12">
+                    {visualDoc.intro
+                      ? renderCleanInlineText(visualDoc.intro)
+                      : t("edit", "Click to edit...")}
                   </p>
                 </div>
               )}
@@ -764,9 +767,9 @@ export function UnifiedPostBodyEditor({
                               : secIconPickerKey
                           )
                         }
-                        className="h-9 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
+                        className="h-9 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1 cursor-pointer transition-all"
                       >
-                        <span className="material-symbols-outlined !text-[18px]">
+                        <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                           {resolveSectionIcon(section.title, section.icon)}
                         </span>
                         <span className="material-symbols-outlined !text-[13px] opacity-70">
@@ -805,9 +808,9 @@ export function UnifiedPostBodyEditor({
                             : secIconPickerKey
                         )
                       }
-                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
+                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                     >
-                      <span className="material-symbols-outlined !text-[14px]">
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                         {t("icon_add_reaction", "add_reaction")}
                       </span>
                       <span className="hidden sm:inline">
@@ -818,9 +821,9 @@ export function UnifiedPostBodyEditor({
                     <button
                       type="button"
                       onClick={() => handleAddCardToSection(sIdx)}
-                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
+                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                     >
-                      <span className="material-symbols-outlined !text-[14px]">
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                         {t("icon_add", "add")}
                       </span>
                       <span className="hidden sm:inline">
@@ -864,9 +867,9 @@ export function UnifiedPostBodyEditor({
                 {/* Section Lead Paragraph Box */}
                 {hasLead &&
                   (isLeadEditing ? (
-                    <div className="glass-panel rounded-2xl p-4 flex flex-col gap-2.5 !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                    <div className="glass-panel rounded-2xl p-4 flex flex-col gap-2.5 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
                           {t("visual_editor_add_summary", "Section Summary")}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -878,9 +881,9 @@ export function UnifiedPostBodyEditor({
                               });
                               setActiveTarget(null);
                             }}
-                            className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                            className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                           >
-                            <span className="material-symbols-outlined !text-[13px]">
+                            <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
                               {t("icon_delete", "delete")}
                             </span>
                             <span>{t("btn_delete", "{Delete}")}</span>
@@ -888,9 +891,9 @@ export function UnifiedPostBodyEditor({
                           <button
                             type="button"
                             onClick={() => setActiveTarget(null)}
-                            className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                            className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                           >
-                            <span className="material-symbols-outlined !text-[13px]">
+                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                               {t("icon_check", "check")}
                             </span>
                             <span>{t("btn_done", "Done")}</span>
@@ -948,8 +951,10 @@ export function UnifiedPostBodyEditor({
                           <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                         </button>
                       </div>
-                      <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed pr-12">
-                        {section.description}
+                      <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed pr-12">
+                        {section.description
+                          ? renderCleanInlineText(section.description)
+                          : null}
                       </p>
                     </div>
                   ))}
@@ -974,11 +979,11 @@ export function UnifiedPostBodyEditor({
                       return (
                         <div
                           key={cardKey}
-                          className="md:col-span-2 glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                          className="md:col-span-2 glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[rgba(var(--text-rgb),0.08)]">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
-                              <span className="material-symbols-outlined !text-[14px]">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5">
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                                 {t("icon_edit_note", "edit_note")}
                               </span>
                               #{cIdx + 1}
@@ -1025,9 +1030,9 @@ export function UnifiedPostBodyEditor({
                               <button
                                 type="button"
                                 onClick={() => handleDeleteCard(sIdx, cIdx)}
-                                className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                                className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined !text-[13px]">
+                                <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
                                   {t("icon_delete", "delete")}
                                 </span>
                                 <span>{t("btn_delete", "{Delete}")}</span>
@@ -1035,9 +1040,9 @@ export function UnifiedPostBodyEditor({
                               <button
                                 type="button"
                                 onClick={() => setActiveTarget(null)}
-                                className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                                className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined !text-[13px]">
+                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                                   {t("icon_check", "check")}
                                 </span>
                                 <span>{t("btn_done", "Done")}</span>
@@ -1056,9 +1061,9 @@ export function UnifiedPostBodyEditor({
                                       : cardIconKey
                                   )
                                 }
-                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined !text-[18px]">
+                                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                   {card.icon
                                     ? t(`icon_${card.icon}`, card.icon)
                                     : t("icon_add_reaction", "add_reaction")}
@@ -1291,7 +1296,7 @@ export function UnifiedPostBodyEditor({
                                       : cardIconKey
                                   );
                                 }}
-                                className="w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
+                                className="w-7 h-7 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                               >
                                 <span className="material-symbols-outlined !text-[15px]">
                                   {t(`icon_${card.icon}`, card.icon)}
@@ -1301,13 +1306,15 @@ export function UnifiedPostBodyEditor({
                             )}
                             {card.title && (
                               <h3 className="text-sm font-bold text-[var(--text)] leading-snug">
-                                {card.title}
+                                {renderCleanInlineText(card.title)}
                               </h3>
                             )}
                           </div>
                         )}
-                        <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed pr-8">
-                          {bodyValue || t("edit", "Click to edit...")}
+                        <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed pr-8">
+                          {bodyValue
+                            ? renderCleanInlineText(bodyValue)
+                            : t("edit", "Click to edit...")}
                         </p>
 
                         {card.subItems && card.subItems.length > 0 && (
@@ -1319,12 +1326,12 @@ export function UnifiedPostBodyEditor({
                               >
                                 {sub.title && (
                                   <span className="text-xs font-bold text-[var(--text)]">
-                                    {sub.title}
+                                    {renderCleanInlineText(sub.title)}
                                   </span>
                                 )}
                                 {sub.body && (
-                                  <span className="text-xs text-[var(--text)] opacity-80 leading-relaxed">
-                                    {sub.body}
+                                  <span className="text-xs text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed">
+                                    {renderCleanInlineText(sub.body)}
                                   </span>
                                 )}
                               </div>
@@ -1341,9 +1348,9 @@ export function UnifiedPostBodyEditor({
                   <button
                     type="button"
                     onClick={() => handleAddCardToSection(sIdx)}
-                    className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[15px]">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                       {t("icon_add_box", "add_box")}
                     </span>
                     <span>{t("visual_editor_add_card", "Add Card")}</span>
@@ -1355,7 +1362,7 @@ export function UnifiedPostBodyEditor({
                         handleUpdateSection(sIdx, { description: "" });
                         setActiveTarget(leadKey);
                       }}
-                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[var(--text)] hover:text-[var(--accent)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                         {t("icon_notes", "notes")}
@@ -1373,7 +1380,7 @@ export function UnifiedPostBodyEditor({
           {/* Bottom Action Bar (Matching Top Bar for Quick Access at Bottom of Post) */}
           <div className="glass-panel p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
-              <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+              <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                   {t("icon_dashboard", "dashboard")}
                 </span>
@@ -1388,7 +1395,7 @@ export function UnifiedPostBodyEditor({
                 <button
                   type="button"
                   onClick={handleAddIntro}
-                  className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                     {t("icon_short_text", "short_text")}
@@ -1399,7 +1406,7 @@ export function UnifiedPostBodyEditor({
               <button
                 type="button"
                 onClick={() => handleQuickAddCard("bottom")}
-                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_add_box", "add_box")}
@@ -1409,9 +1416,9 @@ export function UnifiedPostBodyEditor({
               <button
                 type="button"
                 onClick={() => handleAddSection("bottom")}
-                className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <span className="material-symbols-outlined !text-[15px]">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                   {t("icon_post_add", "post_add")}
                 </span>
                 <span>{t("visual_editor_new_section", "New Section")}</span>

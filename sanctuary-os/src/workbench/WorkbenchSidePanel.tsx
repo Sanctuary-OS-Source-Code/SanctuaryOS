@@ -47,7 +47,10 @@ const WorkbenchCategoryBar = ({
    ];
 
    return (
-      <div className="flex items-start justify-between gap-2 p-2 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-full">
+      <div
+         className="flex items-start justify-between gap-2 p-2 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full"
+         style={{ "--glass-surface-outer-shadow": "0 0 #0000" } as React.CSSProperties}
+      >
          <div
             className={`flex items-center gap-1.5 flex-1 min-w-0 ${
                isExpanded ? 'flex-wrap' : 'overflow-x-auto custom-scrollbar pb-0.5'
@@ -60,25 +63,25 @@ const WorkbenchCategoryBar = ({
                      key={item.id}
                      type="button"
                      onClick={() => onSelectCategory(item.id)}
-                     className={`h-8 px-3 rounded-xl text-[11px] font-black tracking-wide transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
+                     className={`h-8 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
                         isActive
-                           ? 'glass-panel !border-[color-mix(in_srgb,var(--accent)_60%,transparent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
-                           : 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                           ? 'bg-[color-mix(in_srgb,var(--accent)_10%,rgba(255,255,255,0.04))] border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.20))] text-[var(--text)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]'
+                           : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
                      }`}
                   >
                      <span
                         className={`material-symbols-outlined !text-[15px] ${
-                           isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-80'
+                           isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-75'
                         }`}
                      >
                         {item.icon}
                      </span>
-                     <span className=" whitespace-nowrap">{item.label}</span>
+                     <span className="whitespace-nowrap">{item.label}</span>
                      <span
-                        className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                        className={`text-[10px] font-extrabold tabular-nums ml-0.5 ${
                            isActive
-                              ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)]'
-                              : 'bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--subtext)] opacity-75'
+                              ? 'text-[var(--accent)]'
+                              : 'text-[var(--subtext)] opacity-55'
                         }`}
                      >
                         {item.count}
@@ -93,7 +96,7 @@ const WorkbenchCategoryBar = ({
                <button
                   type="button"
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                  className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex items-center justify-center transition-all cursor-pointer"
                >
                   <span className="material-symbols-outlined !text-[16px]">
                      {isExpanded
@@ -418,12 +421,7 @@ export function WorkbenchSidePanel({
                      }}
                   >
                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                           className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0"
-                           style={{
-                              borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                           }}
-                        >
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--danger)] group-hover/problem:animate-pulse shrink-0">
                            <span className="material-symbols-outlined !text-[20px]">{t("icon_error", "error")}</span>
                         </div>
 
@@ -445,7 +443,7 @@ export function WorkbenchSidePanel({
                                  </span>
                               </div>
 
-                              <div className={`${VAULT_CHIP_CLASS} font-mono`}>
+                              <div className={`${VAULT_CHIP_CLASS} tabular-nums`}>
                                  <span className="material-symbols-rounded !text-[12px] text-[var(--danger)] shrink-0">
                                     {t("icon_code", "code")}
                                  </span>
@@ -464,7 +462,7 @@ export function WorkbenchSidePanel({
                      <div className="pl-3 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
                         <button
                            onClick={(e) => { e.stopPropagation(); editorState.setProblemsList([]); }}
-                           className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,var(--border))] hover:border-[var(--danger)] flex items-center justify-center text-[var(--danger)] opacity-80 hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                           className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center text-[var(--danger)] opacity-80 hover:opacity-100 transition-all shrink-0 cursor-pointer"
                         >
                            <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
                            <HoverTooltip title={t("close", "Close")} />
@@ -503,12 +501,12 @@ export function WorkbenchSidePanel({
                                                    onClick={() => setOnlyUnsaved(!onlyUnsaved)}
                                                    className={`h-8 px-2.5 rounded-full text-[10px] font-black tracking-wider glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
                                                       onlyUnsaved
-                                                         ? '!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[var(--warning)]'
-                                                         : '!border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] opacity-85 hover:opacity-100'
+                                                         ? 'sa-glass-pill-active text-[var(--text)]'
+                                                         : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]'
                                                    }`}
                                                 >
-                                                   <span className="material-symbols-outlined !text-[14px]">{t("icon_edit_note", "edit_note")}</span>
-                                                   <span>{unsavedEditCount}</span>
+                                                   <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                                                   <span className="tabular-nums">{unsavedEditCount}</span>
                                                 </button>
                                                 <HoverTooltip title={t("workbench_filter_unsaved_only", "Unsaved Edits Only")} />
                                              </div>
@@ -516,7 +514,7 @@ export function WorkbenchSidePanel({
                                                 <button
                                                    type="button"
                                                    onClick={() => editorState.handleUndoAllUnsaved()}
-                                                   className="w-8 h-8 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
+                                                   className="w-8 h-8 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
                                                 >
                                                    <span className="material-symbols-outlined !text-[15px]">{t("icon_undo", "undo")}</span>
                                                 </button>
@@ -533,12 +531,12 @@ export function WorkbenchSidePanel({
                                                    onClick={() => setOnlyModified(!onlyModified)}
                                                    className={`h-8 px-2.5 rounded-full text-[10px] font-black tracking-wider glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
                                                       onlyModified
-                                                         ? '!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]'
-                                                         : '!border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] opacity-85 hover:opacity-100'
+                                                         ? 'sa-glass-pill-active text-[var(--text)]'
+                                                         : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]'
                                                    }`}
                                                 >
-                                                   <span className="material-symbols-outlined !text-[14px]">{t("icon_track_changes", "track_changes")}</span>
-                                                   <span>{modifiedCount}</span>
+                                                   <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                                                   <span className="tabular-nums">{modifiedCount}</span>
                                                 </button>
                                                 <HoverTooltip title={t("workbench_filter_modified_only", "Modified Only")} />
                                              </div>
@@ -546,7 +544,7 @@ export function WorkbenchSidePanel({
                                                 <button
                                                    type="button"
                                                    onClick={handleResetAllModified}
-                                                   className="w-8 h-8 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                                                   className="w-8 h-8 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                                                 >
                                                    <span className="material-symbols-outlined !text-[15px]">{t("icon_restart_alt", "restart_alt")}</span>
                                                 </button>
@@ -820,12 +818,7 @@ export function WorkbenchSidePanel({
                                     </>
                                  ) : (
                                     <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-2 flex items-center gap-2.5 w-fit">
-                                       <div
-                                          className="w-9 h-9 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                                          style={{
-                                             borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                                          }}
-                                       >
+                                       <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                           <span className="material-symbols-outlined !text-[18px]">
                                              {t("icon_description", "description")}
                                           </span>

@@ -12,13 +12,11 @@ import {
   DashboardStatTile,
   EmptyState,
   GlassSegmentedControl,
-  HoverTabDrawer,
   HoverTooltip,
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
   StatBox,
-  VerticalTabButton,
   ViewHeader,
   cleanSearchName,
   getModIcon,
@@ -1015,26 +1013,7 @@ export default function StagingPayloadEditor({
             )}
           </ViewHeader>
 
-          <div className="md:hidden">
-            <HoverTabDrawer
-              title={t("playsets_title", "{Blueprints}")}
-              activeTab={activeSubTab}
-              setTab={setActiveSubTab}
-            >
-              {subTabs.map((st) => (
-                <VerticalTabButton
-                  key={st.id}
-                  id={st.id}
-                  icon={st.icon}
-                  label={st.label}
-                  activeTab={activeSubTab}
-                  setTab={setActiveSubTab}
-                />
-              ))}
-            </HoverTabDrawer>
-          </div>
-
-          <div className="hidden md:flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 shrink-0">
+          <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 shrink-0">
             <StatTileCarousel>
               {subTabs.map((st) => (
                 <DashboardStatTile
@@ -1051,18 +1030,20 @@ export default function StagingPayloadEditor({
           </div>
         </>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 w-full">
-          {subTabs.map((st) => (
-            <DashboardStatTile
-              key={st.id}
-              variant="filter"
-              icon={st.icon}
-              label={st.label}
-              number={st.count}
-              onClick={() => setActiveSubTab(st.id)}
-              isActive={activeSubTab === st.id}
-            />
-          ))}
+        <div className="flex flex-col w-full gap-3 mb-6 relative z-10 shrink-0">
+          <StatTileCarousel innerClassName="px-0">
+            {subTabs.map((st) => (
+              <DashboardStatTile
+                key={st.id}
+                variant="tab"
+                icon={st.icon}
+                label={st.label}
+                number={st.count}
+                onClick={() => setActiveSubTab(st.id)}
+                isActive={activeSubTab === st.id}
+              />
+            ))}
+          </StatTileCarousel>
         </div>
       )}
 

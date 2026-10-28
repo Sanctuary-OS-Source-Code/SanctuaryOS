@@ -80,7 +80,7 @@ function GlassNumberInput({
           if (typeof max === "number") clamped = Math.min(max, clamped);
           onChange(clamped);
         }}
-        className={`flex-1 min-w-0 w-full bg-transparent border-none text-center text-xs font-mono font-bold focus:outline-none px-1 ${
+        className={`flex-1 min-w-0 w-full bg-transparent border-none text-center text-xs tabular-nums font-bold focus:outline-none px-1 ${
           accentText ? "text-[var(--accent)]" : "text-[var(--text)]"
         }`}
       />
@@ -261,7 +261,7 @@ function KeyValueMapBuilder({
               key={k}
               className="grid grid-cols-[minmax(95px,135px)_minmax(0,1fr)_auto] gap-2 items-center min-w-0"
             >
-              <div className="h-10 glass-panel rounded-xl px-3 flex items-center text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] truncate min-w-0">
+              <div className="h-10 glass-surface rounded-xl px-3.5 flex items-center text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] truncate min-w-0">
                 <span className="truncate min-w-0">
                   {k}
                   <HoverTooltip title={k} onlyWhenTruncated />
@@ -413,7 +413,7 @@ function TargetListBuilder({
           type="button"
           onClick={handleAdd}
           disabled={!draftName.trim()}
-          className="w-10 h-10 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] flex items-center justify-center cursor-pointer disabled:opacity-40"
+          className="w-10 h-10 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center cursor-pointer disabled:opacity-40"
         >
           <span className="material-symbols-outlined !text-[16px]">{t("icon_add", "add")}</span>
         </button>
@@ -545,7 +545,7 @@ export default function SchemaVisualStudio({
     return (
       <div className="p-8 flex flex-col items-center justify-center h-full">
         <div className="glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--danger)_40%,transparent)] max-w-xl w-full text-center flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center text-[var(--danger)]">
+          <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--danger)]">
             <span className="material-symbols-outlined !text-3xl">{t("icon_error", "error")}</span>
           </div>
           <h3 className="text-lg font-black text-[var(--text)] tracking-wide">

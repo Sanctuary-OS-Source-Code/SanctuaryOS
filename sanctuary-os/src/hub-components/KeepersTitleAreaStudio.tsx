@@ -437,8 +437,9 @@ export default function KeepersTitleAreaStudio({
                           <button
                             type="button"
                             onClick={() => handleDeleteSubtitle(subKey)}
-                            className="px-2 py-0.5 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-transparent text-[9px] font-black text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all cursor-pointer"
+                            className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer"
                           >
+                            <span className="material-symbols-outlined !text-[10px] text-[var(--danger)]">{t("icon_delete", "delete")}</span>
                             {t("delete", "Delete")}
                           </button>
                         )}
@@ -450,7 +451,7 @@ export default function KeepersTitleAreaStudio({
                       value={curVal}
                       placeholder={defVal}
                       onChange={(e) => handleUpdateKey(subKey, e.target.value)}
-                      className="w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full h-10 glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 );

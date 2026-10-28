@@ -219,14 +219,17 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 min-h-[76px] h-[calc(72px+env(safe-area-inset-bottom,0px))] z-[999999] glass-panel sa-mobile-glass-overlay !rounded-none !border-x-0 !border-b-0 overflow-hidden"
+        className="md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[999999] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
         style={{
           backgroundColor: 'var(--glass-sidebar-bg)',
           borderTopColor: 'var(--glass-border-top)',
+          borderLeftColor: 'var(--glass-border-left)',
+          borderRightColor: 'var(--glass-border-right)',
+          borderBottomColor: 'var(--glass-border-bottom)',
           boxShadow: 'var(--glass-sidebar-shadow, var(--glass-outer-shadow), var(--glass-inset-highlight))',
         }}
       >
-        <div className="relative z-10 w-full h-full flex items-center justify-around px-2.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] gap-1.5">
+        <div className="relative z-10 w-full h-full flex items-center justify-around px-2 py-1.5 gap-1.5">
           {tabs.map(tab => {
             const isLandingView = isLandingContext && view !== 'settings' && view !== 'KeepersCore';
             const isActive =
@@ -270,12 +273,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Mobile "More" Menu Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isMenuOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'
         }`}
       >
         <div
-          className={`mx-3.5 mb-3 glass-panel sa-mobile-glass-overlay rounded-[var(--radius,1.5rem)] overflow-hidden relative flex flex-col max-h-[68vh] ${
+          className={`mx-3.5 mb-2 glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden relative flex flex-col max-h-[68vh] ${
             isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{
@@ -451,12 +454,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Hub Navigation Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isHubNavOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'
         }`}
       >
         <div
-          className={`mx-3.5 mb-3 glass-panel sa-mobile-glass-overlay rounded-[var(--radius,1.5rem)] overflow-hidden relative flex flex-col max-h-[calc(100dvh-120px)] ${
+          className={`mx-3.5 mb-2 glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden relative flex flex-col max-h-[calc(100dvh-120px)] ${
             isHubNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{

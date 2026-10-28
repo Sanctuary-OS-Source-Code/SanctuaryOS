@@ -61,7 +61,7 @@ export function HoverTabDrawer({
   panelClassName = "",
   panelStyle = {},
   onHoverChange,
-  hideMobilePills,
+  hideMobilePills = true,
 }: any) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const isLeft = position === "left";

@@ -703,7 +703,7 @@ export default function TimeCapsule({
         </HoverTabDrawer>
       </div>
 
-      <div className="hidden md:flex flex-col w-full gap-3 mb-8 md:mb-10">
+      <div className="flex flex-col w-full gap-3 mb-8 md:mb-10">
         <StatTileCarousel>
           <DashboardStatTile
             variant="tab"

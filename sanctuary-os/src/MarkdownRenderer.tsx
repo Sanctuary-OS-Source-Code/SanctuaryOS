@@ -93,6 +93,9 @@ export default function MarkdownRenderer({
               {...props}
             />
           ),
+          strong: ({ node, ...props }) => (
+            <strong className="font-black text-[var(--text)]" {...props} />
+          ),
           pre: ({ children }) => <>{children}</>,
           code: ({ node, className, children, ...props }: any) => {
             const match = /language-(\w+)/.exec(className || "");
@@ -105,7 +108,7 @@ export default function MarkdownRenderer({
             if (isInline) {
               return (
                 <code
-                  className="bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] px-1.5 py-0.5 rounded-md font-semibold text-xs text-[var(--text)]"
+                  className="px-2 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-sans font-bold text-xs text-[var(--text)]"
                   {...props}
                 >
                   {children}

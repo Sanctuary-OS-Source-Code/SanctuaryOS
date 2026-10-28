@@ -31,7 +31,10 @@ import { UniversalCard } from "../components/universal/UniversalCard";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
-import { ReleaseNotesShowcase } from "../components/ReleaseNotesShowcase";
+import {
+  ReleaseNotesShowcase,
+  renderCleanInlineText,
+} from "../components/ReleaseNotesShowcase";
 import {
   UnifiedPostBodyEditor,
   PostAttachmentsManager,
@@ -2010,7 +2013,7 @@ export default function KeepersWebDirectivesEditor({
 
                   {/* 2. Top Action Bar + Liquid Glass Add Card Button */}
                   <div className="glass-panel p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
-                    <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+                    <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5">
                       <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                         {t("icon_dashboard", "dashboard")}
                       </span>
@@ -2022,9 +2025,9 @@ export default function KeepersWebDirectivesEditor({
                     <button
                       type="button"
                       onClick={() => handleAddCardToTab(activeBuilderTabIdx)}
-                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                     >
-                      <span className="material-symbols-outlined !text-[15px]">
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                         {t("icon_add_box", "add_box")}
                       </span>
                       <span>{t("dir_builder_add_card", "Add Card")}</span>
@@ -2057,7 +2060,7 @@ export default function KeepersWebDirectivesEditor({
                             className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-50 hover:opacity-85 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                 <span className="material-symbols-outlined !text-[18px]">
                                   {card.icon || t("icon_layers", "layers")}
                                 </span>
@@ -2067,7 +2070,7 @@ export default function KeepersWebDirectivesEditor({
                                   {card.overline || `#${cardIdx + 1}`}
                                 </span>
                                 <span className="text-sm font-black text-[var(--text)] truncate">
-                                  {card.title}
+                                  {renderCleanInlineText(card.title)}
                                 </span>
                               </div>
                             </div>
@@ -2077,7 +2080,7 @@ export default function KeepersWebDirectivesEditor({
                               onClick={(e) => e.stopPropagation()}
                             >
                               {card.badge && (
-                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] text-[9px] font-black uppercase tracking-wider mr-1">
+                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1">
                                   {card.badge}
                                 </span>
                               )}
@@ -2218,9 +2221,9 @@ export default function KeepersWebDirectivesEditor({
                                         }
                                   )
                                 }
-                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined !text-[18px]">
+                                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                   {card.icon || t("icon_layers", "layers")}
                                 </span>
                                 <span className="text-[10px] font-black uppercase tracking-wider">
@@ -2402,10 +2405,10 @@ export default function KeepersWebDirectivesEditor({
                                           </span>
                                           <div className="flex flex-col min-w-0 flex-1">
                                             <span className="text-xs font-bold text-[var(--text)] truncate">
-                                              {sub.title}
+                                              {renderCleanInlineText(sub.title)}
                                             </span>
-                                            <span className="text-[11px] text-[var(--subtext)] opacity-80 truncate">
-                                              {sub.desc}
+                                            <span className="text-[11px] text-[color-mix(in_srgb,var(--text)_78%,transparent)] truncate">
+                                              {renderCleanInlineText(sub.desc)}
                                             </span>
                                           </div>
                                         </div>
@@ -2416,13 +2419,18 @@ export default function KeepersWebDirectivesEditor({
                                         >
                                           {activeCanonicalSlug ===
                                             "phase_roadmap" && (
-                                            <span
-                                              className={`px-2 py-0.5 rounded-md border bg-transparent text-[9px] font-black uppercase tracking-wider mr-1 ${
-                                                sub.pending
-                                                  ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                                                  : "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                                              }`}
-                                            >
+                                            <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1 flex items-center gap-1.5">
+                                              <span
+                                                className={`material-symbols-outlined !text-[12px] ${
+                                                  sub.pending
+                                                    ? "text-[var(--accent)]"
+                                                    : "text-[var(--success)]"
+                                                }`}
+                                              >
+                                                {sub.pending
+                                                  ? t("icon_rocket_launch", "rocket_launch")
+                                                  : t("icon_check_circle", "check_circle")}
+                                              </span>
                                               {sub.pending
                                                 ? t(
                                                     "dir_builder_status_wip",
@@ -2605,9 +2613,9 @@ export default function KeepersWebDirectivesEditor({
                                                     }
                                               )
                                             }
-                                            className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                            className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                                           >
-                                            <span className="material-symbols-outlined !text-[18px]">
+                                            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                               {sub.icon ||
                                                 t(
                                                   "icon_check_circle",
@@ -2753,7 +2761,7 @@ export default function KeepersWebDirectivesEditor({
 
                   {/* 4. Bottom Action Bar + Liquid Glass Add Card Button */}
                   <div className="glass-panel p-3 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
-                    <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] flex items-center gap-1.5">
+                    <div className="px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5">
                       <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                         {t("icon_dashboard", "dashboard")}
                       </span>
@@ -2765,9 +2773,9 @@ export default function KeepersWebDirectivesEditor({
                     <button
                       type="button"
                       onClick={() => handleAddCardToTab(activeBuilderTabIdx)}
-                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="h-8 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
                     >
-                      <span className="material-symbols-outlined !text-[15px]">
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                         {t("icon_add_box", "add_box")}
                       </span>
                       <span>{t("dir_builder_add_card", "Add Card")}</span>

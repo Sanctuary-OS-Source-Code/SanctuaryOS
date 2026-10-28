@@ -23,7 +23,10 @@ type PwaState = {
 
 const checkIsStandalone = (): boolean => {
   if (typeof window === "undefined") return false;
-  const isStandaloneMedia = window.matchMedia?.("(display-mode: standalone)")?.matches;
+  const isStandaloneMedia =
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.matchMedia?.("(display-mode: fullscreen)")?.matches ||
+    window.matchMedia?.("(display-mode: window-controls-overlay)")?.matches;
   const isStandaloneNavigator = (window.navigator as any)?.standalone === true;
   return Boolean(isStandaloneMedia || isStandaloneNavigator);
 };
@@ -103,17 +106,46 @@ export function initPwaManager() {
 
   const mediaQuery = window.matchMedia?.("(display-mode: standalone)");
   if (mediaQuery?.addEventListener) {
-    mediaQuery.addEventListener("change", (ev) => {
-      pwaStore.state = { ...pwaStore.state, isStandalone: ev.matches };
+    mediaQuery.addEventListener("change", () => {
+      pwaStore.state = { ...pwaStore.state, isStandalone: checkIsStandalone() };
       notifyPwaListeners();
     });
   }
 
+  // On Android standalone PWAs that were installed prior to manifest fullscreen mode,
+  // promote to Fullscreen API with hidden navigation UI on user interaction so the
+  // wallpaper extends behind both the top status bar and bottom gesture bar.
+  if (isMobileDevice() && !isIosDevice()) {
+    const tryEnterImmersiveFullscreen = (ev: Event) => {
+      if (!checkIsStandalone()) return;
+      const target = ev.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const docEl = document.documentElement as any;
+      if (!document.fullscreenElement && typeof docEl?.requestFullscreen === "function") {
+        docEl.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+      }
+    };
+    window.addEventListener("click", tryEnterImmersiveFullscreen, { passive: true });
+  }
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch((err) => {
-        console.warn("PWA Service Worker registration skipped:", err);
-      });
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          reg.update().catch(() => {});
+        })
+        .catch((err) => {
+          console.warn("PWA Service Worker registration skipped:", err);
+        });
     });
   }
 }

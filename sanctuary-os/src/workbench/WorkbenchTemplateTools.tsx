@@ -52,7 +52,7 @@ export const WorkbenchTemplateTools: React.FC<WorkbenchTemplateToolsProps> = ({
          <div className="flex items-center gap-1">
             {handleAutoMap && (
                <div className="relative group flex mr-2 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)] pr-3">
-                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-md">
+                  <button onClick={handleAutoMap} className="w-8 h-8 rounded-full flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active text-[var(--accent)] cursor-pointer">
                      <span className="material-symbols-outlined !text-[16px]">{t("icon_auto_fix_high", "auto_fix_high")}</span>
                   </button>
                   <HoverTooltip title={t("workbench_btn_automap", "Auto-Map Target Keys")} variant="info" className="mb-2" />

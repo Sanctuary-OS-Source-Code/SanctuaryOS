@@ -533,13 +533,7 @@ export default function MasonPostViewer({
                   {t("icon_add", "add")}
                 </span>
               </button>
-              <div
-                className="w-7 h-7 rounded-lg glass-surface border flex items-center justify-center text-[10px] font-black text-[var(--accent)]"
-                style={{
-                  color: "var(--accent)",
-                  borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                }}
-              >
+              <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[10px] font-black text-[var(--accent)]">
                 {c.author?.username?.charAt(0)?.toUpperCase() || "?"}
               </div>
               <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)]">
@@ -583,13 +577,7 @@ export default function MasonPostViewer({
                       {t("icon_remove", "remove")}
                     </span>
                   </button>
-                  <div
-                    className="w-9 h-9 rounded-xl glass-surface border flex items-center justify-center text-xs font-black text-[var(--accent)] shrink-0"
-                    style={{
-                      color: "var(--accent)",
-                      borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                    }}
-                  >
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-xs font-black text-[var(--accent)] shrink-0">
                     {c.author?.username?.charAt(0)?.toUpperCase() || "?"}
                   </div>
                   <span className="text-xs font-black text-[var(--text)]">
@@ -599,14 +587,8 @@ export default function MasonPostViewer({
                     {new Date(c.created_at).toLocaleString()}
                   </span>
                   {c.is_hidden && (
-                    <span
-                      className={`${VAULT_CHIP_CLASS} ml-1`}
-                      style={{
-                        color: "var(--danger)",
-                        borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))",
-                      }}
-                    >
-                      <span className="material-symbols-rounded !text-[12px] shrink-0">
+                    <span className={`${VAULT_CHIP_CLASS} ml-1`}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
                         {t("icon_visibility_off", "visibility_off")}
                       </span>
                       {t("reply_hidden", "Hidden")}
@@ -645,9 +627,9 @@ export default function MasonPostViewer({
                   {!c.is_hidden && userId && depth < 4 && !hideActions && (
                     <button
                       onClick={() => handleReplyTo(c)}
-                      className="flex items-center gap-1 text-[10px] font-black tracking-wider uppercase text-[var(--accent)] px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] transition-all"
+                      className="flex items-center gap-1 text-[10px] font-black tracking-wider uppercase text-[var(--text)] px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all"
                     >
-                      <span className="material-symbols-outlined !text-[13px]">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                         {t("icon_reply", "reply")}
                       </span>
                       {t("ui_btn_reply", "Reply")}
@@ -656,9 +638,9 @@ export default function MasonPostViewer({
                   {userId && userId !== c.author_id && !isBanned && !hideActions && (
                     <button
                       onClick={() => setFlagTarget({ id: c.id, type: "comment" })}
-                      className="flex items-center gap-1 text-[10px] font-black tracking-wider uppercase text-[var(--danger)] px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] transition-all"
+                      className="flex items-center gap-1 text-[10px] font-black tracking-wider uppercase text-[var(--text)] px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all"
                     >
-                      <span className="material-symbols-outlined !text-[13px]">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
                         {t("icon_flag", "flag")}
                       </span>
                       {t("feed_btn_flag", "Flag")}
@@ -1003,13 +985,7 @@ export default function MasonPostViewer({
                           className="glass-panel rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:border-[var(--accent)] transition-all group"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div
-                              className="w-10 h-10 rounded-xl glass-surface border flex items-center justify-center text-[var(--accent)] shrink-0"
-                              style={{
-                                color: "var(--accent)",
-                                borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                              }}
-                            >
+                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">
                               <span className="material-symbols-outlined !text-[20px]">
                                 {assetIcon}
                               </span>
@@ -1018,14 +994,8 @@ export default function MasonPostViewer({
                               <span className="text-xs sm:text-sm font-bold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
                                 {asset.label}
                               </span>
-                              <span
-                                className={`${VAULT_CHIP_CLASS} w-fit`}
-                                style={{
-                                  color: "var(--subtext)",
-                                  borderColor: "color-mix(in srgb, var(--subtext) 35%, var(--border))",
-                                }}
-                              >
-                                <span className="material-symbols-rounded !text-[12px] shrink-0">
+                              <span className={`${VAULT_CHIP_CLASS} w-fit`}>
+                                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                                   {assetIcon}
                                 </span>
                                 {asset.type}
@@ -1045,13 +1015,7 @@ export default function MasonPostViewer({
               {post.code_snippet && (
                 <div className="glass-panel rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl glass-surface border text-[var(--accent)] flex items-center justify-center shrink-0"
-                      style={{
-                        color: "var(--accent)",
-                        borderColor: "color-mix(in srgb, var(--accent) 25%, var(--border))",
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[20px]">
                         {t("icon_data_object", "data_object")}
                       </span>
@@ -1092,10 +1056,10 @@ export default function MasonPostViewer({
                     className="flex flex-col gap-2.5 relative glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                   >
                     {replyTargetId && (
-                      <div className="flex items-center justify-between glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] rounded-xl p-3 mb-1">
+                      <div className="flex items-center justify-between glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-xl p-3 mb-1">
                         <div className="flex flex-col gap-1 overflow-hidden">
-                          <span className="text-[10px] font-black tracking-wider uppercase text-[var(--accent)] flex items-center gap-1.5">
-                            <span className="material-symbols-outlined !text-[13px]">
+                          <span className="text-[10px] font-black tracking-wider uppercase text-[var(--text)] flex items-center gap-1.5">
+                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                               {t("icon_reply", "reply")}
                             </span>
                             {t("replying_to", "Replying to")} @{replyTargetUsername}
@@ -1138,13 +1102,9 @@ export default function MasonPostViewer({
                         <button
                           type="button"
                           onClick={() => setShowCodeInput(!showCodeInput)}
-                          className={`flex items-center justify-center sm:justify-start gap-1.5 w-9 h-8 sm:w-auto sm:px-3 rounded-xl font-black uppercase tracking-wider text-[10px] transition-all border ${
-                            showCodeInput
-                              ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-transparent text-[var(--accent)]"
-                              : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                          }`}
+                          className="flex items-center justify-center sm:justify-start gap-1.5 w-9 h-8 sm:w-auto sm:px-3 rounded-xl font-black uppercase tracking-wider text-[10px] transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)]"
                         >
-                          <span className="material-symbols-outlined !text-[14px]">
+                          <span className={`material-symbols-outlined !text-[14px] ${showCodeInput ? "text-[var(--danger)]" : "text-[var(--accent)]"}`}>
                             {showCodeInput
                               ? t("icon_close", "close")
                               : t("icon_data_object", "data_object")}

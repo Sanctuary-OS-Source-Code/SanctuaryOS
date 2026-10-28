@@ -358,16 +358,18 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      <span className="text-[12px] font-black text-[var(--text)] tracking-wide truncate">
                         {displayLabel || setting.key}
                      </span>
-                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        {setting.type}
+                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1">
+                        <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">{getIconForType(setting.type)}</span>
+                        <span>{setting.type}</span>
                      </span>
                      {!isChild && catLabel && categories.length > 1 && (
-                        <span className="px-2 py-0.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[8px] font-bold text-[var(--subtext)]">
-                           {catLabel}
+                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-bold text-[var(--text)] flex items-center gap-1">
+                           <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_folder", "folder")}</span>
+                           <span>{catLabel}</span>
                         </span>
                      )}
                      {setting.type === "group" && Array.isArray(setting.settings) && (
-                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60">
+                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 tabular-nums">
                            ({setting.settings.length})
                         </span>
                      )}
@@ -813,7 +815,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   <button
                      type="button"
                      onClick={handleAutoMap}
-                     className="h-10 px-4 rounded-xl glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_68%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] flex items-center gap-2 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                     className="h-10 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active text-[var(--text)] flex items-center gap-2 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
                   >
                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_auto_fix_high", "auto_fix_high")}</span>
                      <span>{t("workbench_btn_automap", "Auto-Map Target Keys")}</span>
@@ -825,11 +827,11 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   onClick={() => setShowCategoriesDrawer(!showCategoriesDrawer)}
                   className={`h-10 px-3.5 rounded-xl glass-surface border flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
                      showCategoriesDrawer
-                        ? '!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]'
-                        : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                        ? 'sa-glass-pill-active text-[var(--text)]'
+                        : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
                   }`}
                >
-                  <span className="material-symbols-outlined !text-[16px]">{t("icon_folder", "folder")}</span>
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_folder", "folder")}</span>
                   <span>{t("categories", "Categories")} ({categories.length})</span>
                </button>
 
@@ -838,8 +840,8 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   onClick={() => setShowMetaDrawer(!showMetaDrawer)}
                   className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                      showMetaDrawer
-                        ? '!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]'
-                        : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                        ? 'sa-glass-pill-active text-[var(--accent)]'
+                        : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
                   }`}
                >
                   <span className="material-symbols-outlined !text-[17px]">{t("icon_settings", "settings")}</span>
@@ -867,9 +869,9 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               setShowCategoryIconPicker(false);
                            });
                         }}
-                        className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_68%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:sa-glass-pill-active text-[var(--text)] flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_add", "add")}</span>
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_add", "add")}</span>
                         {t("support_add_cat", "Add Category")}
                      </button>
                   </div>
@@ -885,13 +887,13 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               key={cat.id || cIdx}
                               className={`h-8 pl-2.5 pr-1.5 rounded-xl border glass-surface text-[var(--text)] flex items-center gap-1.5 transition-colors ${
                                  editingCategoryIndex === cIdx
-                                    ? '!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
-                                    : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                                    ? 'sa-glass-pill-active'
+                                    : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
                               }`}
                            >
                               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{iconName}</span>
                               <span className="text-[10px] font-black tracking-wider">{labelName}</span>
-                              <span className="text-[9px] opacity-60">({count})</span>
+                              <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
                               <button
                                  type="button"
                                  onClick={() => {

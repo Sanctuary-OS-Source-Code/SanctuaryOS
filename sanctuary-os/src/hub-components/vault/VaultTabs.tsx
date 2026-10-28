@@ -73,7 +73,7 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
         </HoverTabDrawer>
       </div>
 
-      <div className="hidden md:flex flex-col w-full gap-3 mb-8 md:mb-10">
+      <div className="flex flex-col w-full gap-3 mb-8 md:mb-10">
         <StatTileCarousel>
           <DashboardStatTile variant="tab" icon={t("icon_space_dashboard", "space_dashboard")} label={t("tab_overview", "Overview")} number="" onClick={() => setEquipFilter("OVERVIEW")} isActive={equipFilter === "OVERVIEW"} />
           <DashboardStatTile variant="tab" icon={t("icon_inventory_2", "inventory_2")} label={t("filter_all_vault", "Main")} number={allCount} onClick={() => setEquipFilter("ALL")} isActive={equipFilter === "ALL"} />

@@ -1097,14 +1097,17 @@ export function TimeCapsuleSnapshotDossier({
                     onClick={() =>
                       handleBatchExtract(Array.from(selectedPaths), true)
                     }
-                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[var(--accent)] text-[var(--accent)] cursor-pointer"
+                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 cursor-pointer"
                   >
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                      {t("icon_check", "check")}
+                    </span>
                     {t("confirm", "Confirm")} ({selectedPaths.size})
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmBatchExtract(false)}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
                   >
                     {t("btn_cancel", "Cancel")}
                   </button>
@@ -1114,9 +1117,9 @@ export function TimeCapsuleSnapshotDossier({
                   type="button"
                   disabled={isBatchExtracting}
                   onClick={() => setConfirmBatchExtract(true)}
-                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined !text-[13px]">
+                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                     {t("icon_restore", "restore")}
                   </span>
                   {(

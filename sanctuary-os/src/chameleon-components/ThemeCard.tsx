@@ -310,10 +310,7 @@ export function DynamicLexiconPreviewBanner({
     >
       <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
         {/* Mini Language Identity Tile */}
-        <div
-          className="w-16 h-full rounded-xl glass-surface border flex flex-col items-center justify-center p-1.5 gap-1 shrink-0"
-          style={{ borderColor: `${accentColor}45` }}
-        >
+        <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-1 shrink-0">
           <span
             className="material-symbols-outlined !text-[18px]"
             style={{ color: accentColor }}
@@ -333,7 +330,7 @@ export function DynamicLexiconPreviewBanner({
           {samplePairs.map((pair) => (
             <div
               key={pair.token}
-              className="px-2 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col justify-center min-w-0 overflow-hidden"
+              className="px-3 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col justify-center min-w-0 overflow-hidden"
             >
               <span
                 className="text-[7px] font-mono font-black tracking-wider truncate leading-tight"
@@ -408,11 +405,11 @@ export function DynamicBlueprintPreviewBanner({
     >
       <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
         {/* Mini Blueprint Node Summary */}
-        <div className="w-16 h-full rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
+        <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
             {t('icon_map', 'map')}
           </span>
-          <span className="text-[11px] font-black text-[var(--text)] leading-none">
+          <span className="text-[11px] font-black text-[var(--text)] leading-none tabular-nums">
             {modCount}
           </span>
           <span className="text-[7px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75 truncate max-w-full">
@@ -425,7 +422,7 @@ export function DynamicBlueprintPreviewBanner({
           {previewRows.map((row) => (
             <div
               key={row.seq}
-              className="flex-1 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-1.5 min-w-0"
+              className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-1.5 min-w-0"
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="text-[7px] font-mono font-black text-[var(--accent)] opacity-85 shrink-0">
@@ -495,7 +492,7 @@ export function DynamicTemplatePreviewBanner({
     >
       <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
         {/* Mini Workbench Parser Tile */}
-        <div className="w-16 h-full rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_38%,transparent)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
+        <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">
             {t('icon_tune', 'tune')}
           </span>
@@ -740,10 +737,7 @@ export function DynamicArtifactPreviewBanner({
         <div
           className={`${
             compact ? 'w-12' : 'w-14'
-          } h-full rounded-xl glass-surface border flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
-          style={{
-            borderColor: `color-mix(in srgb, ${accentColorVar} 38%, transparent)`,
-          }}
+          } h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
         >
           <span
             className={`material-symbols-outlined ${compact ? '!text-[14px]' : '!text-[16px]'}`}

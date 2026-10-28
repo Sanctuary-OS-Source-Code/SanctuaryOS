@@ -186,17 +186,20 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      {label}
                   </span>
                   {setting.risk === "advanced" && (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--danger)] text-[9px] font-bold shrink-0">
-                        {t("advanced_badge", "Advanced")}
+                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
+                        <span>{t("advanced_badge", "Advanced")}</span>
                      </span>
                   )}
                   {isUnsavedEdit ? (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)] text-[9px] font-bold shrink-0">
-                        {t("unsaved", "Unsaved")}
+                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                        <span>{t("unsaved", "Unsaved")}</span>
                      </span>
                   ) : isModified ? (
-                     <span className="px-2 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-bold shrink-0">
-                        {t("modified", "Modified")}
+                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                        <span>{t("modified", "Modified")}</span>
                      </span>
                   ) : null}
                </div>
@@ -214,7 +217,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      <button
                         type="button"
                         onClick={() => onUndoToSaved ? onUndoToSaved(dataPath) : onVisualChange(dataPath, savedVal)}
-                        className="w-7 h-7 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_42%,transparent)] text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                        className="w-7 h-7 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
                      >
                         <span className="material-symbols-outlined !text-[14px]">{t("icon_undo", "undo")}</span>
                      </button>
@@ -227,7 +230,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      <button
                         type="button"
                         onClick={() => onVisualChange(dataPath, setting.default)}
-                        className="w-7 h-7 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                        className="w-7 h-7 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                      >
                         <span className="material-symbols-outlined !text-[14px]">{t("icon_restart_alt", "restart_alt")}</span>
                      </button>
@@ -283,7 +286,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                               }
                            }
                         }}
-                        className="w-15 px-1 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                        className="w-15 px-1 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
                      />
                      <button
                         type="button"
@@ -334,7 +337,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                                     const parsed = parseFloat(e.target.value);
                                     if (!isNaN(parsed)) updateTuple(parsed, tupleMax);
                                  }}
-                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
                               />
                               <button
                                  type="button"
@@ -365,7 +368,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                                     const parsed = parseFloat(e.target.value);
                                     if (!isNaN(parsed)) updateTuple(tupleMin, parsed);
                                  }}
-                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center font-mono"
+                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
                               />
                               <button
                                  type="button"
@@ -478,7 +481,8 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
    return (
       <div className="flex flex-wrap items-center gap-2 w-full">
          {vals.map((v: any, idx: number) => (
-            <div key={idx} className="flex items-center gap-1.5 glass-surface rounded-lg px-2.5 py-1 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[11px] font-black text-[var(--text)]">
+            <div key={idx} className="flex items-center gap-1.5 glass-surface rounded-lg px-2.5 py-1 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[11px] font-black text-[var(--text)]">
+               <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">{t("icon_keyboard", "keyboard")}</span>
                <span className="tracking-wider font-mono">{v}</span>
                {!isPreview && (
                   <button
@@ -504,11 +508,11 @@ const KeybindingField = React.memo(({ val, setting, isPreview, onVisualChange, t
                onClick={() => setIsListening(!isListening)}
                className={`h-8 rounded-xl px-3 text-[10px] font-black transition-all duration-300 flex items-center justify-center gap-1.5 capitalize tracking-widest cursor-pointer ${
                   isListening
-                     ? 'bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[var(--accent)] text-[var(--accent)] animate-pulse'
-                     : 'glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                     ? 'glass-surface sa-glass-pill-active text-[var(--text)] animate-pulse'
+                     : 'glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]'
                }`}
             >
-               <span className="material-symbols-outlined !text-[15px]">{isListening ? t("icon_keyboard", "keyboard") : t("icon_add", "add")}</span>
+               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">{isListening ? t("icon_keyboard", "keyboard") : t("icon_add", "add")}</span>
                {isListening ? t("keybinding_listening", "Listening...") : (isMultiple && vals.length ? t("keybinding_add", "Add Key") : t("keybinding_set", "Set Key"))}
             </button>
          )}
@@ -587,13 +591,15 @@ const GroupNode = ({
                   <div className="flex items-center gap-2 flex-wrap">
                      <span className="text-[12px] font-black capitalize tracking-wider text-[var(--text)]">{label}</span>
                      {unsavedCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--warning)]">
-                           {unsavedCount} {t("unsaved", "Unsaved")}
+                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1">
+                           <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                           <span className="tabular-nums">{unsavedCount} {t("unsaved", "Unsaved")}</span>
                         </span>
                      )}
                      {modifiedCount > 0 && (
-                        <span className="px-2.5 py-0.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--accent)]">
-                           {modifiedCount} {t("modified", "Modified")}
+                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1">
+                           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                           <span className="tabular-nums">{modifiedCount} {t("modified", "Modified")}</span>
                         </span>
                      )}
                   </div>
@@ -605,7 +611,7 @@ const GroupNode = ({
 
             <div className="flex items-center gap-2 shrink-0">
                {isCollapsed && (
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60">
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 tabular-nums">
                      {childSettings.length}
                   </span>
                )}
@@ -614,9 +620,9 @@ const GroupNode = ({
                      <button
                         type="button"
                         onClick={handleUndoGroup}
-                        className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_42%,transparent)] text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_undo", "undo")}</span>
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_undo", "undo")}</span>
                         <span className="hidden sm:inline">{t("workbench_undo_group", "Undo Group")}</span>
                      </button>
                   </div>
@@ -626,9 +632,9 @@ const GroupNode = ({
                      <button
                         type="button"
                         onClick={handleResetGroup}
-                        className="h-7 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_restart_alt", "restart_alt")}</span>
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_restart_alt", "restart_alt")}</span>
                         <span className="hidden sm:inline">{t("workbench_reset_group", "Reset Group")}</span>
                      </button>
                   </div>

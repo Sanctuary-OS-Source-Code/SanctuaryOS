@@ -98,7 +98,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
         )}
         <div
           ref={scrollRef}
-          className={`flex w-full overflow-x-auto ${isInsideSidePanel ? "gap-3 md:gap-4 sa-sidepanel-tile-carousel" : "gap-4 md:gap-6"} py-1 items-stretch hide-scrollbar ${innerClassName}`}
+          className={`flex w-full overflow-x-auto sa-stat-tile-carousel ${isInsideSidePanel ? "gap-3 md:gap-4 sa-sidepanel-tile-carousel" : "gap-3 md:gap-6"} py-1 items-stretch hide-scrollbar ${innerClassName}`}
         >
           {children}
         </div>

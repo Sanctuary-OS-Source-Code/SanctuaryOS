@@ -555,9 +555,9 @@ export function ChameleonControlDashboard({
                   <button
                     type="button"
                     onClick={handleAutoTuneGlassOnly}
-                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[13px]">
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                       {t('icon_auto_awesome', 'auto_awesome')}
                     </span>
                     {t('forge_auto_tune_glass', 'Auto-Tune Glass')}
@@ -724,9 +724,9 @@ export function ChameleonControlDashboard({
                   <button
                     type="button"
                     onClick={handleAutoHarmonize}
-                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="glass-surface px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[13px]">
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                       {t('icon_contrast', 'contrast')}
                     </span>
                     {t('forge_btn_auto_contrast', 'Auto-Harmonize')}

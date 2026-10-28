@@ -100,10 +100,10 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}
-                        className={`px-2.5 py-1 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer ${expandedFolder === mainKey ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'}`}
+                        className={`px-2.5 py-1 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer ${expandedFolder === mainKey ? 'sa-glass-pill-active text-[var(--text)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'}`}
                       >
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
-                        <span>+{mod.familyCount || (mod.flavors?.length || 0)} {t("badge_modules_count", "Modules")}</span>
+                        <span className="tabular-nums">+{mod.familyCount || (mod.flavors?.length || 0)} {t("badge_modules_count", "Modules")}</span>
                         <span className={`material-symbols-outlined !text-[13px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180 text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>{t("icon_expand_more", "expand_more")}</span>
                       </button>
                     ) : (
@@ -118,9 +118,9 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}
-                        className="px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] text-[9px] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_60%,transparent)] transition-all flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
+                        className="px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
                       >
-                        <span className="material-symbols-outlined !text-[12px]">{t("icon_download", "download")}</span>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_download", "download")}</span>
                         <span>{t("update_panel_install", "Install")}</span>
                       </button>
                     )}

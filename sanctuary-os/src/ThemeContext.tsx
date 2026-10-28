@@ -495,7 +495,7 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   const colorScheme: 'light' | 'dark' = yiq >= 128 ? 'light' : 'dark';
   root.style.colorScheme = colorScheme;
   if (document.body) {
-    document.body.style.backgroundColor = 'transparent';
+    document.body.style.backgroundColor = safeBg;
     document.body.style.colorScheme = colorScheme;
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');

@@ -773,10 +773,14 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
   };
 }
 
-function renderCleanInlineText(text: string): React.ReactNode {
-  const sanitized = (text || "").replace(/^[\s\u200B\uFEFF#\\]+/, "");
+export function renderCleanInlineText(text: string): React.ReactNode {
+  const sanitized = (text || "")
+    .replace(/^[\s\u200B\uFEFF#\\]+/, "")
+    .replace(/\\\*/g, "*")
+    .replace(/\\_/g, "_")
+    .replace(/\\`/g, "`");
   const parts = sanitized.split(
-    /(\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/gi
+    /(\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|\*\*[\s\S]+?\*\*|__[\s\S]+?__|`[^`]+`|\*[^*\n]+\*)/gi
   );
   return parts.map((part, idx) => {
     const iconMatch = part.match(/^\\?\[ICON:([a-zA-Z0-9_-]+)\\?\]$/i);
@@ -791,35 +795,39 @@ function renderCleanInlineText(text: string): React.ReactNode {
         </span>
       );
     }
-    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+    if (
+      ((part.startsWith("**") && part.endsWith("**")) ||
+        (part.startsWith("__") && part.endsWith("__"))) &&
+      part.length > 4
+    ) {
       return (
-        <code
-          key={idx}
-          className="px-1.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] font-mono text-[11px] font-semibold text-[var(--accent)]"
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-      return (
-        <strong key={idx} className="font-bold text-[var(--text)] opacity-100">
+        <strong key={idx} className="font-black text-[var(--text)]">
           {renderCleanInlineText(
             part.slice(2, -2).replace(/^[\s\u200B\uFEFF#\\]+/, "")
           )}
         </strong>
       );
     }
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return (
+        <code
+          key={idx}
+          className="px-2 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-sans text-[11px] font-bold text-[var(--text)]"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
       return (
-        <em key={idx} className="italic text-[var(--text)] opacity-95">
+        <em key={idx} className="italic text-[var(--text)]">
           {renderCleanInlineText(
             part.slice(1, -1).replace(/^[\s\u200B\uFEFF#\\]+/, "")
           )}
         </em>
       );
     }
-    return <React.Fragment key={idx}>{part}</React.Fragment>;
+    return <React.Fragment key={idx}>{part.replace(/\*\*/g, "")}</React.Fragment>;
   });
 }
 
@@ -938,13 +946,13 @@ export function StructuredReleaseNotesView({
               {resolveSectionIcon(parsed.introTitle, parsed.introIcon)}
             </span>
             <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
-              {parsed.introTitle}
+              {renderCleanInlineText(parsed.introTitle)}
             </h2>
           </div>
         )}
         {(parsed.intro || cleanCardParagraph(content)) && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] leading-relaxed break-words">
-            <p className="opacity-85">
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed break-words">
+            <p>
               {renderCleanInlineText(parsed.intro || cleanCardParagraph(content))}
             </p>
           </div>
@@ -964,7 +972,7 @@ export function StructuredReleaseNotesView({
                 {resolveSectionIcon(parsed.introTitle, parsed.introIcon)}
               </span>
               <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
-                {parsed.introTitle}
+                {renderCleanInlineText(parsed.introTitle)}
               </h2>
             </div>
           )}
@@ -977,7 +985,7 @@ export function StructuredReleaseNotesView({
                     "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
                 }}
               />
-              <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+              <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
                 {renderCleanInlineText(parsed.intro)}
               </p>
             </div>
@@ -1004,13 +1012,13 @@ export function StructuredReleaseNotesView({
                   {resolveSectionIcon(section.title, section.icon)}
                 </span>
                 <h2 className="text-lg sm:text-xl font-black tracking-tight text-[var(--text)] leading-snug">
-                  {section.title}
+                  {renderCleanInlineText(section.title)}
                 </h2>
               </div>
             )}
             {section.description && (
               <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
-                <p className="text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
                   {renderCleanInlineText(section.description)}
                 </p>
               </div>
@@ -1045,7 +1053,7 @@ export function StructuredReleaseNotesView({
                       {card.title && (
                         <div className="flex items-center gap-2.5 relative z-10">
                           {card.icon && (
-                            <div className="w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                            <div className="w-7 h-7 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t(`icon_${card.icon}`, card.icon)}
                               </span>
@@ -1057,7 +1065,7 @@ export function StructuredReleaseNotesView({
                         </div>
                       )}
                       {card.paragraphs.length > 0 && (
-                        <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[var(--text)] opacity-80 leading-relaxed relative z-10">
+                        <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
                           {card.paragraphs.map((p, pIdx) => (
                             <p key={pIdx}>{renderCleanInlineText(p)}</p>
                           ))}
@@ -1101,7 +1109,7 @@ export function StructuredReleaseNotesView({
                                     {renderCleanInlineText(sub.title)}
                                   </span>
                                 )}
-                                <span className="text-xs text-[var(--text)] opacity-80 leading-relaxed">
+                                <span className="text-xs text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed">
                                   {renderCleanInlineText(sub.body)}
                                 </span>
                               </div>
@@ -2133,7 +2141,7 @@ export function ReleaseNotesShowcase({
                 icon: t("icon_verified", "verified"),
                 label: t("author_sanctuary_team", "Sanctuary Foundry"),
                 colorClass:
-                  "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+                  "text-[var(--text)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
               },
             ]}
           >
