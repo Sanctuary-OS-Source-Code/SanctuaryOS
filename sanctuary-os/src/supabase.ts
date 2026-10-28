@@ -136,7 +136,12 @@ const createStaticPostgrestBuilder = (staticData: any = [], countOverride?: numb
     return builder;
 };
 
-const createMockPostgrestBuilder = () => createStaticPostgrestBuilder([], -999);
+const createMockPostgrestBuilder = () => createStaticPostgrestBuilder([], 0);
+
+export function hasActiveGameDatabase(): boolean {
+    if (isStandaloneFork) return true;
+    return getActiveGameClient() !== null;
+}
 
 export function getStandaloneWorkspaceRow() {
     const ws = RESOLVED_SANCTUARY_CONFIG.standaloneWorkspace;
@@ -569,9 +574,9 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
                     let targetGameId = args?.p_game_id || activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
 
-                    // If on the dummy default workspace, we just abort or pass it, because there is no legacy DB
-                    if ((targetGameId === 'default_workspace' || !activeWs) && !args?.p_game_id) {
-                        return { data: [], error: null }; // Mock response since there is no Game to query
+                    // If on the dummy default workspace or a workspace with no configured database, return empty mock response
+                    if (((targetGameId === 'default_workspace' || !activeWs) && !args?.p_game_id) || (!args?.p_game_id && !getActiveGameClient())) {
+                        return { data: [], error: null }; // Mock response since there is no Game DB to query
                     }
 
                     const actionMap: Record<string, string> = {

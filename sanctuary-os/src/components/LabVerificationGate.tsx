@@ -69,19 +69,40 @@ const LOCAL_CERT_STORAGE_KEY = "sanctuary_lab_certificates";
 const LOCAL_FAIL_STORAGE_KEY = "sanctuary_lab_failed_hashes";
 const LOCAL_SESSION_MEMORY_KEY = "sanctuary_lab_active_session_memory";
 
+function resolveSpokeLabKey(): string {
+  const st = useStore.getState();
+  const raw =
+    st.activeWorkspaceId ||
+    st.activeGameSchema?.id ||
+    st.activeGameSchema?.game_id ||
+    "sims4";
+  const clean = String(raw || "").trim().toLowerCase();
+  if (!clean || clean === "default_workspace" || clean === "default_schema" || clean === "ts4" || clean === "the_sims_4" || clean === "sims_4") {
+    return "sims4";
+  }
+  return clean;
+}
+
 export function saveLabSessionMemory(status: LabVerificationStatus | null) {
   try {
+    const spokeKey = resolveSpokeLabKey();
+    const scopedKey = `${LOCAL_SESSION_MEMORY_KEY}_${spokeKey}`;
     if (!status) {
-      localStorage.removeItem(LOCAL_SESSION_MEMORY_KEY);
+      localStorage.removeItem(scopedKey);
+      if (spokeKey === "sims4") localStorage.removeItem(LOCAL_SESSION_MEMORY_KEY);
     } else {
-      localStorage.setItem(LOCAL_SESSION_MEMORY_KEY, JSON.stringify(status));
+      localStorage.setItem(scopedKey, JSON.stringify(status));
     }
   } catch (e) {}
 }
 
 export function loadLabSessionMemory(): LabVerificationStatus | null {
   try {
-    const raw = localStorage.getItem(LOCAL_SESSION_MEMORY_KEY);
+    const spokeKey = resolveSpokeLabKey();
+    const scopedKey = `${LOCAL_SESSION_MEMORY_KEY}_${spokeKey}`;
+    const raw =
+      localStorage.getItem(scopedKey) ||
+      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_SESSION_MEMORY_KEY) : null);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return null;
@@ -89,7 +110,11 @@ export function loadLabSessionMemory(): LabVerificationStatus | null {
 
 export function getCachedCertificatesMap(): Record<string, LabVerificationCertificate> {
   try {
-    const raw = localStorage.getItem(LOCAL_CERT_STORAGE_KEY);
+    const spokeKey = resolveSpokeLabKey();
+    const scopedKey = `${LOCAL_CERT_STORAGE_KEY}_${spokeKey}`;
+    const raw =
+      localStorage.getItem(scopedKey) ||
+      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_CERT_STORAGE_KEY) : null);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return {};
@@ -97,7 +122,11 @@ export function getCachedCertificatesMap(): Record<string, LabVerificationCertif
 
 export function getCachedFailedMap(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(LOCAL_FAIL_STORAGE_KEY);
+    const spokeKey = resolveSpokeLabKey();
+    const scopedKey = `${LOCAL_FAIL_STORAGE_KEY}_${spokeKey}`;
+    const raw =
+      localStorage.getItem(scopedKey) ||
+      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_FAIL_STORAGE_KEY) : null);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return {};
@@ -105,14 +134,15 @@ export function getCachedFailedMap(): Record<string, string> {
 
 export async function recordVerifiedCertificate(cert: LabVerificationCertificate) {
   try {
+    const spokeKey = resolveSpokeLabKey();
     const map = getCachedCertificatesMap();
     map[cert.dna_hash] = cert;
-    localStorage.setItem(LOCAL_CERT_STORAGE_KEY, JSON.stringify(map));
+    localStorage.setItem(`${LOCAL_CERT_STORAGE_KEY}_${spokeKey}`, JSON.stringify(map));
 
     const failMap = getCachedFailedMap();
     if (failMap[cert.dna_hash]) {
       delete failMap[cert.dna_hash];
-      localStorage.setItem(LOCAL_FAIL_STORAGE_KEY, JSON.stringify(failMap));
+      localStorage.setItem(`${LOCAL_FAIL_STORAGE_KEY}_${spokeKey}`, JSON.stringify(failMap));
     }
 
     if (isDesktop()) {

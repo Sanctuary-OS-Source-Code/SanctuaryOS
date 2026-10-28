@@ -133,17 +133,17 @@ export function UpdateSidePanel() {
     () => ({
       title:
         seedDevBlog.mainTitle ||
-        `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
+        `${t("release_notes_dev_card_title", "Sanctuary OS — Dev Build")}`,
       summary:
         seedDevBlog.summary ||
         (seedChangelog.heading
           ? `${seedChangelog.heading} — ${t(
               "release_notes_dev_card_desc",
-              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+              "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
             )}`
           : t(
               "release_notes_dev_card_desc",
-              "Latest daily preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+              "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
             )),
       version: defaultDevVersion,
       releaseDate: defaultDevDate,

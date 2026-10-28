@@ -79,8 +79,23 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       const gConf: any = await invoke('get_global_config');
       setGlobalConfig(gConf);
       const activeId = gConf.active_workspace_id;
-      let activeW = gConf.workspaces?.find((w: any) => w.id === activeId);
-      if (!activeW && gConf.workspaces?.length > 0) activeW = gConf.workspaces[0];
+      let activeW = gConf.workspaces?.find(
+        (w: any) =>
+          String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
+          String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
+      );
+      if (!activeW && activeId && activeId !== 'default_workspace') {
+        activeW = {
+          id: activeId,
+          name: activeId,
+          schema_id: activeId,
+          live_path: '',
+          mods_path: '',
+          vault_path: gConf.vault_path ? `${gConf.vault_path}\\${activeId}` : '',
+        };
+      } else if (!activeW && gConf.workspaces?.length > 0) {
+        activeW = gConf.workspaces[0];
+      }
       setConfig(activeW || { isGuest: true });
     } catch (err) { console.error(err); }
   };

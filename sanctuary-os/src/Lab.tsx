@@ -66,6 +66,27 @@ import {
 
 const LAB_PANEL_MEMORY_KEY = "sanctuary_lab_panel_memory";
 
+function resolveSpokeLabScopeKey(activeWorkspaceId?: string | null, activeGameSchema?: any): string {
+  const raw =
+    (activeWorkspaceId && activeWorkspaceId !== "default_workspace" ? activeWorkspaceId : "") ||
+    activeGameSchema?.id ||
+    activeGameSchema?.game_id ||
+    "sims4";
+  const clean = String(raw || "").trim().toLowerCase();
+  if (
+    !clean ||
+    clean === "default_workspace" ||
+    clean === "default_schema" ||
+    clean === "sims4" ||
+    clean === "ts4" ||
+    clean === "the_sims_4" ||
+    clean === "sims_4"
+  ) {
+    return "sims4";
+  }
+  return clean;
+}
+
 export default function Lab({
   activeLabMod,
   setActiveLabMod,
@@ -86,18 +107,21 @@ export default function Lab({
   associatedMods = [],
 }: any) {
   const { t } = useLexicon();
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const activeGameSchema = useStore((s) => s.activeGameSchema);
   const selectedVersion = useStore((s) => s.selectedVersion);
   const modsPath = useStore((s) => s.modsPath);
   const docsPath = modsPath ? modsPath.split(/[\\/]Mods/i)[0] : "";
   const setStatus = useStore((s) => s.setStatus);
 
-  const gameKey = activeGameSchema?.game_id || "ts4";
-  const toolStorageKey = `sanctuary_lab_external_tool_${gameKey}`;
+  const spokeLabKey = resolveSpokeLabScopeKey(activeWorkspaceId, activeGameSchema);
+  const scopedPanelMemoryKey = `${LAB_PANEL_MEMORY_KEY}_${spokeLabKey}`;
+  const scopedTestHistoryKey = `sanctuary_test_history_${spokeLabKey}`;
+  const toolStorageKey = `sanctuary_lab_external_tool_${spokeLabKey}`;
 
   const [linkedTool, setLinkedTool] = useState<{ name: string; path: string } | null>(() => {
     try {
-      const saved = localStorage.getItem(`sanctuary_lab_external_tool_${activeGameSchema?.game_id || "ts4"}`);
+      const saved = localStorage.getItem(`sanctuary_lab_external_tool_${spokeLabKey}`);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -123,10 +147,10 @@ export default function Lab({
     customToolPath?: string;
   } | null>(null);
   const [copiedLogState, setCopiedLogState] = useState(false);
-  const freshSaveArmedKey = `sanctuary_lab_fresh_save_armed_${gameKey}`;
+  const freshSaveArmedKey = `sanctuary_lab_fresh_save_armed_${spokeLabKey}`;
   const [freshSaveArmed, setFreshSaveArmed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(`sanctuary_lab_fresh_save_armed_${activeGameSchema?.game_id || "ts4"}`) === "1";
+      return localStorage.getItem(`sanctuary_lab_fresh_save_armed_${spokeLabKey}`) === "1";
     } catch {
       return false;
     }
@@ -134,7 +158,17 @@ export default function Lab({
 
   const refreshAirgapStatus = async () => {
     try {
-      const targetDocs = docsPath || modsPath || "";
+      const targetDocs = (docsPath || modsPath || "").trim();
+      if (!targetDocs) {
+        setAirgapStatus({
+          active: false,
+          targets: ["saves"],
+          airgap_path: "",
+          protected_files_count: 0,
+        });
+        setTestSaveStatus(null);
+        return;
+      }
       const [res, saveRes]: any = await Promise.all([
         invoke("get_airgap_status", { docsPath: targetDocs }).catch(() => null),
         invoke("get_lab_test_save_status", { docsPath: targetDocs }).catch(() => null),
@@ -213,9 +247,39 @@ export default function Lab({
     }
   }, [selectedReport?.id, selectedReport?.sessionKey, docsPath, modsPath]);
 
+  const loadScopedTestHistory = (scopeKey: string): any[] => {
+    try {
+      const key = `sanctuary_test_history_${scopeKey}`;
+      const rawStr =
+        localStorage.getItem(key) ||
+        (scopeKey === "sims4" ? localStorage.getItem("sanctuary_test_history") : null) ||
+        "[]";
+      const raw = JSON.parse(rawStr);
+      if (!Array.isArray(raw)) return [];
+      const cleaned = raw
+        .filter(
+          (entry: any) =>
+            Boolean(entry?.mod) &&
+            (Boolean(entry.errorFound) ||
+              Boolean(entry.logSnippet && String(entry.logSnippet).trim().length > 0) ||
+              Boolean(entry.verified))
+        )
+        .map((entry: any) => ({
+          ...entry,
+          logSnippet: scrubLogUserData(entry.logSnippet),
+        }));
+      localStorage.setItem(key, JSON.stringify(cleaned));
+      return cleaned;
+    } catch {
+      return [];
+    }
+  };
+
   const [lastConcludingReport, setLastConcludingReport] = useState<any>(() => {
     try {
-      const raw = localStorage.getItem(LAB_PANEL_MEMORY_KEY);
+      const raw =
+        localStorage.getItem(scopedPanelMemoryKey) ||
+        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.lastConcludingReport) {
@@ -229,29 +293,32 @@ export default function Lab({
     return null;
   });
 
-  const [testHistory, setTestHistory] = useState<any[]>(() => {
+  const [testHistory, setTestHistory] = useState<any[]>(() => loadScopedTestHistory(spokeLabKey));
+
+  useEffect(() => {
+    setTestHistory(loadScopedTestHistory(spokeLabKey));
     try {
-      const raw = JSON.parse(localStorage.getItem("sanctuary_test_history") || "[]");
-      if (!Array.isArray(raw)) return [];
-      // Filter out bogus legacy entries and scrub any user data in stored logs
-      const cleaned = raw
-        .filter(
-          (entry: any) =>
-            Boolean(entry?.mod) &&
-            (Boolean(entry.errorFound) ||
-              Boolean(entry.logSnippet && String(entry.logSnippet).trim().length > 0) ||
-              Boolean(entry.verified))
-        )
-        .map((entry: any) => ({
-          ...entry,
-          logSnippet: scrubLogUserData(entry.logSnippet),
-        }));
-      localStorage.setItem("sanctuary_test_history", JSON.stringify(cleaned));
-      return cleaned;
+      const raw =
+        localStorage.getItem(scopedPanelMemoryKey) ||
+        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setLastConcludingReport(
+          parsed?.lastConcludingReport
+            ? {
+                ...parsed.lastConcludingReport,
+                logSnippet: scrubLogUserData(parsed.lastConcludingReport.logSnippet),
+              }
+            : null
+        );
+      } else {
+        setLastConcludingReport(null);
+      }
     } catch {
-      return [];
+      setLastConcludingReport(null);
     }
-  });
+    setLabSessionStatus(loadLabSessionMemory());
+  }, [spokeLabKey, scopedPanelMemoryKey]);
 
   const recordRealTestEntry = (entry: any) => {
     if (!entry?.mod) return;
@@ -282,7 +349,10 @@ export default function Lab({
         next = [normalized, ...prev].slice(0, 50);
       }
       try {
-        localStorage.setItem("sanctuary_test_history", JSON.stringify(next));
+        localStorage.setItem(scopedTestHistoryKey, JSON.stringify(next));
+        if (spokeLabKey === "sims4") {
+          localStorage.setItem("sanctuary_test_history", JSON.stringify(next));
+        }
       } catch {}
       return next;
     });
@@ -602,7 +672,9 @@ export default function Lab({
   // Restore active test payload memory on mount if accidentally closed or navigated away
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(LAB_PANEL_MEMORY_KEY);
+      const raw =
+        localStorage.getItem(scopedPanelMemoryKey) ||
+        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
       if (raw) {
         const mem = JSON.parse(raw);
         if (!activeLabMod && mem.activeLabMod && setActiveLabMod) {
@@ -623,7 +695,7 @@ export default function Lab({
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [spokeLabKey]);
 
   // Persist active test payload & concluding report to memory
   useEffect(() => {
@@ -631,7 +703,7 @@ export default function Lab({
     try {
       if (activeLabMod || lastConcludingReport) {
         localStorage.setItem(
-          LAB_PANEL_MEMORY_KEY,
+          scopedPanelMemoryKey,
           JSON.stringify({
             activeLabMod,
             conflictTarget,
@@ -643,12 +715,13 @@ export default function Lab({
         );
       }
     } catch {}
-  }, [activeLabMod, conflictTarget, stagedExtras, conflictExtras, lastConcludingReport]);
+  }, [activeLabMod, conflictTarget, stagedExtras, conflictExtras, lastConcludingReport, scopedPanelMemoryKey]);
 
   const handleClearLabMemory = async () => {
     memoryDismissedRef.current = true;
     try {
-      localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
+      localStorage.removeItem(scopedPanelMemoryKey);
+      if (spokeLabKey === "sims4") localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
     } catch {}
     saveLabSessionMemory(null);
     setLastConcludingReport(null);
@@ -1123,7 +1196,8 @@ export default function Lab({
       setSecureCardState("done");
       setSelectedReport((prev: any) => (prev ? { ...prev, isConcluding: false } : prev));
       try {
-        localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
+        localStorage.removeItem(scopedPanelMemoryKey);
+        if (spokeLabKey === "sims4") localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
       } catch {}
       saveLabSessionMemory(null);
       setLastConcludingReport(null);

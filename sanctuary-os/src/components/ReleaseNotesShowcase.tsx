@@ -76,6 +76,7 @@ export function cleanPostBodyForViewer(markdown: string): string {
   const lines = (markdown || "").split(/\r?\n/);
   const cleaned: string[] = [];
   let skippedTopHeading = false;
+  let inTableOfContents = false;
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
@@ -94,8 +95,36 @@ export function cleanPostBodyForViewer(markdown: string): string {
     if (i < 6 && (/^\\?##\s+\*".*"\*\s*$/.test(trimmed) || /^\\?###\s+/.test(trimmed))) {
       continue;
     }
-    if (i < 8 && /^\*\*(Release Date|Date|Version):/i.test(trimmed)) {
+    if (
+      i < 14 &&
+      /^(?:>\s*)*\*\*(?:Release Date|Date|Version|Document Version|Last Updated|Effective Date|Classification|Scope):/i.test(
+        trimmed
+      )
+    ) {
+      const strippedMeta = trimmed
+        .replace(
+          /(?:>\s*)?\*\*(?:Release Date|Date|Version|Document Version|Last Updated|Effective Date|Classification|Scope):\*\*\s*[^>\n]+/gi,
+          ""
+        )
+        .replace(/^[>\s•|—–-]+/, "")
+        .trim();
+      if (strippedMeta && /^(?:This|Sanctuary|By\s)/i.test(strippedMeta)) {
+        cleaned.push(strippedMeta);
+      }
       continue;
+    }
+    if (i < 16 && /^\\?#{1,3}\s+table\s+of\s+contents\b/i.test(trimmed)) {
+      inTableOfContents = true;
+      continue;
+    }
+    if (inTableOfContents) {
+      if (!trimmed || trimmed === "---" || /^\d+\.\s+/.test(trimmed) || /^[*-]\s+/.test(trimmed)) {
+        if (trimmed === "---") {
+          inTableOfContents = false;
+        }
+        continue;
+      }
+      inTableOfContents = false;
     }
     // If a long intro paragraph at the top was accidentally formatted as a # heading in TipTap, strip the leading # prefix
     if (i < 6 && /^[\s\u200B\uFEFF#*\\]*#+\s+/.test(trimmed) && trimmed.length > 110) {
@@ -810,12 +839,98 @@ export function renderCleanInlineText(text: string): React.ReactNode {
   });
 }
 
+export function useStableReleaseMeta(): {
+  stableVersion: string;
+  stableDateDisplay: string;
+} {
+  const seedPublicBlog = useMemo(
+    () => parseSeedCommunityBlog(bundledCommunityBlog),
+    []
+  );
+  const seedChangelog = useMemo(
+    () => parseLatestChangelogBlock(bundledNerdChangelog),
+    []
+  );
+  const [pipelineConfig, setPipelineConfig] = useState<KeepersPipelineConfig>(
+    DEFAULT_KEEPERS_PIPELINE_CONFIG
+  );
+
+  useEffect(() => {
+    let active = true;
+    getKeepersPipelineConfig()
+      .then((cfg) => {
+        if (active && cfg) setPipelineConfig(cfg);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const stableVersion = (
+    pipelineConfig.stable_version ||
+    seedPublicBlog.version ||
+    packageJson.version.split("-")[0] ||
+    packageJson.version ||
+    "0.6.0"
+  )
+    .replace(/^v/i, "")
+    .trim();
+
+  const rawDate =
+    seedPublicBlog.releaseDate ||
+    (pipelineConfig.stable_published_at
+      ? new Date(pipelineConfig.stable_published_at).toLocaleDateString()
+      : seedChangelog.date || "10/28/2026");
+
+  const stableDateDisplay = (() => {
+    const trimmed = (rawDate || "").trim();
+    if (!trimmed) return "";
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString();
+    }
+    return trimmed;
+  })();
+
+  return { stableVersion, stableDateDisplay };
+}
+
+export function LegalDocVersionInfoBlock() {
+  const { t } = useLexicon();
+  const { stableVersion, stableDateDisplay } = useStableReleaseMeta();
+
+  return (
+    <div className="grid grid-cols-2 gap-3 w-full">
+      <StatBox
+        className="w-full"
+        icon={t("icon_calendar_today", "calendar_today")}
+        iconColorClass="text-[var(--accent)]"
+        label={t("updated_date", "Last Updated")}
+        value={stableDateDisplay}
+        tooltipSubtitle={stableDateDisplay}
+      />
+      <StatBox
+        className="w-full"
+        icon={t("icon_tag", "tag")}
+        iconColorClass="text-[var(--accent)]"
+        label={t("release_notes_meta_version", "Version Number")}
+        value={`v${stableVersion}`}
+        tooltipSubtitle={`v${stableVersion}`}
+      />
+    </div>
+  );
+}
+
 export function StructuredReleaseNotesView({
   content,
   forceTranslate,
+  hideIntro = false,
 }: {
   content: string;
   forceTranslate?: boolean;
+  hideIntro?: boolean;
 }) {
   const { t, td } = useLexicon();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -943,8 +1058,11 @@ export function StructuredReleaseNotesView({
 
   return (
     <div className="flex flex-col gap-7 min-w-0">
-      {(parsed.introTitle || parsed.intro || (parsed.introImages && parsed.introImages.length > 0)) && (
-        <div className="flex flex-col gap-3.5">
+      {!hideIntro &&
+        (parsed.introTitle ||
+          parsed.intro ||
+          (parsed.introImages && parsed.introImages.length > 0)) && (
+          <div className="flex flex-col gap-3.5">
           {parsed.introTitle && (
             <div className="flex items-center gap-3 px-1 pt-1">
               <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)] shrink-0">

@@ -29,18 +29,20 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
 
   return (
     <>
-      {/* Invisible drag region across the very top */}
-      <div
-        data-tauri-drag-region
-        style={{ WebkitAppRegion: 'drag' } as any}
-        onDoubleClick={(e) => {
-          if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-            (window as any).__sanc_manual_max = true;
-            setTimeout(() => { (window as any).__sanc_manual_max = false; }, 750);
-          }
-        }}
-        className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto bg-[rgba(0,0,0,0.01)]"
-      />
+      {/* Invisible drag region across the very top (Desktop Tauri window only) */}
+      {isDesktop() && (
+        <div
+          data-tauri-drag-region
+          style={{ WebkitAppRegion: 'drag' } as any}
+          onDoubleClick={(e) => {
+            if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+              (window as any).__sanc_manual_max = true;
+              setTimeout(() => { (window as any).__sanc_manual_max = false; }, 750);
+            }
+          }}
+          className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto bg-[rgba(0,0,0,0.01)]"
+        />
+      )}
 
       {/* Container for pills */}
       <div className="fixed top-[env(safe-area-inset-top,0px)] left-0 right-0 h-[56px] pointer-events-none flex items-center z-[999998] px-5">

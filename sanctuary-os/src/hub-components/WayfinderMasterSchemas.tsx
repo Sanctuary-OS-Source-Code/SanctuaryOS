@@ -41,7 +41,12 @@ import {
   fetchSyncedLegalAndCovenants,
 } from "../utils/directivesSync";
 import MarkdownRenderer from "../MarkdownRenderer";
-import { StructuredReleaseNotesView } from "../components/ReleaseNotesShowcase";
+import {
+  StructuredReleaseNotesView,
+  LegalDocVersionInfoBlock,
+  cleanPostBodyForViewer,
+  useStableReleaseMeta,
+} from "../components/ReleaseNotesShowcase";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import { isCoreOnlyAuditRow } from "../lib/audit";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
@@ -144,6 +149,7 @@ export default function WayfinderMasterSchemas({
     "partners_agreement" | "compliance_protocol"
   >("partners_agreement");
   const [covenantViewMode, setCovenantViewMode] = useState<"ui" | "normal">("ui");
+  const { stableVersion } = useStableReleaseMeta();
 
   // Audit Logs & Keepers Support Counts & Overview Previews
   const [auditFilterAction, setAuditFilterAction] = useState("ALL");
@@ -961,7 +967,7 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
               {t("icon_verified", "verified")}
             </span>
-            <span>{t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}</span>
+            <span>{`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}</span>
           </div>
         </div>
       }
@@ -987,7 +993,7 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] opacity-70">
               {t("icon_gavel", "gavel")}
             </span>
-            {t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+            {`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
           </span>
           <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
             {t("btn_inspect", "Inspect")} <span className="text-base leading-none">&rarr;</span>
@@ -998,7 +1004,7 @@ export default function WayfinderMasterSchemas({
       <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
         {t(
           "partner_covenants_desc",
-          "Inspect the binding Sanctuary OS Partners Agreement (V0.5.8) and Compliance Protocol (V5.8) governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
+          "Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
         )}
       </p>
     </UniversalCard>
@@ -2541,7 +2547,7 @@ export default function WayfinderMasterSchemas({
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "partner_covenants_desc",
-                  "Inspect the binding Sanctuary OS Partners Agreement (V0.5.8) and Compliance Protocol (V5.8) governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
+                  "Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
                 )}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2561,7 +2567,7 @@ export default function WayfinderMasterSchemas({
                       {t("partner_agreement_title", "Partners Agreement")}
                     </span>
                     <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--accent)] uppercase">
-                      {t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}
+                      {`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}
                     </span>
                   </div>
                   <span className="text-[11px] text-[var(--subtext)] opacity-80 leading-relaxed">
@@ -2588,7 +2594,7 @@ export default function WayfinderMasterSchemas({
                       {t("compliance_protocol_title", "Compliance Protocol")}
                     </span>
                     <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--success)] uppercase">
-                      {t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+                      {`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
                     </span>
                   </div>
                   <span className="text-[11px] text-[var(--subtext)] opacity-80 leading-relaxed">
@@ -2660,16 +2666,16 @@ export default function WayfinderMasterSchemas({
             <DashboardStatTile
               variant="filter"
               icon={t("icon_handshake", "handshake")}
-              label={t("partner_agreement_title", "Partners Agreement")}
-              number={t("partner_agreement_badge", "V0.5.8 • Spoke Charter")}
+              label={`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}
+              number={t("partner_agreement_title", "Partners Agreement")}
               active={covenantDocTab === "partners_agreement"}
               onClick={() => setCovenantDocTab("partners_agreement")}
             />
             <DashboardStatTile
               variant="filter"
               icon={t("icon_shield", "shield")}
-              label={t("compliance_protocol_title", "Compliance Protocol")}
-              number={t("compliance_protocol_badge", "V5.8 • Safety & Privacy")}
+              label={`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
+              number={t("compliance_protocol_title", "Compliance Protocol")}
               active={covenantDocTab === "compliance_protocol"}
               onClick={() => setCovenantDocTab("compliance_protocol")}
             />
@@ -2683,8 +2689,8 @@ export default function WayfinderMasterSchemas({
             }
             overline={
               covenantDocTab === "partners_agreement"
-                ? t("partner_agreement_badge", "V0.5.8 • Spoke Charter")
-                : t("compliance_protocol_badge", "V5.8 • Safety & Privacy")
+                ? `V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`
+                : `V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`
             }
             title={
               covenantDocTab === "partners_agreement"
@@ -2702,9 +2708,15 @@ export default function WayfinderMasterSchemas({
                     "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
                   )
             }
-            badge={activeWs?.schema_id || activeWorkspaceId || "SPOKE"}
+            badge={
+              covenantDocTab === "partners_agreement"
+                ? `V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`
+                : `V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`
+            }
             variant="accent"
-          />
+          >
+            <LegalDocVersionInfoBlock />
+          </SidePanelHeroCard>
 
           {covenantViewMode === "ui" ? (
             <StructuredReleaseNotesView
@@ -2713,6 +2725,7 @@ export default function WayfinderMasterSchemas({
                   ? syncedPartnersMd
                   : syncedComplianceMd
               }
+              hideIntro={true}
             />
           ) : (
             <UniversalGroup
@@ -2725,11 +2738,11 @@ export default function WayfinderMasterSchemas({
             >
               <div className="text-sm text-[var(--subtext)] leading-relaxed font-medium">
                 <MarkdownRenderer
-                  content={
+                  content={cleanPostBodyForViewer(
                     covenantDocTab === "partners_agreement"
                       ? syncedPartnersMd
                       : syncedComplianceMd
-                  }
+                  )}
                 />
               </div>
             </UniversalGroup>

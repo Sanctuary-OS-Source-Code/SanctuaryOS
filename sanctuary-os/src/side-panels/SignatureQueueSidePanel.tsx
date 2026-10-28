@@ -384,7 +384,7 @@ export function SignatureQueueSidePanel({
           } else if (row.asset_type === "workbench_template" && vaultPath) {
             const displayData = Array.isArray(parsedData) ? parsedData[0] : parsedData;
             const templateId = displayData?.template_id || "vlocal";
-            const templatesDir = `${vaultPath}\\Data\\Templates`;
+            const templatesDir = `${vaultPath}\\Templates`;
             if (!(await exists(templatesDir))) {
               await mkdir(templatesDir, { recursive: true });
             }

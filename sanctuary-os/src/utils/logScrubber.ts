@@ -1287,11 +1287,23 @@ export function extractReportLoadoutFromLogAndContext(
     linkedFiles.forEach((f) => pushUniqueDep(f));
   }
 
-  // 4. Check localStorage sanctuary_test_history for matching mod
+  // 4. Check workspace-scoped localStorage sanctuary_test_history for matching mod
   if ((depsAcc.length === 0 || !resolvedConflictTarget) && targetBaseKey) {
     try {
+      const schemaRaw =
+        activeGameSchema?.id || activeGameSchema?.game_id || "sims4";
+      const cleanScope = String(schemaRaw || "").trim().toLowerCase();
+      const isSims4Scope =
+        !cleanScope ||
+        cleanScope === "default_schema" ||
+        cleanScope === "sims4" ||
+        cleanScope === "ts4" ||
+        cleanScope === "the_sims_4";
+      const scopedHistKey = `sanctuary_test_history_${isSims4Scope ? "sims4" : cleanScope}`;
       const rawHist = JSON.parse(
-        localStorage.getItem("sanctuary_test_history") || "[]"
+        localStorage.getItem(scopedHistKey) ||
+          (isSims4Scope ? localStorage.getItem("sanctuary_test_history") : null) ||
+          "[]"
       );
       if (Array.isArray(rawHist)) {
         const matchingHist = rawHist.find((entry: any) => {

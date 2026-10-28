@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 71;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 74;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -138,26 +138,64 @@ function extractMarkdownSubCards(
     }
   }
 
+  const normalizeHeadingKey = (str: string): string =>
+    str
+      .toLowerCase()
+      .replace(/\{[^}]+\}/g, "")
+      .replace(/`[^`]+`/g, "")
+      .replace(/\([^)]*\)/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
   const results: DirectiveBuilderSubCard[] = [];
   for (const item of rawItems) {
+    const cleanItemTitle = item.title.replace(/`([^`]+)`/g, "$1").trim();
     const combinedDesc = [item.inlineDesc, ...item.subLines]
       .filter(Boolean)
       .join(" ")
       .replace(/\*\*([^*]+?)\*\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
       .trim();
-    if (!item.title || combinedDesc.length < 8) continue;
+    if (!cleanItemTitle || combinedDesc.length < 8) continue;
     const subIdx = results.length;
-    const fb = fallbackSubs?.[subIdx];
-    const isPending = item.isPending || fb?.pending || false;
+    const normItem = normalizeHeadingKey(cleanItemTitle);
+    const matchedFb =
+      fallbackSubs?.find((cand) => {
+        const normCand = normalizeHeadingKey(cand.title);
+        if (!normCand || !normItem) return false;
+        if (normCand === normItem) return true;
+        const itemWords = normItem.split(" ").filter((w) => w.length > 3);
+        const candWords = normCand.split(" ").filter((w) => w.length > 3);
+        if (itemWords.length >= 2 && candWords.length >= 2) {
+          return (
+            itemWords[0] === candWords[0] &&
+            itemWords.slice(0, 3).some((w) => candWords.includes(w))
+          );
+        }
+        return false;
+      }) ||
+      (fallbackSubs && rawItems.length === fallbackSubs.length
+        ? fallbackSubs[subIdx]
+        : undefined);
+
+    const isPending = item.isPending || matchedFb?.pending || false;
+    const preferCuratedFallback = Boolean(
+      matchedFb && (item.subLines.length > 0 || combinedDesc.length > 280)
+    );
+
     results.push({
-      id: fb?.id || `${idPrefix}_${subIdx + 1}`,
+      id: matchedFb?.id || `${idPrefix}_${subIdx + 1}`,
       icon:
-        fb?.icon ||
+        matchedFb?.icon ||
         (isPending
           ? t("icon_rocket_launch", "rocket_launch")
           : t("icon_check_circle", "check_circle")),
-      title: item.title,
-      desc: combinedDesc,
+      title: preferCuratedFallback
+        ? matchedFb!.title
+        : t("", cleanItemTitle),
+      desc: preferCuratedFallback
+        ? matchedFb!.desc
+        : t("", combinedDesc),
       pending: isPending,
     });
   }
@@ -243,9 +281,17 @@ export function parseMarkdownToDirectiveSchema(
   }
 
   // 1. Check if markdown was compiled by compileDirectiveSchemaToMarkdown (`## LABEL — VALUE` & `### OVERLINE: TITLE`)
-  const compiledTabMatches = [...clean.matchAll(/^##\s+([^—\n]+?)\s+—\s+([^\n]+)$/gm)];
-  if (compiledTabMatches.length >= baseSchema.tabs.length) {
+  const compiledTabMatches =
+    slug === "phase_roadmap"
+      ? []
+      : [...clean.matchAll(/^##\s+([^—\n]+?)\s+—\s+([^\n]+)$/gm)].filter(
+          (m) =>
+            !/^##\s+(?:Phase|Stage|Pillar|Domain|Part)\s+\d+/i.test(m[0]) &&
+            (!m[1].includes("(") || m[1].includes(")"))
+        );
+  if (compiledTabMatches.length > 0 && compiledTabMatches.length >= baseSchema.tabs.length) {
     const parsedTabs: DirectiveBuilderTab[] = [];
+    let allTabsHaveCompiledCards = true;
     for (let tIdx = 0; tIdx < compiledTabMatches.length; tIdx++) {
       const match = compiledTabMatches[tIdx];
       const label = match[1].trim();
@@ -259,6 +305,10 @@ export function parseMarkdownToDirectiveSchema(
       const fallbackTab = baseSchema.tabs[tIdx] || baseSchema.tabs[0];
 
       const cardMatches = [...tabBody.matchAll(/^###\s+([^\n]+)$/gm)];
+      if (cardMatches.length === 0) {
+        allTabsHaveCompiledCards = false;
+        break;
+      }
       const cards: DirectiveBuilderCard[] = cardMatches.map((cm, cIdx) => {
         const rawHeading = cm[1].trim();
         const cStart = (cm.index || 0) + cm[0].length;
@@ -335,11 +385,12 @@ export function parseMarkdownToDirectiveSchema(
         icon: fallbackTab?.icon || t("icon_folder_special", "folder_special"),
         label,
         value,
-        cards: cards.length > 0 ? cards : fallbackTab?.cards || [],
+        cards,
       });
     }
 
     if (
+      allTabsHaveCompiledCards &&
       parsedTabs.length > 0 &&
       parsedTabs.every((tb) => tb.cards.length > 0 && tb.cards.every((c) => Boolean(c.desc)))
     ) {
@@ -358,7 +409,7 @@ export function parseMarkdownToDirectiveSchema(
   // Syncs headings (`## Phase N`, `## Stage N`, `## Pillar N`, etc.) and `- **Title:** Desc` bullets
   // directly from the repository `.md` files or Hub DB markdown into `baseSchema.tabs`.
   if (slug === "phase_roadmap") {
-    const phaseMatches = [...clean.matchAll(/^##\s+(Phase\s+(\d+)[^\n]*)$/gim)];
+    const phaseMatches = [...clean.matchAll(/^###?\s+(Phase\s+(\d+)[^\n]*)$/gim)];
     if (phaseMatches.length > 0 && baseSchema.tabs[0]) {
       const defaultCards = baseSchema.tabs[0].cards;
       const updatedCards: DirectiveBuilderCard[] = phaseMatches.map((pm, idx) => {
@@ -380,17 +431,19 @@ export function parseMarkdownToDirectiveSchema(
         let title = fallback?.title || fullHeading;
         const colonIdx = fullHeading.indexOf(":");
         if (colonIdx > 0) {
-          title =
-            fullHeading
-              .slice(colonIdx + 1)
-              .replace(/\s*\([^)]*(?:2026|2025|Active|Progress|Completed|V0\.|V5\.)[^)]*\)\s*$/i, "")
-              .trim() || title;
+          const parsedHeadingTitle = fullHeading
+            .slice(colonIdx + 1)
+            .replace(/\s*\([^)]*(?:2026|2025|Active|Progress|Completed|V0\.|V5\.)[^)]*\)\s*$/i, "")
+            .trim();
+          if (parsedHeadingTitle) {
+            title = fallback?.title || t("", parsedHeadingTitle);
+          }
         }
 
         let focusText = fallback?.footerMeta || "";
         const focusMatch = sectionBody.match(/\*\*Focus:\*\*\s*`?([^`\n|]+)`?/i);
         if (focusMatch && focusMatch[1]) {
-          focusText = focusMatch[1].trim();
+          focusText = fallback?.footerMeta || t("", focusMatch[1].trim());
         }
 
         const statusMatch = sectionBody.match(/\*\*Status:\*\*\s*`?([^`\n|]+)`?/i);
@@ -712,6 +765,13 @@ export function extractDirectiveBuilderSchema(
           if (parsed._bodySig && parsed._bodySig !== currentBodySig) {
             return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
           }
+          if (
+            effectiveSlug === "phase_roadmap" &&
+            (parsed.tabs.length !== 1 ||
+              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 14)
+          ) {
+            return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
+          }
           // Sanitize any leftover italic meta prefix on card descriptions
           parsed.tabs = parsed.tabs.map((tb) => ({
             ...tb,
@@ -762,15 +822,26 @@ export function compileDirectiveSchemaToMarkdown(
   for (const tab of schema.tabs) {
     lines.push("---");
     lines.push("");
-    lines.push(`## ${tab.label} — ${tab.value}`);
-    lines.push("");
+    if (schema.slug !== "phase_roadmap") {
+      lines.push(`## ${tab.label} — ${tab.value}`);
+      lines.push("");
+    }
 
     for (const card of tab.cards) {
-      lines.push(`### ${card.overline ? `${card.overline}: ` : ""}${card.title}`);
+      const headingPrefix = schema.slug === "phase_roadmap" ? "##" : "###";
+      lines.push(`${headingPrefix} ${card.overline ? `${card.overline}: ` : ""}${card.title}`);
       if (card.badge || card.footerMeta) {
-        const metaParts = [card.badge, card.footerMeta].filter(Boolean);
-        if (metaParts.length > 0) {
-          lines.push(`*${metaParts.join(" • ")}*`);
+        if (schema.slug === "phase_roadmap") {
+          lines.push(
+            `**Status:** \`${card.badge || "COMPLETED"}\`${
+              card.footerMeta ? ` | **Focus:** \`${card.footerMeta}\`` : ""
+            }`
+          );
+        } else {
+          const metaParts = [card.badge, card.footerMeta].filter(Boolean);
+          if (metaParts.length > 0) {
+            lines.push(`*${metaParts.join(" • ")}*`);
+          }
         }
       }
       if (card.desc) {
@@ -2037,13 +2108,13 @@ export function getDefaultDirectiveBuilderSchema(
         overline: g("PHASE 14 (V0.6.0) • NOVEMBER 2026 — ACTIVE ERA"),
         badge: g("ACTIVE PHASE"),
         title: g(
-          "Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform {Vault} Companion"
+          "Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Manager & Collection Migration, Guided Diagnostics & Cross-Platform {Vault} Companion"
         ),
         footerMeta: g(
-          "External Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV), GTA V .rpf Isolation, FOMOD/Flavor Installer, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
+          "External Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV), GTA V .rpf Isolation, FOMOD/Flavor Installer, MO2/Vortex Setup Importer, Cross-Platform Modlist/Collection Translator, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
         ),
         desc: g(
-          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside Homestead {Lab}, live Multi-Engine Manifest Compilers & GTA V .rpf Copy-on-Write / LML isolation, Guided FOMOD & Flavor Package Installer, Save-Game {Blueprint} Lock (Save Doctor), Homestead Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
+          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside {Lab}, live Multi-Engine Manifest Compilers & GTA V .rpf Copy-on-Write / LML isolation, Guided FOMOD & Flavor Package Installer, External Mod Manager Migration (MO2, Vortex, BG3MM, Sims 4 Mod Manager) without reinstalling, Cross-Platform Curated Modlist & Collection Translator into native {Blueprints}, Save-Game {Blueprint} Lock (Save Doctor), {Lab} Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
         ),
         status: "active",
         subCards: [
@@ -2076,6 +2147,24 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m4",
+            icon: t("icon_drive_file_move", "drive_file_move"),
+            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer (MO2 / Vortex / BG3MM)"),
+            desc: g(
+              "Imports existing Mod Organizer 2, Vortex, BG3MM, and Sims 4 Mod Manager staging folders without reinstalling—reading meta.ini, modlist.txt, plugins.txt, and deployment manifests to reconstruct every profile as a Sanctuary {Blueprint} via Zero-Duplication Hardlink, Move, or Copy."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m5",
+            icon: t("icon_swap_horiz", "swap_horiz"),
+            title: g("Cross-Platform Curated Modlist & Collection Translator (External Lists → {Blueprints})"),
+            desc: g(
+              "Imports Nexus Collections (collection.json), Wabbajack manifests, MO2 profile exports, and CurseForge/Modrinth packs directly into native Sanctuary {Blueprints}—binding existing {Vault} {mods} by DNA hash and routing missing items into the Guided Side Browser Queue."
+            ),
+            pending: true,
+          },
+          {
+            id: "phase_14_m6",
             icon: t("icon_health_and_safety", "health_and_safety"),
             title: g("Save-Game {Blueprint} Lock & Pre-Launch Save Doctor"),
             desc: g(
@@ -2084,16 +2173,16 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m5",
+            id: "phase_14_m7",
             icon: t("icon_troubleshoot", "troubleshoot"),
-            title: g("{Citizen}-Facing Homestead Crash & Exception Decoder (Desktop + Web)"),
+            title: g("{Citizen}-Facing {Lab} Crash & Exception Decoder (Desktop + Web)"),
             desc: g(
               "Watches schema log_files (lastException.txt, Papyrus, SMAPI, redscript) and cross-references stack traces against installed {Vault} {mods} and KnownExceptionRules to surface plain-English Crash Diagnosis Cards."
             ),
             pending: true,
           },
           {
-            id: "phase_14_m6",
+            id: "phase_14_m8",
             icon: t("icon_sports_esports", "sports_esports"),
             title: g("SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity)"),
             desc: g(
@@ -2102,7 +2191,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m7",
+            id: "phase_14_m9",
             icon: t("icon_phonelink_ring", "phonelink_ring"),
             title: g("Mobile PWA / Web 'My {Vault} Patch Radar' (Zero-PII Cloud Companion)"),
             desc: g(
@@ -2111,7 +2200,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m8",
+            id: "phase_14_m10",
             icon: t("icon_playlist_play", "playlist_play"),
             title: g("Realtime Queue Handshake & Side Browser Guided Batch Updater"),
             desc: g(
@@ -2120,7 +2209,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m9",
+            id: "phase_14_m11",
             icon: t("icon_terminal", "terminal"),
             title: g("Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms)"),
             desc: g(
@@ -2129,7 +2218,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m10",
+            id: "phase_14_m12",
             icon: t("icon_compare", "compare"),
             title: g("Conflict Radar 2.0 — Resource-Level Overlap & Diff Inspector"),
             desc: g(
@@ -2138,7 +2227,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m11",
+            id: "phase_14_m13",
             icon: t("icon_difference", "difference"),
             title: g("In-Game Config Watcher → Workbench Interactive Diff Timeline"),
             desc: g(
@@ -2147,7 +2236,7 @@ export function getDefaultDirectiveBuilderSchema(
             pending: true,
           },
           {
-            id: "phase_14_m12",
+            id: "phase_14_m14",
             icon: t("icon_verified", "verified"),
             title: g("Automated Protocol Regression & Stability Suite (Vitest + Cargo Test)"),
             desc: g(

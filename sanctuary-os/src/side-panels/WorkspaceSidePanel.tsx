@@ -101,18 +101,28 @@ export function WorkspaceSidePanel({
               globalConfig.active_workspace_id = defaultWs.schema_id;
             }
           }
-          if (
-            !globalConfig.workspaces.find(
-              (w: any) => w.id === globalConfig.active_workspace_id
-            )
-          ) {
-            const cloned = {
-              ...globalConfig.workspaces[0],
+          const targetSchemaId =
+            workspace.schema_id || globalConfig.active_workspace_id;
+          const existingTarget = globalConfig.workspaces.find(
+            (w: any) =>
+              String(w.id || "").toLowerCase() ===
+                String(globalConfig.active_workspace_id || "").toLowerCase() ||
+              String(w.schema_id || "").toLowerCase() ===
+                String(targetSchemaId || "").toLowerCase()
+          );
+          if (!existingTarget) {
+            const masterVault = globalConfig.vault_path || "";
+            const cleanWorkspace = {
               id: globalConfig.active_workspace_id,
-              schema_id:
-                workspace.schema_id || globalConfig.active_workspace_id,
+              name: workspace.name || targetSchemaId,
+              schema_id: targetSchemaId,
+              live_path: "",
+              mods_path: "",
+              vault_path: masterVault ? `${masterVault}\\${targetSchemaId}` : "",
+              supabase_url: workspace.supabase_url || null,
+              supabase_anon_key: workspace.supabase_anon_key || null,
             };
-            globalConfig.workspaces.push(cloned);
+            globalConfig.workspaces.push(cleanWorkspace);
           }
         }
         await invoke("save_coordinates", { config: globalConfig });

@@ -346,6 +346,20 @@ const LexiconContext: ReturnType<typeof createContext<any>> =
   (globalThis as any).__SANCTUARY_LEXICON_CONTEXT__ ||
   ((globalThis as any).__SANCTUARY_LEXICON_CONTEXT__ = createContext<any>(null));
 
+async function resolveVaultLexiconRoots(): Promise<{ masterVault: string; spokeVault: string }> {
+  const [globalConfig, coords]: [any, any] = await Promise.all([
+    invoke('get_global_config').catch(() => null),
+    invoke('get_saved_coordinates').catch(() => null),
+  ]);
+  const spokeVault = String(coords?.vault_path || '').trim().replace(/[\\/]+$/, '');
+  let masterVault = String(globalConfig?.vault_path || '').trim().replace(/[\\/]+$/, '');
+  if (!masterVault && spokeVault) {
+    const lastSep = Math.max(spokeVault.lastIndexOf('\\'), spokeVault.lastIndexOf('/'));
+    masterVault = lastSep > 0 ? spokeVault.slice(0, lastSep) : spokeVault;
+  }
+  return { masterVault: masterVault || spokeVault, spokeVault };
+}
+
 export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const wsId = activeWorkspaceId || 'default';
@@ -374,10 +388,14 @@ export const LexiconProvider = ({ children }: any) => {
 
   const readRegistryFromStorage = (workspaceId: string) => {
     try {
+      const globalRaw = JSON.parse(localStorage.getItem('sanctuary_global_lexicon_registry') || '{}');
       const key = `sanctuary_${workspaceId}_lexicon_registry`;
       const raw = localStorage.getItem(key);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw);
+      const wsParsed = raw ? JSON.parse(raw) : {};
+      const parsed: Record<string, any> = {
+        ...(typeof wsParsed === 'object' && wsParsed ? wsParsed : {}),
+        ...(typeof globalRaw === 'object' && globalRaw ? globalRaw : {}),
+      };
       let hadBuiltins = false;
       for (const id of BUILTIN_LEXICON_IDS) {
         if (id in parsed) {
@@ -389,7 +407,9 @@ export const LexiconProvider = ({ children }: any) => {
         try {
           localStorage.removeItem(key);
           if (Object.keys(parsed).length > 0) {
-            localStorage.setItem(key, JSON.stringify(parsed));
+            const cleanedStr = JSON.stringify(parsed);
+            localStorage.setItem(key, cleanedStr);
+            localStorage.setItem('sanctuary_global_lexicon_registry', cleanedStr);
           }
         } catch {}
       }
@@ -410,12 +430,14 @@ export const LexiconProvider = ({ children }: any) => {
     if (Object.keys(customOnly).length === 0) {
       try {
         localStorage.removeItem(key);
+        localStorage.removeItem('sanctuary_global_lexicon_registry');
       } catch {}
       return;
     }
     const serialized = JSON.stringify(customOnly);
     try {
       localStorage.setItem(key, serialized);
+      localStorage.setItem('sanctuary_global_lexicon_registry', serialized);
     } catch (e) {
       // Free up space from any legacy bloated lexicon_registry keys across workspaces
       try {
@@ -426,6 +448,7 @@ export const LexiconProvider = ({ children }: any) => {
           }
         }
         localStorage.setItem(key, serialized);
+        localStorage.setItem('sanctuary_global_lexicon_registry', serialized);
       } catch (err) {
         console.warn('Could not persist custom lexicon registry to localStorage:', err);
       }
@@ -689,24 +712,32 @@ export const LexiconProvider = ({ children }: any) => {
     const scanVault = async () => {
       try {
         if (!isDesktop()) return;
-        const config: any = await invoke('get_saved_coordinates');
-        if (!config?.vault_path) return;
-        const lexiconsDir = `${config.vault_path}\\Data\\Lexicons`;
-        const dirExists = await exists(lexiconsDir);
-        if (!dirExists) return;
+        const { masterVault, spokeVault } = await resolveVaultLexiconRoots();
+        if (!masterVault) return;
+        const lexiconsDir = `${masterVault}\\Data\\Lexicons`;
+        const legacySpokeLexiconsDir =
+          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase()
+            ? `${spokeVault}\\Data\\Lexicons`
+            : '';
 
-        const entries = await readDir(lexiconsDir);
         let localUpdates: any = {};
         let hasLocalUpdates = false;
 
-        for (const entry of entries) {
-          if (entry.name && entry.name.endsWith('.json')) {
-            const langCode = entry.name.replace('.json', '');
-            // Only read if not already in registry or if we want to overwrite
-            // To be safe and avoid race conditions, we'll merge
-            const content = await readTextFile(`${lexiconsDir}\\${entry.name}`);
-            localUpdates[langCode] = JSON.parse(content);
-            hasLocalUpdates = true;
+        for (const candidateDir of [lexiconsDir, legacySpokeLexiconsDir].filter(Boolean)) {
+          if (!(await exists(candidateDir))) continue;
+          const entries = await readDir(candidateDir);
+          for (const entry of entries) {
+            if (entry.name && entry.name.endsWith('.json')) {
+              const langCode = entry.name.replace('.json', '');
+              const content = await readTextFile(`${candidateDir}\\${entry.name}`);
+              const parsed = JSON.parse(content);
+              localUpdates[langCode] = parsed;
+              hasLocalUpdates = true;
+              if (candidateDir !== lexiconsDir) {
+                await mkdir(lexiconsDir, { recursive: true }).catch(() => {});
+                await writeTextFile(`${lexiconsDir}\\${entry.name}`, JSON.stringify(parsed, null, 2)).catch(() => {});
+              }
+            }
           }
         }
 
@@ -982,9 +1013,9 @@ export const LexiconProvider = ({ children }: any) => {
     (async () => {
       try {
         if (!isDesktop()) return;
-        const config: any = await invoke('get_saved_coordinates');
-        if (config?.vault_path) {
-          const lexiconsDir = `${config.vault_path}\\Data\\Lexicons`;
+        const { masterVault } = await resolveVaultLexiconRoots();
+        if (masterVault) {
+          const lexiconsDir = `${masterVault}\\Data\\Lexicons`;
           await mkdir(lexiconsDir, { recursive: true });
           await writeTextFile(`${lexiconsDir}\\${langCode}.json`, JSON.stringify(json, null, 2));
         }
@@ -1001,11 +1032,10 @@ export const LexiconProvider = ({ children }: any) => {
     (async () => {
       try {
         if (!isDesktop()) return;
-        const config: any = await invoke('get_saved_coordinates');
-        if (config?.vault_path) {
-          const filePath = `${config.vault_path}\\Data\\Lexicons\\${langCode}.json`;
-          const fileExists = await exists(filePath);
-          if (fileExists) await remove(filePath);
+        const { masterVault, spokeVault } = await resolveVaultLexiconRoots();
+        for (const base of [masterVault, spokeVault].filter(Boolean)) {
+          const filePath = `${base}\\Data\\Lexicons\\${langCode}.json`;
+          if (await exists(filePath)) await remove(filePath);
         }
       } catch (err) { console.error("Failed to delete lexicon from vault:", err); }
     })();

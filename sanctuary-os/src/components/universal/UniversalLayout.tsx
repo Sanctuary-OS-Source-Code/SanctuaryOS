@@ -162,12 +162,17 @@ export function SidePanelHeroCard({
           ? "--success"
           : "--accent";
 
+  const hasBadges = Boolean(resolvedBadge || (badges && badges.length > 0));
+  const totalBadges = (resolvedBadge ? 1 : 0) + (badges?.length || 0);
+  const hasWideBadges =
+    totalBadges > 1 || (typeof resolvedBadge === "string" && resolvedBadge.length > 16);
+
   return (
     <div
       className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5 shrink-0 ${className}`}
     >
-      <div className="flex items-start justify-between gap-3.5">
-        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+      <div className="flex flex-wrap items-start justify-between gap-2.5 sm:gap-3.5">
+        <div className="flex items-start gap-3.5 min-w-[200px] flex-1">
           <div
             className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
             style={{
@@ -179,7 +184,7 @@ export function SidePanelHeroCard({
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
             {resolvedOverline && (
               <span
-                className="text-[10px] font-black uppercase tracking-[0.18em]"
+                className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug"
                 style={{ color: `var(${colorVar})` }}
               >
                 {resolvedOverline}
@@ -190,16 +195,16 @@ export function SidePanelHeroCard({
                 {resolvedTitle}
               </h3>
             )}
-            {resolvedDescription && (
-              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+            {resolvedDescription && !hasWideBadges && (
+              <p className={`text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 ${hasBadges ? "hidden sm:block" : ""}`}>
                 {resolvedDescription}
               </p>
             )}
           </div>
         </div>
 
-        {(resolvedBadge || (badges && badges.length > 0)) && (
-          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+        {hasBadges && (
+          <div className="flex items-center gap-1.5 flex-wrap sm:justify-end shrink-0">
             {resolvedBadge && (
               <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                 <span
@@ -244,6 +249,12 @@ export function SidePanelHeroCard({
           </div>
         )}
       </div>
+
+      {resolvedDescription && hasBadges && (
+        <p className={`text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 ${hasWideBadges ? "" : "sm:hidden"}`}>
+          {resolvedDescription}
+        </p>
+      )}
 
       {children}
     </div>

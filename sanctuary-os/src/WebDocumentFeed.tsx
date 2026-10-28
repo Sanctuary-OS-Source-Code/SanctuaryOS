@@ -92,7 +92,7 @@ export default function WebDocumentFeed() {
 
   // 2. Phase Roadmap Timeline State (3 Static Top Tiles + 2-Column Cards with Inline Drawer)
   const [roadmapFilter, setRoadmapFilter] = useState<"all" | "active" | "completed">("all");
-  const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(13);
+  const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(14);
 
   // 3. Forking & Spoke Provisioning Guide State (3 Static Top Tiles)
   const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
@@ -166,8 +166,11 @@ export default function WebDocumentFeed() {
     loadDirectivesAndBroadcasts();
     const handleRefresh = () => loadDirectivesAndBroadcasts();
     window.addEventListener("sanctuary_directives_updated", handleRefresh);
-    return () =>
+    window.addEventListener("focus", handleRefresh);
+    return () => {
       window.removeEventListener("sanctuary_directives_updated", handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
+    };
   }, [isKeeper]);
 
   const handleCopyCode = (id: string, text: string) => {
@@ -1294,6 +1297,26 @@ export default function WebDocumentFeed() {
       ) || getDefaultDirectiveBuilderSchema("phase_roadmap", t),
     [directivesMap.phase_roadmap?.content, t]
   );
+
+  const topRoadmapPhaseNum = useMemo(() => {
+    const cards =
+      customRoadmapSchema?.tabs?.find(
+        (tab) => tab.id === "all" || tab.id === "phases"
+      )?.cards ||
+      customRoadmapSchema?.tabs?.[0]?.cards ||
+      [];
+    if (cards.length === 0) return 14;
+    const firstMatch = (cards[0]?.overline || cards[0]?.title || "").match(
+      /\bPhase\s+(\d+)/i
+    );
+    return firstMatch ? parseInt(firstMatch[1], 10) : cards.length;
+  }, [customRoadmapSchema]);
+
+  useEffect(() => {
+    if (topRoadmapPhaseNum >= 14 && selectedPhaseNum === 13) {
+      setSelectedPhaseNum(topRoadmapPhaseNum);
+    }
+  }, [topRoadmapPhaseNum, selectedPhaseNum]);
   const customForkSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
@@ -1340,10 +1363,7 @@ export default function WebDocumentFeed() {
           title:
             customRoadmapSchema?.title ||
             t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap"),
-          subtitle: t(
-            "sd_card_roadmap_sub",
-            "Evolution Timeline • Phase 13 Active"
-          ),
+          subtitle: `${t("dir_roadmap_tab_value", "Evolution Timeline")} • ${t("dir_phase_word", "Phase")} ${topRoadmapPhaseNum} ${t("active", "Active")}`,
           icon: t("icon_timeline", "timeline"),
         };
       case "forking":
@@ -2104,10 +2124,11 @@ export default function WebDocumentFeed() {
 
   // Render Interactive Phase Roadmap Timeline (3 Filter Tabs + 2-Column Card Grid where Selected Phase Expands Alone on Its Row)
   const renderInteractiveRoadmap = () => {
-    const customPhasesTab = customRoadmapSchema?.tabs?.find(
-      (tab) => tab.id === "all" || tab.id === "phases"
-    );
-    const totalCustomPhases = customPhasesTab?.cards?.length || 13;
+    const customPhasesTab =
+      customRoadmapSchema?.tabs?.find(
+        (tab) => tab.id === "all" || tab.id === "phases"
+      ) || customRoadmapSchema?.tabs?.[0];
+    const totalCustomPhases = customPhasesTab?.cards?.length || 14;
     const effectivePhases =
       customPhasesTab && customPhasesTab.cards.length > 0
         ? customPhasesTab.cards.map((c, idx) => {
@@ -4602,7 +4623,7 @@ export default function WebDocumentFeed() {
     customGuideSchema?.tabs.find((tb) => tb.id === "modules")?.cards.length ||
     12;
   const roadmapPhaseCount =
-    customRoadmapSchema?.tabs[0]?.cards.length || 13;
+    customRoadmapSchema?.tabs[0]?.cards.length || 14;
   const forkTotalTabs = customForkSchema?.tabs.length || 3;
   const forkTotalCards =
     customForkSchema?.tabs.reduce((acc, tb) => acc + (tb.cards?.length || 0), 0) ||
@@ -4692,10 +4713,10 @@ export default function WebDocumentFeed() {
             t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
           }
           subtitle={buildDirectiveSubtitle(
-            t("sd_card_roadmap_sub", "Roadmap")
+            `${t("dir_roadmap_tab_value", "Evolution Timeline")} • ${t("dir_phase_word", "Phase")} ${topRoadmapPhaseNum} ${t("active", "Active")}`
           )}
           bannerTopLabel={`${t("dir_roadmap_phases_unit", "PHASES")} 1–${roadmapPhaseCount}`}
-          bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${t("sd_card_roadmap_sub", "Roadmap")}`}
+          bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${t("dir_phase_word", "Phase")} ${topRoadmapPhaseNum} ${t("active", "Active")}`}
           onClick={() => openDirectiveModule("roadmap")}
           className="w-full h-full"
           imageOverlay={

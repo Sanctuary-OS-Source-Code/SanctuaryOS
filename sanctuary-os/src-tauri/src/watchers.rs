@@ -152,7 +152,9 @@ pub fn initialize_airgap_watch(
         return;
     }
 
-    let v_path = std::path::PathBuf::from(&vault_path).join("Airgap");
+    let v_path = std::path::PathBuf::from(&vault_path)
+        .join("Backups")
+        .join("Config");
     let _ = std::fs::create_dir_all(&v_path);
     let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
     let shutdown_rx = reset_watcher_shutdown(&AIRGAP_WATCH_SHUTDOWN);

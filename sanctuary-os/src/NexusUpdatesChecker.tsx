@@ -28,7 +28,7 @@ export function NexusUpdatesChecker() {
           const config: any = await invoke('get_saved_coordinates');
           const vaultPath = config.vault_path;
           if (vaultPath) {
-            const templatesDir = `${vaultPath}\\Data\\Templates`;
+            const templatesDir = `${vaultPath}\\Templates`;
             if (await exists(templatesDir)) {
               const files = await readDir(templatesDir);
               for (const file of files) {

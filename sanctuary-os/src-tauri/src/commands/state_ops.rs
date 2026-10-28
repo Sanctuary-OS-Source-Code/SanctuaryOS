@@ -16,8 +16,32 @@ pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
     if let Ok(content) = fs::read_to_string(&path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Ok(config) = serde_json::from_value::<SolderConfig>(v.clone()) {
+            if let Ok(mut config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
+                    // Auto-heal any workspace whose live_path or mods_path was accidentally cloned from the primary workspace
+                    if config.workspaces.len() > 1 {
+                        let first_schema = config.workspaces[0].schema_id.to_lowercase();
+                        let first_live = config.workspaces[0].live_path.clone();
+                        let first_mods = config.workspaces[0].mods_path.clone();
+                        let mut healed = false;
+                        for ws in config.workspaces.iter_mut().skip(1) {
+                            if ws.schema_id.to_lowercase() != first_schema {
+                                if !first_live.is_empty() && ws.live_path == first_live {
+                                    ws.live_path.clear();
+                                    healed = true;
+                                }
+                                if !first_mods.is_empty() && ws.mods_path == first_mods {
+                                    ws.mods_path.clear();
+                                    healed = true;
+                                }
+                            }
+                        }
+                        if healed {
+                            if let Ok(healed_json) = serde_json::to_string_pretty(&config) {
+                                let _ = fs::write(&path, healed_json);
+                            }
+                        }
+                    }
                     return config;
                 }
             }
@@ -38,6 +62,7 @@ pub fn get_global_config() -> SolderConfig {
                     live_path,
                     mods_path,
                     vault_path: vault_path.clone(),
+                    master_vault_path: Some(vault_path.clone()),
                     engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
                     defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
                     backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
@@ -77,8 +102,29 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
     let mut active_workspace = None;
 
     if let Some(active_id) = &global_config.active_workspace_id {
-        if let Some(workspace) = global_config.workspaces.iter().find(|w| w.id == *active_id) {
-            active_workspace = Some(workspace.clone());
+        let trimmed_id = active_id.trim();
+        if !trimmed_id.is_empty() {
+            if let Some(workspace) = global_config.workspaces.iter().find(|w| {
+                w.id.eq_ignore_ascii_case(trimmed_id)
+                    || w.schema_id.eq_ignore_ascii_case(trimmed_id)
+            }) {
+                active_workspace = Some(workspace.clone());
+            } else if trimmed_id.eq_ignore_ascii_case("default_workspace") {
+                if let Some(workspace) = global_config.workspaces.first() {
+                    active_workspace = Some(workspace.clone());
+                }
+            } else {
+                // Never leak another spoke's paths into an unconfigured workspace
+                active_workspace = Some(WorkspaceConfig {
+                    id: trimmed_id.to_string(),
+                    name: trimmed_id.to_string(),
+                    schema_id: trimmed_id.to_string(),
+                    live_path: String::new(),
+                    mods_path: String::new(),
+                    vault_path: String::new(),
+                    ..WorkspaceConfig::default()
+                });
+            }
         }
     }
 
@@ -89,12 +135,35 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
     }
 
     if let Some(mut workspace) = active_workspace {
-        // Enforce Master OS Vault Architecture dynamically
+        // Enforce Master OS Vault Architecture dynamically:
+        // Shared Themes & Lexicons live in <MasterVault>/Data/{Themes,Lexicons} (one level above spokes),
+        // while each Spoke workspace lives in <MasterVault>/<schema_id>.
         if let Some(mv) = master_vault {
             if !mv.is_empty() {
-                let new_path = std::path::PathBuf::from(mv).join(&workspace.schema_id);
+                workspace.master_vault_path = Some(mv.clone());
+                let mv_path = std::path::PathBuf::from(&mv);
+                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
+                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
+                let new_path = mv_path.join(&workspace.schema_id);
                 workspace.vault_path = new_path.to_string_lossy().to_string();
             }
+        }
+        if workspace.master_vault_path.is_none() && !workspace.vault_path.is_empty() {
+            let vp = std::path::PathBuf::from(&workspace.vault_path);
+            let resolved_master = if vp
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map_or(false, |name| {
+                    name.eq_ignore_ascii_case(&workspace.schema_id)
+                        || name.eq_ignore_ascii_case(&workspace.id)
+                }) {
+                vp.parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| workspace.vault_path.clone())
+            } else {
+                workspace.vault_path.clone()
+            };
+            workspace.master_vault_path = Some(resolved_master);
         }
         return workspace;
     }

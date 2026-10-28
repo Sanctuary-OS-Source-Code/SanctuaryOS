@@ -392,7 +392,7 @@ export async function syncDirectivesBidirectional(options?: {
         category: canonical.category,
         file_path: canonical.file_path,
         content: localContent,
-        version: "v0.5.8-Dev.5",
+        version: "v0.6.0",
         updated_at: new Date().toISOString(),
         updated_by: "Sanctuary Foundry",
         sync_state: "local_fallback",
@@ -440,7 +440,7 @@ export async function syncDirectivesBidirectional(options?: {
           category: dbRow.category || canonical.category,
           file_path: canonical.file_path,
           content: localContent,
-          version: dbRow.version || "v0.5.8-Dev.5",
+          version: dbRow.version || "v0.6.0",
           updated_at: dbRow.updated_at || new Date().toISOString(),
           updated_by: dbRow.updated_by || "Codebase Auto-Sync",
         });
@@ -453,7 +453,7 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
-        version: dbRow.version || "v0.5.8-Dev.5",
+        version: dbRow.version || "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: dbRow.updated_by || "Sanctuary Foundry",
         sync_state: "synced",
@@ -463,11 +463,25 @@ export async function syncDirectivesBidirectional(options?: {
 
     const dbEpochMs = dbRow.updated_at ? new Date(dbRow.updated_at).getTime() : 0;
     const localEpochMs = localSnap?.modified_epoch_ms || 0;
-    const localIsNewer = localEpochMs > 0 && localEpochMs > dbEpochMs + 2000;
+    const dbSchemaVerMatch = dbContent.match(/"_schemaVersion"\s*:\s*(\d+)/);
+    const dbSchemaVer = dbSchemaVerMatch ? parseInt(dbSchemaVerMatch[1], 10) : 0;
+    const localBulletCount = (localContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
+    const dbBulletCount = (dbContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
+    const dbHasBrokenTabs =
+      slug === "phase_roadmap" &&
+      (dbContent.includes('"value": "Active Era)"') ||
+        dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion"));
+    const localIsNewer =
+      (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
+      (dbSchemaVer > 0 && dbSchemaVer < 74) ||
+      localBulletCount > dbBulletCount ||
+      dbHasBrokenTabs;
 
-    // 1. If we have real filesystem mtime (`localEpochMs > 0`) and local file was edited more recently than DB:
+    // 1. If local file is newer or contains newer codebase milestones/schema than DB:
     if (localIsNewer) {
-      const nowIso = new Date(localEpochMs).toISOString();
+      const nowIso = new Date(
+        Math.max(localEpochMs, dbEpochMs + 1000, Date.now())
+      ).toISOString();
       if (canWriteHub) {
         await supabaseAuth.from("system_directives").upsert({
           slug,
@@ -476,7 +490,7 @@ export async function syncDirectivesBidirectional(options?: {
           category: dbRow.category || canonical.category,
           file_path: canonical.file_path,
           content: localContent,
-          version: "v0.5.8-Dev.5",
+          version: "v0.6.0",
           updated_at: nowIso,
           updated_by: "Codebase Auto-Sync",
         });
@@ -489,7 +503,7 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
-        version: "v0.5.8-Dev.5",
+        version: "v0.6.0",
         updated_at: nowIso,
         updated_by: "Codebase Auto-Sync",
         sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
@@ -511,7 +525,7 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: dbContent,
-        version: dbRow.version || "v0.5.8-Dev.5",
+        version: dbRow.version || "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: dbRow.updated_by || "Keepers Core",
         sync_state: "pulled_to_codebase",
@@ -524,7 +538,7 @@ export async function syncDirectivesBidirectional(options?: {
         category: canonical.category,
         file_path: canonical.file_path,
         content: localContent,
-        version: "v0.5.8-Dev.5",
+        version: "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: "Sanctuary Foundry",
         sync_state: "local_fallback",
@@ -779,7 +793,7 @@ export async function saveDirectiveBothWays(payload: {
     category: payload.category || canonical.category,
     file_path: canonical.file_path,
     content: payload.content,
-    version: "v0.5.8-Dev.5",
+    version: "v0.6.0",
     updated_at: nowIso,
     updated_by: payload.updated_by || "Keepers Core",
   });
@@ -810,7 +824,7 @@ export async function pushCodebaseDirectivesToKeepersCore(
       category: canonical.category,
       file_path: canonical.file_path,
       content,
-      version: "v0.5.8-Dev.5",
+      version: "v0.6.0",
       updated_at: nowIso,
       updated_by: updatedBy,
     };

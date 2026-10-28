@@ -4,7 +4,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
 import { isDesktop } from "./utils/envUtils";
-import { isRootDomain, scrollToLandingSection } from "./utils/routingUtils";
+import { isRootDomain, scrollToLandingSection, getActiveLandingTab, normalizeLandingTab } from "./utils/routingUtils";
 import { openSanctuaryLogin } from "./AuthWrapper";
 
 function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
@@ -80,7 +80,7 @@ export function Sidebar({
   const { showDefconAlert, stagingDraftItems } = useModalStore();
   const [, setGlobalGames] = React.useState<any[]>([]);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
-  const [activeLandingSection, setActiveLandingSection] = React.useState<string>('workspaces');
+  const [activeLandingSection, setActiveLandingSection] = React.useState<string>(() => getActiveLandingTab());
   const [hasLinkedMasonRecord, setHasLinkedMasonRecord] = React.useState<boolean>(false);
   const [isMasonRecordVerified, setIsMasonRecordVerified] = React.useState<boolean>(false);
 
@@ -129,30 +129,25 @@ export function Sidebar({
   }, [view, isConfigured]);
 
   React.useEffect(() => {
-    if (!isLandingContext || view !== "landing") return;
-    const container = document.getElementById('sanctuary-main-scroll');
-    if (!container) return;
-    const handleScroll = () => {
-      const sectionIds = ['workspaces', 'news', 'system_directives', 'download', 'feedback', 'contact', 'eula'];
-      const containerTop = container.getBoundingClientRect().top;
-      let current = 'workspaces';
-      for (const id of sectionIds) {
-        const el = document.getElementById(id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top - containerTop <= 180) {
-            current = id;
-          }
-        }
+    const handleLandingTab = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const rawTab = typeof detail === 'string' ? detail : detail?.tab || detail?.sectionId;
+      if (rawTab) {
+        setActiveLandingSection(normalizeLandingTab(rawTab));
       }
-      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 40) {
-        current = 'eula';
-      }
-      setActiveLandingSection(current);
     };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [isLandingContext, isConfigured, view]);
+    const handleHashChange = () => {
+      if (window.location.hash) {
+        setActiveLandingSection(normalizeLandingTab(window.location.hash));
+      }
+    };
+    window.addEventListener('sanctuary-landing-tab', handleLandingTab);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('sanctuary-landing-tab', handleLandingTab);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
 
   return (
     <nav
@@ -229,16 +224,26 @@ export function Sidebar({
           {isLandingContext ? (
             <>
               <NavButton
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'overview'}
+                onClick={() => {
+                  setActiveLandingSection('overview');
+                  setView("landing");
+                  scrollToLandingSection('overview');
+                }}
+                icon={t("icon_dashboard", "dashboard")}
+                label={t("overview", "Overview")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'workspaces'}
                 onClick={() => {
                   setActiveLandingSection('workspaces');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('workspaces');
-                    else window.location.href = `/#workspaces`;
-                  }, 80);
+                  scrollToLandingSection('workspaces');
                 }}
-                icon="public"
+                icon={t("icon_public", "public")}
                 label={t("landing_workspaces", "Active Workspaces")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
@@ -249,95 +254,75 @@ export function Sidebar({
                 onClick={() => {
                   setActiveLandingSection('news');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('news');
-                    else window.location.href = `/#news`;
-                  }, 80);
+                  scrollToLandingSection('news');
                 }}
-                icon="newspaper"
+                icon={t("icon_newspaper", "newspaper")}
                 label={t("landing_news", "Sanctuary Foundry News")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
-                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'system_directives'}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'directives'}
                 onClick={() => {
-                  setActiveLandingSection('system_directives');
+                  setActiveLandingSection('directives');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('system_directives');
-                    else window.location.href = `/#system_directives`;
-                  }, 80);
+                  scrollToLandingSection('directives');
                 }}
-                icon="folder_special"
+                icon={t("icon_folder_special", "folder_special")}
                 label={t("landing_system_directives", "Public Documents") || "System Directives"}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
               />
-              {!isDesktop() && (
-                <NavButton
-                  active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
-                  onClick={() => {
-                    setActiveLandingSection('download');
-                    setView("landing");
-                    setTimeout(() => {
-                      if (isRootDomain()) scrollToLandingSection('download');
-                      else window.location.href = `/#download`;
-                    }, 80);
-                  }}
-                  icon="download"
-                  label={t("landing_download_sidebar", "Download Sanctuary OS")}
-                  isCollapsed={isSidebarCollapsed}
-                  isAccent={true}
-                  setHoveredTooltip={setHoveredTooltip}
-                />
-              )}
               <NavButton
-                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'feedback'}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
                 onClick={() => {
-                  setActiveLandingSection('feedback');
+                  setActiveLandingSection('download');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('feedback');
-                    else window.location.href = `/#feedback`;
-                  }, 80);
+                  scrollToLandingSection('download');
                 }}
-                icon={t("icon_rate_review", "rate_review")}
+                icon={t("icon_download", "download")}
+                label={t("landing_download_sidebar", "Download Sanctuary OS")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              <NavButton
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'support'}
+                onClick={() => {
+                  setActiveLandingSection('support');
+                  setView("landing");
+                  scrollToLandingSection('support');
+                }}
+                icon={t("icon_support_agent", "support_agent")}
                 label={t("landing_nav_feedback", "Feedback & Support")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
-                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'contact'}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'legal'}
                 onClick={() => {
-                  setActiveLandingSection('contact');
+                  setActiveLandingSection('legal');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('contact');
-                    else window.location.href = `/#contact`;
-                  }, 80);
+                  scrollToLandingSection('legal');
                 }}
-                icon={t("icon_handshake", "handshake")}
-                label={t("landing_nav_contact", "Contact & Partners")}
+                icon={t("icon_gavel", "gavel")}
+                label={t("landing_eula", "System EULA")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
-                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'eula'}
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'donations'}
                 onClick={() => {
-                  setActiveLandingSection('eula');
+                  setActiveLandingSection('donations');
                   setView("landing");
-                  setTimeout(() => {
-                    if (isDesktop() || isRootDomain()) scrollToLandingSection('eula');
-                    else window.location.href = `/#eula`;
-                  }, 80);
+                  scrollToLandingSection('donations');
                 }}
-                icon="gavel"
-                label={t("landing_eula", "System EULA")}
+                icon={t("icon_volunteer_activism", "volunteer_activism")}
+                label={t("wf_tab_donations", "Donations")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}

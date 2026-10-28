@@ -316,7 +316,7 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
 
 export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
     return (
-        <button onClick={onClick} className="w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 cursor-pointer">
+        <button onClick={onClick} className="w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative min-h-24 h-auto cursor-pointer">
             <div className="absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden bg-radial-[at_0%_0%] from-white/15 to-transparent" />
 
             <div className="flex items-center gap-4 h-full relative z-10">
@@ -324,8 +324,8 @@ export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColo
                     <span className={`material-symbols-outlined !text-[25px] opacity-85 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:brightness-125'}`}>{title}</h3>
-                    <span className={`text-[9px] capitalize font-bold opacity-75 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-2 truncate ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
+                    <h3 className={`text-[11px] font-[900] uppercase tracking-widest leading-snug break-words transition-colors duration-500 ${isAlert ? 'text-[var(--danger)] group-hover:brightness-125' : 'text-[var(--text)] group-hover:brightness-125'}`}>{title}</h3>
+                    <span className={`text-[9px] capitalize font-bold opacity-75 group-hover:opacity-100 transition-opacity duration-500 tracking-widest leading-snug break-words flex items-center gap-2 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--subtext)]'}`}>{subtitle}</span>
                 </div>
             </div>
         </button>

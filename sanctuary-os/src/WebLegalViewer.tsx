@@ -15,10 +15,16 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "./shared";
-import { StructuredReleaseNotesView } from "./components/ReleaseNotesShowcase";
+import {
+  StructuredReleaseNotesView,
+  LegalDocVersionInfoBlock,
+  cleanPostBodyForViewer,
+  useStableReleaseMeta,
+} from "./components/ReleaseNotesShowcase";
 
 export default function WebLegalViewer() {
   const { t } = useLexicon();
+  const { stableVersion } = useStableReleaseMeta();
   const [activeLegal, setActiveLegal] = useState<string | null>(null);
   const [legalContent, setLegalContent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -146,7 +152,7 @@ export default function WebLegalViewer() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_gavel", "gavel")}
-            label={t("btn_view", "View")}
+            label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_eula", "EULA")}
             isActive={activeLegal === "eula"}
             onClick={() => setActiveLegal("eula")}
@@ -154,7 +160,7 @@ export default function WebLegalViewer() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_shield", "shield")}
-            label={t("btn_view", "View")}
+            label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_privacy", "Privacy")}
             isActive={activeLegal === "privacy"}
             onClick={() => setActiveLegal("privacy")}
@@ -162,7 +168,7 @@ export default function WebLegalViewer() {
           <DashboardStatTile
             variant="filter"
             icon={t("icon_description", "description")}
-            label={t("btn_view", "View")}
+            label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_terms", "Terms")}
             isActive={activeLegal === "terms"}
             onClick={() => setActiveLegal("terms")}
@@ -181,10 +187,12 @@ export default function WebLegalViewer() {
             "subtitle_sanctuary_alerts",
             "Official legal terms, privacy policy, and end-user license agreement."
           )}
-          badge={activeLegal?.toUpperCase()}
+          badge={`V${stableVersion} • ${activeLegal?.toUpperCase() || "LEGAL"}`}
           badgeIcon={t("icon_verified", "verified")}
           variant="accent"
-        />
+        >
+          <LegalDocVersionInfoBlock />
+        </SidePanelHeroCard>
 
         <UniversalGroup
           title={
@@ -203,11 +211,14 @@ export default function WebLegalViewer() {
           ) : viewMode === "ui" ? (
             <StructuredReleaseNotesView
               content={legalContent?.message || legalContent?.content || ""}
+              hideIntro={true}
             />
           ) : (
             <div className="glass-panel rounded-3xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)]">
               <MarkdownRenderer
-                content={legalContent?.message || legalContent?.content || ""}
+                content={cleanPostBodyForViewer(
+                  legalContent?.message || legalContent?.content || ""
+                )}
               />
             </div>
           )}

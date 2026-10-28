@@ -15,6 +15,8 @@ pub struct WorkspaceConfig {
     pub live_path: String,
     pub mods_path: String,
     pub vault_path: String,
+    #[serde(default)]
+    pub master_vault_path: Option<String>,
     pub engine_agency_level: Option<u32>,
     pub defcon_backup_target: Option<u32>,
     pub backup_preference: Option<u32>,

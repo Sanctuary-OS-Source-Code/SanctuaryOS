@@ -772,6 +772,12 @@ nav.firefox-safe-glass {
   .sa-side-panel-window.sa-panel-right,
   .sa-side-panel-window.sa-panel-left {
     border-radius: 0px !important;
+    border-top-left-radius: 0px !important;
+    border-bottom-left-radius: 0px !important;
+    border-top-right-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+    border-left-width: 0px !important;
+    border-right-width: 0px !important;
   }
 }
 
@@ -1600,6 +1606,17 @@ body {
 
   .rounded-br-3xl {
     border-bottom-right-radius: max(0px, calc(var(--radius, 1.25rem) * 1.25)) !important;
+  }
+
+  @media (max-width: 767px) {
+    .sa-side-panel-window.sa-panel-right,
+    .sa-side-panel-window.sa-panel-left {
+      border-radius: 0px !important;
+      border-top-left-radius: 0px !important;
+      border-bottom-left-radius: 0px !important;
+      border-top-right-radius: 0px !important;
+      border-bottom-right-radius: 0px !important;
+    }
   }
 }
 

@@ -32,24 +32,26 @@ pub async fn sanitize_vault(
         let _guard = SanitizeGuard(is_deploying, last_deploy_epoch_ms);
 
         let vault_root = PathBuf::from(&vault_path);
+        let _ = crate::utils::get_db_conn(&vault_path);
+
         let backups_dir = vault_root.join("Backups");
         let backups_world = backups_dir.join("World");
         let backups_engine = backups_dir.join("Engine");
         let backups_mods = backups_dir.join("Mods");
-        let data_dir = vault_root.join("Data");
-        let data_cache = data_dir.join("cache");
         let blueprints_dir = vault_root.join("Blueprints");
+        let templates_dir = vault_root.join("Templates");
         let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
         let quarantine_dir = vault_root.join("Quarantine");
-        let theme_dir = vault_root.join("Theme");
-        let theme_chameleon = theme_dir.join("Chameleon");
-        let theme_lexicon = theme_dir.join("Lexicon");
+        let master_vault_root = crate::utils::get_master_vault_root(&vault_path);
+        let master_data_dir = master_vault_root.join("Data");
+        let theme_chameleon = master_data_dir.join("Themes");
+        let theme_lexicon = master_data_dir.join("Lexicons");
 
         let _ = std::fs::create_dir_all(&backups_world);
         let _ = std::fs::create_dir_all(&backups_engine);
         let _ = std::fs::create_dir_all(&backups_mods);
-        let _ = std::fs::create_dir_all(&data_cache);
         let _ = std::fs::create_dir_all(&blueprints_dir);
+        let _ = std::fs::create_dir_all(&templates_dir);
         let _ = std::fs::create_dir_all(&mods_lane);
         let _ = std::fs::create_dir_all(&quarantine_dir);
         let _ = std::fs::create_dir_all(&theme_chameleon);

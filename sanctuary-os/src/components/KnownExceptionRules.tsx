@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { supabase } from "../supabase";
+import { supabase, hasActiveGameDatabase } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
+import { isSims4SchemaId } from "../utils/gameArchitecturePresets";
 import {
   SidePanel,
   CustomDropdown,
@@ -126,11 +127,14 @@ export const DEFAULT_SIMS4_EXCEPTION_RULES: SchemaExceptionRule[] = [
   },
 ];
 
-function upgradeLegacyDefaultRules(rules: SchemaExceptionRule[]): SchemaExceptionRule[] {
+function upgradeLegacyDefaultRules(
+  rules: SchemaExceptionRule[],
+  isSims4 = true
+): SchemaExceptionRule[] {
   const defaultById = new Map(DEFAULT_SIMS4_EXCEPTION_RULES.map((d) => [d.id, d]));
   let needsStoreUtilsMigration = false;
   try {
-    if (!localStorage.getItem("sanctuary_exc_rules_storeutils_fixed_v1")) {
+    if (isSims4 && !localStorage.getItem("sanctuary_exc_rules_storeutils_fixed_v1")) {
       needsStoreUtilsMigration = true;
       localStorage.setItem("sanctuary_exc_rules_storeutils_fixed_v1", "1");
     }
@@ -165,7 +169,7 @@ function upgradeLegacyDefaultRules(rules: SchemaExceptionRule[]): SchemaExceptio
     } catch {}
   }
 
-  if (!updated.some((r) => r.id === "ts4_vanilla_milestone_tracker")) {
+  if (isSims4 && !updated.some((r) => r.id === "ts4_vanilla_milestone_tracker")) {
     const vanillaRule = DEFAULT_SIMS4_EXCEPTION_RULES.find(
       (d) => d.id === "ts4_vanilla_milestone_tracker"
     );
@@ -181,30 +185,46 @@ function upgradeLegacyDefaultRules(rules: SchemaExceptionRule[]): SchemaExceptio
 }
 
 export function getExceptionRules(activeGameSchema?: any): SchemaExceptionRule[] {
-  if (Array.isArray(activeGameSchema) && activeGameSchema.length > 0) {
-    return upgradeLegacyDefaultRules(activeGameSchema);
+  if (Array.isArray(activeGameSchema)) {
+    return activeGameSchema.length > 0 ? upgradeLegacyDefaultRules(activeGameSchema, false) : [];
   }
+  const storeState = useStore.getState();
   const schema =
     activeGameSchema && !Array.isArray(activeGameSchema)
       ? activeGameSchema
-      : useStore.getState().activeGameSchema;
-  const schemaId = schema?.id || schema?.game_id || "default_schema";
+      : storeState.activeGameSchema;
+  const rawWorkspaceId = storeState.activeWorkspaceId || "";
+  const schemaId =
+    (rawWorkspaceId && rawWorkspaceId !== "default_workspace" ? rawWorkspaceId : "") ||
+    schema?.id ||
+    schema?.game_id ||
+    "default_schema";
+  const isSims4 = isSims4SchemaId(schemaId);
 
-  if (Array.isArray(schema?.exception_rules) && schema.exception_rules.length > 0) {
-    return upgradeLegacyDefaultRules(schema.exception_rules);
+  if (!isSims4 && !hasActiveGameDatabase()) {
+    return [];
+  }
+
+  if (Array.isArray(schema?.exception_rules)) {
+    if (schema.exception_rules.length > 0) {
+      return upgradeLegacyDefaultRules(schema.exception_rules, isSims4);
+    }
+    if (!isSims4) {
+      return [];
+    }
   }
 
   try {
     const cached = localStorage.getItem(`sanctuary_exception_rules_${schemaId}`);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return upgradeLegacyDefaultRules(parsed);
+      if (Array.isArray(parsed)) {
+        return parsed.length > 0 ? upgradeLegacyDefaultRules(parsed, isSims4) : [];
       }
     }
   } catch (e) {}
 
-  return DEFAULT_SIMS4_EXCEPTION_RULES;
+  return isSims4 ? DEFAULT_SIMS4_EXCEPTION_RULES : [];
 }
 
 export function matchExceptionRules(

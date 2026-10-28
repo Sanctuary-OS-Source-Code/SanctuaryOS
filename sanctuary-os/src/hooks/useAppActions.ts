@@ -128,7 +128,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     };
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const defaultPath = config.vault_path ? `${config.vault_path}\\Data\\Blueprints\\${setName}.json` : `${setName}.json`;
+      const defaultPath = config.vault_path ? `${config.vault_path}\\Blueprints\\${setName}.json` : `${setName}.json`;
       const path = await save({ defaultPath, filters:[{ name: 'Sanctuary Profile', extensions: ['json'] }] });
       if (path) {
         await invoke("save_blueprint", { path: path, content: JSON.stringify(exportData, null, 2) });

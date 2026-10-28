@@ -232,12 +232,9 @@ pub async fn scan_installed_dlc(
 
 #[tauri::command]
 pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSignature>, String> {
-    let p = std::path::Path::new(&vault_path)
-        .join("Data")
-        .join(".malware_signatures.json");
-    if p.exists() {
-        if let Ok(content) = std::fs::read_to_string(&p) {
-            if let Ok(sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&content) {
+    if let Some((content, _)) = crate::utils::get_vault_kv(&vault_path, "malware_signatures") {
+        if let Ok(sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&content) {
+            if !sigs.is_empty() {
                 return Ok(sigs);
             }
         }
@@ -347,29 +344,19 @@ pub fn save_heuristic_signatures(
     vault_path: String,
     signatures: Vec<HeuristicSignature>,
 ) -> Result<(), String> {
-    let p = std::path::Path::new(&vault_path)
-        .join("Data")
-        .join(".malware_signatures.json");
-    if p.exists() {
-        if let Ok(existing_str) = std::fs::read_to_string(&p) {
-            if let Ok(existing_sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&existing_str)
+    if let Some((existing_str, _)) = crate::utils::get_vault_kv(&vault_path, "malware_signatures") {
+        if let Ok(existing_sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&existing_str) {
+            if existing_sigs.len() == signatures.len()
+                && compute_signatures_version(&existing_sigs)
+                    == compute_signatures_version(&signatures)
             {
-                if existing_sigs.len() == signatures.len()
-                    && compute_signatures_version(&existing_sigs)
-                        == compute_signatures_version(&signatures)
-                {
-                    return Ok(());
-                }
+                return Ok(());
             }
         }
     }
-    if let Some(parent) = p.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
     if let Ok(content) = serde_json::to_string_pretty(&signatures) {
-        if std::fs::write(&p, content).is_ok() {
-            return Ok(());
-        }
+        crate::utils::set_vault_kv(&vault_path, "malware_signatures", &content);
+        return Ok(());
     }
     Err("Failed to save heuristic signatures".into())
 }

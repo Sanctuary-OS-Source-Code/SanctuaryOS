@@ -1464,10 +1464,12 @@ function App() {
         const activeWorkspace = (globalConfig?.workspaces || []).find((w: any) => w.id === globalConfig?.active_workspace_id);
         const schemaId = activeWorkspace?.schema_id || globalConfig?.active_workspace_id || 'default_schema';
 
-        // Load cached schema instantly so UI can render
+        // Load cached schema instantly so UI can render without leaking another spoke's default schema
         const cachedSchema = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
         if (cachedSchema) {
           useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cachedSchema), schemaId));
+        } else {
+          useStore.getState().setActiveGameSchema(getSafeSchema({}, schemaId));
         }
 
         const cachePromise = (globalConfig?.active_workspace_id && config?.vault_path)
@@ -1506,7 +1508,12 @@ function App() {
 
         if (config?.live_path && config?.mods_path && config?.vault_path) {
           setIsConfigured(true);
+        } else {
+          setIsConfigured(false);
         }
+        setLivePath(config?.live_path || "");
+        setModsPath(config?.mods_path || "");
+        setVaultPath(config?.vault_path || "");
 
         let resolvedWorkspaceId = globalConfig?.active_workspace_id;
         if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {

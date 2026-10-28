@@ -5,7 +5,13 @@ import { useStore } from "./store";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import MasonPostCard from "./MasonPostCard";
 
-export default function WebNewsFeed() {
+export default function WebNewsFeed({
+  limit = 3,
+  onCountChange,
+}: {
+  limit?: number;
+  onCountChange?: (count: number) => void;
+} = {}) {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
   const [posts, setPosts] = useState<any[]>([]);
@@ -15,13 +21,19 @@ export default function WebNewsFeed() {
   useEffect(() => {
     const fetchBroadcasts = async () => {
       setLoading(true);
-      const { data } = await supabaseAuth
+      const { data, count } = await supabaseAuth
         .from('system_broadcasts')
-        .select('*')
+        .select('*', { count: 'exact' })
         .in('category', ['Announcement', 'Blog', 'Press', 'Update', 'Maintenance', 'Info', 'Event'])
         .ilike('target_audience', '%Public%')
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(limit);
+
+      if (typeof count === 'number') {
+        onCountChange?.(count);
+      } else if (data) {
+        onCountChange?.(data.length);
+      }
 
       if (data) {
         const mappedData = data.map(b => ({
@@ -37,7 +49,7 @@ export default function WebNewsFeed() {
       setLoading(false);
     };
     fetchBroadcasts();
-  }, []);
+  }, [limit, onCountChange]);
 
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">

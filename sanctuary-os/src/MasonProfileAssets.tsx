@@ -286,7 +286,7 @@ export default function MasonProfileAssets({
                         e.stopPropagation();
                         const parsed = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
                         if (vaultPath) {
-                          const templatesDir = `${vaultPath}\\Data\\Templates`;
+                          const templatesDir = `${vaultPath}\\Templates`;
                           if (!(await exists(templatesDir))) await importFs.mkdir(templatesDir, { recursive: true });
                           await importFs.writeTextFile(`${templatesDir}\\${asset.name}_template.json`, JSON.stringify(parsed, null, 2));
                           useStore.getState().pushStatus(`Successfully Installed Template: ${asset.name}`);

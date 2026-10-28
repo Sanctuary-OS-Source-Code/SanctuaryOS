@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { isDesktop } from "../utils/envUtils";
-import { supabase } from '../supabase';
+import { supabase, hasActiveGameDatabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
 import { resolvePresetForGameId, isSims4SchemaId } from '../utils/gameArchitecturePresets';
@@ -198,7 +198,9 @@ const loadCwActiveTab = (wsId: string) => {
 
 const loadNetworkUpdates = (wsId: string) => {
   try {
-    const cached = localStorage.getItem(`sanctuary_${wsId}_network_updates`) || localStorage.getItem('sanctuary_network_updates');
+    const cached =
+      localStorage.getItem(`sanctuary_${wsId}_network_updates`) ||
+      (isSims4SchemaId(wsId) ? localStorage.getItem('sanctuary_network_updates') : null);
     if (cached) return JSON.parse(cached);
   } catch (e) {}
   return { broken: [], obsolete: [], updated: [] };
@@ -264,8 +266,36 @@ const loadMaskedDLC = (wsId: string) => {
   return [];
 };
 
+const workspaceHasDatabaseConfig = (wsId: string): boolean => {
+  if (!wsId) return false;
+  if (isSims4SchemaId(wsId)) return true;
+  try {
+    const rawGames = localStorage.getItem('sanctuary_cached_game_dbs_v1');
+    if (rawGames) {
+      const parsed = JSON.parse(rawGames);
+      if (Array.isArray(parsed)) {
+        const match = parsed.find(
+          (g: any) =>
+            String(g?.id || '').toLowerCase() === wsId.toLowerCase() ||
+            String(g?.schema_id || '').toLowerCase() === wsId.toLowerCase()
+        );
+        if (match) {
+          const url = typeof match.supabase_url === 'string' ? match.supabase_url.trim() : '';
+          const key = typeof match.supabase_anon_key === 'string' ? match.supabase_anon_key.trim() : '';
+          return /^https?:\/\//i.test(url) && key.length > 0;
+        }
+      }
+    }
+  } catch {}
+  return false;
+};
+
 const loadSelectedVersion = (wsId: string) => {
   try {
+    if (!workspaceHasDatabaseConfig(wsId)) {
+      localStorage.removeItem(`sanctuary_${wsId}_selected_version`);
+      return '';
+    }
     return localStorage.getItem(`sanctuary_${wsId}_selected_version`) || '';
   } catch (e) {}
   return '';
@@ -763,16 +793,37 @@ export const useStore = create<GlobalState>((set) => ({
   selectedVersion: loadSelectedVersion(initialBootWorkspaceId),
   setSelectedVersion: (selectedVersion) => set((state) => {
     const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
-    if (wsId && selectedVersion) {
-      safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, selectedVersion);
+    if (wsId) {
+      if (selectedVersion && workspaceHasDatabaseConfig(wsId)) {
+        safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, selectedVersion);
+      } else if (!selectedVersion) {
+        try {
+          localStorage.removeItem(`sanctuary_${wsId}_selected_version`);
+        } catch {}
+      }
     }
     return { selectedVersion };
   }),
   detectGameVersion: async () => {
     if (!isDesktop()) return;
     try {
+      const currentWsId = useStore.getState().activeWorkspaceId || initialBootWorkspaceId;
+      if (!hasActiveGameDatabase() && !workspaceHasDatabaseConfig(currentWsId)) {
+        try {
+          localStorage.removeItem(`sanctuary_${currentWsId}_selected_version`);
+        } catch {}
+        set({ selectedVersion: "" });
+        return;
+      }
+
       const config: any = await invoke("get_saved_coordinates");
-      if (!config.live_path) return;
+      if (!config?.live_path) {
+        try {
+          localStorage.removeItem(`sanctuary_${currentWsId}_selected_version`);
+        } catch {}
+        set({ selectedVersion: "" });
+        return;
+      }
 
       const rawRipped = await invoke<string>("rip_game_version", {
         livePath: config.live_path,

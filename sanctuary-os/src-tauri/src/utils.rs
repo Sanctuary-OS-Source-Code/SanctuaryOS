@@ -212,11 +212,184 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
             [],
         );
         let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS lab_certificates (
+                dna_hash TEXT PRIMARY KEY,
+                cert_json TEXT NOT NULL,
+                verified_at INTEGER NOT NULL DEFAULT 0
+            )",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE TABLE IF NOT EXISTS vault_kv_store (
+                cache_key TEXT PRIMARY KEY,
+                payload_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            )",
+            [],
+        );
+        let _ = conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
             [],
         );
+
+        // Automatic migration of legacy loose JSON state files into SQLite (.sanctuary_cache.db)
+        if !vault_path.trim().is_empty() {
+            let v_root = Path::new(vault_path);
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+
+            // 1. .sanctuary_lab_certificates.json -> lab_certificates
+            let legacy_certs = v_root.join(".sanctuary_lab_certificates.json");
+            if legacy_certs.exists() {
+                if let Ok(raw) = fs::read_to_string(&legacy_certs) {
+                    if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) {
+                        for item in arr {
+                            if let Some(hash) = item.get("dna_hash").and_then(|h| h.as_str()) {
+                                if !hash.is_empty() {
+                                    let c_str = serde_json::to_string(&item).unwrap_or_default();
+                                    let _ = conn.execute(
+                                        "INSERT OR REPLACE INTO lab_certificates (dna_hash, cert_json, verified_at) VALUES (?1, ?2, ?3)",
+                                        params![hash, c_str, now_secs],
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    let _ = fs::remove_file(&legacy_certs);
+                }
+            }
+
+            // 2. .sanctuary_routed_links.json -> vault_kv_store('routed_links')
+            let legacy_routed = v_root.join(".sanctuary_routed_links.json");
+            if legacy_routed.exists() {
+                if let Ok(raw) = fs::read_to_string(&legacy_routed) {
+                    let _ = conn.execute(
+                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('routed_links', ?1, ?2)",
+                        params![raw, now_secs],
+                    );
+                    let _ = fs::remove_file(&legacy_routed);
+                }
+            }
+
+            // 3. .sanctuary_deployed_links.json (in Vault) -> vault_kv_store('deployed_links')
+            let legacy_deployed = v_root.join(".sanctuary_deployed_links.json");
+            if legacy_deployed.exists() {
+                if let Ok(raw) = fs::read_to_string(&legacy_deployed) {
+                    let _ = conn.execute(
+                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('deployed_links', ?1, ?2)",
+                        params![raw, now_secs],
+                    );
+                    let _ = fs::remove_file(&legacy_deployed);
+                }
+            }
+
+            // 4. Data/.sanctuary_master_cache.json -> vault_kv_store('master_registry_cache')
+            let legacy_master = v_root.join("Data").join(".sanctuary_master_cache.json");
+            if legacy_master.exists() {
+                if let Ok(raw) = fs::read_to_string(&legacy_master) {
+                    let _ = conn.execute(
+                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('master_registry_cache', ?1, ?2)",
+                        params![raw, now_secs],
+                    );
+                    let _ = fs::remove_file(&legacy_master);
+                }
+            }
+
+            // 5. Data/.malware_signatures.json -> vault_kv_store('malware_signatures')
+            let legacy_sigs = v_root.join("Data").join(".malware_signatures.json");
+            if legacy_sigs.exists() {
+                if let Ok(raw) = fs::read_to_string(&legacy_sigs) {
+                    let _ = conn.execute(
+                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('malware_signatures', ?1, ?2)",
+                        params![raw, now_secs],
+                    );
+                    let _ = fs::remove_file(&legacy_sigs);
+                }
+            }
+
+            // 6. Merge legacy .sanctuary_quarantine into Quarantine
+            let legacy_q = v_root.join(".sanctuary_quarantine");
+            if legacy_q.is_dir() {
+                let unified_q = v_root.join("Quarantine");
+                let _ = fs::create_dir_all(&unified_q);
+                if let Ok(entries) = fs::read_dir(&legacy_q) {
+                    for entry in entries.flatten() {
+                        let src = entry.path();
+                        let dst = unified_q.join(entry.file_name());
+                        let _ = fs::rename(&src, &dst).or_else(|_| {
+                            fs::copy(&src, &dst).and_then(|_| fs::remove_file(&src))
+                        });
+                    }
+                }
+                let _ = fs::remove_dir(&legacy_q);
+            }
+        }
     }
     conn
+}
+
+pub fn get_vault_kv(vault_path: &str, key: &str) -> Option<(String, u64)> {
+    if vault_path.trim().is_empty() {
+        return None;
+    }
+    let conn = get_db_conn(vault_path);
+    conn.query_row(
+        "SELECT payload_json, updated_at FROM vault_kv_store WHERE cache_key = ?1",
+        params![key],
+        |row| {
+            let payload: String = row.get(0)?;
+            let updated: i64 = row.get(1).unwrap_or(0);
+            Ok((payload, updated.max(0) as u64))
+        },
+    )
+    .ok()
+}
+
+pub fn set_vault_kv(vault_path: &str, key: &str, payload_json: &str) {
+    if vault_path.trim().is_empty() {
+        return;
+    }
+    let conn = get_db_conn(vault_path);
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let _ = conn.execute(
+        "INSERT INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES (?1, ?2, ?3)
+         ON CONFLICT(cache_key) DO UPDATE SET payload_json = excluded.payload_json, updated_at = excluded.updated_at",
+        params![key, payload_json, now_secs],
+    );
+}
+
+pub fn delete_vault_kv(vault_path: &str, key: &str) {
+    if vault_path.trim().is_empty() {
+        return;
+    }
+    let conn = get_db_conn(vault_path);
+    let _ = conn.execute("DELETE FROM vault_kv_store WHERE cache_key = ?1", params![key]);
+}
+
+pub fn get_master_vault_root(vault_path: &str) -> PathBuf {
+    let global_cfg = crate::commands::state_ops::get_global_config();
+    if let Some(mv) = global_cfg.vault_path {
+        if !mv.trim().is_empty() {
+            return PathBuf::from(mv);
+        }
+    }
+    let vp = PathBuf::from(vault_path);
+    if let Some(fname) = vp.file_name().and_then(|n| n.to_str()) {
+        let matches_ws = global_cfg.workspaces.iter().any(|w| {
+            w.schema_id.eq_ignore_ascii_case(fname) || w.id.eq_ignore_ascii_case(fname)
+        });
+        if matches_ws {
+            if let Some(parent) = vp.parent() {
+                return parent.to_path_buf();
+            }
+        }
+    }
+    vp
 }
 
 fn load_cache_from_conn(conn: &Connection) -> BunkerCache {
@@ -340,10 +513,19 @@ pub fn calculate_hash(path: &Path) -> Result<String, std::io::Error> {
 }
 
 pub fn get_config_path() -> PathBuf {
-    dirs::config_dir()
-        .map(|d| d.join("SanctuaryOS"))
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("sanctuary_config.json")
+    let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    let unified_dir = base.join("sanctuary-os");
+    let unified_path = unified_dir.join("sanctuary_config.json");
+    let legacy_dir = base.join("SanctuaryOS");
+    let legacy_path = legacy_dir.join("sanctuary_config.json");
+
+    if !unified_path.exists() && legacy_path.exists() {
+        let _ = fs::create_dir_all(&unified_dir);
+        if fs::copy(&legacy_path, &unified_path).is_ok() {
+            let _ = fs::remove_file(&legacy_path);
+        }
+    }
+    unified_path
 }
 
 pub fn is_macos_or_os_metadata_path(path: &Path) -> bool {
@@ -753,6 +935,18 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
     let mut manifest_locations = vec![dir.join(".sanctuary_deployed_links.json")];
     let saved_coords = crate::commands::state_ops::get_saved_coordinates();
     if !saved_coords.vault_path.trim().is_empty() {
+        if let Some((raw, _)) = get_vault_kv(&saved_coords.vault_path, "deployed_links") {
+            if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
+                for item in list {
+                    let p = std::path::PathBuf::from(&item);
+                    let norm = normalize_path_key(&p);
+                    if !norm.is_empty() {
+                        tracked_set.insert(norm);
+                    }
+                }
+            }
+            delete_vault_kv(&saved_coords.vault_path, "deployed_links");
+        }
         manifest_locations.push(
             std::path::PathBuf::from(&saved_coords.vault_path)
                 .join(".sanctuary_deployed_links.json"),

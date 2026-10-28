@@ -34,6 +34,7 @@ import MasonPostViewer from "../side-panels/MasonPostViewer";
 import {
   ReleaseNotesShowcase,
   renderCleanInlineText,
+  LegalDocVersionInfoBlock,
 } from "../components/ReleaseNotesShowcase";
 import {
   UnifiedPostBodyEditor,
@@ -57,6 +58,7 @@ import {
   saveLegalDocBothWays,
   pushCodebaseDirectivesToKeepersCore,
   pullKeepersCoreDirectivesToCodebase,
+  readLocalDirectiveSnapshots,
 } from "../utils/directivesSync";
 import {
   CURRENT_DIRECTIVE_SCHEMA_VERSION,
@@ -192,6 +194,13 @@ export default function KeepersWebDirectivesEditor({
     if (!draftObj?.isDirty || !draftObj?.userModified) return true;
     const schemaVer = Number(draftObj?.builderSchema?._schemaVersion || 0);
     if (schemaVer < CURRENT_DIRECTIVE_SCHEMA_VERSION) return true;
+    if (
+      key === "phase_roadmap" &&
+      ((draftObj?.builderSchema?.tabs?.length || 0) !== 1 ||
+        (draftObj?.builderSchema?.tabs?.[0]?.cards?.[0]?.subCards?.length || 0) < 14)
+    ) {
+      return true;
+    }
     const serialized = JSON.stringify(draftObj?.builderSchema || "");
     if (serialized.includes("[sd_") || serialized.includes("Phase 12 → Phase 1")) {
       return true;
@@ -513,8 +522,33 @@ export default function KeepersWebDirectivesEditor({
   };
 
   useEffect(() => {
-    fetchPostsAndAssets();
-  }, []);
+    fetchPostsAndAssets(!isDirty);
+    const onRefresh = () => {
+      if (!isDirty) {
+        fetchPostsAndAssets(true);
+      }
+    };
+    window.addEventListener("sanctuary_directives_updated", onRefresh);
+    window.addEventListener("focus", onRefresh);
+    return () => {
+      window.removeEventListener("sanctuary_directives_updated", onRefresh);
+      window.removeEventListener("focus", onRefresh);
+    };
+  }, [CURRENT_DIRECTIVE_SCHEMA_VERSION]);
+
+  useEffect(() => {
+    if (
+      isEditorOpen &&
+      activeCanonicalSlug === "phase_roadmap" &&
+      builderSchema &&
+      ((builderSchema.tabs?.length || 0) !== 1 ||
+        (builderSchema.tabs?.[0]?.cards?.[0]?.subCards?.length || 0) < 14)
+    ) {
+      const freshSchema = getDefaultDirectiveBuilderSchema("phase_roadmap", t);
+      setBuilderSchema(freshSchema);
+      setActiveBuilderTabIdx(0);
+    }
+  }, [isEditorOpen, activeCanonicalSlug, builderSchema, CURRENT_DIRECTIVE_SCHEMA_VERSION]);
 
   const handleTwoWaySync = async () => {
     setIsSyncing(true);
@@ -910,17 +944,19 @@ export default function KeepersWebDirectivesEditor({
     closeEditor();
   };
 
-  const handleResetBuilderToDefault = () => {
+  const handleResetBuilderToDefault = async () => {
     if (!activeCanonicalSlug) return;
     setWayfinderDrafts((prev) => {
       const next = { ...prev };
       delete next[activeCanonicalSlug];
       return next;
     });
+    const localSnaps = await readLocalDirectiveSnapshots();
     const rawSource =
+      localSnaps[activeCanonicalSlug]?.content ||
+      CANONICAL_DIRECTIVES[activeCanonicalSlug]?.bundledContent ||
       editingPost?.content ||
       editingPost?.message ||
-      CANONICAL_DIRECTIVES[activeCanonicalSlug]?.bundledContent ||
       "";
     const freshSchema =
       parseMarkdownToDirectiveSchema(rawSource, activeCanonicalSlug, t) ||
@@ -937,6 +973,19 @@ export default function KeepersWebDirectivesEditor({
     setSelectedBuilderCardIdx(0);
     setEditingSubCardIdx(null);
     setIsDirty(false);
+
+    const meta = CANONICAL_DIRECTIVES[activeCanonicalSlug];
+    await saveDirectiveBothWays({
+      slug: activeCanonicalSlug,
+      title: freshSchema.title,
+      summary: freshSchema.summary || meta?.summary || "",
+      category: meta?.category || category,
+      content: cleanMd,
+      updated_by: currentUserId || "Keepers Core",
+    });
+    await fetchPostsAndAssets(true);
+    window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+
     useStore
       .getState()
       .pushStatus(
@@ -2961,6 +3010,10 @@ export default function KeepersWebDirectivesEditor({
                         className="w-full glass-surface rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                       />
                     </div>
+
+                    {editingRecordKind === "legal" && (
+                      <LegalDocVersionInfoBlock />
+                    )}
 
                     {editingRecordKind === "news" && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">

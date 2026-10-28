@@ -53,7 +53,7 @@ export default function AssetPreviewSidebar({
     const fetchLocalTemplates = async () => {
       try {
         if (!vaultPath) return;
-        const templatesDir = `${vaultPath}\\Data\\Templates`;
+        const templatesDir = `${vaultPath}\\Templates`;
         if (await exists(templatesDir)) {
           const files = await readDir(templatesDir);
           const map: Record<string, string> = {};
@@ -387,7 +387,7 @@ export default function AssetPreviewSidebar({
                             const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
                             const templateId = displayData?.template_id || "vlocal";
 
-                            const templatesDir = `${vaultPath}\\Data\\Templates`;
+                            const templatesDir = `${vaultPath}\\Templates`;
                             if (!(await exists(templatesDir))) {
                               await mkdir(templatesDir, { recursive: true });
                             }

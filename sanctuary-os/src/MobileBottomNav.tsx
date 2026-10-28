@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { useModalStore } from './store/modalStore';
 import { useLexicon } from './LexiconContext';
-import { isRootDomain, scrollToLandingSection } from './utils/routingUtils';
+import { isRootDomain, scrollToLandingSection, getActiveLandingTab, normalizeLandingTab } from './utils/routingUtils';
 import { isDesktop } from './utils/envUtils';
 import { usePwaInstall, PwaInstallPrompt } from './utils/pwaManager';
 
@@ -89,7 +89,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHubNavOpen, setIsHubNavOpen] = useState(false);
-  const [activeLandingSection, setActiveLandingSection] = useState<string>('workspaces');
+  const [activeLandingSection, setActiveLandingSection] = useState<string>(() => getActiveLandingTab());
   const { isStandalone, triggerInstall } = usePwaInstall();
 
   const [isLandingContext, setIsLandingContext] = useState<boolean>(() =>
@@ -105,27 +105,25 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   }, [view, isConfigured]);
 
   useEffect(() => {
-    if (!isLandingContext || view !== 'landing') return;
-    const container = document.getElementById('sanctuary-main-scroll');
-    if (!container) return;
-    const handleScroll = () => {
-      const sectionIds = ['workspaces', 'news', 'system_directives', 'download'];
-      const containerTop = container.getBoundingClientRect().top;
-      let current = 'workspaces';
-      for (const id of sectionIds) {
-        const el = document.getElementById(id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top - containerTop <= 180) {
-            current = id;
-          }
-        }
+    const handleLandingTab = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const rawTab = typeof detail === 'string' ? detail : detail?.tab || detail?.sectionId;
+      if (rawTab) {
+        setActiveLandingSection(normalizeLandingTab(rawTab));
       }
-      setActiveLandingSection(current);
     };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [isLandingContext, view]);
+    const handleHashChange = () => {
+      if (window.location.hash) {
+        setActiveLandingSection(normalizeLandingTab(window.location.hash));
+      }
+    };
+    window.addEventListener('sanctuary-landing-tab', handleLandingTab);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('sanctuary-landing-tab', handleLandingTab);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
 
   const tabs: { id: string; icon: string; label: string; badge?: number }[] = [];
 
@@ -133,12 +131,10 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   let hubNavIcon = "";
 
   if (isLandingContext) {
-    tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("workspace_sidebar", "Workspaces") });
+    tabs.push({ id: 'overview', icon: t("icon_dashboard", "dashboard"), label: t("overview", "Overview") });
+    tabs.push({ id: 'workspaces', icon: t("icon_public", "public"), label: t("landing_workspaces", "Active Workspaces") });
     tabs.push({ id: 'news', icon: t("icon_newspaper", "newspaper"), label: t("landing_news_short", "News") });
-    tabs.push({ id: 'system_directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
-    if (!isDesktop()) {
-      tabs.push({ id: 'download', icon: t("icon_install_mobile", "install_mobile"), label: t("landing_install_pwa_short", "Install PWA") });
-    }
+    tabs.push({ id: 'directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
     if (view === "KeepersCore") {
       hubNavLabel = t("sidebar_keepers_core", "Keepers Core");
       hubNavIcon = t("icon_terminal", "terminal");
@@ -184,10 +180,11 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     } else if (isLandingContext) {
       setIsMenuOpen(false);
       setIsHubNavOpen(false);
-      if (['workspaces', 'news', 'system_directives', 'download', 'eula'].includes(tabId)) {
-        setActiveLandingSection(tabId);
+      if (['overview', 'workspaces', 'news', 'directives', 'system_directives', 'download', 'support', 'feedback', 'contact', 'legal', 'eula'].includes(tabId)) {
+        const norm = normalizeLandingTab(tabId);
+        setActiveLandingSection(norm);
         setView('landing');
-        setTimeout(() => scrollToLandingSection(tabId), 80);
+        setTimeout(() => scrollToLandingSection(tabId), 60);
       } else {
         setView(tabId);
       }
@@ -216,22 +213,6 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
           }}
         />
       )}
-
-      {/* Seamless Mobile Top Status Bar & Bottom Gesture Bar Edge Blending */}
-      <div
-        className="md:hidden fixed top-0 left-0 right-0 h-8 pointer-events-none z-[999990]"
-        style={{
-          background:
-            'linear-gradient(to bottom, var(--bg, #000000) 0%, color-mix(in srgb, var(--bg, #000000) 65%, transparent) 45%, transparent 100%)',
-        }}
-      />
-      <div
-        className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(52px+env(safe-area-inset-bottom,0px))] pointer-events-none z-[999996]"
-        style={{
-          background:
-            'linear-gradient(to top, var(--bg, #000000) 0%, var(--bg, #000000) 22%, color-mix(in srgb, var(--bg, #000000) 78%, transparent) 58%, transparent 100%)',
-        }}
-      />
 
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
@@ -362,6 +343,39 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                   label={t("pwa_btn_install", "Install App")}
                   iconColorClass="text-[var(--accent)]"
                 />
+              )}
+
+              {isLandingContext && (
+                <>
+                  <MobileNavItem
+                    active={view === 'landing' && activeLandingSection === 'download'}
+                    onClick={() => handleTabClick('download')}
+                    icon={t("icon_download", "download")}
+                    label={t("landing_download_sidebar", "Download Sanctuary OS")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <MobileNavItem
+                    active={view === 'landing' && activeLandingSection === 'support'}
+                    onClick={() => handleTabClick('support')}
+                    icon={t("icon_support_agent", "support_agent")}
+                    label={t("landing_nav_feedback", "Feedback & Support")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <MobileNavItem
+                    active={view === 'landing' && activeLandingSection === 'legal'}
+                    onClick={() => handleTabClick('legal')}
+                    icon={t("icon_gavel", "gavel")}
+                    label={t("landing_eula", "System EULA")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <MobileNavItem
+                    active={view === 'landing' && activeLandingSection === 'donations'}
+                    onClick={() => handleTabClick('donations')}
+                    icon={t("icon_volunteer_activism", "volunteer_activism")}
+                    label={t("wf_tab_donations", "Donations")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                </>
               )}
 
               {!isLandingContext && (

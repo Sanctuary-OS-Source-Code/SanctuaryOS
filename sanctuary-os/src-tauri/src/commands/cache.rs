@@ -162,23 +162,18 @@ pub async fn resolve_dna_match(
 
 #[tauri::command]
 pub fn save_master_cache(vault_path: String, content: String) -> Result<String, String> {
-    let data_dir = Path::new(&vault_path).join("Data");
-    let _ = std::fs::create_dir_all(&data_dir);
-    let path = data_dir.join(".sanctuary_master_cache.json");
-    std::fs::write(path, content)
-        .map(|_| "Saved".into())
-        .map_err(|e| e.to_string())
+    crate::utils::set_vault_kv(&vault_path, "master_registry_cache", &content);
+    Ok("Saved".into())
 }
 
 #[tauri::command]
 pub fn load_master_cache(vault_path: String) -> Result<String, String> {
-    let data_dir = Path::new(&vault_path).join("Data");
-    let path = data_dir.join(".sanctuary_master_cache.json");
-    if path.exists() {
-        std::fs::read_to_string(path).map_err(|e| e.to_string())
-    } else {
-        Ok("[]".into())
+    if let Some((raw, _)) = crate::utils::get_vault_kv(&vault_path, "master_registry_cache") {
+        if !raw.trim().is_empty() {
+            return Ok(raw);
+        }
     }
+    Ok("[]".into())
 }
 
 #[tauri::command]

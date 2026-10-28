@@ -1153,10 +1153,20 @@ export async function exportThemeWithAssets(
 
     if (isDesktop()) {
       let resolvedVaultPath = opts?.vaultPath;
+      try {
+        const gConf: any = await invoke("get_global_config");
+        if (gConf?.vault_path) {
+          resolvedVaultPath = gConf.vault_path;
+        }
+      } catch {}
       if (!resolvedVaultPath) {
         try {
           const coords: any = await invoke("get_saved_coordinates");
-          resolvedVaultPath = coords?.vault_path;
+          const spokePath = String(coords?.vault_path || "").trim().replace(/[\\/]+$/, "");
+          if (spokePath) {
+            const lastSep = Math.max(spokePath.lastIndexOf("\\"), spokePath.lastIndexOf("/"));
+            resolvedVaultPath = lastSep > 0 ? spokePath.slice(0, lastSep) : spokePath;
+          }
         } catch {}
       }
       const defaultPath = resolvedVaultPath

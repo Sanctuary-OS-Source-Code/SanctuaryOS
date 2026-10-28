@@ -2,7 +2,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, supabaseAuth } from './supabase';
 import { useLexicon, normalizeAllCapsForThemeCase } from './LexiconContext';
 import { useStore } from './store';
-import { scrollToLandingSection } from './utils/routingUtils';
+import {
+  scrollToLandingSection,
+  getActiveLandingTab,
+  normalizeLandingTab,
+  LandingTabId,
+} from './utils/routingUtils';
 import WebNewsFeed from './WebNewsFeed';
 import WebDocumentFeed from './WebDocumentFeed';
 import WebLegalViewer from './WebLegalViewer';
@@ -57,8 +62,17 @@ import { scrubLogUserData } from './utils/logScrubber';
 import {
   ReleaseNotesShowcase,
   StructuredReleaseNotesView,
+  LegalDocVersionInfoBlock,
+  cleanPostBodyForViewer,
 } from './components/ReleaseNotesShowcase';
-import { CommandScreenSectionHeading } from './hub-components/SharedCommandScreenLayout';
+import {
+  CommandScreenLayout,
+  CommandScreenBody,
+  CommandScreenMain,
+  CommandScreenSidebar,
+  CommandScreenQuickLink,
+  CommandScreenSectionHeading,
+} from './hub-components/SharedCommandScreenLayout';
 
 export default function WebLandingPage() {
   const { t } = useLexicon();
@@ -69,7 +83,11 @@ export default function WebLandingPage() {
   const setIsConfigured = useStore((state: any) => state.setIsConfigured);
   const pushToast = useStore((state: any) => state.pushStatus);
   const [games, setGames] = useState<any[]>([]);
+  const [newsCount, setNewsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [activeLandingTab, setActiveLandingTab] = useState<LandingTabId>(() =>
+    getActiveLandingTab()
+  );
   const [keepersConfig, setKeepersConfig] = useState<KeepersPipelineConfig>(DEFAULT_KEEPERS_PIPELINE_CONFIG);
   const [isDevUnlocked, setIsDevUnlocked] = useState(false);
   const [devBuildUntil, setDevBuildUntil] = useState(0);
@@ -569,7 +587,7 @@ export default function WebLandingPage() {
         ),
         'warning'
       );
-      scrollToLandingSection('support');
+      scrollToLandingSection('donations');
       return;
     }
     await setDevBuildChannelPreference(nextVal, session?.user?.id);
@@ -591,10 +609,18 @@ export default function WebLandingPage() {
 
   useEffect(() => {
     const fetchGames = async () => {
-      const [{ data }, pipelineCfg] = await Promise.all([
+      const [{ data }, pipelineCfg, newsRes] = await Promise.all([
         supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor'),
         getKeepersPipelineConfig(),
+        supabaseAuth
+          .from('system_broadcasts')
+          .select('id', { count: 'exact', head: true })
+          .in('category', ['Announcement', 'Blog', 'Press', 'Update', 'Maintenance', 'Info', 'Event'])
+          .ilike('target_audience', '%Public%'),
       ]);
+      if (typeof newsRes?.count === 'number') {
+        setNewsCount(newsRes.count);
+      }
       if (data) {
         const merged = data.map((g: any) => {
           const override =
@@ -802,28 +828,52 @@ export default function WebLandingPage() {
       const hash = window.location.hash.replace('#', '').toLowerCase();
       if (
         [
+          'overview',
           'workspaces',
           'news',
           'sanctuary_foundry_news',
           'release_notes',
+          'directives',
           'system_directives',
           'download',
           'support',
           'feedback',
           'contact',
+          'legal',
+          'donations',
+          'donate',
         ].includes(hash)
       ) {
-        setTimeout(() => scrollToLandingSection(hash), 150);
+        setActiveLandingTab(normalizeLandingTab(hash));
+        setTimeout(() => scrollToLandingSection(hash), 80);
+      }
+    };
+    const handleLandingTabEvent = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      const raw =
+        typeof detail === 'string'
+          ? detail
+          : detail?.tab || detail?.sectionId;
+      if (raw) {
+        setActiveLandingTab(normalizeLandingTab(raw));
       }
     };
     handleInitialHash();
     window.addEventListener('hashchange', handleInitialHash);
+    window.addEventListener(
+      'sanctuary-landing-tab',
+      handleLandingTabEvent as EventListener
+    );
     const handleAgreeCovenants = () => {
       setPartnerGate4(true);
     };
     window.addEventListener('agree_partner_covenants', handleAgreeCovenants);
     return () => {
       window.removeEventListener('hashchange', handleInitialHash);
+      window.removeEventListener(
+        'sanctuary-landing-tab',
+        handleLandingTabEvent as EventListener
+      );
       window.removeEventListener('agree_partner_covenants', handleAgreeCovenants);
     };
   }, []);
@@ -838,6 +888,32 @@ export default function WebLandingPage() {
       try {
         const globalConfig: any = await invoke("get_global_config");
         globalConfig.active_workspace_id = gameId;
+        if (Array.isArray(globalConfig.workspaces)) {
+          const existsInConfig = globalConfig.workspaces.some(
+            (w: any) =>
+              String(w.id || "").toLowerCase() === String(gameId || "").toLowerCase() ||
+              String(w.schema_id || "").toLowerCase() === String(gameId || "").toLowerCase()
+          );
+          if (!existsInConfig) {
+            const matchedGame = games.find(
+              (g: any) =>
+                String(g.schema_id || "").toLowerCase() === String(gameId || "").toLowerCase() ||
+                String(g.id || "").toLowerCase() === String(gameId || "").toLowerCase()
+            );
+            const targetSchema = matchedGame?.schema_id || gameId;
+            const masterVault = globalConfig.vault_path || "";
+            globalConfig.workspaces.push({
+              id: gameId,
+              name: matchedGame?.name || gameId,
+              schema_id: targetSchema,
+              live_path: "",
+              mods_path: "",
+              vault_path: masterVault ? `${masterVault}\\${targetSchema}` : "",
+              supabase_url: matchedGame?.supabase_url || null,
+              supabase_anon_key: matchedGame?.supabase_anon_key || null,
+            });
+          }
+        }
         await invoke("save_coordinates", { config: globalConfig });
         localStorage.setItem('sanctuary_last_active_workspace', gameId);
         setIsConfigured(true);
@@ -853,240 +929,471 @@ export default function WebLandingPage() {
     }
   };
 
+  const pinnedWorkspaces = [...games]
+    .sort((a, b) => {
+      const aActive = isDesktop() && a.schema_id === activeWorkspaceId ? 1 : 0;
+      const bActive = isDesktop() && b.schema_id === activeWorkspaceId ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      const aConfigured = (workspaces || []).some(
+        (w: any) =>
+          (w.schema_id === a.schema_id || w.id === a.schema_id) &&
+          (w.mods_path || w.live_path || w.vault_path)
+      )
+        ? 1
+        : 0;
+      const bConfigured = (workspaces || []).some(
+        (w: any) =>
+          (w.schema_id === b.schema_id || w.id === b.schema_id) &&
+          (w.mods_path || w.live_path || w.vault_path)
+      )
+        ? 1
+        : 0;
+      return bConfigured - aConfigured;
+    })
+    .slice(0, 6);
+
+  const landingTabLabels: Record<LandingTabId, string> = {
+    overview: t("overview", "Overview"),
+    workspaces: t("landing_workspaces", "Active Workspaces"),
+    news: t("landing_news", "Sanctuary Foundry News"),
+    directives: t("landing_system_directives", "Public Documents"),
+    download: t("landing_download_sidebar", "Download Sanctuary OS"),
+    support: t("landing_nav_feedback", "Feedback & Support"),
+    legal: t("landing_eula", "System EULA"),
+    donations: t("wf_tab_donations", "Donations"),
+  };
+
+  const renderWorkspaceCards = (list: any[]) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {loading ? (
+        <div className="col-span-full py-12 flex justify-center">
+          <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">
+            {t("icon_autorenew", "autorenew")}
+          </span>
+        </div>
+      ) : (
+        <>
+          {list.map((game) => {
+            const isActive = isDesktop() && game.schema_id === activeWorkspaceId;
+            const matchingWs = (workspaces || []).find(
+              (w: any) => w.schema_id === game.schema_id || w.id === game.schema_id
+            );
+            const isWorkspaceConfigured = Boolean(
+              matchingWs?.mods_path ||
+                matchingWs?.live_path ||
+                matchingWs?.vault_path ||
+                isActive
+            );
+
+            return (
+              <div
+                key={game.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigateToGame(game.schema_id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigateToGame(game.schema_id);
+                  }
+                }}
+                className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 ${
+                  isActive
+                    ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]"
+                    : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                }`}
+              >
+                {/* Top Row: Icon Box on Left + Outline Status Badge on Right */}
+                <div className="flex justify-between items-start gap-3 relative z-10">
+                  <div
+                    className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                      isActive
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
+                    }`}
+                  >
+                    {game.icon ? (
+                      <img
+                        src={game.icon}
+                        alt=""
+                        className="w-6 h-6 object-contain drop-shadow-sm"
+                      />
+                    ) : (
+                      <span className="material-symbols-outlined !text-[22px]">
+                        {t("icon_sports_esports", "sports_esports")}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isActive ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        <span>{t("active", "Active")}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        <span>
+                          {isWorkspaceConfigured
+                            ? t("workspace_badge_configured", "Configured")
+                            : t("workspace_badge_ready", "Ready")}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Middle Block: Overline + Prominent Title + Concise Description */}
+                <div className="flex flex-col gap-1 relative z-10 mt-0.5">
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
+                      isActive
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)] opacity-75"
+                    }`}
+                  >
+                    {t("workspace_card_overline", "Game Workspace")}
+                  </span>
+                  <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors duration-300 truncate m-0">
+                    {game.name}
+                  </h3>
+                  <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
+                    {isActive
+                      ? t(
+                          "workspace_card_desc_active",
+                          "Currently active environment for {mod} deployment, diagnostics, and backups."
+                        )
+                      : t(
+                          "workspace_card_desc_available",
+                          "Select to mount this game workspace and load its {vault}, {blueprints}, and tools."
+                        )}
+                  </p>
+                </div>
+
+                {/* Bottom Footer Row: Schema Code + Action Label */}
+                <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                    {game.schema_id}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0 text-[var(--text)] opacity-80 group-hover:text-[var(--accent)] group-hover:opacity-100 transition-colors duration-300">
+                    <span>
+                      {isActive
+                        ? t("workspace_btn_enter", "Enter Workspace")
+                        : t("launch", "Launch")}
+                    </span>
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full flex flex-col items-center justify-start relative pt-0 px-0 pb-0">
-      <main className="w-full flex flex-col gap-0 relative z-10 px-0 pb-12">
-        <div className="absolute top-6 right-6 z-[100] hidden md:flex items-center gap-4">
-        </div>
-
+      <CommandScreenLayout className="w-full">
         <ViewHeader
           title={t("landing_welcome", "Welcome to Sanctuary OS")}
-          subtitle={t("landing_subtitle", "Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter.")}
+          subtitle={t(
+            "landing_subtitle",
+            "Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter."
+          )}
           icon={t("icon_shield", "shield")}
+          breadcrumb={
+            activeLandingTab !== "overview"
+              ? landingTabLabels[activeLandingTab]
+              : undefined
+          }
+          onTitleClick={() => scrollToLandingSection("overview")}
         />
 
-        <div className="flex flex-col gap-8 md:gap-12 w-full">
-
-          <section id="workspaces" className="flex flex-col gap-6 scroll-mt-24">
-            <CommandScreenSectionHeading
-              title={t("landing_workspaces", "Active Workspaces")}
-              icon={t("icon_public", "public")}
-            />
-
-            <div className="w-full">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading ? (
-                  <div className="col-span-full py-12 flex justify-center">
-                    <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">{t("icon_autorenew", "autorenew")}</span>
-                  </div>
-                ) : (
-                  <>
-                    {games.map(game => {
-                      const isActive = isDesktop() && game.schema_id === activeWorkspaceId;
-                      const matchingWs = (workspaces || []).find(
-                        (w: any) => w.schema_id === game.schema_id || w.id === game.schema_id
-                      );
-                      const isWorkspaceConfigured = Boolean(
-                        matchingWs?.mods_path ||
-                          matchingWs?.live_path ||
-                          matchingWs?.vault_path ||
-                          isActive
-                      );
-
-                      return (
-                        <div
-                          key={game.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigateToGame(game.schema_id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              navigateToGame(game.schema_id);
-                            }
-                          }}
-                          className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 ${
-                            isActive
-                              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]"
-                              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                          }`}
-                        >
-                          {/* Top Row: Icon Box on Left + Outline Status Badge on Right */}
-                          <div className="flex justify-between items-start gap-3 relative z-10">
-                            <div
-                              className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
-                                isActive
-                                  ? "text-[var(--accent)]"
-                                  : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
-                              }`}
-                            >
-                              {game.icon ? (
-                                <img
-                                  src={game.icon}
-                                  alt=""
-                                  className="w-6 h-6 object-contain drop-shadow-sm"
-                                />
-                              ) : (
-                                <span className="material-symbols-outlined !text-[22px]">
-                                  {t("icon_sports_esports", "sports_esports")}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {isActive ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                    {t("icon_check_circle", "check_circle")}
-                                  </span>
-                                  <span>{t("active", "Active")}</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                                    {t("icon_check_circle", "check_circle")}
-                                  </span>
-                                  <span>
-                                    {isWorkspaceConfigured
-                                      ? t("workspace_badge_configured", "Configured")
-                                      : t("workspace_badge_ready", "Ready")}
-                                  </span>
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Middle Block: Overline + Prominent Title + Concise Description */}
-                          <div className="flex flex-col gap-1 relative z-10 mt-0.5">
-                            <span
-                              className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
-                                isActive
-                                  ? "text-[var(--accent)]"
-                                  : "text-[var(--subtext)] opacity-75"
-                              }`}
-                            >
-                              {t("workspace_card_overline", "Game Workspace")}
-                            </span>
-                            <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors duration-300 truncate m-0">
-                              {game.name}
-                            </h3>
-                            <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
-                              {isActive
-                                ? t("workspace_card_desc_active", "Currently active environment for {mod} deployment, diagnostics, and backups.")
-                                : t("workspace_card_desc_available", "Select to mount this game workspace and load its {vault}, {blueprints}, and tools.")}
-                            </p>
-                          </div>
-
-                          {/* Bottom Footer Row: Schema Code + Action Label */}
-                          <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
-                              {game.schema_id}
-                            </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0 text-[var(--text)] opacity-80 group-hover:text-[var(--accent)] group-hover:opacity-100 transition-colors duration-300">
-                              <span>
-                                {isActive
-                                  ? t("workspace_btn_enter", "Enter Workspace")
-                                  : t("launch", "Launch")}
-                              </span>
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_arrow_forward", "arrow_forward")}
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section id="news" className="flex flex-col gap-6 scroll-mt-24 mt-8">
-            <div id="sanctuary_foundry_news" className="hidden" />
-            <CommandScreenSectionHeading
-              title={t("landing_news", "Sanctuary Foundry News")}
-              icon={t("icon_campaign", "campaign")}
-            />
-            <div className="w-full">
-              <WebNewsFeed />
-            </div>
-          </section>
-
-          <section id="release_notes" className="flex flex-col gap-6 scroll-mt-24 mt-8">
-            <CommandScreenSectionHeading
-              title={t("release_notes_section_title", "Current Build Release Notes")}
-              icon={t("icon_new_releases", "new_releases")}
-            />
-            <ReleaseNotesShowcase
-              versionLabel={
-                !isDesktop() && webDevChannelEnabled
-                  ? (keepersConfig.dev_build_version || `${stableVersion}-dev`)
-                  : stableVersion
-              }
-            />
-          </section>
-
-        </div>
-
-        <section id="system_directives" className="w-full flex flex-col gap-6 mt-16 mb-8 scroll-mt-24">
-          <CommandScreenSectionHeading
-            title={t("landing_system_directives", "Public Documents")}
-            icon={t("icon_folder_special", "folder_special")}
+        <StatTileCarousel>
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_dashboard", "dashboard")}
+            label={t("overview", "Overview")}
+            number={`v${stableVersion}`}
+            isActive={activeLandingTab === "overview"}
+            onClick={() => scrollToLandingSection("overview")}
           />
-          <div className="w-full">
-            <WebDocumentFeed />
-          </div>
-        </section>
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_public", "public")}
+            label={t("landing_workspaces", "Active Workspaces")}
+            number={games.length}
+            isActive={activeLandingTab === "workspaces"}
+            onClick={() => scrollToLandingSection("workspaces")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_newspaper", "newspaper")}
+            label={t("landing_news_short", "News")}
+            number={newsCount}
+            isActive={activeLandingTab === "news"}
+            onClick={() => scrollToLandingSection("news")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_folder_special", "folder_special")}
+            label={t("landing_directives_short", "Directives")}
+            number={5}
+            isActive={activeLandingTab === "directives"}
+            onClick={() => scrollToLandingSection("directives")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_system_update_alt", "system_update_alt")}
+            label={t("landing_download_sidebar", "Download Sanctuary OS")}
+            number={
+              !isDesktop()
+                ? isDevUnlocked
+                  ? 6
+                  : 4
+                : isDevUnlocked
+                  ? 4
+                  : 2
+            }
+            isActive={activeLandingTab === "download"}
+            onClick={() => scrollToLandingSection("download")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_support_agent", "support_agent")}
+            label={t("landing_nav_feedback", "Feedback & Support")}
+            number={2}
+            isActive={activeLandingTab === "support"}
+            onClick={() => scrollToLandingSection("support")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_gavel", "gavel")}
+            label={t("landing_eula", "System EULA")}
+            number={5}
+            isActive={activeLandingTab === "legal"}
+            onClick={() => scrollToLandingSection("legal")}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_volunteer_activism", "volunteer_activism")}
+            label={t("wf_tab_donations", "Donations")}
+            number={
+              2 +
+              games.filter((g) =>
+                Boolean(g.donation_url && String(g.donation_url).trim().length > 0)
+              ).length
+            }
+            isActive={activeLandingTab === "donations"}
+            onClick={() => scrollToLandingSection("donations")}
+          />
+        </StatTileCarousel>
 
-        {!isDesktop() && (
-          <section id="download" className="w-full flex flex-col gap-6 mt-12 mb-12 scroll-mt-24 z-10 relative">
+        {/* =====================================================================
+            TAB 1: OVERVIEW (Pinned Workspaces • Recent News • Latest Builds + Quick Links)
+           ===================================================================== */}
+        {activeLandingTab === "overview" && (
+          <CommandScreenBody>
+            <CommandScreenMain>
+              <section id="workspaces" className="flex flex-col gap-6">
+                <CommandScreenSectionHeading
+                  title={t("landing_workspaces", "Active Workspaces")}
+                  icon={t("icon_public", "public")}
+                  rightSlot={
+                    games.length > 0 ? (
+                      <PanelHeaderGroup>
+                        <PanelHeaderButton
+                          icon={t("icon_arrow_forward", "arrow_forward")}
+                          tooltip={`${t("all", "All")} (${games.length})`}
+                          onClick={() => scrollToLandingSection("workspaces")}
+                        />
+                      </PanelHeaderGroup>
+                    ) : undefined
+                  }
+                />
+                <div className="w-full">
+                  {renderWorkspaceCards(pinnedWorkspaces)}
+                </div>
+              </section>
 
-            <CommandScreenSectionHeading
-              title={
-                <>
-                  <span className="md:hidden">
-                    {t("landing_install_pwa", "Install the PWA")}
-                  </span>
-                  <span className="hidden md:inline">
-                    {t("landing_download", "Download the Desktop Client")}
-                  </span>
-                </>
-              }
-              icon={t("icon_system_update_alt", "system_update_alt")}
-            />
+              <section id="news" className="flex flex-col gap-6">
+                <CommandScreenSectionHeading
+                  title={t("landing_news", "Sanctuary Foundry News")}
+                  icon={t("icon_campaign", "campaign")}
+                  rightSlot={
+                    <PanelHeaderGroup>
+                      <PanelHeaderButton
+                        icon={t("icon_arrow_forward", "arrow_forward")}
+                        tooltip={t("landing_news_short", "News")}
+                        onClick={() => scrollToLandingSection("news")}
+                      />
+                    </PanelHeaderGroup>
+                  }
+                />
+                <div className="w-full">
+                  <WebNewsFeed limit={3} onCountChange={setNewsCount} />
+                </div>
+              </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+              <section id="release_notes" className="flex flex-col gap-6">
+                <CommandScreenSectionHeading
+                  title={t(
+                    "release_notes_section_title",
+                    "Current Build Release Notes"
+                  )}
+                  icon={t("icon_new_releases", "new_releases")}
+                />
+                <ReleaseNotesShowcase
+                  versionLabel={
+                    !isDesktop() && webDevChannelEnabled
+                      ? keepersConfig.dev_build_version || `${stableVersion}-dev`
+                      : stableVersion
+                  }
+                />
+              </section>
+            </CommandScreenMain>
 
-              <div className="flex flex-col group cursor-pointer">
+            <CommandScreenSidebar
+              title={t("wf_quick_links", "Quick Links")}
+              icon={t("icon_bolt", "bolt")}
+            >
+              <CommandScreenQuickLink
+                icon={t("icon_public", "public")}
+                title={t("landing_workspaces", "Active Workspaces")}
+                subtitle={`${games.length} ${t("workspace_card_overline", "Game Workspace")}`}
+                onClick={() => scrollToLandingSection("workspaces")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_system_update_alt", "system_update_alt")}
+                title={t("landing_download_sidebar", "Download Sanctuary OS")}
+                subtitle={`${t("landing_win_exe", "Windows (.exe)")} • ${t("landing_mac_dmg", "macOS (.dmg)")} • PWA`}
+                onClick={() => scrollToLandingSection("download")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_folder_special", "folder_special")}
+                title={t("landing_system_directives", "Public Documents")}
+                subtitle={t("lex_studio_nav_landing_title", "Public Landing & System Directives")}
+                onClick={() => scrollToLandingSection("directives")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_volunteer_activism", "volunteer_activism")}
+                title={t(
+                  "landing_support_section_title",
+                  "Support Sanctuary OS & Partner Communities"
+                )}
+                subtitle={t(
+                  "landing_support_card_badge",
+                  "0% Platform Fee • +30 Days Dev Builds Per $5"
+                )}
+                onClick={() => scrollToLandingSection("donations")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_rate_review", "rate_review")}
+                title={t(
+                  "landing_feedback_section_title",
+                  "Platform Feedback & Core Support"
+                )}
+                subtitle={t(
+                  "landing_feedback_card_sub",
+                  "Desktop App • Website • Mobile PWA"
+                )}
+                onClick={() => scrollToLandingSection("feedback")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_handshake", "handshake")}
+                title={t(
+                  "landing_partner_card_title",
+                  "Apply to Launch a Partner Game Spoke"
+                )}
+                subtitle={t(
+                  "landing_banner_partner_bottom",
+                  "Community Workspace Operators • 0% Platform Fee"
+                )}
+                onClick={() => scrollToLandingSection("contact")}
+              />
+              <CommandScreenQuickLink
+                icon={t("icon_gavel", "gavel")}
+                title={t("landing_eula", "System EULA")}
+                subtitle={`${t("landing_terms", "Terms of Service")} • ${t("landing_privacy", "Privacy Protocol")}`}
+                onClick={() => scrollToLandingSection("legal")}
+              />
+            </CommandScreenSidebar>
+          </CommandScreenBody>
+        )}
+
+        {/* =====================================================================
+            TAB 2: WORKSPACES (All Active Game Workspaces + Partner Spoke Apply)
+           ===================================================================== */}
+        {activeLandingTab === "workspaces" && (
+          <div className="w-full flex flex-col gap-10">
+            <section id="workspaces" className="flex flex-col gap-6">
+              <CommandScreenSectionHeading
+                title={t("landing_workspaces", "Active Workspaces")}
+                icon={t("icon_public", "public")}
+              />
+              <div className="w-full">{renderWorkspaceCards(games)}</div>
+            </section>
+
+            <section className="flex flex-col gap-6">
+              <CommandScreenSectionHeading
+                title={t(
+                  "landing_partner_card_title",
+                  "Apply to Launch a Partner Game Spoke"
+                )}
+                icon={t("icon_handshake", "handshake")}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 <UniversalCard
                   layout="vertical"
-                  onClick={() => { if (!isStandalone) triggerInstall(); }}
-                  icon={t("icon_install_mobile", "install_mobile")}
-                  bannerTopLabel={t("landing_banner_pwa_top", "iOS • Android • Web")}
-                  bannerBottomLabel={t("landing_banner_pwa_bottom", "Standalone Web App")}
-                  title={t("pwa_install_title", "Install Sanctuary Web App")}
+                  onClick={() => {
+                    setActivePartnerStep(0);
+                    setMaxPartnerStep(0);
+                    setIsPartnerDrawerOpen(true);
+                  }}
+                  icon={t("icon_handshake", "handshake")}
+                  bannerTopLabel={t(
+                    "landing_partner_badge",
+                    "Readiness-Gated Dossier • Anti-Spam Verified"
+                  )}
+                  bannerBottomLabel={t(
+                    "landing_banner_partner_bottom",
+                    "Community Workspace Operators • 0% Platform Fee"
+                  )}
+                  title={t(
+                    "landing_partner_card_title",
+                    "Apply to Launch a Partner Game Spoke"
+                  )}
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {t("pwa_install_subtitle", "Progressive Web App (iOS / Android / Web)")}
+                      {t(
+                        "landing_partner_card_sub",
+                        "Dedicated Game Workspaces • Operated by Community Wayfinders & Architects"
+                      )}
                     </span>
                   }
                   className="h-full"
                   footer={
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {t("pwa_badge_standalone", "STANDALONE PWA")}
+                        {t("keepers_tab_partner_apps", "Partner Applications")}
                       </span>
                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                         <span>
-                          {isStandalone
-                            ? t("pwa_btn_installed", "App Installed")
-                            : t("pwa_btn_install", "Install App")}
+                          {t(
+                            "landing_partner_btn_open",
+                            "Start Partner Spoke Application"
+                          )}
                         </span>
                         <span className="material-symbols-outlined !text-[14px]">
-                          {isStandalone
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_arrow_forward", "arrow_forward")}
+                          {t("icon_rocket_launch", "rocket_launch")}
                         </span>
                       </span>
                     </div>
@@ -1094,64 +1401,45 @@ export default function WebLandingPage() {
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
-                      "pwa_install_desc",
-                      "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
+                      "landing_partner_card_desc",
+                      "Represent an established modding community and want to launch an official game workspace on Sanctuary OS? Complete our readiness check and submit your technical dossier to the Keepers."
                     )}
                   </p>
                 </UniversalCard>
-              </div>
 
-              {/* Website & Mobile PWA Public vs. Beta / Dev Build Stream Switcher Card */}
-              <div className="flex flex-col group cursor-pointer">
                 <UniversalCard
                   layout="vertical"
-                  onClick={() => handleToggleWebDevStream(!webDevChannelEnabled)}
-                  icon={
-                    webDevChannelEnabled
-                      ? t("icon_science", "science")
-                      : t("icon_public", "public")
-                  }
-                  statusColor={webDevChannelEnabled ? "emerald" : undefined}
-                  bannerTopLabel={t(
-                    "landing_web_stream_banner_top",
-                    "Website & Mobile PWA • Build Stream"
+                  onClick={() => setActivePartnerCovenant("PartnersAgreement")}
+                  icon={t("icon_verified_user", "verified_user")}
+                  bannerTopLabel={`V${stableVersion} • ${t(
+                    "partner_agreement_badge",
+                    "Spoke Charter"
+                  )}`}
+                  bannerBottomLabel={`V${stableVersion} • ${t(
+                    "compliance_protocol_badge",
+                    "Safety & Privacy"
+                  )}`}
+                  title={t(
+                    "partner_covenants_title",
+                    "Partners Agreement & Compliance Protocol"
                   )}
-                  bannerBottomLabel={
-                    webDevChannelEnabled
-                      ? `${t("landing_fb_stream_beta", "Beta Build Feedback")} • v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                      : `${t("landing_fb_stream_public", "Public Build Feedback")} • v${stableVersion}`
-                  }
-                  title={
-                    webDevChannelEnabled
-                      ? t("landing_web_stream_beta_title", "Web & PWA: Beta / Dev Build Active")
-                      : t("landing_web_stream_public_title", "Web & PWA: Public Build Active")
-                  }
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {isDevUnlocked
-                        ? t(
-                            "landing_web_stream_sub_unlocked",
-                            "Click to Toggle Between Public & Daily Dev Build Stream"
-                          )
-                        : t(
-                            "landing_web_stream_sub_locked",
-                            "Supporter Stream ($5 = +30 Days Global Daily Dev Builds)"
-                          )}
+                      {t(
+                        "partner_covenants_subtitle",
+                        "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+                      )}
                     </span>
                   }
                   className="h-full"
                   footer={
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {webDevChannelEnabled
-                          ? `v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                          : `v${stableVersion}`}
+                        {t("keepers_title", "Keepers Core")}
                       </span>
                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                         <span>
-                          {webDevChannelEnabled
-                            ? t("landing_web_stream_btn_switch_public", "Switch to Public Stream")
-                            : t("landing_web_stream_btn_switch_beta", "Switch to Beta / Dev Stream")}
+                          {t("partner_covenants_open_btn", "Inspect Covenants")}
                         </span>
                         <span className="material-symbols-outlined !text-[14px]">
                           {t("icon_arrow_forward", "arrow_forward")}
@@ -1162,126 +1450,300 @@ export default function WebLandingPage() {
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
-                      "landing_web_stream_desc",
-                      "Switch your live Website and Mobile PWA session between the verified Public Build and the Supporter Daily Dev Build channel."
+                      "partner_covenants_desc",
+                      "Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
                     )}
                   </p>
                 </UniversalCard>
               </div>
+            </section>
+          </div>
+        )}
 
-              {/* Website & Mobile PWA Public vs. Beta / Dev Build Stream Switcher Card */}
-              <div
-                className="flex flex-col group cursor-pointer"
-                onClick={() => handleToggleWebDevStream(!webDevChannelEnabled)}
+        {/* =====================================================================
+            TAB 3: NEWS (Sanctuary Foundry News + Current Build Release Notes)
+           ===================================================================== */}
+        {activeLandingTab === "news" && (
+          <div className="w-full flex flex-col gap-10">
+            <section id="news" className="flex flex-col gap-6 scroll-mt-24">
+              <div id="sanctuary_foundry_news" className="hidden" />
+              <CommandScreenSectionHeading
+                title={t("landing_news", "Sanctuary Foundry News")}
+                icon={t("icon_campaign", "campaign")}
+              />
+              <div className="w-full">
+                <WebNewsFeed limit={12} onCountChange={setNewsCount} />
+              </div>
+            </section>
+
+            <section
+              id="release_notes"
+              className="flex flex-col gap-6 scroll-mt-24"
+            >
+              <CommandScreenSectionHeading
+                title={t(
+                  "release_notes_section_title",
+                  "Current Build Release Notes"
+                )}
+                icon={t("icon_new_releases", "new_releases")}
+              />
+              <ReleaseNotesShowcase
+                versionLabel={
+                  !isDesktop() && webDevChannelEnabled
+                    ? keepersConfig.dev_build_version || `${stableVersion}-dev`
+                    : stableVersion
+                }
+              />
+            </section>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB 4: DIRECTIVES (Public Documents & System Directives)
+           ===================================================================== */}
+        {activeLandingTab === "directives" && (
+          <section
+            id="system_directives"
+            className="w-full flex flex-col gap-6 scroll-mt-24"
+          >
+            <CommandScreenSectionHeading
+              title={t("landing_system_directives", "Public Documents")}
+              icon={t("icon_folder_special", "folder_special")}
+            />
+            <div className="w-full">
+              <WebDocumentFeed />
+            </div>
+          </section>
+        )}
+
+        {/* =====================================================================
+            TAB 5: DOWNLOAD LINKS (Native Win/Mac Clients, PWA, Build Streams & Update Notes)
+           ===================================================================== */}
+        {activeLandingTab === "download" && (
+          <div className="w-full flex flex-col gap-10">
+          <section
+            id="download"
+            className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
+          >
+            <CommandScreenSectionHeading
+              title={t("landing_download_sidebar", "Download Sanctuary OS")}
+              icon={t("icon_system_update_alt", "system_update_alt")}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              {!isDesktop() && (
+                <>
+                  <div className="flex flex-col group cursor-pointer">
+                    <UniversalCard
+                      layout="vertical"
+                      onClick={() => {
+                        if (!isStandalone) triggerInstall();
+                      }}
+                      icon={t("icon_install_mobile", "install_mobile")}
+                      bannerTopLabel={t(
+                        "landing_banner_pwa_top",
+                        "iOS • Android • Web"
+                      )}
+                      bannerBottomLabel={t(
+                        "landing_banner_pwa_bottom",
+                        "Standalone Web App"
+                      )}
+                      title={t(
+                        "pwa_install_title",
+                        "Install Sanctuary Web App"
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            "pwa_install_subtitle",
+                            "Progressive Web App (iOS / Android / Web)"
+                          )}
+                        </span>
+                      }
+                      className="h-full"
+                      footer={
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            {t("pwa_badge_standalone", "STANDALONE PWA")}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                            <span>
+                              {isStandalone
+                                ? t("pwa_btn_installed", "App Installed")
+                                : t("pwa_btn_install", "Install App")}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {isStandalone
+                                ? t("icon_check_circle", "check_circle")
+                                : t("icon_arrow_forward", "arrow_forward")}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                        {t(
+                          "pwa_install_desc",
+                          "Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access."
+                        )}
+                      </p>
+                    </UniversalCard>
+                  </div>
+
+                  {/* Website & Mobile PWA Public vs. Beta / Dev Build Stream Switcher Card */}
+                  <div className="flex flex-col group cursor-pointer">
+                    <UniversalCard
+                      layout="vertical"
+                      onClick={() =>
+                        handleToggleWebDevStream(!webDevChannelEnabled)
+                      }
+                      icon={
+                        webDevChannelEnabled
+                          ? t("icon_science", "science")
+                          : t("icon_public", "public")
+                      }
+                      statusColor={webDevChannelEnabled ? "emerald" : undefined}
+                      bannerTopLabel={t(
+                        "landing_web_stream_banner_top",
+                        "Website & Mobile PWA • Build Stream"
+                      )}
+                      bannerBottomLabel={
+                        webDevChannelEnabled
+                          ? `${t("landing_fb_stream_beta", "Beta Build Feedback")} • v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
+                          : `${t("landing_fb_stream_public", "Public Build Feedback")} • v${stableVersion}`
+                      }
+                      title={
+                        webDevChannelEnabled
+                          ? t(
+                              "landing_web_stream_beta_title",
+                              "Web & PWA: Beta / Dev Build Active"
+                            )
+                          : t(
+                              "landing_web_stream_public_title",
+                              "Web & PWA: Public Build Active"
+                            )
+                      }
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {isDevUnlocked
+                            ? t(
+                                "landing_web_stream_sub_unlocked",
+                                "Click to Toggle Between Public & Daily Dev Build Stream"
+                              )
+                            : t(
+                                "landing_web_stream_sub_locked",
+                                "Supporter Stream ($5 = +30 Days Global Daily Dev Builds)"
+                              )}
+                        </span>
+                      }
+                      className="h-full"
+                      footer={
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            {webDevChannelEnabled
+                              ? `v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
+                              : `v${stableVersion}`}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                            <span>
+                              {webDevChannelEnabled
+                                ? t(
+                                    "landing_web_stream_btn_switch_public",
+                                    "Switch to Public Stream"
+                                  )
+                                : t(
+                                    "landing_web_stream_btn_switch_beta",
+                                    "Switch to Beta / Dev Stream"
+                                  )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                        {t(
+                          "landing_web_stream_desc",
+                          "Switch your live Website and Mobile PWA session between the verified Public Build and the Supporter Daily Dev Build channel."
+                        )}
+                      </p>
+                    </UniversalCard>
+                  </div>
+                </>
+              )}
+
+              <a
+                href={
+                  keepersConfig.stable_exe_url ||
+                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
+                }
+                className="block group"
               >
                 <UniversalCard
                   layout="vertical"
-                  icon={
-                    webDevChannelEnabled
-                      ? t("icon_science", "science")
-                      : t("icon_public", "public")
-                  }
-                  statusColor={webDevChannelEnabled ? "emerald" : undefined}
+                  onClick={() => {}}
+                  icon={t("icon_rocket_launch", "rocket_launch")}
                   bannerTopLabel={t(
-                    "landing_web_stream_banner_top",
-                    "Website & Mobile PWA • Build Stream"
+                    "landing_banner_win_top",
+                    "Windows 10 / 11 (64-Bit)"
                   )}
-                  bannerBottomLabel={
-                    webDevChannelEnabled
-                      ? `${t("landing_fb_stream_beta", "Beta Build Feedback")} • v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                      : `${t("landing_fb_stream_public", "Public Build Feedback")} • v${stableVersion}`
-                  }
-                  title={
-                    <span className="group-hover:text-[var(--accent)] transition-colors">
-                      {webDevChannelEnabled
-                        ? t("landing_web_stream_beta_title", "Web & PWA: Beta / Dev Build Active")
-                        : t("landing_web_stream_public_title", "Web & PWA: Public Build Active")}
-                    </span>
-                  }
+                  bannerBottomLabel={`${t("landing_banner_win_bottom", "Native Setup (.exe)")} • v${stableVersion}`}
+                  title={t("landing_download_native_title", "Sanctuary OS Native")}
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {isDevUnlocked
-                        ? t(
-                            "landing_web_stream_sub_unlocked",
-                            "Click to Toggle Between Public & Daily Dev Build Stream"
-                          )
-                        : t(
-                            "landing_web_stream_sub_locked",
-                            "Supporter Stream ($5 = +30 Days Global Daily Dev Builds)"
-                          )}
+                      {t("landing_win_exe", "Windows (.exe)")}
                     </span>
                   }
-                  className={`h-full transition-all duration-500 hover:-translate-y-1 ${
-                    webDevChannelEnabled
-                      ? "bg-[color-mix(in_srgb,var(--success)_4%,transparent)] border-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_55%,transparent)]"
-                      : "bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                  }`}
+                  className="h-full"
                   footer={
-                    <div className="w-full flex items-center justify-between text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 group-hover:opacity-100 group-hover:text-[var(--accent)] uppercase tracking-widest transition-all">
-                      <span>
-                        {webDevChannelEnabled
-                          ? `v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                          : `v${stableVersion}`}
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                        {`v${stableVersion}`}
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {webDevChannelEnabled
-                            ? t("icon_toggle_on", "toggle_on")
-                            : t("icon_toggle_off", "toggle_off")}
+                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                        <span>
+                          {t("landing_download_native_footer", "Standard Install")}
                         </span>
-                        {webDevChannelEnabled
-                          ? t("landing_web_stream_btn_switch_public", "Switch to Public Stream")
-                          : t("landing_web_stream_btn_switch_beta", "Switch to Beta / Dev Stream")}
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
                       </span>
                     </div>
                   }
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
-                      "landing_web_stream_desc",
-                      "Switch your live Website and Mobile PWA session between the verified Public Build and the Supporter Daily Dev Build channel."
+                      "landing_download_desc",
+                      "Install the Native Client to access full hardware integration, heuristic threat scanning, and deep OS-level modifications."
                     )}
-                  </p>
-                </UniversalCard>
-              </div>
-
-              <a href={keepersConfig.stable_exe_url || `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`} className="hidden md:block group">
-                <UniversalCard
-                  layout="vertical"
-                  onClick={() => {}}
-                  icon={t("icon_rocket_launch", "rocket_launch")}
-                  bannerTopLabel={t("landing_banner_win_top", "Windows 10 / 11 (64-Bit)")}
-                  bannerBottomLabel={`${t("landing_banner_win_bottom", "Native Setup (.exe)")} • v${stableVersion}`}
-                  title={t("landing_download_native_title", "Sanctuary OS Native")}
-                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_win_exe", "Windows (.exe)")}</span>}
-                  className="h-full"
-                  footer={
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {`v${stableVersion}`}
-                      </span>
-                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>{t("landing_download_native_footer", "Standard Install")}</span>
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-                      </span>
-                    </div>
-                  }
-                >
-                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t("landing_download_desc", "Install the Native Client to access full hardware integration, heuristic threat scanning, and deep OS-level modifications.")}
                   </p>
                 </UniversalCard>
               </a>
 
-              <a href={keepersConfig.stable_dmg_url || `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`} className="hidden md:block group">
+              <a
+                href={
+                  keepersConfig.stable_dmg_url ||
+                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
+                }
+                className="block group"
+              >
                 <UniversalCard
                   layout="vertical"
                   onClick={() => {}}
                   icon={t("icon_laptop_mac", "laptop_mac")}
-                  bannerTopLabel={t("landing_banner_mac_top", "Apple Silicon & Intel")}
+                  bannerTopLabel={t(
+                    "landing_banner_mac_top",
+                    "Apple Silicon & Intel"
+                  )}
                   bannerBottomLabel={`${t("landing_banner_mac_bottom", "macOS Disk Image (.dmg)")} • v${stableVersion}`}
                   title={t("landing_download_mac_title", "Sanctuary OS for Mac")}
-                  subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_mac_dmg", "macOS (.dmg)")}</span>}
+                  subtitle={
+                    <span className="text-[10px] font-mono tracking-widest">
+                      {t("landing_mac_dmg", "macOS (.dmg)")}
+                    </span>
+                  }
                   className="h-full"
                   footer={
                     <div className="w-full flex items-center justify-between gap-2">
@@ -1289,30 +1751,61 @@ export default function WebLandingPage() {
                         {`v${stableVersion}`}
                       </span>
                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>{t("landing_download_mac_footer", "Apple Silicon & Intel")}</span>
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                        <span>
+                          {t(
+                            "landing_download_mac_footer",
+                            "Apple Silicon & Intel"
+                          )}
+                        </span>
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
                       </span>
                     </div>
                   }
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t("landing_download_mac_desc", "Native macOS Universal application bundle engineered for Apple Silicon and Intel Macs with full Metal glass acceleration.")}
+                    {t(
+                      "landing_download_mac_desc",
+                      "Native macOS Universal application bundle engineered for Apple Silicon and Intel Macs with full Metal glass acceleration."
+                    )}
                   </p>
                 </UniversalCard>
               </a>
 
               {Boolean(session?.user?.id) && isDevUnlocked && (
                 <>
-                  <a href={keepersConfig.dev_build_download_url || "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"} target="_blank" rel="noopener noreferrer" className="hidden md:block group">
+                  <a
+                    href={
+                      keepersConfig.dev_build_download_url ||
+                      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
+                  >
                     <UniversalCard
                       layout="vertical"
                       onClick={() => {}}
                       icon={t("icon_bolt", "bolt")}
                       statusColor="emerald"
-                      bannerTopLabel={t("landing_banner_dev_win_top", "Supporter Dev Stream • Win")}
+                      bannerTopLabel={t(
+                        "landing_banner_dev_win_top",
+                        "Supporter Dev Stream • Win"
+                      )}
                       bannerBottomLabel={`${t("landing_banner_dev_win_bottom", "Early Preview (.exe)")} • v${keepersConfig.dev_build_version || "dev-latest"}`}
-                      title={t("landing_download_dev_title", "Daily Dev Build (Supporter)")}
-                      subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_dev_subtitle", "Supporter Preview Channel (.exe)")}</span>}
+                      title={t(
+                        "landing_download_dev_title",
+                        "Daily Dev Build (Supporter)"
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            "landing_download_dev_subtitle",
+                            "Supporter Preview Channel (.exe)"
+                          )}
+                        </span>
+                      }
                       className="h-full"
                       footer={
                         <div className="w-full flex items-center justify-between gap-2">
@@ -1320,28 +1813,60 @@ export default function WebLandingPage() {
                             {`v${keepersConfig.dev_build_version || "dev-latest"}`}
                           </span>
                           <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                            <span>{t("landing_download_dev_footer", "SUPPORTER STREAM")}</span>
-                            <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                            <span>
+                              {t(
+                                "landing_download_dev_footer",
+                                "SUPPORTER STREAM"
+                              )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
                           </span>
                         </div>
                       }
                     >
                       <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                        {t("landing_download_dev_desc", "Nightly preview build unlocked by your active Global Daily Dev Build supporter time.")}
+                        {t(
+                          "landing_download_dev_desc",
+                          "Nightly preview build unlocked by your active Global Daily Dev Build supporter time."
+                        )}
                       </p>
                     </UniversalCard>
                   </a>
 
-                  <a href={keepersConfig.dev_build_dmg_url || keepersConfig.dev_release_url || "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"} target="_blank" rel="noopener noreferrer" className="hidden md:block group">
+                  <a
+                    href={
+                      keepersConfig.dev_build_dmg_url ||
+                      keepersConfig.dev_release_url ||
+                      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
+                  >
                     <UniversalCard
                       layout="vertical"
                       onClick={() => {}}
                       icon={t("icon_laptop_mac", "laptop_mac")}
                       statusColor="emerald"
-                      bannerTopLabel={t("landing_banner_dev_mac_top", "Supporter Dev Stream • Mac")}
+                      bannerTopLabel={t(
+                        "landing_banner_dev_mac_top",
+                        "Supporter Dev Stream • Mac"
+                      )}
                       bannerBottomLabel={`${t("landing_banner_dev_mac_bottom", "Early Preview (.dmg)")} • v${keepersConfig.dev_build_version || "dev-latest"}`}
-                      title={t("landing_download_dev_mac_title", "Dev Build for Mac")}
-                      subtitle={<span className="text-[10px] font-mono tracking-widest">{t("landing_download_dev_mac_subtitle", "Supporter Early Preview (.dmg)")}</span>}
+                      title={t(
+                        "landing_download_dev_mac_title",
+                        "Dev Build for Mac"
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            "landing_download_dev_mac_subtitle",
+                            "Supporter Early Preview (.dmg)"
+                          )}
+                        </span>
+                      }
                       className="h-full"
                       footer={
                         <div className="w-full flex items-center justify-between gap-2">
@@ -1349,288 +1874,59 @@ export default function WebLandingPage() {
                             {`v${keepersConfig.dev_build_version || "dev-latest"}`}
                           </span>
                           <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                            <span>{t("landing_download_dev_mac_footer", "Download Mac Dev .dmg")}</span>
-                            <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_forward", "arrow_forward")}</span>
+                            <span>
+                              {t(
+                                "landing_download_dev_mac_footer",
+                                "Download Mac Dev .dmg"
+                              )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
                           </span>
                         </div>
                       }
                     >
                       <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                        {t("landing_download_dev_mac_desc", "Early preview macOS disk image unlocked by your active Global Dev Build supporter time—featuring the latest experimental features on Apple Silicon and Intel.")}
+                        {t(
+                          "landing_download_dev_mac_desc",
+                          "Early preview macOS disk image unlocked by your active Global Dev Build supporter time—featuring the latest experimental features on Apple Silicon and Intel."
+                        )}
                       </p>
                     </UniversalCard>
                   </a>
                 </>
               )}
-
             </div>
           </section>
+
+          <section
+            id="release_notes"
+            className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
+          >
+            <CommandScreenSectionHeading
+              title={t(
+                "release_notes_section_title",
+                "Current Build Release Notes"
+              )}
+              icon={t("icon_new_releases", "new_releases")}
+            />
+            <ReleaseNotesShowcase
+              versionLabel={
+                !isDesktop() && webDevChannelEnabled
+                  ? keepersConfig.dev_build_version || `${stableVersion}-dev`
+                  : stableVersion
+              }
+            />
+          </section>
+          </div>
         )}
 
-        <section id="support" className="w-full flex flex-col gap-6 mt-8 mb-8 scroll-mt-24 z-10 relative">
-          <CommandScreenSectionHeading
-            title={t("landing_support_section_title", "Support Sanctuary OS & Partner Communities")}
-            icon={t("icon_volunteer_activism", "volunteer_activism")}
-            rightSlot={
-              !isDesktop() && Boolean(session?.user?.id) ? (
-                <PanelHeaderGroup>
-                  <PanelHeaderButton
-                    icon={t("icon_verified", "verified")}
-                    label={t("supporter_web_verify_btn", "Verify Completed Donation (+30 Days / $5)")}
-                    onClick={() => setIsVerifyDrawerOpen(true)}
-                  />
-                </PanelHeaderGroup>
-              ) : undefined
-            }
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-            {/* Leading Section Alert Card: Pending Web Checkout OR 100% Direct Support Advisory */}
-            {!isDesktop() && pendingWebCheckout ? (
-              <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
-                <div
-                  className="pointer-events-none absolute inset-0 rounded-[inherit]"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)",
-                  }}
-                />
-                <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
-                  {t("icon_bolt", "bolt")}
-                </span>
-
-                {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
-                <div className="flex items-center justify-between gap-3 relative z-10">
-                  <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[22px] animate-pulse">
-                      {t("icon_bolt", "bolt")}
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                      {t("icon_warning", "warning")}
-                    </span>
-                    <span>{t("status", "Status")}</span>
-                  </span>
-                </div>
-
-                {/* Row 2: Full-Width Overline + Title (Never Truncated) */}
-                <div className="flex flex-col gap-1 relative z-10">
-                  <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
-                    {t("landing_banner_support_os_top", "$5 = +30 Days Dev Builds")}
-                  </span>
-                  <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                    {t("supporter_web_pending_title", "Checkout Opened in Browser Tab")}
-                  </h3>
-                </div>
-
-                {/* Row 3: Recessed Warning Callout Strip */}
-                <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
-                    {t("icon_verified", "verified")}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
-                    {t("supporter_liability_title", "100% Non-Custodial • 0% Platform Fee")}
-                  </span>
-                </div>
-
-                {/* Row 4: Body Notice */}
-                <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10">
-                  {session?.user?.id
-                    ? t(
-                        "supporter_web_pending_desc",
-                        "Every $5 contribution adds +30 days of Global Daily Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.",
-                      )
-                    : t(
-                        "supporter_auth_required_for_dev_builds",
-                        "Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Daily Dev Builds per $5.",
-                      )}
-                </p>
-
-                {/* Row 5: Action Footer */}
-                <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
-                  {session?.user?.id ? (
-                    <ActionButton
-                      variant="primary"
-                      icon={t("icon_verified", "verified")}
-                      label={t("supporter_web_verify_btn", "Verify Completed Donation (+30 Days / $5)")}
-                      onClick={() => setIsVerifyDrawerOpen(true)}
-                      className="w-full justify-center"
-                    />
-                  ) : (
-                    <ActionButton
-                      variant="primary"
-                      icon={t("icon_key", "key")}
-                      label={t("sidebar_authenticate", "Authenticate")}
-                      onClick={() => setView("auth")}
-                      className="w-full justify-center"
-                    />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
-                <div
-                  className="pointer-events-none absolute inset-0 rounded-[inherit]"
-                  style={{
-                    background:
-                      "radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)",
-                  }}
-                />
-                <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
-                  {t("icon_gpp_maybe", "gpp_maybe")}
-                </span>
-
-                {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
-                <div className="flex items-center justify-between gap-3 relative z-10">
-                  <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[22px]">
-                      {t("icon_warning", "warning")}
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                      {t("icon_verified", "verified")}
-                    </span>
-                    <span>{t("supporter_rate_badge", "$5 = +30 Days")}</span>
-                  </span>
-                </div>
-
-                {/* Row 2: Full-Width Overline + Title (Never Truncated) */}
-                <div className="flex flex-col gap-1 relative z-10">
-                  <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
-                    {t("landing_banner_support_partner_top", "100% Direct To Community")}
-                  </span>
-                  <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                    {t("supporter_liability_title", "100% Non-Custodial • 0% Platform Fee")}
-                  </h3>
-                </div>
-
-                {/* Row 3: Recessed Warning Callout Strip */}
-                <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
-                    {t("icon_bolt", "bolt")}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
-                    {t("landing_support_card_badge", "0% Platform Fee • +30 Days Dev Builds Per $5")}
-                  </span>
-                </div>
-
-                {/* Row 4: Body Notice */}
-                <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10">
-                  {t(
-                    "supporter_combined_partner_notice",
-                    "Partner Communities run their own payment processors and receive 100% of your donation (0% platform fee, no chargebacks covered by Sanctuary OS). Payment webhooks automatically credit your account with +30 days per $5. If a community isn't listed yet, its Wayfinders can link their payment processor in Wayfinder Operations.",
-                  )}
-                </p>
-
-                {/* Row 5: Footer Row */}
-                <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 uppercase tracking-widest relative z-10">
-                  <span>{t("supporter_zero_fee_badge", "0% Platform Fee • Non-Custodial")}</span>
-                  <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
-                    <span className="material-symbols-outlined !text-[13px]">
-                      {t("icon_volunteer_activism", "volunteer_activism")}
-                    </span>
-                    <span>{t("supporter_rate_badge", "$5 = +30 Days")}</span>
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <UniversalCard
-              layout="vertical"
-              onClick={() =>
-                handleDonateCardClick(
-                  "keepers_core",
-                  t("supporter_keepers_title", "Sanctuary OS (Keepers Core)"),
-                  keepersConfig.keepers_donation_url || "sandbox://checkout",
-                )
-              }
-              icon={t("icon_rocket_launch", "rocket_launch")}
-              bannerTopLabel={t("landing_banner_support_os_top", "$5 = +30 Days Dev Builds")}
-              bannerBottomLabel={t("landing_banner_support_os_bottom", "100% Core OS Development")}
-              title={t("supporter_keepers_title", "Sanctuary OS (Keepers Core)")}
-              subtitle={
-                <span className="text-[10px] font-mono tracking-widest">
-                  {t("supporter_keepers_subtitle", "Core OS Infrastructure • 0% Platform Fee • Stacks Global Daily Dev Builds")}
-                </span>
-              }
-              className="h-full"
-              footer={
-                <div className="w-full flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                    {t("supporter_rate_badge", "$5 = +30 Days")}
-                  </span>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                    <span>{t("supporter_keepers_btn", "Support Sanctuary OS")}</span>
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {isSandboxDonationUrl(keepersConfig.keepers_donation_url)
-                        ? t("icon_science", "science")
-                        : t("icon_arrow_forward", "arrow_forward")}
-                    </span>
-                  </span>
-                </div>
-              }
-            >
-              <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                {t(
-                  "supporter_keepers_desc",
-                  "Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Daily Dev Build access onto your account.",
-                )}
-              </p>
-            </UniversalCard>
-
-            {games
-              .filter((g) => Boolean(g.donation_url && String(g.donation_url).trim().length > 0))
-              .map((g) => (
-                <UniversalCard
-                  key={`support-${g.id}`}
-                  layout="vertical"
-                  onClick={() =>
-                    handleDonateCardClick(
-                      g.schema_id || g.id,
-                      g.name,
-                      g.donation_url,
-                    )
-                  }
-                  icon={g.icon ? undefined : t("icon_sports_esports", "sports_esports")}
-                  bannerTopLabel={t("landing_banner_support_partner_top", "100% Direct To Community")}
-                  bannerBottomLabel={`${g.name} • ${t("landing_banner_support_partner_bottom", "Server & {Mason} Support")}`}
-                  customIcon={
-                    g.icon ? (
-                      <img
-                        src={g.icon}
-                        alt=""
-                        className="w-10 h-10 object-contain drop-shadow-md opacity-80 group-hover/card:opacity-100 transition-opacity"
-                      />
-                    ) : undefined
-                  }
-                  title={g.name}
-                  subtitle={
-                    <span className="text-[10px] font-mono tracking-widest">
-                      {`${normalizeAllCapsForThemeCase((g.payment_processor || "Stripe").toUpperCase())} • ${t("supporter_zero_fee_badge", "0% Platform Fee • Non-Custodial")}`}
-                    </span>
-                  }
-                  className="h-full"
-                  footer={
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {t("supporter_rate_badge", "$5 = +30 Days")}
-                      </span>
-                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>{t("supporter_btn_donate_partner", "Donate to Partner")}</span>
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {isSandboxDonationUrl(g.donation_url)
-                            ? t("icon_science", "science")
-                            : t("icon_arrow_forward", "arrow_forward")}
-                        </span>
-                      </span>
-                    </div>
-                  }
-                />
-              ))}
-          </div>
-        </section>
+        {/* =====================================================================
+            TAB 6: CONTACT / SUPPORT (Platform Feedback & Direct Contact)
+           ===================================================================== */}
+        {activeLandingTab === "support" && (
+          <div className="w-full flex flex-col gap-10">
 
         {/* =====================================================================
             OFFICIAL CORE PLATFORM FEEDBACK & BUG SUPPORT SECTION
@@ -1645,7 +1941,7 @@ export default function WebLandingPage() {
                 <PanelHeaderGroup>
                   <PanelHeaderButton
                     icon={t("icon_inbox", "inbox")}
-                    label={`${t("landing_my_platform_tickets", "My Platform Tickets & Feedback")} (${myPlatformTickets.length})`}
+                    tooltip={`${t("landing_my_platform_tickets", "My Platform Tickets & Feedback")} (${myPlatformTickets.length})`}
                     onClick={() => {
                       fetchMyPlatformTickets();
                       setIsMyTicketsDrawerOpen(true);
@@ -1976,6 +2272,570 @@ export default function WebLandingPage() {
             </UniversalCard>
           </div>
         </section>
+          </div>
+        )}
+
+        {/* =====================================================================
+            TAB 7: LEGAL (System EULA • Terms • Privacy • Partner Covenants)
+           ===================================================================== */}
+        {activeLandingTab === "legal" && (
+          <section
+            id="legal"
+            className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
+          >
+            <CommandScreenSectionHeading
+              title={t("landing_eula", "System EULA")}
+              icon={t("icon_gavel", "gavel")}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              <UniversalCard
+                layout="vertical"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open_legal_doc", { detail: "eula" })
+                  )
+                }
+                icon={t("icon_gavel", "gavel")}
+                bannerTopLabel={t("legal_subtitle", "Sanctuary Foundry OS")}
+                bannerBottomLabel={t("landing_eula", "System EULA")}
+                title={t("landing_eula", "System EULA")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t(
+                      "subtitle_sanctuary_alerts",
+                      "Official legal terms, privacy policy, and end-user license agreement."
+                    )}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("legal_subtitle", "Sanctuary Foundry OS")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>{t("btn_view", "View")}</span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "subtitle_sanctuary_alerts",
+                    "Official legal terms, privacy policy, and end-user license agreement."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open_legal_doc", { detail: "terms" })
+                  )
+                }
+                icon={t("icon_description", "description")}
+                bannerTopLabel={t("legal_subtitle", "Sanctuary Foundry OS")}
+                bannerBottomLabel={t("landing_terms", "Terms of Service")}
+                title={t("landing_terms", "Terms of Service")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t("legal_subtitle", "Sanctuary Foundry OS")}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("legal_subtitle", "Sanctuary Foundry OS")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>{t("btn_view", "View")}</span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "subtitle_sanctuary_alerts",
+                    "Official legal terms, privacy policy, and end-user license agreement."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open_legal_doc", { detail: "privacy" })
+                  )
+                }
+                icon={t("icon_shield", "shield")}
+                bannerTopLabel={t("legal_subtitle", "Sanctuary Foundry OS")}
+                bannerBottomLabel={t("landing_privacy", "Privacy Protocol")}
+                title={t("landing_privacy", "Privacy Protocol")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t("legal_subtitle", "Sanctuary Foundry OS")}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("legal_subtitle", "Sanctuary Foundry OS")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>{t("btn_view", "View")}</span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "subtitle_sanctuary_alerts",
+                    "Official legal terms, privacy policy, and end-user license agreement."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                onClick={() => setActivePartnerCovenant("PartnersAgreement")}
+                icon={t("icon_handshake", "handshake")}
+                bannerTopLabel={`V${stableVersion} • ${t(
+                  "partner_agreement_badge",
+                  "Spoke Charter"
+                )}`}
+                bannerBottomLabel={t(
+                  "partner_covenants_subtitle",
+                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+                )}
+                title={t("partner_agreement_title", "Partners Agreement")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {`V${stableVersion} • ${t(
+                      "partner_agreement_badge",
+                      "Spoke Charter"
+                    )}`}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("keepers_title", "Keepers Core")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t("partner_covenants_open_btn", "Inspect Covenants")}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "partner_agreement_desc",
+                    "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                onClick={() => setActivePartnerCovenant("ComplianceProtocol")}
+                icon={t("icon_verified_user", "verified_user")}
+                bannerTopLabel={`V${stableVersion} • ${t(
+                  "compliance_protocol_badge",
+                  "Safety & Privacy"
+                )}`}
+                bannerBottomLabel={t(
+                  "partner_covenants_subtitle",
+                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+                )}
+                title={t("compliance_protocol_title", "Compliance Protocol")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {`V${stableVersion} • ${t(
+                      "compliance_protocol_badge",
+                      "Safety & Privacy"
+                    )}`}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("keepers_title", "Keepers Core")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t("partner_covenants_open_btn", "Inspect Covenants")}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "compliance_protocol_desc",
+                    "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
+                  )}
+                </p>
+              </UniversalCard>
+            </div>
+          </section>
+        )}
+
+        {/* =====================================================================
+            TAB 8: DONATIONS (Support Sanctuary OS & Partner Communities)
+           ===================================================================== */}
+        {activeLandingTab === "donations" && (
+          <section
+            id="donations"
+            className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
+          >
+            <CommandScreenSectionHeading
+              title={t(
+                "landing_support_section_title",
+                "Support Sanctuary OS & Partner Communities"
+              )}
+              icon={t("icon_volunteer_activism", "volunteer_activism")}
+              rightSlot={
+                !isDesktop() && Boolean(session?.user?.id) ? (
+                  <PanelHeaderGroup>
+                    <PanelHeaderButton
+                      icon={t("icon_verified", "verified")}
+                      tooltip={t(
+                        "supporter_web_verify_btn",
+                        "Verify Completed Donation (+30 Days / $5)"
+                      )}
+                      onClick={() => setIsVerifyDrawerOpen(true)}
+                    />
+                  </PanelHeaderGroup>
+                ) : undefined
+              }
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              {/* Leading Section Alert Card: Pending Web Checkout OR 100% Direct Support Advisory */}
+              {!isDesktop() && pendingWebCheckout ? (
+                <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-[inherit]"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)",
+                    }}
+                  />
+                  <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
+                    {t("icon_bolt", "bolt")}
+                  </span>
+
+                  {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
+                  <div className="flex items-center justify-between gap-3 relative z-10">
+                    <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[22px] animate-pulse">
+                        {t("icon_bolt", "bolt")}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                        {t("icon_warning", "warning")}
+                      </span>
+                      <span>{t("status", "Status")}</span>
+                    </span>
+                  </div>
+
+                  {/* Row 2: Full-Width Overline + Title (Never Truncated) */}
+                  <div className="flex flex-col gap-1 relative z-10">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
+                      {t(
+                        "landing_banner_support_os_top",
+                        "$5 = +30 Days Dev Builds"
+                      )}
+                    </span>
+                    <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {t(
+                        "supporter_web_pending_title",
+                        "Checkout Opened in Browser Tab"
+                      )}
+                    </h3>
+                  </div>
+
+                  {/* Row 3: Recessed Warning Callout Strip */}
+                  <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
+                      {t("icon_verified", "verified")}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
+                      {t(
+                        "supporter_liability_title",
+                        "100% Non-Custodial • 0% Platform Fee"
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Row 4: Body Notice */}
+                  <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10">
+                    {session?.user?.id
+                      ? t(
+                          "supporter_web_pending_desc",
+                          "Every $5 contribution adds +30 days of Global Daily Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below."
+                        )
+                      : t(
+                          "supporter_auth_required_for_dev_builds",
+                          "Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Daily Dev Builds per $5."
+                        )}
+                  </p>
+
+                  {/* Row 5: Action Footer */}
+                  <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
+                    {session?.user?.id ? (
+                      <ActionButton
+                        variant="primary"
+                        icon={t("icon_verified", "verified")}
+                        label={t(
+                          "supporter_web_verify_btn",
+                          "Verify Completed Donation (+30 Days / $5)"
+                        )}
+                        onClick={() => setIsVerifyDrawerOpen(true)}
+                        className="w-full justify-center"
+                      />
+                    ) : (
+                      <ActionButton
+                        variant="primary"
+                        icon={t("icon_key", "key")}
+                        label={t("sidebar_authenticate", "Authenticate")}
+                        onClick={() => setView("auth")}
+                        className="w-full justify-center"
+                      />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-[inherit]"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)",
+                    }}
+                  />
+                  <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
+                    {t("icon_gpp_maybe", "gpp_maybe")}
+                  </span>
+
+                  {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
+                  <div className="flex items-center justify-between gap-3 relative z-10">
+                    <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[22px]">
+                        {t("icon_warning", "warning")}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                        {t("icon_verified", "verified")}
+                      </span>
+                      <span>{t("supporter_rate_badge", "$5 = +30 Days")}</span>
+                    </span>
+                  </div>
+
+                  {/* Row 2: Full-Width Overline + Title (Never Truncated) */}
+                  <div className="flex flex-col gap-1 relative z-10">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
+                      {t(
+                        "landing_banner_support_partner_top",
+                        "100% Direct To Community"
+                      )}
+                    </span>
+                    <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {t(
+                        "supporter_liability_title",
+                        "100% Non-Custodial • 0% Platform Fee"
+                      )}
+                    </h3>
+                  </div>
+
+                  {/* Row 3: Recessed Warning Callout Strip */}
+                  <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
+                      {t("icon_bolt", "bolt")}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
+                      {t(
+                        "landing_support_card_badge",
+                        "0% Platform Fee • +30 Days Dev Builds Per $5"
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Row 4: Body Notice */}
+                  <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10">
+                    {t(
+                      "supporter_combined_partner_notice",
+                      "Partner Communities run their own payment processors and receive 100% of your donation (0% platform fee, no chargebacks covered by Sanctuary OS). Payment webhooks automatically credit your account with +30 days per $5. If a community isn't listed yet, its Wayfinders can link their payment processor in Wayfinder Operations."
+                    )}
+                  </p>
+
+                  {/* Row 5: Footer Row */}
+                  <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 uppercase tracking-widest relative z-10">
+                    <span>
+                      {t(
+                        "supporter_zero_fee_badge",
+                        "0% Platform Fee • Non-Custodial"
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
+                      <span className="material-symbols-outlined !text-[13px]">
+                        {t("icon_volunteer_activism", "volunteer_activism")}
+                      </span>
+                      <span>{t("supporter_rate_badge", "$5 = +30 Days")}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <UniversalCard
+                layout="vertical"
+                onClick={() =>
+                  handleDonateCardClick(
+                    "keepers_core",
+                    t("supporter_keepers_title", "Sanctuary OS (Keepers Core)"),
+                    keepersConfig.keepers_donation_url || "sandbox://checkout"
+                  )
+                }
+                icon={t("icon_rocket_launch", "rocket_launch")}
+                bannerTopLabel={t(
+                  "landing_banner_support_os_top",
+                  "$5 = +30 Days Dev Builds"
+                )}
+                bannerBottomLabel={t(
+                  "landing_banner_support_os_bottom",
+                  "100% Core OS Development"
+                )}
+                title={t(
+                  "supporter_keepers_title",
+                  "Sanctuary OS (Keepers Core)"
+                )}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t(
+                      "supporter_keepers_subtitle",
+                      "Core OS Infrastructure • 0% Platform Fee • Stacks Global Daily Dev Builds"
+                    )}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("supporter_rate_badge", "$5 = +30 Days")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t("supporter_keepers_btn", "Support Sanctuary OS")}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {isSandboxDonationUrl(keepersConfig.keepers_donation_url)
+                          ? t("icon_science", "science")
+                          : t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "supporter_keepers_desc",
+                    "Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Daily Dev Build access onto your account."
+                  )}
+                </p>
+              </UniversalCard>
+
+              {games
+                .filter((g) =>
+                  Boolean(g.donation_url && String(g.donation_url).trim().length > 0)
+                )
+                .map((g) => (
+                  <UniversalCard
+                    key={`support-${g.id}`}
+                    layout="vertical"
+                    onClick={() =>
+                      handleDonateCardClick(
+                        g.schema_id || g.id,
+                        g.name,
+                        g.donation_url
+                      )
+                    }
+                    icon={
+                      g.icon
+                        ? undefined
+                        : t("icon_sports_esports", "sports_esports")
+                    }
+                    bannerTopLabel={t(
+                      "landing_banner_support_partner_top",
+                      "100% Direct To Community"
+                    )}
+                    bannerBottomLabel={`${g.name} • ${t("landing_banner_support_partner_bottom", "Server & {Mason} Support")}`}
+                    customIcon={
+                      g.icon ? (
+                        <img
+                          src={g.icon}
+                          alt=""
+                          className="w-10 h-10 object-contain drop-shadow-md opacity-80 group-hover/card:opacity-100 transition-opacity"
+                        />
+                      ) : undefined
+                    }
+                    title={g.name}
+                    subtitle={
+                      <span className="text-[10px] font-mono tracking-widest">
+                        {`${normalizeAllCapsForThemeCase((g.payment_processor || "Stripe").toUpperCase())} • ${t("supporter_zero_fee_badge", "0% Platform Fee • Non-Custodial")}`}
+                      </span>
+                    }
+                    className="h-full"
+                    footer={
+                      <div className="w-full flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                          {t("supporter_rate_badge", "$5 = +30 Days")}
+                        </span>
+                        <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                          <span>
+                            {t(
+                              "supporter_btn_donate_partner",
+                              "Donate to Partner"
+                            )}
+                          </span>
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {isSandboxDonationUrl(g.donation_url)
+                              ? t("icon_science", "science")
+                              : t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                  />
+                ))}
+            </div>
+          </section>
+        )}
 
         {/* =====================================================================
             DRAWER 1: CORE PLATFORM FEEDBACK & BUG SUPPORT (CHAT-LIKE GUIDED FLOW)
@@ -3558,16 +4418,18 @@ export default function WebLandingPage() {
               : syncedCovenantDocs.PartnersAgreement?.title ||
                 CANONICAL_LEGAL_DOCS.PartnersAgreement.title
           }
-          subtitle={t("", "Partner Spoke Governance Covenants • Step 1 Readiness Requirement")}
+          subtitle={t(
+            "partner_covenants_subtitle",
+            "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+          )}
           widthClass="w-[90vw] md:w-[760px]"
           headerActions={
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon={t("icon_check_circle", "check_circle")}
-                label={t("", "Agree & Continue")}
                 tooltip={t(
-                  "",
-                  "Agree to Both Partner Spoke Covenants & Return to Application"
+                  "partner_covenants_agree_btn",
+                  "Agree to Both Covenants & Continue"
                 )}
                 variant="accent"
                 onClick={() => {
@@ -3597,8 +4459,11 @@ export default function WebLandingPage() {
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_handshake", "handshake")}
-                label={t("", "Covenant 1 of 2")}
-                number={t("", "Partners Agreement")}
+                label={`V${stableVersion} • ${t(
+                  "partner_agreement_badge",
+                  "Spoke Charter"
+                )}`}
+                number={t("partner_agreement_title", "Partners Agreement")}
                 isActive={activePartnerCovenant === "PartnersAgreement"}
                 onClick={() => {
                   setReviewedPartnersDoc(true);
@@ -3608,8 +4473,11 @@ export default function WebLandingPage() {
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_verified_user", "verified_user")}
-                label={t("", "Covenant 2 of 2")}
-                number={t("", "Compliance Protocol")}
+                label={`V${stableVersion} • ${t(
+                  "compliance_protocol_badge",
+                  "Safety & Privacy"
+                )}`}
+                number={t("compliance_protocol_title", "Compliance Protocol")}
                 isActive={activePartnerCovenant === "ComplianceProtocol"}
                 onClick={() => {
                   setReviewedComplianceDoc(true);
@@ -3624,7 +4492,10 @@ export default function WebLandingPage() {
                   ? t("icon_verified_user", "verified_user")
                   : t("icon_handshake", "handshake")
               }
-              overline={t("", "Sovereign Partner Spoke Covenant")}
+              overline={t(
+                "partner_covenants_subtitle",
+                "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+              )}
               title={
                 activePartnerCovenant === "ComplianceProtocol"
                   ? syncedCovenantDocs.ComplianceProtocol?.title ||
@@ -3635,22 +4506,30 @@ export default function WebLandingPage() {
               description={
                 activePartnerCovenant === "ComplianceProtocol"
                   ? t(
-                      "",
-                      "Mandatory Florida Compliance Layer (Tiers 0–5), dual-tier 21+17 malware heuristics, Windows & macOS security parity, and nuclear ban ledger rules."
+                      "compliance_protocol_desc",
+                      "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
                     )
                   : t(
-                      "",
-                      "Bilateral sovereignty charter guaranteeing 100% Spoke database ownership, non-custodial 0% platform cut donations, and unilateral Cut the Cord severance."
+                      "partner_agreement_desc",
+                      "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
                     )
               }
               badge={
                 activePartnerCovenant === "ComplianceProtocol"
-                  ? t("", "COMPLIANCE")
-                  : t("", "PARTNERS")
+                  ? `V${stableVersion} • ${t(
+                      "compliance_protocol_badge",
+                      "Safety & Privacy"
+                    )}`
+                  : `V${stableVersion} • ${t(
+                      "partner_agreement_badge",
+                      "Spoke Charter"
+                    )}`
               }
               badgeIcon={t("icon_verified", "verified")}
               variant="accent"
-            />
+            >
+              <LegalDocVersionInfoBlock />
+            </SidePanelHeroCard>
 
             <UniversalGroup
               title={
@@ -3670,54 +4549,19 @@ export default function WebLandingPage() {
                     : syncedCovenantDocs.PartnersAgreement?.content ||
                       CANONICAL_LEGAL_DOCS.PartnersAgreement.bundledContent;
                 return covenantViewMode === "ui" ? (
-                  <StructuredReleaseNotesView content={activeBody} />
+                  <StructuredReleaseNotesView
+                    content={activeBody}
+                    hideIntro={true}
+                  />
                 ) : (
                   <div className="glass-panel rounded-3xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)]">
-                    <MarkdownRenderer content={activeBody} />
+                    <MarkdownRenderer
+                      content={cleanPostBodyForViewer(activeBody)}
+                    />
                   </div>
                 );
               })()}
             </UniversalGroup>
-
-            <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (activePartnerCovenant === "PartnersAgreement") {
-                    setReviewedComplianceDoc(true);
-                    setActivePartnerCovenant("ComplianceProtocol");
-                  } else {
-                    setReviewedPartnersDoc(true);
-                    setActivePartnerCovenant("PartnersAgreement");
-                  }
-                }}
-                className="px-3.5 py-2.5 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-black text-[var(--text)] flex items-center gap-2 cursor-pointer transition-all"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                  {t("icon_swap_horiz", "swap_horiz")}
-                </span>
-                <span>
-                  {activePartnerCovenant === "PartnersAgreement"
-                    ? t("", "Switch to Compliance Protocol")
-                    : t("", "Switch to Partners Agreement")}
-                </span>
-              </button>
-
-              <ActionButton
-                variant="primary"
-                icon={t("icon_check_circle", "check_circle")}
-                label={t(
-                  "",
-                  "Agree to Both Covenants & Return to Application"
-                )}
-                onClick={() => {
-                  setReviewedPartnersDoc(true);
-                  setReviewedComplianceDoc(true);
-                  setPartnerGate4(true);
-                  setActivePartnerCovenant(null);
-                }}
-              />
-            </div>
           </div>
         </SidePanel>
 
@@ -3860,9 +4704,9 @@ export default function WebLandingPage() {
         </SidePanel>
 
         <WebLegalViewer />
-      </main>
+      </CommandScreenLayout>
 
-      <footer id="eula" className="w-full py-12 mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 max-md:pb-[100px] gap-6 scroll-mt-24">
+      <footer className="w-full py-12 mt-8 flex flex-col md:flex-row items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative z-10 max-md:pb-[100px] gap-6 scroll-mt-24">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center">
             <span className="material-symbols-outlined text-[20px] text-[var(--accent)]">{t("icon_shield", "shield")}</span>

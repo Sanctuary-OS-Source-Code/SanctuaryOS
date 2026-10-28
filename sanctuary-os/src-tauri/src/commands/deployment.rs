@@ -699,12 +699,20 @@ pub fn cleanup_routed_links(vault_path: &str) {
     if vault_path.trim().is_empty() {
         return;
     }
+    let mut payloads = Vec::new();
+    if let Some((raw, _)) = crate::utils::get_vault_kv(vault_path, "routed_links") {
+        payloads.push(raw);
+        crate::utils::delete_vault_kv(vault_path, "routed_links");
+    }
     let manifest_file = PathBuf::from(vault_path).join(".sanctuary_routed_links.json");
-    if !manifest_file.exists() {
-        return;
+    if manifest_file.exists() {
+        if let Ok(content) = std::fs::read_to_string(&manifest_file) {
+            payloads.push(content);
+        }
+        let _ = std::fs::remove_file(&manifest_file);
     }
 
-    if let Ok(content) = std::fs::read_to_string(&manifest_file) {
+    for content in payloads {
         if let Ok(records) = serde_json::from_str::<Vec<RoutedFileRecord>>(&content) {
             for rec in records {
                 let target = PathBuf::from(&rec.target_path);
@@ -720,7 +728,6 @@ pub fn cleanup_routed_links(vault_path: &str) {
             }
         }
     }
-    let _ = std::fs::remove_file(&manifest_file);
 }
 
 pub fn route_file_if_matched(
@@ -1327,7 +1334,7 @@ pub async fn deploy_playset_bulk(
         if let Ok(guard) = routed_records.lock() {
             if !guard.is_empty() {
                 if let Ok(json) = serde_json::to_string_pretty(&*guard) {
-                    let _ = std::fs::write(vault_dir.join(".sanctuary_routed_links.json"), json);
+                    crate::utils::set_vault_kv(&vault_path, "routed_links", &json);
                 }
             }
         }
@@ -1410,7 +1417,7 @@ pub async fn deploy_playset_bulk(
             if !dl.is_empty() {
                 if let Ok(json) = serde_json::to_string_pretty(&*dl) {
                     let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
-                    let _ = std::fs::write(vault_dir.join(".sanctuary_deployed_links.json"), json);
+                    crate::utils::set_vault_kv(&vault_path, "deployed_links", &json);
                 }
             }
         }
@@ -1938,20 +1945,16 @@ fn persist_certificate_to_vault(vault_path: &str, cert: &LabVerificationCertific
     if vault_path.trim().is_empty() {
         return;
     }
-    let cert_file = PathBuf::from(vault_path).join(".sanctuary_lab_certificates.json");
-    let mut certs: Vec<LabVerificationCertificate> = if cert_file.exists() {
-        std::fs::read_to_string(&cert_file)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-
-    certs.retain(|c| c.dna_hash != cert.dna_hash);
-    certs.insert(0, cert.clone());
-    if let Ok(json_str) = serde_json::to_string_pretty(&certs) {
-        let _ = std::fs::write(&cert_file, json_str);
+    let conn = crate::utils::get_db_conn(vault_path);
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    if let Ok(json_str) = serde_json::to_string(cert) {
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO lab_certificates (dna_hash, cert_json, verified_at) VALUES (?1, ?2, ?3)",
+            rusqlite::params![cert.dna_hash, json_str, now_secs],
+        );
     }
 }
 
@@ -2534,13 +2537,13 @@ pub fn deploy_single_mod_to_live_sync(
     if !deployed_links.is_empty() {
         if let Ok(json) = serde_json::to_string_pretty(&deployed_links) {
             let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
-            let _ = std::fs::write(vault_dir.join(".sanctuary_deployed_links.json"), json);
+            crate::utils::set_vault_kv(vault_path, "deployed_links", &json);
         }
     }
 
     if !routed_records.is_empty() {
         if let Ok(json) = serde_json::to_string_pretty(&routed_records) {
-            let _ = std::fs::write(vault_dir.join(".sanctuary_routed_links.json"), json);
+            crate::utils::set_vault_kv(vault_path, "routed_links", &json);
         }
     }
 
@@ -3081,13 +3084,17 @@ pub fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificationCer
     if vault_path.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let cert_file = PathBuf::from(&vault_path).join(".sanctuary_lab_certificates.json");
-    if !cert_file.exists() {
-        return Ok(Vec::new());
+    let conn = crate::utils::get_db_conn(&vault_path);
+    let mut certs = Vec::new();
+    if let Ok(mut stmt) = conn.prepare("SELECT cert_json FROM lab_certificates ORDER BY verified_at DESC") {
+        if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {
+            for r in rows.flatten() {
+                if let Ok(cert) = serde_json::from_str::<LabVerificationCertificate>(&r) {
+                    certs.push(cert);
+                }
+            }
+        }
     }
-    let content = std::fs::read_to_string(&cert_file).map_err(|e| e.to_string())?;
-    let certs: Vec<LabVerificationCertificate> =
-        serde_json::from_str(&content).unwrap_or_default();
     Ok(certs)
 }
 

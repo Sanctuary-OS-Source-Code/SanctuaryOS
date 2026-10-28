@@ -81,7 +81,7 @@ export default function MasonProfile({
     const fetchLocalTemplates = async () => {
       try {
         if (!vaultPath) return;
-        const templatesDir = `${vaultPath}\\Data\\Templates`;
+        const templatesDir = `${vaultPath}\\Templates`;
         if (await exists(templatesDir)) {
           const files = await readDir(templatesDir);
           const map: Record<string, string> = {};
