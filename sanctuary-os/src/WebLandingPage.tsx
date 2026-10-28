@@ -23,7 +23,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
-import { usePwaInstall } from './utils/pwaManager';
+import { usePwaInstall, isMobileDevice } from './utils/pwaManager';
 import {
   getKeepersPipelineConfig,
   getSupporterState,
@@ -173,20 +173,32 @@ export default function WebLandingPage() {
   const [aboutPartnerStage, setAboutPartnerStage] =
     useState<PartnerGuideStageId | null>('what');
 
-  // Apply to Join Keepers Core Drawer State (Chat-Like Guided Flow)
+  // Apply to Sanctuary Foundry Drawer State (Guided Role Application Flow)
   const [isKeeperAppDrawerOpen, setIsKeeperAppDrawerOpen] = useState(false);
   const [keeperGate1, setKeeperGate1] = useState(false);
   const [keeperGate2, setKeeperGate2] = useState(false);
   const [keeperGate3, setKeeperGate3] = useState(false);
   const [keeperFocus, setKeeperFocus] = useState<string>(
-    'Heuristic Malware & Security Oversight'
+    'Systems & Backend Engineer (Rust / Tauri)'
   );
   const [keeperHandle, setKeeperHandle] = useState('');
   const [keeperContact, setKeeperContact] = useState('');
   const [keeperPortfolio, setKeeperPortfolio] = useState('');
-  const [keeperAvailability, setKeeperAvailability] =
-    useState('5-10 Hours / Week');
+  const [keeperAvailability, setKeeperAvailability] = useState(
+    'Part-Time Specialist (5–15 hrs/wk)'
+  );
+  const [keeperExperienceLevel, setKeeperExperienceLevel] = useState(
+    'Mid-Level (2–5 Years Engineering / Security / Modding)'
+  );
+  const [keeperTimezone, setKeeperTimezone] = useState(
+    'Americas (UTC-8 to UTC-3)'
+  );
+  const [keeperSkills, setKeeperSkills] = useState<string[]>([
+    'Rust',
+    'TypeScript / React',
+  ]);
   const [keeperExperience, setKeeperExperience] = useState('');
+  const [keeperMotivation, setKeeperMotivation] = useState('');
   const [activeKeeperStep, setActiveKeeperStep] = useState(0);
   const [maxKeeperStep, setMaxKeeperStep] = useState(0);
   const [isSubmittingKeeper, setIsSubmittingKeeper] = useState(false);
@@ -623,7 +635,7 @@ export default function WebLandingPage() {
     setKeeperGate1(false);
     setKeeperGate2(false);
     setKeeperGate3(false);
-    setKeeperFocus('Heuristic Malware & Security Oversight');
+    setKeeperFocus('Systems & Backend Engineer (Rust / Tauri)');
     setKeeperHandle(
       session?.user?.user_metadata?.username ||
         session?.user?.email?.split('@')[0] ||
@@ -631,8 +643,14 @@ export default function WebLandingPage() {
     );
     setKeeperContact(session?.user?.email || '');
     setKeeperPortfolio('');
-    setKeeperAvailability('5-10 Hours / Week');
+    setKeeperAvailability('Part-Time Specialist (5–15 hrs/wk)');
+    setKeeperExperienceLevel(
+      'Mid-Level (2–5 Years Engineering / Security / Modding)'
+    );
+    setKeeperTimezone('Americas (UTC-8 to UTC-3)');
+    setKeeperSkills(['Rust', 'TypeScript / React']);
     setKeeperExperience('');
+    setKeeperMotivation('');
     setActiveKeeperStep(0);
     setMaxKeeperStep(0);
   };
@@ -642,7 +660,7 @@ export default function WebLandingPage() {
       pushToast(
         t(
           'landing_keeper_gate_hdr',
-          'Step 1: Keeper Stewardship & Security Covenants'
+          'Step 1: Open Position, Commitment & Foundry Standards'
         ),
         'warning'
       );
@@ -655,7 +673,7 @@ export default function WebLandingPage() {
       pushToast(
         t(
           'landing_keeper_err_cooldown',
-          'A Keeper Application was recently submitted from this device. Keepers Core is reviewing your dossier.'
+          'An application to Sanctuary Foundry was recently submitted from this device. Keepers are reviewing your dossier in Keepers Core.'
         ),
         'warning'
       );
@@ -681,31 +699,43 @@ export default function WebLandingPage() {
           ? session.user.id
           : null;
       const formattedDossier = [
-        `Applicant Handle: ${finalHandle}`,
+        `Organization: Sanctuary Foundry`,
+        `Position Applied For: ${keeperFocus}`,
+        `Applicant Name / Handle: ${finalHandle}`,
         `Direct Contact: ${finalContact}`,
-        `Primary Keeper Focus: ${keeperFocus}`,
         `Weekly Availability: ${keeperAvailability}`,
+        `Experience Level: ${keeperExperienceLevel}`,
+        `Primary Timezone / Region: ${keeperTimezone}`,
+        `Technical Stack & Domains: ${keeperSkills.length > 0 ? keeperSkills.join(', ') : 'None Selected'}`,
         `GitHub / Portfolio / Profile URL: ${keeperPortfolio.trim() || 'N/A'}`,
         ``,
-        `Experience & Stewardship Motivation:`,
+        `Shipped Projects & Technical Background:`,
         keeperExperience.trim(),
+        ...(keeperMotivation.trim()
+          ? [``, `Role Approach / Why Sanctuary Foundry:`, keeperMotivation.trim()]
+          : []),
       ].join('\n');
 
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
         author_id: uid,
         ticket_type: 'Keeper Application',
-        title: `[Keeper Application] ${finalHandle} — ${keeperFocus}`,
+        title: `[Sanctuary Foundry Application] ${finalHandle} — ${keeperFocus}`,
         description: formattedDossier,
         status: 'NEW',
         metadata: {
           keeper_application: {
+            organization: 'Sanctuary Foundry',
             applicant_handle: finalHandle,
             applicant_contact: finalContact,
             user_id: uid,
             clearance_focus: keeperFocus,
             availability: keeperAvailability,
+            experience_level: keeperExperienceLevel,
+            timezone: keeperTimezone,
+            skills: keeperSkills,
             portfolio_url: keeperPortfolio.trim(),
             experience_summary: keeperExperience.trim(),
+            role_motivation: keeperMotivation.trim(),
             covenants_verified: true,
           },
         },
@@ -715,11 +745,12 @@ export default function WebLandingPage() {
       pushToast(
         t(
           'landing_keeper_toast_success',
-          'Keeper Application transmitted to Keepers Core! Existing Keepers will review your dossier in Citizen Oversight.'
+          'Application submitted to Sanctuary Foundry! Keepers will review your dossier inside Keepers Core.'
         ),
         'success'
       );
       setKeeperExperience('');
+      setKeeperMotivation('');
       setKeeperPortfolio('');
       setIsKeeperAppDrawerOpen(false);
       fetchMyPlatformTickets();
@@ -1245,13 +1276,15 @@ export default function WebLandingPage() {
             isActive={activeLandingTab === 'directives'}
             onClick={() => scrollToLandingSection('directives')}
           />
-          <DashboardStatTile
-            variant="tab"
-            icon={t('icon_system_update_alt', 'system_update_alt')}
-            label={t('landing_download_sidebar', 'Download Sanctuary OS')}
-            isActive={activeLandingTab === 'download'}
-            onClick={() => scrollToLandingSection('download')}
-          />
+          {!isDesktop() && (
+            <DashboardStatTile
+              variant="tab"
+              icon={t('icon_system_update_alt', 'system_update_alt')}
+              label={t('landing_download_sidebar', 'Download Sanctuary OS')}
+              isActive={activeLandingTab === 'download'}
+              onClick={() => scrollToLandingSection('download')}
+            />
+          )}
           <DashboardStatTile
             variant="tab"
             icon={t('icon_support_agent', 'support_agent')}
@@ -1361,12 +1394,26 @@ export default function WebLandingPage() {
                 subtitle={`${games.length} ${t('workspace_card_overline', 'Game Workspace')}`}
                 onClick={() => scrollToLandingSection('workspaces')}
               />
-              <CommandScreenQuickLink
-                icon={t('icon_system_update_alt', 'system_update_alt')}
-                title={t('landing_download_sidebar', 'Download Sanctuary OS')}
-                subtitle={`${t('landing_win_exe', 'Windows (.exe)')} • ${t('landing_mac_dmg', 'macOS (.dmg)')} • PWA`}
-                onClick={() => scrollToLandingSection('download')}
-              />
+              {!isDesktop() && (
+                <CommandScreenQuickLink
+                  icon={t('icon_system_update_alt', 'system_update_alt')}
+                  title={t('landing_download_sidebar', 'Download Sanctuary OS')}
+                  subtitle={
+                    isStandalone || isMobileDevice()
+                      ? isStandalone
+                        ? t(
+                            'landing_web_stream_banner_top',
+                            'Website & Mobile PWA • Build Stream'
+                          )
+                        : t(
+                            'pwa_install_subtitle',
+                            'Progressive Web App (iOS / Android / Web)'
+                          )
+                      : `${t('landing_win_exe', 'Windows (.exe)')} • ${t('landing_mac_dmg', 'macOS (.dmg)')} • PWA`
+                  }
+                  onClick={() => scrollToLandingSection('download')}
+                />
+              )}
               <CommandScreenQuickLink
                 icon={t('icon_folder_special', 'folder_special')}
                 title={t('landing_system_directives', 'Public Documents')}
@@ -1473,7 +1520,7 @@ export default function WebLandingPage() {
         )}
 
         {/* TAB 5: DOWNLOAD LINKS */}
-        {activeLandingTab === 'download' && (
+        {!isDesktop() && activeLandingTab === 'download' && (
           <LandingDownloadSection
             isStandalone={isStandalone}
             triggerInstall={triggerInstall}
@@ -1667,8 +1714,16 @@ export default function WebLandingPage() {
           setKeeperPortfolio={setKeeperPortfolio}
           keeperAvailability={keeperAvailability}
           setKeeperAvailability={setKeeperAvailability}
+          keeperExperienceLevel={keeperExperienceLevel}
+          setKeeperExperienceLevel={setKeeperExperienceLevel}
+          keeperTimezone={keeperTimezone}
+          setKeeperTimezone={setKeeperTimezone}
+          keeperSkills={keeperSkills}
+          setKeeperSkills={setKeeperSkills}
           keeperExperience={keeperExperience}
           setKeeperExperience={setKeeperExperience}
+          keeperMotivation={keeperMotivation}
+          setKeeperMotivation={setKeeperMotivation}
           activeKeeperStep={activeKeeperStep}
           setActiveKeeperStep={setActiveKeeperStep}
           maxKeeperStep={maxKeeperStep}

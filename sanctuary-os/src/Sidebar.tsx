@@ -275,19 +275,21 @@ export function Sidebar({
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}
               />
-              <NavButton
-                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
-                onClick={() => {
-                  setActiveLandingSection('download');
-                  setView("landing");
-                  scrollToLandingSection('download');
-                }}
-                icon={t("icon_download", "download")}
-                label={t("landing_download_sidebar", "Download Sanctuary OS")}
-                isCollapsed={isSidebarCollapsed}
-                isAccent={true}
-                setHoveredTooltip={setHoveredTooltip}
-              />
+              {!isDesktop() && (
+                <NavButton
+                  active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
+                  onClick={() => {
+                    setActiveLandingSection('download');
+                    setView("landing");
+                    scrollToLandingSection('download');
+                  }}
+                  icon={t("icon_download", "download")}
+                  label={t("landing_download_sidebar", "Download Sanctuary OS")}
+                  isCollapsed={isSidebarCollapsed}
+                  isAccent={true}
+                  setHoveredTooltip={setHoveredTooltip}
+                />
+              )}
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'support'}
                 onClick={() => {

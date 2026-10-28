@@ -536,9 +536,9 @@ export function UniversalInput({
   ...rest
 }: UniversalInputProps) {
   return (
-    <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
+    <div className={`flex flex-col justify-end gap-1.5 ${wrapperClassName}`}>
       {label && (
-        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
           {label}
         </label>
       )}
@@ -546,7 +546,7 @@ export function UniversalInput({
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all ${className}`}
+        className={`w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs sm:text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all ${className}`}
       />
     </div>
   );

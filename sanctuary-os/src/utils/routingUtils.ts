@@ -1,3 +1,5 @@
+import { isDesktop } from './envUtils';
+
 export type LandingTabId =
   | 'overview'
   | 'workspaces'
@@ -28,7 +30,7 @@ export function normalizeLandingTab(raw?: string | null): LandingTabId {
     return 'directives';
   }
   if (clean === 'download' || clean === 'downloads') {
-    return 'download';
+    return isDesktop() ? 'overview' : 'download';
   }
   if (
     clean === 'support' ||

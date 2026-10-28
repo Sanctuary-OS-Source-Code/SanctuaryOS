@@ -251,7 +251,7 @@ export function LandingSupportSection({
         <CommandScreenSectionHeading
           title={t(
             'landing_contact_section_title',
-            'Direct Human Contact & Keepers Core'
+            'Direct Human Contact & Sanctuary Foundry'
           )}
           icon={t('icon_support_agent', 'support_agent')}
         />
@@ -326,7 +326,7 @@ export function LandingSupportSection({
 
             {/* Row 5: Static Advisory Footer */}
             <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 uppercase tracking-widest relative z-10">
-              <span>{t('keepers_title', 'Keepers Core')}</span>
+              <span>{t('sanctuary_foundry', 'Sanctuary Foundry')}</span>
               <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
                 <span className="material-symbols-outlined !text-[13px]">
                   {t('icon_shield', 'shield')}
@@ -356,7 +356,7 @@ export function LandingSupportSection({
               <span className="text-[10px] font-mono tracking-widest">
                 {t(
                   'landing_contact_card_sub',
-                  'Statutory & Operational Contact • Read by Real Keepers, Never Shoved to AI'
+                  '100% Human-Reviewed • Never Routed to AI Bots'
                 )}
               </span>
             }
@@ -364,7 +364,7 @@ export function LandingSupportSection({
             footer={
               <div className="w-full flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                  {t('keepers_title', 'Keepers Core')}
+                  {t('sanctuary_foundry', 'Sanctuary Foundry')}
                 </span>
                 <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                   <span>
@@ -380,30 +380,33 @@ export function LandingSupportSection({
             <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
               {t(
                 'landing_contact_card_desc',
-                'While most platforms bury their legal and operational contact channels behind automated AI deflection loops, Sanctuary OS routes every formal inquiry directly to human Keepers.'
+                'Need to reach Sanctuary Foundry for general inquiries, legal/DMCA compliance notices, privacy requests, or responsible security disclosures? Every message is read by a human Keeper.'
               )}
             </p>
           </UniversalCard>
 
-          {/* Card 3: [Keeper Apply] Apply to Join Keepers Core */}
+          {/* Card 3: [Foundry Apply] Apply to Sanctuary Foundry */}
           <UniversalCard
             layout="vertical"
             onClick={onOpenKeeperApplication}
             icon={t('icon_admin_panel_settings', 'admin_panel_settings')}
-            bannerTopLabel={t('keepers_title', 'Keepers Core')}
+            bannerTopLabel={t(
+              'landing_keeper_apply_overline',
+              'Sanctuary Foundry • Open Positions'
+            )}
             bannerBottomLabel={t(
               'landing_keeper_apply_sub',
-              'Core OS Stewardship • Heuristic Security • Platform Triage'
+              'Engineering • Security & Heuristics • Schemas • Support'
             )}
             title={t(
               'landing_keeper_apply_title',
-              'Apply to Join Keepers Core'
+              'Apply to Sanctuary Foundry'
             )}
             subtitle={
               <span className="text-[10px] font-mono tracking-widest">
                 {t(
                   'landing_keeper_apply_sub',
-                  'Core OS Stewardship • Heuristic Security • Platform Triage'
+                  'Engineering • Security & Heuristics • Schemas • Support'
                 )}
               </span>
             }
@@ -411,11 +414,14 @@ export function LandingSupportSection({
             footer={
               <div className="w-full flex items-center justify-between gap-2">
                 <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                  {t('keepers_tab_keeper_apps', 'Keeper Applications')}
+                  {t('sanctuary_foundry', 'Sanctuary Foundry')}
                 </span>
                 <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                   <span>
-                    {t('landing_keeper_apply_btn', 'Start Keeper Application')}
+                    {t(
+                      'landing_keeper_apply_btn',
+                      'Apply to Sanctuary Foundry'
+                    )}
                   </span>
                   <span className="material-symbols-outlined !text-[14px]">
                     {t('icon_rocket_launch', 'rocket_launch')}
@@ -427,7 +433,7 @@ export function LandingSupportSection({
             <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
               {t(
                 'landing_keeper_apply_desc',
-                'Want to help safeguard Sanctuary OS, maintain global heuristic malware signatures, review Partner Spoke applications, or triage core platform telemetry? Submit a Keeper application directly to Keepers Core.'
+                'Apply to join Sanctuary Foundry as a Keeper—building Sanctuary OS, authoring multi-game Master Schemas, analyzing malware heuristics, or handling direct human support in Keepers Core.'
               )}
             </p>
           </UniversalCard>

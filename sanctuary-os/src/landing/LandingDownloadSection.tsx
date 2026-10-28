@@ -1,6 +1,7 @@
 import { useLexicon } from '../LexiconContext';
 import { KeepersPipelineConfig } from '../utils/supporterManager';
 import { isDesktop } from '../utils/envUtils';
+import { isMobileDevice } from '../utils/pwaManager';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { ReleaseNotesShowcase } from '../components/ReleaseNotesShowcase';
 import { CommandScreenSectionHeading } from '../hub-components/SharedCommandScreenLayout';
@@ -27,6 +28,10 @@ export function LandingDownloadSection({
   hasUserSession,
 }: LandingDownloadSectionProps) {
   const { t } = useLexicon();
+
+  if (isDesktop()) return null;
+
+  const showDesktopDownloadCards = !isStandalone && !isMobileDevice();
 
   return (
     <div className="w-full flex flex-col gap-10">
@@ -181,150 +186,39 @@ export function LandingDownloadSection({
             </>
           )}
 
-          <a
-            href={
-              keepersConfig.stable_exe_url ||
-              `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
-            }
-            className="block group"
-          >
-            <UniversalCard
-              layout="vertical"
-              onClick={() => {}}
-              icon={t('icon_rocket_launch', 'rocket_launch')}
-              bannerTopLabel={t(
-                'landing_banner_win_top',
-                'Windows 10 / 11 (64-Bit)'
-              )}
-              bannerBottomLabel={`${t('landing_banner_win_bottom', 'Native Setup (.exe)')} • v${stableVersion}`}
-              title={t('landing_download_native_title', 'Sanctuary OS Native')}
-              subtitle={
-                <span className="text-[10px] font-mono tracking-widest">
-                  {t('landing_win_exe', 'Windows (.exe)')}
-                </span>
-              }
-              className="h-full"
-              footer={
-                <div className="w-full flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                    {`v${stableVersion}`}
-                  </span>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                    <span>
-                      {t('landing_download_native_footer', 'Standard Install')}
-                    </span>
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t('icon_arrow_forward', 'arrow_forward')}
-                    </span>
-                  </span>
-                </div>
-              }
-            >
-              <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                {t(
-                  'landing_download_desc',
-                  'Install the Native Client to access full hardware integration, heuristic threat scanning, and deep OS-level modifications.'
-                )}
-              </p>
-            </UniversalCard>
-          </a>
-
-          <a
-            href={
-              keepersConfig.stable_dmg_url ||
-              `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
-            }
-            className="block group"
-          >
-            <UniversalCard
-              layout="vertical"
-              onClick={() => {}}
-              icon={t('icon_laptop_mac', 'laptop_mac')}
-              bannerTopLabel={t(
-                'landing_banner_mac_top',
-                'Apple Silicon & Intel'
-              )}
-              bannerBottomLabel={`${t('landing_banner_mac_bottom', 'macOS Disk Image (.dmg)')} • v${stableVersion}`}
-              title={t('landing_download_mac_title', 'Sanctuary OS for Mac')}
-              subtitle={
-                <span className="text-[10px] font-mono tracking-widest">
-                  {t('landing_mac_dmg', 'macOS (.dmg)')}
-                </span>
-              }
-              className="h-full"
-              footer={
-                <div className="w-full flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                    {`v${stableVersion}`}
-                  </span>
-                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                    <span>
-                      {t(
-                        'landing_download_mac_footer',
-                        'Apple Silicon & Intel'
-                      )}
-                    </span>
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t('icon_arrow_forward', 'arrow_forward')}
-                    </span>
-                  </span>
-                </div>
-              }
-            >
-              <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                {t(
-                  'landing_download_mac_desc',
-                  'Native macOS Universal application bundle engineered for Apple Silicon and Intel Macs with full Metal glass acceleration.'
-                )}
-              </p>
-            </UniversalCard>
-          </a>
-
-          {hasUserSession && isDevUnlocked && (
+          {showDesktopDownloadCards && (
             <>
               <a
                 href={
-                  keepersConfig.dev_build_download_url ||
-                  'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                  keepersConfig.stable_exe_url ||
+                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
                 }
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block group"
               >
                 <UniversalCard
                   layout="vertical"
                   onClick={() => {}}
-                  icon={t('icon_bolt', 'bolt')}
-                  statusColor="emerald"
+                  icon={t('icon_rocket_launch', 'rocket_launch')}
                   bannerTopLabel={t(
-                    'landing_banner_dev_win_top',
-                    'Supporter Dev Stream • Win'
+                    'landing_banner_win_top',
+                    'Windows 10 / 11 (64-Bit)'
                   )}
-                  bannerBottomLabel={`${t('landing_banner_dev_win_bottom', 'Early Preview (.exe)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
-                  title={t(
-                    'landing_download_dev_title',
-                    'Daily Dev Build (Supporter)'
-                  )}
+                  bannerBottomLabel={`${t('landing_banner_win_bottom', 'Native Setup (.exe)')} • v${stableVersion}`}
+                  title={t('landing_download_native_title', 'Sanctuary OS Native')}
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {t(
-                        'landing_download_dev_subtitle',
-                        'Supporter Preview Channel (.exe)'
-                      )}
+                      {t('landing_win_exe', 'Windows (.exe)')}
                     </span>
                   }
                   className="h-full"
                   footer={
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {`v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                        {`v${stableVersion}`}
                       </span>
                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                         <span>
-                          {t(
-                            'landing_download_dev_footer',
-                            'SUPPORTER STREAM'
-                          )}
+                          {t('landing_download_native_footer', 'Standard Install')}
                         </span>
                         <span className="material-symbols-outlined !text-[14px]">
                           {t('icon_arrow_forward', 'arrow_forward')}
@@ -335,8 +229,8 @@ export function LandingDownloadSection({
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
-                      'landing_download_dev_desc',
-                      'Nightly preview build unlocked by your active Global Daily Dev Build supporter time.'
+                      'landing_download_desc',
+                      'Install the Native Client to access full hardware integration, heuristic threat scanning, and deep OS-level modifications.'
                     )}
                   </p>
                 </UniversalCard>
@@ -344,47 +238,37 @@ export function LandingDownloadSection({
 
               <a
                 href={
-                  keepersConfig.dev_build_dmg_url ||
-                  keepersConfig.dev_release_url ||
-                  'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                  keepersConfig.stable_dmg_url ||
+                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
                 }
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block group"
               >
                 <UniversalCard
                   layout="vertical"
                   onClick={() => {}}
                   icon={t('icon_laptop_mac', 'laptop_mac')}
-                  statusColor="emerald"
                   bannerTopLabel={t(
-                    'landing_banner_dev_mac_top',
-                    'Supporter Dev Stream • Mac'
+                    'landing_banner_mac_top',
+                    'Apple Silicon & Intel'
                   )}
-                  bannerBottomLabel={`${t('landing_banner_dev_mac_bottom', 'Early Preview (.dmg)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
-                  title={t(
-                    'landing_download_dev_mac_title',
-                    'Dev Build for Mac'
-                  )}
+                  bannerBottomLabel={`${t('landing_banner_mac_bottom', 'macOS Disk Image (.dmg)')} • v${stableVersion}`}
+                  title={t('landing_download_mac_title', 'Sanctuary OS for Mac')}
                   subtitle={
                     <span className="text-[10px] font-mono tracking-widest">
-                      {t(
-                        'landing_download_dev_mac_subtitle',
-                        'Supporter Early Preview (.dmg)'
-                      )}
+                      {t('landing_mac_dmg', 'macOS (.dmg)')}
                     </span>
                   }
                   className="h-full"
                   footer={
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {`v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                        {`v${stableVersion}`}
                       </span>
                       <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                         <span>
                           {t(
-                            'landing_download_dev_mac_footer',
-                            'Download Mac Dev .dmg'
+                            'landing_download_mac_footer',
+                            'Apple Silicon & Intel'
                           )}
                         </span>
                         <span className="material-symbols-outlined !text-[14px]">
@@ -396,12 +280,137 @@ export function LandingDownloadSection({
                 >
                   <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                     {t(
-                      'landing_download_dev_mac_desc',
-                      'Early preview macOS disk image unlocked by your active Global Dev Build supporter time—featuring the latest experimental features on Apple Silicon and Intel.'
+                      'landing_download_mac_desc',
+                      'Native macOS Universal application bundle engineered for Apple Silicon and Intel Macs with full Metal glass acceleration.'
                     )}
                   </p>
                 </UniversalCard>
               </a>
+
+              {hasUserSession && isDevUnlocked && (
+                <>
+                  <a
+                    href={
+                      keepersConfig.dev_build_download_url ||
+                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
+                  >
+                    <UniversalCard
+                      layout="vertical"
+                      onClick={() => {}}
+                      icon={t('icon_bolt', 'bolt')}
+                      statusColor="emerald"
+                      bannerTopLabel={t(
+                        'landing_banner_dev_win_top',
+                        'Supporter Dev Stream • Win'
+                      )}
+                      bannerBottomLabel={`${t('landing_banner_dev_win_bottom', 'Early Preview (.exe)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                      title={t(
+                        'landing_download_dev_title',
+                        'Daily Dev Build (Supporter)'
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            'landing_download_dev_subtitle',
+                            'Supporter Preview Channel (.exe)'
+                          )}
+                        </span>
+                      }
+                      className="h-full"
+                      footer={
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            {`v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                            <span>
+                              {t(
+                                'landing_download_dev_footer',
+                                'SUPPORTER STREAM'
+                              )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t('icon_arrow_forward', 'arrow_forward')}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                        {t(
+                          'landing_download_dev_desc',
+                          'Nightly preview build unlocked by your active Global Daily Dev Build supporter time.'
+                        )}
+                      </p>
+                    </UniversalCard>
+                  </a>
+
+                  <a
+                    href={
+                      keepersConfig.dev_build_dmg_url ||
+                      keepersConfig.dev_release_url ||
+                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
+                  >
+                    <UniversalCard
+                      layout="vertical"
+                      onClick={() => {}}
+                      icon={t('icon_laptop_mac', 'laptop_mac')}
+                      statusColor="emerald"
+                      bannerTopLabel={t(
+                        'landing_banner_dev_mac_top',
+                        'Supporter Dev Stream • Mac'
+                      )}
+                      bannerBottomLabel={`${t('landing_banner_dev_mac_bottom', 'Early Preview (.dmg)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                      title={t(
+                        'landing_download_dev_mac_title',
+                        'Dev Build for Mac'
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            'landing_download_dev_mac_subtitle',
+                            'Supporter Early Preview (.dmg)'
+                          )}
+                        </span>
+                      }
+                      className="h-full"
+                      footer={
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            {`v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                            <span>
+                              {t(
+                                'landing_download_dev_mac_footer',
+                                'Download Mac Dev .dmg'
+                              )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t('icon_arrow_forward', 'arrow_forward')}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                        {t(
+                          'landing_download_dev_mac_desc',
+                          'Early preview macOS disk image unlocked by your active Global Dev Build supporter time—featuring the latest experimental features on Apple Silicon and Intel.'
+                        )}
+                      </p>
+                    </UniversalCard>
+                  </a>
+                </>
+              )}
             </>
           )}
         </div>

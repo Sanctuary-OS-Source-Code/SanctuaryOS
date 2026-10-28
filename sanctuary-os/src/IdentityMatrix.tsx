@@ -1456,6 +1456,7 @@ export function IdentityMatrix({
     const meta = app.metadata?.keeper_application || {};
     const statusUpper = String(app.status || "NEW").toUpperCase();
     const isResolved = statusUpper === "RESOLVED";
+    const skillsList: string[] = Array.isArray(meta.skills) ? meta.skills : [];
 
     return (
       <UniversalCard
@@ -1466,7 +1467,7 @@ export function IdentityMatrix({
         title={
           meta.applicant_handle ||
           app.title ||
-          t("keepers_tab_keeper_apps", "Keeper Applications")
+          t("keepers_tab_keeper_apps", "Foundry Applications")
         }
         subtitle={
           meta.applicant_contact ||
@@ -1489,7 +1490,7 @@ export function IdentityMatrix({
             {meta.clearance_focus && (
               <div className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_shield_lock", "shield_lock")}
+                  {t("icon_work", "work")}
                 </span>
                 <span>{meta.clearance_focus}</span>
               </div>
@@ -1502,6 +1503,14 @@ export function IdentityMatrix({
                 <span>{meta.availability}</span>
               </div>
             )}
+            {skillsList.slice(0, 3).map((sk) => (
+              <div key={sk} className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_code", "code")}
+                </span>
+                <span>{sk}</span>
+              </div>
+            ))}
           </>
         }
         actions={
@@ -1518,7 +1527,7 @@ export function IdentityMatrix({
                 {t("icon_verified_user", "verified_user")}
               </span>
               <span>
-                {t("keepers_approve_keeper_app", "Approve & Grant Keeper")}
+                {t("keepers_approve_keeper_app", "Approve & Appoint Keeper")}
               </span>
             </button>
           ) : undefined
@@ -1548,11 +1557,14 @@ export function IdentityMatrix({
           <HubOverviewSection
             icon={t("icon_verified_user", "verified_user")}
             iconColorClass="text-[var(--accent)]"
-            title={t("keepers_tab_keeper_apps", "Keeper Applications")}
+            title={t("keepers_tab_keeper_apps", "Foundry Applications")}
             badgeCount={keeperApps.length}
             isEmpty={keeperApps.length === 0}
             emptyIcon={t("icon_verified_user", "verified_user")}
-            emptyTitle={t("keepers_no_keeper_apps", "No Keeper Applications Yet")}
+            emptyTitle={t(
+              "keepers_no_keeper_apps",
+              "No Sanctuary Foundry Applications Yet"
+            )}
           >
             {keeperApps.slice(0, 6).map((app: any) => renderKeeperAppCard(app))}
           </HubOverviewSection>

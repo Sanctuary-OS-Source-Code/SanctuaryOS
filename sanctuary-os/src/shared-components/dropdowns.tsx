@@ -387,8 +387,8 @@ export function CustomDropdown({
                   className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
                 } rounded-xl text-xs font-bold ${
                   isOpen || isActive
-                    ? "glass-surface sa-glass-active text-[var(--text)]"
-                    : "glass-surface text-[var(--text)]"
+                    ? "glass-surface sa-glass-active text-[var(--text)] border border-[var(--accent)]"
+                    : "glass-surface text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                 }`
         } ${buttonClassName || ""}`}
       >
