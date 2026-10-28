@@ -1,0 +1,11 @@
+{
+  "web_apps": [
+    {
+      "web_app_identity": "https://sanctuaryos.net/"
+    },
+    {
+      "web_app_identity": "https://www.sanctuaryos.net/"
+    }
+  ]
+}
+

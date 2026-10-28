@@ -217,6 +217,22 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         />
       )}
 
+      {/* Seamless Mobile Top Status Bar & Bottom Gesture Bar Edge Blending */}
+      <div
+        className="md:hidden fixed top-0 left-0 right-0 h-8 pointer-events-none z-[999990]"
+        style={{
+          background:
+            'linear-gradient(to bottom, var(--bg, #000000) 0%, color-mix(in srgb, var(--bg, #000000) 65%, transparent) 45%, transparent 100%)',
+        }}
+      />
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(52px+env(safe-area-inset-bottom,0px))] pointer-events-none z-[999996]"
+        style={{
+          background:
+            'linear-gradient(to top, var(--bg, #000000) 0%, var(--bg, #000000) 22%, color-mix(in srgb, var(--bg, #000000) 78%, transparent) 58%, transparent 100%)',
+        }}
+      />
+
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
         className="md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[999999] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
@@ -355,12 +371,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                     if (isDesktop()) {
                       setView("landing");
                     } else {
-                      const parts = window.location.host.split('.');
-                      if (parts.length > 1) {
-                        window.location.href = `http://${parts.slice(1).join('.')}`;
-                      } else {
-                        window.location.href = "/";
-                      }
+                      window.location.href = "/";
                     }
                   }}
                   icon={t("icon_public", "public")}

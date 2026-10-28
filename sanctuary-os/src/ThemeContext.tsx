@@ -468,11 +468,11 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
     !themeObj.bgImage &&
     (themeObj.bg === 'transparent' || Boolean(themeObj.transparentWindow));
   const fallbackThemeColor =
-    themeObj.bg && themeObj.bg !== '#000000' && themeObj.bg !== 'transparent'
+    themeObj.bg && themeObj.bg !== 'transparent'
       ? themeObj.bg
-      : themeObj.sidebar && themeObj.sidebar !== '#000000' && themeObj.sidebar !== 'transparent'
+      : themeObj.sidebar && themeObj.sidebar !== 'transparent'
         ? themeObj.sidebar
-        : '#050b16';
+        : '#000000';
   const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
   root.style.setProperty('--bg', safeBg);
   root.style.backgroundColor = safeBg;

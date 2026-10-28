@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" /><meta name="darkreader-lock" />
-  <meta name="theme-color" content="#040812" />
+  <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -22,7 +22,7 @@
       height: 100%;
       min-height: 100lvh;
       overflow: hidden;
-      background-color: var(--bg, #040812);
+      background-color: var(--bg, #000000);
       color-scheme: dark;
     }
     #root {
@@ -36,7 +36,7 @@
       color-scheme: dark;
     }
     html {
-      background-color: var(--bg, #040812);
+      background-color: var(--bg, #000000);
       background-image: var(--boot-bg-image, url("/themes/architect.png"));
       background-size: cover;
       background-position: center;
@@ -55,7 +55,7 @@
           return;
         }
         var builtins = {
-          architect: { bg: "#040812", sidebar: "#040812", bgImage: "/themes/architect.png" },
+          architect: { bg: "#000000", sidebar: "#040812", bgImage: "/themes/architect.png" },
           radiant: { bg: "#f4f6fb", sidebar: "#f8faff", bgImage: "/themes/radiant.png" },
           sims4: { bg: "#eefbf5", sidebar: "#f3fcf7", bgImage: "/themes/sims4.png" },
           sims4_dark: { bg: "#020a06", sidebar: "#04110b", bgImage: "/themes/sims4_dark.png" },
@@ -94,9 +94,9 @@
         if (!resolved) resolved = builtins.architect;
         var isNativeDesktop = Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
         var isPassthrough = isNativeDesktop && !resolved.bgImage && (resolved.bg === "transparent" || Boolean(resolved.transparentWindow));
-        var fallbackThemeColor = (resolved.bg && resolved.bg !== "#000000" && resolved.bg !== "transparent")
+        var fallbackThemeColor = (resolved.bg && resolved.bg !== "transparent")
           ? resolved.bg
-          : ((resolved.sidebar && resolved.sidebar !== "#000000" && resolved.sidebar !== "transparent") ? resolved.sidebar : "#050b16");
+          : ((resolved.sidebar && resolved.sidebar !== "transparent") ? resolved.sidebar : "#000000");
         var bgColor = isPassthrough ? "transparent" : fallbackThemeColor;
         var root = document.documentElement;
         root.style.setProperty("--bg", bgColor);

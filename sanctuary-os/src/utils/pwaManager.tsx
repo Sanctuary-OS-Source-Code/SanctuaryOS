@@ -112,30 +112,6 @@ export function initPwaManager() {
     });
   }
 
-  // On Android standalone PWAs that were installed prior to manifest fullscreen mode,
-  // promote to Fullscreen API with hidden navigation UI on user interaction so the
-  // wallpaper extends behind both the top status bar and bottom gesture bar.
-  if (isMobileDevice() && !isIosDevice()) {
-    const tryEnterImmersiveFullscreen = (ev: Event) => {
-      if (!checkIsStandalone()) return;
-      const target = ev.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const docEl = document.documentElement as any;
-      if (!document.fullscreenElement && typeof docEl?.requestFullscreen === "function") {
-        docEl.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-      }
-    };
-    window.addEventListener("click", tryEnterImmersiveFullscreen, { passive: true });
-  }
-
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
