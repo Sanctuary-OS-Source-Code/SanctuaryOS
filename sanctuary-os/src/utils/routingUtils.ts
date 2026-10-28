@@ -5,6 +5,7 @@ export type LandingTabId =
   | 'directives'
   | 'download'
   | 'support'
+  | 'partners'
   | 'legal'
   | 'donations';
 
@@ -35,6 +36,14 @@ export function normalizeLandingTab(raw?: string | null): LandingTabId {
     clean === 'contact'
   ) {
     return 'support';
+  }
+  if (
+    clean === 'partners' ||
+    clean === 'partner' ||
+    clean === 'spokes' ||
+    clean === 'partner_spokes'
+  ) {
+    return 'partners';
   }
   if (
     clean === 'legal' ||

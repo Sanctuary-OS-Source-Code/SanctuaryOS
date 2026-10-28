@@ -1938,12 +1938,10 @@ export default function CommandIncompatiblePanel({
         )}
 
         {filteredGroupedBrokenMods.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_check_circle", "check_circle")}
-              title={t("no_incompatible_detected", "No Incompatible {Mods} Detected")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("no_incompatible_detected", "No Incompatible {Mods} Detected")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}

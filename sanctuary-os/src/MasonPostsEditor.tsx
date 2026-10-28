@@ -421,7 +421,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
           {recentPosts.length === 0 ? (
-            <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("no_transmissions", "No {Dispatches} Found")}</div>
+            <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
               {recentPosts.map((post, index) => (
@@ -445,7 +445,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
             <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_replies", "Recent Replies")}</h3>
             <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
           </div>
-          <div className="py-8 text-center text-[var(--subtext)] opacity-50 font-black tracking-widest text-xs">{t("no_replies", "No recent replies")}</div>
+          <EmptyState icon={t("icon_forum", "forum")} title={t("no_replies", "No recent replies")} />
         </div>
       </div>
     );

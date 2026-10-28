@@ -1,4 +1,5 @@
 import { useLexicon } from './LexiconContext';
+import { EmptyState } from './shared';
 
 interface TemplatePreviewerProps {
   templateData: any;
@@ -11,14 +12,11 @@ export default function TemplatePreviewer({ templateData }: TemplatePreviewerPro
   
   if (!settings || settings.length === 0) {
       return (
-          <div className="flex-1 flex flex-col items-center justify-center py-20 gap-8 min-h-[400px]">
-             <div className="w-24 h-24 rounded-full glass-panel flex items-center justify-center border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-40 shadow-inner">
-                <span className="material-symbols-outlined !text-5xl text-[var(--text)]">{t("icon_visibility_off", "visibility_off")}</span>
-             </div>
-             <div className="flex flex-col items-center gap-3 text-center opacity-60">
-                <span className="text-[14px] font-black capitalize tracking-[0.2em] text-[var(--text)]">{t("no_visual_template", "No Visual Template Available")}</span>
-             </div>
-          </div>
+          <EmptyState
+             icon={t("icon_visibility_off", "visibility_off")}
+             title={t("no_visual_template", "No Visual Template Available")}
+             minHeightClass="min-h-[320px]"
+          />
       );
   }
 

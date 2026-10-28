@@ -10,6 +10,7 @@ import {
   handleOpenUrl,
   SidePanelHeroCard,
   UniversalGroup,
+  EmptyState,
 } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
@@ -706,12 +707,10 @@ export function UpdateSidePanel() {
             {activeMarkdownContent ? (
               <StructuredReleaseNotesView content={activeMarkdownContent} />
             ) : (
-              <div className="text-center py-12 opacity-50 font-bold capitalize text-[10px] tracking-widest flex flex-col items-center gap-2">
-                <span className="material-symbols-outlined !text-[24px]">
-                  {t("icon_visibility_off", "visibility_off")}
-                </span>
-                {t("update_panel_no_notes", "No Release Notes Provided")}
-              </div>
+              <EmptyState
+                icon={t("icon_visibility_off", "visibility_off")}
+                title={t("update_panel_no_notes", "No Release Notes Provided")}
+              />
             )}
           </UniversalGroup>
 

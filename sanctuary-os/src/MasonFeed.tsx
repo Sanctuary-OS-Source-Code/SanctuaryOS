@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
+import { EmptyState } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
@@ -67,9 +68,9 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
   const feedContent = (
     <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? 'pb-12' : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
       {loading ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
+        <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="col-span-full animate-pulse" />
       ) : posts.length === 0 ? (
-        <div className="text-center py-8 opacity-50 text-xs font-black capitalize tracking-widest col-span-2">{t("no_posts", "No Community Posts Found")}</div>
+        <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} className="col-span-full" />
       ) : (
         posts.map((p, index) => {
           return (

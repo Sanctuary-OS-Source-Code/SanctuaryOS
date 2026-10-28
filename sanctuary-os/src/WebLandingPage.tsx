@@ -165,6 +165,31 @@ export default function WebLandingPage() {
   const [maxPartnerStep, setMaxPartnerStep] = useState(0);
   const [isSubmittingPartner, setIsSubmittingPartner] = useState(false);
 
+  // About Partner Spokes & Setup Guide Drawer State
+  const [isAboutPartnerDrawerOpen, setIsAboutPartnerDrawerOpen] = useState(false);
+  const [aboutPartnerTab, setAboutPartnerTab] = useState<
+    'what' | 'setup' | 'connect' | 'maintain'
+  >('what');
+
+  // Apply to Join Keepers Core Drawer State (Chat-Like Guided Flow)
+  const [isKeeperAppDrawerOpen, setIsKeeperAppDrawerOpen] = useState(false);
+  const [keeperGate1, setKeeperGate1] = useState(false);
+  const [keeperGate2, setKeeperGate2] = useState(false);
+  const [keeperGate3, setKeeperGate3] = useState(false);
+  const [keeperFocus, setKeeperFocus] = useState<string>(
+    'Heuristic Malware & Security Oversight'
+  );
+  const [keeperHandle, setKeeperHandle] = useState('');
+  const [keeperContact, setKeeperContact] = useState('');
+  const [keeperPortfolio, setKeeperPortfolio] = useState('');
+  const [keeperAvailability, setKeeperAvailability] = useState(
+    '5-10 Hours / Week'
+  );
+  const [keeperExperience, setKeeperExperience] = useState('');
+  const [activeKeeperStep, setActiveKeeperStep] = useState(0);
+  const [maxKeeperStep, setMaxKeeperStep] = useState(0);
+  const [isSubmittingKeeper, setIsSubmittingKeeper] = useState(false);
+
   // Stacked Partner Spoke Covenants Drawer State (2 Tabs: Partners Agreement & Compliance Protocol)
   const [activePartnerCovenant, setActivePartnerCovenant] = useState<
     'PartnersAgreement' | 'ComplianceProtocol' | null
@@ -541,6 +566,115 @@ export default function WebLandingPage() {
       );
     } finally {
       setIsSubmittingPartner(false);
+    }
+  };
+
+  const resetKeeperFlow = () => {
+    setKeeperGate1(false);
+    setKeeperGate2(false);
+    setKeeperGate3(false);
+    setKeeperFocus('Heuristic Malware & Security Oversight');
+    setKeeperHandle(
+      session?.user?.user_metadata?.username ||
+        session?.user?.email?.split('@')[0] ||
+        ''
+    );
+    setKeeperContact(session?.user?.email || '');
+    setKeeperPortfolio('');
+    setKeeperAvailability('5-10 Hours / Week');
+    setKeeperExperience('');
+    setActiveKeeperStep(0);
+    setMaxKeeperStep(0);
+  };
+
+  const handleSubmitKeeperApplication = async () => {
+    if (!keeperGate1 || !keeperGate2 || !keeperGate3) {
+      pushToast(
+        t('landing_keeper_gate_hdr', 'Step 1: Keeper Stewardship & Security Covenants'),
+        'warning'
+      );
+      return;
+    }
+    const lastSent = Number(localStorage.getItem('sanctuary_keeper_app_last_ts') || '0');
+    if (Date.now() - lastSent < 10 * 60 * 1000) {
+      pushToast(
+        t(
+          'landing_keeper_err_cooldown',
+          'A Keeper Application was recently submitted from this device. Keepers Core is reviewing your dossier.'
+        ),
+        'warning'
+      );
+      return;
+    }
+    const finalHandle =
+      keeperHandle.trim() ||
+      session?.user?.user_metadata?.username ||
+      session?.user?.email?.split('@')[0] ||
+      '';
+    const finalContact = keeperContact.trim() || session?.user?.email || '';
+    if (
+      !finalHandle ||
+      !finalContact ||
+      keeperExperience.trim().length < 40
+    ) {
+      pushToast(t('fill_required_fields', 'Please fill all required fields'), 'warning');
+      return;
+    }
+    setIsSubmittingKeeper(true);
+    try {
+      const uid =
+        session?.user?.id && session.user.id !== 'local_citizen' ? session.user.id : null;
+      const formattedDossier = [
+        `Applicant Handle: ${finalHandle}`,
+        `Direct Contact: ${finalContact}`,
+        `Primary Keeper Focus: ${keeperFocus}`,
+        `Weekly Availability: ${keeperAvailability}`,
+        `GitHub / Portfolio / Profile URL: ${keeperPortfolio.trim() || 'N/A'}`,
+        ``,
+        `Experience & Stewardship Motivation:`,
+        keeperExperience.trim(),
+      ].join('\n');
+
+      const { error } = await supabaseAuth.from('keeper_tickets').insert({
+        author_id: uid,
+        ticket_type: 'Keeper Application',
+        title: `[Keeper Application] ${finalHandle} — ${keeperFocus}`,
+        description: formattedDossier,
+        status: 'NEW',
+        metadata: {
+          keeper_application: {
+            applicant_handle: finalHandle,
+            applicant_contact: finalContact,
+            user_id: uid,
+            clearance_focus: keeperFocus,
+            availability: keeperAvailability,
+            portfolio_url: keeperPortfolio.trim(),
+            experience_summary: keeperExperience.trim(),
+            covenants_verified: true,
+          },
+        },
+      });
+      if (error) throw error;
+      localStorage.setItem('sanctuary_keeper_app_last_ts', String(Date.now()));
+      pushToast(
+        t(
+          'landing_keeper_toast_success',
+          'Keeper Application transmitted to Keepers Core! Existing Keepers will review your dossier in Citizen Oversight.'
+        ),
+        'success'
+      );
+      setKeeperExperience('');
+      setKeeperPortfolio('');
+      setIsKeeperAppDrawerOpen(false);
+      fetchMyPlatformTickets();
+    } catch (err: any) {
+      pushToast(
+        err?.message ||
+          t('landing_feedback_toast_err', 'Failed to dispatch feedback. Please try again.'),
+        'error'
+      );
+    } finally {
+      setIsSubmittingKeeper(false);
     }
   };
 
@@ -959,7 +1093,8 @@ export default function WebLandingPage() {
     directives: t("landing_system_directives", "Public Documents"),
     download: t("landing_download_sidebar", "Download Sanctuary OS"),
     support: t("landing_nav_feedback", "Feedback & Support"),
-    legal: t("landing_eula", "System EULA"),
+    partners: t("landing_partners_tab", "Partner Spokes"),
+    legal: t("landing_legal_tab", "Legal"),
     donations: t("wf_tab_donations", "Donations"),
   };
 
@@ -1170,15 +1305,23 @@ export default function WebLandingPage() {
             variant="tab"
             icon={t("icon_support_agent", "support_agent")}
             label={t("landing_nav_feedback", "Feedback & Support")}
-            number={2}
+            number={3}
             isActive={activeLandingTab === "support"}
             onClick={() => scrollToLandingSection("support")}
           />
           <DashboardStatTile
             variant="tab"
+            icon={t("icon_handshake", "handshake")}
+            label={t("landing_partners_tab", "Partner Spokes")}
+            number={4}
+            isActive={activeLandingTab === "partners"}
+            onClick={() => scrollToLandingSection("partners")}
+          />
+          <DashboardStatTile
+            variant="tab"
             icon={t("icon_gavel", "gavel")}
-            label={t("landing_eula", "System EULA")}
-            number={5}
+            label={t("landing_legal_tab", "Legal")}
+            number={3}
             isActive={activeLandingTab === "legal"}
             onClick={() => scrollToLandingSection("legal")}
           />
@@ -1310,18 +1453,18 @@ export default function WebLandingPage() {
               <CommandScreenQuickLink
                 icon={t("icon_handshake", "handshake")}
                 title={t(
-                  "landing_partner_card_title",
-                  "Apply to Launch a Partner Game Spoke"
+                  "landing_partners_tab",
+                  "Partner Spokes"
                 )}
                 subtitle={t(
                   "landing_banner_partner_bottom",
                   "Community Workspace Operators • 0% Platform Fee"
                 )}
-                onClick={() => scrollToLandingSection("contact")}
+                onClick={() => scrollToLandingSection("partners")}
               />
               <CommandScreenQuickLink
                 icon={t("icon_gavel", "gavel")}
-                title={t("landing_eula", "System EULA")}
+                title={t("landing_legal_tab", "Legal")}
                 subtitle={`${t("landing_terms", "Terms of Service")} • ${t("landing_privacy", "Privacy Protocol")}`}
                 onClick={() => scrollToLandingSection("legal")}
               />
@@ -1330,7 +1473,7 @@ export default function WebLandingPage() {
         )}
 
         {/* =====================================================================
-            TAB 2: WORKSPACES (All Active Game Workspaces + Partner Spoke Apply)
+            TAB 2: WORKSPACES (All Active Game Workspaces)
            ===================================================================== */}
         {activeLandingTab === "workspaces" && (
           <div className="w-full flex flex-col gap-10">
@@ -1341,127 +1484,11 @@ export default function WebLandingPage() {
               />
               <div className="w-full">{renderWorkspaceCards(games)}</div>
             </section>
-
-            <section className="flex flex-col gap-6">
-              <CommandScreenSectionHeading
-                title={t(
-                  "landing_partner_card_title",
-                  "Apply to Launch a Partner Game Spoke"
-                )}
-                icon={t("icon_handshake", "handshake")}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                <UniversalCard
-                  layout="vertical"
-                  onClick={() => {
-                    setActivePartnerStep(0);
-                    setMaxPartnerStep(0);
-                    setIsPartnerDrawerOpen(true);
-                  }}
-                  icon={t("icon_handshake", "handshake")}
-                  bannerTopLabel={t(
-                    "landing_partner_badge",
-                    "Readiness-Gated Dossier • Anti-Spam Verified"
-                  )}
-                  bannerBottomLabel={t(
-                    "landing_banner_partner_bottom",
-                    "Community Workspace Operators • 0% Platform Fee"
-                  )}
-                  title={t(
-                    "landing_partner_card_title",
-                    "Apply to Launch a Partner Game Spoke"
-                  )}
-                  subtitle={
-                    <span className="text-[10px] font-mono tracking-widest">
-                      {t(
-                        "landing_partner_card_sub",
-                        "Dedicated Game Workspaces • Operated by Community Wayfinders & Architects"
-                      )}
-                    </span>
-                  }
-                  className="h-full"
-                  footer={
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {t("keepers_tab_partner_apps", "Partner Applications")}
-                      </span>
-                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>
-                          {t(
-                            "landing_partner_btn_open",
-                            "Start Partner Spoke Application"
-                          )}
-                        </span>
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t("icon_rocket_launch", "rocket_launch")}
-                        </span>
-                      </span>
-                    </div>
-                  }
-                >
-                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t(
-                      "landing_partner_card_desc",
-                      "Represent an established modding community and want to launch an official game workspace on Sanctuary OS? Complete our readiness check and submit your technical dossier to the Keepers."
-                    )}
-                  </p>
-                </UniversalCard>
-
-                <UniversalCard
-                  layout="vertical"
-                  onClick={() => setActivePartnerCovenant("PartnersAgreement")}
-                  icon={t("icon_verified_user", "verified_user")}
-                  bannerTopLabel={`V${stableVersion} • ${t(
-                    "partner_agreement_badge",
-                    "Spoke Charter"
-                  )}`}
-                  bannerBottomLabel={`V${stableVersion} • ${t(
-                    "compliance_protocol_badge",
-                    "Safety & Privacy"
-                  )}`}
-                  title={t(
-                    "partner_covenants_title",
-                    "Partners Agreement & Compliance Protocol"
-                  )}
-                  subtitle={
-                    <span className="text-[10px] font-mono tracking-widest">
-                      {t(
-                        "partner_covenants_subtitle",
-                        "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
-                      )}
-                    </span>
-                  }
-                  className="h-full"
-                  footer={
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {t("keepers_title", "Keepers Core")}
-                      </span>
-                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>
-                          {t("partner_covenants_open_btn", "Inspect Covenants")}
-                        </span>
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t("icon_arrow_forward", "arrow_forward")}
-                        </span>
-                      </span>
-                    </div>
-                  }
-                >
-                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t(
-                      "partner_covenants_desc",
-                      "Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
-                    )}
-                  </p>
-                </UniversalCard>
-              </div>
-            </section>
           </div>
         )}
 
         {/* =====================================================================
-            TAB 3: NEWS (Sanctuary Foundry News + Current Build Release Notes)
+            TAB 3: NEWS (Sanctuary Foundry News)
            ===================================================================== */}
         {activeLandingTab === "news" && (
           <div className="w-full flex flex-col gap-10">
@@ -1474,26 +1501,6 @@ export default function WebLandingPage() {
               <div className="w-full">
                 <WebNewsFeed limit={12} onCountChange={setNewsCount} />
               </div>
-            </section>
-
-            <section
-              id="release_notes"
-              className="flex flex-col gap-6 scroll-mt-24"
-            >
-              <CommandScreenSectionHeading
-                title={t(
-                  "release_notes_section_title",
-                  "Current Build Release Notes"
-                )}
-                icon={t("icon_new_releases", "new_releases")}
-              />
-              <ReleaseNotesShowcase
-                versionLabel={
-                  !isDesktop() && webDevChannelEnabled
-                    ? keepersConfig.dev_build_version || `${stableVersion}-dev`
-                    : stableVersion
-                }
-              />
             </section>
           </div>
         )}
@@ -2228,23 +2235,25 @@ export default function WebLandingPage() {
               </p>
             </UniversalCard>
 
-            {/* Card 3: [Partner Apply] Apply to Launch a Partner Game Spoke */}
+            {/* Card 3: [Keeper Apply] Apply to Join Keepers Core */}
             <UniversalCard
               layout="vertical"
               onClick={() => {
-                setActivePartnerStep(0);
-                setMaxPartnerStep(0);
-                setIsPartnerDrawerOpen(true);
+                resetKeeperFlow();
+                setIsKeeperAppDrawerOpen(true);
               }}
-              icon={t("icon_handshake", "handshake")}
-              bannerTopLabel={t("landing_partner_badge", "Readiness-Gated Dossier • Anti-Spam Verified")}
-              bannerBottomLabel={t("landing_banner_partner_bottom", "Community Workspace Operators • 0% Platform Fee")}
-              title={t("landing_partner_card_title", "Apply to Launch a Partner Game Spoke")}
+              icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+              bannerTopLabel={t("keepers_title", "Keepers Core")}
+              bannerBottomLabel={t(
+                "landing_keeper_apply_sub",
+                "Core OS Stewardship • Heuristic Security • Platform Triage"
+              )}
+              title={t("landing_keeper_apply_title", "Apply to Join Keepers Core")}
               subtitle={
                 <span className="text-[10px] font-mono tracking-widest">
                   {t(
-                    "landing_partner_card_sub",
-                    "Dedicated Game Workspaces • Operated by Community Wayfinders & Architects"
+                    "landing_keeper_apply_sub",
+                    "Core OS Stewardship • Heuristic Security • Platform Triage"
                   )}
                 </span>
               }
@@ -2252,10 +2261,10 @@ export default function WebLandingPage() {
               footer={
                 <div className="w-full flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                    {t("keepers_tab_partner_apps", "Partner Applications")}
+                    {t("keepers_tab_keeper_apps", "Keeper Applications")}
                   </span>
                   <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                    <span>{t("landing_partner_btn_open", "Start Partner Spoke Application")}</span>
+                    <span>{t("landing_keeper_apply_btn", "Start Keeper Application")}</span>
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_rocket_launch", "rocket_launch")}
                     </span>
@@ -2265,8 +2274,8 @@ export default function WebLandingPage() {
             >
               <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                 {t(
-                  "landing_partner_card_desc",
-                  "Represent an established modding community and want to launch an official game workspace on Sanctuary OS? Complete our readiness check and submit your technical dossier to the Keepers."
+                  "landing_keeper_apply_desc",
+                  "Want to help safeguard Sanctuary OS, maintain global heuristic malware signatures, review Partner Spoke applications, or triage core platform telemetry? Submit a Keeper application directly to Keepers Core."
                 )}
               </p>
             </UniversalCard>
@@ -2276,7 +2285,250 @@ export default function WebLandingPage() {
         )}
 
         {/* =====================================================================
-            TAB 7: LEGAL (System EULA • Terms • Privacy • Partner Covenants)
+            TAB 7: PARTNER SPOKES (About • Apply • Partners Agreement • Compliance Protocol)
+           ===================================================================== */}
+        {activeLandingTab === "partners" && (
+          <section
+            id="partners"
+            className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
+          >
+            <CommandScreenSectionHeading
+              title={t("landing_partners_tab", "Partner Spokes")}
+              icon={t("icon_handshake", "handshake")}
+              rightSlot={
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon={t("icon_menu_book", "menu_book")}
+                    tooltip={t("landing_partners_about_btn", "Open Partner Guide")}
+                    onClick={() => {
+                      setAboutPartnerTab("what");
+                      setIsAboutPartnerDrawerOpen(true);
+                    }}
+                  />
+                  <PanelHeaderButton
+                    icon={t("icon_rocket_launch", "rocket_launch")}
+                    tooltip={t(
+                      "landing_partner_btn_open",
+                      "Start Partner Spoke Application"
+                    )}
+                    onClick={() => {
+                      setActivePartnerStep(0);
+                      setMaxPartnerStep(0);
+                      setIsPartnerDrawerOpen(true);
+                    }}
+                  />
+                </PanelHeaderGroup>
+              }
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+              {/* Card 1: About Partner Spokes & Setup Guide */}
+              <UniversalCard
+                layout="vertical"
+                onClick={() => {
+                  setAboutPartnerTab("what");
+                  setIsAboutPartnerDrawerOpen(true);
+                }}
+                icon={t("icon_menu_book", "menu_book")}
+                bannerTopLabel={t(
+                  "landing_partners_tab_what_sub",
+                  "100% Sovereignty & 0% Tax"
+                )}
+                bannerBottomLabel={t(
+                  "landing_partners_about_sub",
+                  "Architecture • Supabase Bootstrap • Uplink Handshake • Governance"
+                )}
+                title={t(
+                  "landing_partners_about_title",
+                  "About Partner Spokes & Setup Guide"
+                )}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t(
+                      "landing_partners_about_sub",
+                      "Architecture • Supabase Bootstrap • Uplink Handshake • Governance"
+                    )}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("landing_partners_tab", "Partner Spokes")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>{t("landing_partners_about_btn", "Open Partner Guide")}</span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "landing_partners_about_desc",
+                    "Learn what a Sanctuary OS Partner Spoke is, how 100% data sovereignty and 0% non-custodial donations work, and how to provision, connect, and maintain a community game workspace."
+                  )}
+                </p>
+              </UniversalCard>
+
+              {/* Card 2: Apply to Launch a Partner Game Spoke */}
+              <UniversalCard
+                layout="vertical"
+                onClick={() => {
+                  setActivePartnerStep(0);
+                  setMaxPartnerStep(0);
+                  setIsPartnerDrawerOpen(true);
+                }}
+                icon={t("icon_handshake", "handshake")}
+                bannerTopLabel={t(
+                  "landing_partner_badge",
+                  "Readiness-Gated Dossier • Anti-Spam Verified"
+                )}
+                bannerBottomLabel={t(
+                  "landing_banner_partner_bottom",
+                  "Community Workspace Operators • 0% Platform Fee"
+                )}
+                title={t(
+                  "landing_partner_card_title",
+                  "Apply to Launch a Partner Game Spoke"
+                )}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {t(
+                      "landing_partner_card_sub",
+                      "Dedicated Game Workspaces • Operated by Community Wayfinders & Architects"
+                    )}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("keepers_tab_partner_apps", "Partner Applications")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t(
+                          "landing_partner_btn_open",
+                          "Start Partner Spoke Application"
+                        )}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_rocket_launch", "rocket_launch")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "landing_partner_card_desc",
+                    "Represent an established modding community and want to launch an official game workspace on Sanctuary OS? Complete our readiness check and submit your technical dossier to the Keepers."
+                  )}
+                </p>
+              </UniversalCard>
+
+              {/* Card 3: Partners Agreement */}
+              <UniversalCard
+                layout="vertical"
+                onClick={() => setActivePartnerCovenant("PartnersAgreement")}
+                icon={t("icon_handshake", "handshake")}
+                bannerTopLabel={`V${stableVersion} • ${t(
+                  "partner_agreement_badge",
+                  "Spoke Charter"
+                )}`}
+                bannerBottomLabel={t(
+                  "partner_covenants_subtitle",
+                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+                )}
+                title={t("partner_agreement_title", "Partners Agreement")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {`V${stableVersion} • ${t(
+                      "partner_agreement_badge",
+                      "Spoke Charter"
+                    )}`}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("keepers_title", "Keepers Core")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t("partner_covenants_open_btn", "Inspect Covenants")}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "partner_agreement_desc",
+                    "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
+                  )}
+                </p>
+              </UniversalCard>
+
+              {/* Card 4: Compliance Protocol */}
+              <UniversalCard
+                layout="vertical"
+                onClick={() => setActivePartnerCovenant("ComplianceProtocol")}
+                icon={t("icon_verified_user", "verified_user")}
+                bannerTopLabel={`V${stableVersion} • ${t(
+                  "compliance_protocol_badge",
+                  "Safety & Privacy"
+                )}`}
+                bannerBottomLabel={t(
+                  "partner_covenants_subtitle",
+                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
+                )}
+                title={t("compliance_protocol_title", "Compliance Protocol")}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest">
+                    {`V${stableVersion} • ${t(
+                      "compliance_protocol_badge",
+                      "Safety & Privacy"
+                    )}`}
+                  </span>
+                }
+                className="h-full"
+                footer={
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                      {t("keepers_title", "Keepers Core")}
+                    </span>
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {t("partner_covenants_open_btn", "Inspect Covenants")}
+                      </span>
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  </div>
+                }
+              >
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                  {t(
+                    "compliance_protocol_desc",
+                    "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
+                  )}
+                </p>
+              </UniversalCard>
+            </div>
+          </section>
+        )}
+
+        {/* =====================================================================
+            TAB 8: LEGAL (System EULA • Terms of Service • Privacy Protocol)
            ===================================================================== */}
         {activeLandingTab === "legal" && (
           <section
@@ -2284,7 +2536,7 @@ export default function WebLandingPage() {
             className="w-full flex flex-col gap-6 scroll-mt-24 z-10 relative"
           >
             <CommandScreenSectionHeading
-              title={t("landing_eula", "System EULA")}
+              title={t("landing_legal_tab", "Legal")}
               icon={t("icon_gavel", "gavel")}
             />
 
@@ -2405,98 +2657,6 @@ export default function WebLandingPage() {
                   {t(
                     "subtitle_sanctuary_alerts",
                     "Official legal terms, privacy policy, and end-user license agreement."
-                  )}
-                </p>
-              </UniversalCard>
-
-              <UniversalCard
-                layout="vertical"
-                onClick={() => setActivePartnerCovenant("PartnersAgreement")}
-                icon={t("icon_handshake", "handshake")}
-                bannerTopLabel={`V${stableVersion} • ${t(
-                  "partner_agreement_badge",
-                  "Spoke Charter"
-                )}`}
-                bannerBottomLabel={t(
-                  "partner_covenants_subtitle",
-                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
-                )}
-                title={t("partner_agreement_title", "Partners Agreement")}
-                subtitle={
-                  <span className="text-[10px] font-mono tracking-widest">
-                    {`V${stableVersion} • ${t(
-                      "partner_agreement_badge",
-                      "Spoke Charter"
-                    )}`}
-                  </span>
-                }
-                className="h-full"
-                footer={
-                  <div className="w-full flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                      {t("keepers_title", "Keepers Core")}
-                    </span>
-                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                      <span>
-                        {t("partner_covenants_open_btn", "Inspect Covenants")}
-                      </span>
-                      <span className="material-symbols-outlined !text-[14px]">
-                        {t("icon_arrow_forward", "arrow_forward")}
-                      </span>
-                    </span>
-                  </div>
-                }
-              >
-                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                  {t(
-                    "partner_agreement_desc",
-                    "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
-                  )}
-                </p>
-              </UniversalCard>
-
-              <UniversalCard
-                layout="vertical"
-                onClick={() => setActivePartnerCovenant("ComplianceProtocol")}
-                icon={t("icon_verified_user", "verified_user")}
-                bannerTopLabel={`V${stableVersion} • ${t(
-                  "compliance_protocol_badge",
-                  "Safety & Privacy"
-                )}`}
-                bannerBottomLabel={t(
-                  "partner_covenants_subtitle",
-                  "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
-                )}
-                title={t("compliance_protocol_title", "Compliance Protocol")}
-                subtitle={
-                  <span className="text-[10px] font-mono tracking-widest">
-                    {`V${stableVersion} • ${t(
-                      "compliance_protocol_badge",
-                      "Safety & Privacy"
-                    )}`}
-                  </span>
-                }
-                className="h-full"
-                footer={
-                  <div className="w-full flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                      {t("keepers_title", "Keepers Core")}
-                    </span>
-                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                      <span>
-                        {t("partner_covenants_open_btn", "Inspect Covenants")}
-                      </span>
-                      <span className="material-symbols-outlined !text-[14px]">
-                        {t("icon_arrow_forward", "arrow_forward")}
-                      </span>
-                    </span>
-                  </div>
-                }
-              >
-                <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                  {t(
-                    "compliance_protocol_desc",
-                    "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
                   )}
                 </p>
               </UniversalCard>
@@ -4562,6 +4722,691 @@ export default function WebLandingPage() {
                 );
               })()}
             </UniversalGroup>
+          </div>
+        </SidePanel>
+
+        {/* =====================================================================
+            DRAWER 3C: ABOUT PARTNER SPOKES & SETUP GUIDE SIDEPANEL
+           ===================================================================== */}
+        <SidePanel
+          isOpen={isAboutPartnerDrawerOpen}
+          onClose={() => setIsAboutPartnerDrawerOpen(false)}
+          title={t(
+            "landing_partners_about_drawer_title",
+            "Sanctuary OS — Partner Spoke Architecture & Guide"
+          )}
+          subtitle={t(
+            "landing_partners_about_drawer_sub",
+            "100% Data Sovereignty • Turnkey Setup • Bilateral Uplink • Governance"
+          )}
+          icon={t("icon_menu_book", "menu_book")}
+          iconColorClass="text-[var(--accent)]"
+          widthClass="w-[90vw] md:w-[740px]"
+          headerActions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_gavel", "gavel")}
+                tooltip={t("partner_covenants_open_btn", "Inspect Covenants")}
+                onClick={() => setActivePartnerCovenant("PartnersAgreement")}
+              />
+              <PanelHeaderButton
+                icon={t("icon_rocket_launch", "rocket_launch")}
+                variant="accent"
+                tooltip={t(
+                  "landing_partner_btn_open",
+                  "Start Partner Spoke Application"
+                )}
+                onClick={() => {
+                  setIsAboutPartnerDrawerOpen(false);
+                  setActivePartnerStep(0);
+                  setMaxPartnerStep(0);
+                  setIsPartnerDrawerOpen(true);
+                }}
+              />
+            </PanelHeaderGroup>
+          }
+        >
+          <div className="flex flex-col gap-4 pb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_handshake", "handshake")}
+                label={t("landing_partners_tab_what", "What is a Partner")}
+                subtext={t(
+                  "landing_partners_tab_what_sub",
+                  "100% Sovereignty & 0% Tax"
+                )}
+                isActive={aboutPartnerTab === "what"}
+                onClick={() => setAboutPartnerTab("what")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_dns", "dns")}
+                label={t("landing_partners_tab_setup", "How to Set Up")}
+                subtext={t(
+                  "landing_partners_tab_setup_sub",
+                  "Supabase & schema.sql"
+                )}
+                isActive={aboutPartnerTab === "setup"}
+                onClick={() => setAboutPartnerTab("setup")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_hub", "hub")}
+                label={t("landing_partners_tab_connect", "How to Connect")}
+                subtext={t(
+                  "landing_partners_tab_connect_sub",
+                  "SANCTUARY-UPLINK:// Handshake"
+                )}
+                isActive={aboutPartnerTab === "connect"}
+                onClick={() => setAboutPartnerTab("connect")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_security", "security")}
+                label={t("landing_partners_tab_maintain", "How to Maintain")}
+                subtext={t(
+                  "landing_partners_tab_maintain_sub",
+                  "Wayfinder Operations & Perks"
+                )}
+                isActive={aboutPartnerTab === "maintain"}
+                onClick={() => setAboutPartnerTab("maintain")}
+              />
+            </div>
+
+            <SidePanelHeroCard
+              icon={t("icon_handshake", "handshake")}
+              overline={t(
+                "landing_partners_about_sub",
+                "Architecture • Supabase Bootstrap • Uplink Handshake • Governance"
+              )}
+              title={t(
+                "landing_partners_about_title",
+                "About Partner Spokes & Setup Guide"
+              )}
+              description={t(
+                "landing_partners_about_desc",
+                "Learn what a Sanctuary OS Partner Spoke is, how 100% data sovereignty and 0% non-custodial donations work, and how to provision, connect, and maintain a community game workspace."
+              )}
+              badge={`V${stableVersion}`}
+              badgeIcon={t("icon_verified", "verified")}
+              variant="accent"
+            >
+              <LegalDocVersionInfoBlock />
+            </SidePanelHeroCard>
+
+            {aboutPartnerTab === "what" && (
+              <UniversalGroup
+                title={t("landing_partners_tab_what", "What is a Partner")}
+                icon={t("icon_handshake", "handshake")}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_what_h1",
+                        "1. Sovereign Game Workspace — Never a Central Silo"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_what_p1",
+                        "A Sanctuary OS Partner Spoke is an independent, community-governed game workspace (e.g. Skyrim, GTA V, Stardew Valley, Baldur's Gate 3). Unlike legacy modding portals, your community owns its own Supabase PostgreSQL database, Master Schema, {Mod} registry, and Chameleon themes. Either side can sever the uplink ('Cut the Cord') at any time with zero data loss."
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_what_h2",
+                        "2. Zero Platform Tax (0% Cut) & Mutual Supporter Perks"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_what_p2",
+                        "Sanctuary Foundry takes 0% of {Mason} or Partner Community revenue. Partner Spokes link their own non-custodial Stripe, Ko-fi, or Patreon checkout directly in Wayfinder Operations, and every $5 a {Citizen} contributes to a verified Partner Spoke automatically grants them +30 days of Global Daily Dev Build access across Sanctuary OS."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </UniversalGroup>
+            )}
+
+            {aboutPartnerTab === "setup" && (
+              <UniversalGroup
+                title={t("landing_partners_tab_setup", "How to Set Up")}
+                icon={t("icon_dns", "dns")}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_setup_h1",
+                        "1. Provision Your Supabase Instance & Run schema.sql"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_setup_p1",
+                        "Create a dedicated Supabase project owned by your community team. Open the SQL Editor and execute Sanctuary OS's 36-table schema.sql bootstrap script to initialize profiles, {mods}, {mod}_versions, {masons}, {blueprints}, audit_logs, and row-level security (RLS) policies."
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_setup_h2",
+                        "2. Configure Your Game's Master Schema"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_setup_p2",
+                        "Define your game's supported {Mod} file extensions (.package, .ts4script, .pak, .esp, .rpf, .asi), installation target folders, load-order rules, and conflict radar heuristics inside your Master Schema JSON."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </UniversalGroup>
+            )}
+
+            {aboutPartnerTab === "connect" && (
+              <UniversalGroup
+                title={t("landing_partners_tab_connect", "How to Connect")}
+                icon={t("icon_hub", "hub")}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_connect_h1",
+                        "1. Generate Your SANCTUARY-UPLINK:// Handshake Token"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_connect_p1",
+                        "Once your Partner Spoke application is approved by Keepers Core, open Wayfinder Operations -> Spoke Control -> Spoke Setup & Maintenance to generate your SANCTUARY-UPLINK:// bundle containing your Project URL, Anon Key, and Service Role Key."
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_connect_h2",
+                        "2. Cryptographic Verification & Live Hub Mounting"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_connect_p2",
+                        "Keepers Core runs a live schema and RLS handshake check against your Spoke. Once verified, your workspace goes live on the Sanctuary OS Hub switcher for Desktop, Web, and Mobile PWA {Citizens}."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </UniversalGroup>
+            )}
+
+            {aboutPartnerTab === "maintain" && (
+              <UniversalGroup
+                title={t("landing_partners_tab_maintain", "How to Maintain")}
+                icon={t("icon_security", "security")}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_maintain_h1",
+                        "1. Wayfinder Operations, Key Rotation & Oversight"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_maintain_p1",
+                        "Manage your workspace day-to-day from Wayfinder Operations: appoint Architects and Oversight moderators, verify {Masons}, triage community reports, review heuristic malware flags, and rotate your Supabase keys anytime with zero downtime."
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                    <h4 className="text-sm font-black text-[var(--text)]">
+                      {t(
+                        "landing_partners_maintain_h2",
+                        "2. Append-Only Audit Integrity & Cut-the-Cord Freedom"
+                      )}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-90 leading-relaxed">
+                      {t(
+                        "landing_partners_maintain_p2",
+                        "Every administrative action is recorded in your Spoke's immutable audit_logs table. If your community ever wishes to operate standalone, click 'Cut the Cord' in Spoke Control to sever the Hub uplink immediately while keeping 100% of your database."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </UniversalGroup>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_gavel", "gavel")}
+                label={t("partner_covenants_open_btn", "Inspect Covenants")}
+                onClick={() => setActivePartnerCovenant("PartnersAgreement")}
+              />
+              <ActionButton
+                variant="primary"
+                icon={t("icon_rocket_launch", "rocket_launch")}
+                label={t(
+                  "landing_partner_btn_open",
+                  "Start Partner Spoke Application"
+                )}
+                onClick={() => {
+                  setIsAboutPartnerDrawerOpen(false);
+                  setActivePartnerStep(0);
+                  setMaxPartnerStep(0);
+                  setIsPartnerDrawerOpen(true);
+                }}
+              />
+            </div>
+          </div>
+        </SidePanel>
+
+        {/* =====================================================================
+            DRAWER 3D: APPLY TO JOIN KEEPERS CORE SIDEPANEL (GUIDED FLOW)
+           ===================================================================== */}
+        <SidePanel
+          isOpen={isKeeperAppDrawerOpen}
+          onClose={() => setIsKeeperAppDrawerOpen(false)}
+          title={t("landing_keeper_drawer_title", "Apply to Join Keepers Core")}
+          subtitle={t(
+            "landing_keeper_drawer_sub",
+            "Core Platform Stewardship • Security & Triage Clearance Dossier"
+          )}
+          icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+          widthClass="w-[90vw] md:w-[700px]"
+          headerActions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_restart_alt", "restart_alt")}
+                tooltip={t("reset", "Reset")}
+                onClick={resetKeeperFlow}
+              />
+              <PanelHeaderButton
+                icon={
+                  isSubmittingKeeper
+                    ? t("icon_sync", "sync")
+                    : t("icon_rocket_launch", "rocket_launch")
+                }
+                tooltip={t("landing_keeper_submit_btn", "Submit Keeper Application")}
+                onClick={handleSubmitKeeperApplication}
+              />
+            </PanelHeaderGroup>
+          }
+        >
+          <div className="flex flex-col gap-4 pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+              overline={t("keepers_title", "Keepers Core")}
+              title={t("landing_keeper_apply_title", "Apply to Join Keepers Core")}
+              description={t(
+                "landing_keeper_apply_desc",
+                "Want to help safeguard Sanctuary OS, maintain global heuristic malware signatures, review Partner Spoke applications, or triage core platform telemetry? Submit a Keeper application directly to Keepers Core."
+              )}
+              variant="accent"
+            >
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <StatBox
+                  label={t("landing_keeper_focus_label", "Primary Keeper Focus")}
+                  value={keeperFocus}
+                  icon={t("icon_shield_lock", "shield_lock")}
+                  iconColorClass="text-[var(--accent)]"
+                  colorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("step_progress", "Step Progress")}
+                  value={`${Math.min(activeKeeperStep + 1, 3)} / 3`}
+                  icon={t("icon_checklist", "checklist")}
+                  iconColorClass="text-[var(--success)]"
+                  colorClass="text-[var(--text)]"
+                />
+              </div>
+            </SidePanelHeroCard>
+
+            {/* STEP 1: STEWARDSHIP & SECURITY COVENANTS */}
+            {activeKeeperStep > 0 ? (
+              <div
+                onClick={() => setActiveKeeperStep(0)}
+                className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
+              >
+                <div className="flex flex-col gap-0.5 min-w-0 pr-4">
+                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="material-symbols-outlined !text-xs">
+                      {t("icon_check_circle", "check_circle")}
+                    </span>
+                    {t("step_completed", "Step Completed")}
+                  </span>
+                  <h4 className="text-sm font-black text-[var(--text)] truncate">
+                    {t(
+                      "landing_keeper_gate_hdr",
+                      "Step 1: Keeper Stewardship & Security Covenants"
+                    )}
+                  </h4>
+                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
+                    {t("verified", "Verified")}
+                  </p>
+                </div>
+                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
+                  {t("icon_edit", "edit")}
+                </span>
+              </div>
+            ) : (
+              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
+                    {`${t("step", "STEP")} 1 / 3`}
+                  </span>
+                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
+                    {t(
+                      "landing_keeper_gate_hdr",
+                      "Step 1: Keeper Stewardship & Security Covenants"
+                    )}
+                  </h3>
+                  <p className="text-xs text-[var(--subtext)] opacity-80">
+                    {t(
+                      "landing_keeper_gate_desc",
+                      "Keepers hold global stewardship over Sanctuary OS's core infrastructure, heuristic malware definitions, and Partner Spoke handshakes. Confirm all three covenants below:"
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  <SidePanelPillToggle
+                    label={t(
+                      "landing_keeper_gate_1_title",
+                      "Core Platform Stewardship (Global Scope)"
+                    )}
+                    description={t(
+                      "landing_keeper_gate_1_desc",
+                      "I understand that Keepers Core governs Sanctuary OS's global infrastructure, heuristic security engine, and Partner Spoke onboarding—distinct from moderating a single game workspace."
+                    )}
+                    icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+                    checked={keeperGate1}
+                    onChange={setKeeperGate1}
+                  />
+                  <SidePanelPillToggle
+                    label={t(
+                      "landing_keeper_gate_2_title",
+                      "Zero-Trust Security & Anti-Malware Integrity"
+                    )}
+                    description={t(
+                      "landing_keeper_gate_2_desc",
+                      "I commit to upholding strict cryptographic verification, impartial malware signature auditing, and append-only audit log transparency across all Keepers Core operations."
+                    )}
+                    icon={t("icon_shield_lock", "shield_lock")}
+                    checked={keeperGate2}
+                    onChange={setKeeperGate2}
+                  />
+                  <SidePanelPillToggle
+                    label={t(
+                      "landing_keeper_gate_3_title",
+                      "Human-First Triage & Privacy Respect"
+                    )}
+                    description={t(
+                      "landing_keeper_gate_3_desc",
+                      "I will review {Citizen} escalations, bug telemetry, and Partner dossiers with genuine human care and zero tolerance for data harvesting."
+                    )}
+                    icon={t("icon_verified_user", "verified_user")}
+                    checked={keeperGate3}
+                    onChange={setKeeperGate3}
+                  />
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  <ActionButton
+                    variant="primary"
+                    icon={t("icon_done", "done")}
+                    label={t("confirm", "Confirm")}
+                    disabled={!keeperGate1 || !keeperGate2 || !keeperGate3}
+                    onClick={() => {
+                      setActiveKeeperStep(1);
+                      setMaxKeeperStep((prev) => Math.max(prev, 1));
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: SPECIALIZATION, IDENTITY & EXPERIENCE */}
+            {maxKeeperStep >= 1 &&
+              (activeKeeperStep > 1 ? (
+                <div
+                  onClick={() => setActiveKeeperStep(1)}
+                  className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0 pr-4">
+                    <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-xs">
+                        {t("icon_check_circle", "check_circle")}
+                      </span>
+                      {t("step_completed", "Step Completed")}
+                    </span>
+                    <h4 className="text-sm font-black text-[var(--text)] truncate">
+                      {`${keeperHandle || session?.user?.email || ""} • ${keeperFocus}`}
+                    </h4>
+                    <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
+                      {keeperExperience}
+                    </p>
+                  </div>
+                  <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
+                    {t("icon_edit", "edit")}
+                  </span>
+                </div>
+              ) : activeKeeperStep === 1 ? (
+                <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
+                      {`${t("step", "STEP")} 2 / 3`}
+                    </span>
+                    <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
+                      {t(
+                        "landing_keeper_step2_hdr",
+                        "Step 2: Specialization, Identity & Experience"
+                      )}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("landing_keeper_focus_label", "Primary Keeper Focus")}
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {[
+                        {
+                          id: "Heuristic Malware & Security Oversight",
+                          icon: t("icon_shield_lock", "shield_lock"),
+                          label: t(
+                            "landing_keeper_focus_security",
+                            "Heuristic Malware & Security Oversight"
+                          ),
+                        },
+                        {
+                          id: "Core Engineering (Rust / TypeScript / Schemas)",
+                          icon: t("icon_code", "code"),
+                          label: t(
+                            "landing_keeper_focus_eng",
+                            "Core Engineering (Rust / TypeScript / Schemas)"
+                          ),
+                        },
+                        {
+                          id: "Platform Support, Bug Triage & Directives",
+                          icon: t("icon_support_agent", "support_agent"),
+                          label: t(
+                            "landing_keeper_focus_triage",
+                            "Platform Support, Bug Triage & Directives"
+                          ),
+                        },
+                        {
+                          id: "Partner Spoke Onboarding & Governance",
+                          icon: t("icon_handshake", "handshake"),
+                          label: t(
+                            "landing_keeper_focus_spokes",
+                            "Partner Spoke Onboarding & Governance"
+                          ),
+                        },
+                      ].map((opt) => {
+                        const active = keeperFocus === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setKeeperFocus(opt.id)}
+                            className={`p-3.5 rounded-2xl glass-surface border text-left flex items-center gap-3 transition-all cursor-pointer ${
+                              active
+                                ? "border-[var(--accent)] text-[var(--accent)]"
+                                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined !text-[20px] shrink-0">
+                              {opt.icon}
+                            </span>
+                            <span className="text-xs font-black leading-snug">
+                              {opt.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <UniversalInput
+                      label={`${t("landing_keeper_handle_label", "Your Sanctuary Handle or Name")} *`}
+                      value={keeperHandle}
+                      onChange={setKeeperHandle}
+                      placeholder="@handle"
+                    />
+                    <UniversalInput
+                      label={`${t("landing_keeper_contact_label", "Direct Email or Discord Handle")} *`}
+                      value={keeperContact}
+                      onChange={setKeeperContact}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <UniversalInput
+                      label={t(
+                        "landing_keeper_portfolio_label",
+                        "GitHub, Portfolio, or Community Profile URL (Optional)"
+                      )}
+                      value={keeperPortfolio}
+                      onChange={setKeeperPortfolio}
+                      placeholder="https://github.com/..."
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("landing_keeper_availability_label", "Weekly Availability")}
+                      </label>
+                      <CustomDropdown
+                        disableTint={true}
+                        value={keeperAvailability}
+                        onChange={(v: string[]) =>
+                          setKeeperAvailability(v[0] || "5-10 Hours / Week")
+                        }
+                        options={[
+                          {
+                            id: "2-5 Hours / Week",
+                            label: "2–5 Hours / Week",
+                          },
+                          {
+                            id: "5-10 Hours / Week",
+                            label: "5–10 Hours / Week",
+                          },
+                          {
+                            id: "10+ Hours / Week",
+                            label: "10+ Hours / Week",
+                          },
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {`${t("landing_keeper_exp_label", "Relevant Technical / Moderation Experience & Motivation (Min 40 chars)")} *`}
+                      </label>
+                      <span
+                        className={`text-[10px] font-mono font-bold ${
+                          keeperExperience.trim().length >= 40
+                            ? "text-[var(--success)]"
+                            : "text-[var(--warning)]"
+                        }`}
+                      >
+                        {`${keeperExperience.trim().length} / 40+`}
+                      </span>
+                    </div>
+                    <UniversalTextArea
+                      value={keeperExperience}
+                      onChange={setKeeperExperience}
+                      placeholder={t(
+                        "landing_keeper_exp_ph",
+                        "Share your background in security, modding tools, Rust/TypeScript, schema design, or community stewardship..."
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <ActionButton
+                      variant="primary"
+                      icon={t("icon_done", "done")}
+                      label={t("confirm", "Confirm")}
+                      disabled={
+                        !keeperHandle.trim() ||
+                        !keeperContact.trim() ||
+                        keeperExperience.trim().length < 40
+                      }
+                      onClick={() => {
+                        setActiveKeeperStep(2);
+                        setMaxKeeperStep((prev) => Math.max(prev, 2));
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null)}
+
+            {/* STEP 3: REVIEW & SUBMIT KEEPER APPLICATION */}
+            {maxKeeperStep >= 2 && activeKeeperStep === 2 && (
+              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-[var(--success)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] w-max">
+                    {`${t("step", "STEP")} 3 / 3`}
+                  </span>
+                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
+                    {t("landing_keeper_submit_btn", "Submit Keeper Application")}
+                  </h3>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  <ActionButton
+                    variant="primary"
+                    icon={t("icon_rocket_launch", "rocket_launch")}
+                    label={
+                      isSubmittingKeeper
+                        ? t("btn_submitting", "Submitting...")
+                        : t("landing_keeper_submit_btn", "Submit Keeper Application")
+                    }
+                    onClick={handleSubmitKeeperApplication}
+                    disabled={isSubmittingKeeper}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </SidePanel>
 

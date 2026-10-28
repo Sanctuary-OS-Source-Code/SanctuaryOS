@@ -16,6 +16,7 @@ import {
   ActionPill,
   formatDisplayName,
   getModIcon,
+  EmptyState,
 } from "./shared";
 import {
   CommandScreenLayout,
@@ -804,9 +805,11 @@ export default function Blueprints({
                         .map((set: any) => renderVaultCard(set))}
                     </div>
                   ) : (
-                    <div className="text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-2xl h-full flex items-center justify-center min-h-[9rem] glass-panel">
-                      {t("no_pinned_blueprints", "No Pinned {Blueprints}")}
-                    </div>
+                    <EmptyState
+                      icon={t("icon_push_pin", "push_pin")}
+                      title={t("no_pinned_blueprints", "No Pinned {Blueprints}")}
+                      minHeightClass="min-h-[160px]"
+                    />
                   )}
                 </div>
               </CommandScreenMain>
@@ -1056,12 +1059,11 @@ export default function Blueprints({
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 h-full pt-2">
             {myCloudBlueprints.length === 0 ? (
-              <div className="text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-xl col-span-full glass-panel">
-                <span className="material-symbols-outlined block mb-2 opacity-50">
-                  {t("icon_cloud_off", "cloud_off")}
-                </span>
-                {t("no_cloud_blueprints", "No Cloud {Blueprints}")}
-              </div>
+              <EmptyState
+                icon={t("icon_cloud_off", "cloud_off")}
+                title={t("no_cloud_blueprints", "No Cloud {Blueprints}")}
+                className="col-span-full py-16"
+              />
             ) : myCloudBlueprints.filter((bp) => {
                 const inVault = playSets.some(
                   (set: any) =>
@@ -1074,12 +1076,11 @@ export default function Blueprints({
                   bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
                 return (cloudFilterTab === "all" ? true : !inVault) && matchesSearch;
               }).length === 0 ? (
-              <div className="text-[10px] font-black tracking-widest capitalize text-[var(--subtext)] opacity-50 text-center py-10 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed rounded-xl col-span-full glass-panel">
-                <span className="material-symbols-outlined block mb-2 opacity-50">
-                  {t("icon_task_alt", "task_alt")}
-                </span>
-                {t("no_cloud_blueprints", "No Cloud {Blueprints}")}
-              </div>
+              <EmptyState
+                icon={t("icon_task_alt", "task_alt")}
+                title={t("no_cloud_blueprints", "No Cloud {Blueprints}")}
+                className="col-span-full py-16"
+              />
             ) : (
               myCloudBlueprints
                 .filter((bp) => {

@@ -11,6 +11,7 @@ import {
   ActionPill,
   StatBox,
   HoverTooltip,
+  EmptyState,
 } from "./shared";
 import {
   DashboardStatTile,
@@ -2351,21 +2352,12 @@ export default function Lab({
             })}
 
             {filteredReports.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center space-y-6 mt-10">
-                <div className="opacity-50 flex flex-col items-center justify-center space-y-6">
-                  <span className="material-symbols-outlined !text-[80px] text-[var(--subtext)]">
-                    terminal
-                  </span>
-                  <div className="space-y-2 text-center">
-                    <h2 className="text-2xl font-black capitalize tracking-widest text-[var(--text)]">
-                      {t("lab_reports_empty", "No Reports Generated Yet")}
-                    </h2>
-                    <p className="text-sm font-medium text-[var(--subtext)]">
-                      {t("lab_reports_empty_desc", "Run a test in the Environment Builder to generate a report.")}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <EmptyState
+                icon={t("icon_terminal", "terminal")}
+                title={t("lab_reports_empty", "No Reports Generated Yet")}
+                subtitle={t("lab_reports_empty_desc", "Run a test in the Environment Builder to generate a report.")}
+                className="col-span-full py-16"
+              />
             )}
           </div>
         </div>

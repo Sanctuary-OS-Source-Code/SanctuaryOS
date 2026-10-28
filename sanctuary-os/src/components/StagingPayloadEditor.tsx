@@ -1730,9 +1730,12 @@ export default function StagingPayloadEditor({
                 icon={t("icon_inventory_2", "inventory_2")}
               >
                 {inspectedFilteredItems.length === 0 ? (
-                  <div className="glass-surface p-8 rounded-2xl text-center text-xs font-bold text-[var(--subtext)] opacity-65">
-                    {t("no_results", "No matching {mods} found.")}
-                  </div>
+                  <EmptyState
+                    icon={t("icon_search_off", "search_off")}
+                    title={t("no_results", "No matching {mods} found.")}
+                    minHeightClass="min-h-[160px]"
+                    className="py-6"
+                  />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
                     {inspectedFilteredItems

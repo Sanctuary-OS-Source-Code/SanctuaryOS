@@ -86,12 +86,10 @@ export default function BlueprintSwapSidePanel({
         )}
 
         {!playSets || indexedPlaySets.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_scan_delete", "scan_delete")}
-              title={t("bp_no_blueprints_found", "No {Blueprints} Found")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_scan_delete", "scan_delete")}
+            title={t("bp_no_blueprints_found", "No {Blueprints} Found")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("bp_available_blueprints", "Available {Blueprints}")} (${indexedPlaySets.length})`}

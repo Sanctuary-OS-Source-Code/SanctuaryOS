@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, CustomDatePicker, ActionButton, ActionPill } from "./shared";
+import { ViewHeader, CustomDropdown, CustomDatePicker, ActionButton, ActionPill, EmptyState } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
@@ -369,9 +369,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                   />
 
                   {loading ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
+                    <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="animate-pulse" />
                   ) : filteredPosts.length === 0 ? (
-                    <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts", "No Community Posts Found")}</div>
+                    <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
                       {filteredPosts.map((p, index) => (
@@ -403,11 +403,11 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       ) : (
         <div className="flex-1 pr-4 pb-32">
           {loading ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("loading", "Loading")}</div>
+            <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="animate-pulse" />
           ) : activeTab === "FOLLOWING" && !userId ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("login_required", "Login Required To Reply")}</div>
+            <EmptyState icon={t("icon_lock", "lock")} title={t("login_required", "Login Required To Reply")} />
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-12 opacity-50 text-xs font-black capitalize tracking-widest">{t("no_posts", "No Community Posts Found")}</div>
+            <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
               {filteredPosts.map((p, index) => {

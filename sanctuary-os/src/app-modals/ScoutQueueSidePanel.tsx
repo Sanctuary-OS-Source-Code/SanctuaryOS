@@ -57,34 +57,30 @@ export function ScoutQueueSidePanel({
         />
 
         {!session || isBanned ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_block", "block")}
-              title={
-                isBanned
-                  ? t("alert_comm_banned", "Communications Restricted")
-                  : t("alert_guest_mode_uploads", "Authentication Required")
-              }
-              subtitle={
-                isBanned
-                  ? t(
-                      "alert_comm_banned_desc",
-                      "Your account is restricted from submitting Scout telemetry."
-                    )
-                  : t(
-                      "alert_guest_mode_desc",
-                      "Sign in to submit unverified artifacts to the Sanctuary Registry."
-                    )
-              }
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_block", "block")}
+            title={
+              isBanned
+                ? t("alert_comm_banned", "Communications Restricted")
+                : t("alert_guest_mode_uploads", "Authentication Required")
+            }
+            subtitle={
+              isBanned
+                ? t(
+                    "alert_comm_banned_desc",
+                    "Your account is restricted from submitting Scout telemetry."
+                  )
+                : t(
+                    "alert_guest_mode_desc",
+                    "Sign in to submit unverified artifacts to the Sanctuary Registry."
+                  )
+            }
+          />
         ) : queueItems.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_check_circle", "check_circle")}
-              title={t("queue_title", "Scout Queue Empty")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("queue_title", "Scout Queue Empty")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("queue_title", "Scout Verification Queue")} (${queueItems.length})`}

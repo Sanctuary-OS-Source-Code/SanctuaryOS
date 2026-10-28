@@ -362,10 +362,17 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                     iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem
+                    active={view === 'landing' && activeLandingSection === 'partners'}
+                    onClick={() => handleTabClick('partners')}
+                    icon={t("icon_handshake", "handshake")}
+                    label={t("landing_partners_tab", "Partner Spokes")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'legal'}
                     onClick={() => handleTabClick('legal')}
                     icon={t("icon_gavel", "gavel")}
-                    label={t("landing_eula", "System EULA")}
+                    label={t("landing_legal_tab", "Legal")}
                     iconColorClass="text-[var(--accent)]"
                   />
                   <MobileNavItem

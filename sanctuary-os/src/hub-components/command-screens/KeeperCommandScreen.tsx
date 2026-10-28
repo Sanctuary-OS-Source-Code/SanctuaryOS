@@ -146,13 +146,31 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
                         String(item.ticket_type || item.category || "").toLowerCase().includes("partner spoke") ||
                         Boolean(item.metadata?.partner_application) ||
                         String(item.title || "").toLowerCase().startsWith("[partner spoke]");
+                      const isKeeperApp =
+                        String(item.ticket_type || item.category || "").toLowerCase().includes("keeper application") ||
+                        Boolean(item.metadata?.keeper_application) ||
+                        String(item.title || "").toLowerCase().startsWith("[keeper application]");
                       return (
                       <UniversalCard 
                           key={`support-${item.id}`} 
                           layout="vertical" 
                           title={item.title || item.subject || t("support_tickets", "Support Tickets")} 
-                          icon={isPartnerApp ? t("icon_handshake", "handshake") : t("icon_local_activity", "local_activity")} 
-                          onClick={() => setTab(isPartnerApp ? "partner_apps" : "support")}
+                          icon={
+                            isPartnerApp
+                              ? t("icon_handshake", "handshake")
+                              : isKeeperApp
+                                ? t("icon_admin_panel_settings", "admin_panel_settings")
+                                : t("icon_local_activity", "local_activity")
+                          } 
+                          onClick={() =>
+                            setTab(
+                              isPartnerApp
+                                ? "partner_apps"
+                                : isKeeperApp
+                                  ? "keeper_apps"
+                                  : "support"
+                            )
+                          }
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">

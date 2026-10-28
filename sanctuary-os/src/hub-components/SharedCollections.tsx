@@ -608,12 +608,10 @@ export function MasonCollectionBuilder({
                 </div>
 
                 {members.length === 0 ? (
-                  <div className="glass-surface rounded-xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <EmptyState
-                      icon={t("icon_inventory_2", "inventory_2")}
-                      title={t("cc_no_assets_in_set", "No assets in collection")}
-                    />
-                  </div>
+                  <EmptyState
+                    icon={t("icon_inventory_2", "inventory_2")}
+                    title={t("cc_no_assets_in_set", "No assets in collection")}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 gap-2.5">
                     {members.map((mem) => (
@@ -1329,12 +1327,10 @@ export function CollectionForge({ setStatus }: any) {
                 </div>
 
                 {manifestMembers.length === 0 ? (
-                  <div className="glass-surface rounded-xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    <EmptyState
-                      icon={t("icon_inventory_2", "inventory_2")}
-                      title={t("no_mods_found", "No assets in collection")}
-                    />
-                  </div>
+                  <EmptyState
+                    icon={t("icon_inventory_2", "inventory_2")}
+                    title={t("no_mods_found", "No assets in collection")}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 gap-2.5">
                     {manifestMembers.map((member) => (

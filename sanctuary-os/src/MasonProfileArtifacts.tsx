@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName } from './shared';
+import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, EmptyState } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
 import { useStore } from './store';
@@ -11,7 +11,9 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
 
   return (
     <>
-      {filteredMods.length === 0 && <div className="text-[10px] text-[var(--subtext)] opacity-60 font-bold capitalize tracking-widest text-center mt-10">{t("no_mods", "No {mods} deployed.")}</div>}
+      {filteredMods.length === 0 && (
+        <EmptyState icon={t("icon_deployed_code", "deployed_code")} title={t("no_mods", "No {mods} deployed.")} minHeightClass="min-h-[300px]" />
+      )}
       <div className="grid grid-flow-row-dense grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
         {filteredMods.map((mod: any, index: number) => {
           const mainKey = mod.id || mod.hash || mod.name || String(index);

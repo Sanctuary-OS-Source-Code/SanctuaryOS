@@ -152,12 +152,10 @@ export default function UndoWinnersPanel({
             </span>
           </div>
         ) : overrides.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_check_circle", "check_circle")}
-              title={t("no_overrides", "No Active Overrides")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("no_overrides", "No Active Overrides")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("winner", "WINNING {MOD}")} (${overrides.length})`}

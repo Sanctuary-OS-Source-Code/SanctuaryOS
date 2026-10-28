@@ -302,6 +302,19 @@ export function Sidebar({
                 setHoveredTooltip={setHoveredTooltip}
               />
               <NavButton
+                active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'partners'}
+                onClick={() => {
+                  setActiveLandingSection('partners');
+                  setView("landing");
+                  scrollToLandingSection('partners');
+                }}
+                icon={t("icon_handshake", "handshake")}
+                label={t("landing_partners_tab", "Partner Spokes")}
+                isCollapsed={isSidebarCollapsed}
+                isAccent={true}
+                setHoveredTooltip={setHoveredTooltip}
+              />
+              <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'legal'}
                 onClick={() => {
                   setActiveLandingSection('legal');
@@ -309,7 +322,7 @@ export function Sidebar({
                   scrollToLandingSection('legal');
                 }}
                 icon={t("icon_gavel", "gavel")}
-                label={t("landing_eula", "System EULA")}
+                label={t("landing_legal_tab", "Legal")}
                 isCollapsed={isSidebarCollapsed}
                 isAccent={true}
                 setHoveredTooltip={setHoveredTooltip}

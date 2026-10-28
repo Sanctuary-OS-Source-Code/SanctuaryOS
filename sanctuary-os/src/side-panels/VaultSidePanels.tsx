@@ -13,6 +13,7 @@ import {
   DashboardStatTile,
   SidePanelHeroCard,
   UniversalGroup,
+  EmptyState,
 } from "../shared";
 import { useStore } from "../store";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -558,14 +559,10 @@ export function VaultLocalFolderEditorSidePanel({
         </UniversalGroup>
 
         {targetSet.items.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-2 text-[var(--subtext)] opacity-70">
-            <span className="material-symbols-outlined !text-[28px]">
-              {t("icon_inventory_2", "inventory_2")}
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest">
-              {t("empty_folder", "Folder is Empty")}
-            </span>
-          </div>
+          <EmptyState
+            icon={t("icon_inventory_2", "inventory_2")}
+            title={t("empty_folder", "Folder is Empty")}
+          />
         ) : targetSet.isCollection ? (
           <UniversalGroup
             title={`${t("collection_contents", "Collection Contents")} (${targetSet.items.length})`}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -1883,10 +1883,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </React.Fragment>
                       );
                     }) : (
-                      <div className="col-span-full glass-panel p-8 rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] border-dashed flex flex-col items-center justify-center gap-3 text-center opacity-70">
-                        <span className="material-symbols-outlined !text-6xl theme-text-accent mb-4 opacity-50">{t("icon_history", "history")}</span>
-                        <span className="text-xl">{t("no_recent_activity", "No Recent Activity")}</span>
-                      </div>
+                      <EmptyState
+                        icon={t("icon_history", "history")}
+                        title={t("no_recent_activity", "No Recent Activity")}
+                        className="col-span-full"
+                      />
                     )}
                   </div>
                 </div>
@@ -2328,13 +2329,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   })}
                 </>
               ) : (
-                <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{t("icon_hub", "hub")}</span>
-                  </div>
-                  <p className="font-black capitalize tracking-widest text-xl mb-2">{t("empty_title", "No new {mods} detected.")}</p>
-                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}</p>
-                </div>
+                <EmptyState
+                  icon={t("icon_hub", "hub")}
+                  title={t("empty_title", "No new {mods} detected.")}
+                  subtitle={t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}
+                  className="col-span-full py-16"
+                />
               )}
             </div>
 
@@ -2617,21 +2617,26 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   </div>
                 ))
               ) : (
-                <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center justify-center">
-                  <div className="w-24 h-24 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-2xl flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-50">{marketTab === 'BLUEPRINTS' ? (t("icon_map", "map")) : marketTab === 'TEMPLATES' ? "draw" : (t("icon_palette", "palette"))}</span>
-                  </div>
-                  <p className="font-black capitalize tracking-widest text-xl mb-2">
-                    {marketTab === 'CHAMELEONS'
-                      ? (t("empty_title_chameleons", "No {Chameleon} found."))
+                <EmptyState
+                  icon={
+                    marketTab === 'BLUEPRINTS'
+                      ? t("icon_map", "map")
                       : marketTab === 'TEMPLATES'
-                        ? (t("empty_title_templates", "No Templates Found"))
+                        ? t("icon_draw", "draw")
+                        : t("icon_palette", "palette")
+                  }
+                  title={
+                    marketTab === 'CHAMELEONS'
+                      ? t("empty_title_chameleons", "No {Chameleon} found.")
+                      : marketTab === 'TEMPLATES'
+                        ? t("empty_title_templates", "No Templates Found")
                         : marketTab === 'BLUEPRINTS'
-                          ? (t("bp_no_blueprints_found", "No {Blueprints} Found"))
-                          : (t("empty_title_lexicons", "No {Lexicons} found."))}
-                  </p>
-                  <p className="text-[10px] text-[var(--subtext)] opacity-60 mt-2">{t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}</p>
-                </div>
+                          ? t("bp_no_blueprints_found", "No {Blueprints} Found")
+                          : t("empty_title_lexicons", "No {Lexicons} found.")
+                  }
+                  subtitle={t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}
+                  className="col-span-full py-16"
+                />
               )}
             </div>
 

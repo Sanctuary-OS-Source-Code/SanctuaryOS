@@ -24,6 +24,7 @@ import { UniversalCard } from "./components/universal/UniversalCard";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { useStore } from "./store";
 import { logArchitectAction } from "./lib/audit";
+import TicketDossierSidePanel from "./side-panels/TicketDossierSidePanel";
 
 export const ROLES = ["citizen", "mason", "architect", "oversight", "wayfinder"];
 
@@ -916,6 +917,8 @@ export function IdentityMatrix({
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
   const [selectedMason, setSelectedMason] = useState<any | null>(null);
   const [isCreatingMason, setIsCreatingMason] = useState(false);
+  const [keeperApps, setKeeperApps] = useState<any[]>([]);
+  const [selectedKeeperApp, setSelectedKeeperApp] = useState<any | null>(null);
 
   useEffect(() => {
     if (initialFilterRole && initialFilterRole !== "all") {
@@ -928,10 +931,16 @@ export function IdentityMatrix({
     const { getActiveGameClient } = await import("./supabase");
     const client = isKeepers ? supabaseAuth : getActiveGameClient() || supabase;
 
-    const [profRes, masonRes] = await Promise.all([
+    const [profRes, masonRes, appsRes] = await Promise.all([
       client.from("profiles").select("*").order("username"),
       !isKeepers
         ? client.from("masons").select("*").order("name")
+        : Promise.resolve({ data: [] as any[] }),
+      isKeepers
+        ? supabaseAuth
+            .from("keeper_tickets")
+            .select("*")
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
@@ -952,6 +961,15 @@ export function IdentityMatrix({
     }
     if (masonRes.data) {
       setMasons(masonRes.data);
+    }
+    if (appsRes.data) {
+      const kApps = appsRes.data.filter(
+        (tk: any) =>
+          tk.ticket_type === "Keeper Application" ||
+          Boolean(tk.metadata?.keeper_application) ||
+          String(tk.title || "").toLowerCase().startsWith("[keeper application]")
+      );
+      setKeeperApps(kApps);
     }
     setLoading(false);
   };
@@ -1072,7 +1090,9 @@ export function IdentityMatrix({
           id: "overview",
           label: t("overview", "Overview"),
           icon: t("icon_dashboard", "dashboard"),
-          number: String(profiles.length + blacklistedProfiles.length),
+          number: String(
+            profiles.length + blacklistedProfiles.length + keeperApps.length
+          ),
         },
         {
           id: "citizen",
@@ -1087,6 +1107,12 @@ export function IdentityMatrix({
           label: t("role_keeper", "KEEPER"),
           icon: t("icon_admin_panel_settings", "admin_panel_settings"),
           number: String(profiles.filter((p) => p.role === "keeper").length),
+        },
+        {
+          id: "keeper_apps",
+          label: t("keepers_tab_keeper_apps", "Keeper Applications"),
+          icon: t("icon_verified_user", "verified_user"),
+          number: String(keeperApps.length),
         },
       ]
     : [
@@ -1365,10 +1391,172 @@ export function IdentityMatrix({
     );
   };
 
+  const handleApproveKeeperApp = async (app: any) => {
+    const meta = app.metadata?.keeper_application || {};
+    const handleClean = String(meta.applicant_handle || "")
+      .replace(/^@/, "")
+      .trim()
+      .toLowerCase();
+    const contactClean = String(meta.applicant_contact || "")
+      .trim()
+      .toLowerCase();
+
+    const matchedProfile = profileLookup.find(
+      (p: any) =>
+        (app.author_id && p.id === app.author_id) ||
+        (meta.user_id && p.id === meta.user_id) ||
+        (handleClean && String(p.username || "").toLowerCase() === handleClean) ||
+        (contactClean && String(p.email || "").toLowerCase() === contactClean)
+    );
+
+    if (matchedProfile) {
+      await supabaseAuth
+        .from("profiles")
+        .update({ role: "keeper" })
+        .eq("id", matchedProfile.id);
+
+      logArchitectAction(
+        `Promoted Identity to Keeper from Application`,
+        "profiles",
+        matchedProfile.username || matchedProfile.id,
+        undefined,
+        "Keeper Hub",
+        true,
+        {
+          role: { from: matchedProfile.role || "citizen", to: "keeper" },
+        }
+      );
+    }
+
+    const nextMeta = {
+      ...(app.metadata || {}),
+      resolution_reason: "Approved & Promoted to Keeper",
+    };
+
+    const { error } = await supabaseAuth
+      .from("keeper_tickets")
+      .update({ status: "RESOLVED", metadata: nextMeta })
+      .eq("id", app.id);
+
+    if (!error) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "keepers_approved_keeper_toast",
+            "Application approved and identity promoted to Keeper!"
+          ),
+          "success"
+        );
+      fetchData();
+    }
+  };
+
+  const renderKeeperAppCard = (app: any) => {
+    const meta = app.metadata?.keeper_application || {};
+    const statusUpper = String(app.status || "NEW").toUpperCase();
+    const isResolved = statusUpper === "RESOLVED";
+
+    return (
+      <UniversalCard
+        key={`keeper-app-${app.id}`}
+        layout="vertical"
+        onClick={() => setSelectedKeeperApp(app)}
+        icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+        title={
+          meta.applicant_handle ||
+          app.title ||
+          t("keepers_tab_keeper_apps", "Keeper Applications")
+        }
+        subtitle={
+          meta.applicant_contact ||
+          new Date(app.created_at).toLocaleDateString()
+        }
+        badges={
+          <>
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  isResolved ? "text-[var(--success)]" : "text-[var(--accent)]"
+                }`}
+              >
+                {isResolved
+                  ? t("icon_check_circle", "check_circle")
+                  : t("icon_schedule", "schedule")}
+              </span>
+              <span>{statusUpper}</span>
+            </div>
+            {meta.clearance_focus && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_shield_lock", "shield_lock")}
+                </span>
+                <span>{meta.clearance_focus}</span>
+              </div>
+            )}
+            {meta.availability && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                  {t("icon_schedule", "schedule")}
+                </span>
+                <span>{meta.availability}</span>
+              </div>
+            )}
+          </>
+        }
+        actions={
+          !isResolved ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleApproveKeeperApp(app);
+              }}
+              className="h-8 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[13px]">
+                {t("icon_verified_user", "verified_user")}
+              </span>
+              <span>
+                {t("keepers_approve_keeper_app", "Approve & Grant Keeper")}
+              </span>
+            </button>
+          ) : undefined
+        }
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 truncate">
+              {new Date(app.created_at).toLocaleDateString()}
+            </span>
+            <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1 shrink-0">
+              {t("dossier_subtitle", "Ticket Dossier")} &rarr;
+            </span>
+          </div>
+        }
+      >
+        <p className="text-[11px] text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1">
+          {meta.experience_summary || app.description}
+        </p>
+      </UniversalCard>
+    );
+  };
+
   const renderLanding = () => {
     if (isKeepers) {
       return (
         <HubOverviewLanding>
+          <HubOverviewSection
+            icon={t("icon_verified_user", "verified_user")}
+            iconColorClass="text-[var(--accent)]"
+            title={t("keepers_tab_keeper_apps", "Keeper Applications")}
+            badgeCount={keeperApps.length}
+            isEmpty={keeperApps.length === 0}
+            emptyIcon={t("icon_verified_user", "verified_user")}
+            emptyTitle={t("keepers_no_keeper_apps", "No Keeper Applications Yet")}
+          >
+            {keeperApps.slice(0, 6).map((app: any) => renderKeeperAppCard(app))}
+          </HubOverviewSection>
+
           <HubOverviewSection
             icon={t("icon_group", "group")}
             iconColorClass="text-[var(--accent)]"
@@ -1533,6 +1721,37 @@ export function IdentityMatrix({
 
   const renderTabBody = () => {
     if (isKeepers) {
+      if (activeTab === "keeper_apps") {
+        const q = search.trim().toLowerCase();
+        const filteredApps = keeperApps.filter((app: any) => {
+          if (!q) return true;
+          const meta = app.metadata?.keeper_application || {};
+          return (
+            app.title?.toLowerCase().includes(q) ||
+            app.description?.toLowerCase().includes(q) ||
+            meta.applicant_handle?.toLowerCase().includes(q) ||
+            meta.applicant_contact?.toLowerCase().includes(q) ||
+            meta.clearance_focus?.toLowerCase().includes(q)
+          );
+        });
+        return (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-16">
+            {filteredApps.length === 0 ? (
+              <EmptyState
+                icon={t("icon_verified_user", "verified_user")}
+                title={t(
+                  "keepers_no_keeper_apps",
+                  "No Keeper Applications Yet"
+                )}
+                className="col-span-full py-16"
+              />
+            ) : (
+              filteredApps.map((app: any) => renderKeeperAppCard(app))
+            )}
+          </div>
+        );
+      }
+
       const keepersFiltered = allSpokeProfiles.filter((p: any) => {
         const matchesTab =
           activeTab === "overview" ||
@@ -1669,6 +1888,44 @@ export function IdentityMatrix({
         isWayfinder={isWayfinder}
         isKeepers={isKeepers}
       />
+
+      {isKeepers && (
+        <TicketDossierSidePanel
+          isOpen={!!selectedKeeperApp}
+          onClose={() => setSelectedKeeperApp(null)}
+          ticket={selectedKeeperApp}
+          tableName="keeper_tickets"
+          isReadOnly={false}
+          canReply={true}
+          availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
+          onTakeAction={async (actionType, reason) => {
+            if (!selectedKeeperApp) return;
+            if (actionType === "RESOLVED") {
+              await handleApproveKeeperApp(selectedKeeperApp);
+              setSelectedKeeperApp(null);
+              return;
+            }
+            const nextMeta = {
+              ...(selectedKeeperApp.metadata || {}),
+              resolution_reason: reason,
+            };
+            const { error } = await supabaseAuth
+              .from("keeper_tickets")
+              .update({ status: actionType, metadata: nextMeta })
+              .eq("id", selectedKeeperApp.id);
+            if (!error) {
+              useStore
+                .getState()
+                .pushStatus(t("alert_saved", "Saved"), "success");
+              setSelectedKeeperApp(null);
+              fetchData();
+            }
+          }}
+          onReplyAdded={() => {
+            fetchData();
+          }}
+        />
+      )}
     </ElevatedHubLayout>
   );
 }

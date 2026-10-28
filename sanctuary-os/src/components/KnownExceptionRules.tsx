@@ -10,6 +10,7 @@ import {
   CustomDropdown,
   PanelHeaderGroup,
   PanelHeaderButton,
+  EmptyState,
 } from "../shared";
 import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
@@ -1316,20 +1317,14 @@ export function KnownErrorRulesManager({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="glass-surface rounded-2xl p-10 border border-[rgba(var(--text-rgb),0.1)] flex flex-col items-center justify-center text-center gap-3">
-          <span className="material-symbols-outlined !text-[42px] text-[var(--subtext)] opacity-60">
-            {t("icon_psychology", "psychology")}
-          </span>
-          <span className="text-sm font-black uppercase tracking-wider text-[var(--text)]">
-            {t("exc_rules_empty_title", "No Known Error Rules Configured")}
-          </span>
-          <p className="text-xs font-bold text-[var(--subtext)] max-w-lg leading-relaxed">
-            {t(
-              "exc_rules_empty_desc",
-              "Add rules for common exception log patterns so citizens and creators see plain-language community diagnoses instead of raw stack traces."
-            )}
-          </p>
-        </div>
+        <EmptyState
+          icon={t("icon_psychology", "psychology")}
+          title={t("exc_rules_empty_title", "No Known Error Rules Configured")}
+          subtitle={t(
+            "exc_rules_empty_desc",
+            "Add rules for common exception log patterns so citizens and creators see plain-language community diagnoses instead of raw stack traces."
+          )}
+        />
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
           {filtered.map((rule) => {

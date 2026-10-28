@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown, ActionPill } from '../shared';
+import { CustomDropdown, ActionPill, EmptyState } from '../shared';
 import IconPicker from '../IconPicker';
 import { humanizeConfigLabel } from './WorkbenchVisualEditor';
 
@@ -1143,12 +1143,10 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
 
          {/* 3. Settings Cards List */}
          {filteredIndexedSettings.length === 0 ? (
-            <div className="glass-panel rounded-2xl p-10 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col items-center justify-center text-center gap-3 opacity-70">
-               <span className="material-symbols-outlined !text-4xl text-[var(--subtext)]">{t("icon_tune", "tune")}</span>
-               <p className="text-[11px] font-bold text-[var(--subtext)] max-w-md leading-relaxed">
-                  {t("workbench_empty_builder", "No settings in this template yet. Add a setting above or Auto-Map from a target config file.")}
-               </p>
-            </div>
+            <EmptyState
+               icon={t("icon_tune", "tune")}
+               title={t("workbench_empty_builder", "No settings in this template yet. Add a setting above or Auto-Map from a target config file.")}
+            />
          ) : (
             <div className="flex flex-col gap-2">
                {displayedSettings.map(({ setting, idx }) =>

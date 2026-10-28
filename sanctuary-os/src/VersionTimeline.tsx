@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core';
 import { DiffEditor } from '@monaco-editor/react';
 import { useLexicon } from './LexiconContext';
-import { SidePanel, SidePanelHeroCard, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from './shared';
+import { SidePanel, SidePanelHeroCard, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
 import { useTheme } from './ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from './utils/monacoTheme';
 import { parseConfigContent } from './workbench/hooks/useWorkbenchEditor';
@@ -701,21 +701,21 @@ export default function VersionTimeline({
             )}
 
             {!loading && history.length === 0 && (
-              <div className="shrink-0 flex flex-col items-center justify-center h-36 opacity-40 gap-3 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] p-4">
-                <span className="material-symbols-outlined">{t('icon_history_toggle_off', 'history_toggle_off')}</span>
-                <div className="text-[10px] capitalize font-black tracking-widest max-w-[200px] text-center">
-                  {t('timeline_empty', 'No saved snapshots yet')}
-                </div>
-              </div>
+              <EmptyState
+                icon={t('icon_history_toggle_off', 'history_toggle_off')}
+                title={t('timeline_empty', 'No saved snapshots yet')}
+                minHeightClass="min-h-[160px]"
+                className="py-6"
+              />
             )}
 
             {!loading && history.length > 0 && filteredHistory.length === 0 && (
-              <div className="shrink-0 flex flex-col items-center justify-center h-36 opacity-40 gap-3">
-                <span className="material-symbols-outlined">{t('icon_search_off', 'search_off')}</span>
-                <div className="text-[10px] capitalize font-black tracking-widest max-w-[200px] text-center">
-                  {t('search_empty', 'No matching snapshots')}
-                </div>
-              </div>
+              <EmptyState
+                icon={t('icon_search_off', 'search_off')}
+                title={t('search_empty', 'No matching snapshots')}
+                minHeightClass="min-h-[160px]"
+                className="py-6"
+              />
             )}
 
             {!loading &&
@@ -997,19 +997,11 @@ export default function VersionTimeline({
           {diffViewMode === 'visual' && (
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-2.5 min-h-0 pb-6">
               {filteredDiffItems.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 p-8 opacity-60 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <span className="material-symbols-outlined !text-4xl text-[var(--text)] opacity-80">
-                    {t('icon_check_circle', 'check_circle')}
-                  </span>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black tracking-wide text-[var(--text)]">
-                      {t('diff_no_changes_title', 'No Differences Detected')}
-                    </span>
-                    <span className="text-[11px] text-[var(--subtext)] max-w-[360px]">
-                      {t('diff_no_changes_desc', 'The selected version is identical to your current editor content.')}
-                    </span>
-                  </div>
-                </div>
+                <EmptyState
+                  icon={t('icon_check_circle', 'check_circle')}
+                  title={t('diff_no_changes_title', 'No Differences Detected')}
+                  subtitle={t('diff_no_changes_desc', 'The selected version is identical to your current editor content.')}
+                />
               ) : (
                 <>
                   {visibleDiffItems.map((item) => {

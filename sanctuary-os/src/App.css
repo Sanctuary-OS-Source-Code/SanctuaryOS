@@ -816,7 +816,9 @@ nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix),
 .sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
 .glass-panel .glass-surface:not(.portal-glass-fix),
-.glass-surface .glass-surface:not(.portal-glass-fix) {
+.glass-surface .glass-surface:not(.portal-glass-fix),
+.glass-panel .sa-empty-state-card:not(.portal-glass-fix),
+.glass-surface .sa-empty-state-card:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.035)) !important;

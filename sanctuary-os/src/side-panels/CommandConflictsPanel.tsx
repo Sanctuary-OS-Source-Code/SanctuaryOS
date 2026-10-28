@@ -248,12 +248,10 @@ export default function CommandConflictsPanel({
         )}
 
         {filteredConflicts.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_security", "security")}
-              title={t("bp_no_conflicts_detected", "No Conflicts Detected")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_security", "security")}
+            title={t("bp_no_conflicts_detected", "No Conflicts Detected")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("bp_load_order_conflicts", "Conflicts Detected")} (${filteredConflicts.length})`}

@@ -1152,12 +1152,10 @@ export default function MasonPostViewer({
                       {t("loading_replies", "Loading replies...")}
                     </div>
                   ) : visibleCommentCount === 0 ? (
-                    <div className="glass-surface rounded-xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <EmptyState
-                        icon={t("icon_forum", "forum")}
-                        title={t("no_replies", "No Replies Yet")}
-                      />
-                    </div>
+                    <EmptyState
+                      icon={t("icon_forum", "forum")}
+                      title={t("no_replies", "No Replies Yet")}
+                    />
                   ) : (
                     buildCommentTree(comments).map((c) => renderCommentNode(c))
                   )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, SidePanelHeroCard, UniversalGroup, ActionPill, PanelHeaderGroup, PanelHeaderButton } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidePanel, SidePanelHeroCard, UniversalGroup, ActionPill, PanelHeaderGroup, PanelHeaderButton, EmptyState } from './shared';
 import { WorkbenchFileGrid } from './workbench/WorkbenchFileGrid';
 import { WorkbenchSidePanel } from './workbench/WorkbenchSidePanel';
 import { PushTemplateSidePanel } from './side-panels/PushTemplateSidePanel';
@@ -200,13 +200,12 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
                               if (recentActivityFiles.length === 0) {
                                  return (
-                                    <div className="flex flex-col items-center justify-center text-center gap-4 opacity-50 min-h-[300px]">
-                                       <span className="material-symbols-outlined !text-5xl opacity-50">{t("icon_history", "history")}</span>
-                                       <div>
-                                          <p className="font-bold text-sm tracking-widest capitalize">{t("no_recent_activity", "No Recent Activity")}</p>
-                                          <p className="text-[10px] opacity-70">{t("unsaved_desc", "Files with unsaved edits will appear here.")}</p>
-                                       </div>
-                                    </div>
+                                    <EmptyState
+                                       icon={t("icon_history", "history")}
+                                       title={t("no_recent_activity", "No Recent Activity")}
+                                       subtitle={t("unsaved_desc", "Files with unsaved edits will appear here.")}
+                                       minHeightClass="min-h-[260px]"
+                                    />
                                  );
                               }
 

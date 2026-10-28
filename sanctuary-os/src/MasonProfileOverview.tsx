@@ -1,4 +1,4 @@
-import { getModIcon, stripMarkdown } from './shared';
+import { getModIcon, stripMarkdown, EmptyState } from './shared';
 import MasonPostCard from './MasonPostCard';
 import { UniversalCard } from './components/universal/UniversalCard';
 import {
@@ -311,6 +311,9 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
                 })()}
               </div>
             )}
+            {mods.length === 0 && blueprintAssets.length === 0 && nonBlueprintAssets.length === 0 && (
+              <EmptyState icon={t("icon_inventory_2", "inventory_2")} title={t("no_artifacts", "Creator No {Mods}")} />
+            )}
           </div>
         </div>
 
@@ -324,7 +327,7 @@ export default function MasonProfileOverview({ posts, mods, marketAssets, mason,
           </h2>
           <div className="w-full">
             {posts.length === 0 ? (
-              <div className="text-center py-16 opacity-50 text-xs font-black capitalize tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-3xl">{t("profile_no_posts", "No {dispatches} found.")}</div>
+              <EmptyState icon={t("icon_satellite_alt", "satellite_alt")} title={t("profile_no_posts", "No {dispatches} found.")} />
             ) : (
               <div className="flex flex-col gap-6">
                 {posts.map((p: any, index: number) => (

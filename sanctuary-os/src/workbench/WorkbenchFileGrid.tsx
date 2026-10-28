@@ -1,6 +1,7 @@
 import React from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 
@@ -250,28 +251,28 @@ export const WorkbenchFileGrid = React.memo(
 
     if (filteredMainFiles.length === 0) {
       return (
-        <div className="w-full p-12 flex flex-col items-center justify-center gap-4">
-          <span className="material-symbols-outlined text-[var(--subtext)] !text-4xl opacity-50">
-            {mainTab === "CONFIGS"
+        <EmptyState
+          icon={
+            mainTab === "CONFIGS"
               ? t("icon_search_off", "search_off")
-              : t("icon_data_object", "data_object")}
-          </span>
-          <span className="text-[11px] font-black capitalize tracking-widest text-[var(--text)] opacity-50">
-            {t("workbench_no_files_found", "No Files Found")}
-          </span>
-          {mainTab === "TEMPLATES" && onNewTemplate && (
-            <button
-              type="button"
-              onClick={onNewTemplate}
-              className="mt-2 h-11 px-5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] font-black capitalize tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[18px]">
-                {t("icon_add", "add")}
-              </span>
-              {t("btn_new_template", "New Template")}
-            </button>
-          )}
-        </div>
+              : t("icon_data_object", "data_object")
+          }
+          title={t("workbench_no_files_found", "No Files Found")}
+          action={
+            mainTab === "TEMPLATES" && onNewTemplate ? (
+              <button
+                type="button"
+                onClick={onNewTemplate}
+                className="h-11 px-5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] font-black capitalize tracking-widest text-[11px] flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[18px]">
+                  {t("icon_add", "add")}
+                </span>
+                {t("btn_new_template", "New Template")}
+              </button>
+            ) : undefined
+          }
+        />
       );
     }
 

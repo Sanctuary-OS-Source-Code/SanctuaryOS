@@ -502,12 +502,10 @@ export function UpdatesSidePanel({
             </div>
           </UniversalGroup>
         ) : (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_check_circle", "check_circle")}
-              title={t("no_updates", "All Mods Up to Date")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("no_updates", "All Mods Up to Date")}
+          />
         )}
       </div>
     </SidePanel>

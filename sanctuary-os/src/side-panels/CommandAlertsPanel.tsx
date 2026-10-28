@@ -424,12 +424,10 @@ export default function CommandAlertsPanel({
 
         {/* Incompatible Mods Section */}
         {filteredGroupedBrokenMods.length === 0 && filteredConflicts.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_check_circle", "check_circle")}
-              title={t("bp_no_broken_mods_detected", "All active {mods} passed compliance checks.")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("bp_no_broken_mods_detected", "All active {mods} passed compliance checks.")}
+          />
         ) : filteredGroupedBrokenMods.length > 0 ? (
           <UniversalGroup
             title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}

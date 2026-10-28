@@ -578,7 +578,7 @@ export function EmptyState({
   title,
   subtitle,
   action,
-  minHeightClass = "min-h-[200px]",
+  minHeightClass = "min-h-[220px]",
   className = "",
 }: {
   icon: string;
@@ -588,28 +588,44 @@ export function EmptyState({
   minHeightClass?: string;
   className?: string;
 }) {
+  const { t } = useLexicon();
+  const rawIcon = (icon || "inbox").trim();
+  const resolvedIcon = rawIcon.startsWith("icon_")
+    ? t(rawIcon, rawIcon.replace(/^icon_/, ""))
+    : t(`icon_${rawIcon}`, rawIcon);
+
   return (
     <div
-      className={`text-center py-10 px-4 flex flex-col items-center justify-center gap-4 ${minHeightClass} w-full ${className}`}
+      className={`glass-panel sa-empty-state-card rounded-3xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-center py-12 px-6 sm:px-10 flex flex-col items-center justify-center gap-4 ${minHeightClass} col-span-full w-full relative overflow-hidden ${className}`}
     >
-      <span className="material-symbols-outlined !text-[48px] text-[var(--text)] opacity-30 drop-shadow-md mb-2">
-        {icon}
-      </span>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_srgb,var(--accent)_10%,transparent)_0%,transparent_70%)] opacity-80"
+      />
+      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0 relative z-10">
+        <span className="material-symbols-outlined !text-[26px]">
+          {resolvedIcon}
+        </span>
+      </div>
       {(title || subtitle) && (
-        <div className="flex flex-col gap-1.5 items-center text-center">
+        <div className="flex flex-col gap-1.5 items-center text-center max-w-md relative z-10">
           {title && (
-            <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--text)]">
-              {title}
+            <span className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] leading-snug whitespace-pre-line">
+              {normalizeAllCapsForThemeCase(title)}
             </span>
           )}
           {subtitle && (
-            <span className="text-[9px] font-bold text-[var(--subtext)] capitalize tracking-widest max-w-sm leading-relaxed opacity-60">
-              {subtitle}
+            <span className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed whitespace-pre-line">
+              {normalizeAllCapsForThemeCase(subtitle)}
             </span>
           )}
         </div>
       )}
-      {action && <div className="mt-3 flex justify-center">{action}</div>}
+      {action && (
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-3 relative z-10">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

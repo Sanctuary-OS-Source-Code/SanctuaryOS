@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
-import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext } from '../shared';
+import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 
@@ -299,9 +299,11 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                     </UniversalCard>
                 );
             }) : (
-                <div className="w-full lg:col-span-3 glass-panel rounded-2xl p-12 text-center text-[var(--subtext)] opacity-50 capitalize font-black text-sm tracking-widest border border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    {t("system_no_broadcasts", "No Recent Posts")}
-                </div>
+                <EmptyState
+                    icon={t("icon_satellite_alt", "satellite_alt")}
+                    title={t("system_no_broadcasts", "No Recent Posts")}
+                    className="w-full lg:col-span-3"
+                />
             )}
         </div>
     );

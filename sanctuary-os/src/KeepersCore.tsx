@@ -130,7 +130,15 @@ export default function KeepersCore() {
             }
           />
         )}
-        {activeTab === "identities" && <IdentityMatrix isWayfinder={false} isKeepers={true} />}
+        {(activeTab === "identities" || activeTab === "keeper_apps") && (
+          <IdentityMatrix
+            isWayfinder={false}
+            isKeepers={true}
+            initialFilterRole={
+              activeTab === "keeper_apps" ? "keeper_apps" : "overview"
+            }
+          />
+        )}
         {activeTab === "heuristics" && <KeepersHeuristicsOversight />}
         {(activeTab === "support" || activeTab === "support_settings") && (
           <KeepersSupportTickets initialTab={activeTab === "support_settings" ? "settings" : undefined} />

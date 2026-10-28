@@ -478,12 +478,10 @@ export default function BlueprintArchitect({
                 </div>
               </UniversalGroup>
             ) : (
-              <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <EmptyState
-                  icon={t("icon_check_circle", "check_circle")}
-                  title={t("no_updates", "All Mods Up to Date")}
-                />
-              </div>
+              <EmptyState
+                icon={t("icon_check_circle", "check_circle")}
+                title={t("no_updates", "All Mods Up to Date")}
+              />
             )}
           </>
         )}
@@ -518,15 +516,13 @@ export default function BlueprintArchitect({
             )}
 
             {filteredBrokenMods.length === 0 && filteredConflicts.length === 0 ? (
-              <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <EmptyState
-                  icon={t("icon_check_circle", "check_circle")}
-                  title={t(
-                    "bp_no_broken_mods_detected",
-                    "All active {mods} passed compliance checks."
-                  )}
-                />
-              </div>
+              <EmptyState
+                icon={t("icon_check_circle", "check_circle")}
+                title={t(
+                  "bp_no_broken_mods_detected",
+                  "All active {mods} passed compliance checks."
+                )}
+              />
             ) : filteredBrokenMods.length > 0 ? (
               <UniversalGroup
                 title={`${

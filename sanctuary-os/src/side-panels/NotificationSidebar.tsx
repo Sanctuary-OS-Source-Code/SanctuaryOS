@@ -543,12 +543,10 @@ export default function NotificationSidebar({
             </span>
           </div>
         ) : visibleNotifications.length === 0 ? (
-          <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            <EmptyState
-              icon={t("icon_notifications_off", "notifications_off")}
-              title={t("notif_empty", "No Notifications")}
-            />
-          </div>
+          <EmptyState
+            icon={t("icon_notifications_off", "notifications_off")}
+            title={t("notif_empty", "No Notifications")}
+          />
         ) : (
           <UniversalGroup
             title={`${t("tab_notifs", "Notifications")} (${visibleNotifications.length})`}
