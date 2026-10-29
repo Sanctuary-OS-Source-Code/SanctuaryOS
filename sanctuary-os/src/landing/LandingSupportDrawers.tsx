@@ -6,7 +6,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,
-  SidePanelTitleInput,
   CustomDropdown,
   EmptyState,
 } from '../shared';
@@ -896,9 +895,8 @@ export function LandingSupportDrawers({
                   </div>
                 )}
 
-                <SidePanelTitleInput
+                <UniversalInput
                   label={`${t('landing_feedback_form_title', 'Summary / Title')} *`}
-                  icon={t('icon_title', 'title')}
                   value={feedbackTitle}
                   onChange={setFeedbackTitle}
                   placeholder={t(
@@ -915,6 +913,7 @@ export function LandingSupportDrawers({
                     'landing_feedback_form_body_ph',
                     'Describe what you love, what should be improved, or steps to reproduce a core platform bug...'
                   )}
+                  className="min-h-[180px] sm:min-h-[200px]"
                 />
 
                 <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
@@ -1194,9 +1193,8 @@ export function LandingSupportDrawers({
                   </h3>
                 </div>
 
-                <SidePanelTitleInput
+                <UniversalInput
                   label={`${t('landing_contact_form_subject', 'Subject')} *`}
-                  icon={t('icon_subject', 'subject')}
                   value={contactSubject}
                   onChange={setContactSubject}
                   placeholder={t(
@@ -1213,6 +1211,7 @@ export function LandingSupportDrawers({
                     'landing_contact_form_body_ph',
                     'Provide full context for the Keepers team...'
                   )}
+                  className="min-h-[180px] sm:min-h-[200px]"
                 />
 
                 <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">

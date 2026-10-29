@@ -222,6 +222,16 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         />
       )}
 
+      {/* Transparent Safe-Area Edge-to-Edge Anchor for Mobile System Bars */}
+      <div
+        aria-hidden="true"
+        className="md:hidden fixed bottom-0 left-0 right-0 pointer-events-none z-0"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          backgroundColor: 'transparent',
+        }}
+      />
+
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
         className="md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[999999] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"

@@ -98,19 +98,34 @@ export function scrollToLandingSection(sectionId: string): void {
 
   setTimeout(() => {
     const scrollContainer = document.getElementById('sanctuary-main-scroll');
+    const isWindowScroll = typeof window !== 'undefined' && window.innerWidth < 768;
     if (subSectionTargets.includes(cleanId)) {
       const target = document.getElementById(cleanId);
-      if (target && scrollContainer) {
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const offset =
-          targetRect.top - containerRect.top + scrollContainer.scrollTop - 24;
-        scrollContainer.scrollTo({
-          top: Math.max(0, offset),
-          behavior: 'smooth',
-        });
-        return;
+      if (target) {
+        if (isWindowScroll) {
+          const targetRect = target.getBoundingClientRect();
+          const offset = targetRect.top + window.scrollY - 24;
+          window.scrollTo({
+            top: Math.max(0, offset),
+            behavior: 'smooth',
+          });
+          return;
+        }
+        if (scrollContainer) {
+          const containerRect = scrollContainer.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          const offset =
+            targetRect.top - containerRect.top + scrollContainer.scrollTop - 24;
+          scrollContainer.scrollTo({
+            top: Math.max(0, offset),
+            behavior: 'smooth',
+          });
+          return;
+        }
       }
+    }
+    if (isWindowScroll && typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     if (scrollContainer) {
       scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });

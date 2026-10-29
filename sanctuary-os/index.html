@@ -39,6 +39,16 @@
       background-color: transparent !important;
       color-scheme: dark;
     }
+    @media (max-width: 767px) {
+      html, body, #root {
+        height: auto !important;
+        min-height: 100dvh !important;
+        min-height: 100lvh !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        background-color: transparent !important;
+      }
+    }
   </style>
   <script>
     (function () {
@@ -99,9 +109,9 @@
           : ((resolved.panelTint && resolved.panelTint !== "#000000" && resolved.panelTint !== "transparent")
             ? resolved.panelTint
             : ((resolved.sidebar && resolved.sidebar !== "#000000" && resolved.sidebar !== "transparent") ? resolved.sidebar : "#040812"));
-        var bgColor = isPassthrough ? "transparent" : fallbackThemeColor;
+        var bgColor = (isPassthrough || (resolved.bgImage && !isNativeDesktop)) ? "transparent" : fallbackThemeColor;
         var root = document.documentElement;
-        root.style.setProperty("--bg", bgColor);
+        root.style.setProperty("--bg", fallbackThemeColor);
         root.style.backgroundColor = bgColor;
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) {

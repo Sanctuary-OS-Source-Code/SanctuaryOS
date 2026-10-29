@@ -183,7 +183,7 @@ export function LandingSupportSection({
               </div>
             }
           >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80">
               {t(
                 'landing_feedback_card_desc',
                 'Share positive or constructive feedback, Feature Requests, Public Build Feedback, or Beta Build Feedback across our Desktop App, Website, and Mobile PWA via our guided step-by-step ticket flow.'
@@ -230,7 +230,7 @@ export function LandingSupportSection({
               </div>
             }
           >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80">
               {t(
                 'landing_fb_bug_desc',
                 'Encountered a reproducible bug, UI glitch, or crash in Sanctuary OS? Open a direct diagnostic ticket routed straight to Keepers Core.'
@@ -377,7 +377,7 @@ export function LandingSupportSection({
               </div>
             }
           >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80">
               {t(
                 'landing_contact_card_desc',
                 'Need to reach Sanctuary Foundry for general inquiries, legal/DMCA compliance notices, privacy requests, or responsible security disclosures? Every message is read by a human Keeper.'
@@ -430,7 +430,7 @@ export function LandingSupportSection({
               </div>
             }
           >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80">
               {t(
                 'landing_keeper_apply_desc',
                 'Apply to join Sanctuary Foundry as a Keeper—building Sanctuary OS, authoring multi-game Master Schemas, analyzing malware heuristics, or handling direct human support in Keepers Core.'

@@ -452,7 +452,7 @@ export function LandingApplicationDrawers({
                         <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
                           {t('partner_agreement_title', 'Partners Agreement')}
                         </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 line-clamp-1">
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
                           {t(
                             'partner_agreement_desc',
                             'Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries.'
@@ -508,7 +508,7 @@ export function LandingApplicationDrawers({
                             'Compliance Protocol'
                           )}
                         </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 line-clamp-1">
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
                           {t(
                             'compliance_protocol_desc',
                             'Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards.'
@@ -806,6 +806,7 @@ export function LandingApplicationDrawers({
                       'landing_partner_vision_ph',
                       'Describe how mods are installed for this game, your existing community or tooling experience, and how your team plans to curate and verify {Mods}...'
                     )}
+                    className="min-h-[160px] sm:min-h-[180px]"
                   />
                 </div>
 
@@ -1290,7 +1291,7 @@ export function LandingApplicationDrawers({
                         >
                           {role.title}
                         </span>
-                        <p className="text-[10px] text-[var(--subtext)] opacity-80 leading-relaxed m-0 line-clamp-2">
+                        <p className="text-[10px] text-[var(--subtext)] opacity-80 leading-relaxed m-0">
                           {role.desc}
                         </p>
                       </button>
@@ -1313,29 +1314,29 @@ export function LandingApplicationDrawers({
                     value={keeperAvailability}
                     onChange={(v: string[]) =>
                       setKeeperAvailability(
-                        v[0] || 'Part-Time Specialist (5–15 hrs/wk)'
+                        v[0] || 'Part-Time (5–15 hrs/wk)'
                       )
                     }
                     options={[
                       {
-                        id: 'Core Team Contributor (15+ hrs/wk)',
+                        id: 'Core Team (15+ hrs/wk)',
                         label: t(
                           'landing_keeper_avail_core',
-                          'Core Team Contributor (15+ hrs/wk)'
+                          'Core Team (15+ hrs/wk)'
                         ),
                       },
                       {
-                        id: 'Part-Time Specialist (5–15 hrs/wk)',
+                        id: 'Part-Time (5–15 hrs/wk)',
                         label: t(
                           'landing_keeper_avail_part',
-                          'Part-Time Specialist (5–15 hrs/wk)'
+                          'Part-Time (5–15 hrs/wk)'
                         ),
                       },
                       {
-                        id: 'Advisory / On-Call Triage (2–5 hrs/wk)',
+                        id: 'Advisory / Triage (2–5 hrs/wk)',
                         label: t(
                           'landing_keeper_avail_advisory',
-                          'Advisory / On-Call Triage (2–5 hrs/wk)'
+                          'Advisory / Triage (2–5 hrs/wk)'
                         ),
                       },
                     ]}
@@ -1354,37 +1355,36 @@ export function LandingApplicationDrawers({
                     value={keeperExperienceLevel}
                     onChange={(v: string[]) =>
                       setKeeperExperienceLevel(
-                        v[0] ||
-                          'Mid-Level (2–5 Years Engineering / Security / Modding)'
+                        v[0] || 'Mid-Level (2–5 Years)'
                       )
                     }
                     options={[
                       {
-                        id: 'Senior / Lead (5+ Years Shipping Software or Tools)',
+                        id: 'Senior / Lead (5+ Years)',
                         label: t(
                           'landing_keeper_level_senior',
-                          'Senior / Lead (5+ Years Shipping Software or Tools)'
+                          'Senior / Lead (5+ Years)'
                         ),
                       },
                       {
-                        id: 'Mid-Level (2–5 Years Engineering / Security / Modding)',
+                        id: 'Mid-Level (2–5 Years)',
                         label: t(
                           'landing_keeper_level_mid',
-                          'Mid-Level (2–5 Years Engineering / Security / Modding)'
+                          'Mid-Level (2–5 Years)'
                         ),
                       },
                       {
-                        id: 'Independent Tool / Mod Creator (Shipped Projects)',
+                        id: 'Indie Tool / Mod Creator',
                         label: t(
                           'landing_keeper_level_indie',
-                          'Independent Tool / {Mod} Creator (Shipped Projects)'
+                          'Indie Tool / {Mod} Creator'
                         ),
                       },
                       {
-                        id: 'Support, QA & Community Operations Specialist',
+                        id: 'Support, QA & Operations',
                         label: t(
                           'landing_keeper_level_ops',
-                          'Support, QA & Community Operations Specialist'
+                          'Support, QA & Operations'
                         ),
                       },
                     ]}
@@ -1695,6 +1695,7 @@ export function LandingApplicationDrawers({
                       'landing_keeper_exp_ph',
                       'Share shipped projects, GitHub repos, reverse-engineering or modding tool work, support/triage experience, or systems you have built...'
                     )}
+                    className="min-h-[170px] sm:min-h-[190px]"
                   />
                 </div>
 

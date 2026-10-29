@@ -504,7 +504,13 @@ export function SystemBackground() {
     const findScrollClipParent = (el: HTMLElement): HTMLElement | null => {
       let cur = el.parentElement;
       while (cur && cur !== document.body && cur !== document.documentElement) {
-        if (cur.id === 'sanctuary-main-scroll') return cur;
+        if (cur.id === 'sanctuary-main-scroll') {
+          if (window.innerWidth < 768) {
+            cur = cur.parentElement;
+            continue;
+          }
+          return cur;
+        }
         const cls = cur.className;
         if (typeof cls === 'string' && (cls.includes('overflow-y-auto') || cls.includes('overflow-x-auto') || cls.includes('custom-scrollbar'))) {
           return cur;
@@ -1354,8 +1360,8 @@ export function SystemBackground() {
     <div
       className="fixed inset-0 pointer-events-none z-[0] overflow-hidden"
       style={{
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: isDesktop() ? '100%' : 'max(100%, 100dvh, 100lvh)',
         minHeight: '100lvh',
         backgroundColor: isTransparentPassthrough
           ? 'transparent'

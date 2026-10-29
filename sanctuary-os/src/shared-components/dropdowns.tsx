@@ -301,7 +301,7 @@ export function CustomDropdown({
                           {opt.icon}
                         </span>
                       )}
-                      <span className="flex-1 truncate">{opt.label}</span>
+                      <span className="flex-1 whitespace-normal break-words leading-snug">{opt.label}</span>
                       {isSelected && !multiSelect && (
                         <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
                           {t("icon_check", "check")}

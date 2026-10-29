@@ -5,15 +5,14 @@
   "description": "Decentralized Mod Management, Conflict Radar & Community Telemetry OS",
   "start_url": "/",
   "scope": "/",
-  "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone", "window-controls-overlay"],
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "scope_extensions": [
     { "origin": "https://sanctuaryos.net" },
     { "origin": "https://www.sanctuaryos.net" }
   ],
   "orientation": "any",
   "background_color": "#040812",
-  "theme_color": "#040812",
   "categories": ["games", "utilities", "productivity"],
   "icons": [
     {

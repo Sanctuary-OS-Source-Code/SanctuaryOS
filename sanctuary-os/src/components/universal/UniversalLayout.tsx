@@ -573,7 +573,7 @@ export function UniversalTextArea({
   return (
     <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
       {label && (
-        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+        <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
           {label}
         </label>
       )}
@@ -581,7 +581,7 @@ export function UniversalTextArea({
         {...rest}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all resize-y overflow-y-auto min-h-[88px] custom-scrollbar ${className}`}
+        className={`w-full glass-surface rounded-xl px-4 py-3.5 text-[var(--text)] text-xs sm:text-sm font-bold leading-relaxed border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all resize-y overflow-y-auto min-h-[150px] sm:min-h-[170px] custom-scrollbar ${className}`}
       />
     </div>
   );

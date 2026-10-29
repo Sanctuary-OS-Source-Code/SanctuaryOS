@@ -7,6 +7,9 @@
 }
 
 @theme {
+  --font-sans: var(--fontFamily, "Inter", sans-serif);
+  --font-mono: var(--fontFamily, "Inter", sans-serif);
+  --font-serif: var(--fontFamily, "Inter", sans-serif);
   --text-xs: var(--fontSizeSubtext, 0.75rem);
   --text-sm: var(--fontSizeText, 0.875rem);
   --text-base: var(--fontSizeText, 1rem);
@@ -22,6 +25,17 @@
   --radius-2xl: max(0px, var(--radius, 1.25rem));
   --radius-3xl: max(0px, calc(var(--radius, 1.25rem) * 1.25));
   --radius-4xl: max(0px, calc(var(--radius, 1.25rem) * 1.45));
+}
+
+body,
+button,
+input,
+textarea,
+select,
+.font-sans,
+.font-mono:not(.monaco-editor *),
+.font-serif {
+  font-family: var(--fontFamily, "Inter", sans-serif) !important;
 }
 
 .text-\[11px\] {
@@ -1363,7 +1377,7 @@ input[type="date"].custom-date-input {
 html {
   font-size: var(--fontSizeBase, 16px) !important;
   font-family: var(--fontFamily, 'Inter, sans-serif');
-  background-color: var(--bg, #040812) !important;
+  background-color: var(--bg, #040812);
   background-image: var(--boot-bg-image, none);
   background-size: cover;
   background-position: center;
@@ -1374,6 +1388,19 @@ html {
 body {
   font-family: var(--fontFamily, 'Inter, sans-serif');
   background-color: transparent !important;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100dvh !important;
+    min-height: 100lvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    background-color: transparent !important;
+  }
 }
 
 .material-symbols-outlined {

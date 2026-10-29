@@ -478,7 +478,7 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
           : '#040812';
   const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
   root.style.setProperty('--bg', safeBg);
-  root.style.backgroundColor = safeBg;
+  root.style.backgroundColor = (themeObj.bgImage && !isDesktop()) ? 'transparent' : safeBg;
   const bootBgImg = themeObj.bgImage ? `url("${themeObj.bgImage}")` : 'none';
   root.style.setProperty('--boot-bg-image', bootBgImg);
   root.style.backgroundImage = bootBgImg;

@@ -3370,12 +3370,12 @@ function App() {
 
   return (
     <div
-      className={`flex flex-col ${isDesktop() ? 'h-screen w-screen' : 'h-full min-h-[100lvh] w-full'} overflow-hidden relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
+      className={`flex flex-col ${isDesktop() ? 'h-screen w-screen overflow-hidden' : 'h-full min-h-[100lvh] w-full overflow-hidden max-md:h-auto max-md:min-h-[100dvh] max-md:overflow-visible'} relative ${currentTheme?.animated !== false ? 'animated-fluid-bg' : ''}`}
       style={{ color: "var(--text)" } as React.CSSProperties}
     >
       <SystemBackground />
 
-      <div id="sanctuary-os-shell" className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6 max-md:p-0 max-md:gap-0">
+      <div id="sanctuary-os-shell" className="relative z-10 flex flex-col h-full w-full overflow-hidden py-6 pl-6 pr-0 gap-6 max-md:h-auto max-md:min-h-[100dvh] max-md:overflow-visible max-md:p-0 max-md:gap-0">
         {!(!isDesktop() && isRootDomain()) && (
           <TitleBar
             isSidebarCollapsed={isSidebarCollapsed}
@@ -3384,7 +3384,7 @@ function App() {
           />
         )}
 
-        <div className="flex-1 flex flex-row min-h-0 relative gap-6 max-md:gap-0">
+        <div className="flex-1 flex flex-row min-h-0 relative gap-6 max-md:gap-0 max-md:overflow-visible">
           <Sidebar
             isSidebarCollapsed={isSidebarCollapsed}
             setIsSidebarCollapsed={setIsSidebarCollapsed}
@@ -3394,7 +3394,7 @@ function App() {
             unreadNotificationCount={unreadNotificationCount}
             handleQuickLaunch={handleQuickLaunch}
           />
-          <main id="sanctuary-main-scroll" className={`flex-1 relative overflow-y-auto overflow-x-hidden px-6 pb-4 pt-[70px] max-md:px-4 ${!isDesktop() && isRootDomain() ? 'max-md:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]' : 'max-md:pt-[calc(env(safe-area-inset-top,0px)+4.25rem)]'} max-md:pb-[calc(env(safe-area-inset-bottom,0px)+100px)] custom-scrollbar`} style={{ flexGrow: 1, width: '100%' }}>
+          <main id="sanctuary-main-scroll" className={`flex-1 relative overflow-y-auto overflow-x-hidden max-md:overflow-visible px-6 pb-4 pt-[70px] max-md:px-4 ${!isDesktop() && isRootDomain() ? 'max-md:pt-[calc(env(safe-area-inset-top,0px)+1.25rem)]' : 'max-md:pt-[calc(env(safe-area-inset-top,0px)+4.25rem)]'} max-md:pb-[calc(env(safe-area-inset-bottom,0px)+100px)] custom-scrollbar`} style={{ flexGrow: 1, width: '100%' }}>
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
                 <>

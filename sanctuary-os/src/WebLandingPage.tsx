@@ -185,10 +185,10 @@ export default function WebLandingPage() {
   const [keeperContact, setKeeperContact] = useState('');
   const [keeperPortfolio, setKeeperPortfolio] = useState('');
   const [keeperAvailability, setKeeperAvailability] = useState(
-    'Part-Time Specialist (5–15 hrs/wk)'
+    'Part-Time (5–15 hrs/wk)'
   );
   const [keeperExperienceLevel, setKeeperExperienceLevel] = useState(
-    'Mid-Level (2–5 Years Engineering / Security / Modding)'
+    'Mid-Level (2–5 Years)'
   );
   const [keeperTimezone, setKeeperTimezone] = useState(
     'Americas (UTC-8 to UTC-3)'
@@ -643,10 +643,8 @@ export default function WebLandingPage() {
     );
     setKeeperContact(session?.user?.email || '');
     setKeeperPortfolio('');
-    setKeeperAvailability('Part-Time Specialist (5–15 hrs/wk)');
-    setKeeperExperienceLevel(
-      'Mid-Level (2–5 Years Engineering / Security / Modding)'
-    );
+    setKeeperAvailability('Part-Time (5–15 hrs/wk)');
+    setKeeperExperienceLevel('Mid-Level (2–5 Years)');
     setKeeperTimezone('Americas (UTC-8 to UTC-3)');
     setKeeperSkills(['Rust', 'TypeScript / React']);
     setKeeperExperience('');
