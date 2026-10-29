@@ -1399,7 +1399,28 @@ body {
     min-height: 100lvh !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+  }
+
+  #root {
     background-color: transparent !important;
+  }
+
+  html:not([data-sa-bottom-e2e="true"]),
+  html:not([data-sa-bottom-e2e="true"]) body {
+    background-color: var(--sa-bottom-bar-blend, #0e2244) !important;
+  }
+
+  html[data-sa-bottom-e2e="true"],
+  html[data-sa-bottom-e2e="true"] body {
+    background-color: transparent !important;
+  }
+
+  html[data-sa-top-e2e="true"] .sa-mobile-top-bar-feather {
+    display: none !important;
+  }
+
+  html[data-sa-bottom-e2e="true"] .sa-mobile-bottom-bar-feather {
+    display: none !important;
   }
 }
 

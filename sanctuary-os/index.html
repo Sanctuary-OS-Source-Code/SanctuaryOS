@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1d2737" />
   <meta name="color-scheme" content="dark" /><meta name="darkreader-lock" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -46,6 +47,14 @@
         min-height: 100lvh !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
+      }
+      html:not([data-sa-bottom-e2e="true"]),
+      html:not([data-sa-bottom-e2e="true"]) body {
+        background-color: var(--sa-bottom-bar-blend, #0e2244) !important;
+      }
+      html[data-sa-bottom-e2e="true"],
+      html[data-sa-bottom-e2e="true"] body,
+      #root {
         background-color: transparent !important;
       }
     }
@@ -62,16 +71,16 @@
           return;
         }
         var builtins = {
-          architect: { bg: "#040812", sidebar: "#040812", bgImage: "/themes/architect.png" },
-          radiant: { bg: "#f4f6fb", sidebar: "#f8faff", bgImage: "/themes/radiant.png" },
-          sims4: { bg: "#eefbf5", sidebar: "#f3fcf7", bgImage: "/themes/sims4.png" },
-          sims4_dark: { bg: "#020a06", sidebar: "#04110b", bgImage: "/themes/sims4_dark.png" },
-          theme_1788994757269: { bg: "#020a06", sidebar: "#04110b", bgImage: "/themes/sims4_dark.png" },
-          aurora: { bg: "#030712", sidebar: "#050b1a", bgImage: "/themes/aurora.png" },
-          bunker: { bg: "#020604", sidebar: "#040c08", bgImage: "/themes/bunker.png" },
-          synthwave: { bg: "#090214", sidebar: "#0d041d", bgImage: "/themes/synthwave.png" },
-          dracula: { bg: "#12101b", sidebar: "#171422", bgImage: "/themes/dracula.png" },
-          true_glass: { bg: "transparent", sidebar: "#080c14", bgImage: "", transparentWindow: true }
+          architect: { bg: "#040812", sidebar: "#040812", topBar: "#1d2737", bottomBar: "#0e2244", bgImage: "/themes/architect.png" },
+          radiant: { bg: "#f4f6fb", sidebar: "#f8faff", topBar: "#dfe5f2", bottomBar: "#d8deec", bgImage: "/themes/radiant.png" },
+          sims4: { bg: "#eefbf5", sidebar: "#f3fcf7", topBar: "#c6e8f5", bottomBar: "#bce8d6", bgImage: "/themes/sims4.png" },
+          sims4_dark: { bg: "#020a06", sidebar: "#04110b", topBar: "#072430", bottomBar: "#07221c", bgImage: "/themes/sims4_dark.png" },
+          theme_1788994757269: { bg: "#020a06", sidebar: "#04110b", topBar: "#072430", bottomBar: "#07221c", bgImage: "/themes/sims4_dark.png" },
+          aurora: { bg: "#030712", sidebar: "#050b1a", topBar: "#0c353d", bottomBar: "#0e2229", bgImage: "/themes/aurora.png" },
+          bunker: { bg: "#020604", sidebar: "#040c08", topBar: "#365345", bottomBar: "#192e21", bgImage: "/themes/bunker.png" },
+          synthwave: { bg: "#090214", sidebar: "#0d041d", topBar: "#141236", bottomBar: "#291d48", bgImage: "/themes/synthwave.png" },
+          dracula: { bg: "#12101b", sidebar: "#171422", topBar: "#211632", bottomBar: "#262646", bgImage: "/themes/dracula.png" },
+          true_glass: { bg: "transparent", sidebar: "#080c14", topBar: "#152238", bottomBar: "#0e1a2d", bgImage: "", transparentWindow: true }
         };
         var isNativeDesktop = Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
         var host = (window.location.hostname || "").toLowerCase();
@@ -108,17 +117,24 @@
           ? resolved.bg
           : ((resolved.panelTint && resolved.panelTint !== "#000000" && resolved.panelTint !== "transparent")
             ? resolved.panelTint
-            : ((resolved.sidebar && resolved.sidebar !== "#000000" && resolved.sidebar !== "transparent") ? resolved.sidebar : "#040812"));
-        var bgColor = (isPassthrough || (resolved.bgImage && !isNativeDesktop)) ? "transparent" : fallbackThemeColor;
+            : ((resolved.sidebar && resolved.sidebar !== "#000000" && resolved.sidebar !== "transparent") ? resolved.sidebar : "#1d2737"));
+        var topBarColor = resolved.topBar || fallbackThemeColor || "#1d2737";
+        var bottomBarColor = resolved.bottomBar || fallbackThemeColor || "#0e2244";
+        var bgColor = isPassthrough ? "transparent" : (isNativeDesktop ? fallbackThemeColor : bottomBarColor);
         var root = document.documentElement;
         root.style.setProperty("--bg", fallbackThemeColor);
+        root.style.setProperty("--sa-top-bar-blend", topBarColor);
+        root.style.setProperty("--sa-bottom-bar-blend", bottomBarColor);
         root.style.backgroundColor = bgColor;
+        var ua = navigator.userAgent || "";
+        var isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        var isIosStandalone = isIos && Boolean(navigator.standalone === true);
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) {
-          if (resolved.bgImage && !isNativeDesktop) {
+          if (isIosStandalone) {
             themeMeta.remove();
           } else {
-            themeMeta.setAttribute("content", fallbackThemeColor);
+            themeMeta.setAttribute("content", topBarColor);
           }
         }
         if (resolved.bgImage) {

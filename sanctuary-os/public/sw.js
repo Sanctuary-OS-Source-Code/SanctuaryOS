@@ -1,4 +1,4 @@
-const CACHE_NAME = "sanctuary-os-pwa-v8";
+const CACHE_NAME = "sanctuary-os-pwa-v9";
 const PRECACHE_URLS = [
   "/",
   "/index.html",

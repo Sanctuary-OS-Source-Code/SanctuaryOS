@@ -19,7 +19,19 @@ import {
   PanelHeaderButton,
   DashboardStatTile,
   StatTileCarousel,
+  ActionPill,
+  ActionButton,
 } from './shared';
+import {
+  getPinnedWorkspaceIds,
+  isWorkspacePinned,
+  togglePinnedWorkspace,
+  getWorkspaceRecentTimestamps,
+  recordWorkspaceLoaded,
+  isWorkspaceSetupConfigured,
+  sortWorkspacesList,
+  WORKSPACE_PREFS_EVENT,
+} from './utils/workspacePrefs';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
@@ -81,6 +93,31 @@ export default function WebLandingPage() {
   const [activeLandingTab, setActiveLandingTab] = useState<LandingTabId>(() =>
     getActiveLandingTab()
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [workspaceStatusFilter, setWorkspaceStatusFilter] = useState<
+    'ALL' | 'active' | 'inactive' | 'pinned'
+  >('ALL');
+  const [workspaceSortMode, setWorkspaceSortMode] = useState<
+    'recent' | 'name'
+  >('recent');
+  const [newsCategoryFilter, setNewsCategoryFilter] = useState<string>('ALL');
+  const [directiveModuleFilter, setDirectiveModuleFilter] =
+    useState<string>('ALL');
+  const [downloadPlatformFilter, setDownloadPlatformFilter] =
+    useState<string>('ALL');
+  const [supportSectionFilter, setSupportSectionFilter] =
+    useState<string>('ALL');
+  const [partnerSectionFilter, setPartnerSectionFilter] =
+    useState<string>('ALL');
+  const [legalDocFilter, setLegalDocFilter] = useState<string>('ALL');
+  const [donationTargetFilter, setDonationTargetFilter] =
+    useState<string>('ALL');
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() =>
+    getPinnedWorkspaceIds()
+  );
+  const [recentTimestamps, setRecentTimestamps] = useState<
+    Record<string, number>
+  >(() => getWorkspaceRecentTimestamps());
   const [keepersConfig, setKeepersConfig] = useState<KeepersPipelineConfig>(
     DEFAULT_KEEPERS_PIPELINE_CONFIG
   );
@@ -1136,7 +1173,51 @@ export default function WebLandingPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncWorkspacePrefs = () => {
+      setPinnedIds(getPinnedWorkspaceIds());
+      setRecentTimestamps(getWorkspaceRecentTimestamps());
+    };
+    window.addEventListener(WORKSPACE_PREFS_EVENT, syncWorkspacePrefs);
+    window.addEventListener('storage', syncWorkspacePrefs);
+    return () => {
+      window.removeEventListener(WORKSPACE_PREFS_EVENT, syncWorkspacePrefs);
+      window.removeEventListener('storage', syncWorkspacePrefs);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      setRecentTimestamps(recordWorkspaceLoaded(activeWorkspaceId));
+    }
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (games.length === 0) return;
+    if (localStorage.getItem('sanctuary_pinned_workspaces') === null) {
+      const initialSeeds = games
+        .filter((g: any) =>
+          isWorkspaceSetupConfigured(g, workspaces || [], activeWorkspaceId)
+        )
+        .map((g: any) => String(g.schema_id || g.id || '').toLowerCase())
+        .filter(Boolean)
+        .slice(0, 6);
+      if (initialSeeds.length > 0) {
+        setPinnedIds(getPinnedWorkspaceIds(initialSeeds));
+      }
+    }
+  }, [games, workspaces, activeWorkspaceId]);
+
+  const handleTogglePin = (e: React.MouseEvent, game: any) => {
+    e.stopPropagation();
+    const targetId = String(game.schema_id || game.id || '').toLowerCase();
+    if (!targetId) return;
+    const next = togglePinnedWorkspace(targetId);
+    setPinnedIds(next);
+  };
+
   const navigateToGame = async (gameId: string) => {
+    setRecentTimestamps(recordWorkspaceLoaded(gameId));
     if (isDesktop()) {
       if (gameId === activeWorkspaceId) {
         setIsConfigured(true);
@@ -1191,28 +1272,71 @@ export default function WebLandingPage() {
     }
   };
 
-  const pinnedWorkspaces = [...games]
-    .sort((a, b) => {
-      const aActive = isDesktop() && a.schema_id === activeWorkspaceId ? 1 : 0;
-      const bActive = isDesktop() && b.schema_id === activeWorkspaceId ? 1 : 0;
-      if (aActive !== bActive) return bActive - aActive;
-      const aConfigured = (workspaces || []).some(
-        (w: any) =>
-          (w.schema_id === a.schema_id || w.id === a.schema_id) &&
-          (w.mods_path || w.live_path || w.vault_path)
-      )
-        ? 1
-        : 0;
-      const bConfigured = (workspaces || []).some(
-        (w: any) =>
-          (w.schema_id === b.schema_id || w.id === b.schema_id) &&
-          (w.mods_path || w.live_path || w.vault_path)
-      )
-        ? 1
-        : 0;
-      return bConfigured - aConfigured;
-    })
-    .slice(0, 6);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const matchesWorkspaceSearch = (g: any) => {
+    if (!normalizedSearch) return true;
+    const hay = `${g.name || ''} ${g.schema_id || ''} ${g.id || ''}`.toLowerCase();
+    return hay.includes(normalizedSearch);
+  };
+
+  // Overview -> Active Workspaces: Up to 6 pinned workspaces, sorted by recently loaded
+  const overviewPinnedWorkspaces = sortWorkspacesList(
+    games
+      .filter((g) => isWorkspacePinned(g, pinnedIds))
+      .filter(matchesWorkspaceSearch),
+    {
+      pinnedIds,
+      recentTimestamps,
+      workspaces: workspaces || [],
+      activeWorkspaceId,
+      sortBy: 'recent',
+      prioritizePinned: false,
+    }
+  ).slice(0, 6);
+
+  // Active Workspaces Tab: Filtered by search & status filter, separated into Active (Setup) on top and Inactive (Not Yet Setup) on bottom
+  const workspaceFilteredGames = games.filter((g) => {
+    if (!matchesWorkspaceSearch(g)) return false;
+    const isSetup = isWorkspaceSetupConfigured(
+      g,
+      workspaces || [],
+      activeWorkspaceId
+    );
+    const isPinned = isWorkspacePinned(g, pinnedIds);
+    if (workspaceStatusFilter === 'active') return isSetup;
+    if (workspaceStatusFilter === 'inactive') return !isSetup;
+    if (workspaceStatusFilter === 'pinned') return isPinned;
+    return true;
+  });
+
+  const activeSetupWorkspaces = sortWorkspacesList(
+    workspaceFilteredGames.filter((g) =>
+      isWorkspaceSetupConfigured(g, workspaces || [], activeWorkspaceId)
+    ),
+    {
+      pinnedIds,
+      recentTimestamps,
+      workspaces: workspaces || [],
+      activeWorkspaceId,
+      sortBy: workspaceSortMode,
+      prioritizePinned: true,
+    }
+  );
+
+  const inactiveUnconfiguredWorkspaces = sortWorkspacesList(
+    workspaceFilteredGames.filter(
+      (g) => !isWorkspaceSetupConfigured(g, workspaces || [], activeWorkspaceId)
+    ),
+    {
+      pinnedIds,
+      recentTimestamps,
+      workspaces: workspaces || [],
+      activeWorkspaceId,
+      sortBy: workspaceSortMode,
+      prioritizePinned: true,
+    }
+  );
 
   const landingTabLabels: Record<LandingTabId, string> = {
     overview: t('overview', 'Overview'),
@@ -1224,6 +1348,365 @@ export default function WebLandingPage() {
     partners: t('landing_partners_tab', 'Partner Spokes'),
     legal: t('landing_legal_tab', 'Legal'),
     donations: t('wf_tab_donations', 'Donations'),
+  };
+
+  const renderFilterChipButton = (
+    active: boolean,
+    label: string,
+    onClick: () => void
+  ) => (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all text-left truncate cursor-pointer ${
+        active
+          ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]'
+          : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const renderActiveTabFilterPopoverContent = () => {
+    if (activeLandingTab === 'workspaces' || activeLandingTab === 'overview') {
+      const hasWorkspaceFilter =
+        workspaceStatusFilter !== 'ALL' || workspaceSortMode !== 'recent';
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('status', 'Status')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {renderFilterChipButton(
+                workspaceStatusFilter === 'ALL',
+                t('all', 'All'),
+                () => setWorkspaceStatusFilter('ALL')
+              )}
+              {renderFilterChipButton(
+                workspaceStatusFilter === 'active',
+                t('active', 'Active'),
+                () => setWorkspaceStatusFilter('active')
+              )}
+              {renderFilterChipButton(
+                workspaceStatusFilter === 'inactive',
+                t('workspace_badge_not_setup', 'Not Setup'),
+                () => setWorkspaceStatusFilter('inactive')
+              )}
+              {renderFilterChipButton(
+                workspaceStatusFilter === 'pinned',
+                t('ws_pin_tooltip', 'Pin Workspace'),
+                () => setWorkspaceStatusFilter('pinned')
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {renderFilterChipButton(
+                workspaceSortMode === 'recent',
+                t('workspace_sort_recent', 'Recently Loaded'),
+                () => setWorkspaceSortMode('recent')
+              )}
+              {renderFilterChipButton(
+                workspaceSortMode === 'name',
+                t('sort_alphabetical', 'Alphabetical'),
+                () => setWorkspaceSortMode('name')
+              )}
+            </div>
+          </div>
+
+          {hasWorkspaceFilter && (
+            <ActionButton
+              onClick={() => {
+                setWorkspaceStatusFilter('ALL');
+                setWorkspaceSortMode('recent');
+              }}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'news') {
+      const categories = [
+        { id: 'ALL', label: t('all', 'All') },
+        { id: 'Announcement', label: t('cat_announcement', 'Announcement') },
+        { id: 'Update', label: t('cat_update', 'Update') },
+        { id: 'Blog', label: t('cat_blog', 'Blog') },
+        { id: 'Press', label: t('cat_press', 'Press') },
+        { id: 'Event', label: t('cat_event', 'Event') },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {categories.map((c) =>
+                renderFilterChipButton(
+                  newsCategoryFilter === c.id,
+                  c.label,
+                  () => setNewsCategoryFilter(c.id)
+                )
+              )}
+            </div>
+          </div>
+          {newsCategoryFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setNewsCategoryFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'directives') {
+      const modules = [
+        { id: 'ALL', label: t('all', 'All') },
+        { id: 'guide', label: t('sd_card_guide_badge', 'Citizen Guide') },
+        { id: 'roadmap', label: t('dir_roadmap_tab_value', 'Phase Roadmap') },
+        { id: 'forking', label: t('sd_card_fork_badge', 'Spoke & Fork') },
+        { id: 'architecture', label: t('sd_card_arch_badge', 'Core Engine') },
+        { id: 'protocols', label: t('sd_card_proto_sub', 'Governance') },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {modules.map((m) =>
+                renderFilterChipButton(
+                  directiveModuleFilter === m.id,
+                  m.label,
+                  () => setDirectiveModuleFilter(m.id)
+                )
+              )}
+            </div>
+          </div>
+          {directiveModuleFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setDirectiveModuleFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'download') {
+      const platforms = [
+        { id: 'ALL', label: t('all', 'All') },
+        { id: 'windows', label: t('landing_win_exe', 'Windows (.exe)') },
+        { id: 'mac', label: t('landing_mac_dmg', 'macOS (.dmg)') },
+        { id: 'web', label: t('pwa_badge_standalone', 'Standalone PWA') },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {platforms.map((p) =>
+                renderFilterChipButton(
+                  downloadPlatformFilter === p.id,
+                  p.label,
+                  () => setDownloadPlatformFilter(p.id)
+                )
+              )}
+            </div>
+          </div>
+          {downloadPlatformFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setDownloadPlatformFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'support') {
+      const sections = [
+        { id: 'ALL', label: t('all', 'All') },
+        {
+          id: 'feedback',
+          label: t('landing_feedback_card_title', 'Platform Feedback'),
+        },
+        {
+          id: 'contact',
+          label: t('landing_contact_card_title', 'Direct Contact'),
+        },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {sections.map((s) =>
+                renderFilterChipButton(
+                  supportSectionFilter === s.id,
+                  s.label,
+                  () => setSupportSectionFilter(s.id)
+                )
+              )}
+            </div>
+          </div>
+          {supportSectionFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setSupportSectionFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'partners') {
+      const sections = [
+        { id: 'ALL', label: t('all', 'All') },
+        {
+          id: 'guide',
+          label: t('landing_partners_about_btn', 'Partner Guide'),
+        },
+        {
+          id: 'apply',
+          label: t('keepers_tab_partner_apps', 'Partner Applications'),
+        },
+        {
+          id: 'covenants',
+          label: t('partner_covenants_open_btn', 'Inspect Covenants'),
+        },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {sections.map((s) =>
+                renderFilterChipButton(
+                  partnerSectionFilter === s.id,
+                  s.label,
+                  () => setPartnerSectionFilter(s.id)
+                )
+              )}
+            </div>
+          </div>
+          {partnerSectionFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setPartnerSectionFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (activeLandingTab === 'legal') {
+      const docs = [
+        { id: 'ALL', label: t('all', 'All') },
+        { id: 'eula', label: t('landing_eula', 'System EULA') },
+        { id: 'terms', label: t('landing_terms', 'Terms of Service') },
+        { id: 'privacy', label: t('landing_privacy', 'Privacy Protocol') },
+      ];
+      return (
+        <div className="flex flex-col gap-4 p-1 w-[300px]">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+              {t('filters', 'Filters')}
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {docs.map((d) =>
+                renderFilterChipButton(legalDocFilter === d.id, d.label, () =>
+                  setLegalDocFilter(d.id)
+                )
+              )}
+            </div>
+          </div>
+          {legalDocFilter !== 'ALL' && (
+            <ActionButton
+              onClick={() => setLegalDocFilter('ALL')}
+              variant="glass"
+              icon={t('icon_filter_alt_off', 'filter_alt_off')}
+              label={t('clear', 'Clear')}
+              className="w-full"
+            />
+          )}
+        </div>
+      );
+    }
+
+    const targets = [
+      { id: 'ALL', label: t('all', 'All') },
+      {
+        id: 'core',
+        label: t('supporter_keepers_title', 'Sanctuary OS (Keepers Core)'),
+      },
+      {
+        id: 'partners',
+        label: t('landing_partners_tab', 'Partner Spokes'),
+      },
+    ];
+    return (
+      <div className="flex flex-col gap-4 p-1 w-[300px]">
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
+            {t('filters', 'Filters')}
+          </span>
+          <div className="grid grid-cols-2 gap-1.5">
+            {targets.map((tg) =>
+              renderFilterChipButton(
+                donationTargetFilter === tg.id,
+                tg.label,
+                () => setDonationTargetFilter(tg.id)
+              )
+            )}
+          </div>
+        </div>
+        {donationTargetFilter !== 'ALL' && (
+          <ActionButton
+            onClick={() => setDonationTargetFilter('ALL')}
+            variant="glass"
+            icon={t('icon_filter_alt_off', 'filter_alt_off')}
+            label={t('clear', 'Clear')}
+            className="w-full"
+          />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1242,7 +1725,23 @@ export default function WebLandingPage() {
               : undefined
           }
           onTitleClick={() => scrollToLandingSection('overview')}
-        />
+        >
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={
+              activeLandingTab === 'workspaces' ||
+              activeLandingTab === 'overview'
+                ? t('ws_search_placeholder', 'Search workspaces...')
+                : t('search', 'Search...')
+            }
+            primaryPopover={{
+              icon: t('icon_tune', 'tune'),
+              label: t('filters', 'Filters'),
+              content: renderActiveTabFilterPopoverContent(),
+            }}
+          />
+        </ViewHeader>
 
         {/* Clean Icon + Label StatTileCarousel (No Numbers, Matching System Preferences) */}
         <StatTileCarousel>
@@ -1335,11 +1834,22 @@ export default function WebLandingPage() {
                 />
                 <div className="w-full">
                   <LandingWorkspaceGrid
-                    list={pinnedWorkspaces}
+                    list={overviewPinnedWorkspaces}
                     loading={loading}
                     activeWorkspaceId={activeWorkspaceId}
                     workspaces={workspaces}
                     onNavigateToGame={navigateToGame}
+                    pinnedIds={pinnedIds}
+                    onTogglePin={handleTogglePin}
+                    emptyIcon={t('icon_keep', 'keep')}
+                    emptyTitle={t(
+                      'workspace_no_pinned_overview',
+                      'No Pinned Workspaces'
+                    )}
+                    emptySubtitle={t(
+                      'workspace_no_pinned_overview_sub',
+                      'Pin up to 6 of your most used games in Active Workspaces to keep them here on Overview.'
+                    )}
                   />
                 </div>
               </section>
@@ -1359,7 +1869,11 @@ export default function WebLandingPage() {
                   }
                 />
                 <div className="w-full">
-                  <WebNewsFeed limit={3} onCountChange={setNewsCount} />
+                  <WebNewsFeed
+                    limit={3}
+                    onCountChange={setNewsCount}
+                    searchQuery={searchQuery}
+                  />
                 </div>
               </section>
 
@@ -1464,24 +1978,58 @@ export default function WebLandingPage() {
           </CommandScreenBody>
         )}
 
-        {/* TAB 2: WORKSPACES */}
+        {/* TAB 2: WORKSPACES (Separated: Active (Setup) on Top, Inactive (Not Yet Setup) on Bottom) */}
         {activeLandingTab === 'workspaces' && (
-          <div className="w-full flex flex-col gap-10">
-            <section id="workspaces" className="flex flex-col gap-6">
-              <CommandScreenSectionHeading
-                title={t('landing_workspaces', 'Active Workspaces')}
-                icon={t('icon_public', 'public')}
-              />
-              <div className="w-full">
-                <LandingWorkspaceGrid
-                  list={games}
-                  loading={loading}
-                  activeWorkspaceId={activeWorkspaceId}
-                  workspaces={workspaces}
-                  onNavigateToGame={navigateToGame}
+          <div id="workspaces" className="w-full flex flex-col gap-10">
+            {workspaceStatusFilter !== 'inactive' && (
+              <section className="flex flex-col gap-6">
+                <CommandScreenSectionHeading
+                  title={t(
+                    'workspace_section_active_setup',
+                    'Active Workspaces (Setup)'
+                  )}
+                  icon={t('icon_check_circle', 'check_circle')}
                 />
-              </div>
-            </section>
+                <div className="w-full">
+                  <LandingWorkspaceGrid
+                    list={activeSetupWorkspaces}
+                    loading={loading}
+                    activeWorkspaceId={activeWorkspaceId}
+                    workspaces={workspaces}
+                    onNavigateToGame={navigateToGame}
+                    pinnedIds={pinnedIds}
+                    onTogglePin={handleTogglePin}
+                    emptyIcon={t('icon_sports_esports', 'sports_esports')}
+                    emptyTitle={t('no_results', 'No matching items found.')}
+                  />
+                </div>
+              </section>
+            )}
+
+            {workspaceStatusFilter !== 'active' && (
+              <section className="flex flex-col gap-6">
+                <CommandScreenSectionHeading
+                  title={t(
+                    'workspace_section_inactive_unconfigured',
+                    'Inactive Workspaces (Not Yet Setup)'
+                  )}
+                  icon={t('icon_public', 'public')}
+                />
+                <div className="w-full">
+                  <LandingWorkspaceGrid
+                    list={inactiveUnconfiguredWorkspaces}
+                    loading={loading}
+                    activeWorkspaceId={activeWorkspaceId}
+                    workspaces={workspaces}
+                    onNavigateToGame={navigateToGame}
+                    pinnedIds={pinnedIds}
+                    onTogglePin={handleTogglePin}
+                    emptyIcon={t('icon_public_off', 'public_off')}
+                    emptyTitle={t('no_results', 'No matching items found.')}
+                  />
+                </div>
+              </section>
+            )}
           </div>
         )}
 
@@ -1495,7 +2043,12 @@ export default function WebLandingPage() {
                 icon={t('icon_campaign', 'campaign')}
               />
               <div className="w-full">
-                <WebNewsFeed limit={12} onCountChange={setNewsCount} />
+                <WebNewsFeed
+                  limit={12}
+                  onCountChange={setNewsCount}
+                  searchQuery={searchQuery}
+                  categoryFilter={newsCategoryFilter}
+                />
               </div>
             </section>
           </div>
@@ -1512,7 +2065,10 @@ export default function WebLandingPage() {
               icon={t('icon_folder_special', 'folder_special')}
             />
             <div className="w-full">
-              <WebDocumentFeed />
+              <WebDocumentFeed
+                searchQuery={searchQuery}
+                moduleFilter={directiveModuleFilter}
+              />
             </div>
           </section>
         )}
@@ -1528,6 +2084,8 @@ export default function WebLandingPage() {
             stableVersion={stableVersion}
             isDevUnlocked={isDevUnlocked}
             hasUserSession={Boolean(session?.user?.id)}
+            searchQuery={searchQuery}
+            platformFilter={downloadPlatformFilter}
           />
         )}
 
@@ -1553,6 +2111,8 @@ export default function WebLandingPage() {
               resetKeeperFlow();
               setIsKeeperAppDrawerOpen(true);
             }}
+            searchQuery={searchQuery}
+            supportFilter={supportSectionFilter}
           />
         )}
 
@@ -1572,11 +2132,18 @@ export default function WebLandingPage() {
             onOpenPartnerCovenants={() =>
               setActivePartnerCovenant('PartnersAgreement')
             }
+            searchQuery={searchQuery}
+            partnerFilter={partnerSectionFilter}
           />
         )}
 
         {/* TAB 8: LEGAL */}
-        {activeLandingTab === 'legal' && <LandingLegalSection />}
+        {activeLandingTab === 'legal' && (
+          <LandingLegalSection
+            searchQuery={searchQuery}
+            legalFilter={legalDocFilter}
+          />
+        )}
 
         {/* TAB 9: DONATIONS */}
         {activeLandingTab === 'donations' && (
@@ -1588,6 +2155,8 @@ export default function WebLandingPage() {
             onOpenVerifyDrawer={() => setIsVerifyDrawerOpen(true)}
             onNavigateAuth={() => setView('auth')}
             onDonateCardClick={handleDonateCardClick}
+            searchQuery={searchQuery}
+            donationFilter={donationTargetFilter}
           />
         )}
 

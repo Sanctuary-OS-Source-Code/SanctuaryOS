@@ -31,6 +31,8 @@ interface LandingDonationsSectionProps {
     targetName: string,
     rawDonationUrl?: string
   ) => void;
+  searchQuery?: string;
+  donationFilter?: string;
 }
 
 export function LandingDonationsSection({
@@ -41,8 +43,29 @@ export function LandingDonationsSection({
   onOpenVerifyDrawer,
   onNavigateAuth,
   onDonateCardClick,
+  searchQuery = '',
+  donationFilter = 'ALL',
 }: LandingDonationsSectionProps) {
   const { t } = useLexicon();
+  const q = searchQuery.trim().toLowerCase();
+  const showCoreOsCard =
+    (donationFilter === 'ALL' || donationFilter === 'core') &&
+    (!q ||
+      'sanctuary os keepers core global daily dev builds 30 days supporter'.includes(
+        q
+      ));
+  const filteredPartnerGames =
+    donationFilter === 'core'
+      ? []
+      : games
+          .filter((g) =>
+            Boolean(g.donation_url && String(g.donation_url).trim().length > 0)
+          )
+          .filter((g) => {
+            if (!q) return true;
+            const hay = `${g.name || ''} ${g.schema_id || ''} ${g.payment_processor || ''}`.toLowerCase();
+            return hay.includes(q);
+          });
 
   return (
     <section
@@ -250,6 +273,7 @@ export function LandingDonationsSection({
           </div>
         )}
 
+        {showCoreOsCard && (
         <UniversalCard
           layout="vertical"
           onClick={() =>
@@ -306,12 +330,9 @@ export function LandingDonationsSection({
             )}
           </p>
         </UniversalCard>
+        )}
 
-        {games
-          .filter((g) =>
-            Boolean(g.donation_url && String(g.donation_url).trim().length > 0)
-          )
-          .map((g) => (
+        {filteredPartnerGames.map((g) => (
             <UniversalCard
               key={`support-${g.id}`}
               layout="vertical"

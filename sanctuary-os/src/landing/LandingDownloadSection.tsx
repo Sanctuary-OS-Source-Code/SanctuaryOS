@@ -1,4 +1,5 @@
 import { useLexicon } from '../LexiconContext';
+import { EmptyState } from '../shared';
 import { KeepersPipelineConfig } from '../utils/supporterManager';
 import { isDesktop } from '../utils/envUtils';
 import { isMobileDevice } from '../utils/pwaManager';
@@ -15,6 +16,8 @@ interface LandingDownloadSectionProps {
   stableVersion: string;
   isDevUnlocked: boolean;
   hasUserSession: boolean;
+  searchQuery?: string;
+  platformFilter?: string;
 }
 
 export function LandingDownloadSection({
@@ -26,12 +29,23 @@ export function LandingDownloadSection({
   stableVersion,
   isDevUnlocked,
   hasUserSession,
+  searchQuery = '',
+  platformFilter = 'ALL',
 }: LandingDownloadSectionProps) {
   const { t } = useLexicon();
 
   if (isDesktop()) return null;
 
   const showDesktopDownloadCards = !isStandalone && !isMobileDevice();
+  const q = searchQuery.trim().toLowerCase();
+  const matchesFilter = (platformKey: 'web' | 'windows' | 'mac', text: string) => {
+    if (platformFilter !== 'ALL' && platformFilter !== platformKey) return false;
+    if (!q) return true;
+    return text.toLowerCase().includes(q);
+  };
+  const showWebCards = matchesFilter('web', 'pwa web app ios android mobile stream beta public');
+  const showWinCards = showDesktopDownloadCards && matchesFilter('windows', 'windows exe native setup desktop supporter');
+  const showMacCards = showDesktopDownloadCards && matchesFilter('mac', 'mac macos dmg apple silicon intel desktop supporter');
 
   return (
     <div className="w-full flex flex-col gap-10">
@@ -44,8 +58,14 @@ export function LandingDownloadSection({
           icon={t('icon_system_update_alt', 'system_update_alt')}
         />
 
+        {!showWebCards && !showWinCards && !showMacCards ? (
+          <EmptyState
+            icon={t('icon_system_update_alt', 'system_update_alt')}
+            title={t('no_results', 'No matching items found.')}
+          />
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-          {!isDesktop() && (
+          {!isDesktop() && showWebCards && (
             <>
               <div className="flex flex-col group cursor-pointer">
                 <UniversalCard
@@ -188,6 +208,7 @@ export function LandingDownloadSection({
 
           {showDesktopDownloadCards && (
             <>
+              {showWinCards && (
               <a
                 href={
                   keepersConfig.stable_exe_url ||
@@ -235,7 +256,9 @@ export function LandingDownloadSection({
                   </p>
                 </UniversalCard>
               </a>
+              )}
 
+              {showMacCards && (
               <a
                 href={
                   keepersConfig.stable_dmg_url ||
@@ -286,9 +309,11 @@ export function LandingDownloadSection({
                   </p>
                 </UniversalCard>
               </a>
+              )}
 
               {hasUserSession && isDevUnlocked && (
                 <>
+                  {showWinCards && (
                   <a
                     href={
                       keepersConfig.dev_build_download_url ||
@@ -348,7 +373,9 @@ export function LandingDownloadSection({
                       </p>
                     </UniversalCard>
                   </a>
+                  )}
 
+                  {showMacCards && (
                   <a
                     href={
                       keepersConfig.dev_build_dmg_url ||
@@ -409,11 +436,13 @@ export function LandingDownloadSection({
                       </p>
                     </UniversalCard>
                   </a>
+                  )}
                 </>
               )}
             </>
           )}
         </div>
+        )}
       </section>
 
       <section

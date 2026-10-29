@@ -2291,5 +2291,11 @@
   "landing_partners_maintain_h3": "3. Non-Custodial Community Donations",
   "landing_partners_maintain_p3": "Link your Spoke's Stripe, Ko-fi, or Patreon checkout URL in Wayfinder Operations. 100% of funds route directly to your processor (0% platform cut) while automatically crediting {Citizens} +30 days of Dev Builds per $5.",
   "landing_partners_maintain_h4": "4. Live Schema Evolution & Zero-Downtime Broadcasts",
-  "landing_partners_maintain_p4": "Push game patch updates, new {Mod} file format rules, and compatibility alerts directly to your {Citizens}' Desktop and Web clients in real time without waiting on central platform releases."
+  "landing_partners_maintain_p4": "Push game patch updates, new {Mod} file format rules, and compatibility alerts directly to your {Citizens}' Desktop and Web clients in real time without waiting on central platform releases.",
+  "workspace_section_active_setup": "Active Workspaces (Setup)",
+  "workspace_section_inactive_unconfigured": "Inactive Workspaces (Not Yet Setup)",
+  "workspace_badge_not_setup": "Not Setup",
+  "workspace_sort_recent": "Recently Loaded",
+  "workspace_no_pinned_overview": "No Pinned Workspaces",
+  "workspace_no_pinned_overview_sub": "Pin your primary game workspaces in Active Workspaces for instant mount access from Overview."
 }

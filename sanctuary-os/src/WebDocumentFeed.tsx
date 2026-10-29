@@ -9,6 +9,7 @@ import {
   DashboardStatTile,
   StatTileCarousel,
   ActionButton,
+  EmptyState,
   stripMarkdown,
 } from "./shared";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
@@ -68,7 +69,13 @@ export const SANCTUARY_CONFIG = {
   supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
 };`;
 
-export default function WebDocumentFeed() {
+export default function WebDocumentFeed({
+  searchQuery = "",
+  moduleFilter = "ALL",
+}: {
+  searchQuery?: string;
+  moduleFilter?: string;
+} = {}) {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
   const osRole = useStore((state: any) => state.osRole);
@@ -4674,11 +4681,105 @@ export default function WebDocumentFeed() {
       0
     ) || 36;
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesModuleCard = (
+    modId: DirectiveModuleId,
+    title: string,
+    summary: string,
+    extraKeywords: string
+  ) => {
+    if (moduleFilter && moduleFilter !== "ALL" && moduleFilter !== modId) {
+      return false;
+    }
+    if (!normalizedSearch) return true;
+    return `${title} ${summary} ${extraKeywords}`
+      .toLowerCase()
+      .includes(normalizedSearch);
+  };
+
+  const showGuideCard = matchesModuleCard(
+    "guide",
+    customGuideSchema?.title ||
+      directivesMap.citizen_guide?.title ||
+      t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
+    customGuideSchema?.summary ||
+      directivesMap.citizen_guide?.summary ||
+      t(
+        "sd_card_guide_desc",
+        "Step-by-step interactive walkthrough of Sanctuary OS"
+      ),
+    "citizen guide tutorial walkthrough modules roles"
+  );
+  const showRoadmapCard = matchesModuleCard(
+    "roadmap",
+    customRoadmapSchema?.title ||
+      directivesMap.phase_roadmap?.title ||
+      t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap"),
+    customRoadmapSchema?.summary ||
+      directivesMap.phase_roadmap?.summary ||
+      t("sd_card_roadmap_desc", "Interactive milestone timeline"),
+    "phase roadmap timeline milestones evolution"
+  );
+  const showForkCard = matchesModuleCard(
+    "forking",
+    customForkSchema?.title ||
+      directivesMap.forking_guide?.title ||
+      t("sd_card_fork_title", "Forking & Spoke Provisioning Guide"),
+    customForkSchema?.summary ||
+      directivesMap.forking_guide?.summary ||
+      t("sd_card_fork_desc", "Sovereign Community Spoke"),
+    "forking spoke provisioning uplink sql standalone"
+  );
+  const showArchCard = matchesModuleCard(
+    "architecture",
+    customArchSchema?.title ||
+      directivesMap.master_architecture?.title ||
+      t("sd_card_arch_title", "Master Architecture & Engine Systems"),
+    customArchSchema?.summary ||
+      directivesMap.master_architecture?.summary ||
+      t("sd_card_arch_desc", "Tauri v2 Rust core"),
+    "architecture engine rust core federation airgap"
+  );
+  const showProtoCard = matchesModuleCard(
+    "protocols",
+    customProtoSchema?.title ||
+      directivesMap.master_protocols?.title ||
+      t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
+    customProtoSchema?.summary ||
+      directivesMap.master_protocols?.summary ||
+      t("sd_card_proto_desc", "Operational protocols"),
+    "protocol clearance matrix governance security compliance"
+  );
+
+  const filteredExtraDirectives = extraCustomDirectives.filter((p) => {
+    if (moduleFilter && moduleFilter !== "ALL") return false;
+    if (!normalizedSearch) return true;
+    const rawBody = p.content || p.message || "";
+    const haystack = `${p.title || ""} ${p.category || ""} ${rawBody}`.toLowerCase();
+    return haystack.includes(normalizedSearch);
+  });
+
+  const hasAnyDirectiveVisible =
+    showGuideCard ||
+    showRoadmapCard ||
+    showForkCard ||
+    showArchCard ||
+    showProtoCard ||
+    filteredExtraDirectives.length > 0;
+
   return (
     <div className="w-full flex flex-col gap-6">
+      {!hasAnyDirectiveVisible && (
+        <EmptyState
+          icon={t("icon_folder_special", "folder_special")}
+          title={t("no_results", "No matching items found.")}
+        />
+      )}
       {/* Row 1: 2 Primary Featured Interactive Experiences (OS Tutorial & Phase Timeline) */}
+      {(showGuideCard || showRoadmapCard) && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
         {/* Card 1: Interactive Citizen Guide & OS Walkthrough */}
+        {showGuideCard && (
         <UniversalCard
           layout="vertical"
           icon={t("icon_school", "school")}
@@ -4730,8 +4831,10 @@ export default function WebDocumentFeed() {
               )}
           </p>
         </UniversalCard>
+        )}
 
         {/* Card 2: Interactive Phase Roadmap Timeline */}
+        {showRoadmapCard && (
         <UniversalCard
           layout="vertical"
           icon={t("icon_timeline", "timeline")}
@@ -4783,11 +4886,15 @@ export default function WebDocumentFeed() {
               )}
           </p>
         </UniversalCard>
+        )}
       </div>
+      )}
 
       {/* Row 2: 3 Dedicated Core System Modules (Forking Guide, Master Architecture, Master Protocol Matrix) */}
+      {(showForkCard || showArchCard || showProtoCard) && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
         {/* Card 3: Forking & Spoke Provisioning Guide */}
+        {showForkCard && (
         <UniversalCard
           layout="vertical"
           icon={t("icon_call_split", "call_split")}
@@ -4842,8 +4949,10 @@ export default function WebDocumentFeed() {
               )}
           </p>
         </UniversalCard>
+        )}
 
         {/* Card 4: Master Architecture & Engine Systems */}
+        {showArchCard && (
         <UniversalCard
           layout="vertical"
           icon={t("icon_architecture", "architecture")}
@@ -4898,8 +5007,10 @@ export default function WebDocumentFeed() {
               )}
           </p>
         </UniversalCard>
+        )}
 
         {/* Card 5: Master Protocol & Clearance Matrix */}
+        {showProtoCard && (
         <UniversalCard
           layout="vertical"
           icon={t("icon_policy", "policy")}
@@ -4954,12 +5065,14 @@ export default function WebDocumentFeed() {
               )}
           </p>
         </UniversalCard>
+        )}
       </div>
+      )}
 
       {/* Optional Row 3: Any extra custom public broadcasts added by Keepers */}
-      {extraCustomDirectives.length > 0 && (
+      {filteredExtraDirectives.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-          {extraCustomDirectives.map((p) => {
+          {filteredExtraDirectives.map((p) => {
             const rawBody = p.content || p.message || "";
             const cleanBody = extractDispatchMetadata(p, rawBody).cleanContent;
             const summaryText = stripMarkdown(p.description || cleanBody);

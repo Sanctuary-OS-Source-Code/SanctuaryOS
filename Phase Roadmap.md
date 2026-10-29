@@ -83,7 +83,7 @@ Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Li
 - **Sanctuary & Community Badges:** Added official `Sanctuary` and Partner `Community` badges to identify verified core vs. community-authored lexicons.
 - **Cartographer & Preferences Integration:** Integrated Lexicon selection directly into the first-boot Cartographer onboarding wizard and System Preferences.
 
-### Multi-Workspace Support & Sanctuary Partners (In Progress — October 20, 2026)
+### Multi-Workspace Support & Sanctuary Partners (Completed — October 20, 2026)
 - **Multiple Workspaces (Master Schemas):** Full multi-instance workspace isolation allowing Citizens to mount and switch between any supported game ecosystem on the fly.
 - **Sanctuary Partners Agreement:**
   - Every Partner Community shares the unified Sanctuary OS Core App while maintaining sovereign control over their own ecosystem.
@@ -94,7 +94,7 @@ Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Li
   - **Cross-Community Supporter Dev Builds:** Citizens who donate to *any* Partner Community automatically unlock access to the monthly Sanctuary OS Supporter Development Builds.
   - **1-File Standalone Fork:** Any community can fork the open-source codebase into a completely independent terminal by editing a single configuration file (`src/supabase.ts`).
 
-### Sanctuary V6 — Liquid Glass & 18-Section OS Revamp (In Progress — October 20, 2026)
+### Sanctuary V6 — Liquid Glass & 18-Section OS Revamp (Completed — October 20, 2026)
 - **3D Refractive Liquid Glass Theme Engine:**
   - Eliminated hardcoded colors and layouts across all 18 OS sections in favor of the unified 4-layer CSS optical glass pipeline (`--glass-base-fill`, `--glass-sheen`, `--glass-refracted-wallpaper`, and 3-sided specular bevels).
   - Revamped all Default Core Themes (`Sanctuary Dark`, `Sanctuary Light`, `Midnight Aurora`, `Cyberpunk Neon`, `Vampire Nocturne`, `Tactical Stealth`, `True Glass`) and debuted **The Sims 4 ("Plumbob Crystal")** as the first official Partner Community Theme.
@@ -109,7 +109,7 @@ Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Li
   - **Artifact Updates Tile:** Live counter of installed mods with newer versions available on The Nexus.
 - **Full 18-Section OS Revamp:** Unified typography, `.glass-panel` / `.glass-surface` hierarchy, single-row `SidePanel` headers, and responsive mobile drawers across Command Center, Vault, Nexus, Blueprints, Comm-Link, Conflict Radar, Homestead Lab, Workbench, Time Capsule, Preferences, Help Desk, Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, Keepers Core, Side Browser, and Cartographer.
 
-### Website V2 & Progressive Web App (In Progress — October 20, 2026)
+### Website V2 & Progressive Web App (Completed — October 20, 2026)
 - **Unified Single-Codebase Web OS & PWA:** Deployed the full Sanctuary OS experience to the web (`sanctuaryos.net` and workspace routes like `sanctuaryos.net/sims4`) with installable Mobile & Desktop PWA support.
 - **Hardware-Boundary Guardrails:** Automatically disables local filesystem/symlink features (`Vault`, `Conflict Radar`, `Homestead Lab`, `Workbench`, `Time Capsule`) on Web while keeping `Comm-Link`, `The Nexus`, `Support Desk`, and all `Command Hubs` 100% live and interactive.
 - **Sanctuary Foundry Main Hub:** Public landing hub featuring System Directives, Interactive Citizen Guide, Phase Chronology, Forking Matrix, Legal/EULA Codex, Partner Community Portals, and Desktop Installer Downloads.

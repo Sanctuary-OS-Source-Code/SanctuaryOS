@@ -1,5 +1,5 @@
 import { useLexicon } from '../LexiconContext';
-import { PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import { PanelHeaderGroup, PanelHeaderButton, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { CommandScreenSectionHeading } from '../hub-components/SharedCommandScreenLayout';
 
@@ -8,6 +8,8 @@ interface LandingPartnersSectionProps {
   onOpenPartnerGuide: () => void;
   onOpenPartnerApplication: () => void;
   onOpenPartnerCovenants: () => void;
+  searchQuery?: string;
+  partnerFilter?: string;
 }
 
 export function LandingPartnersSection({
@@ -15,8 +17,29 @@ export function LandingPartnersSection({
   onOpenPartnerGuide,
   onOpenPartnerApplication,
   onOpenPartnerCovenants,
+  searchQuery = '',
+  partnerFilter = 'ALL',
 }: LandingPartnersSectionProps) {
   const { t } = useLexicon();
+  const q = searchQuery.trim().toLowerCase();
+  const showGuide =
+    (partnerFilter === 'ALL' || partnerFilter === 'guide') &&
+    (!q ||
+      'about partner spokes setup guide architecture supabase bootstrap uplink handshake governance'.includes(
+        q
+      ));
+  const showApply =
+    (partnerFilter === 'ALL' || partnerFilter === 'apply') &&
+    (!q ||
+      'apply to launch a partner game spoke community workspace operators wayfinders architects dossier'.includes(
+        q
+      ));
+  const showCovenants =
+    (partnerFilter === 'ALL' || partnerFilter === 'covenants') &&
+    (!q ||
+      'partners agreement compliance protocol spoke charter safety privacy bilateral sovereignty covenants'.includes(
+        q
+      ));
 
   return (
     <section
@@ -45,9 +68,16 @@ export function LandingPartnersSection({
         }
       />
 
-      {/* 3 Compact Cards in a Single Row: [About Guide • Apply • Combined Covenants] */}
+      {!showGuide && !showApply && !showCovenants ? (
+        <EmptyState
+          icon={t('icon_handshake', 'handshake')}
+          title={t('no_results', 'No matching items found.')}
+        />
+      ) : (
+      /* 3 Compact Cards in a Single Row: [About Guide • Apply • Combined Covenants] */
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
         {/* Card 1: About Partner Spokes & Setup Guide */}
+        {showGuide && (
         <UniversalCard
           layout="vertical"
           onClick={onOpenPartnerGuide}
@@ -96,8 +126,10 @@ export function LandingPartnersSection({
             )}
           </p>
         </UniversalCard>
+        )}
 
         {/* Card 2: Apply to Launch a Partner Game Spoke */}
+        {showApply && (
         <UniversalCard
           layout="vertical"
           onClick={onOpenPartnerApplication}
@@ -149,8 +181,10 @@ export function LandingPartnersSection({
             )}
           </p>
         </UniversalCard>
+        )}
 
         {/* Card 3: Combined Partners Agreement & Compliance Protocol (Opens 2-Tabbed Covenants Drawer) */}
+        {showCovenants && (
         <UniversalCard
           layout="vertical"
           onClick={onOpenPartnerCovenants}
@@ -199,13 +233,31 @@ export function LandingPartnersSection({
             )}
           </p>
         </UniversalCard>
+        )}
       </div>
+      )}
     </section>
   );
 }
 
-export function LandingLegalSection() {
+export function LandingLegalSection({
+  searchQuery = '',
+  legalFilter = 'ALL',
+}: {
+  searchQuery?: string;
+  legalFilter?: string;
+} = {}) {
   const { t } = useLexicon();
+  const q = searchQuery.trim().toLowerCase();
+  const showEula =
+    (legalFilter === 'ALL' || legalFilter === 'eula') &&
+    (!q || 'system eula end-user license agreement legal'.includes(q));
+  const showTerms =
+    (legalFilter === 'ALL' || legalFilter === 'terms') &&
+    (!q || 'terms of service sanctuary foundry os legal'.includes(q));
+  const showPrivacy =
+    (legalFilter === 'ALL' || legalFilter === 'privacy') &&
+    (!q || 'privacy protocol policy zero pii data legal'.includes(q));
 
   return (
     <section
@@ -217,7 +269,14 @@ export function LandingLegalSection() {
         icon={t('icon_gavel', 'gavel')}
       />
 
+      {!showEula && !showTerms && !showPrivacy ? (
+        <EmptyState
+          icon={t('icon_gavel', 'gavel')}
+          title={t('no_results', 'No matching items found.')}
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        {showEula && (
         <UniversalCard
           layout="vertical"
           onClick={() =>
@@ -259,7 +318,9 @@ export function LandingLegalSection() {
             )}
           </p>
         </UniversalCard>
+        )}
 
+        {showTerms && (
         <UniversalCard
           layout="vertical"
           onClick={() =>
@@ -298,7 +359,9 @@ export function LandingLegalSection() {
             )}
           </p>
         </UniversalCard>
+        )}
 
+        {showPrivacy && (
         <UniversalCard
           layout="vertical"
           onClick={() =>
@@ -337,7 +400,9 @@ export function LandingLegalSection() {
             )}
           </p>
         </UniversalCard>
+        )}
       </div>
+      )}
     </section>
   );
 }

@@ -427,7 +427,205 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const GLASS_OPTICS_REV = "rev_50";
+const GLASS_OPTICS_REV = "rev_51";
+
+const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex: string }> = {
+  '/themes/architect.png': { topHex: '#1d2737', bottomHex: '#0e2244' },
+  '/themes/aurora.png': { topHex: '#0c353d', bottomHex: '#0e2229' },
+  '/themes/bunker.png': { topHex: '#365345', bottomHex: '#192e21' },
+  '/themes/dracula.png': { topHex: '#211632', bottomHex: '#262646' },
+  '/themes/radiant.png': { topHex: '#dfe5f2', bottomHex: '#d8deec' },
+  '/themes/sims4.png': { topHex: '#c6e8f5', bottomHex: '#bce8d6' },
+  '/themes/sims4_dark.png': { topHex: '#072430', bottomHex: '#07221c' },
+  '/themes/synthwave.png': { topHex: '#141236', bottomHex: '#291d48' },
+};
+
+const rgbToHex = (r: number, g: number, b: number): string => {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`;
+};
+
+export function harmonizeBarColorWithTheme(
+  rawR: number,
+  rawG: number,
+  rawB: number,
+  themeObj: any,
+  isBottom = false
+): string {
+  const [bgR, bgG, bgB] = parseHexToRgb(themeObj?.bg || '#0d1526', [13, 21, 38]);
+  const [sbR, sbG, sbB] = parseHexToRgb(themeObj?.sidebar || themeObj?.bg || '#0f192d', [bgR, bgG, bgB]);
+  const [ptR, ptG, ptB] = parseHexToRgb(themeObj?.panelTint || themeObj?.sidebar || '#16243d', [sbR, sbG, sbB]);
+  const [accR, accG, accB] = parseHexToRgb(themeObj?.accent || '#38bdf8', [56, 189, 248]);
+  const [txtR, txtG, txtB] = parseHexToRgb(themeObj?.text || '#ffffff', [255, 255, 255]);
+
+  const bgYiq = (bgR * 299 + bgG * 587 + bgB * 114) / 1000;
+  const txtYiq = (txtR * 299 + txtG * 587 + txtB * 114) / 1000;
+  const isLight = bgYiq >= 128 || txtYiq < 115;
+
+  const anchorR = isBottom ? sbR * 0.55 + ptR * 0.25 + accR * 0.20 : ptR * 0.55 + sbR * 0.25 + accR * 0.20;
+  const anchorG = isBottom ? sbG * 0.55 + ptG * 0.25 + accG * 0.20 : ptG * 0.55 + sbG * 0.25 + accG * 0.20;
+  const anchorB = isBottom ? sbB * 0.55 + ptB * 0.25 + accB * 0.20 : ptB * 0.55 + sbB * 0.25 + accB * 0.20;
+
+  let r = rawR;
+  let g = rawG;
+  let b = rawB;
+  const lum = (r * 299 + g * 587 + b * 114) / 1000;
+
+  if (!isLight) {
+    // Prevent near-black (#000000) bars on dark themes by lifting into the theme's chromatic surface/accent harmony
+    const minLum = 22;
+    if (lum < minLum) {
+      const liftR = Math.max(16, anchorR * 0.72 + accR * 0.28);
+      const liftG = Math.max(20, anchorG * 0.72 + accG * 0.28);
+      const liftB = Math.max(30, anchorB * 0.72 + accB * 0.28);
+      const mix = Math.min(0.65, Math.max(0.28, (minLum - lum) / minLum));
+      r = r * (1 - mix) + liftR * mix;
+      g = g * (1 - mix) + liftG * mix;
+      b = b * (1 - mix) + liftB * mix;
+    }
+  } else {
+    // Prevent stark pure-white (#ffffff) bars on light themes by toning into the theme's atmospheric tint
+    const maxLum = 230;
+    if (lum > maxLum) {
+      const toneR = Math.min(232, anchorR * 0.78 + accR * 0.22);
+      const toneG = Math.min(236, anchorG * 0.78 + accG * 0.22);
+      const toneB = Math.min(244, anchorB * 0.78 + accB * 0.22);
+      const mix = Math.min(0.65, Math.max(0.28, (lum - maxLum) / (255 - maxLum)));
+      r = r * (1 - mix) + toneR * mix;
+      g = g * (1 - mix) + toneG * mix;
+      b = b * (1 - mix) + toneB * mix;
+    }
+  }
+
+  return rgbToHex(r, g, b);
+}
+
+export function resolveThemeDominantBarColors(themeObj: any): { topHex: string; bottomHex: string } {
+  const bgImg = typeof themeObj?.bgImage === 'string' ? themeObj.bgImage.trim() : '';
+  if (bgImg && BUILTIN_WALLPAPER_BAR_PALETTES[bgImg]) {
+    return BUILTIN_WALLPAPER_BAR_PALETTES[bgImg];
+  }
+
+  const [bgR, bgG, bgB] = parseHexToRgb(themeObj?.bg || '#0d1526', [13, 21, 38]);
+  const [sbR, sbG, sbB] = parseHexToRgb(themeObj?.sidebar || themeObj?.bg || '#0f192d', [bgR, bgG, bgB]);
+  const [ptR, ptG, ptB] = parseHexToRgb(themeObj?.panelTint || themeObj?.sidebar || '#16243d', [sbR, sbG, sbB]);
+  const [accR, accG, accB] = parseHexToRgb(themeObj?.accent || '#38bdf8', [56, 189, 248]);
+
+  let orbTopR = ptR;
+  let orbTopG = ptG;
+  let orbTopB = ptB;
+  let orbBotR = sbR;
+  let orbBotG = sbG;
+  let orbBotB = sbB;
+
+  if (Array.isArray(themeObj?.volumetricOrbs) && themeObj.volumetricOrbs.length > 0) {
+    const firstOrb = themeObj.volumetricOrbs[0];
+    const lastOrb = themeObj.volumetricOrbs[themeObj.volumetricOrbs.length - 1];
+    if (firstOrb?.color) {
+      [orbTopR, orbTopG, orbTopB] = parseHexToRgb(firstOrb.color, [ptR, ptG, ptB]);
+    }
+    if (lastOrb?.color) {
+      [orbBotR, orbBotG, orbBotB] = parseHexToRgb(lastOrb.color, [sbR, sbG, sbB]);
+    }
+  }
+
+  const rawTopR = bgR * 0.42 + ptR * 0.30 + orbTopR * 0.16 + accR * 0.12;
+  const rawTopG = bgG * 0.42 + ptG * 0.30 + orbTopG * 0.16 + accG * 0.12;
+  const rawTopB = bgB * 0.42 + ptB * 0.30 + orbTopB * 0.16 + accB * 0.12;
+
+  const rawBotR = bgR * 0.44 + sbR * 0.30 + orbBotR * 0.14 + accR * 0.12;
+  const rawBotG = bgG * 0.44 + sbG * 0.30 + orbBotG * 0.14 + accG * 0.12;
+  const rawBotB = bgB * 0.44 + sbB * 0.30 + orbBotB * 0.14 + accB * 0.12;
+
+  return {
+    topHex: harmonizeBarColorWithTheme(rawTopR, rawTopG, rawTopB, themeObj, false),
+    bottomHex: harmonizeBarColorWithTheme(rawBotR, rawBotG, rawBotB, themeObj, true),
+  };
+}
+
+function measureMobileEdgeToEdgeSupport(): { topEdgeToEdge: boolean; bottomEdgeToEdge: boolean } {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return { topEdgeToEdge: false, bottomEdgeToEdge: false };
+  }
+  const ua = navigator.userAgent || '';
+  const isIos =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isIosStandalone =
+    isIos &&
+    Boolean(
+      (window.navigator as any)?.standalone === true ||
+        window.matchMedia?.('(display-mode: standalone)')?.matches
+    );
+
+  let probe = document.getElementById('sa-safe-area-probe');
+  if (!probe && document.documentElement) {
+    probe = document.createElement('div');
+    probe.id = 'sa-safe-area-probe';
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;z-index:-1;';
+    document.documentElement.appendChild(probe);
+  }
+  let safeTop = 0;
+  let safeBottom = 0;
+  if (probe) {
+    const cs = window.getComputedStyle(probe);
+    safeTop = parseFloat(cs.paddingTop || '0') || 0;
+    safeBottom = parseFloat(cs.paddingBottom || '0') || 0;
+  }
+
+  return {
+    topEdgeToEdge: isIosStandalone || safeTop > 2,
+    bottomEdgeToEdge: isIosStandalone || safeBottom > 2,
+  };
+}
+
+export function applyDominantSystemBarColors(
+  topHex: string,
+  bottomHex: string,
+  isPassthrough = false,
+  desktopFallbackBg?: string
+): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.style.setProperty('--sa-top-bar-blend', topHex);
+  root.style.setProperty('--sa-bottom-bar-blend', bottomHex);
+
+  const { topEdgeToEdge, bottomEdgeToEdge } = measureMobileEdgeToEdgeSupport();
+  root.setAttribute('data-sa-top-e2e', topEdgeToEdge ? 'true' : 'false');
+  root.setAttribute('data-sa-bottom-e2e', bottomEdgeToEdge ? 'true' : 'false');
+
+  if (isDesktop()) {
+    const deskBg = isPassthrough ? 'transparent' : desktopFallbackBg || topHex;
+    root.style.backgroundColor = deskBg;
+    if (document.body) {
+      document.body.style.backgroundColor = deskBg;
+    }
+    return;
+  }
+
+  let themeColorMeta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+  if (topEdgeToEdge) {
+    if (themeColorMeta) {
+      themeColorMeta.remove();
+    }
+  } else {
+    if (!themeColorMeta && document.head) {
+      themeColorMeta = document.createElement('meta');
+      themeColorMeta.name = 'theme-color';
+      document.head.appendChild(themeColorMeta);
+    }
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', topHex);
+    }
+  }
+
+  const resolvedBottomBg = bottomEdgeToEdge ? 'transparent' : bottomHex;
+  root.style.backgroundColor = resolvedBottomBg;
+  if (document.body) {
+    document.body.style.backgroundColor = resolvedBottomBg;
+  }
+}
 
 export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   if (!themeObj || typeof document === 'undefined') return 'dark';
@@ -477,8 +675,8 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
           ? themeObj.sidebar
           : '#040812';
   const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
+  const { topHex, bottomHex } = resolveThemeDominantBarColors(themeObj);
   root.style.setProperty('--bg', safeBg);
-  root.style.backgroundColor = (themeObj.bgImage && !isDesktop()) ? 'transparent' : safeBg;
   const bootBgImg = themeObj.bgImage ? `url("${themeObj.bgImage}")` : 'none';
   root.style.setProperty('--boot-bg-image', bootBgImg);
   root.style.backgroundImage = bootBgImg;
@@ -498,17 +696,9 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   const colorScheme: 'light' | 'dark' = yiq >= 128 ? 'light' : 'dark';
   root.style.colorScheme = colorScheme;
   if (document.body) {
-    document.body.style.backgroundColor = themeObj.bgImage ? 'transparent' : safeBg;
     document.body.style.colorScheme = colorScheme;
   }
-  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeObj.bgImage && !isDesktop()) {
-    if (themeColorMeta) {
-      themeColorMeta.remove();
-    }
-  } else if (themeColorMeta) {
-    themeColorMeta.setAttribute('content', fallbackThemeColor);
-  }
+  applyDominantSystemBarColors(topHex, bottomHex, isTransparentPassthrough, safeBg);
   const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
   if (colorSchemeMeta) {
     colorSchemeMeta.setAttribute('content', colorScheme);

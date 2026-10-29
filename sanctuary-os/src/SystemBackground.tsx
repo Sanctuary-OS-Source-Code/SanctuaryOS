@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useTheme } from './ThemeContext';
+import { applyDominantSystemBarColors, harmonizeBarColorWithTheme, useTheme } from './ThemeContext';
 import { isDesktop } from './utils/envUtils';
 
 export const VERTEX_SHADER_BG = `#version 300 es
@@ -1034,6 +1034,60 @@ export function SystemBackground() {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
         }
 
+        // Sample top and bottom edge chroma-weighted dominant colors from the active wallpaper/procedural canvas
+        try {
+          const sampleCanvas = document.createElement('canvas');
+          sampleCanvas.width = 32;
+          sampleCanvas.height = 32;
+          const sCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+          if (sCtx) {
+            sCtx.drawImage(srcCanvas, 0, 0, 32, 32);
+            const imgData = sCtx.getImageData(0, 0, 32, 32).data;
+            const sampleBand = (yStart: number, yEnd: number) => {
+              let rSum = 0;
+              let gSum = 0;
+              let bSum = 0;
+              let wSum = 0;
+              for (let y = yStart; y < yEnd; y++) {
+                for (let x = 0; x < 32; x++) {
+                  const idx = (y * 32 + x) * 4;
+                  const r = imgData[idx];
+                  const g = imgData[idx + 1];
+                  const b = imgData[idx + 2];
+                  const maxC = Math.max(r, g, b);
+                  const minC = Math.min(r, g, b);
+                  const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
+                  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                  const midtone = 1.0 - Math.abs(lum - 0.35);
+                  const w = 1.0 + sat * 2.5 + Math.max(0, midtone) * 1.2;
+                  rSum += r * w;
+                  gSum += g * w;
+                  bSum += b * w;
+                  wSum += w;
+                }
+              }
+              if (wSum <= 0) return [13, 21, 38] as const;
+              return [
+                Math.round(rSum / wSum),
+                Math.round(gSum / wSum),
+                Math.round(bSum / wSum),
+              ] as const;
+            };
+            const [tr, tg, tb] = sampleBand(0, 4);
+            const [br, bgC, bb] = sampleBand(28, 32);
+            const topHex = harmonizeBarColorWithTheme(tr, tg, tb, t, false);
+            const bottomHex = harmonizeBarColorWithTheme(br, bgC, bb, t, true);
+            const canPassthrough =
+              isDesktop() ||
+              (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
+            const isPassthrough =
+              canPassthrough && !t.bgImage && (t.bg === 'transparent' || Boolean(t.transparentWindow));
+            applyDominantSystemBarColors(topHex, bottomHex, isPassthrough, t.bg);
+          }
+        } catch {
+          // Ignore canvas readback errors on tainted cross-origin URLs; ThemeContext fallback remains active
+        }
+
         texGeneration++;
         texturesReady = true;
         needsElementScan = true;
@@ -1426,6 +1480,22 @@ export function SystemBackground() {
           }}
         />
       )}
+
+      {/* Mobile System Bar Dominant-Color Feather Gradients (auto-hidden when true edge-to-edge is active) */}
+      <div
+        className="sa-mobile-top-bar-feather md:hidden absolute top-0 inset-x-0 h-[56px] pointer-events-none select-none z-[3]"
+        style={{
+          background:
+            'linear-gradient(to bottom, var(--sa-top-bar-blend, #1d2737) 0%, color-mix(in srgb, var(--sa-top-bar-blend, #1d2737) 58%, transparent) 42%, transparent 100%)',
+        }}
+      />
+      <div
+        className="sa-mobile-bottom-bar-feather md:hidden absolute bottom-0 inset-x-0 h-[64px] pointer-events-none select-none z-[3]"
+        style={{
+          background:
+            'linear-gradient(to top, var(--sa-bottom-bar-blend, #0e2244) 0%, color-mix(in srgb, var(--sa-bottom-bar-blend, #0e2244) 62%, transparent) 45%, transparent 100%)',
+        }}
+      />
     </div>
   );
 }

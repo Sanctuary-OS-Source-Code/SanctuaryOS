@@ -470,10 +470,11 @@ export async function syncDirectivesBidirectional(options?: {
     const dbHasBrokenTabs =
       slug === "phase_roadmap" &&
       (dbContent.includes('"value": "Active Era)"') ||
-        dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion"));
+        dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion") ||
+        !dbContent.includes("External Mod Manager Migration & Out-of-Tree Setup Importer"));
     const localIsNewer =
       (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
-      (dbSchemaVer > 0 && dbSchemaVer < 75) ||
+      (dbSchemaVer > 0 && dbSchemaVer < 76) ||
       localBulletCount > dbBulletCount ||
       dbHasBrokenTabs;
 

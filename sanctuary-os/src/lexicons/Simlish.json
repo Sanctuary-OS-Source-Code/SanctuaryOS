@@ -2293,5 +2293,11 @@
   "landing_partners_maintain_h3": "3. Direct Community Donations (0% Fee)",
   "landing_partners_maintain_p3": "Link your community's Stripe, Ko-fi, or Patreon page in Wayfinder Operations. 100% of Simoleons go straight to your community while giving {Citizens} +30 days of Dev Builds per $5!",
   "landing_partners_maintain_h4": "4. Easy Patch Updates & Game Alerts",
-  "landing_partners_maintain_p4": "Publish game patch updates, new {Mod} format rules, and broken-mod alerts directly to your {Citizens}' Desktop and Web apps in real time!"
+  "landing_partners_maintain_p4": "Publish game patch updates, new {Mod} format rules, and broken-mod alerts directly to your {Citizens}' Desktop and Web apps in real time!",
+  "workspace_section_active_setup": "Active Workspaces (Setup)",
+  "workspace_section_inactive_unconfigured": "Inactive Workspaces (Not Yet Setup)",
+  "workspace_badge_not_setup": "Not Setup",
+  "workspace_sort_recent": "Recently Loaded",
+  "workspace_no_pinned_overview": "No Pinned Workspaces",
+  "workspace_no_pinned_overview_sub": "Pin your favorite game workspaces in Active Workspaces to open them quickly from Overview!"
 }

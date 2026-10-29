@@ -1,5 +1,5 @@
 import { useLexicon } from '../LexiconContext';
-import { PanelHeaderGroup, PanelHeaderButton } from '../shared';
+import { PanelHeaderGroup, PanelHeaderButton, EmptyState } from '../shared';
 import { isDesktop } from '../utils/envUtils';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { CommandScreenSectionHeading } from '../hub-components/SharedCommandScreenLayout';
@@ -18,6 +18,8 @@ interface LandingSupportSectionProps {
   ) => void;
   onOpenDirectContact: () => void;
   onOpenKeeperApplication: () => void;
+  searchQuery?: string;
+  supportFilter?: string;
 }
 
 export function LandingSupportSection({
@@ -27,15 +29,37 @@ export function LandingSupportSection({
   onOpenFeedbackChannel,
   onOpenDirectContact,
   onOpenKeeperApplication,
+  searchQuery = '',
+  supportFilter = 'ALL',
 }: LandingSupportSectionProps) {
   const { t } = useLexicon();
+  const q = searchQuery.trim().toLowerCase();
+  const showFeedbackSection =
+    (supportFilter === 'ALL' || supportFilter === 'feedback') &&
+    (!q ||
+      'platform feedback core support bug reports feature request public beta desktop website mobile pwa keepers core'.includes(
+        q
+      ));
+  const showContactSection =
+    (supportFilter === 'ALL' || supportFilter === 'contact') &&
+    (!q ||
+      'direct human contact sanctuary foundry apply keeper roles positions engineering security legal dmca'.includes(
+        q
+      ));
 
   return (
     <div className="w-full flex flex-col gap-10">
+      {!showFeedbackSection && !showContactSection && (
+        <EmptyState
+          icon={t('icon_support_agent', 'support_agent')}
+          title={t('no_results', 'No matching items found.')}
+        />
+      )}
       {/* =====================================================================
           OFFICIAL CORE PLATFORM FEEDBACK & BUG SUPPORT SECTION
           Clean 3-Card UniversalCard Row: [Alert -> Feedback -> Bugs]
          ===================================================================== */}
+      {showFeedbackSection && (
       <section
         id="feedback"
         className="w-full flex flex-col gap-6 mt-8 mb-8 scroll-mt-24 z-10 relative"
@@ -239,11 +263,13 @@ export function LandingSupportSection({
           </UniversalCard>
         </div>
       </section>
+      )}
 
       {/* =====================================================================
           DIRECT HUMAN CONTACT & KEEPERS CORE STEWARDSHIP
           Clean 3-Card Row: [Alert -> Direct Human Contact -> Apply to Join Keepers Core]
          ===================================================================== */}
+      {showContactSection && (
       <section
         id="contact"
         className="w-full flex flex-col gap-6 mt-8 mb-8 scroll-mt-24 z-10 relative"
@@ -439,6 +465,7 @@ export function LandingSupportSection({
           </UniversalCard>
         </div>
       </section>
+      )}
     </div>
   );
 }

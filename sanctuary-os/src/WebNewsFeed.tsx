@@ -9,9 +9,13 @@ import MasonPostCard from "./MasonPostCard";
 export default function WebNewsFeed({
   limit = 3,
   onCountChange,
+  searchQuery = "",
+  categoryFilter = "ALL",
 }: {
   limit?: number;
   onCountChange?: (count: number) => void;
+  searchQuery?: string;
+  categoryFilter?: string;
 } = {}) {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
@@ -52,14 +56,26 @@ export default function WebNewsFeed({
     fetchBroadcasts();
   }, [limit, onCountChange]);
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredPosts = posts.filter((p) => {
+    if (categoryFilter && categoryFilter !== "ALL") {
+      if (String(p.category || "").toLowerCase() !== categoryFilter.toLowerCase()) {
+        return false;
+      }
+    }
+    if (!normalizedQuery) return true;
+    const haystack = `${p.title || ""} ${p.content || ""} ${p.category || ""} ${p.masons?.name || ""}`.toLowerCase();
+    return haystack.includes(normalizedQuery);
+  });
+
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
       {loading ? (
         <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="col-span-full animate-pulse" />
-      ) : posts.length === 0 ? (
+      ) : filteredPosts.length === 0 ? (
         <EmptyState icon={t("icon_satellite_alt", "satellite_alt")} title={t("system_no_broadcasts", "No Recent Posts") || "No announcements."} className="col-span-full" />
       ) : (
-        posts.map((p, index) => (
+        filteredPosts.map((p, index) => (
           <MasonPostCard
             key={p.id}
             post={p}

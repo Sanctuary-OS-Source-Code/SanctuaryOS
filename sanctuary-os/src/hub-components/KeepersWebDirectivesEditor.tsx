@@ -202,7 +202,12 @@ export default function KeepersWebDirectivesEditor({
       return true;
     }
     const serialized = JSON.stringify(draftObj?.builderSchema || "");
-    if (serialized.includes("[sd_") || serialized.includes("Phase 12 → Phase 1")) {
+    if (
+      serialized.includes("[sd_") ||
+      serialized.includes("Phase 12 → Phase 1") ||
+      (key === "phase_roadmap" &&
+        !serialized.includes("External Mod Manager Migration"))
+    ) {
       return true;
     }
     return false;

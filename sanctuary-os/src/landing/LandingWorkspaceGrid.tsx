@@ -1,12 +1,23 @@
+import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { isDesktop } from '../utils/envUtils';
+import { EmptyState, HoverTooltip } from '../shared';
+import {
+  isWorkspacePinned,
+  isWorkspaceSetupConfigured,
+} from '../utils/workspacePrefs';
 
 interface LandingWorkspaceGridProps {
   list: any[];
   loading: boolean;
   activeWorkspaceId?: string;
   workspaces?: any[];
+  pinnedIds?: string[];
+  onTogglePin?: (game: any, e: React.MouseEvent) => void;
   onNavigateToGame: (gameId: string) => void;
+  emptyIcon?: string;
+  emptyTitle?: string;
+  emptySubtitle?: string;
 }
 
 export function LandingWorkspaceGrid({
@@ -14,44 +25,54 @@ export function LandingWorkspaceGrid({
   loading,
   activeWorkspaceId,
   workspaces,
+  pinnedIds = [],
+  onTogglePin,
   onNavigateToGame,
+  emptyIcon,
+  emptyTitle,
+  emptySubtitle,
 }: LandingWorkspaceGridProps) {
   const { t } = useLexicon();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {loading ? (
-        <div className="col-span-full py-12 flex justify-center">
-          <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)] drop-shadow-[0_0_15px_var(--accent)]">
-            {t('icon_autorenew', 'autorenew')}
-          </span>
-        </div>
+        <EmptyState
+          icon={t('icon_sync', 'sync')}
+          title={t('workspace_loading', 'Loading Workspaces...')}
+          className="col-span-full py-12 animate-pulse"
+        />
+      ) : list.length === 0 ? (
+        <EmptyState
+          icon={emptyIcon || t('icon_search', 'search')}
+          title={emptyTitle || t('no_matches', 'No Matches Found')}
+          subtitle={emptySubtitle}
+          className="col-span-full py-10"
+        />
       ) : (
         <>
           {list.map((game) => {
             const isActive =
-              isDesktop() && game.schema_id === activeWorkspaceId;
-            const matchingWs = (workspaces || []).find(
-              (w: any) =>
-                w.schema_id === game.schema_id || w.id === game.schema_id
+              isDesktop() &&
+              String(game.schema_id || '').toLowerCase() ===
+                String(activeWorkspaceId || '').toLowerCase();
+            const isWorkspaceConfigured = isWorkspaceSetupConfigured(
+              game,
+              workspaces,
+              activeWorkspaceId
             );
-            const isWorkspaceConfigured = Boolean(
-              matchingWs?.mods_path ||
-                matchingWs?.live_path ||
-                matchingWs?.vault_path ||
-                isActive
-            );
+            const isPinned = isWorkspacePinned(game, pinnedIds);
 
             return (
               <div
-                key={game.id}
+                key={game.id || game.schema_id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onNavigateToGame(game.schema_id)}
+                onClick={() => onNavigateToGame(game.schema_id || game.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onNavigateToGame(game.schema_id);
+                    onNavigateToGame(game.schema_id || game.id);
                   }
                 }}
                 className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 ${
@@ -60,7 +81,7 @@ export function LandingWorkspaceGrid({
                     : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                 }`}
               >
-                {/* Top Row: Icon Box on Left + Outline Status Badge on Right */}
+                {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
                 <div className="flex justify-between items-start gap-3 relative z-10">
                   <div
                     className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
@@ -90,17 +111,54 @@ export function LandingWorkspaceGrid({
                         </span>
                         <span>{t('active', 'Active')}</span>
                       </span>
-                    ) : (
+                    ) : isWorkspaceConfigured ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
                         <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                           {t('icon_check_circle', 'check_circle')}
                         </span>
                         <span>
-                          {isWorkspaceConfigured
-                            ? t('workspace_badge_configured', 'Configured')
-                            : t('workspace_badge_ready', 'Ready')}
+                          {t('workspace_badge_configured', 'Configured')}
                         </span>
                       </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                          {t('icon_pending', 'pending')}
+                        </span>
+                        <span>
+                          {t('workspace_badge_not_setup', 'Not Setup')}
+                        </span>
+                      </span>
+                    )}
+
+                    {onTogglePin && (
+                      <button
+                        type="button"
+                        onClick={(e) => onTogglePin(game, e)}
+                        className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all relative group/pin cursor-pointer ${
+                          isPinned
+                            ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]'
+                        }`}
+                      >
+                        <span
+                          className="material-symbols-outlined !text-[15px]"
+                          style={{
+                            fontVariationSettings: isPinned
+                              ? '"FILL" 1'
+                              : '"FILL" 0',
+                          }}
+                        >
+                          {t('icon_keep', 'keep')}
+                        </span>
+                        <HoverTooltip
+                          title={
+                            isPinned
+                              ? t('workspace_btn_unpin', 'Unpin Workspace')
+                              : t('workspace_btn_pin', 'Pin Workspace')
+                          }
+                        />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -119,7 +177,7 @@ export function LandingWorkspaceGrid({
                   <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors duration-300 truncate m-0">
                     {game.name}
                   </h3>
-                  <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 m-0">
+                  <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0">
                     {isActive
                       ? t(
                           'workspace_card_desc_active',
@@ -156,4 +214,3 @@ export function LandingWorkspaceGrid({
     </div>
   );
 }
-

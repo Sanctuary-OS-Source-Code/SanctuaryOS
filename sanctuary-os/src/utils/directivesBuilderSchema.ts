@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 75;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 76;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -148,6 +148,7 @@ function extractMarkdownSubCards(
       .trim();
 
   const results: DirectiveBuilderSubCard[] = [];
+  const usedFallbackIds = new Set<string>();
   for (const item of rawItems) {
     const cleanItemTitle = item.title.replace(/`([^`]+)`/g, "$1").trim();
     const combinedDesc = [item.inlineDesc, ...item.subLines]
@@ -161,6 +162,7 @@ function extractMarkdownSubCards(
     const normItem = normalizeHeadingKey(cleanItemTitle);
     const matchedFb =
       fallbackSubs?.find((cand) => {
+        if (usedFallbackIds.has(cand.id)) return false;
         const normCand = normalizeHeadingKey(cand.title);
         if (!normCand || !normItem) return false;
         if (normCand === normItem) return true;
@@ -169,14 +171,21 @@ function extractMarkdownSubCards(
         if (itemWords.length >= 2 && candWords.length >= 2) {
           return (
             itemWords[0] === candWords[0] &&
-            itemWords.slice(0, 3).some((w) => candWords.includes(w))
+            itemWords.slice(1, 5).some((w) => candWords.slice(1).includes(w))
           );
         }
         return false;
       }) ||
-      (fallbackSubs && rawItems.length === fallbackSubs.length
+      (fallbackSubs &&
+      rawItems.length === fallbackSubs.length &&
+      fallbackSubs[subIdx] &&
+      !usedFallbackIds.has(fallbackSubs[subIdx].id)
         ? fallbackSubs[subIdx]
         : undefined);
+
+    if (matchedFb) {
+      usedFallbackIds.add(matchedFb.id);
+    }
 
     const isPending = item.isPending || matchedFb?.pending || false;
     const preferCuratedFallback = Boolean(
@@ -778,7 +787,10 @@ export function extractDirectiveBuilderSchema(
           if (
             effectiveSlug === "phase_roadmap" &&
             (parsed.tabs.length !== 1 ||
-              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 14)
+              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 14 ||
+              !parsed.tabs[0]?.cards?.[0]?.subCards?.some((sc) =>
+                (sc.title || "").includes("External Mod Manager Migration")
+              ))
           ) {
             return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
           }
@@ -2158,18 +2170,18 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "phase_14_m4",
             icon: t("icon_drive_file_move", "drive_file_move"),
-            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer (MO2 / Vortex / BG3MM)"),
+            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer (MO2, Vortex, BG3MM, Sims 4 Mod Manager)"),
             desc: g(
-              "Imports existing Mod Organizer 2, Vortex, BG3MM, and Sims 4 Mod Manager staging folders without reinstalling—reading meta.ini, modlist.txt, plugins.txt, and deployment manifests to reconstruct every profile as a Sanctuary {Blueprint} via Zero-Duplication Hardlink, Move, or Copy."
+              "Zero-Reinstall Out-of-Tree Migration (Cartographer & {Vault}): Solves one of the top community complaints from other mod-manager transitions by allowing {Citizens} whose {mods} live in external staging directories outside the game's live {Mods} folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file. Automatic Profile, Load Order & Metadata Translation: Reads Mod Organizer 2 instances (mods/<ModName>/meta.ini, profiles/<Profile>/modlist.txt, plugins.txt, loadorder.txt), Vortex staging folders (safely unlinking legacy .vortex_deployment hardlinks/symlinks from the game folder), BG3 Mod Manager (modsettings.lsx), and Sims 4 Mod Manager profiles—preserving existing {mod} versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary {Blueprint}, and supporting Zero-Duplication Hardlink, Move, or Copy ingestion into the {Vault}."
             ),
             pending: true,
           },
           {
             id: "phase_14_m5",
             icon: t("icon_swap_horiz", "swap_horiz"),
-            title: g("Cross-Platform Curated Modlist & Collection Translator (External Lists → {Blueprints})"),
+            title: g("Cross-Platform Curated Modlist & Collection Translator (External Modlists → Native {Blueprints})"),
             desc: g(
-              "Imports Nexus Collections (collection.json), Wabbajack manifests, MO2 profile exports, and CurseForge/Modrinth packs directly into native Sanctuary {Blueprints}—binding existing {Vault} {mods} by DNA hash and routing missing items into the Guided Side Browser Queue."
+              "Universal Modlist Format Parser (Blueprints.tsx / Dropzone): Alongside native Sanctuary SNC-XXXXXX cloud codes and .json {Blueprints}, {Citizens} can import curated modlist manifests authored for other platforms—including Nexus Collections (collection.json), Wabbajack manifests, MO2 profile/modlist exports, CurseForge / Modrinth manifest.json packs, and BG3 modsettings.lsx lists—and automatically compile them into a native Sanctuary {Blueprint} with preserved load-order rules and FOMOD selections. DNA Cross-Matching & Guided Side Browser Acquisition: Automatically binds any {mods} already present in the {Citizen}'s local {Vault} via SHA-256 / MD5 DNA matching, and routes missing items directly into the Signature Queue & Guided Side Browser Batch Updater—stepping through each {Mason}'s official page for 1-click sovereign acquisition with zero lock-in (plus two-way export back to standard modlist.txt / loadorder.txt formats)."
             ),
             pending: true,
           },
