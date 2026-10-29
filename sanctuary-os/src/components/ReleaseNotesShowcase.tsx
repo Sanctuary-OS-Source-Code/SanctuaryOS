@@ -332,6 +332,18 @@ function extractBulletTitleAndRest(rawLine: string): { title: string; rest: stri
     }
   }
 
+  // Standalone bold heading bullet (e.g. `- **Physical Copies / True Ownership**` followed by sub-bullets)
+  const standaloneBoldMatch = stripped.match(/^\*\*([^*]{2,120}?)\*\*:?\s*$/);
+  if (standaloneBoldMatch) {
+    const title = cleanCardTitle(standaloneBoldMatch[1]);
+    if (title) {
+      return {
+        title,
+        rest: "",
+      };
+    }
+  }
+
   return null;
 }
 
@@ -388,66 +400,85 @@ function parseBulletGroupIntoCards(bulletLines: string[]): ParsedReleaseCard[] {
     .join(" ")
     .trim();
 
-  const cleanedMainBody = cleanCardParagraph(rawMainBody);
+  const rawCleanedMainBody = cleanCardParagraph(rawMainBody);
+  const parsedMainHeader = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
+  const cleanedMainBody =
+    parsedMainHeader.title &&
+    rawCleanedMainBody.trim().toLowerCase() === parsedMainHeader.title.trim().toLowerCase()
+      ? ""
+      : rawCleanedMainBody;
 
   if (subBulletGroups.length > 0) {
     const firstLinesParsed = subBulletGroups.map((group) => {
       const firstExtracted = extractBulletTitleAndRest(group[0]);
       const joinedAll = group.map((l) => l.trim()).join(" ");
-      const joinedExtracted = extractBulletTitleAndRest(joinedAll);
+      const joinedExtracted = firstExtracted ? null : extractBulletTitleAndRest(joinedAll);
+      const resolvedTitle = firstExtracted?.title || joinedExtracted?.title || "";
+      const rawBodyText = firstExtracted
+        ? [
+            firstExtracted.rest,
+            ...group.slice(1).map((l) => l.replace(/^\s*(?:[*-]|\d+\.)\s+/, "").trim()),
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : joinedExtracted
+          ? joinedExtracted.rest
+          : joinedAll;
+      const cleanedSubBody = cleanCardParagraph(rawBodyText);
       return {
         group,
-        title: firstExtracted?.title || joinedExtracted?.title || "",
-        body: cleanCardParagraph(
-          joinedExtracted ? joinedExtracted.rest : joinedAll
-        ),
+        title: resolvedTitle,
+        body:
+          resolvedTitle &&
+          cleanedSubBody.trim().toLowerCase() === resolvedTitle.trim().toLowerCase()
+            ? ""
+            : cleanedSubBody,
       };
     });
 
     const allSubsHaveTitles = firstLinesParsed.every((s) => Boolean(s.title));
 
-    // If the parent bullet is an umbrella header with no body of its own and titled sub-bullets,
+    // If the parent bullet is an untitled umbrella header with no body of its own and titled sub-bullets,
     // promote each sub-bullet group into its own card (recursively handling any 4-space sub-sub-bullets).
-    if (!cleanedMainBody && allSubsHaveTitles) {
+    if (!parsedMainHeader.title && !cleanedMainBody && allSubsHaveTitles) {
       return subBulletGroups.flatMap(parseBulletGroupIntoCards);
     }
 
-    // If there is only 1 untitled sub-bullet and no main body, fold it cleanly into a single 1-column card.
-    if (!cleanedMainBody && firstLinesParsed.length === 1 && !firstLinesParsed[0].title) {
-      const parsedMain = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
-      return [
-        {
-          title: parsedMain.title,
-          icon: parsedMain.icon,
-          paragraphs: firstLinesParsed[0].body ? [firstLinesParsed[0].body] : [],
-        },
-      ];
-    }
-
     // Render sub-bullets as structured mini-cards inside the parent card so there is never a multi-paragraph wall of text.
-    const parsedParent = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
+    const rawSubItems = firstLinesParsed
+      .filter((s) => s.title || s.body)
+      .flatMap((s) => {
+        if (
+          firstLinesParsed.length === 1 &&
+          s.title &&
+          s.body &&
+          s.title.trim().split(/\s+/).length >= 5 &&
+          !s.title.trim().endsWith(":")
+        ) {
+          return [
+            { title: "", body: s.title.trim() },
+            { title: "", body: s.body.trim() },
+          ];
+        }
+        return [{ title: s.title, body: s.body }];
+      });
+
     return [
       {
-        title: parsedParent.title,
-        icon: parsedParent.icon,
+        title: parsedMainHeader.title,
+        icon: parsedMainHeader.icon,
         paragraphs: cleanedMainBody ? [cleanedMainBody.replace(/:\s*$/, ".")] : [],
-        subItems: firstLinesParsed
-          .filter((s) => s.title || s.body)
-          .map((s) => ({
-            title: s.title,
-            body: s.body,
-          })),
+        subItems: rawSubItems,
       },
     ];
   }
 
   if (!mainExtracted && !cleanedMainBody) return [];
 
-  const parsedSingle = extractCardIconAndTitle(mainExtracted ? mainExtracted.title : "");
   return [
     {
-      title: parsedSingle.title,
-      icon: parsedSingle.icon,
+      title: parsedMainHeader.title,
+      icon: parsedMainHeader.icon,
       paragraphs: cleanedMainBody ? [cleanedMainBody] : [],
     },
   ];
@@ -927,10 +958,12 @@ export function StructuredReleaseNotesView({
   content,
   forceTranslate,
   hideIntro = false,
+  hideImages = false,
 }: {
   content: string;
   forceTranslate?: boolean;
   hideIntro?: boolean;
+  hideImages?: boolean;
 }) {
   const { t, td } = useLexicon();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -997,7 +1030,7 @@ export function StructuredReleaseNotesView({
   };
 
   const renderSectionImages = (images?: string[]) => {
-    if (!images || images.length === 0) return null;
+    if (hideImages || !images || images.length === 0) return null;
     return (
       <div className="flex flex-col gap-3 w-full">
         {images.map((src, imgIdx) => {

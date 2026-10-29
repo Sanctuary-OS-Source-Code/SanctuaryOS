@@ -103,7 +103,26 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
           subtitle={t("mason_hub_subtitle", "Creator Studio & Asset Management") || "Creator Studio & Asset Management"}
           icon={t("icon_construction", "construction") || "construction"}
           iconColorClass="text-[var(--accent)]"
-          breadcrumb={masonActiveTab !== "command_center" ? (masonActiveTab === "chameleons" ? (t("tab_aesthetics", "Aesthetics") || "Aesthetics") : masonActiveTab.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")) : undefined}
+          breadcrumb={
+            masonActiveTab !== "command_center"
+              ? masonActiveTab === "chameleons"
+                ? t("tab_aesthetics", "Aesthetics")
+                : masonActiveTab === "posts"
+                  ? t("tab_posts", "{Dispatches}")
+                  : masonActiveTab === "sandbox"
+                    ? t("term_mods", "{Mods}")
+                    : masonActiveTab === "nexus"
+                      ? t("term_nexus", "{Nexus}")
+                      : masonActiveTab === "collections"
+                        ? t("tab_collections", "Collections")
+                        : masonActiveTab === "bug_reports"
+                          ? t("reports", "Reports")
+                          : masonActiveTab
+                              .split("_")
+                              .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                              .join(" ")
+              : undefined
+          }
           onTitleClick={() => setMasonActiveTab("command_center")}
           hubActions={[
             ...(isVerifiedMason ? [{

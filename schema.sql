@@ -315,7 +315,8 @@ CREATE TABLE mason_posts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     image_url TEXT,
     code_snippet TEXT,
-    is_pinned BOOLEAN DEFAULT false
+    is_pinned BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true
 );
 
 CREATE TABLE mason_post_comments (
@@ -351,6 +352,7 @@ CREATE TABLE system_broadcasts (
     title TEXT NOT NULL,
     description TEXT,
     message TEXT NOT NULL,
+    image_url TEXT,
     category TEXT NOT NULL DEFAULT 'Information',
     is_active BOOLEAN NOT NULL DEFAULT true,
     target_audience TEXT,

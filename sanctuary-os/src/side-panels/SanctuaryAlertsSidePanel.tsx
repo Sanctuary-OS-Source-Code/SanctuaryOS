@@ -12,7 +12,6 @@ import {
   ActionPill,
   InlineFilterGroup,
   EmptyState,
-  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import MasonPostViewer from "./MasonPostViewer";
@@ -21,6 +20,8 @@ import {
   formatDispatchCategory,
   extractDispatchMetadata,
 } from "../components/universal/DispatchPollAndMeta";
+import { UniversalCard } from "../components/universal/UniversalCard";
+import { formatSanctuaryDate } from "../utils/dateUtils";
 
 export function SanctuaryAlertsSidePanel({
   isOpen,
@@ -36,6 +37,7 @@ export function SanctuaryAlertsSidePanel({
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const showCommLinkImages = useStore((state) => state.showCommLinkImages);
+  const dateFormat = useStore((state) => state.dateFormat);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("Active");
@@ -289,9 +291,82 @@ export function SanctuaryAlertsSidePanel({
                       ? t("urgent_alert", "Urgent Advisory")
                       : t("alert_card_read_more", "Open Full Advisory"));
 
+                  const authorName =
+                    post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry");
+                  const formattedDate = formatSanctuaryDate(post.created_at, dateFormat);
+
                   return (
-                    <div
+                    <UniversalCard
                       key={post.id}
+                      layout="vertical"
+                      isGhosted={isInactive}
+                      image={postImg ? postImg : undefined}
+                      icon={
+                        !postImg
+                          ? isPinned
+                            ? t("icon_warning", "warning")
+                            : t("icon_podcasts", "podcasts")
+                          : undefined
+                      }
+                      title={post.title}
+                      subtitle={`${t("by_author", "By")} ${authorName}`}
+                      bannerTopLabel={`${t("by_author", "By")} ${authorName}`}
+                      bannerTopRightLabel={formattedDate}
+                      statusColor={
+                        isPinned
+                          ? "border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                          : undefined
+                      }
+                      imageOverlay={
+                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span
+                              className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                                isPinned ? "text-[var(--danger)]" : "text-[var(--accent)]"
+                              }`}
+                            >
+                              {isPinned
+                                ? t("icon_warning", "warning")
+                                : t("icon_podcasts", "podcasts")}
+                            </span>
+                            <span>{categoryLabel}</span>
+                          </span>
+                          {isPinned && (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                                {t("icon_priority_high", "priority_high")}
+                              </span>
+                              <span>{t("urgent_alert", "Urgent")}</span>
+                            </span>
+                          )}
+                        </div>
+                      }
+                      badges={
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_groups", "groups")}
+                            </span>
+                            <span>{audienceLabel}</span>
+                          </span>
+                        </div>
+                      }
+                      footer={
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            <span className="material-symbols-outlined !text-[12px]">
+                              {t("icon_calendar_today", "calendar_today")}
+                            </span>
+                            {formattedDate}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 truncate">
+                            {actionLabel}
+                            <span className="material-symbols-outlined !text-sm">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
+                          </span>
+                        </div>
+                      }
                       onClick={() =>
                         setViewingPost({
                           ...post,
@@ -302,75 +377,14 @@ export function SanctuaryAlertsSidePanel({
                           replies: 0,
                         })
                       }
-                      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between transition-all duration-300 cursor-pointer group hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] ${
-                        isInactive ? "opacity-60 hover:opacity-95 grayscale-[35%]" : ""
-                      }`}
+                      className="w-full"
                     >
-                      {/* Top Header Bar */}
-                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                        <span className={VAULT_CHIP_CLASS}>
-                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                            {isPinned
-                              ? t("icon_warning", "warning")
-                              : t("icon_podcasts", "podcasts")}
-                          </span>
-                          <span>{categoryLabel}</span>
-                        </span>
-                        {isPinned && (
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                              {t("icon_priority_high", "priority_high")}
-                            </span>
-                            <span>{t("urgent_alert", "Urgent")}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {postImg && (
-                        <div className="w-full h-32 overflow-hidden relative border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-center shrink-0">
-                          <img
-                            src={postImg}
-                            alt={post.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                          />
-                        </div>
+                      {cleanSummary && (
+                        <p className="text-xs text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed m-0">
+                          {cleanSummary}
+                        </p>
                       )}
-
-                      {/* Card Content */}
-                      <div className="p-4 flex flex-col gap-2.5 flex-1 justify-between">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug line-clamp-1 group-hover:text-[var(--accent)] transition-colors">
-                            {post.title}
-                            <HoverTooltip title={post.title} />
-                          </span>
-
-                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--subtext)] opacity-80">
-                            <span className="truncate">
-                              {post.masons?.name ||
-                                t("author_sanctuary_team", "Sanctuary Foundry")}
-                            </span>
-                            <span>•</span>
-                            <span className="truncate">{audienceLabel}</span>
-                          </div>
-
-                          {cleanSummary && (
-                            <p className="text-xs text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1 m-0">
-                              {cleanSummary}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Footer Row */}
-                        <div className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 text-[11px] text-[var(--subtext)] mt-1">
-                          <span className="truncate font-bold text-[var(--text)]">
-                            {actionLabel}
-                          </span>
-                          <span className="font-mono shrink-0 text-[10px]">
-                            {new Date(post.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    </UniversalCard>
                   );
                 })}
               </div>

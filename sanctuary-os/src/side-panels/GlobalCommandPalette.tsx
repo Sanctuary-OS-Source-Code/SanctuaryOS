@@ -869,9 +869,12 @@ export function GlobalCommandPalette({
       const inBlueprint = activeBlueprintModsSet.has(cleanFile);
       const modIcon = getModIcon(mod, activeGameSchema, t);
       const rawVer = String(mod?.version || "").trim();
-      const formattedVer = rawVer
+      const isPlaceholderVer =
+        !rawVer ||
+        /^(v?\.?local|vv\.?local|local node|unknown|v\.?unknown)$/i.test(rawVer);
+      const formattedVer = !isPlaceholderVer
         ? ` • ${/^v/i.test(rawVer) ? rawVer : `v${rawVer}`}`
-        : "";
+        : ` • ${t("unknown", "Unknown")}`;
 
       items.push({
         id: `mod_${mod.hash || rawName}`,

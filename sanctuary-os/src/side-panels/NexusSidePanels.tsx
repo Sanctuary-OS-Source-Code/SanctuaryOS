@@ -1752,70 +1752,6 @@ export function MarketBlueprintPanel({
         iconColorClass="text-[var(--accent)]"
         title={t("blueprint_inspector", "Blueprint Inspector")}
         subtitle={t("blueprint_desc", "{Mod} metadata and Asset repository")}
-        headerActions={
-          <PanelHeaderGroup>
-            {!isDesktop() && (
-              <PanelHeaderButton
-                icon={t("icon_phonelink", "phonelink")}
-                tooltip={t("staging_btn_stage_blueprint", "Stage {Blueprint} to PC")}
-                onClick={() => {
-                  useModalStore
-                    .getState()
-                    .stageBlueprintToDraft(enrichedBlueprint);
-                  useStore
-                    .getState()
-                    .pushStatus(
-                      t(
-                        "status_staging_blueprint_loaded",
-                        "Blueprint loaded into Payload Editor."
-                      )
-                    );
-                  setSelectedBlueprint(null);
-                  useStore.getState().setView("playsets");
-                }}
-                variant="default"
-              />
-            )}
-            {isDesktop() && (
-              <PanelHeaderButton
-                icon={
-                  isSyncing
-                    ? t("icon_sync", "sync")
-                    : t("icon_download", "download")
-                }
-                tooltip={
-                  playSets.some(
-                    (p: any) =>
-                      p.code &&
-                      selectedBlueprint?.json_data?.code &&
-                      p.code === selectedBlueprint.json_data.code
-                  )
-                    ? t("btn_install_copy", "Install Copy")
-                    : t("update_panel_install", "Install")
-                }
-                onClick={async () => {
-                  if (
-                    playSets.some(
-                      (p: any) =>
-                        p.code &&
-                        selectedBlueprint?.json_data?.code &&
-                        p.code === selectedBlueprint.json_data.code
-                    )
-                  ) {
-                    setIsSyncing(true);
-                    await syncBlueprintByCode(selectedBlueprint.json_data.code);
-                    setIsSyncing(false);
-                  } else {
-                    onDownloadSuccess?.();
-                  }
-                  setSelectedBlueprint(null);
-                }}
-                variant="accent"
-                spinIcon={isSyncing}
-              />
-            )}
-          </PanelHeaderGroup>
-        }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
@@ -1828,19 +1764,108 @@ export function MarketBlueprintPanel({
             }
             title={enrichedBlueprint.name}
             description={t("blueprint_desc", "{Mod} metadata and Asset repository")}
-            badge={
-              enrichedBlueprint.is_paid
-                ? t("badge_premium", "Premium")
-                : `${allGroupedFamilies.length}`
-            }
-            badgeIcon={
-              enrichedBlueprint.is_paid
-                ? t("icon_monetization_on", "monetization_on")
-                : t("icon_inventory_2", "inventory_2")
-            }
+            badge={`${allGroupedFamilies.length} ${t("term_mods", "{Mods}")}`}
+            badgeIcon={t("icon_inventory_2", "inventory_2")}
             variant={enrichedBlueprint.is_paid ? "warning" : "accent"}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {enrichedBlueprint.is_early_access && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                      {t("icon_science", "science")}
+                    </span>
+                    {t("badge_early_access", "Early Access")}
+                  </span>
+                )}
+                {enrichedBlueprint.is_paid && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                      {t("icon_monetization_on", "monetization_on")}
+                    </span>
+                    {t("badge_paid", "Paid")}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 ml-auto">
+                {!isDesktop() ? (
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_phonelink", "phonelink")}
+                    label={t("staging_btn_stage_blueprint", "Stage {Blueprint} to PC")}
+                    onClick={() => {
+                      useModalStore
+                        .getState()
+                        .stageBlueprintToDraft(enrichedBlueprint);
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t(
+                            "status_staging_blueprint_loaded",
+                            "Blueprint loaded into Payload Editor."
+                          )
+                        );
+                      setSelectedBlueprint(null);
+                      useStore.getState().setView("playsets");
+                    }}
+                  />
+                ) : (
+                  <ActionButton
+                    variant="accent"
+                    icon={
+                      isSyncing
+                        ? t("icon_sync", "sync")
+                        : t("icon_download", "download")
+                    }
+                    label={
+                      playSets.some(
+                        (p: any) =>
+                          p.code &&
+                          selectedBlueprint?.json_data?.code &&
+                          p.code === selectedBlueprint.json_data.code
+                      )
+                        ? t("btn_install_copy", "Install Copy")
+                        : t("update_panel_install", "Install")
+                    }
+                    onClick={async () => {
+                      if (
+                        playSets.some(
+                          (p: any) =>
+                            p.code &&
+                            selectedBlueprint?.json_data?.code &&
+                            p.code === selectedBlueprint.json_data.code
+                        )
+                      ) {
+                        setIsSyncing(true);
+                        await syncBlueprintByCode(selectedBlueprint.json_data.code);
+                        setIsSyncing(false);
+                      } else {
+                        onDownloadSuccess?.();
+                      }
+                      setSelectedBlueprint(null);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </SidePanelHeroCard>
+
+          <UniversalGroup
+            title={t("tab_metadata", "Metadata & Telemetry")}
+            icon={t("icon_analytics", "analytics")}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <StatBox
+                label={t("role_creator", "Creator")}
+                value={
+                  enrichedBlueprint.creator_name ||
+                  enrichedBlueprint.master_author ||
+                  enrichedBlueprint.author ||
+                  t("role_citizen", "{Citizen}")
+                }
+                icon={t("icon_person", "person")}
+                iconColorClass="text-[var(--accent)]"
+              />
               <StatBox
                 label={t("blueprint_version_label", "Game Version")}
                 value={
@@ -1850,7 +1875,6 @@ export function MarketBlueprintPanel({
                 }
                 icon={t("icon_sell", "sell")}
                 iconColorClass="text-[var(--accent)]"
-                className="col-span-2 sm:col-span-1"
               />
               <StatBox
                 label={t("sort_downloads", "Downloads")}
@@ -1867,7 +1891,7 @@ export function MarketBlueprintPanel({
                 iconColorClass="text-[var(--accent)]"
               />
             </div>
-          </SidePanelHeroCard>
+          </UniversalGroup>
 
           <div className="grid grid-cols-2 gap-3">
             <DashboardStatTile

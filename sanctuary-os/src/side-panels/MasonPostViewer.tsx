@@ -946,13 +946,18 @@ export default function MasonPostViewer({
           >
             <div className="flex flex-col gap-5 min-w-0">
               {viewMode === "ui" ? (
-                <StructuredReleaseNotesView content={content} forceTranslate={forceTranslatePost} />
+                <StructuredReleaseNotesView
+                  content={content}
+                  forceTranslate={forceTranslatePost}
+                  hideImages={showCommLinkImages === false}
+                />
               ) : (
                 <div className="glass-panel rounded-3xl p-5 sm:p-6 markdown-body text-[var(--text)] opacity-95 leading-relaxed text-sm">
                   <MarkdownRenderer
                     content={cleanPostBodyForViewer(content)}
                     isAlert={isAlert}
                     forceTranslate={forceTranslatePost}
+                    hideImages={showCommLinkImages === false}
                     onAssetClick={(type: string, id: string) => {
                       onAssetClick?.(type, id);
                     }}

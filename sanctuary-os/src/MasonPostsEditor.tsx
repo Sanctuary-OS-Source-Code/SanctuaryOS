@@ -55,14 +55,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
       let isUnchanged = false;
       if (editingPost) {
-        let rawContent = editingPost.content || '';
+        let rawContent = (editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
         let parsedImage = extractPostImage(editingPost) || "";
-        if (rawContent.startsWith('[IMG:')) {
-          const endIdx = rawContent.indexOf(']');
-          if (endIdx !== -1) {
-            rawContent = rawContent.substring(endIdx + 1).trim();
-          }
-        }
 
         isUnchanged =
           title === editingPost.title &&
@@ -84,17 +78,23 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       }
 
       if (isUnchanged) {
-        setMasonHubDrafts(prev => {
-          if (!prev[draftId]) return prev;
-          const next = { ...prev };
-          delete next[draftId];
-          return next;
-        });
+        const timer = setTimeout(() => {
+          setMasonHubDrafts(prev => {
+            if (!prev[draftId]) return prev;
+            const next = { ...prev };
+            delete next[draftId];
+            return next;
+          });
+        }, 350);
+        return () => clearTimeout(timer);
       } else {
-        setMasonHubDrafts(prev => ({
-          ...prev,
-          [draftId]: { title, description, content, imageUrl, codeSnippet, isPinned, isActive }
-        }));
+        const timer = setTimeout(() => {
+          setMasonHubDrafts(prev => ({
+            ...prev,
+            [draftId]: { title, description, content, imageUrl, codeSnippet, isPinned, isActive }
+          }));
+        }, 350);
+        return () => clearTimeout(timer);
       }
     }
   }, [isEditorOpen, editingPostId, editingPost, title, description, content, imageUrl, codeSnippet, isPinned, isActive]);
@@ -175,15 +175,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     if (post) {
       setEditingPostId(post.id);
       setEditingPost(post);
-      let rawContent = post.content || '';
+      let rawContent = (post.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
       let parsedImage = extractPostImage(post) || "";
-
-      if (parsedImage) {
-        rawContent = rawContent.replace(new RegExp(`\\[IMG:${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\s*`), '');
-        rawContent = rawContent.replace(new RegExp(`!\\[.*?\\]\\(${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*`), '');
-        rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
-      }
-      rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
 
       setTitle(draft?.title ?? post.title);
       setDescription(draft?.description ?? (post.description || ""));
@@ -287,16 +280,18 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     }
 
     setIsSubmitting(true);
+    const cleanedFinalContent = finalContent.replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+    const cleanedImageUrl = imageUrl.trim().replace(/\\+$/, '').trim();
     let payload: any = {
       mason_id: masonId,
       title: title.trim(),
       description: description.trim() || null,
-      content: finalContent.trim(),
+      content: cleanedFinalContent,
+      image_url: cleanedImageUrl || null,
       code_snippet: codeSnippet.trim() || null,
       is_pinned: isPinned,
       is_active: isActive
     };
-    if (imageUrl.trim()) payload.image_url = imageUrl.trim();
 
     let error = null;
     let newPostId: string | null = null;
@@ -316,11 +311,29 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     let resObj = await performSave(payload);
     error = resObj.error;
 
-    if (error && (error.code === '42703' || error.code === 'PGRST204' || error.code === 'PGRST205' || (error.message && error.message.includes('image_url')))) {
-      if (imageUrl.trim()) payload.content = `[IMG:${imageUrl.trim()}]\n\n` + payload.content;
-      delete payload.image_url;
-      resObj = await performSave(payload);
-      error = resObj.error;
+    for (let attempt = 0; attempt < 5 && error; attempt++) {
+      const errMsg = String(error.message || '');
+      const missingColMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+      const missingCol = missingColMatch?.[1];
+      if (missingCol && Object.prototype.hasOwnProperty.call(payload, missingCol)) {
+        if (missingCol === 'image_url' && imageUrl.trim()) {
+          payload.content = `[IMG:${imageUrl.trim()}]\n\n` + payload.content;
+        }
+        delete payload[missingCol];
+        resObj = await performSave(payload);
+        error = resObj.error;
+        continue;
+      }
+      if (error.code === '42703' || error.code === 'PGRST204' || error.code === 'PGRST205' || errMsg.includes('image_url')) {
+        if (payload.image_url !== undefined) {
+          if (imageUrl.trim()) payload.content = `[IMG:${imageUrl.trim()}]\n\n` + payload.content;
+          delete payload.image_url;
+        }
+        delete payload.is_active;
+        resObj = await performSave(payload);
+        error = resObj.error;
+      }
+      break;
     }
 
     if (!error) {

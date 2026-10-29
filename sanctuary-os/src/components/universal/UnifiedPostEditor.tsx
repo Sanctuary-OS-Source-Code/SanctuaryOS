@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
 import { useLexicon } from "../../LexiconContext";
 import {
@@ -12,9 +12,42 @@ import {
   parseMarkdownIntoReleaseSections,
   ParsedReleaseSection,
   ParsedReleaseCard,
-  renderCleanInlineText,
 } from "../ReleaseNotesShowcase";
 import { DispatchPollBuilder, DispatchPollData } from "./DispatchPollAndMeta";
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className = "",
+  minRows = 3,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  className?: string;
+  minRows?: number;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, minRows * 22)}px`;
+  }, [value, minRows]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={minRows}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={`resize-none overflow-hidden ${className}`}
+    />
+  );
+}
 
 export type PostEditorMode = "visual" | "wysiwyg" | "markdown";
 
@@ -226,6 +259,7 @@ export function UnifiedPostBodyEditor({
 
   // Interactive Visual Builder state
   const lastSerializedRef = useRef<string>(content);
+  const prevModeRef = useRef<PostEditorMode>(mode);
   const [visualDoc, setVisualDoc] = useState<{
     introTitle: string;
     introIcon?: string;
@@ -237,20 +271,34 @@ export function UnifiedPostBodyEditor({
   const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (content !== lastSerializedRef.current) {
+    const modeChangedToVisual =
+      mode === "visual" && prevModeRef.current !== "visual";
+    const modeChangedToWysiwyg =
+      mode === "wysiwyg" && prevModeRef.current !== "wysiwyg";
+    prevModeRef.current = mode;
+
+    if (modeChangedToWysiwyg && editor && !editor.isDestroyed) {
+      const currentMd =
+        (editor.storage as any)?.markdown?.getMarkdown?.() ?? "";
+      if (currentMd !== content) {
+        editor.commands.setContent(content, { emitUpdate: false });
+      }
+    }
+
+    if (modeChangedToVisual || content !== lastSerializedRef.current) {
       lastSerializedRef.current = content;
       setVisualDoc(parseMarkdownIntoReleaseSections(content));
     }
-  }, [content, mode]);
+  }, [content, mode, editor]);
 
-  const syncMarkdown = (nextMd: string) => {
+  const syncMarkdown = (nextMd: string, syncToTipTap = false) => {
     lastSerializedRef.current = nextMd;
     onContentChange(nextMd);
-    if (editor && !editor.isDestroyed) {
+    if (syncToTipTap && editor && !editor.isDestroyed) {
       const currentMd =
         (editor.storage as any)?.markdown?.getMarkdown?.() ?? "";
       if (currentMd !== nextMd) {
-        editor.commands.setContent(nextMd);
+        editor.commands.setContent(nextMd, { emitUpdate: false });
       }
     }
   };
@@ -264,7 +312,7 @@ export function UnifiedPostBodyEditor({
   }) => {
     setVisualDoc(nextDoc);
     const nextMd = serializeReleaseSectionsToMarkdown(nextDoc, content);
-    syncMarkdown(nextMd);
+    syncMarkdown(nextMd, false);
   };
 
   const resolveSectionIcon = (title: string, explicitIcon?: string) => {
@@ -435,6 +483,42 @@ export function UnifiedPostBodyEditor({
     setActiveTarget(`sec-${sIdx}-card-${targetIdx}`);
   };
 
+  const handleAddSubItem = (sIdx: number, cIdx: number) => {
+    const sec = visualDoc.sections[sIdx];
+    if (!sec) return;
+    const card = sec.cards[cIdx];
+    if (!card) return;
+    const rawBody = (card.paragraphs || []).join("\n\n").trim();
+    const cleanedParagraphs =
+      card.title && rawBody.toLowerCase() === card.title.trim().toLowerCase()
+        ? []
+        : card.paragraphs;
+    const nextSubs = [...(card.subItems || []), { title: "", body: "" }];
+    handleUpdateCard(sIdx, cIdx, {
+      paragraphs: cleanedParagraphs,
+      subItems: nextSubs,
+    });
+    setActiveTarget(`sec-${sIdx}-card-${cIdx}`);
+  };
+
+  const handleMoveSubItem = (
+    sIdx: number,
+    cIdx: number,
+    subIdx: number,
+    dir: -1 | 1
+  ) => {
+    const sec = visualDoc.sections[sIdx];
+    if (!sec) return;
+    const card = sec.cards[cIdx];
+    if (!card || !card.subItems) return;
+    const targetIdx = subIdx + dir;
+    if (targetIdx < 0 || targetIdx >= card.subItems.length) return;
+    const nextSubs = [...card.subItems];
+    const [moved] = nextSubs.splice(subIdx, 1);
+    nextSubs.splice(targetIdx, 0, moved);
+    handleUpdateCard(sIdx, cIdx, { subItems: nextSubs });
+  };
+
   const ToolbarBtn = ({
     onClick,
     active,
@@ -470,7 +554,25 @@ export function UnifiedPostBodyEditor({
   const hasIntro =
     Boolean(visualDoc.introTitle.trim()) ||
     Boolean(visualDoc.intro.trim()) ||
+    Boolean(visualDoc.introImages && visualDoc.introImages.length > 0) ||
     activeTarget === "intro";
+
+  const handleRemoveIntroImage = (imgIdx: number) => {
+    const nextImgs = (visualDoc.introImages || []).filter((_, idx) => idx !== imgIdx);
+    commitVisualDoc({
+      ...visualDoc,
+      introImages: nextImgs.length > 0 ? nextImgs : undefined,
+    });
+  };
+
+  const handleRemoveSectionImage = (sIdx: number, imgIdx: number) => {
+    const sec = visualDoc.sections[sIdx];
+    if (!sec) return;
+    const nextImgs = (sec.images || []).filter((_, idx) => idx !== imgIdx);
+    handleUpdateSection(sIdx, {
+      images: nextImgs.length > 0 ? nextImgs : undefined,
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -535,42 +637,12 @@ export function UnifiedPostBodyEditor({
             </div>
           </div>
 
-          {/* Top Intro Block (Click to Edit or Delete + Clickable Icon Picker) */}
+          {/* Top Intro Block (Direct In-Place Editing — Zero Mode-Swap Jump) */}
           {hasIntro && (
             <div className="flex flex-col gap-2.5 w-full">
-              {activeTarget === "intro" ? (
-                <div className="glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[rgba(var(--text-rgb),0.08)]">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                        {t("icon_short_text", "short_text")}
-                      </span>
-                      {t("overview", "Overview")}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteIntro()}
-                        className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
-                          {t("icon_delete", "delete")}
-                        </span>
-                        <span>{t("btn_delete", "{Delete}")}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTarget(null)}
-                        className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                          {t("icon_check", "check")}
-                        </span>
-                        <span>{t("btn_done", "Done")}</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5 w-full">
+              <div className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
                     <div className="relative shrink-0">
                       <button
                         type="button"
@@ -579,19 +651,13 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro" ? null : "intro"
                           )
                         }
-                        className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+                        className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                       >
-                        <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-[17px]">
                           {resolveSectionIcon(
                             visualDoc.introTitle || "Welcome",
                             visualDoc.introIcon || "verified"
                           )}
-                        </span>
-                        <span className="text-[10px] font-black uppercase tracking-wider">
-                          {t("visual_editor_icon_btn", "Icon")}
-                        </span>
-                        <span className="material-symbols-outlined !text-[14px] opacity-70">
-                          {t("icon_expand_more", "expand_more")}
                         </span>
                         <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                       </button>
@@ -617,87 +683,15 @@ export function UnifiedPostBodyEditor({
                           introTitle: e.target.value,
                         })
                       }
-                      placeholder={t("post_title", "Heading (Optional)...")}
-                      className="flex-1 min-w-0 h-10 px-3.5 rounded-xl glass-surface text-xs font-bold text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                      placeholder={t("post_title", "Overview Heading (Optional)...")}
+                      className="flex-1 min-w-0 bg-transparent text-sm sm:text-base font-black text-[var(--text)] border-b border-transparent hover:border-[rgba(var(--text-rgb),0.18)] focus:border-[var(--accent)] outline-none py-0.5 transition-colors"
                     />
                   </div>
-                  <textarea
-                    rows={3}
-                    value={visualDoc.intro}
-                    onChange={(e) =>
-                      commitVisualDoc({
-                        ...visualDoc,
-                        intro: e.target.value,
-                      })
-                    }
-                    placeholder={
-                      placeholder ||
-                      t("post_description_ph", "Lead summary or introduction...")
-                    }
-                    className="w-full p-3.5 rounded-xl glass-surface text-xs text-[var(--text)] leading-relaxed outline-none focus:border-[var(--accent)] resize-y custom-scrollbar"
-                    autoFocus
-                  />
-                </div>
-              ) : (
-                <div
-                  onClick={() => setActiveTarget("intro")}
-                  className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-2.5 relative group cursor-pointer transition-all hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
-                >
-                  <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                    <div
-                      className="relative"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setIconPickerFor(
-                            iconPickerFor === "intro-view" ? null : "intro-view"
-                          )
-                        }
-                        className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1 cursor-pointer transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                          {t("icon_add_reaction", "add_reaction")}
-                        </span>
-                        <span className="text-[9px] font-black uppercase tracking-wider">
-                          {t("visual_editor_icon_btn", "Icon")}
-                        </span>
-                        <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
-                      </button>
-                      {iconPickerFor === "intro-view" && (
-                        <IconPicker
-                          onSelect={(icon) => {
-                            commitVisualDoc({
-                              ...visualDoc,
-                              introIcon: icon,
-                            });
-                            setIconPickerFor(null);
-                          }}
-                          onClose={() => setIconPickerFor(null)}
-                        />
-                      )}
-                    </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTarget("intro");
-                      }}
-                      className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[14px]">
-                        {t("icon_edit", "edit")}
-                      </span>
-                      <HoverTooltip title={t("edit", "Edit")} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteIntro();
-                      }}
-                      className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                      onClick={() => handleDeleteIntro()}
+                      className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer transition-all"
                     >
                       <span className="material-symbols-outlined !text-[14px]">
                         {t("icon_delete", "delete")}
@@ -705,48 +699,58 @@ export function UnifiedPostBodyEditor({
                       <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2.5 pr-28">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIconPickerFor(
-                          iconPickerFor === "intro-view" ? null : "intro-view"
-                        );
-                      }}
-                      className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
+                </div>
+                <AutoResizeTextarea
+                  minRows={3}
+                  value={visualDoc.intro}
+                  onChange={(e) =>
+                    commitVisualDoc({
+                      ...visualDoc,
+                      intro: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    placeholder ||
+                    t("post_description_ph", "Lead summary or introduction...")
+                  }
+                  className="w-full bg-transparent text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_88%,transparent)] leading-relaxed outline-none"
+                />
+              </div>
+              {visualDoc.introImages && visualDoc.introImages.length > 0 && (
+                <div className="flex flex-col gap-2.5 w-full">
+                  {visualDoc.introImages.map((src, imgIdx) => (
+                    <div
+                      key={`intro-img-${imgIdx}-${src}`}
+                      className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] relative group/img"
                     >
-                      <span className="material-symbols-outlined !text-[17px]">
-                        {resolveSectionIcon(
-                          visualDoc.introTitle || "Welcome",
-                          visualDoc.introIcon || "verified"
-                        )}
-                      </span>
-                      <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
-                    </button>
-                    {visualDoc.introTitle && (
-                      <h3 className="text-sm sm:text-base font-black text-[var(--text)]">
-                        {renderCleanInlineText(visualDoc.introTitle)}
-                      </h3>
-                    )}
-                  </div>
-                  <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed pr-12">
-                    {visualDoc.intro
-                      ? renderCleanInlineText(visualDoc.intro)
-                      : t("edit", "Click to edit...")}
-                  </p>
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-full max-h-72 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveIntroImage(imgIdx)}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--text)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer transition-all shadow-lg"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t("icon_delete", "delete")}
+                        </span>
+                        <HoverTooltip title={t("remove", "Remove")} variant="danger" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Sections & 2-Column Info Cards (Click Any Section or Card to Edit/Delete + Pick Icons) */}
+          {/* Sections & Direct In-Place Info Cards */}
           {visualDoc.sections.map((section, sIdx) => {
             const leadKey = `sec-${sIdx}-lead`;
             const isLeadEditing = activeTarget === leadKey;
             const hasLead =
-              Boolean(section.description && section.description.trim()) ||
-              isLeadEditing;
+              Boolean(section.description !== undefined) || isLeadEditing;
             const secIconPickerKey = `sec-${sIdx}-icon`;
 
             return (
@@ -801,25 +805,6 @@ export function UnifiedPostBodyEditor({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() =>
-                        setIconPickerFor(
-                          iconPickerFor === secIconPickerKey
-                            ? null
-                            : secIconPickerKey
-                        )
-                      }
-                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
-                    >
-                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                        {t("icon_add_reaction", "add_reaction")}
-                      </span>
-                      <span className="hidden sm:inline">
-                        {t("visual_editor_icon_btn", "Icon")}
-                      </span>
-                      <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => handleAddCardToSection(sIdx)}
                       className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                     >
@@ -864,107 +849,51 @@ export function UnifiedPostBodyEditor({
                   </div>
                 </div>
 
-                {/* Section Lead Paragraph Box */}
-                {hasLead &&
-                  (isLeadEditing ? (
-                    <div className="glass-panel rounded-2xl p-4 flex flex-col gap-2.5 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                          {t("visual_editor_add_summary", "Section Summary")}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleUpdateSection(sIdx, {
-                                description: undefined,
-                              });
-                              setActiveTarget(null);
-                            }}
-                            className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
-                              {t("icon_delete", "delete")}
-                            </span>
-                            <span>{t("btn_delete", "{Delete}")}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTarget(null)}
-                            className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                              {t("icon_check", "check")}
-                            </span>
-                            <span>{t("btn_done", "Done")}</span>
-                          </button>
-                        </div>
-                      </div>
-                      <textarea
-                        rows={3}
-                        value={section.description || ""}
-                        onChange={(e) =>
+                {/* Section Lead Paragraph Box (Direct In-Place Editing) */}
+                {hasLead && (
+                  <div className="glass-panel rounded-2xl p-4 flex flex-col gap-2 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("visual_editor_add_summary", "Section Summary")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
                           handleUpdateSection(sIdx, {
-                            description: e.target.value,
-                          })
-                        }
-                        placeholder={t(
-                          "post_description_ph",
-                          "Section summary..."
-                        )}
-                        className="w-full p-3 rounded-xl glass-surface text-xs text-[var(--text)] leading-relaxed outline-none focus:border-[var(--accent)] resize-y custom-scrollbar"
-                        autoFocus
-                      />
+                            description: undefined,
+                          });
+                          setActiveTarget(null);
+                        }}
+                        className="w-6 h-6 rounded-lg glass-surface text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {t("icon_delete", "delete")}
+                        </span>
+                        <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
+                      </button>
                     </div>
-                  ) : (
-                    <div
-                      onClick={() => setActiveTarget(leadKey)}
-                      className="glass-panel rounded-2xl p-4 flex flex-col gap-2 relative group cursor-pointer transition-all hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
-                    >
-                      <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveTarget(leadKey);
-                          }}
-                          className="w-6 h-6 rounded-lg glass-surface text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[13px]">
-                            {t("icon_edit", "edit")}
-                          </span>
-                          <HoverTooltip title={t("edit", "Edit")} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUpdateSection(sIdx, {
-                              description: undefined,
-                            });
-                          }}
-                          className="w-6 h-6 rounded-lg glass-surface text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[13px]">
-                            {t("icon_delete", "delete")}
-                          </span>
-                          <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
-                        </button>
-                      </div>
-                      <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed pr-12">
-                        {section.description
-                          ? renderCleanInlineText(section.description)
-                          : null}
-                      </p>
-                    </div>
-                  ))}
+                    <AutoResizeTextarea
+                      minRows={2}
+                      value={section.description || ""}
+                      onChange={(e) =>
+                        handleUpdateSection(sIdx, {
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder={t(
+                        "post_description_ph",
+                        "Section summary..."
+                      )}
+                      className="w-full bg-transparent text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_88%,transparent)] leading-relaxed outline-none"
+                    />
+                  </div>
+                )}
 
-                {/* 2-Column Info Cards Grid */}
+                {/* 2-Column Info Cards Grid (Always Direct In-Place — No Layout Jump) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {section.cards.map((card, cIdx) => {
                     const cardKey = `sec-${sIdx}-card-${cIdx}`;
                     const cardIconKey = `sec-${sIdx}-card-${cIdx}-icon`;
-                    const isCardEditing = activeTarget === cardKey;
                     const hasSubItems = Boolean(
                       card.subItems && card.subItems.length > 0
                     );
@@ -972,85 +901,25 @@ export function UnifiedPostBodyEditor({
                       !hasSubItems &&
                       section.cards.length % 2 === 1 &&
                       cIdx === section.cards.length - 1;
-                    const spanFull = isCardEditing || hasSubItems || isLastOdd;
-                    const bodyValue = (card.paragraphs || []).join("\n\n");
+                    const spanFull = hasSubItems || isLastOdd;
+                    const rawBodyValue = (card.paragraphs || []).join("\n\n");
+                    const bodyValue =
+                      card.title &&
+                      rawBodyValue.trim().toLowerCase() ===
+                        card.title.trim().toLowerCase()
+                        ? ""
+                        : rawBodyValue;
 
-                    if (isCardEditing) {
-                      return (
-                        <div
-                          key={cardKey}
-                          className="md:col-span-2 glass-panel rounded-2xl p-4 flex flex-col gap-3 !border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[rgba(var(--text-rgb),0.08)]">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5">
-                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                                {t("icon_edit_note", "edit_note")}
-                              </span>
-                              #{cIdx + 1}
-                            </span>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {card.icon && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateCard(sIdx, cIdx, {
-                                      icon: undefined,
-                                    })
-                                  }
-                                  className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
-                                >
-                                  <span className="material-symbols-outlined !text-[13px]">
-                                    {t("icon_close", "close")}
-                                  </span>
-                                  <span>
-                                    {t("visual_editor_clear_icon", "Clear Icon")}
-                                  </span>
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                disabled={cIdx === 0}
-                                onClick={() => handleMoveCard(sIdx, cIdx, -1)}
-                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_arrow_upward", "arrow_upward")}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                disabled={cIdx === section.cards.length - 1}
-                                onClick={() => handleMoveCard(sIdx, cIdx, 1)}
-                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_arrow_downward", "arrow_downward")}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteCard(sIdx, cIdx)}
-                                className="h-7 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
-                                  {t("icon_delete", "delete")}
-                                </span>
-                                <span>{t("btn_delete", "{Delete}")}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveTarget(null)}
-                                className="h-7 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                                  {t("icon_check", "check")}
-                                </span>
-                                <span>{t("btn_done", "Done")}</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2.5 w-full">
+                    return (
+                      <div
+                        key={cardKey}
+                        className={`glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
+                          spanFull ? "md:col-span-2" : ""
+                        }`}
+                      >
+                        {/* Card Header Bar: Inline Icon + Inline Title Input + Compact Actions */}
+                        <div className="flex items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
                             <div className="relative shrink-0">
                               <button
                                 type="button"
@@ -1061,18 +930,12 @@ export function UnifiedPostBodyEditor({
                                       : cardIconKey
                                   )
                                 }
-                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                               >
-                                <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                                <span className="material-symbols-outlined !text-[16px]">
                                   {card.icon
                                     ? t(`icon_${card.icon}`, card.icon)
                                     : t("icon_add_reaction", "add_reaction")}
-                                </span>
-                                <span className="text-[10px] font-black uppercase tracking-wider">
-                                  {t("visual_editor_icon_btn", "Icon")}
-                                </span>
-                                <span className="material-symbols-outlined !text-[14px] opacity-70">
-                                  {t("icon_expand_more", "expand_more")}
                                 </span>
                                 <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                               </button>
@@ -1099,33 +962,213 @@ export function UnifiedPostBodyEditor({
                                 "post_title",
                                 "Card Heading (Optional)..."
                               )}
-                              className="flex-1 min-w-0 h-10 px-3.5 rounded-xl glass-surface text-xs font-bold text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                              className="flex-1 min-w-0 bg-transparent text-sm sm:text-[15px] font-bold text-[var(--text)] border-b border-transparent hover:border-[rgba(var(--text-rgb),0.18)] focus:border-[var(--accent)] outline-none py-0.5 transition-colors"
                             />
                           </div>
 
-                          <textarea
-                            rows={3}
-                            value={bodyValue}
-                            onChange={(e) =>
-                              handleUpdateCard(sIdx, cIdx, {
-                                paragraphs: [e.target.value],
-                              })
-                            }
-                            placeholder={t(
-                              "post_description_ph",
-                              "Card details..."
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleAddSubItem(sIdx, cIdx)}
+                              className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                                {t("icon_add", "add")}
+                              </span>
+                              <span className="hidden sm:inline">
+                                {t("visual_editor_add_block", "Add Sub-Block")}
+                              </span>
+                              <HoverTooltip
+                                title={t("visual_editor_add_block", "Add Sub-Block")}
+                              />
+                            </button>
+                            {card.icon && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateCard(sIdx, cIdx, {
+                                    icon: undefined,
+                                  })
+                                }
+                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined !text-[13px]">
+                                  {t("icon_close", "close")}
+                                </span>
+                                <HoverTooltip
+                                  title={t("visual_editor_clear_icon", "Clear Icon")}
+                                />
+                              </button>
                             )}
-                            className="w-full p-3.5 rounded-xl glass-surface text-xs text-[var(--text)] leading-relaxed outline-none focus:border-[var(--accent)] resize-y custom-scrollbar"
-                            autoFocus
-                          />
+                            <button
+                              type="button"
+                              disabled={cIdx === 0}
+                              onClick={() => handleMoveCard(sIdx, cIdx, -1)}
+                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_arrow_upward", "arrow_upward")}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={cIdx === section.cards.length - 1}
+                              onClick={() => handleMoveCard(sIdx, cIdx, 1)}
+                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_arrow_downward", "arrow_downward")}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCard(sIdx, cIdx)}
+                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_delete", "delete")}
+                              </span>
+                              <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
+                            </button>
+                          </div>
+                        </div>
 
-                          {card.subItems && card.subItems.length > 0 && (
-                            <div className="flex flex-col gap-2 pt-2 border-t border-[rgba(var(--text-rgb),0.06)]">
-                              {card.subItems.map((sub, subIdx) => (
-                                <div
-                                  key={`sub-${subIdx}`}
-                                  className="grid grid-cols-1 sm:grid-cols-[0.8fr_1.4fr_auto] gap-2 items-center"
-                                >
+                        {/* Card Main Body (Only shown if card has no sub-blocks or already has lead text) */}
+                        {(!hasSubItems || Boolean(bodyValue)) && (
+                          <div className="rounded-xl p-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-colors">
+                            <AutoResizeTextarea
+                              minRows={hasSubItems ? 2 : 3}
+                              value={bodyValue}
+                              onChange={(e) =>
+                                handleUpdateCard(sIdx, cIdx, {
+                                  paragraphs: e.target.value
+                                    ? [e.target.value]
+                                    : [],
+                                })
+                              }
+                              placeholder={t(
+                                "post_description_ph",
+                                "Card details..."
+                              )}
+                              className="w-full bg-transparent text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_88%,transparent)] leading-relaxed outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* 2-Column Sub-Blocks Grid (Spacious, Auto-Growing, Zero Nested Boxes) */}
+                        {card.subItems && card.subItems.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {card.subItems.map((sub, subIdx) => (
+                              <div
+                                key={`sub-${subIdx}`}
+                                className="rounded-xl p-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] flex flex-col gap-2 relative group/sub transition-colors"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-70">
+                                    #{subIdx + 1}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    {Boolean(sub.title?.trim()) &&
+                                      Boolean(sub.body?.trim()) && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const nextSubs = [
+                                              ...(card.subItems || []),
+                                            ];
+                                            nextSubs.splice(
+                                              subIdx,
+                                              1,
+                                              {
+                                                title: "",
+                                                body: sub.title.trim(),
+                                              },
+                                              {
+                                                title: "",
+                                                body: sub.body.trim(),
+                                              }
+                                            );
+                                            handleUpdateCard(sIdx, cIdx, {
+                                              subItems: nextSubs,
+                                            });
+                                          }}
+                                          className="h-6 px-2 rounded-lg glass-panel text-[var(--accent)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <span className="material-symbols-outlined !text-[12px]">
+                                            {t("icon_call_split", "call_split")}
+                                          </span>
+                                          <span>
+                                            {t(
+                                              "visual_editor_split_block",
+                                              "Split into 2 Blocks"
+                                            )}
+                                          </span>
+                                        </button>
+                                      )}
+                                    <button
+                                      type="button"
+                                      disabled={subIdx === 0}
+                                      onClick={() =>
+                                        handleMoveSubItem(
+                                          sIdx,
+                                          cIdx,
+                                          subIdx,
+                                          -1
+                                        )
+                                      }
+                                      className="w-6 h-6 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-25 flex items-center justify-center cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_arrow_upward", "arrow_upward")}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        subIdx ===
+                                        (card.subItems?.length || 1) - 1
+                                      }
+                                      onClick={() =>
+                                        handleMoveSubItem(
+                                          sIdx,
+                                          cIdx,
+                                          subIdx,
+                                          1
+                                        )
+                                      }
+                                      className="w-6 h-6 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-25 flex items-center justify-center cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_arrow_downward", "arrow_downward")}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const nextSubs = (
+                                          card.subItems || []
+                                        ).filter((_, idx) => idx !== subIdx);
+                                        handleUpdateCard(sIdx, cIdx, {
+                                          subItems:
+                                            nextSubs.length > 0
+                                              ? nextSubs
+                                              : undefined,
+                                        });
+                                      }}
+                                      className="w-6 h-6 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_close", "close")}
+                                      </span>
+                                      <HoverTooltip
+                                        title={t("remove", "Remove")}
+                                        variant="danger"
+                                      />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {Boolean(sub.title) && (
                                   <input
                                     type="text"
                                     value={sub.title}
@@ -1141,207 +1184,83 @@ export function UnifiedPostBodyEditor({
                                         subItems: nextSubs,
                                       });
                                     }}
-                                    placeholder={t("name", "Title")}
-                                    className="h-8 px-3 rounded-lg glass-surface text-xs font-bold text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                                    placeholder={t(
+                                      "visual_editor_sub_title_ph",
+                                      "Sub-heading (optional)..."
+                                    )}
+                                    className="w-full bg-transparent text-xs font-bold text-[var(--text)] border-b border-[rgba(var(--text-rgb),0.12)] focus:border-[var(--accent)] pb-1 outline-none"
                                   />
-                                  <input
-                                    type="text"
-                                    value={sub.body}
-                                    onChange={(e) => {
-                                      const nextSubs = [
-                                        ...(card.subItems || []),
-                                      ];
-                                      nextSubs[subIdx] = {
-                                        ...nextSubs[subIdx],
-                                        body: e.target.value,
-                                      };
-                                      handleUpdateCard(sIdx, cIdx, {
-                                        subItems: nextSubs,
-                                      });
-                                    }}
-                                    placeholder={t("value", "Details")}
-                                    className="h-8 px-3 rounded-lg glass-surface text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const nextSubs = (
-                                        card.subItems || []
-                                      ).filter((_, idx) => idx !== subIdx);
-                                      handleUpdateCard(sIdx, cIdx, {
-                                        subItems:
-                                          nextSubs.length > 0
-                                            ? nextSubs
-                                            : undefined,
-                                      });
-                                    }}
-                                    className="w-8 h-8 rounded-lg glass-surface text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
-                                  >
-                                    <span className="material-symbols-outlined !text-[14px]">
-                                      {t("icon_close", "close")}
-                                    </span>
-                                    <HoverTooltip title={t("remove", "Remove")} variant="danger" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={cardKey}
-                        onClick={() => setActiveTarget(cardKey)}
-                        className={`glass-panel rounded-2xl p-4 sm:p-5 flex flex-col gap-2 relative group cursor-pointer transition-all hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${
-                          spanFull ? "md:col-span-2" : ""
-                        }`}
-                      >
-                        <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity">
-                          <div
-                            className="relative"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setIconPickerFor(
-                                  iconPickerFor === cardIconKey
-                                    ? null
-                                    : cardIconKey
-                                )
-                              }
-                              className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center cursor-pointer"
-                            >
-                              <span className="material-symbols-outlined !text-[13px]">
-                                {t("icon_add_reaction", "add_reaction")}
-                              </span>
-                              <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
-                            </button>
-                            {iconPickerFor === cardIconKey && (
-                              <IconPicker
-                                onSelect={(icon) => {
-                                  handleUpdateCard(sIdx, cIdx, { icon });
-                                  setIconPickerFor(null);
-                                }}
-                                onClose={() => setIconPickerFor(null)}
-                              />
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            disabled={cIdx === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveCard(sIdx, cIdx, -1);
-                            }}
-                            className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">
-                              {t("icon_arrow_upward", "arrow_upward")}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={cIdx === section.cards.length - 1}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveCard(sIdx, cIdx, 1);
-                            }}
-                            className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">
-                              {t("icon_arrow_downward", "arrow_downward")}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveTarget(cardKey);
-                            }}
-                            className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">
-                              {t("icon_edit", "edit")}
-                            </span>
-                            <HoverTooltip title={t("edit", "Edit")} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCard(sIdx, cIdx);
-                            }}
-                            className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">
-                              {t("icon_delete", "delete")}
-                            </span>
-                            <HoverTooltip title={t("btn_delete", "{Delete}")} variant="danger" />
-                          </button>
-                        </div>
-
-                        {(card.title || card.icon) && (
-                          <div className="flex items-center gap-2.5 pr-28">
-                            {card.icon && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIconPickerFor(
-                                    iconPickerFor === cardIconKey
-                                      ? null
-                                      : cardIconKey
-                                  );
-                                }}
-                                className="w-7 h-7 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
-                              >
-                                <span className="material-symbols-outlined !text-[15px]">
-                                  {t(`icon_${card.icon}`, card.icon)}
-                                </span>
-                                <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
-                              </button>
-                            )}
-                            {card.title && (
-                              <h3 className="text-sm font-bold text-[var(--text)] leading-snug">
-                                {renderCleanInlineText(card.title)}
-                              </h3>
-                            )}
-                          </div>
-                        )}
-                        <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed pr-8">
-                          {bodyValue
-                            ? renderCleanInlineText(bodyValue)
-                            : t("edit", "Click to edit...")}
-                        </p>
-
-                        {card.subItems && card.subItems.length > 0 && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-1">
-                            {card.subItems.map((sub, subIdx) => (
-                              <div
-                                key={`sub-view-${subIdx}`}
-                                className="rounded-xl p-3 glass-surface flex flex-col gap-1"
-                              >
-                                {sub.title && (
-                                  <span className="text-xs font-bold text-[var(--text)]">
-                                    {renderCleanInlineText(sub.title)}
-                                  </span>
                                 )}
-                                {sub.body && (
-                                  <span className="text-xs text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed">
-                                    {renderCleanInlineText(sub.body)}
-                                  </span>
-                                )}
+
+                                <AutoResizeTextarea
+                                  minRows={3}
+                                  value={sub.body}
+                                  onChange={(e) => {
+                                    const nextSubs = [
+                                      ...(card.subItems || []),
+                                    ];
+                                    nextSubs[subIdx] = {
+                                      ...nextSubs[subIdx],
+                                      body: e.target.value,
+                                    };
+                                    handleUpdateCard(sIdx, cIdx, {
+                                      subItems: nextSubs,
+                                    });
+                                  }}
+                                  placeholder={t(
+                                    "visual_editor_sub_body_ph",
+                                    "Write block content..."
+                                  )}
+                                  className="w-full bg-transparent text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_88%,transparent)] leading-relaxed outline-none"
+                                />
                               </div>
                             ))}
+                            <button
+                              type="button"
+                              onClick={() => handleAddSubItem(sIdx, cIdx)}
+                              className="min-h-[96px] rounded-xl p-3.5 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                                {t("icon_add", "add")}
+                              </span>
+                              <span className="text-xs font-bold uppercase tracking-wider">
+                                {t("visual_editor_add_block", "Add Sub-Block")}
+                              </span>
+                            </button>
                           </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Per-Section Inline Images (Click Trash to Remove) */}
+                {section.images && section.images.length > 0 && (
+                  <div className="flex flex-col gap-2.5 w-full">
+                    {section.images.map((src, imgIdx) => (
+                      <div
+                        key={`sec-${sIdx}-img-${imgIdx}-${src}`}
+                        className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] relative group/img"
+                      >
+                        <img
+                          src={src}
+                          alt=""
+                          className="w-full max-h-72 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSectionImage(sIdx, imgIdx)}
+                          className="absolute top-3 right-3 w-8 h-8 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--text)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer transition-all shadow-lg"
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_delete", "delete")}
+                          </span>
+                          <HoverTooltip title={t("remove", "Remove")} variant="danger" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Per-Section Quick Add Controls */}
                 <div className="flex flex-wrap items-center gap-2">
@@ -1492,6 +1411,14 @@ export function UnifiedPostBodyEditor({
                 icon={t("icon_add_photo_alternate", "add_photo_alternate")}
                 title={t("insert_inline_image", "Insert Inline Image")}
               />
+              {editor.isActive("image") && (
+                <ToolbarBtn
+                  onClick={() => editor.chain().focus().deleteSelection().run()}
+                  active={true}
+                  icon={t("icon_delete", "delete")}
+                  title={t("remove", "Remove")}
+                />
+              )}
               <ToolbarBtn
                 onClick={() => editor.chain().focus().toggleCodeBlock().run()}
                 active={editor.isActive("codeBlock")}
@@ -1671,6 +1598,38 @@ export function PostAttachmentsManager({
     [content]
   );
 
+  const inlineImages = useMemo(() => {
+    if (!content) return [];
+    const results: { url: string; rawTag: string }[] = [];
+    const mdImgRegex = /!\[[^\]]*\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = mdImgRegex.exec(content)) !== null) {
+      const url = (m[1] || "").trim();
+      if (url && !url.startsWith("icon://") && !url.startsWith("asset://")) {
+        results.push({ url, rawTag: m[0] });
+      }
+    }
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    while ((m = htmlImgRegex.exec(content)) !== null) {
+      const url = (m[1] || "").trim();
+      if (url && !url.startsWith("icon://") && !url.startsWith("asset://")) {
+        results.push({ url, rawTag: m[0] });
+      }
+    }
+    return results;
+  }, [content]);
+
+  const handleRemoveInlineImage = (item: { url: string; rawTag: string }) => {
+    const nextMd = content
+      .replace(item.rawTag, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    onContentChange(nextMd);
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setContent(nextMd);
+    }
+  };
+
   const handleRemoveAsset = (asset: LinkedAssetItem) => {
     const nextMd = content
       .replace(asset.rawTag, "")
@@ -1786,6 +1745,37 @@ export function PostAttachmentsManager({
             )}
           </div>
         )}
+
+        {/* 1b. Attached Inline Body Images (Click X to Remove From Body) */}
+        {inlineImages.map((imgItem, idx) => (
+          <div
+            key={`inline-img-${idx}-${imgItem.url}`}
+            className="glass-surface rounded-xl px-3.5 h-11 flex items-center gap-2.5"
+          >
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+              {t("icon_add_photo_alternate", "add_photo_alternate")}
+            </span>
+            <span className="flex-1 min-w-0 text-xs font-mono text-[var(--text)] truncate">
+              {imgItem.url}
+            </span>
+            <div className="w-11 h-7 rounded-lg overflow-hidden border border-[rgba(var(--text-rgb),0.14)] shrink-0">
+              <img
+                src={imgItem.url}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => handleRemoveInlineImage(imgItem)}
+              className="w-7 h-7 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center shrink-0 cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[14px]">
+                {t("icon_close", "close")}
+              </span>
+            </button>
+          </div>
+        ))}
 
         {/* 2. Linked Nexus Assets Grid (Shown When Assets Are Attached) */}
         {linkedAssets.length > 0 && (

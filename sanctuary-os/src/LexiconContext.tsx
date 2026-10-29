@@ -208,7 +208,7 @@ const PRESERVED_ACRONYMS = new Set([
   'CPU', 'GPU', 'RAM', 'VRAM', 'SSD', 'NVME', 'HDD', 'IO', 'I/O', 'LAN', 'WAN', 'VPN', 'DNS', 'IP', 'TCP', 'UDP', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'SSH', 'FTP',
   'CI', 'CD', 'CI/CD', 'PR', 'SDK', 'CLI', 'GUI', 'HUD', 'RNG', 'RPG', 'MMO', 'NPC', 'CAS', 'BB', 'TS4', 'WW', 'MCCC',
   'PDF', 'PNG', 'JPG', 'JPEG', 'WEBP', 'SVG', 'GIF', 'MP4', 'WEBM', 'MP3', 'WAV', 'OGG',
-  'UTC', 'GMT', 'EST', 'PST', 'CST', 'MST', 'EDT', 'PDT', 'AI', 'ML', 'LLM', 'WEBGL', 'GLSL', 'RBAC', 'ACL', 'CORS', 'CSRF', 'XSS', 'DDOS', 'P2P', 'CDN', 'OTA', 'EOF', 'EOL', 'NULL', 'NAN', 'OK', 'FAQ', 'TOS', 'EULA', 'DMCA', 'GDPR', 'CCPA',
+  'UTC', 'GMT', 'EST', 'PST', 'CST', 'MST', 'EDT', 'PDT', 'MM', 'DD', 'YY', 'YYYY', 'US', 'UK', 'EU', 'ISO', 'AI', 'ML', 'LLM', 'WEBGL', 'GLSL', 'RBAC', 'ACL', 'CORS', 'CSRF', 'XSS', 'DDOS', 'P2P', 'CDN', 'OTA', 'EOF', 'EOL', 'NULL', 'NAN', 'OK', 'FAQ', 'TOS', 'EULA', 'DMCA', 'GDPR', 'CCPA',
 ]);
 
 export function normalizeAllCapsForThemeCase(str: string): string {

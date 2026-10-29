@@ -14,6 +14,8 @@ export default function ClientTab({ config, updateConfig }: any) {
   const setShowImages = useStore((state) => state.setShowImages);
   const showCommLinkImages = useStore((state) => state.showCommLinkImages);
   const setShowCommLinkImages = useStore((state) => state.setShowCommLinkImages);
+  const dateFormat = useStore((state) => state.dateFormat);
+  const setDateFormat = useStore((state) => state.setDateFormat);
   const localOnly = useStore((state) => state.localOnly);
   const setLocalOnly = useStore((state) => state.setLocalOnly);
   const useInternalBrowser = useModalStore((state) => state.useInternalBrowser);
@@ -68,121 +70,172 @@ export default function ClientTab({ config, updateConfig }: any) {
   };
 
   return (
-    <TabContainer title={t("tab_preferences", "Preferences")} icon={t("icon_tune", "tune")}>
-      <SettingsGrid>
-        <UniversalCard
-          title={t("settings_ingest_file_mode_title", "Drag & Drop File Behavior")}
-          subtitle={t(
-            "settings_ingest_file_mode_desc",
-            "Choose whether dragged and dropped {mod} files and archives are copied into your {Vault} or moved (automatically cleaning up the original source file after import)."
-          )}
-          icon={t("icon_drive_file_move", "drive_file_move")}
-          footer={
-            <CustomSettingsDropdown
-              value={ingestFileMode}
-              onChange={(val: any) => handleIngestFileModeChange(val)}
-              options={[
-                {
-                  id: "copy",
-                  label: t("settings_ingest_mode_copy", "Copy Original (Keep Source File)"),
-                },
-                {
-                  id: "move",
-                  label: t("settings_ingest_mode_move", "Move Original (Auto-Clean Source)"),
-                },
-              ]}
-            />
-          }
-        />
-
-        <UniversalCard 
-          title={t("local_only", "Local Network Only")} 
-          subtitle={t("local_only_desc", "Block external uploads/downloads. Strict offline mode.")} 
-          icon={t("icon_wifi_off", "wifi_off")}
-          onClick={toggleLocalOnly}
-          actions={<SettingsToggle checked={localOnly} />}
-        />
-        
-        <UniversalCard 
-          title={t("show_images", "Show {Mod} Images")} 
-          subtitle={t("show_images_desc", "Display cover images on {mod} cards and profiles.")} 
-          icon={t("icon_image", "image")}
-          onClick={() => setShowImages(!showImages)}
-          actions={<SettingsToggle checked={showImages} />}
-        />
-
-        <UniversalCard 
-          title={t("show_commlink_images", "Show Comm-Link & Dispatch Images")} 
-          subtitle={t("show_commlink_images_desc", "Display cover images on Comm-Link posts, dispatches, and news cards.")} 
-          icon={t("icon_satellite_alt", "satellite_alt")}
-          onClick={() => setShowCommLinkImages(!showCommLinkImages)}
-          actions={<SettingsToggle checked={showCommLinkImages} />}
-        />
-        
-        {isDesktop() && (
-          <UniversalCard 
-            title={t("settings_use_internal_browser", "Use the Sanctuary Browser")} 
-            subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`} 
-            icon={t("icon_language", "language")}
-            onClick={() => setUseInternalBrowser(!useInternalBrowser)}
-            actions={<SettingsToggle checked={useInternalBrowser} />}
+    <div className="flex flex-col gap-30 w-full pb-48">
+      {/* SECTION 1: Display & Media */}
+      <TabContainer
+        title={t("prefs_section_display", "Display & Media")}
+        icon={t("icon_display_settings", "display_settings")}
+      >
+        <SettingsGrid>
+          <UniversalCard
+            title={t("settings_date_format_title", "Date Format")}
+            subtitle={t(
+              "settings_date_format_desc",
+              "Choose how dates are displayed on Comm-Link posts, dispatches, release notes, and records across the OS."
+            )}
+            icon={t("icon_calendar_month", "calendar_month")}
+            footer={
+              <CustomSettingsDropdown
+                value={dateFormat}
+                onChange={(val: any) => setDateFormat(val)}
+                options={[
+                  {
+                    id: "MM/DD/YYYY",
+                    label: t("settings_date_format_mdy", "MM/DD/YYYY (US — 10/28/2026)"),
+                  },
+                  {
+                    id: "DD/MM/YYYY",
+                    label: t("settings_date_format_dmy", "DD/MM/YYYY (International — 28/10/2026)"),
+                  },
+                  {
+                    id: "YYYY-MM-DD",
+                    label: t("settings_date_format_ymd", "YYYY-MM-DD (ISO — 2026-10-28)"),
+                  },
+                ]}
+              />
+            }
           />
-        )}
 
-        <div className="relative group/malware">
-          <UniversalCard 
-            title={t("malware_share_title", "Share Malware Reports")} 
-            subtitle={`${t("malware_share_desc", "Send your local quarantine manifests to the Admins for analysis and malware activity updates.")} ${t("malware_share_desc2", "All manifests are strickly metadata only and contain no personal or any identifying information.")}`} 
-            icon={t("icon_security", "security")}
+          <UniversalCard
+            title={t("show_images", "Show {Mod} Images")}
+            subtitle={t("show_images_desc", "Display cover images on {mod} cards and profiles.")}
+            icon={t("icon_image", "image")}
+            onClick={() => setShowImages(!showImages)}
+            actions={<SettingsToggle checked={showImages} />}
+          />
+
+          <UniversalCard
+            title={t("show_commlink_images", "Show Comm-Link & Dispatch Images")}
+            subtitle={t("show_commlink_images_desc", "Display cover images on Comm-Link posts, dispatches, and news cards.")}
+            icon={t("icon_satellite_alt", "satellite_alt")}
+            onClick={() => setShowCommLinkImages(!showCommLinkImages)}
+            actions={<SettingsToggle checked={showCommLinkImages} />}
+          />
+        </SettingsGrid>
+      </TabContainer>
+
+      {/* SECTION 2: Vault & Workflow */}
+      <TabContainer
+        title={t("prefs_section_workflow", "{Vault} & Workflow")}
+        icon={t("icon_inventory_2", "inventory_2")}
+      >
+        <SettingsGrid>
+          <UniversalCard
+            title={t("settings_ingest_file_mode_title", "Drag & Drop File Behavior")}
+            subtitle={t(
+              "settings_ingest_file_mode_desc",
+              "Choose whether dragged and dropped {mod} files and archives are copied into your {Vault} or moved (automatically cleaning up the original source file after import)."
+            )}
+            icon={t("icon_drive_file_move", "drive_file_move")}
+            footer={
+              <CustomSettingsDropdown
+                value={ingestFileMode}
+                onChange={(val: any) => handleIngestFileModeChange(val)}
+                options={[
+                  {
+                    id: "copy",
+                    label: t("settings_ingest_mode_copy", "Copy Original (Keep Source File)"),
+                  },
+                  {
+                    id: "move",
+                    label: t("settings_ingest_mode_move", "Move Original (Auto-Clean Source)"),
+                  },
+                ]}
+              />
+            }
+          />
+
+          {isDesktop() && (
+            <UniversalCard
+              title={t("settings_use_internal_browser", "Use the Sanctuary Browser")}
+              subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`}
+              icon={t("icon_language", "language")}
+              onClick={() => setUseInternalBrowser(!useInternalBrowser)}
+              actions={<SettingsToggle checked={useInternalBrowser} />}
+            />
+          )}
+
+          <UniversalCard
+            title={t("btn_reset_all_local", "Reset All Local Overrides")}
+            subtitle={t("reset_all_local_desc", "Permanently clear all locally saved metadata overrides for all {mods}.")}
+            icon={t("icon_delete_forever", "delete_forever")}
+            statusColor="border-red-500"
             onClick={() => {
-              if (!session || isBanned) return;
-              const val = !shareMalwareReports;
-              setShareMalwareReports(val);
-              localStorage.setItem("sanctuary_share_malware_reports", val.toString());
+              localStorage.removeItem('sanctuary_local_overrides');
+              localStorage.removeItem('sanctuary_edge_logic');
+              const state = useStore.getState();
+              if (Array.isArray(state.modList) && state.modList.length > 0) {
+                state.setModList(
+                  state.modList.map((m: any) =>
+                    m?.isLocalOverride ? { ...m, isLocalOverride: false } : m
+                  )
+                );
+              }
+              window.dispatchEvent(new CustomEvent("sanctuary_reset_all_local_overrides"));
+              state.pushStatus(t("local_overrides_cleared", "All local metadata overrides have been cleared."));
             }}
             actions={
-              <div className={`${!session || isBanned ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}>
-                <SettingsToggle checked={shareMalwareReports} />
+              <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+                <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
               </div>
             }
           />
-          {(!session || isBanned) && (
-            <HoverTooltip
-              title={t("access_denied", "Access Denied")}
-              subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Guest Mode Active")}
-              variant="danger"
-              className="group-hover/malware:flex group-hover/malware:opacity-100"
-            />
-          )}
-        </div>
+        </SettingsGrid>
+      </TabContainer>
 
-        <UniversalCard 
-          title={t("btn_reset_all_local", "Reset All Local Overrides")} 
-          subtitle={t("reset_all_local_desc", "Permanently clear all locally saved metadata overrides for all {mods}.")} 
-          icon={t("icon_delete_forever", "delete_forever")}
-          statusColor="border-red-500"
-          onClick={() => {
-            localStorage.removeItem('sanctuary_local_overrides');
-            localStorage.removeItem('sanctuary_edge_logic');
-            const state = useStore.getState();
-            if (Array.isArray(state.modList) && state.modList.length > 0) {
-              state.setModList(
-                state.modList.map((m: any) =>
-                  m?.isLocalOverride ? { ...m, isLocalOverride: false } : m
-                )
-              );
-            }
-            window.dispatchEvent(new CustomEvent("sanctuary_reset_all_local_overrides"));
-            state.pushStatus(t("local_overrides_cleared", "All local metadata overrides have been cleared."));
-          }}
-          actions={
-            <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
-              <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
-            </div>
-          }
-        />
-      </SettingsGrid>
-    </TabContainer>
+      {/* SECTION 3: Network & Privacy */}
+      <TabContainer
+        title={t("prefs_section_privacy", "Network & Privacy")}
+        icon={t("icon_security", "security")}
+      >
+        <SettingsGrid>
+          <UniversalCard
+            title={t("local_only", "Local Network Only")}
+            subtitle={t("local_only_desc", "Block external uploads/downloads. Strict offline mode.")}
+            icon={t("icon_wifi_off", "wifi_off")}
+            onClick={toggleLocalOnly}
+            actions={<SettingsToggle checked={localOnly} />}
+          />
+
+          <div className="relative group/malware">
+            <UniversalCard
+              title={t("malware_share_title", "Share Malware Reports")}
+              subtitle={`${t("malware_share_desc", "Send your local quarantine manifests to the Admins for analysis and malware activity updates.")} ${t("malware_share_desc2", "All manifests are strickly metadata only and contain no personal or any identifying information.")}`}
+              icon={t("icon_security", "security")}
+              onClick={() => {
+                if (!session || isBanned) return;
+                const val = !shareMalwareReports;
+                setShareMalwareReports(val);
+                localStorage.setItem("sanctuary_share_malware_reports", val.toString());
+              }}
+              actions={
+                <div className={`${!session || isBanned ? 'opacity-40 grayscale cursor-not-allowed' : ''}`}>
+                  <SettingsToggle checked={shareMalwareReports} />
+                </div>
+              }
+            />
+            {(!session || isBanned) && (
+              <HoverTooltip
+                title={t("access_denied", "Access Denied")}
+                subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Guest Mode Active")}
+                variant="danger"
+                className="group-hover/malware:flex group-hover/malware:opacity-100"
+              />
+            )}
+          </div>
+        </SettingsGrid>
+      </TabContainer>
+    </div>
   );
 }
 

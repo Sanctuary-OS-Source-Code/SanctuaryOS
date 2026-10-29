@@ -158,8 +158,11 @@ export const renderTextWithIcons = (text: string) => {
 export const extractPostImage = (markdown: any): string | undefined => {
   if (!markdown) return undefined;
 
+  const cleanUrl = (u?: string) =>
+    u ? u.trim().replace(/\\+$/, "").trim() : undefined;
+
   if (typeof markdown === "object") {
-    if (markdown.image_url) return markdown.image_url;
+    if (markdown.image_url) return cleanUrl(String(markdown.image_url));
     const text =
       markdown.message ||
       markdown.content ||
@@ -169,19 +172,15 @@ export const extractPostImage = (markdown: any): string | undefined => {
 
     if (typeof text === "string") {
       const directMatch = text.match(/\[IMG:([\s\S]*?)\]/);
-      if (directMatch && directMatch[1]) return directMatch[1];
-      const imgMatch = text.match(/!\[.*?\]\((.*?)\)/);
-      if (imgMatch && imgMatch[1]) return imgMatch[1];
-      const htmlImgMatch = text.match(/<img[^>]+src=["']([^"']+)["']/i);
-      if (htmlImgMatch && htmlImgMatch[1]) return htmlImgMatch[1];
+      if (directMatch && directMatch[1]) return cleanUrl(directMatch[1]);
     }
   } else if (typeof markdown === "string") {
     const directMatch = markdown.match(/\[IMG:([\s\S]*?)\]/);
-    if (directMatch && directMatch[1]) return directMatch[1];
+    if (directMatch && directMatch[1]) return cleanUrl(directMatch[1]);
     const imgMatch = markdown.match(/!\[.*?\]\((.*?)\)/);
-    if (imgMatch && imgMatch[1]) return imgMatch[1];
+    if (imgMatch && imgMatch[1]) return cleanUrl(imgMatch[1]);
     const htmlImgMatch = markdown.match(/<img[^>]+src=["']([^"']+)["']/i);
-    if (htmlImgMatch && htmlImgMatch[1]) return htmlImgMatch[1];
+    if (htmlImgMatch && htmlImgMatch[1]) return cleanUrl(htmlImgMatch[1]);
   }
 
   return undefined;

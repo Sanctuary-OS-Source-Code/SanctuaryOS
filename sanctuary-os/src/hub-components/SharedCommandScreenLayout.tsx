@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
+import { formatSanctuaryDate } from '../utils/dateUtils';
 
 export { DashboardStatTile };
 
@@ -260,10 +261,13 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
 export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
     const { t } = useLexicon();
     const showCommLinkImages = useStore((state) => state.showCommLinkImages);
+    const dateFormat = useStore((state) => state.dateFormat);
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             {broadcasts.length > 0 ? broadcasts.map((post: any, index: number) => {
                 const postImg = showCommLinkImages !== false ? extractPostImage(post) : undefined;
+                const authorName = post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry");
+                const formattedDate = formatSanctuaryDate(post.created_at, dateFormat);
                 return (
                     <UniversalCard
                         key={post.id}
@@ -271,6 +275,9 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         image={postImg ? postImg : undefined}
                         icon={!postImg ? t("icon_satellite_alt", "satellite_alt") : undefined}
                         title={post.title}
+                        subtitle={`${t("by_author", "By")} ${authorName}`}
+                        bannerTopLabel={`${t("by_author", "By")} ${authorName}`}
+                        bannerTopRightLabel={formattedDate}
                         onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
                         className="w-full"
                         badges={
@@ -288,7 +295,7 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
                         footer={
                             <div className="flex items-center justify-between w-full mt-2">
                                 <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(post.created_at).toLocaleDateString()}
+                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {formattedDate}
                                 </span>
                                 <span className="text-[10px] font-black capitalize tracking-widest opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[var(--accent)]">
                                     {t("wayfinder_read_more", "Read More")} <span className="material-symbols-outlined !text-sm">{t("icon_arrow_forward", "arrow_forward")}</span>

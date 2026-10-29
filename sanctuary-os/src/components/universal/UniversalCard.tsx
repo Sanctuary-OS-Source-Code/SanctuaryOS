@@ -18,6 +18,7 @@ export interface UniversalCardProps {
   subtitle?: React.ReactNode;
   description?: React.ReactNode;
   bannerTopLabel?: string;
+  bannerTopRightLabel?: string;
   bannerBottomLabel?: string;
 
   // Slots
@@ -50,6 +51,7 @@ export function UniversalCard({
   subtitle,
   description,
   bannerTopLabel,
+  bannerTopRightLabel,
   bannerBottomLabel,
   badges,
   imageOverlay,
@@ -207,9 +209,12 @@ export function UniversalCard({
                   if (React.isValidElement(node)) {
                     const props = (node.props as any) || {};
                     const cls = String(props.className || "");
+                    const clsTokens = cls.split(/\s+/);
                     if (
                       cls.includes("material-symbols") ||
-                      cls.split(/\s+/).includes("hidden")
+                      clsTokens.includes("hidden") ||
+                      clsTokens.includes("invisible") ||
+                      cls.includes("group-hover/tooltip:")
                     ) {
                       return "";
                     }
@@ -249,6 +254,11 @@ export function UniversalCard({
                   if (!React.isValidElement(footer)) return "";
                   const rawChildren = (footer.props as any)?.children;
                   const firstChild = Array.isArray(rawChildren) ? rawChildren[0] : rawChildren;
+                  const secondChild = Array.isArray(rawChildren) ? rawChildren[1] : undefined;
+                  const secondRaw = secondChild ? extractNodeText(secondChild).trim() : "";
+                  if (/^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$/.test(secondRaw)) {
+                    return secondRaw;
+                  }
                   const raw = extractNodeText(firstChild)
                     .replace(/^last\s+synchronized:\s*/i, "")
                     .trim();
@@ -259,26 +269,31 @@ export function UniversalCard({
                   typeof bannerTopLabel === "string" && bannerTopLabel.trim()
                     ? (td ? td(bannerTopLabel.trim()) : bannerTopLabel.trim())
                     : "";
+                const resolvedBannerTopRight =
+                  typeof bannerTopRightLabel === "string" && bannerTopRightLabel.trim()
+                    ? bannerTopRightLabel.trim()
+                    : "";
                 const resolvedBannerBottom =
                   typeof bannerBottomLabel === "string" && bannerBottomLabel.trim()
                     ? (td ? td(bannerBottomLabel.trim()) : bannerBottomLabel.trim())
                     : "";
                 const topLabel = resolvedBannerTop
                   ? resolvedBannerTop
-                  : subtitleSegments.length >= 2 && subtitleSegments[1].length <= 32
+                  : subtitleSegments.length >= 2 && subtitleSegments[1].length <= 48
                     ? subtitleSegments[1]
                     : badgeLabels[0]
                       ? badgeLabels[0]
-                      : subtitleSegments[0] && subtitleSegments[0].length <= 32
+                      : subtitleSegments[0] && subtitleSegments[0].length <= 48
                         ? subtitleSegments[0]
                         : typeof status === "string" && status.trim() && !status.includes("-")
                           ? status.trim()
                           : overlayText && overlayText.length <= 24
                             ? overlayText
-                            : extractedTitleText && extractedTitleText.length <= 24
+                            : extractedTitleText && extractedTitleText.length <= 48
                               ? extractedTitleText
                               : t("status_active", "Active");
                 const topRightLabel = (() => {
+                  if (resolvedBannerTopRight) return resolvedBannerTopRight;
                   const normTop = topLabel.toLowerCase();
                   if (footerLeftText && footerLeftText.toLowerCase() !== normTop) {
                     return footerLeftText;
@@ -359,7 +374,7 @@ export function UniversalCard({
                       {/* Right Mini-Header Console */}
                       <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
                         <div className="flex items-stretch gap-1 flex-1 min-h-0">
-                          <div className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
+                          <div className="flex-1 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
                             <span
                               className="material-symbols-outlined !text-[10px] opacity-85 shrink-0"
                               style={{ color: headerAccentVar }}
@@ -371,7 +386,7 @@ export function UniversalCard({
                             </span>
                           </div>
                           {topRightLabel && (
-                            <div className="shrink-0 max-w-[46%] px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center min-w-0">
+                            <div className="shrink-0 max-w-[38%] px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center min-w-0">
                               <span className="text-[7px] font-mono font-black uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
                                 {topRightLabel}
                               </span>

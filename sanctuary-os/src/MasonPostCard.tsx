@@ -3,6 +3,7 @@ import { stripMarkdown, renderTextWithIcons, HoverTooltip } from "./shared";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
+import { formatSanctuaryDate } from "./utils/dateUtils";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -36,6 +37,8 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
 
   const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
   const showCommLinkImages = useStore(state => state.showCommLinkImages);
+  const dateFormat = useStore(state => state.dateFormat);
+  const formattedDate = formatSanctuaryDate(post.created_at, dateFormat);
   const hasUnsavedReply = !!masonCommentDrafts[post.id];
   const hasUnsaved = Boolean(hasUnsavedEdits || hasUnsavedReply);
   const isPinned = post.is_pinned === true || post.is_pinned === 'true';
@@ -236,7 +239,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
           </div>
         </span>
       </div>
-      <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 font-mono tracking-widest">{new Date(post.created_at).toLocaleDateString()}</span>
+      <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 font-mono tracking-widest">{formattedDate}</span>
     </div>
   );
 
@@ -251,6 +254,8 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
       layout={layout || (isCompact ? "vertical-compact" : "vertical")}
       title={td ? td(post.title || "") : post.title}
       subtitle={`${t("by_author", "By")} ${authorName}`}
+      bannerTopLabel={`${t("by_author", "By")} ${authorName}`}
+      bannerTopRightLabel={formattedDate}
       image={showImage ? imageUrl : undefined}
       icon={!showImage ? t("icon_cell_tower", "cell_tower") : undefined}
       statusColor={isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[0_0_20px_rgba(239,68,68,0.1)]' : undefined}

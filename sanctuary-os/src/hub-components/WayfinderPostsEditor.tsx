@@ -64,30 +64,29 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const session = useStore(state => state.session);
 
   useEffect(() => {
-    if (isEditorOpen) {
+    if (!isEditorOpen) return;
+    const timer = setTimeout(() => {
       const draftId = editingPostId || 'new';
 
       let isUnchanged = false;
       if (editingPost) {
-        let rawContent = editingPost.message || editingPost.content || '';
-        if (rawContent.startsWith('[IMG:')) {
-          const endIdx = rawContent.indexOf(']');
-          if (endIdx !== -1) {
-            rawContent = rawContent.substring(endIdx + 1).trim();
-          }
-        }
+        let rawContent = (editingPost.message || editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+        let parsedImage = extractPostImage(editingPost) || "";
         const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
 
         isUnchanged =
           title === editingPost.title &&
+          description === (editingPost.description || "") &&
           content === parsedMeta.cleanContent &&
+          imageUrl === parsedImage &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
           category === (editingPost.category || "Update") &&
           actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
           JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
           codeSnippet === (editingPost.code_snippet || "") &&
           deliveryMethod === (editingPost.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch") &&
-          isUrgent === isPostPinned(editingPost);
+          isUrgent === isPostPinned(editingPost) &&
+          isActive === (editingPost.is_active !== false);
       } else {
         isUnchanged = title === "" &&
           description === "" &&
@@ -116,7 +115,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           [draftId]: { title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
         }));
       }
-    }
+    }, 350);
+    return () => clearTimeout(timer);
   }, [isEditorOpen, editingPostId, editingPost, title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive]);
 
   const updateTimeoutRef = useRef<any>(null);
@@ -226,15 +226,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     if (post) {
       setEditingPostId(post.id);
       setEditingPost(post);
-      let rawContent = post.message || post.content || '';
+      let rawContent = (post.message || post.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
       let parsedImage = extractPostImage(post) || "";
-
-      if (parsedImage) {
-        rawContent = rawContent.replace(new RegExp(`\\[IMG:${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\s*`), '');
-        rawContent = rawContent.replace(new RegExp(`!\\[.*?\\]\\(${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*`), '');
-        rawContent = rawContent.replace(new RegExp(`<img[^>]+src=["']${parsedImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'i'), '');
-      }
-      rawContent = rawContent.replace(/\[IMG:.*?\]\s*/, '').trim();
       const parsedMeta = extractDispatchMetadata(post, rawContent);
 
       setTitle(draft?.title ?? post.title);
@@ -363,10 +356,13 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         }
       : null;
 
+    const cleanedFinalContent = finalContent.replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+    const cleanedImageUrl = imageUrl.trim().replace(/\\+$/, '').trim();
     let payload: any = {
       title: title.trim(),
       description: description.trim() || null,
-      message: finalContent.trim(),
+      message: cleanedImageUrl ? `[IMG:${cleanedImageUrl}]\n\n${cleanedFinalContent}` : cleanedFinalContent,
+      image_url: cleanedImageUrl || null,
       category: finalCategory,
       target_audience: targetAudience.join(','),
       action_required: actionRequired.trim() || "No Action Required",
@@ -375,7 +371,6 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       is_pinned: isPinned,
       is_active: isActive
     };
-    if (imageUrl.trim()) payload.message = `[IMG:${imageUrl.trim()}]\n\n` + payload.message;
 
     let error = null;
     let newPostId: string | null = null;
@@ -680,12 +675,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
             iconColorClass="text-[var(--accent)]"
             widthClass="w-[90vw] md:w-[800px]"
             title={editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_broadcast", "New {Dispatch}")}
-            subtitle={editingPostId ? t("editing_record", "Editing Record") : t("composing_broadcast", "Composing Broadcast")}
+            subtitle={editingPostId ? t("editing_record", "Editing {Dispatch}") : t("composing_broadcast", "Create New {Dispatch}")}
             headerActions={
               <PanelHeaderGroup>
                 <PanelHeaderButton
                   onClick={() => setIsActive(!isActive)}
-                  tooltip={isActive ? t("active", "Active") : t("filter_inactive", "Inactive")}
+                  tooltip={isActive ? t("mark_inactive", "Mark Inactive") : t("mark_active", "Mark Active")}
                   icon={isActive ? t("icon_sensors", "sensors") : t("icon_sensors_off", "sensors_off")}
                   variant={isActive ? "success" : "default"}
                   isActive={isActive}
@@ -715,7 +710,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                     <PanelHeaderButton
                       onClick={(e: any) => { e.stopPropagation(); setConfirmDelete(editingPostId); }}
                       disabled={isSubmitting}
-                      tooltip={t("purge", "Purge")}
+                      tooltip={t("purge", "{Delete}")}
                       icon={t("icon_delete", "delete")}
                       variant="danger"
                     />
@@ -724,7 +719,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                 <PanelHeaderButton
                   onClick={handleSubmit}
                   disabled={isSubmitting || !title || !content}
-                  tooltip={isSubmitting ? t("btn_saving", "Saving...") : (editingPostId ? t("update_transmission", "Update {Dispatch}") : t("btn_post", "Post Broadcast"))}
+                  tooltip={isSubmitting ? t("btn_saving", "Saving...") : (editingPostId ? t("save", "Save Changes") : t("btn_publish", "Publish"))}
                   icon={isSubmitting ? t("icon_sync", "sync") : t("icon_send", "send")}
                   variant={((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) ? "warning" : "accent"}
                   className={isSubmitting ? "animate-pulse" : ""}

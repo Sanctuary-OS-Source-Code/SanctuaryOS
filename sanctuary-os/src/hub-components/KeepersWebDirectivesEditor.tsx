@@ -248,34 +248,38 @@ export default function KeepersWebDirectivesEditor({
     if (!isEditorOpen) return;
     const draftId = editingPostId || "new";
 
-    if (!isDirty) {
-      setWayfinderDrafts((prev) => {
-        if (!prev[draftId]) return prev;
-        const next = { ...prev };
-        delete next[draftId];
-        return next;
-      });
-      return;
-    }
+    const timer = setTimeout(() => {
+      if (!isDirty) {
+        setWayfinderDrafts((prev) => {
+          if (!prev[draftId]) return prev;
+          const next = { ...prev };
+          delete next[draftId];
+          return next;
+        });
+        return;
+      }
 
-    setWayfinderDrafts((prev) => ({
-      ...prev,
-      [draftId]: {
-        title,
-        description,
-        content,
-        targetAudience,
-        category,
-        actionRequired,
-        pollData,
-        imageUrl,
-        codeSnippet,
-        isActive,
-        builderSchema,
-        isDirty: true,
-        userModified: true,
-      },
-    }));
+      setWayfinderDrafts((prev) => ({
+        ...prev,
+        [draftId]: {
+          title,
+          description,
+          content,
+          targetAudience,
+          category,
+          actionRequired,
+          pollData,
+          imageUrl,
+          codeSnippet,
+          isActive,
+          builderSchema,
+          isDirty: true,
+          userModified: true,
+        },
+      }));
+    }, 350);
+
+    return () => clearTimeout(timer);
   }, [
     isEditorOpen,
     isDirty,

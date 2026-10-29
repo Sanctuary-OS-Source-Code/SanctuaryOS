@@ -1580,12 +1580,19 @@ export const ICON_CATEGORIES = [
 
 import { createPortal } from 'react-dom';
 import { HoverTooltip } from './shared';
+import { useTooltipStore } from './store/tooltipStore';
 
 export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: string) => void, onClose: () => void }) {
   const [search, setSearch] = useState('');
   const { t } = useLexicon();
   const anchorRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number; isDropUp: boolean } | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      useTooltipStore.getState().clearTooltip();
+    };
+  }, []);
 
   React.useLayoutEffect(() => {
     const updatePosition = () => {
@@ -1634,6 +1641,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
             style={{ zIndex: 100000000 }}
             onClick={(e) => {
               e.stopPropagation();
+              useTooltipStore.getState().clearTooltip();
               onClose();
             }}
           />
@@ -1693,13 +1701,16 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
                             <button
                               key={icon}
                               type="button"
-                              onClick={() => onSelect(icon)}
-                              className="relative w-full aspect-square flex items-center justify-center !rounded-lg bg-[color-mix(in_srgb,var(--text)_4%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_60%,transparent)] text-[var(--text)] opacity-85 hover:opacity-100 hover:text-[var(--accent)] transition-all hover:scale-105 cursor-pointer"
+                              onClick={() => {
+                                useTooltipStore.getState().clearTooltip();
+                                onSelect(icon);
+                              }}
+                              className="relative w-full aspect-square flex items-center justify-center !rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
                             >
                               <span className="material-symbols-outlined !text-[18px]">
                                 {t(`icon_${icon}`, icon)}
                               </span>
-                              <HoverTooltip title={icon} noIcon />
+                              <HoverTooltip title={icon} noIcon delay={120} />
                             </button>
                           ))}
                         </div>

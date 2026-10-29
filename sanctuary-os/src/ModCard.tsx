@@ -317,7 +317,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
             title={formatDisplayName(mod.displayName || mod.name)}
             subtitle={
               <div className="flex items-center gap-1.5 opacity-80 mt-0.5">
-                <span>{mod.author || t("unknown_mason", "Unknown {Mason}")}</span>
+                <span>{!mod.author || String(mod.author).trim().toLowerCase() === "unknown" ? t("unknown", "Unknown") : mod.author}</span>
                 {reqCount > 0 && (
                   <>
                     <span className="opacity-50">|</span>

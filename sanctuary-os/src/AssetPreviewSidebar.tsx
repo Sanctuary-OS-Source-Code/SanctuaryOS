@@ -8,6 +8,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   StatBox,
+  ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
   getModFallbackUrl,
@@ -232,203 +233,19 @@ export default function AssetPreviewSidebar({
       panelZ="z-[70001]"
       coverImage={data?.image_url || data?.thumbnail_url}
       headerActions={
-        data
-          ? (() => {
-              const assetStagingId = `asset_${assetType}_${data.id || assetId}`;
-              const isAssetStaged = stagingDraftItems.some(
-                (item: any) => String(item.id || "").toLowerCase() === assetStagingId.toLowerCase()
-              );
-              return (
-                <PanelHeaderGroup>
-                  {session?.user &&
-                    session?.user?.user_metadata?.username !== data.author &&
-                    onFlag && (
-                      <PanelHeaderButton
-                        icon={t("icon_flag", "flag")}
-                        tooltip={t("feed_btn_flag", "Report")}
-                        onClick={() => onFlag(assetId, assetType)}
-                        variant="danger"
-                      />
-                    )}
-                  {!isDesktop() && (
-                    <PanelHeaderButton
-                      icon={
-                        isAssetStaged
-                          ? t("icon_playlist_add_check", "playlist_add_check")
-                          : t("icon_playlist_add", "playlist_add")
-                      }
-                      tooltip={
-                        assetType === "blueprint"
-                          ? t("staging_btn_stage_blueprint", "Stage {Blueprint} to PC")
-                          : isAssetStaged
-                            ? t("staging_btn_unstage_mod", "Remove from Staging")
-                            : t("staging_btn_stage_mod", "Stage to PC")
-                      }
-                      onClick={(e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        if (assetType === "blueprint") {
-                          stageBlueprintToDraft(data);
-                          useStore
-                            .getState()
-                            .pushStatus(
-                              t(
-                                "status_staging_blueprint_loaded",
-                                "Blueprint loaded into Payload Editor."
-                              )
-                            );
-                          onClose();
-                          useStore.getState().setView("playsets");
-                        } else {
-                          toggleModInStagingDraft({
-                            ...data,
-                            asset_type: assetType,
-                            asset_id: data.id || assetId,
-                          });
-                          useStore
-                            .getState()
-                            .pushStatus(
-                              isAssetStaged
-                                ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
-                                : t("status_staging_item_added", "Added to Remote Staging Queue.")
-                            );
-                        }
-                      }}
-                      variant={isAssetStaged ? "accent" : "default"}
-                    />
-                  )}
-                  <PanelHeaderButton
-                    icon={
-                      assetType === "mod"
-                        ? data.url
-                          ? t("icon_download", "download")
-                          : t("icon_search", "search")
-                        : assetType === "blueprint"
-                          ? t("icon_download", "download")
-                          : isInstalled(data)
-                            ? isOutdated(data)
-                              ? t("icon_update", "update")
-                              : t("icon_check_circle", "check_circle")
-                            : t("icon_download", "download")
-                    }
-                    tooltip={
-                      assetType === "mod"
-                        ? data.url
-                          ? t("btn_download", "Download")
-                          : t("btn_search_web", "Search Web")
-                        : assetType === "blueprint"
-                          ? t("update_panel_install", "Install")
-                          : isInstalled(data)
-                            ? isOutdated(data)
-                              ? t("btn_update", "Update")
-                              : t("btn_reinstall", "Reinstall")
-                            : t("update_panel_install", "Install")
-                    }
-                    onClick={async (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      if (assetType === "mod") {
-                        const targetUrl = getModFallbackUrl(
-                          data.displayName || data.name || "",
-                          data.hash || "",
-                          useStore.getState().activeGameSchema,
-                          { url: data.url }
-                        );
-                        handleOpenUrl(targetUrl);
-                        return;
-                      }
-                      if (assetType === "blueprint") {
-                        navigator.clipboard.writeText(data.json_data?.code || "").catch(() => {});
-                        useStore
-                          .getState()
-                          .pushStatus("Copied Uplink Code: " + (data.json_data?.code || ""));
-                      } else if (
-                        assetType === "lexicon" ||
-                        assetType === "chameleon" ||
-                        assetType === "workbench_template"
-                      ) {
-                        if (assetType === "lexicon") {
-                          const parsedData =
-                            typeof data.json_data === "string"
-                              ? JSON.parse(data.json_data)
-                              : data.json_data;
-                          importLexicon(
-                            {
-                              ...parsedData,
-                              _meta_language: data.language || "Custom",
-                              _meta_version: data.version || "1.0.0",
-                            },
-                            data.name
-                          );
-                          useStore
-                            .getState()
-                            .pushStatus(`Successfully Installed Lexicon: ${data.name}`);
-                        } else if (assetType === "chameleon") {
-                          const parsedTheme =
-                            typeof data.json_data === "string"
-                              ? JSON.parse(data.json_data)
-                              : data.json_data || {};
-                          importTheme({
-                            ...parsedTheme,
-                            name: data.name || parsedTheme.name || "Chameleon",
-                            version: data.version || parsedTheme.version || "1.0.0",
-                            author: data.author || parsedTheme.author || "Citizen",
-                            _meta_version: data.version || parsedTheme._meta_version || "1.0.0",
-                          });
-                          useStore
-                            .getState()
-                            .pushStatus(`Successfully Installed Chameleon: ${data.name}`);
-                        } else if (assetType === "workbench_template") {
-                          try {
-                            if (!vaultPath) throw new Error("Vault path not configured.");
-
-                            const parsed =
-                              typeof data.json_data === "string"
-                                ? JSON.parse(data.json_data)
-                                : data.json_data;
-                            const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
-                            const templateId = displayData?.template_id || "vlocal";
-
-                            const templatesDir = `${vaultPath}\\Templates`;
-                            if (!(await exists(templatesDir))) {
-                              await mkdir(templatesDir, { recursive: true });
-                            }
-
-                            await writeTextFile(
-                              `${templatesDir}\\${templateId}_template.json`,
-                              JSON.stringify(parsed, null, 2)
-                            );
-                            useStore
-                              .getState()
-                              .pushStatus(`Successfully Installed Template: ${data.name}`);
-                          } catch (err: any) {
-                            useStore
-                              .getState()
-                              .pushStatus(`Failed to install template: ${err.message}`);
-                          }
-                        }
-
-                        try {
-                          await supabase.rpc("increment_asset_downloads", { asset_id: assetId });
-                        } catch (e) {
-                          console.error("Could not increment downloads", e);
-                        }
-                      }
-                    }}
-                    variant={
-                      assetType === "blueprint"
-                        ? isInstalled(data)
-                          ? "primary"
-                          : "success"
-                        : isInstalled(data)
-                          ? isOutdated(data)
-                            ? "primary"
-                            : "glass"
-                          : "success"
-                    }
-                  />
-                </PanelHeaderGroup>
-              );
-            })()
-          : undefined
+        data &&
+        session?.user &&
+        session?.user?.user_metadata?.username !== data.author &&
+        onFlag ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_flag", "flag")}
+              tooltip={t("feed_btn_flag", "Report")}
+              onClick={() => onFlag(assetId, assetType)}
+              variant="danger"
+            />
+          </PanelHeaderGroup>
+        ) : undefined
       }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8 break-words">
@@ -447,76 +264,451 @@ export default function AssetPreviewSidebar({
             variant="danger"
           />
         ) : data ? (
-          <>
-            <SidePanelHeroCard
-              icon={panelIcon}
-              overline={assetType === "workbench_template" ? "template" : assetType}
-              title={(data.displayName || (data.name || "").split("/").pop() || "")
-                .replace(/_/g, " ")
-                .replace(/\.[^/.]+$/, "")}
-              description={panelSubtitle}
-              badge={`v${getAssetDisplayVersion(data) || "1.0.0"}`}
-              badgeIcon={t("icon_new_releases", "new_releases")}
-              variant="accent"
-            >
-              <div className="flex flex-col gap-3 mt-1">
-                {(data.is_early_access || data.is_paid) && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {data.is_early_access && (
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-outlined !text-[12px] text-purple-400">
-                          {t("icon_science", "science")}
-                        </span>
-                        {t("badge_early_access", "Early Access")}
-                      </span>
-                    )}
-                    {data.is_paid && (
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-outlined !text-[12px] text-amber-400">
-                          {t("icon_monetization_on", "monetization_on")}
-                        </span>
-                        {t("badge_paid", "Paid")}
-                      </span>
-                    )}
-                  </div>
-                )}
+          (() => {
+            const assetStagingId = `asset_${assetType}_${data.id || assetId}`;
+            const isAssetStaged = stagingDraftItems.some(
+              (item: any) =>
+                String(item.id || "").toLowerCase() === assetStagingId.toLowerCase() ||
+                (assetType === "mod" &&
+                  ((data.id && String(item.id || item.dbId || "") === String(data.id)) ||
+                    (data.hash && String(item.hash || "") === String(data.hash))))
+            );
+            const cleanTitle = (data.displayName || (data.name || "").split("/").pop() || "")
+              .replace(/_/g, " ")
+              .replace(/\.[^/.]+$/, "");
+            const creatorLabel =
+              data.author || data.master_author || t("role_citizen", "{Citizen}");
+            const installedNow = isInstalled(data);
+            const outdatedNow = isOutdated(data);
 
-                <div className="grid grid-cols-2 gap-3">
-                  <StatBox
-                    label={t("author", "Author")}
-                    value={data.author || data.master_author || "Citizen"}
-                    icon={t("icon_person", "person")}
-                    iconColorClass="text-[var(--accent)]"
-                  />
-                  <StatBox
-                    label={t("label_version", "Version")}
-                    value={getAssetDisplayVersion(data) || "1.0.0"}
-                    icon={t("icon_new_releases", "new_releases")}
-                    iconColorClass="text-[var(--accent)]"
-                  />
-                  <StatBox
-                    label={t("sort_downloads", "Downloads")}
-                    value={data.downloads?.toLocaleString() || "0"}
-                    icon={t("icon_download", "download")}
-                    iconColorClass="text-[var(--accent)]"
-                  />
-                  <StatBox
-                    label={t("created_date", "Published")}
-                    value={
-                      data.created_at
-                        ? new Date(data.created_at).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "—"
-                    }
-                    icon={t("icon_calendar_today", "calendar_today")}
-                    iconColorClass="text-[var(--accent)]"
-                  />
-                </div>
-              </div>
-            </SidePanelHeroCard>
+            const applyAssetLocallyAndIncrement = async () => {
+              if (assetType === "lexicon") {
+                const parsedData =
+                  typeof data.json_data === "string"
+                    ? JSON.parse(data.json_data)
+                    : data.json_data || {};
+                importLexicon(
+                  {
+                    ...parsedData,
+                    _meta_language: data.language || "Custom",
+                    _meta_version: data.version || "1.0.0",
+                  },
+                  data.name
+                );
+              } else if (assetType === "chameleon") {
+                const parsedTheme =
+                  typeof data.json_data === "string"
+                    ? JSON.parse(data.json_data)
+                    : data.json_data || {};
+                importTheme({
+                  ...parsedTheme,
+                  name: data.name || parsedTheme.name || "Chameleon",
+                  version: data.version || parsedTheme.version || "1.0.0",
+                  author: data.author || parsedTheme.author || "Citizen",
+                  _meta_version: data.version || parsedTheme._meta_version || "1.0.0",
+                });
+              } else if (assetType === "workbench_template") {
+                if (!vaultPath) throw new Error("Vault path not configured.");
+                const parsed =
+                  typeof data.json_data === "string"
+                    ? JSON.parse(data.json_data)
+                    : data.json_data;
+                const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
+                const templateId = displayData?.template_id || "vlocal";
+                const templatesDir = `${vaultPath}\\Templates`;
+                if (!(await exists(templatesDir))) {
+                  await mkdir(templatesDir, { recursive: true });
+                }
+                await writeTextFile(
+                  `${templatesDir}\\${templateId}_template.json`,
+                  JSON.stringify(parsed, null, 2)
+                );
+                setInstalledTemplates((prev) => ({
+                  ...prev,
+                  [data.name]: getAssetDisplayVersion(data) || "1.0.0",
+                }));
+              }
+
+              try {
+                await supabase.rpc("increment_asset_downloads", { asset_id: assetId });
+              } catch (e) {
+                console.error("Could not increment downloads", e);
+              }
+            };
+
+            return (
+              <>
+                <SidePanelHeroCard
+                  icon={panelIcon}
+                  overline={t("system_status", "System Status")}
+                  title={cleanTitle}
+                  description={`${cleanTitle} • ${creatorLabel}`}
+                  badge={`v${getAssetDisplayVersion(data) || "1.0.0"}`}
+                  badgeIcon={t("icon_new_releases", "new_releases")}
+                  variant={installedNow ? "success" : "accent"}
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {installedNow && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--success)]">
+                              {t("icon_check_circle", "check_circle")}
+                            </span>
+                            {t("installed", "Installed")}
+                          </span>
+                        )}
+                        {data.is_early_access && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                              {t("icon_science", "science")}
+                            </span>
+                            {t("badge_early_access", "Early Access")}
+                          </span>
+                        )}
+                        {data.is_paid && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                              {t("icon_monetization_on", "monetization_on")}
+                            </span>
+                            {t("badge_paid", "Paid")}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 ml-auto">
+                        {!isDesktop() ? (
+                          assetType === "lexicon" || assetType === "chameleon" ? (
+                            <ActionButton
+                              variant={isAssetStaged ? "accent" : "glass"}
+                              icon={
+                                isAssetStaged
+                                  ? t("icon_check_circle", "check_circle")
+                                  : installedNow && outdatedNow
+                                    ? t("icon_update", "update")
+                                    : t("icon_download", "download")
+                              }
+                              label={
+                                isAssetStaged
+                                  ? t("staging_btn_staged", "Staged")
+                                  : installedNow && outdatedNow
+                                    ? t("btn_update", "Update")
+                                    : t("staging_btn_apply_and_stage", "Apply & Stage to PC")
+                              }
+                              onClick={async (e?: React.MouseEvent) => {
+                                e?.stopPropagation();
+                                if (isAssetStaged) {
+                                  toggleModInStagingDraft({
+                                    ...data,
+                                    asset_type: assetType,
+                                    asset_id: data.id || assetId,
+                                  });
+                                  useStore
+                                    .getState()
+                                    .pushStatus(
+                                      t(
+                                        "status_staging_item_removed",
+                                        "Removed from Remote Staging Queue."
+                                      )
+                                    );
+                                  return;
+                                }
+
+                                await applyAssetLocallyAndIncrement();
+                                toggleModInStagingDraft({
+                                  ...data,
+                                  asset_type: assetType,
+                                  asset_id: data.id || assetId,
+                                });
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    t(
+                                      "status_staging_applied_and_queued",
+                                      "Applied locally & added to Desktop Staging Queue."
+                                    )
+                                  );
+                              }}
+                            />
+                          ) : assetType === "blueprint" ? (
+                            <ActionButton
+                              variant="glass"
+                              icon={t("icon_phonelink", "phonelink")}
+                              label={t("staging_btn_stage_mod", "Stage to PC")}
+                              onClick={(e?: React.MouseEvent) => {
+                                e?.stopPropagation();
+                                stageBlueprintToDraft(data);
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    t(
+                                      "status_staging_blueprint_loaded",
+                                      "Blueprint loaded into Payload Editor."
+                                    )
+                                  );
+                                onClose();
+                                useStore.getState().setView("playsets");
+                              }}
+                            />
+                          ) : assetType === "mod" ? (
+                            <>
+                              <ActionButton
+                                variant={isAssetStaged ? "accent" : "glass"}
+                                icon={
+                                  isAssetStaged
+                                    ? t("icon_check_circle", "check_circle")
+                                    : t("icon_phonelink", "phonelink")
+                                }
+                                label={
+                                  isAssetStaged
+                                    ? t("staging_btn_staged", "Staged")
+                                    : t("staging_btn_stage_mod", "Stage to PC")
+                                }
+                                onClick={(e?: React.MouseEvent) => {
+                                  e?.stopPropagation();
+                                  toggleModInStagingDraft(data);
+                                  useStore
+                                    .getState()
+                                    .pushStatus(
+                                      isAssetStaged
+                                        ? t(
+                                            "status_staging_item_removed",
+                                            "Removed from Remote Staging Queue."
+                                          )
+                                        : t(
+                                            "status_staging_item_added",
+                                            "Added to Remote Staging Queue."
+                                          )
+                                    );
+                                }}
+                              />
+                              <ActionButton
+                                variant="glass"
+                                icon={
+                                  data.url
+                                    ? t("icon_download", "download")
+                                    : t("icon_search", "search")
+                                }
+                                label={
+                                  data.url
+                                    ? t("btn_download", "Download")
+                                    : t("btn_search_web", "Search Web")
+                                }
+                                onClick={(e?: React.MouseEvent) => {
+                                  e?.stopPropagation();
+                                  const targetUrl = getModFallbackUrl(
+                                    data.displayName || data.name || "",
+                                    data.hash || "",
+                                    useStore.getState().activeGameSchema,
+                                    { url: data.url }
+                                  );
+                                  handleOpenUrl(targetUrl);
+                                }}
+                              />
+                            </>
+                          ) : (
+                            <ActionButton
+                              variant={isAssetStaged ? "accent" : "glass"}
+                              icon={
+                                isAssetStaged
+                                  ? t("icon_check_circle", "check_circle")
+                                  : t("icon_phonelink", "phonelink")
+                              }
+                              label={
+                                isAssetStaged
+                                  ? t("staging_btn_staged", "Staged")
+                                  : t("staging_btn_stage_mod", "Stage to PC")
+                              }
+                              onClick={(e?: React.MouseEvent) => {
+                                e?.stopPropagation();
+                                toggleModInStagingDraft({
+                                  ...data,
+                                  asset_type: assetType,
+                                  asset_id: data.id || assetId,
+                                });
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    isAssetStaged
+                                      ? t(
+                                          "status_staging_item_removed",
+                                          "Removed from Remote Staging Queue."
+                                        )
+                                      : t(
+                                          "status_staging_item_added",
+                                          "Added to Remote Staging Queue."
+                                        )
+                                  );
+                              }}
+                            />
+                          )
+                        ) : (
+                          <ActionButton
+                            variant={
+                              assetType === "mod"
+                                ? "glass"
+                                : installedNow
+                                  ? outdatedNow
+                                    ? "primary"
+                                    : "glass"
+                                  : "accent"
+                            }
+                            icon={
+                              assetType === "mod"
+                                ? data.url
+                                  ? t("icon_download", "download")
+                                  : t("icon_search", "search")
+                                : installedNow
+                                  ? outdatedNow
+                                    ? t("icon_update", "update")
+                                    : t("icon_refresh", "refresh")
+                                  : t("icon_download", "download")
+                            }
+                            label={
+                              assetType === "mod"
+                                ? data.url
+                                  ? t("btn_download", "Download")
+                                  : t("btn_search_web", "Search Web")
+                                : installedNow
+                                  ? outdatedNow
+                                    ? t("btn_update", "Update")
+                                    : t("btn_reinstall", "Reinstall")
+                                  : t("update_panel_install", "Install")
+                            }
+                            onClick={async (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
+                              if (assetType === "mod") {
+                                const targetUrl = getModFallbackUrl(
+                                  data.displayName || data.name || "",
+                                  data.hash || "",
+                                  useStore.getState().activeGameSchema,
+                                  { url: data.url }
+                                );
+                                handleOpenUrl(targetUrl);
+                                return;
+                              }
+                              if (assetType === "blueprint") {
+                                navigator.clipboard
+                                  .writeText(data.json_data?.code || "")
+                                  .catch(() => {});
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    "Copied Uplink Code: " + (data.json_data?.code || "")
+                                  );
+                                return;
+                              }
+                              try {
+                                await applyAssetLocallyAndIncrement();
+                                useStore
+                                  .getState()
+                                  .pushStatus(`Successfully Installed: ${data.name}`);
+                              } catch (err: any) {
+                                useStore
+                                  .getState()
+                                  .pushStatus(`Failed to install: ${err.message}`);
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </SidePanelHeroCard>
+
+                <UniversalGroup
+                  title={t("tab_metadata", "Metadata & Telemetry")}
+                  icon={t("icon_analytics", "analytics")}
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatBox
+                      label={t("mason", "{Mason}")}
+                      value={creatorLabel}
+                      icon={t("icon_person", "person")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    <StatBox
+                      label={t("revision", "Revision")}
+                      value={getAssetDisplayVersion(data) || "1.0.0"}
+                      icon={t("icon_tag", "tag")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    {assetType === "lexicon" && (
+                      <>
+                        <StatBox
+                          label={t("tab_lexicons", "Language")}
+                          value={data.language || "English"}
+                          icon={t("icon_translate", "translate")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                        <StatBox
+                          label={t("filter_type", "Type")}
+                          value={data.lexicon_type || t("type_default", "Default")}
+                          icon={t("icon_category", "category")}
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                      </>
+                    )}
+                    {assetType === "chameleon" && (
+                      <>
+                        <StatBox
+                          label={t("filter_mode", "Mode")}
+                          value={data.theme_mode || t("mode_dark", "Dark")}
+                          icon={
+                            String(data.theme_mode || "").toLowerCase() === "light"
+                              ? t("icon_light_mode", "light_mode")
+                              : t("icon_dark_mode", "dark_mode")
+                          }
+                          iconColorClass="text-[var(--accent)]"
+                        />
+                        <StatBox
+                          label={t("badge_early_access", "Access Tier")}
+                          value={
+                            data.is_early_access
+                              ? t("badge_early_access", "Early Access")
+                              : data.is_paid
+                                ? t("badge_paid", "Paid")
+                                : t("badge_free", "Free")
+                          }
+                          icon={
+                            data.is_early_access
+                              ? t("icon_science", "science")
+                              : data.is_paid
+                                ? t("icon_monetization_on", "monetization_on")
+                                : t("icon_public", "public")
+                          }
+                          iconColorClass={
+                            data.is_paid
+                              ? "text-[var(--warning)]"
+                              : data.is_early_access
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--success)]"
+                          }
+                        />
+                      </>
+                    )}
+                    <StatBox
+                      label={t("sort_downloads", "Downloads")}
+                      value={data.downloads?.toLocaleString() || "0"}
+                      icon={t("icon_download", "download")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    <StatBox
+                      label={t("created_date", "Published")}
+                      value={
+                        data.created_at
+                          ? new Date(data.created_at).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "—"
+                      }
+                      icon={t("icon_calendar_today", "calendar_today")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                  </div>
+                </UniversalGroup>
 
             {assetType === "chameleon" && data.json_data && (
               <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
@@ -658,7 +850,9 @@ export default function AssetPreviewSidebar({
                 </div>
               </UniversalGroup>
             )}
-          </>
+              </>
+            );
+          })()
         ) : null}
       </div>
     </SidePanel>

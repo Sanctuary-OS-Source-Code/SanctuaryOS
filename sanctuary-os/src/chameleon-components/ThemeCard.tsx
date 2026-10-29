@@ -595,10 +595,10 @@ export function DynamicArtifactPreviewBanner({
       : t('pkg_short', 'PKG');
 
   const rawVer = String(data?.latest_version || data?.version || data?.local_version || '').trim();
-  const isLocalVer = /^v?\.?local$/i.test(rawVer);
+  const isLocalVer = /^(v?\.?local|vv\.?local|local node|unknown|v\.?unknown)$/i.test(rawVer);
   const formatVerBadge = (v: any): string => {
     const s = String(v || '').trim();
-    if (!s || /^v?\.?local$/i.test(s)) return t('source_local', 'Local');
+    if (!s || /^(v?\.?local|vv\.?local|local node|unknown|v\.?unknown)$/i.test(s)) return t('unknown', 'Unknown');
     const stripped = s.replace(/^v\.?/i, '');
     return /^\d/.test(stripped) ? `v${stripped.slice(0, 7)}` : stripped.slice(0, 8);
   };
@@ -637,7 +637,7 @@ export function DynamicArtifactPreviewBanner({
     if (rawVer) {
       return formatVerBadge(rawVer);
     }
-    return t('source_local', 'Local');
+    return t('unknown', 'Unknown');
   })();
 
   // Requirements / Modules pill

@@ -4,6 +4,14 @@ import { supabase, hasActiveGameDatabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
 import { resolvePresetForGameId, isSims4SchemaId } from '../utils/gameArchitecturePresets';
+import {
+  SanctuaryDateFormat,
+  DATE_FORMAT_STORAGE_KEY,
+  getStoredDateFormat,
+  installGlobalDateFormatPatch,
+} from '../utils/dateUtils';
+
+installGlobalDateFormatPatch();
 
 export const getSafeSchema = (raw: any, fallbackId: string) => {
   const safe = { ...raw };
@@ -128,6 +136,65 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       };
     });
   }
+
+  // Coerce numeric fields so Rust's GameSchema (u32 / u64 / i32) never rejects stringified numbers (e.g. "5")
+  const toOptU32 = (v: any, fallback?: number): number | undefined => {
+    if (v === null || v === undefined || v === "") return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : fallback;
+  };
+  safe.schema_version = toOptU32(safe.schema_version, 1) ?? 1;
+  if (safe.min_scout_submissions !== undefined) {
+    safe.min_scout_submissions = toOptU32(safe.min_scout_submissions, 5);
+  }
+  if (safe.constraints) {
+    safe.constraints = {
+      ...safe.constraints,
+      max_folder_depth: toOptU32(
+        safe.constraints.max_folder_depth,
+        preset.constraints?.max_folder_depth ?? 5
+      ),
+    };
+  }
+  if (safe.lab_verification) {
+    const wls = safe.lab_verification.world_load_signature;
+    safe.lab_verification = {
+      ...safe.lab_verification,
+      required_active_seconds: toOptU32(safe.lab_verification.required_active_seconds),
+      max_idle_seconds: toOptU32(safe.lab_verification.max_idle_seconds),
+      pause_key_vk_codes: Array.isArray(safe.lab_verification.pause_key_vk_codes)
+        ? safe.lab_verification.pause_key_vk_codes
+            .map((k: any) => toOptU32(k))
+            .filter((k: any): k is number => k !== undefined)
+        : undefined,
+      resume_key_vk_codes: Array.isArray(safe.lab_verification.resume_key_vk_codes)
+        ? safe.lab_verification.resume_key_vk_codes
+            .map((k: any) => toOptU32(k))
+            .filter((k: any): k is number => k !== undefined)
+        : undefined,
+      world_load_signature: wls
+        ? {
+            ...wls,
+            stabilize_boot_seconds: toOptU32(wls.stabilize_boot_seconds),
+            min_disk_read_mb: toOptU32(wls.min_disk_read_mb),
+            min_ram_step_percent: toOptU32(wls.min_ram_step_percent),
+            warm_cache_ram_step_percent: toOptU32(wls.warm_cache_ram_step_percent),
+          }
+        : undefined,
+    };
+  }
+  if (safe.load_order && Array.isArray(safe.load_order.priority_tiers)) {
+    safe.load_order = {
+      ...safe.load_order,
+      priority_tiers: safe.load_order.priority_tiers.map((tier: any) => ({
+        ...tier,
+        priority: Number.isFinite(Number(tier?.priority))
+          ? Math.round(Number(tier.priority))
+          : 500,
+      })),
+    };
+  }
+
   return safe;
 };
 
@@ -538,6 +605,8 @@ interface GlobalState {
   setShowImages: (show: boolean) => void;
   showCommLinkImages: boolean;
   setShowCommLinkImages: (show: boolean) => void;
+  dateFormat: SanctuaryDateFormat;
+  setDateFormat: (fmt: SanctuaryDateFormat) => void;
   localOnly: boolean;
   setLocalOnly: (val: boolean) => void;
   marketSearchQuery: string;
@@ -594,7 +663,12 @@ const initialBootWorkspaceId = (() => {
 
 export const useStore = create<GlobalState>((set) => ({
   activeGameSchema: loadActiveGameSchema(),
-  setActiveGameSchema: (activeGameSchema) => set({ activeGameSchema }),
+  setActiveGameSchema: (activeGameSchema) =>
+    set({
+      activeGameSchema: activeGameSchema
+        ? getSafeSchema(activeGameSchema, activeGameSchema.id || activeGameSchema.game_id || "sims4")
+        : activeGameSchema,
+    }),
   isMobileMenuOpen: false,
   setIsMobileMenuOpen: (isMobileMenuOpen) => set({ isMobileMenuOpen }),
   isGameDatabasesSynced: false,
@@ -933,6 +1007,16 @@ export const useStore = create<GlobalState>((set) => ({
   setShowImages: (showImages) => { safeLocalStorageSetItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
   showCommLinkImages: localStorage.getItem("sanctuary_show_commlink_images") !== "false",
   setShowCommLinkImages: (showCommLinkImages) => { safeLocalStorageSetItem("sanctuary_show_commlink_images", showCommLinkImages.toString()); set({ showCommLinkImages }); },
+  dateFormat: getStoredDateFormat(),
+  setDateFormat: (dateFormat) => {
+    const valid: SanctuaryDateFormat =
+      dateFormat === "DD/MM/YYYY" || dateFormat === "YYYY-MM-DD" ? dateFormat : "MM/DD/YYYY";
+    safeLocalStorageSetItem(DATE_FORMAT_STORAGE_KEY, valid);
+    set({ dateFormat: valid });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sanctuary_date_format_changed", { detail: { dateFormat: valid } }));
+    }
+  },
   localOnly: localStorage.getItem("sanctuary_local_only") === "true",
   setLocalOnly: (localOnly) => {
     safeLocalStorageSetItem("sanctuary_local_only", localOnly.toString());

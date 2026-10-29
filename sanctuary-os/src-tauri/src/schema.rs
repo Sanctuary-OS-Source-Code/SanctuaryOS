@@ -1,5 +1,53 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
+
+fn deserialize_u32_flex<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = serde_json::Value::deserialize(deserializer)?;
+    match val {
+        serde_json::Value::Number(n) => Ok(n.as_u64().unwrap_or(0) as u32),
+        serde_json::Value::String(s) => Ok(s.trim().parse::<u32>().unwrap_or(0)),
+        _ => Ok(0),
+    }
+}
+
+fn deserialize_opt_u32_flex<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match val {
+        Some(serde_json::Value::Number(n)) => Ok(n.as_u64().map(|v| v as u32)),
+        Some(serde_json::Value::String(s)) => Ok(s.trim().parse::<u32>().ok()),
+        _ => Ok(None),
+    }
+}
+
+fn deserialize_opt_u64_flex<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match val {
+        Some(serde_json::Value::Number(n)) => Ok(n.as_u64()),
+        Some(serde_json::Value::String(s)) => Ok(s.trim().parse::<u64>().ok()),
+        _ => Ok(None),
+    }
+}
+
+fn deserialize_i32_flex<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = serde_json::Value::deserialize(deserializer)?;
+    match val {
+        serde_json::Value::Number(n) => Ok(n.as_i64().unwrap_or(0) as i32),
+        serde_json::Value::String(s) => Ok(s.trim().parse::<i32>().unwrap_or(0)),
+        _ => Ok(0),
+    }
+}
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Default)]
 pub struct BackupTarget {
@@ -83,7 +131,7 @@ pub struct PriorityTier {
     pub id: String,
     #[serde(default)]
     pub label: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_i32_flex")]
     pub priority: i32,
     #[serde(default)]
     pub folder: String,
@@ -107,13 +155,13 @@ pub struct LoadOrderConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WorldLoadSignatureConfig {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub stabilize_boot_seconds: Option<u32>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u64_flex")]
     pub min_disk_read_mb: Option<u64>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub min_ram_step_percent: Option<u32>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub warm_cache_ram_step_percent: Option<u32>,
     #[serde(default)]
     pub scratch_activity_subdirs: Option<Vec<String>>,
@@ -125,9 +173,9 @@ pub struct SchemaLabVerification {
     pub require_for_mason_publish: Option<bool>,
     #[serde(default)]
     pub require_for_scout_approval: Option<bool>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub required_active_seconds: Option<u32>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub max_idle_seconds: Option<u32>,
     #[serde(default)]
     pub require_focus: Option<bool>,
@@ -151,7 +199,7 @@ pub struct SchemaLabVerification {
 pub struct GameSchema {
     #[serde(default)]
     pub id: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_u32_flex")]
     pub schema_version: u32,
     #[serde(default)]
     pub game_id: String,
@@ -161,7 +209,7 @@ pub struct GameSchema {
     pub display_name: String,
     #[serde(default)]
     pub default_lexicon: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub min_scout_submissions: Option<u32>,
     #[serde(default)]
     pub executable_names: Vec<String>,
@@ -246,7 +294,7 @@ pub struct SchemaExtensions {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SchemaConstraints {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub max_folder_depth: Option<u32>,
     #[serde(default)]
     pub requires_script_unzipping: Option<bool>,

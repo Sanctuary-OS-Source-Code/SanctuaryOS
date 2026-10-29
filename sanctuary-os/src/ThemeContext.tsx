@@ -1347,10 +1347,17 @@ export const ThemeProvider = ({ children }: any) => {
           }
         }
         if (!json || typeof json !== 'object') return;
-        const id = `import_${Date.now()}`;
+        const targetName = String(json.name || '').trim().toLowerCase();
+        const existingEntry = targetName
+          ? Object.entries(customThemes).find(
+              ([, th]: [string, any]) =>
+                th && String(th.name || '').trim().toLowerCase() === targetName
+            )
+          : undefined;
+        const id = existingEntry ? existingEntry[0] : `import_${Date.now()}`;
         const nextCustoms = { ...customThemes, [id]: json };
         setCustomThemes(nextCustoms);
-        localStorage.setItem(`sanctuary_${wsId}_custom_themes`, JSON.stringify(nextCustoms));
+        writeSharedThemeMap(wsId, 'custom_themes', nextCustoms);
         setActiveThemeId(id);
         saveThemeToVault(id, json, false);
       }

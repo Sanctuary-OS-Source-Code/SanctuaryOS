@@ -10,6 +10,7 @@ interface MarkdownRendererProps {
   onAssetClick?: (type: string, id: string) => void;
   isAlert?: boolean;
   forceTranslate?: boolean;
+  hideImages?: boolean;
 }
 
 export default function MarkdownRenderer({
@@ -17,6 +18,7 @@ export default function MarkdownRenderer({
   onAssetClick,
   isAlert,
   forceTranslate,
+  hideImages = false,
 }: MarkdownRendererProps) {
   const { t, td } = useLexicon();
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -147,6 +149,7 @@ export default function MarkdownRenderer({
                 </span>
               );
             }
+            if (hideImages) return null;
             const isExpanded = expandedImage === src;
             return (
               <span

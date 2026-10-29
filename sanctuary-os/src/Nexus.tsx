@@ -90,8 +90,23 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const stagedModKeys = useMemo(() => {
     const s = new Set<string>();
     stagingDraftItems.forEach((item) => {
-      const key = String(item.mod_id || item.dna_hash || item.name);
-      s.add(key);
+      const key = String(item.mod_id || item.dna_hash || item.id || item.name || "");
+      if (key) {
+        s.add(key);
+        s.add(key.toLowerCase());
+      }
+      if (item.id) {
+        s.add(String(item.id));
+        s.add(String(item.id).toLowerCase());
+      }
+      if (item.dbId) {
+        s.add(String(item.dbId));
+        s.add(String(item.dbId).toLowerCase());
+      }
+      if (item.hash) {
+        s.add(String(item.hash));
+        s.add(String(item.hash).toLowerCase());
+      }
       if (item.dna_hash) s.add(String(item.dna_hash));
       if (item.mod_id) s.add(String(item.mod_id));
     });
@@ -2516,42 +2531,43 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             />
                           )}
                           {marketTab === 'BLUEPRINTS' ? (() => {
-                            const isInstalled = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
-                            return (
-                              <>
-                                {!isDesktop() && (
-                                  <ActionButton
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      stageBlueprintToDraft(asset);
-                                      onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
-                                      useStore.getState().setView('playsets');
-                                    }}
-                                    variant="glass"
-                                    icon={t("icon_phonelink", "phonelink")}
-                                    label={t("staging_btn_use_short", "Use {Blueprint}")}
-                                    className="!py-1.5 !px-3 !text-[9px]"
-                                  />
-                                )}
+                            const isInstalledBp = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
+                            if (!isDesktop()) {
+                              return (
                                 <ActionButton
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedBlueprint(asset);
+                                    stageBlueprintToDraft(asset);
+                                    onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
+                                    useStore.getState().setView('playsets');
                                   }}
-                                  variant={isInstalled ? "primary" : "success"}
-                                  icon="download"
-                                  label={isInstalled ? (t("btn_install_copy", "Install Copy")) : (t("update_panel_install", "Install"))}
+                                  variant="glass"
+                                  icon={t("icon_phonelink", "phonelink")}
+                                  label={t("staging_btn_stage_mod", "Stage to PC")}
                                   className="!py-1.5 !px-3 !text-[9px]"
                                 />
-                              </>
+                              );
+                            }
+                            return (
+                              <ActionButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBlueprint(asset);
+                                }}
+                                variant={isInstalledBp ? "primary" : "success"}
+                                icon={t("icon_download", "download")}
+                                label={isInstalledBp ? (t("btn_install_copy", "Install Copy")) : (t("update_panel_install", "Install"))}
+                                className="!py-1.5 !px-3 !text-[9px]"
+                              />
                             );
                           })() : (() => {
                             const assetTypeKey = marketTab === 'LEXICONS' ? 'lexicon' : marketTab === 'CHAMELEONS' ? 'chameleon' : 'workbench_template';
                             const assetStagingId = `asset_${assetTypeKey}_${asset.id}`;
                             const isAssetStaged = stagedModKeys.has(assetStagingId.toLowerCase());
-                            return (
-                              <>
-                                {!isDesktop() && (
+
+                            if (!isDesktop()) {
+                              if (marketTab === 'TEMPLATES') {
+                                return (
                                   <ActionButton
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2571,44 +2587,129 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     label={isAssetStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
                                     className="!py-1.5 !px-3 !text-[9px]"
                                   />
-                                )}
+                                );
+                              }
+
+                              // Web / Mobile PWA unified action for Lexicons & Chameleons: Apply locally AND stage to Desktop Queue
+                              return (
                                 <ActionButton
                                   onClick={async (e) => {
                                     e.stopPropagation();
-                                    if (marketTab === 'CHAMELEONS') {
-                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                      importTheme({ ...parsedData, version: asset.version || '1.0.0' });
-                                      onSetStatus(`Successfully Installed Theme: ${asset.name}`);
-                                    } else if (marketTab === 'TEMPLATES') {
-                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                      const versionToSave = getAssetDisplayVersion(asset);
-                                      await importTemplate({ ...parsedData, version: versionToSave });
-                                      setInstalledTemplates(prev => ({ ...prev, [asset.name]: versionToSave }));
-                                      onSetStatus(`Successfully Installed Template: ${asset.name}`);
-                                    } else {
-                                      const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
-                                      importLexicon({ ...parsedData, _meta_language: asset.language || "Custom", _meta_version: asset.version || '1.0.0' }, asset.name);
-                                      onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
+                                    if (isAssetStaged) {
+                                      toggleModInStagingDraft({
+                                        ...asset,
+                                        asset_type: assetTypeKey,
+                                        asset_id: asset.id,
+                                      });
+                                      onSetStatus(t("status_staging_item_removed", "Removed from Remote Staging Queue."));
+                                      return;
                                     }
+
+                                    const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : (asset.json_data || {});
+                                    if (marketTab === 'CHAMELEONS') {
+                                      importTheme({
+                                        ...parsedData,
+                                        name: asset.name || parsedData.name || "Chameleon",
+                                        version: asset.version || parsedData.version || '1.0.0',
+                                        author: asset.author || parsedData.author || "Citizen",
+                                        _meta_version: asset.version || parsedData._meta_version || '1.0.0',
+                                      });
+                                    } else {
+                                      importLexicon(
+                                        {
+                                          ...parsedData,
+                                          _meta_language: asset.language || "Custom",
+                                          _meta_version: asset.version || '1.0.0',
+                                        },
+                                        asset.name
+                                      );
+                                    }
+
+                                    toggleModInStagingDraft({
+                                      ...asset,
+                                      asset_type: assetTypeKey,
+                                      asset_id: asset.id,
+                                    });
+                                    onSetStatus(t("status_staging_applied_and_queued", "Applied locally & added to Desktop Staging Queue."));
+
                                     try {
-                                      if (marketTab === 'BLUEPRINTS') {
-                                        await supabase.rpc('increment_blueprint_downloads', { blueprint_id: asset.id });
-                                      } else {
-                                        await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
-                                      }
-                                    } catch (e) { console.error("Could not increment downloads", e); }
+                                      await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                    } catch (err) {
+                                      console.error("Could not increment downloads", err);
+                                    }
                                     setAssetResultsMap(prev => {
                                       const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
                                       if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
                                       return newMap;
                                     });
                                   }}
-                                  variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
-                                  icon={isInstalled(asset) ? (isOutdated(asset) ? 'update' : 'refresh') : 'download'}
-                                  label={isInstalled(asset) ? (isOutdated(asset) ? "UPDATE" : (t("btn_reinstall", "Reinstall"))) : (t("update_panel_install", "Install"))}
+                                  variant={
+                                    isAssetStaged
+                                      ? "primary"
+                                      : isInstalled(asset)
+                                        ? isOutdated(asset)
+                                          ? "primary"
+                                          : "glass"
+                                        : "success"
+                                  }
+                                  icon={
+                                    isAssetStaged
+                                      ? t("icon_playlist_add_check", "playlist_add_check")
+                                      : isInstalled(asset) && isOutdated(asset)
+                                        ? t("icon_update", "update")
+                                        : t("icon_download", "download")
+                                  }
+                                  label={
+                                    isAssetStaged
+                                      ? t("staging_btn_staged", "Staged")
+                                      : isInstalled(asset) && isOutdated(asset)
+                                        ? t("btn_update", "Update")
+                                        : t("staging_btn_apply_and_stage", "Apply & Stage to PC")
+                                  }
                                   className="!py-1.5 !px-3 !text-[9px]"
                                 />
-                              </>
+                              );
+                            }
+
+                            return (
+                              <ActionButton
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (marketTab === 'CHAMELEONS') {
+                                    const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : (asset.json_data || {});
+                                    importTheme({
+                                      ...parsedData,
+                                      name: asset.name || parsedData.name || "Chameleon",
+                                      version: asset.version || parsedData.version || '1.0.0',
+                                      author: asset.author || parsedData.author || "Citizen",
+                                      _meta_version: asset.version || parsedData._meta_version || '1.0.0',
+                                    });
+                                    onSetStatus(`Successfully Installed Theme: ${asset.name}`);
+                                  } else if (marketTab === 'TEMPLATES') {
+                                    const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                                    const versionToSave = getAssetDisplayVersion(asset);
+                                    await importTemplate({ ...parsedData, version: versionToSave });
+                                    setInstalledTemplates(prev => ({ ...prev, [asset.name]: versionToSave }));
+                                    onSetStatus(`Successfully Installed Template: ${asset.name}`);
+                                  } else {
+                                    const parsedData = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
+                                    importLexicon({ ...parsedData, _meta_language: asset.language || "Custom", _meta_version: asset.version || '1.0.0' }, asset.name);
+                                    onSetStatus(`Successfully Installed Lexicon: ${asset.name}`);
+                                  }
+                                  try {
+                                    await supabase.rpc('increment_asset_downloads', { asset_id: asset.id });
+                                  } catch (e) { console.error("Could not increment downloads", e); }
+                                  setAssetResultsMap(prev => {
+                                    const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === asset.id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
+                                    if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
+                                    return newMap;
+                                  });
+                                }}
+                                variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
+                                icon={isInstalled(asset) ? (isOutdated(asset) ? t("icon_update", "update") : t("icon_refresh", "refresh")) : t("icon_download", "download")}
+                                label={isInstalled(asset) ? (isOutdated(asset) ? t("btn_update", "Update") : (t("btn_reinstall", "Reinstall"))) : (t("update_panel_install", "Install"))}
+                                className="!py-1.5 !px-3 !text-[9px]"
+                              />
                             );
                           })()}
                         </div>

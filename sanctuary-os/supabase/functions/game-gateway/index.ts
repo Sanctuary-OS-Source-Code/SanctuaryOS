@@ -995,12 +995,26 @@ serve(async (req) => {
           }
         }
 
-        const { data: updatedMason, error: updateError } = await gameDb
-          .from('masons')
-          .update(sanitizedData)
-          .eq('id', mason_id)
-          .select()
-          .single()
+        let updatedMason: any = null
+        let updateError: any = null
+        const masonPayload = { ...sanitizedData }
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const res = await gameDb
+            .from('masons')
+            .update(masonPayload)
+            .eq('id', mason_id)
+            .select()
+            .single()
+          updatedMason = res.data
+          updateError = res.error
+          if (!updateError) break
+          const missingColMatch = String(updateError.message || '').match(/Could not find the '([^']+)' column/i)
+          if (missingColMatch && missingColMatch[1] && Object.prototype.hasOwnProperty.call(masonPayload, missingColMatch[1])) {
+            delete masonPayload[missingColMatch[1]]
+            continue
+          }
+          break
+        }
 
         if (updateError) throw updateError
         resultData = updatedMason
@@ -1032,10 +1046,43 @@ serve(async (req) => {
           throw new Error(`Forbidden: Table ${cleanTable} is not in the allowed gateway registry`)
         }
 
-        const { data, error } = await gameDb
-          .from(cleanTable)
-          .upsert(payload_data)
-          .select()
+        let currentPayload = Array.isArray(payload_data)
+          ? payload_data.map((r) => (r && typeof r === 'object' ? { ...r } : r))
+          : { ...payload_data }
+        let data: any = null
+        let error: any = null
+
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const res = await gameDb
+            .from(cleanTable)
+            .upsert(currentPayload)
+            .select()
+          data = res.data
+          error = res.error
+          if (!error) break
+          const missingColMatch = String(error.message || '').match(/Could not find the '([^']+)' column/i)
+          const missingCol = missingColMatch?.[1]
+          if (missingCol) {
+            if (Array.isArray(currentPayload)) {
+              currentPayload = currentPayload.map((row) => {
+                if (row && typeof row === 'object') {
+                  const next = { ...row }
+                  delete next[missingCol]
+                  return next
+                }
+                return row
+              })
+              continue
+            } else if (currentPayload && typeof currentPayload === 'object' && Object.prototype.hasOwnProperty.call(currentPayload, missingCol)) {
+              if (missingCol === 'image_url' && currentPayload.image_url && typeof currentPayload.content === 'string') {
+                currentPayload.content = `[IMG:${currentPayload.image_url}]\n\n` + currentPayload.content
+              }
+              delete currentPayload[missingCol]
+              continue
+            }
+          }
+          break
+        }
 
         if (error) {
           if (error.code === '23505' && cleanTable === 'mason_post_views') {

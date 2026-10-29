@@ -113,7 +113,11 @@ export function GlobalTooltip() {
   const portalRoot = document.getElementById('sa-portals') || document.body;
 
   return createPortal(
-    <div id="sa-tooltip-portal" className="fixed inset-0 z-[999999] pointer-events-none">
+    <div
+      id="sa-tooltip-portal"
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 2147483647 }}
+    >
       <div
         className="absolute top-0 left-0 pointer-events-none will-change-transform"
         style={{

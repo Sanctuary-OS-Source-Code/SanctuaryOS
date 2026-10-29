@@ -2237,13 +2237,31 @@ function App() {
           const anyHashMatch = localMods.some(m => m.hash && latestData.dna_hash && m.hash.toLowerCase() === latestData.dna_hash.toLowerCase());
           const hashMismatch = latestData.dna_hash ? !anyHashMatch : false;
 
-          const primaryMod = localMods.find(m => m.version && m.version !== "v.Local") || localMods[0];
+          const isRealVer = (v: any) =>
+            Boolean(
+              v &&
+                !/^(v?\.?local|vv\.?local|local node|unknown|v\.?unknown)$/i.test(
+                  String(v).trim()
+                )
+            );
+          const primaryMod =
+            localMods.find((m) => isRealVer(m.version)) || localMods[0];
 
-          const cleanLocalVer = String(primaryMod.version || "").toLowerCase().replace(/^v/, '').trim();
-          const cleanCloudVer = String(latestData.version_label || "").toLowerCase().replace(/^v/, '').trim();
+          const cleanLocalVer = String(primaryMod.version || "")
+            .toLowerCase()
+            .replace(/^v\.?/, "")
+            .trim();
+          const cleanCloudVer = String(latestData.version_label || "")
+            .toLowerCase()
+            .replace(/^v\.?/, "")
+            .trim();
 
-          const isExactVersionMatch = primaryMod.version && primaryMod.version !== "v.Local" && cleanLocalVer === cleanCloudVer;
-          const versionMismatch = primaryMod.version && primaryMod.version !== "v.Local" && cleanLocalVer !== cleanCloudVer;
+          const hasBothVersions =
+            isRealVer(primaryMod.version) && isRealVer(latestData.version_label);
+          const isExactVersionMatch =
+            hasBothVersions && cleanLocalVer === cleanCloudVer;
+          const versionMismatch =
+            hasBothVersions && cleanLocalVer !== cleanCloudVer;
 
           debugLog += `Mod: ${primaryMod.name} | anyHashMatch: ${anyHashMatch} | cloudHash: ${latestData.dna_hash} | hashMismatch: ${hashMismatch} | isExactVersionMatch: ${isExactVersionMatch}\n`;
 

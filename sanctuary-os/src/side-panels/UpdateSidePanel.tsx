@@ -25,6 +25,7 @@ import {
   KeepersPipelineConfig,
 } from "../utils/supporterManager";
 import { isDesktop } from "../utils/envUtils";
+import { formatSanctuaryDate } from "../utils/dateUtils";
 import {
   KeepersReleasePostRecord,
   LEGACY_BLOG_BROADCAST_TITLE,
@@ -369,13 +370,11 @@ export function UpdateSidePanel() {
     .trim();
 
   const resolvedDateStr = (() => {
-    if (updatePayload.date) {
-      const parsed = new Date(updatePayload.date);
-      if (!isNaN(parsed.getTime())) {
-        return parsed.toLocaleDateString();
-      }
-    }
-    return activePostRecord.releaseDate || (isDevUpdate ? defaultDevDate : defaultStableDate);
+    const raw =
+      updatePayload.date ||
+      activePostRecord.releaseDate ||
+      (isDevUpdate ? defaultDevDate : defaultStableDate);
+    return formatSanctuaryDate(raw);
   })();
 
   const activePlatformStr =

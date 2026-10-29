@@ -179,7 +179,6 @@ function SidePanelHeaderActionBar({
 
   const totalButtons = actionItems.length + (showCloseButton ? 1 : 0);
   const collapseOnMobile = actionItems.length >= 2 && totalButtons > 2;
-  const collapseOnDesktop = actionItems.length >= 3 && totalButtons > 3;
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -214,6 +213,10 @@ function SidePanelHeaderActionBar({
   React.useLayoutEffect(() => {
     if (!isMenuOpen) return;
     const updatePosition = () => {
+      if (window.innerWidth >= 768) {
+        setIsMenuOpen(false);
+        return;
+      }
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         let leftPos = rect.right - 220;
@@ -272,9 +275,7 @@ function SidePanelHeaderActionBar({
       className={`flex items-center z-50 glass-surface rounded-2xl p-1 gap-1 shrink-0 ${className}`}
     >
       {headerActions &&
-        (collapseOnDesktop ? (
-          menuTriggerButton
-        ) : collapseOnMobile ? (
+        (collapseOnMobile ? (
           <>
             <div className="flex md:hidden items-center">
               {menuTriggerButton}
