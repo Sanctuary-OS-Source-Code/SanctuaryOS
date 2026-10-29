@@ -18,8 +18,10 @@ export function TitleBar({
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
   const isConfigured = useStore((state) => state.isConfigured);
   const view = useStore((state) => state.view);
+  const setView = useStore((state) => state.setView);
   const volatileSignatureQueue = useModalStore((state) => state.volatileSignatureQueue);
   const setIsSignatureQueueOpen = useModalStore((state) => state.setIsSignatureQueueOpen);
+  const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
   const isSideBrowserOpen = useModalStore((state) => state.isSideBrowserOpen);
 
   const [globalGames, setGlobalGames] = React.useState<any[]>([]);
@@ -83,8 +85,10 @@ export function TitleBar({
   const activeGameIcon = activeGame?.icon;
 
   const sigQueueCount = volatileSignatureQueue?.resolvedItems?.length || 0;
+  const stagingDraftCount = Array.isArray(stagingDraftItems) ? stagingDraftItems.length : 0;
+  const blueprintQueueCount = sigQueueCount > 0 ? sigQueueCount : stagingDraftCount;
   const notifCount = unreadNotificationCount || 0;
-  const showMobileAlerts = isConfigured && view !== 'landing' && !isSideBrowserOpen && (sigQueueCount > 0 || notifCount > 0);
+  const showMobileAlerts = isConfigured && view !== 'landing' && !isSideBrowserOpen && (blueprintQueueCount > 0 || notifCount > 0);
   const shouldTuckCapsule = hasDomSidePanel || isWorkspacePanelOpen || isSideBrowserOpen;
 
   const renderUpperRightCapsule = (includeMobileAlerts: boolean) => (
@@ -132,17 +136,23 @@ export function TitleBar({
         />
       </button>
 
-      {/* Segment 3 (Mobile Only): Sync Blueprints / Signature Queue */}
-      {includeMobileAlerts && showMobileAlerts && sigQueueCount > 0 && (
+      {/* Segment 3 (Mobile Only): Sync Blueprints / Staging Queue */}
+      {includeMobileAlerts && showMobileAlerts && blueprintQueueCount > 0 && (
         <button
           type="button"
-          onClick={() => setIsSignatureQueueOpen(true)}
+          onClick={() => {
+            if (sigQueueCount > 0) {
+              setIsSignatureQueueOpen(true);
+            } else {
+              setView("playsets");
+            }
+          }}
           className="h-full px-2.5 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--success)] shrink-0"
         >
           <span className="material-symbols-outlined !text-[17px]">
             {t("icon_phonelink_ring", "phonelink_ring") || "phonelink_ring"}
           </span>
-          <span className="text-[11px] font-black leading-none">{sigQueueCount}</span>
+          <span className="text-[11px] font-black leading-none">{blueprintQueueCount}</span>
         </button>
       )}
 
@@ -271,7 +281,7 @@ export function TitleBar({
 
   return (
     <>
-      {/* Invisible drag region across the very top (Desktop Tauri window only) */}
+      {/* Invisible drag region across the very top (Desktop Tauri window only, behind SidePanels/modals) */}
       {isDesktop() && (
         <div
           data-tauri-drag-region
@@ -282,27 +292,23 @@ export function TitleBar({
               setTimeout(() => { (window as any).__sanc_manual_max = false; }, 750);
             }
           }}
-          className="fixed top-0 left-0 right-0 h-[24px] z-[999999] pointer-events-auto bg-[rgba(0,0,0,0.01)]"
+          className="fixed top-0 left-0 right-0 h-[24px] z-30 pointer-events-auto bg-[rgba(0,0,0,0.01)]"
         />
       )}
 
-      {/* DESKTOP DEDICATED TOP-RIGHT BAR ROW (In-flow above #sanctuary-main-scroll, aligned in the upper-right corner) */}
+      {/* DESKTOP FLOATING UPPER-RIGHT CAPSULE (Above #sanctuary-main-scroll, strictly behind any SidePanel/modal) */}
       <div
         data-tauri-drag-region={isDesktop() ? true : undefined}
-        className="hidden md:flex items-center justify-end w-full shrink-0 px-6 pb-3.5 relative z-20 select-none"
+        className={`hidden md:flex fixed top-3.5 right-6 z-30 items-center justify-end pointer-events-none select-none transition-all duration-300 ${
+          shouldTuckCapsule ? "opacity-0 -translate-y-2 pointer-events-none" : "opacity-100 translate-y-0"
+        }`}
       >
-        <div
-          className={`flex items-center justify-end transition-all duration-300 ${
-            shouldTuckCapsule ? "opacity-0 -translate-y-2 pointer-events-none" : "opacity-100 translate-y-0"
-          }`}
-        >
-          {renderUpperRightCapsule(false)}
-        </div>
+        {renderUpperRightCapsule(false)}
       </div>
 
-      {/* MOBILE FLOATING UPPER-RIGHT CAPSULE (Single unified segmented capsule in the upper-right corner) */}
+      {/* MOBILE FLOATING CENTERED CAPSULE (Single unified segmented capsule centered at the top, behind any SidePanel/modal) */}
       <div
-        className={`md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+10px)] inset-x-4 z-[8990] flex items-center justify-end pointer-events-none transition-all duration-300 ${
+        className={`md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+10px)] inset-x-4 z-30 flex items-center justify-center pointer-events-none transition-all duration-300 ${
           shouldTuckCapsule || isMobileHiddenOnScroll
             ? "opacity-0 -translate-y-4 pointer-events-none"
             : "opacity-100 translate-y-0"

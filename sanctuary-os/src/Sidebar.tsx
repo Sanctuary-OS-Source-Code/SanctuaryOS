@@ -151,7 +151,7 @@ export function Sidebar({
 
   return (
     <nav
-      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 h-full flex-col relative z-20 transition-[width,min-width,border-color,box-shadow] duration-500 rounded-3xl border overflow-hidden firefox-safe-glass`}
+      className={`hidden md:flex ${isSidebarCollapsed ? 'w-[80px]' : ''} flex-shrink-0 md:my-6 md:h-[calc(100%-3rem)] flex-col relative z-20 transition-[width,min-width,border-color,box-shadow] duration-500 rounded-3xl border overflow-hidden firefox-safe-glass`}
       style={{
         width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',
         minWidth: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)',

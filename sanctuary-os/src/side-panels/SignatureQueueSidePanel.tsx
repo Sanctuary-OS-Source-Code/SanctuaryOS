@@ -46,6 +46,7 @@ export function SignatureQueueSidePanel({
   const { importTheme } = useTheme();
   const session = useStore((state) => state.session);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const workspaces = useStore((state) => state.workspaces);
   const vaultPath = useStore((state) => state.vaultPath);
   const modList = useStore((state) => state.modList) || [];
   const playSets = useStore((state) => state.playSets) || [];
@@ -146,12 +147,19 @@ export function SignatureQueueSidePanel({
 
   // Poll Spoke citizen_staging_queue table and resolve in volatile memory (0 bytes written to disk)
   const pollCloudStagingQueue = useCallback(async () => {
-    if (!session?.user?.id || !activeWorkspaceId || activeWorkspaceId === "default_workspace") {
+    if (!activeWorkspaceId || activeWorkspaceId === "default_workspace") {
       return;
     }
 
     try {
-      const userToken = await deriveUserStagingToken(session.user.id, session.user.email);
+      let activeUser = session?.user;
+      if (!activeUser?.id) {
+        const { data: sData } = await supabase.auth.getSession();
+        activeUser = sData?.session?.user;
+      }
+      if (!activeUser?.id) return;
+
+      const userToken = await deriveUserStagingToken(activeUser.id, activeUser.email);
       const { data, error } = await supabase
         .from("citizen_staging_queue")
         .select("*")
@@ -178,8 +186,8 @@ export function SignatureQueueSidePanel({
         row.encrypted_payload,
         row.iv,
         row.salt,
-        session.user.id,
-        session.user.email
+        activeUser.id,
+        activeUser.email
       );
 
       if (!decrypted || !Array.isArray(decrypted.items)) return;
@@ -246,7 +254,7 @@ export function SignatureQueueSidePanel({
     } catch (err) {
       console.warn("Signature queue poll error:", err);
     }
-  }, [session?.user?.id, session?.user?.email, activeWorkspaceId, matchItemsAgainstLocalVault, setVolatileSignatureQueue, t]);
+  }, [session?.user?.id, session?.user?.email, activeWorkspaceId, workspaces?.length, matchItemsAgainstLocalVault, setVolatileSignatureQueue, t]);
 
   useEffect(() => {
     pollCloudStagingQueue();
