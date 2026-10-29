@@ -763,6 +763,11 @@ export const ThemeProvider = ({ children }: any) => {
     }
     return localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect";
   });
+  const [previewThemeState, setPreviewThemeState] = useState<{
+    id: string;
+    name: string;
+    data: any;
+  } | null>(null);
 
   const setUseGlobalTheme = (val: boolean) => {
     setUseGlobalThemeState(val);
@@ -775,6 +780,8 @@ export const ThemeProvider = ({ children }: any) => {
   };
 
   const setActiveThemeId = (id: string) => {
+    setPreviewThemeState(null);
+    (window as any).__sanctuaryPreviewTheme = null;
     setActiveThemeIdState(id);
     if (useGlobalThemeState) {
       localStorage.setItem('sanctuary_global_theme', id);
@@ -1154,7 +1161,12 @@ export const ThemeProvider = ({ children }: any) => {
   }, [customThemes, activeThemeIdState, wsId]);
 
   useLayoutEffect(() => {
-    const colorScheme = applyThemeCssVarsToRoot(currentTheme);
+    const effectiveTheme = previewThemeState?.data || currentTheme;
+    if (previewThemeState?.data) {
+      (window as any).__sanctuaryPreviewTheme = previewThemeState.data;
+    }
+    const colorScheme = applyThemeCssVarsToRoot(effectiveTheme);
+    (window as any).__sanctuaryRebuildWebGLGlass?.();
     (window as any).__sanctuaryRenderWebGLGlass?.(true);
 
     if (isDesktop()) {
@@ -1162,7 +1174,50 @@ export const ThemeProvider = ({ children }: any) => {
         getCurrentWindow().setTheme(colorScheme).catch(() => { });
       }).catch(() => { });
     }
-  }, [activeThemeIdState, currentTheme, GLASS_OPTICS_REV]);
+  }, [activeThemeIdState, currentTheme, previewThemeState, GLASS_OPTICS_REV]);
+
+  const startThemePreview = (id: string, name: string, rawThemeData: any) => {
+    let parsed = rawThemeData;
+    if (typeof rawThemeData === 'string') {
+      try {
+        parsed = JSON.parse(rawThemeData);
+      } catch {
+        parsed = {};
+      }
+    }
+    if (parsed && typeof parsed.json_data === 'string') {
+      try {
+        parsed = { ...parsed, ...JSON.parse(parsed.json_data) };
+      } catch {}
+    } else if (parsed && parsed.json_data && typeof parsed.json_data === 'object') {
+      parsed = { ...parsed, ...parsed.json_data };
+    }
+    const [bgR, bgG, bgB] = parseHexToRgb(parsed?.bg || '#040812', [4, 8, 18]);
+    const isLight =
+      String(parsed?.theme_mode || '').toLowerCase() === 'light' ||
+      (bgR * 299 + bgG * 587 + bgB * 114) / 1000 >= 128;
+    const baseCore = isLight ? DEFAULT_CORE_THEMES.radiant : DEFAULT_CORE_THEMES.architect;
+    const { bgImage: _defaultBgImg, name: _defaultName, ...opticalDefaults } = baseCore;
+    const normalized = {
+      ...(parsed?.bg || parsed?.accent ? opticalDefaults : baseCore),
+      ...parsed,
+      name: name || parsed?.name || 'Preview',
+      success: sanitizeSemanticChannel('success', parsed?.success || baseCore.success),
+      warning: sanitizeSemanticChannel('warning', parsed?.warning || baseCore.warning),
+      danger: sanitizeSemanticChannel('danger', parsed?.danger || baseCore.danger),
+      textCase: parsed?.textCase || 'capitalize',
+    };
+    (window as any).__sanctuaryPreviewTheme = normalized;
+    setPreviewThemeState({ id: String(id), name: String(name || normalized.name), data: normalized });
+  };
+
+  const stopThemePreview = () => {
+    (window as any).__sanctuaryPreviewTheme = null;
+    setPreviewThemeState(null);
+    applyThemeCssVarsToRoot(currentTheme);
+    (window as any).__sanctuaryRebuildWebGLGlass?.();
+    (window as any).__sanctuaryRenderWebGLGlass?.(true);
+  };
 
   const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
     (async () => {
@@ -1332,12 +1387,18 @@ export const ThemeProvider = ({ children }: any) => {
     }
   };
 
-  return (
+      return (
     <ThemeContext.Provider value={{
       activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES: mergedCoreThemes, setCoreThemes, customThemes, devThemes, gameThemes,
       updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
       useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
+      previewThemeId: previewThemeState?.id || null,
+      previewThemeName: previewThemeState?.name || null,
+      startThemePreview,
+      stopThemePreview,
       importTheme: (rawJson: any) => {
+        setPreviewThemeState(null);
+        (window as any).__sanctuaryPreviewTheme = null;
         let json = rawJson;
         if (typeof rawJson === 'string') {
           try {

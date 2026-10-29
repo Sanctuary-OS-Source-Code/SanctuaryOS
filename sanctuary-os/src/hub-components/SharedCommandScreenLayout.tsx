@@ -90,7 +90,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
             <button
               type="button"
               onClick={() => scrollBy(-300)}
-              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer"
+              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[18px] leading-none flex items-center justify-center">
                 {t("icon_chevron_left", "chevron_left")}
@@ -109,7 +109,7 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
             <button
               type="button"
               onClick={() => scrollBy(300)}
-              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all cursor-pointer"
+              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[18px] leading-none flex items-center justify-center">
                 {t("icon_chevron_right", "chevron_right")}
@@ -154,12 +154,13 @@ export function CommandScreenLayout({ children }: any) {
 }
 
 export function CommandScreenSectionHeading({ 
-  title, subtitle, icon, actions, rightContent, onBack, breadcrumb,
+  title, subtitle, icon, actions, rightContent, rightSlot, onBack, breadcrumb,
   className = "", shape = "circle", 
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "text-[var(--accent)]" 
 }: any) {
   const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
+  const resolvedRight = actions || rightContent || rightSlot;
   
   return (
     <div className={`flex items-center justify-between w-full relative z-10 min-w-0 gap-4 ${className}`}>
@@ -193,8 +194,8 @@ export function CommandScreenSectionHeading({
         </div>
       </div>
       <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
-      {(actions || rightContent) && (
-        <div className="flex items-center gap-2.5 shrink-0 relative z-10">{actions || rightContent}</div>
+      {resolvedRight && (
+        <div className="flex items-center gap-2.5 shrink-0 relative z-10">{resolvedRight}</div>
       )}
     </div>
   );

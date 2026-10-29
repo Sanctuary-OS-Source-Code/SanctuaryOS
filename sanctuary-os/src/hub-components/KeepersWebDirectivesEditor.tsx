@@ -190,7 +190,9 @@ export default function KeepersWebDirectivesEditor({
   const setWayfinderDrafts = useStore((state) => state.setWayfinderDrafts);
 
   const isStaleCanonicalDraft = (key: string, draftObj: any): boolean => {
-    if (!CANONICAL_DIRECTIVES[key as DirectiveSlug]) return false;
+    if (!CANONICAL_DIRECTIVES[key as DirectiveSlug]) {
+      return Number(draftObj?._draftVersion || 0) < 4;
+    }
     if (!draftObj?.isDirty || !draftObj?.userModified) return true;
     const schemaVer = Number(draftObj?.builderSchema?._schemaVersion || 0);
     if (schemaVer < CURRENT_DIRECTIVE_SCHEMA_VERSION) return true;
@@ -262,6 +264,7 @@ export default function KeepersWebDirectivesEditor({
       setWayfinderDrafts((prev) => ({
         ...prev,
         [draftId]: {
+          _draftVersion: 4,
           title,
           description,
           content,
@@ -942,15 +945,21 @@ export default function KeepersWebDirectivesEditor({
       setTimeout(() => setConfirmDiscard(false), 3000);
       return;
     }
-    const draftId = editingPostId || "new";
+    const draftId = editingPostId || `new_${editingRecordKind}`;
     setIsDirty(false);
     setWayfinderDrafts((prev) => {
       const next = { ...prev };
       delete next[draftId];
+      if (editingPostId) delete next[editingPostId];
+      delete next["new"];
       return next;
     });
     setConfirmDiscard(false);
-    closeEditor();
+    if (editingPost) {
+      openEditor(editingPost, activeBuilderTabIdx, editingRecordKind);
+    } else {
+      closeEditor();
+    }
   };
 
   const handleResetBuilderToDefault = async () => {

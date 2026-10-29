@@ -73,7 +73,14 @@ const cleanModName = (raw: string) => {
 };
 
 export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, onOpenDossier, syncBlueprintByCode }: NexusProps) {
-  const { t, importLexicon, registry } = useLexicon();
+  const {
+    t,
+    importLexicon,
+    registry,
+    previewLexiconId,
+    startLexiconPreview,
+    stopLexiconPreview,
+  } = useLexicon();
   const session = useStore((state) => state.session);
   const marketTab = useStore(state => state.marketTab);
   const setMarketTab = useStore(state => state.setMarketTab);
@@ -83,7 +90,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const ownedDLC = useStore(state => state.ownedDLC) || [];
   const maskedDLC = useStore(state => state.maskedDLC) || [];
   const playSets = useStore(state => state.playSets) || [];
-  const { importTheme, CORE_THEMES, customThemes } = useTheme();
+  const {
+    importTheme,
+    CORE_THEMES,
+    customThemes,
+    previewThemeId,
+    startThemePreview,
+    stopThemePreview,
+  } = useTheme();
   const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__sanctuaryCache!.nexus?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
   const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset, stagingDraftItems, toggleModInStagingDraft, stageBlueprintToDraft } = useModalStore();
@@ -637,7 +651,23 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         return;
       }
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
-      const finalContent = { ...uploadState.fileContent, version: uploadState.version, _meta_version: uploadState.version };
+      let existingJsonData: Record<string, any> = {};
+      if (uploadState.isEdit && uploadState.editId) {
+        const currentList = assetResultsMap[marketTab] || [];
+        const existingAsset = currentList.find((a: any) => String(a.id) === String(uploadState.editId));
+        if (existingAsset?.json_data) {
+          existingJsonData =
+            typeof existingAsset.json_data === 'string'
+              ? JSON.parse(existingAsset.json_data)
+              : existingAsset.json_data;
+        }
+      }
+      const finalContent = {
+        ...existingJsonData,
+        ...(uploadState.fileContent || {}),
+        version: uploadState.version,
+        _meta_version: uploadState.version,
+      };
 
       let syncedContent = finalContent;
       if (marketTab === 'CHAMELEONS') {
@@ -2530,6 +2560,53 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               className="!py-1.5 !px-3 !text-[9px]"
                             />
                           )}
+                          {(marketTab === 'CHAMELEONS' || marketTab === 'LEXICONS') && (() => {
+                            const isPreviewingThis =
+                              marketTab === 'CHAMELEONS'
+                                ? String(previewThemeId || '') === String(asset.id)
+                                : String(previewLexiconId || '') === String(asset.id);
+                            return (
+                              <ActionButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isPreviewingThis) {
+                                    if (marketTab === 'CHAMELEONS') stopThemePreview();
+                                    else stopLexiconPreview();
+                                    onSetStatus(
+                                      t(
+                                        "status_preview_stopped",
+                                        "Preview stopped — restored your active settings."
+                                      )
+                                    );
+                                  } else {
+                                    if (marketTab === 'CHAMELEONS') {
+                                      startThemePreview(String(asset.id), asset.name, asset);
+                                    } else {
+                                      startLexiconPreview(String(asset.id), asset.name, asset);
+                                    }
+                                    onSetStatus(
+                                      t(
+                                        "status_previewing_asset",
+                                        "Previewing {0} — click Stop Preview or Install when done."
+                                      ).replace("{0}", asset.name || "")
+                                    );
+                                  }
+                                }}
+                                variant={isPreviewingThis ? "primary" : "glass"}
+                                icon={
+                                  isPreviewingThis
+                                    ? t("icon_visibility_off", "visibility_off")
+                                    : t("icon_visibility", "visibility")
+                                }
+                                label={
+                                  isPreviewingThis
+                                    ? t("btn_stop_preview", "Stop Preview")
+                                    : t("preview", "Preview")
+                                }
+                                className="!py-1.5 !px-3 !text-[9px]"
+                              />
+                            );
+                          })()}
                           {marketTab === 'BLUEPRINTS' ? (() => {
                             const isInstalledBp = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
                             if (!isDesktop()) {

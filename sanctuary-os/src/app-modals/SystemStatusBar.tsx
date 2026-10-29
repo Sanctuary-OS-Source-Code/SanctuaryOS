@@ -276,32 +276,6 @@ export function SystemStatusBar({
 
   return createPortal(
     <>
-      {/* Mobile Top-Right Compact Alert Pod */}
-      {isWorkspaceDockActive && hasQueueAlerts && !isSideBrowserOpen && !isHubLockdownActive && (
-        <div data-sa-dock="true" className="md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+12px)] right-4 z-[14000] pointer-events-auto">
-          <div className="glass-panel sa-floating-glass-pill flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl">
-            {sigQueueCount > 0 && (
-              <button
-                onClick={() => setIsSignatureQueueOpen(true)}
-                className="flex items-center gap-1 text-[var(--success)]"
-              >
-                <span className="material-symbols-outlined !text-[15px]">{t("icon_phonelink_ring", "phonelink_ring") || "phonelink_ring"}</span>
-                <span className="text-[11px] font-black">{sigQueueCount}</span>
-              </button>
-            )}
-            {notifCount > 0 && (
-              <button
-                onClick={() => setIsNotificationSidebarOpen(true)}
-                className="flex items-center gap-1 text-[var(--accent)]"
-              >
-                <span className="material-symbols-outlined !text-[15px]">{t("icon_notifications_active", "notifications_active") || "notifications_active"}</span>
-                <span className="text-[11px] font-black">{notifCount}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Desktop Single Morphing Pill (Aligned with Main Content Area) */}
       {!isSideBrowserOpen && (
         <div data-sa-dock="true" className="fixed bottom-0 left-0 right-0 z-[99999] hidden md:flex items-end pointer-events-none px-6">

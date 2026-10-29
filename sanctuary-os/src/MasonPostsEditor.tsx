@@ -91,7 +91,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         const timer = setTimeout(() => {
           setMasonHubDrafts(prev => ({
             ...prev,
-            [draftId]: { title, description, content, imageUrl, codeSnippet, isPinned, isActive }
+            [draftId]: { _draftVersion: 4, title, description, content, imageUrl, codeSnippet, isPinned, isActive }
           }));
         }, 350);
         return () => clearTimeout(timer);
@@ -101,14 +101,19 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
   useEffect(() => {
     if (masonHubDrafts && Object.keys(masonHubDrafts).length > 0) {
-      Object.keys(masonHubDrafts).forEach(id => {
-        if (!masonHubDrafts[id].content && !masonHubDrafts[id].title) {
-          setMasonHubDrafts(prev => {
-            const next = { ...prev };
+      setMasonHubDrafts(prev => {
+        let changed = false;
+        const next = { ...prev };
+        Object.keys(next).forEach(id => {
+          if (
+            (!next[id]?.content && !next[id]?.title) ||
+            Number(next[id]?._draftVersion || 0) < 4
+          ) {
             delete next[id];
-            return next;
-          });
-        }
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
       });
     }
   }, [isEditorOpen]);
@@ -170,7 +175,16 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
   const openEditor = (post?: any) => {
     const draftId = post ? post.id : 'new';
-    const draft = useStore.getState().masonHubDrafts[draftId];
+    const rawDraft = useStore.getState().masonHubDrafts[draftId];
+    const isStaleDraft = Boolean(rawDraft && Number(rawDraft._draftVersion || 0) < 4);
+    if (isStaleDraft) {
+      setMasonHubDrafts(prev => {
+        const next = { ...prev };
+        delete next[draftId];
+        return next;
+      });
+    }
+    const draft = isStaleDraft ? undefined : rawDraft;
 
     if (post) {
       setEditingPostId(post.id);
@@ -186,9 +200,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
       const contentToSet = draft?.content ?? rawContent;
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(contentToSet);
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
       }
       setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
@@ -197,9 +212,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
       const contentToSet = draft?.content ?? "";
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(contentToSet);
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
       }
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
@@ -216,9 +232,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     setEditingPost(null);
     setTitle("");
     setDescription("");
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     setContent("");
     if (editor) {
-      editor.commands.setContent("");
+      editor.commands.setContent("", { emitUpdate: false });
     }
     setImageUrl("");
     setCodeSnippet("");
@@ -242,7 +259,22 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       return next;
     });
     setConfirmDiscard(false);
-    closeEditor();
+    if (editingPost) {
+      let rawContent = (editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+      let parsedImage = extractPostImage(editingPost) || "";
+      setTitle(editingPost.title);
+      setDescription(editingPost.description || "");
+      setCodeSnippet(editingPost.code_snippet || "");
+      setShowCodeInput(!!editingPost.code_snippet);
+      setIsPinned(!!editingPost.is_pinned);
+      setIsActive(editingPost.is_active !== false);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      setContent(rawContent);
+      if (editor) editor.commands.setContent(rawContent, { emitUpdate: false });
+      setImageUrl(parsedImage);
+    } else {
+      closeEditor();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

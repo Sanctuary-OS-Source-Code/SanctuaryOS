@@ -353,9 +353,11 @@ export function SidePanelPillToggle({
 
   return (
     <label
-      className={`w-full glass-surface rounded-xl px-4 ${description ? "py-3.5" : "h-12"} flex ${description ? "items-start" : "items-center"} justify-between cursor-pointer transition-all border group hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] ${
+      className={`w-full glass-surface sa-glass-pill-hover rounded-xl px-4 ${description ? "py-3.5" : "h-12"} flex ${description ? "items-start" : "items-center"} justify-between cursor-pointer transition-all border group ${
         checked
-          ? `!border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)]`
+          ? colorVar === "--accent"
+            ? "sa-glass-pill-active"
+            : `!border-[color-mix(in_srgb,var(${colorVar})_45%,transparent)]`
           : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
       } ${disabled ? "opacity-50 pointer-events-none" : ""} ${className}`}
     >

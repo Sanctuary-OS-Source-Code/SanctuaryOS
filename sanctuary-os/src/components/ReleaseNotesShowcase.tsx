@@ -86,13 +86,16 @@ export function cleanPostBodyForViewer(markdown: string): string {
       (/^\\?#\s+(?:sanctuary\s+os|state\s+of\s+the\s+sanctuary)\b/i.test(
         stripEmojiPrefix(trimmed.replace(/^\\?#\s+/, "# "))
       ) ||
-        /^\\?#\s+[^#]/.test(trimmed) ||
         /^\\?##\s+\*".*"\*\s*$/.test(trimmed))
     ) {
       skippedTopHeading = true;
       continue;
     }
-    if (i < 6 && (/^\\?##\s+\*".*"\*\s*$/.test(trimmed) || /^\\?###\s+/.test(trimmed))) {
+    if (
+      i < 6 &&
+      (/^\\?##\s+\*".*"\*\s*$/.test(trimmed) ||
+        (skippedTopHeading && /^\\?###\s+/.test(trimmed)))
+    ) {
       continue;
     }
     if (
@@ -263,6 +266,7 @@ function cleanCardParagraph(raw: string): string {
     .replace(/^\s*(?:[*-]|\d+\.)\s+/, "")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
     .replace(/\\+$/, "")
+    .replace(/^\*\*([^*]+)\*\*$/, "$1")
     .replace(
       /(?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]\s*)?\\?\[((?:\\?\[ICON:[a-zA-Z0-9_-]+\\?\]|[^\]])+?)\\?\]\(asset:\/\/[^)]+\)/gi,
       ""
@@ -448,19 +452,30 @@ function parseBulletGroupIntoCards(bulletLines: string[]): ParsedReleaseCard[] {
     const rawSubItems = firstLinesParsed
       .filter((s) => s.title || s.body)
       .flatMap((s) => {
-        if (
-          firstLinesParsed.length === 1 &&
-          s.title &&
-          s.body &&
-          s.title.trim().split(/\s+/).length >= 5 &&
-          !s.title.trim().endsWith(":")
-        ) {
+        const normTitle = s.title.replace(/[.:;!?—–-]+$/g, "").trim().toLowerCase();
+        const normBody = s.body.replace(/[.:;!?—–-]+$/g, "").trim().toLowerCase();
+
+        // If the sub-bullet was just a bolded sentence with no separate body, or title & body are identical, treat it as the body text
+        if (!s.body || normTitle === normBody) {
+          return [{ title: "", body: (s.body || s.title).trim() }];
+        }
+
+        // Only merge into body if the bold prefix is a full paragraph (> 95 chars)
+        if (s.title.trim().length > 95) {
           return [
-            { title: "", body: s.title.trim() },
-            { title: "", body: s.body.trim() },
+            {
+              title: "",
+              body: `${s.title.replace(/[.:]+$/, "").trim()}. ${s.body.trim()}`,
+            },
           ];
         }
-        return [{ title: s.title, body: s.body }];
+
+        return [
+          {
+            title: s.title.replace(/\.+$/, "").trim(),
+            body: s.body.trim(),
+          },
+        ];
       });
 
     return [
@@ -568,6 +583,41 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
         };
         continue;
       }
+
+      // Also recognize standalone bold subheadings (e.g. `**The Current Trend: Pass-Through Modding and "Vibe-Coding"**`)
+      // when they do not end in sentence punctuation (`.` / `!`) and are immediately followed by bullet items.
+      const standaloneBoldHeadingMatch = trimmed.match(
+        /^\*\*([^*\n]{3,90}?)\*\*:?\s*$/
+      );
+      if (standaloneBoldHeadingMatch) {
+        const candidateHeading = standaloneBoldHeadingMatch[1].trim();
+        if (!/[.!]\s*$/.test(candidateHeading)) {
+          let nextNonEmptyLine = "";
+          for (let j = i + 1; j < rawLines.length; j++) {
+            const nj = rawLines[j].trim();
+            if (nj) {
+              nextNonEmptyLine = nj;
+              break;
+            }
+          }
+          if (/^(?:[*-]|\d+\.)\s+/.test(nextNonEmptyLine)) {
+            const { icon: headingIcon, title: headingTitle } =
+              extractHeadingIconAndTitle(candidateHeading);
+            if (headingTitle) {
+              if (currentBlock) {
+                blocks.push(currentBlock);
+              }
+              currentBlock = {
+                level: 3,
+                title: headingTitle,
+                icon: headingIcon,
+                lines: [],
+              };
+              continue;
+            }
+          }
+        }
+      }
     }
 
     if (currentBlock) {
@@ -598,14 +648,19 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
     if (introIcon) introIcon = undefined;
   }
 
-  // Fold any leading heading blocks that contain zero bullet items (e.g. top-level release theme headings)
-  // into the intro prose without duplicating the heading inside the body, since UniversalGroup's header bar displays it.
-  while (
+  // Fold a leading higher-level heading block that contains zero bullet items (e.g. a top-level ## overview heading above ### sections)
+  // into the intro while preserving its heading title & icon. Do NOT fold peer sections at the same heading level.
+  if (
     !introLines.some((l) => l.trim().length > 0) &&
     blocks.length > 1 &&
+    blocks[0].level < blocks[1].level &&
     !blocks[0].lines.some((l) => /^\s*(?:[*-]|\d+\.)\s+/.test(l))
   ) {
     const firstBlock = blocks.shift()!;
+    if (!introTitle && firstBlock.title) {
+      introTitle = firstBlock.title;
+      introIcon = firstBlock.icon;
+    }
     introLines.push(...firstBlock.lines);
   }
 
@@ -701,13 +756,9 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
       } else if (currentBullet) {
         currentBullet.push(textWithoutImages);
       } else if (seenAnyCardItem) {
-        if (!cleanTrimmed.endsWith(":")) {
-          orderedEntries.push({ kind: "prose", line: cleanTrimmed });
-        }
+        orderedEntries.push({ kind: "prose", line: cleanTrimmed });
       } else {
-        if (!cleanTrimmed.endsWith(":")) {
-          preBulletProseLines.push(cleanTrimmed);
-        }
+        preBulletProseLines.push(cleanTrimmed);
       }
     }
 
@@ -726,16 +777,17 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
           codeBlock: entry.code,
         });
       } else if (entry.kind === "prose") {
-        const extracted = extractBulletTitleAndRest(entry.line);
-        if (extracted) {
-          const cleanedRest = cleanCardParagraph(extracted.rest);
-          parsedCards.push({
-            title: extracted.title,
-            paragraphs: cleanedRest ? [cleanedRest] : [],
-          });
-        } else {
-          const cleanedLine = cleanCardParagraph(entry.line);
-          if (cleanedLine) {
+        const cleanedLine = cleanCardParagraph(entry.line);
+        if (cleanedLine) {
+          const prevCard = parsedCards[parsedCards.length - 1];
+          if (
+            prevCard &&
+            !prevCard.title &&
+            !prevCard.codeBlock &&
+            (!prevCard.subItems || prevCard.subItems.length === 0)
+          ) {
+            prevCard.paragraphs.push(cleanedLine);
+          } else {
             parsedCards.push({
               title: "",
               paragraphs: [cleanedLine],
@@ -745,14 +797,18 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
       }
     }
 
-    const hasTitledCards = parsedCards.some((c) => Boolean(c.title));
     const sectionDescription = preBulletProseLines
       .map(cleanCardParagraph)
       .filter(Boolean)
-      .join(" ")
+      .join("\n\n")
       .trim();
 
-    if (hasTitledCards) {
+    if (
+      parsedCards.length > 0 ||
+      sectionDescription ||
+      sectionImages.length > 0 ||
+      block.title
+    ) {
       sections.push({
         title: block.title,
         icon: block.icon,
@@ -760,30 +816,6 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
         cards: parsedCards,
         images: sectionImages.length > 0 ? sectionImages : undefined,
       });
-    } else if (
-      parsedCards.length > 0 ||
-      preBulletProseLines.length > 0 ||
-      sectionImages.length > 0 ||
-      block.title
-    ) {
-      const cardsFromUntitled: ParsedReleaseCard[] =
-        parsedCards.length > 0
-          ? parsedCards
-          : preBulletProseLines
-              .map(cleanCardParagraph)
-              .filter(Boolean)
-              .map((p) => ({ title: "", paragraphs: [p] }));
-
-      if (cardsFromUntitled.length > 0 || sectionImages.length > 0) {
-        sections.push({
-          title: block.title,
-          icon: block.icon,
-          description:
-            parsedCards.length > 0 ? sectionDescription || undefined : undefined,
-          cards: cardsFromUntitled,
-          images: sectionImages.length > 0 ? sectionImages : undefined,
-        });
-      }
     }
   }
 
@@ -794,12 +826,12 @@ export function parseMarkdownIntoReleaseSections(markdown: string): {
       if (images.length > 0) introImages.push(...images);
       return textWithoutImages.replace(/\\+$/, "").trim();
     })
-    .filter((l) => l && !l.endsWith(":"));
+    .filter(Boolean);
 
   const cleanedIntro = nonEmptyIntroLines
     .map(cleanCardParagraph)
     .filter(Boolean)
-    .join(" ")
+    .join("\n\n")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
     .trim();
 
@@ -1078,10 +1110,13 @@ export function StructuredReleaseNotesView({
           </div>
         )}
         {(parsed.intro || cleanCardParagraph(content)) && (
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-2 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed break-words">
-            <p>
-              {renderCleanInlineText(parsed.intro || cleanCardParagraph(content))}
-            </p>
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 flex flex-col gap-3 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed break-words">
+            {(parsed.intro || cleanCardParagraph(content))
+              .split(/\n{2,}/)
+              .filter(Boolean)
+              .map((para, pIdx) => (
+                <p key={pIdx}>{renderCleanInlineText(para)}</p>
+              ))}
           </div>
         )}
         {renderSectionImages(parsed.introImages)}
@@ -1107,7 +1142,7 @@ export function StructuredReleaseNotesView({
             </div>
           )}
           {parsed.intro && (
-            <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
+            <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-3 relative overflow-hidden">
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
@@ -1115,9 +1150,17 @@ export function StructuredReleaseNotesView({
                     "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
                 }}
               />
-              <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
-                {renderCleanInlineText(parsed.intro)}
-              </p>
+              {parsed.intro
+                .split(/\n{2,}/)
+                .filter(Boolean)
+                .map((para, pIdx) => (
+                  <p
+                    key={pIdx}
+                    className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10"
+                  >
+                    {renderCleanInlineText(para)}
+                  </p>
+                ))}
             </div>
           )}
           {renderSectionImages(parsed.introImages)}
@@ -1125,14 +1168,31 @@ export function StructuredReleaseNotesView({
       )}
 
       {parsed.sections.map((section, sIdx) => {
-        // Pair compact single cards first, followed by full-width multi-item or code cards so the 2-column Bento grid has zero orphan gaps
-        const singleCards = section.cards.filter(
-          (c) => (!c.subItems || c.subItems.length === 0) && !c.codeBlock
+        const orderedCards = section.cards;
+        const naturalFullFlags = orderedCards.map(
+          (c) =>
+            Boolean(c.subItems && c.subItems.length > 0) ||
+            Boolean(c.codeBlock) ||
+            !c.title?.trim() ||
+            c.paragraphs.length > 1
         );
-        const multiItemCards = section.cards.filter(
-          (c) => (c.subItems && c.subItems.length > 0) || Boolean(c.codeBlock)
-        );
-        const orderedCards = [...singleCards, ...multiItemCards];
+        const spanFullFlags: boolean[] = [];
+        let colCursor = 0;
+        for (let i = 0; i < orderedCards.length; i++) {
+          if (naturalFullFlags[i]) {
+            spanFullFlags.push(true);
+            colCursor = 0;
+          } else if (
+            colCursor === 0 &&
+            (i === orderedCards.length - 1 || naturalFullFlags[i + 1])
+          ) {
+            spanFullFlags.push(true);
+            colCursor = 0;
+          } else {
+            spanFullFlags.push(false);
+            colCursor = (colCursor + 1) % 2;
+          }
+        }
 
         return (
           <div key={`${section.title}-${sIdx}`} className="flex flex-col gap-3.5">
@@ -1147,24 +1207,25 @@ export function StructuredReleaseNotesView({
               </div>
             )}
             {section.description && (
-              <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2 relative overflow-hidden">
-                <p className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
-                  {renderCleanInlineText(section.description)}
-                </p>
+              <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-3 relative overflow-hidden">
+                {section.description
+                  .split(/\n{2,}/)
+                  .filter(Boolean)
+                  .map((para, pIdx) => (
+                    <p
+                      key={pIdx}
+                      className="text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10"
+                    >
+                      {renderCleanInlineText(para)}
+                    </p>
+                  ))}
               </div>
             )}
 
             {orderedCards.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {orderedCards.map((card, cIdx) => {
-                  const hasSubItems = Boolean(card.subItems && card.subItems.length > 0);
-                  const hasCodeBlock = Boolean(card.codeBlock);
-                  const isLastOddSingleCard =
-                    !hasSubItems &&
-                    !hasCodeBlock &&
-                    singleCards.length % 2 === 1 &&
-                    cIdx === singleCards.length - 1;
-                  const spanFull = hasSubItems || hasCodeBlock || isLastOddSingleCard;
+                  const spanFull = spanFullFlags[cIdx];
 
                   return (
                     <div
@@ -1733,8 +1794,9 @@ export function ReleaseNotesShowcase({
       setShowCodeInput(Boolean(target.codeSnippet));
       setDraftPollData(target.pollData || null);
       setDraftBody(target.body);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       if (editor) {
-        editor.commands.setContent(target.body || "");
+        editor.commands.setContent(target.body || "", { emitUpdate: false });
       }
     },
     [

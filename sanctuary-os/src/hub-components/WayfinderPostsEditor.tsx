@@ -64,6 +64,20 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const session = useStore(state => state.session);
 
   useEffect(() => {
+    setWayfinderDrafts(prev => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (!next[k]?.builderSchema && Number(next[k]?._draftVersion || 0) < 4) {
+          delete next[k];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
+  useEffect(() => {
     if (!isEditorOpen) return;
     const timer = setTimeout(() => {
       const draftId = editingPostId || 'new';
@@ -73,6 +87,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
         let rawContent = (editingPost.message || editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
         let parsedImage = extractPostImage(editingPost) || "";
         const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
+        const normalizedOrigCat = (editingPost.category === "Info" ? "Information" : editingPost.category) || "Update";
 
         isUnchanged =
           title === editingPost.title &&
@@ -80,7 +95,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           content === parsedMeta.cleanContent &&
           imageUrl === parsedImage &&
           targetAudience.join(',') === (editingPost.target_audience || "All") &&
-          category === (editingPost.category || "Update") &&
+          category === normalizedOrigCat &&
           actionRequired === (parsedMeta.actionRequired || "No Action Required") &&
           JSON.stringify(pollData || null) === JSON.stringify(editingPost.poll_data || null) &&
           codeSnippet === (editingPost.code_snippet || "") &&
@@ -112,7 +127,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       } else {
         setWayfinderDrafts(prev => ({
           ...prev,
-          [draftId]: { title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
+          [draftId]: { _draftVersion: 4, title, description, content, targetAudience, category, actionRequired, pollData, imageUrl, codeSnippet, deliveryMethod, isUrgent, isActive }
         }));
       }
     }, 350);
@@ -220,7 +235,16 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
 
   const openEditor = (post?: any) => {
     const draftId = post ? post.id : 'new';
-    const draft = useStore.getState().wayfinderDrafts[draftId];
+    const rawDraft = useStore.getState().wayfinderDrafts[draftId];
+    const isStaleDraft = Boolean(rawDraft && Number(rawDraft._draftVersion || 0) < 4);
+    if (isStaleDraft) {
+      setWayfinderDrafts(prev => {
+        const next = { ...prev };
+        delete next[draftId];
+        return next;
+      });
+    }
+    const draft = isStaleDraft ? undefined : rawDraft;
     setConfirmDelete(null);
 
     if (post) {
@@ -244,9 +268,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setIsActive(draft?.isActive ?? (post.is_active !== false));
 
       const contentToSet = draft?.content ?? parsedMeta.cleanContent;
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(contentToSet);
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
       }
       setImageUrl(draft?.imageUrl ?? parsedImage);
     } else {
@@ -260,9 +285,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setPollData(draft?.pollData ?? null);
 
       const contentToSet = draft?.content ?? "";
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       setContent(contentToSet);
       if (editor) {
-        editor.commands.setContent(contentToSet);
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
       }
       setImageUrl(draft?.imageUrl ?? "");
       setCodeSnippet(draft?.codeSnippet ?? "");
@@ -277,13 +303,14 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
   const closeEditor = () => {
     setIsEditorOpen(false);
     setConfirmDelete(null);
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
     if (editingPostId) {
       const post = posts.find(p => p.id === editingPostId);
       if (post) {
         setTitle(post.title);
         setDescription(post.description || "");
         setContent(post.content);
-        if (editor) editor.commands.setContent(post.content);
+        if (editor) editor.commands.setContent(post.content || "", { emitUpdate: false });
         setTargetAudience(post.target_audience ? post.target_audience.split(',') : ['All']);
         setCategory(post.category || 'Update');
       }
@@ -291,7 +318,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       setTitle("");
       setDescription("");
       setContent("");
-      if (editor) editor.commands.setContent("");
+      if (editor) editor.commands.setContent("", { emitUpdate: false });
       setTargetAudience([]);
       setCategory("Update");
     }
@@ -325,7 +352,29 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       return next;
     });
     setConfirmDiscard(false);
-    closeEditor();
+    if (editingPost) {
+      let rawContent = (editingPost.message || editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+      let parsedImage = extractPostImage(editingPost) || "";
+      const parsedMeta = extractDispatchMetadata(editingPost, rawContent);
+      setTitle(editingPost.title);
+      setDescription(editingPost.description || "");
+      setTargetAudience(editingPost.target_audience ? editingPost.target_audience.split(',') : ["All"]);
+      const rawCat = editingPost.category || "Update";
+      setCategory(rawCat === "Info" ? "Information" : rawCat);
+      setActionRequired(parsedMeta.actionRequired || "No Action Required");
+      setPollData(editingPost.poll_data || null);
+      setCodeSnippet(editingPost.code_snippet || "");
+      setShowCodeInput(!!editingPost.code_snippet);
+      setDeliveryMethod(editingPost?.category?.includes("Alert") || isPostPinned(editingPost) ? "Alert" : "Dispatch");
+      setIsUrgent(isPostPinned(editingPost));
+      setIsActive(editingPost.is_active !== false);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      setContent(parsedMeta.cleanContent);
+      if (editor) editor.commands.setContent(parsedMeta.cleanContent, { emitUpdate: false });
+      setImageUrl(parsedImage);
+    } else {
+      closeEditor();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -36,51 +36,39 @@ export function ActionButton({
   iconOnly?: boolean;
 }) {
   let variantClasses = "";
-  let borderColorVar = "--accent";
-  let customHoverColor = "";
+  let iconColorClass = "text-[var(--accent)]";
 
   switch (variant) {
     case "solid":
-      variantClasses =
-        "!border-[var(--accent)] !bg-[var(--accent)] !text-[var(--bg)] hover:!bg-[color-mix(in_srgb,var(--accent)_80%,white)] hover:!border-[color-mix(in_srgb,var(--accent)_80%,white)] hover:shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)]";
-      borderColorVar = "transparent";
-      break;
+    case "primary":
+    case "accent":
     case "world":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] !text-[var(--accent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)]";
-      borderColorVar = "--accent";
+        "glass-surface sa-glass-pill-active !text-[var(--text)] opacity-95 hover:opacity-100";
+      iconColorClass = "text-[var(--accent)]";
       break;
     case "engine":
-      variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_65%,transparent)]";
-      borderColorVar = "--danger";
-      break;
     case "danger":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_65%,transparent)]";
-      borderColorVar = "--danger";
+        "glass-surface sa-glass-pill-danger !text-[var(--text)] opacity-90 hover:opacity-100";
+      iconColorClass = "text-[var(--danger)]";
       break;
     case "success":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--success)_40%,transparent)] !text-[var(--success)] hover:!border-[color-mix(in_srgb,var(--success)_65%,transparent)]";
-      borderColorVar = "--success";
+        "glass-surface sa-glass-pill-success !text-[var(--text)] opacity-90 hover:opacity-100";
+      iconColorClass = "text-[var(--success)]";
       break;
     case "warning":
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--warning)_40%,transparent)] !text-[var(--warning)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)]";
-      borderColorVar = "--warning";
+        "glass-surface sa-glass-pill-warning !text-[var(--text)] opacity-90 hover:opacity-100";
+      iconColorClass = "text-[var(--warning)]";
       break;
-    case "accent":
-    case "primary":
     case "default":
-      variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--accent)_42%,rgba(255,255,255,0.35))] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] hover:!text-[var(--accent)] group-hover/card:!border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.55))] group-hover/card:!text-[var(--accent)]";
-      borderColorVar = "--accent";
-      break;
     case "glass":
+    default:
       variantClasses =
-        "glass-surface !border-[color-mix(in_srgb,var(--text)_14%,transparent)] !text-[var(--text)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.35))] hover:!text-[var(--accent)] group-hover/card:!border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.35))] group-hover/card:!text-[var(--accent)]";
-      borderColorVar = "--accent";
+        "glass-surface sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_14%,transparent)] !text-[var(--text)] opacity-85 hover:opacity-100 group-hover/card:border-[color-mix(in_srgb,var(--accent)_48%,rgba(255,255,255,0.32))]";
+      iconColorClass = "text-[var(--accent)]";
       break;
   }
 
@@ -96,20 +84,11 @@ export function ActionButton({
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         disabled={disabled}
-        className={`${variant === "solid" ? "shadow-md border" : "relative overflow-hidden border"} ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
-        style={
-          !disabled
-            ? ({
-                "--tw-hover-border-color":
-                  customHoverColor ||
-                  `color-mix(in srgb, var(${borderColorVar}) 50%, transparent)`,
-              } as React.CSSProperties)
-            : undefined
-        }
+        className={`relative overflow-hidden border ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
       >
         {icon && (
           <span
-            className={`material-symbols-outlined ${iconOnly ? "!text-[18px]" : "!text-[16px]"} relative z-10 transition-transform group-hover:-translate-y-0.5`}
+            className={`material-symbols-outlined ${iconOnly ? "!text-[18px]" : "!text-[16px]"} ${iconColorClass} relative z-10 transition-transform group-hover:-translate-y-0.5`}
           >
             {icon}
           </span>
@@ -128,7 +107,7 @@ export function ActionButton({
   );
 }
 export const standardAccentGlassButtonClass =
-  "px-8 py-4 rounded-[var(--radius)] theme-panel-accent theme-btn-accent text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none hover:shadow-md hover:scale-105 active:scale-95";
+  "px-8 py-4 rounded-[var(--radius)] glass-surface sa-glass-pill-active text-[var(--text)] text-xs font-black capitalize tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50 disabled:scale-100 disabled:pointer-events-none transition-all duration-300 active:scale-95";
 export function SidebarFooterButton({
   icon,
   label,
@@ -187,18 +166,25 @@ export function PanelHeaderButton({
   const resolvedVariant = isDestructive ? "danger" : isAccent ? "accent" : variant;
   let colorClass =
     "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+  let activeIconClass = "";
 
   if (isActive) {
-    if (resolvedVariant === "accent")
-      colorClass = "sa-glass-active !text-[var(--accent)] !opacity-100";
-    else if (resolvedVariant === "default")
-      colorClass = "sa-glass-active !text-[var(--text)] !opacity-100";
-    else if (resolvedVariant === "error" || resolvedVariant === "danger")
-      colorClass = "sa-glass-active !text-[var(--danger)] !opacity-100";
-    else if (resolvedVariant === "success")
-      colorClass = "sa-glass-active !text-[var(--success)] !opacity-100";
-    else if (resolvedVariant === "warning")
-      colorClass = "sa-glass-active !text-[var(--warning)] !opacity-100";
+    if (resolvedVariant === "accent") {
+      colorClass = "sa-glass-pill-active !text-[var(--text)] !opacity-100";
+      activeIconClass = "text-[var(--accent)]";
+    } else if (resolvedVariant === "default") {
+      colorClass = "sa-glass-pill-active !text-[var(--text)] !opacity-100";
+      activeIconClass = "text-[var(--accent)]";
+    } else if (resolvedVariant === "error" || resolvedVariant === "danger") {
+      colorClass = "sa-glass-pill-danger !text-[var(--text)] !opacity-100";
+      activeIconClass = "text-[var(--danger)]";
+    } else if (resolvedVariant === "success") {
+      colorClass = "sa-glass-pill-success !text-[var(--text)] !opacity-100";
+      activeIconClass = "text-[var(--success)]";
+    } else if (resolvedVariant === "warning") {
+      colorClass = "sa-glass-pill-warning !text-[var(--text)] !opacity-100";
+      activeIconClass = "text-[var(--warning)]";
+    }
   } else {
     if (resolvedVariant === "error" || resolvedVariant === "danger") {
       colorClass =
@@ -233,7 +219,7 @@ export function PanelHeaderButton({
         className={`flex items-center justify-center transition-all rounded-xl ${!disabled ? "active:scale-95" : ""} ${label ? "px-4 h-9 gap-2" : "w-9 h-9"} ${colorClass}`}
       >
         <span
-          className={`material-symbols-outlined ${label ? "!text-[15px] normal-case" : "!text-[18px]"}`}
+          className={`material-symbols-outlined ${label ? "!text-[15px] normal-case" : "!text-[18px]"} ${activeIconClass}`}
         >
           {icon}
         </span>

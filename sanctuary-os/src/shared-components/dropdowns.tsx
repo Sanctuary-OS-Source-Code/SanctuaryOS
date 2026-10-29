@@ -380,15 +380,15 @@ export function CustomDropdown({
             : isPill
               ? `h-10 px-4 rounded-full text-[10px] font-black uppercase tracking-widest ${
                   isOpen || isActive
-                    ? "glass-surface sa-glass-active text-[var(--text)]"
-                    : "glass-surface text-[var(--text)]"
+                    ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                    : "glass-surface sa-glass-pill-hover text-[var(--text)]"
                 }`
               : `${
                   className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
                 } rounded-xl text-xs font-bold ${
                   isOpen || isActive
-                    ? "glass-surface sa-glass-active text-[var(--text)] border border-[var(--accent)]"
-                    : "glass-surface text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+                    ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                    : "glass-surface sa-glass-pill-hover text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                 }`
         } ${buttonClassName || ""}`}
       >

@@ -2218,33 +2218,48 @@ export default function WebLandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5">
-            <a
-              href="#eula"
-              className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-[var(--accent)] transition-all duration-300 flex items-center gap-1.5"
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('open_legal_doc', { detail: 'eula' })
+                )
+              }
+              className="px-3.5 py-2 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-all duration-300 flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                 {t('icon_gavel', 'gavel')}
               </span>
               <span>{t('landing_eula', 'System EULA')}</span>
-            </a>
-            <a
-              href="#terms"
-              className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-[var(--accent)] transition-all duration-300 flex items-center gap-1.5"
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('open_legal_doc', { detail: 'terms' })
+                )
+              }
+              className="px-3.5 py-2 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-all duration-300 flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                 {t('icon_description', 'description')}
               </span>
               <span>{t('landing_terms', 'Terms of Service')}</span>
-            </a>
-            <a
-              href="#privacy"
-              className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] hover:text-[var(--accent)] transition-all duration-300 flex items-center gap-1.5"
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('open_legal_doc', { detail: 'privacy' })
+                )
+              }
+              className="px-3.5 py-2 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-all duration-300 flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                 {t('icon_shield', 'shield')}
               </span>
               <span>{t('landing_privacy', 'Privacy Protocol')}</span>
-            </a>
+            </button>
           </div>
         </div>
       </footer>

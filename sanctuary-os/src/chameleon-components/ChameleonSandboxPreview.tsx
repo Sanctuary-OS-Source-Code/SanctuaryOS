@@ -15,12 +15,16 @@ import { DynamicThemePreviewBanner } from './ThemeCard';
 
 interface ChameleonSandboxPreviewProps {
   currentTheme: any;
+  embedded?: boolean;
 }
 
 const MAX_SANDBOX_INSTANCES = 64;
 const FLOATS_PER_INSTANCE = 12;
 
-export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPreviewProps) {
+export function ChameleonSandboxPreview({
+  currentTheme,
+  embedded = false,
+}: ChameleonSandboxPreviewProps) {
   const { t } = useLexicon();
   const opticalVars = computeGlassOpticalVars(currentTheme);
 
@@ -104,6 +108,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
     const glassUniformBezelScale = gl.getUniformLocation(glassProg, 'u_bezelScale');
     const glassUniformShadowScale = gl.getUniformLocation(glassProg, 'u_shadowScale');
     const glassUniformIsPassthrough = gl.getUniformLocation(glassProg, 'u_isPassthrough');
+    const glassUniformMobileDockFade = gl.getUniformLocation(glassProg, 'u_mobileDockFade');
 
     const scheduleRender = () => {
       if (rafId === 0 && !disposed) {
@@ -235,6 +240,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
         gl.uniform1f(glassUniformBezelScale, bezelScale);
         gl.uniform1f(glassUniformShadowScale, shadowScale);
         gl.uniform1f(glassUniformIsPassthrough, isPassthrough ? 1.0 : 0.0);
+        gl.uniform2f(glassUniformMobileDockFade, 99999.0, 99999.0);
 
         gl.bindVertexArray(glassVao);
         gl.bindBuffer(gl.ARRAY_BUFFER, instanceVbo);
@@ -330,25 +336,34 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
           gCtx.fillStyle = th.bg && th.bg !== 'transparent' ? th.bg : '#080b12';
           gCtx.fillRect(0, 0, gradCanvas.width, gradCanvas.height);
 
-          const orbs = Array.isArray(th.volumetricOrbs) && th.volumetricOrbs.length > 0
-            ? th.volumetricOrbs
-            : [
-                { color: th.accent || '#38bdf8', left: '78%', top: '18%', opacity: 0.32 },
-                { color: th.success || '#10b981', left: '22%', top: '82%', opacity: 0.22 },
-              ];
-          for (let i = 0; i < orbs.length; i++) {
-            const orb = orbs[i];
-            const ox = (parseFloat(String(orb.left || '20')) / 100) * gradCanvas.width;
-            const oy = (parseFloat(String(orb.top || '20')) / 100) * gradCanvas.height;
-            const rad = Math.max(gradCanvas.width, gradCanvas.height) * 0.58;
-            const rg = gCtx.createRadialGradient(ox, oy, 0, ox, oy, rad);
-            rg.addColorStop(0, orb.color || th.accent || '#38bdf8');
-            rg.addColorStop(1, 'transparent');
-            gCtx.globalAlpha = Number(orb.opacity ?? 0.32);
-            gCtx.fillStyle = rg;
-            gCtx.fillRect(0, 0, gradCanvas.width, gradCanvas.height);
+          const hasOrbs =
+            Boolean(th.ambientOrb) ||
+            (Array.isArray(th.volumetricOrbs) && th.volumetricOrbs.length > 0) ||
+            th.bg === 'transparent' ||
+            Boolean(th.transparentWindow);
+
+          if (hasOrbs) {
+            const orbs =
+              Array.isArray(th.volumetricOrbs) && th.volumetricOrbs.length > 0
+                ? th.volumetricOrbs
+                : [
+                    { color: th.accent || '#38bdf8', left: '78%', top: '18%', opacity: 0.32 },
+                    { color: th.success || '#10b981', left: '22%', top: '82%', opacity: 0.22 },
+                  ];
+            for (let i = 0; i < orbs.length; i++) {
+              const orb = orbs[i];
+              const ox = (parseFloat(String(orb.left || '20')) / 100) * gradCanvas.width;
+              const oy = (parseFloat(String(orb.top || '20')) / 100) * gradCanvas.height;
+              const rad = Math.max(gradCanvas.width, gradCanvas.height) * 0.58;
+              const rg = gCtx.createRadialGradient(ox, oy, 0, ox, oy, rad);
+              rg.addColorStop(0, orb.color || th.accent || '#38bdf8');
+              rg.addColorStop(1, 'transparent');
+              gCtx.globalAlpha = Number(orb.opacity ?? 0.32);
+              gCtx.fillStyle = rg;
+              gCtx.fillRect(0, 0, gradCanvas.width, gradCanvas.height);
+            }
+            gCtx.globalAlpha = 1.0;
           }
-          gCtx.globalAlpha = 1.0;
           uploadFromSourceCanvas(gradCanvas);
         }
       };
@@ -483,11 +498,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
       : Math.round(n);
   };
 
-  const displayOpacityPct = toPct(currentTheme.glassOpacity, 10);
-  const displayRefractPct = toPct(currentTheme.glassRefraction, 100);
   const displayBezelPct = toPct(currentTheme.glassBezel, 100);
-  const displayBlurPx = parseInt(String(currentTheme.glassBlur ?? '36'), 10);
-  const resolvedBlurPx = isNaN(displayBlurPx) ? 36 : displayBlurPx;
 
   const isPassthrough =
     !currentTheme.bgImage &&
@@ -525,7 +536,13 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
   };
 
   return (
-    <div className="w-full lg:w-[440px] xl:w-[480px] shrink-0 h-full p-4 flex flex-col overflow-hidden">
+    <div
+      className={
+        embedded
+          ? 'w-full h-[540px] shrink-0 flex flex-col overflow-hidden'
+          : 'w-full lg:w-[440px] xl:w-[480px] shrink-0 h-full p-4 flex flex-col overflow-hidden'
+      }
+    >
       <div
         ref={sandboxRootRef}
         data-sandbox-preview-root="true"
@@ -546,6 +563,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
           '--radius': currentTheme.radius || '1.25rem',
           '--glassBlur': currentTheme.glassBlur || '36px',
           '--textCase': currentTheme.textCase || 'capitalize',
+          '--fontFamily': currentTheme.fontFamily || 'Inter, sans-serif',
           '--bgGradient':
             currentTheme.bgGradient && currentTheme.bgGradient !== 'transparent'
               ? currentTheme.bgGradient
@@ -604,42 +622,42 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
           ref={scrollContainerRef}
           className="relative z-10 flex-1 min-h-full flex flex-col justify-between p-5 gap-4 overflow-y-auto custom-scrollbar"
         >
-          {/* Row 0: Signature Sanctuary OS Header Glass Pill */}
-          <div
-            data-sandbox-glass="panel"
-            style={panelBorderStyle}
-            className="p-4 flex items-center justify-between gap-3 shrink-0"
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
+          {/* Row 0: Public ViewHeader & ActionPill Search/Filter Bar */}
+          <div className="flex items-center justify-between gap-2.5 shrink-0">
+            <div
+              data-sandbox-glass="panel"
+              style={panelBorderStyle}
+              className="px-3.5 py-2.5 flex items-center gap-3 min-w-0"
+            >
               <div
                 data-sandbox-glass="surface"
                 style={surfaceBorderStyle}
-                className="w-11 h-11 flex items-center justify-center shrink-0 text-[var(--accent)]"
+                className="w-9 h-9 flex items-center justify-center shrink-0 text-[var(--accent)]"
               >
-                <span className="material-symbols-outlined !text-[22px]">
-                  {t('icon_palette', 'palette')}
+                <span className="material-symbols-outlined !text-[18px]">
+                  {t('icon_desktop_windows', 'desktop_windows')}
                 </span>
               </div>
-              <div className="flex flex-col min-w-0 gap-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <h1
                     className="leading-tight"
                     style={{
-                      fontSize: currentTheme.fontSizeTitle || '1.2rem',
+                      fontSize: currentTheme.fontSizeTitle || '1.05rem',
                       color: currentTheme.headerText || currentTheme.text,
                       fontWeight: 900,
                     }}
                   >
-                    {currentTheme.name || t('forge_preview', 'Live Sandbox')}
+                    {t('nav_dashboard', 'Command Center')}
                   </h1>
                   {isPassthrough && (
                     <span
                       data-sandbox-glass="surface"
                       style={chipBorderStyle}
-                      className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5"
+                      className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
                     >
                       <span
-                        className="material-symbols-outlined !text-[12px]"
+                        className="material-symbols-outlined !text-[11px]"
                         style={{ color: currentTheme.accent || '#38bdf8' }}
                       >
                         {t('icon_desktop_windows', 'desktop_windows')}
@@ -649,76 +667,119 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
                   )}
                 </div>
                 <p
-                  className="leading-snug"
+                  className="leading-snug truncate"
                   style={{
-                    fontSize: currentTheme.fontSizeSubtext || '0.72rem',
+                    fontSize: currentTheme.fontSizeSubtext || '0.68rem',
                     color: currentTheme.subtext,
                     opacity: 0.9,
                   }}
                 >
-                  {t('forge_preview_desc', 'Real-time 3D optical refraction, specular rim highlights, and elevation preview.')}
+                  {t('dashboard_subtitle', 'System Status & Active Deployment Overview')}
                 </p>
               </div>
             </div>
-          </div>
 
-          {/* Row 1: 2-Up Stat Tile Specimen */}
-          <div className="grid grid-cols-2 gap-3.5 shrink-0">
+            {/* Public ActionPill (Search + Filters) */}
             <div
               data-sandbox-glass="panel"
               style={panelBorderStyle}
-              className="p-4 flex items-center gap-3.5 overflow-hidden"
+              className="px-3 py-2.5 flex items-center gap-2 shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                {t('icon_search', 'search')}
+              </span>
+              <span className="text-[10px] font-medium text-[var(--subtext)]">
+                {t('search', 'Search')}...
+              </span>
+              <div className="w-px h-3.5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)]" />
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                {t('icon_tune', 'tune')}
+              </span>
+            </div>
+          </div>
+
+          {/* Row 1: Public 3-Up StatTileCarousel Specimen */}
+          <div className="grid grid-cols-3 gap-2.5 shrink-0">
+            <div
+              data-sandbox-glass="panel"
+              style={panelBorderStyle}
+              className="p-3 flex items-center gap-2.5 overflow-hidden"
             >
               <div
                 data-sandbox-glass="surface"
                 style={surfaceBorderStyle}
-                className="w-10 h-10 flex items-center justify-center shrink-0"
+                className="w-8 h-8 flex items-center justify-center shrink-0"
               >
-                <span className="material-symbols-outlined !text-[20px] text-[var(--text)]">
+                <span
+                  className="material-symbols-outlined !text-[16px]"
+                  style={{ color: currentTheme.success || '#10b981' }}
+                >
+                  {t('icon_verified', 'verified')}
+                </span>
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
+                  {t('stat_system_stable', 'System Stable')}
+                </span>
+                <span className="text-base font-black text-[var(--text)] leading-tight">0</span>
+              </div>
+            </div>
+
+            <div
+              data-sandbox-glass="panel"
+              style={panelBorderStyle}
+              className="p-3 flex items-center gap-2.5 overflow-hidden"
+            >
+              <div
+                data-sandbox-glass="surface"
+                style={surfaceBorderStyle}
+                className="w-8 h-8 flex items-center justify-center shrink-0"
+              >
+                <span className="material-symbols-outlined !text-[16px] text-[var(--text)]">
                   {t('icon_account_balance', 'account_balance')}
                 </span>
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[8.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight">
+                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
                   {t('nav_vault', 'Your Vault')}
                 </span>
-                <span className="text-xl font-black text-[var(--text)] leading-tight">3,074</span>
+                <span className="text-base font-black text-[var(--text)] leading-tight">3,075</span>
               </div>
             </div>
 
             <div
               data-sandbox-glass="panel"
               style={panelBorderStyle}
-              className="p-4 flex items-center gap-3.5 overflow-hidden"
+              className="p-3 flex items-center gap-2.5 overflow-hidden"
             >
               <div
                 data-sandbox-glass="surface"
                 style={surfaceBorderStyle}
-                className="w-10 h-10 flex items-center justify-center shrink-0"
+                className="w-8 h-8 flex items-center justify-center shrink-0"
               >
-                <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                   {t('icon_hub', 'hub')}
                 </span>
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-[8.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight">
+                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
                   {t('nav_nexus', 'The Nexus')}
                 </span>
-                <span className="text-xl font-black text-[var(--accent)] leading-tight">2,990</span>
+                <span className="text-base font-black text-[var(--accent)] leading-tight">2,990</span>
               </div>
             </div>
           </div>
 
-          {/* Row 2: Simulated Navigation & Quick Launch Specimen */}
+          {/* Row 2: Public Sidebar Navigation & Quick Launch Specimen */}
           <div
             data-sandbox-glass="nav"
             style={panelBorderStyle}
             className="p-3 flex flex-col gap-2.5 shrink-0"
           >
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {/* Active NavButton (Command Center) */}
               <div
-                className="px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 min-w-0"
+                className="px-3 py-2 rounded-xl flex items-center gap-2 min-w-0"
                 style={{
                   backgroundColor: opticalVars['--glass-nav-active-bg'],
                   backgroundImage:
@@ -730,27 +791,53 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
                   borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
                 }}
               >
-                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
                   {t('icon_desktop_windows', 'desktop_windows')}
                 </span>
                 <span
-                  className="font-black capitalize tracking-[0.1em] text-[var(--sidebartext)] leading-tight"
+                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
                   style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
                 >
                   {t('nav_dashboard', 'Command Center')}
                 </span>
               </div>
 
-              {/* Inactive NavButton (Your Vault) */}
-              <div className="px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 opacity-75 min-w-0">
-                <span className="material-symbols-outlined !text-[16px] text-[var(--sidebartext)] shrink-0">
+              {/* Inactive Public NavButton (Your Vault) */}
+              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-75 min-w-0">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
                   {t('icon_account_balance', 'account_balance')}
                 </span>
                 <span
-                  className="font-black capitalize tracking-[0.1em] text-[var(--sidebartext)] leading-tight"
+                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
                   style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
                 >
                   {t('nav_vault', 'Your Vault')}
+                </span>
+              </div>
+
+              {/* Inactive Public NavButton (The Nexus) */}
+              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-70 min-w-0">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
+                  {t('icon_hub', 'hub')}
+                </span>
+                <span
+                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                >
+                  {t('nav_nexus', 'The Nexus')}
+                </span>
+              </div>
+
+              {/* Inactive Public NavButton (Blueprints) */}
+              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-65 min-w-0">
+                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
+                  {t('icon_map', 'map')}
+                </span>
+                <span
+                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                >
+                  {t('nav_blueprints', 'Blueprints')}
                 </span>
               </div>
             </div>
@@ -758,7 +845,7 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             {/* Quick Launch Bar */}
             <div
               data-sandbox-glass="surface"
-              className="relative px-3.5 py-2.5 rounded-xl font-black capitalize tracking-[0.16em] flex items-center justify-center gap-2 overflow-hidden"
+              className="relative px-3.5 py-2 rounded-xl font-black capitalize tracking-[0.16em] flex items-center justify-center gap-2 overflow-hidden"
               style={{
                 ...surfaceBorderStyle,
                 borderRadius: `max(0px, calc((${currentTheme.radius || '1.25rem'}) * 0.65))`,
@@ -782,130 +869,102 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             </div>
           </div>
 
-          {/* Row 3: Interactive Liquid Glass Surface & Optical Telemetry Specimen */}
-          <div
-            data-sandbox-glass="panel"
-            style={panelBorderStyle}
-            className="p-4 flex flex-col justify-between gap-3.5 shrink-0"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0">
-                <div
-                  data-sandbox-glass="surface"
-                  style={surfaceBorderStyle}
-                  className="w-10 h-10 flex items-center justify-center shrink-0 mt-0.5"
-                >
-                  <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
-                    {t('icon_blur_on', 'blur_on')}
-                  </span>
-                </div>
-                <div className="flex flex-col min-w-0 gap-0.5">
-                  <span
-                    className="font-bold text-[var(--text)] leading-snug"
-                    style={{ fontSize: currentTheme.fontSizeText || '0.95rem' }}
-                  >
-                    {t('ui_forge_glass', 'Liquid Glass Surface')}
-                  </span>
-                  <span className="text-[10px] text-[var(--subtext)] leading-snug">
-                    {t('ui_forge_glass_desc', 'Refractive backdrop saturation & specular rim lighting.')}
-                  </span>
-                </div>
-              </div>
-              <span
-                data-sandbox-glass="surface"
-                style={chipBorderStyle}
-                className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[var(--text)] shrink-0 flex items-center gap-1.5"
+          {/* Row 3: 2-Column Public Sanctuary Cards Specimen (Vault / Nexus Cards) */}
+          <div className="grid grid-cols-2 gap-3 shrink-0">
+            {[
+              {
+                title: t('nav_vault', 'Your Vault'),
+                author: t('term_mason', 'Mason'),
+                icon: t('icon_extension', 'extension'),
+                badgeIcon: t('icon_verified', 'verified'),
+                badgeLabel: t('verified', 'Verified'),
+                badgeColor: currentTheme.success || '#10b981',
+                catIcon: t('icon_code', 'code'),
+                catLabel: t('filter_script', 'Script'),
+                actionIcon: t('icon_download', 'download'),
+                actionLabel: t('btn_install', 'Install'),
+              },
+              {
+                title: t('nav_blueprints', 'Blueprints'),
+                author: t('term_citizen', 'Citizen'),
+                icon: t('icon_map', 'map'),
+                badgeIcon: t('icon_cloud_done', 'cloud_done'),
+                badgeLabel: t('synced_badge', 'Synced'),
+                badgeColor: currentTheme.success || '#10b981',
+                catIcon: t('icon_extension', 'extension'),
+                catLabel: t('filter_package', 'Package'),
+                actionIcon: t('icon_visibility', 'visibility'),
+                actionLabel: t('btn_preview_theme', 'Preview'),
+              },
+            ].map((card, cIdx) => (
+              <div
+                key={cIdx}
+                data-sandbox-glass="panel"
+                style={panelBorderStyle}
+                className="p-3.5 flex flex-col justify-between gap-3 overflow-hidden"
               >
-                <span
-                  className="material-symbols-outlined !text-[12px]"
-                  style={{ color: currentTheme.success || '#10b981' }}
-                >
-                  {t('icon_cloud_done', 'cloud_done')}
-                </span>
-                <span>{t('synced_badge', 'Synced')}</span>
-              </span>
-            </div>
-
-            {/* 4-Up Optical Telemetry Readout Grid */}
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: t('forge_metric_opacity', 'Opacity'), val: `${displayOpacityPct}%` },
-                { label: t('forge_metric_blur', 'Blur'), val: `${resolvedBlurPx}px` },
-                { label: t('forge_metric_refract', 'Refract'), val: `${displayRefractPct}%` },
-                { label: t('forge_metric_bezel', 'Bezel'), val: `${displayBezelPct}%` },
-              ].map((m, idx) => (
-                <div
-                  key={idx}
-                  data-sandbox-glass="surface"
-                  style={chipBorderStyle}
-                  className="p-2 flex flex-col items-center justify-center gap-0.5"
-                >
-                  <span className="text-[7.5px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                    {m.label}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
-                    {m.val}
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    data-sandbox-glass="surface"
+                    style={surfaceBorderStyle}
+                    className="w-9 h-9 flex items-center justify-center shrink-0"
+                  >
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                      {card.icon}
+                    </span>
+                  </div>
+                  <span
+                    data-sandbox-glass="surface"
+                    style={chipBorderStyle}
+                    className="px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 shrink-0"
+                  >
+                    <span
+                      className="material-symbols-outlined !text-[11px]"
+                      style={{ color: card.badgeColor }}
+                    >
+                      {card.badgeIcon}
+                    </span>
+                    <span>{card.badgeLabel}</span>
                   </span>
                 </div>
-              ))}
-            </div>
 
-            {/* Simulated Search & Filter Input Specimen */}
-            <div
-              data-sandbox-glass="surface"
-              style={surfaceBorderStyle}
-              className="px-3.5 py-2 flex items-center justify-between gap-2"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
-                  {t('icon_search', 'search')}
-                </span>
-                <span className="text-[10px] font-medium text-[var(--subtext)]">
-                  {t('search', 'Search')}...
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)] opacity-85">
-                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                  {t('icon_tune', 'tune')}
-                </span>
-                <span>{t('filters', 'Filters')}</span>
-              </div>
-            </div>
-
-            {/* Interactive Action Pills & Liquid Glass Toggle Specimen */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div
-                  data-sandbox-glass="surface"
-                  style={chipBorderStyle}
-                  className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                    {t('icon_bolt', 'bolt')}
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span
+                    className="font-black text-[var(--text)] leading-tight truncate"
+                    style={{ fontSize: currentTheme.fontSizeText || '0.9rem' }}
+                  >
+                    {card.title}
                   </span>
-                  <span>{t('active', 'Active')}</span>
-                </div>
-                <div
-                  data-sandbox-glass="surface"
-                  style={chipBorderStyle}
-                  className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5"
-                >
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)]">
-                    {t('icon_settings', 'settings')}
+                  <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
+                    {card.author}
                   </span>
-                  <span>{t('settings', 'Settings')}</span>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[8.5px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                  {t('forge_ambient_orb', 'Backlight')}
-                </span>
-                <div className="sa-glass-toggle is-on pointer-events-none scale-90">
-                  <div className="sa-glass-toggle-thumb" />
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span
+                    data-sandbox-glass="surface"
+                    style={chipBorderStyle}
+                    className="px-2 py-1 text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                      {card.catIcon}
+                    </span>
+                    <span>{card.catLabel}</span>
+                  </span>
+
+                  <span
+                    data-sandbox-glass="surface"
+                    style={chipBorderStyle}
+                    className="px-2.5 py-1 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                      {card.actionIcon}
+                    </span>
+                    <span>{card.actionLabel}</span>
+                  </span>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
 
           {/* Row 4: Semantic Status Badges (Transparent Background per Sanctuary Design Rules) */}
@@ -971,8 +1030,9 @@ export function ChameleonSandboxPreview({ currentTheme }: ChameleonSandboxPrevie
             <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-xl">
               <DynamicThemePreviewBanner
                 data={currentTheme}
-                heightClass="h-28"
+                heightClass="h-32"
                 insetTopClass="top-2.5"
+                expanded
               />
             </div>
           </div>

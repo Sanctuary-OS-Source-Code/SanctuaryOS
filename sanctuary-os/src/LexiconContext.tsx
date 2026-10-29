@@ -483,6 +483,11 @@ export const LexiconProvider = ({ children }: any) => {
   const [builtinOverrides, setBuiltinOverrides] = useState<Record<string, Record<string, any>>>({});
   const [titleAreaConfig, setTitleAreaConfig] = useState<CoreTitleAreaConfig>(() => readCoreTitleAreaConfig());
   const [previewSubtitleText, setPreviewSubtitleText] = useState<string | null>(null);
+  const [previewLexiconState, setPreviewLexiconState] = useState<{
+    id: string;
+    name: string;
+    dict: Record<string, any>;
+  } | null>(null);
   const [activeLangState, setActiveLangState] = useState(() => {
     const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
     
@@ -492,6 +497,45 @@ export const LexiconProvider = ({ children }: any) => {
     return localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang;
   });
   const [dictionary, setDictionary] = useState<any>({});
+
+  const startLexiconPreview = useCallback(
+    (id: string, name: string, rawJson: any) => {
+      let parsed: any = rawJson;
+      if (typeof rawJson === 'string') {
+        try {
+          parsed = JSON.parse(rawJson);
+        } catch {
+          parsed = {};
+        }
+      }
+      if (parsed && typeof parsed.json_data === 'string') {
+        try {
+          parsed = JSON.parse(parsed.json_data);
+        } catch {}
+      } else if (parsed && parsed.json_data && typeof parsed.json_data === 'object') {
+        parsed = parsed.json_data;
+      } else if (parsed && parsed.lexicon_data && typeof parsed.lexicon_data === 'object') {
+        parsed = parsed.lexicon_data;
+      }
+      const baseDefault = { ...enDefault, ...(builtinOverrides['en-default'] || {}) };
+      const cleanPreview: Record<string, any> = {};
+      for (const [k, v] of Object.entries(parsed || {})) {
+        if (v !== '' && v !== null && v !== undefined && !isKeeperLockedLexiconKey(k)) {
+          cleanPreview[k] = v;
+        }
+      }
+      setPreviewLexiconState({
+        id: String(id),
+        name: String(name || id),
+        dict: { ...baseDefault, ...cleanPreview },
+      });
+    },
+    [builtinOverrides]
+  );
+
+  const stopLexiconPreview = useCallback(() => {
+    setPreviewLexiconState(null);
+  }, []);
 
   const setUseGlobalLexicon = (val: boolean) => {
     setUseGlobalLexiconState(val);
@@ -505,6 +549,7 @@ export const LexiconProvider = ({ children }: any) => {
   };
 
   const setActiveLang = (lang: string) => {
+    setPreviewLexiconState(null);
     setActiveLangState(lang);
     try {
       if (useGlobalLexiconState) {
@@ -923,9 +968,12 @@ export const LexiconProvider = ({ children }: any) => {
     return map;
   }, [activeGameSchema]);
 
+  const effectiveDictionary = previewLexiconState ? previewLexiconState.dict : dictionary;
+  const effectiveLangState = previewLexiconState ? previewLexiconState.name : activeLangState;
+
   const tCache = useMemo(
     () => new Map<string, any>(),
-    [dictionary, schemaFallbackMap, activeLangState, titleAreaConfig, previewSubtitleText]
+    [effectiveDictionary, schemaFallbackMap, effectiveLangState, titleAreaConfig, previewSubtitleText]
   );
 
   const t = useCallback((key: string, fallback?: string) => {
@@ -934,7 +982,7 @@ export const LexiconProvider = ({ children }: any) => {
     if (cached !== undefined) return cached;
 
     if (!key) {
-      const res = fallback ? interpolateGlossaryTokens(fallback, dictionary, activeLangState) : "";
+      const res = fallback ? interpolateGlossaryTokens(fallback, effectiveDictionary, effectiveLangState) : "";
       tCache.set(cacheKey, res);
       return res;
     }
@@ -958,7 +1006,7 @@ export const LexiconProvider = ({ children }: any) => {
       return res;
     }
 
-    let val = dictionary[key];
+    let val = effectiveDictionary[key];
     if (typeof val === "string" && val.startsWith("[") && val.endsWith("]")) {
       val = undefined;
     }
@@ -994,7 +1042,7 @@ export const LexiconProvider = ({ children }: any) => {
         key === "forge_case_upper"
           ? String(val)
           : typeof val === "string"
-            ? interpolateGlossaryTokens(val, dictionary, activeLangState)
+            ? interpolateGlossaryTokens(val, effectiveDictionary, effectiveLangState)
             : val;
       tCache.set(cacheKey, res);
       return res;
@@ -1016,15 +1064,16 @@ export const LexiconProvider = ({ children }: any) => {
           ? key
           : undefined;
     const res = resolvedFallback
-      ? interpolateGlossaryTokens(resolvedFallback, dictionary, activeLangState)
+      ? interpolateGlossaryTokens(resolvedFallback, effectiveDictionary, effectiveLangState)
       : resolvedFallback === "" || !key
         ? ""
         : `[${key}]`;
     tCache.set(cacheKey, res);
     return res;
-  }, [tCache, dictionary, schemaFallbackMap, activeLangState, titleAreaConfig, previewSubtitleText]);
+  }, [tCache, effectiveDictionary, schemaFallbackMap, effectiveLangState, titleAreaConfig, previewSubtitleText]);
 
   const importLexicon = (json: any, langCode: string) => {
+    setPreviewLexiconState(null);
     const updated = { ...registry, [langCode]: json };
     setRegistry(updated);
     saveRegistryToStorage(wsId, updated);
@@ -1085,16 +1134,16 @@ export const LexiconProvider = ({ children }: any) => {
     options?: { forceTranslate?: boolean; targetIso?: string }
   ): string => {
     if (!rawText || typeof rawText !== 'string') return rawText;
-    const interpolated = interpolateGlossaryTokens(rawText, dictionary, activeLangState);
-    const adapted = applyThematicGlossaryToProse(interpolated, dictionary, activeLangState);
+    const interpolated = interpolateGlossaryTokens(rawText, effectiveDictionary, effectiveLangState);
+    const adapted = applyThematicGlossaryToProse(interpolated, effectiveDictionary, effectiveLangState);
     const shouldCloudTranslate = Boolean(options?.forceTranslate || autoTranslateDynamic);
     if (!shouldCloudTranslate) return adapted;
 
     const targetIso =
       options?.targetIso ||
       resolveTargetLanguageIso(
-        activeLangState,
-        dictionary,
+        effectiveLangState,
+        effectiveDictionary,
         lexiconMeta,
         Boolean(options?.forceTranslate)
       );
@@ -1117,10 +1166,10 @@ export const LexiconProvider = ({ children }: any) => {
     targetIso?: string
   ): Promise<string> => {
     if (!rawText || typeof rawText !== 'string') return rawText;
-    const interpolated = interpolateGlossaryTokens(rawText, dictionary, activeLangState);
-    const adapted = applyThematicGlossaryToProse(interpolated, dictionary, activeLangState);
+    const interpolated = interpolateGlossaryTokens(rawText, effectiveDictionary, effectiveLangState);
+    const adapted = applyThematicGlossaryToProse(interpolated, effectiveDictionary, effectiveLangState);
     const resolvedIso =
-      targetIso || resolveTargetLanguageIso(activeLangState, dictionary, lexiconMeta, true);
+      targetIso || resolveTargetLanguageIso(effectiveLangState, effectiveDictionary, lexiconMeta, true);
     if (!resolvedIso || resolvedIso === 'en') return adapted;
     return translatePostedTextAsync(adapted, resolvedIso);
   };
@@ -1146,6 +1195,10 @@ export const LexiconProvider = ({ children }: any) => {
         saveTitleAreaConfig,
         previewSubtitleText,
         setPreviewSubtitleText,
+        previewLexiconId: previewLexiconState?.id || null,
+        previewLexiconName: previewLexiconState?.name || null,
+        startLexiconPreview,
+        stopLexiconPreview,
       }}
     >
       {children}

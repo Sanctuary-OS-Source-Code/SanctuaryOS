@@ -561,12 +561,16 @@ body,
 }
 
 .theme-panel-accent {
-  background-color: color-mix(in srgb, var(--accent) 5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  color: var(--accent);
+  background-color: var(--glass-nav-active-bg, color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.04)));
+  background-image: var(--glass-nav-active-sheen);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, 0.36));
+  border-left: 1px solid color-mix(in srgb, var(--accent) 44%, rgba(255, 255, 255, 0.28));
+  border-right: 1px solid color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, 0.15));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 36%, rgba(255, 255, 255, 0.18));
+  color: var(--text);
   -webkit-backdrop-filter: blur(var(--glassBlur, 32px)) saturate(140%);
   backdrop-filter: blur(var(--glassBlur, 32px)) saturate(140%);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 1px 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--glass-nav-active-shadow, 0 16px 32px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.15));
 }
 
 .theme-btn-accent {
@@ -574,8 +578,9 @@ body,
 }
 
 .theme-btn-accent:hover {
-  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.40));
+  color: var(--text);
 }
 
 .theme-panel-success {
@@ -2034,7 +2039,7 @@ section:has(.monaco-diff-editor),
     inset 0 -1.5px 2px rgba(0, 0, 0, 0.25);
 }
 
-/* Sculpted Liquid Glass Active Pill & Tab State (Matches Sidebar .sa-glass-active Material) */
+/* Sculpted Liquid Glass Active Pill, Button & Tab State (Matches Selected StatTiles) */
 .sa-glass-pill-active,
 .glass-panel.sa-glass-pill-active,
 .glass-surface.sa-glass-pill-active,
@@ -2044,13 +2049,109 @@ nav.firefox-safe-glass .glass-panel.sa-glass-pill-active:not(.portal-glass-fix),
 nav.firefox-safe-glass .glass-surface.sa-glass-pill-active:not(.portal-glass-fix),
 html[data-webgl-glass="ready"] .sa-glass-pill-active,
 html[data-webgl-glass="ready"] .glass-panel.sa-glass-pill-active,
-html[data-webgl-glass="ready"] .glass-surface.sa-glass-pill-active {
+html[data-webgl-glass="ready"] .glass-surface.sa-glass-pill-active,
+.sa-glass-pill-hover:hover:not(:disabled),
+.glass-panel.sa-glass-pill-hover:hover:not(:disabled),
+.glass-surface.sa-glass-pill-hover:hover:not(:disabled),
+.sa-side-panel-window .glass-panel.sa-glass-pill-hover:hover:not(:disabled):not(.portal-glass-fix),
+.sa-side-panel-window .glass-surface.sa-glass-pill-hover:hover:not(:disabled):not(.portal-glass-fix),
+nav.firefox-safe-glass .glass-panel.sa-glass-pill-hover:hover:not(:disabled):not(.portal-glass-fix),
+nav.firefox-safe-glass .glass-surface.sa-glass-pill-hover:hover:not(:disabled):not(.portal-glass-fix),
+html[data-webgl-glass="ready"] .sa-glass-pill-hover:hover:not(:disabled),
+html[data-webgl-glass="ready"] .glass-panel.sa-glass-pill-hover:hover:not(:disabled),
+html[data-webgl-glass="ready"] .glass-surface.sa-glass-pill-hover:hover:not(:disabled),
+button.glass-surface:hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success),
+a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]),
+.sa-side-panel-window button.glass-surface:hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success):not(.portal-glass-fix),
+.sa-side-panel-window a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.portal-glass-fix),
+.glass-panel button.glass-surface:hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success):not(.portal-glass-fix),
+.glass-panel a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.portal-glass-fix) {
   background-color: var(--glass-nav-active-bg, color-mix(in srgb, var(--accent) 14%, rgba(255, 255, 255, 0.05))) !important;
   background-image: var(--glass-nav-active-sheen) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.45)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 64%, rgba(255, 255, 255, 0.35)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.20)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 54%, rgba(255, 255, 255, 0.24)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 56%, rgba(255, 255, 255, 0.40)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.32)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.18)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, rgba(255, 255, 255, 0.22)) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
+  color: var(--text) !important;
+}
+
+button.glass-surface:hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success) .material-symbols-outlined,
+button.glass-surface:hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success) .material-symbols-rounded,
+a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]) .material-symbols-outlined,
+a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]) .material-symbols-rounded {
+  color: var(--accent) !important;
+}
+
+/* Semantic StatTile-Style Glass Pill Variants (Success / Warning / Danger) */
+.sa-glass-pill-success,
+.glass-surface.sa-glass-pill-success,
+.sa-side-panel-window .glass-surface.sa-glass-pill-success:not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-success:not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--success) 8%, rgba(255, 255, 255, 0.03)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--success) 42%, rgba(255, 255, 255, 0.28)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--success) 36%, rgba(255, 255, 255, 0.22)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--success) 24%, rgba(255, 255, 255, 0.14)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--success) 28%, rgba(255, 255, 255, 0.16)) !important;
+  color: var(--text) !important;
+}
+.sa-glass-pill-success:hover:not(:disabled),
+.glass-surface.sa-glass-pill-success:hover:not(:disabled),
+.sa-side-panel-window .glass-surface.sa-glass-pill-success:hover:not(:disabled):not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-success:hover:not(:disabled):not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--success) 14%, rgba(255, 255, 255, 0.05)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--success) 58%, rgba(255, 255, 255, 0.38)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--success) 50%, rgba(255, 255, 255, 0.30)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--success) 34%, rgba(255, 255, 255, 0.18)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--success) 40%, rgba(255, 255, 255, 0.22)) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
+  color: var(--text) !important;
+}
+
+.sa-glass-pill-warning,
+.glass-surface.sa-glass-pill-warning,
+.sa-side-panel-window .glass-surface.sa-glass-pill-warning:not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-warning:not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--warning) 8%, rgba(255, 255, 255, 0.03)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--warning) 42%, rgba(255, 255, 255, 0.28)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--warning) 36%, rgba(255, 255, 255, 0.22)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--warning) 24%, rgba(255, 255, 255, 0.14)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 28%, rgba(255, 255, 255, 0.16)) !important;
+  color: var(--text) !important;
+}
+.sa-glass-pill-warning:hover:not(:disabled),
+.glass-surface.sa-glass-pill-warning:hover:not(:disabled),
+.sa-side-panel-window .glass-surface.sa-glass-pill-warning:hover:not(:disabled):not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-warning:hover:not(:disabled):not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--warning) 14%, rgba(255, 255, 255, 0.05)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--warning) 58%, rgba(255, 255, 255, 0.38)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--warning) 50%, rgba(255, 255, 255, 0.30)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--warning) 34%, rgba(255, 255, 255, 0.18)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 40%, rgba(255, 255, 255, 0.22)) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
+  color: var(--text) !important;
+}
+
+.sa-glass-pill-danger,
+.glass-surface.sa-glass-pill-danger,
+.sa-side-panel-window .glass-surface.sa-glass-pill-danger:not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-danger:not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--danger) 8%, rgba(255, 255, 255, 0.03)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 42%, rgba(255, 255, 255, 0.28)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--danger) 36%, rgba(255, 255, 255, 0.22)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--danger) 24%, rgba(255, 255, 255, 0.14)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 28%, rgba(255, 255, 255, 0.16)) !important;
+  color: var(--text) !important;
+}
+.sa-glass-pill-danger:hover:not(:disabled),
+.glass-surface.sa-glass-pill-danger:hover:not(:disabled),
+.sa-side-panel-window .glass-surface.sa-glass-pill-danger:hover:not(:disabled):not(.portal-glass-fix),
+.glass-panel .glass-surface.sa-glass-pill-danger:hover:not(:disabled):not(.portal-glass-fix) {
+  background-color: color-mix(in srgb, var(--danger) 14%, rgba(255, 255, 255, 0.05)) !important;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 58%, rgba(255, 255, 255, 0.38)) !important;
+  border-left: 1px solid color-mix(in srgb, var(--danger) 50%, rgba(255, 255, 255, 0.30)) !important;
+  border-right: 1px solid color-mix(in srgb, var(--danger) 34%, rgba(255, 255, 255, 0.18)) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 40%, rgba(255, 255, 255, 0.22)) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
 }

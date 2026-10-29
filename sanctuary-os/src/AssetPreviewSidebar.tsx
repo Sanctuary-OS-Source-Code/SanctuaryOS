@@ -38,8 +38,22 @@ export default function AssetPreviewSidebar({
   onClose: () => void;
   onFlag?: (assetId: string, assetType: string) => void;
 }) {
-  const { t, importLexicon, registry } = useLexicon();
-  const { importTheme, CORE_THEMES, customThemes } = useTheme();
+  const {
+    t,
+    importLexicon,
+    registry,
+    previewLexiconId,
+    startLexiconPreview,
+    stopLexiconPreview,
+  } = useLexicon();
+  const {
+    importTheme,
+    CORE_THEMES,
+    customThemes,
+    previewThemeId,
+    startThemePreview,
+    stopThemePreview,
+  } = useTheme();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -377,6 +391,57 @@ export default function AssetPreviewSidebar({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 ml-auto">
+                        {(assetType === "chameleon" || assetType === "lexicon") && (() => {
+                          const targetPreviewId = String(data.id || assetId);
+                          const isPreviewingThis =
+                            assetType === "chameleon"
+                              ? String(previewThemeId || "") === targetPreviewId
+                              : String(previewLexiconId || "") === targetPreviewId;
+                          return (
+                            <ActionButton
+                              variant={isPreviewingThis ? "accent" : "glass"}
+                              icon={
+                                isPreviewingThis
+                                  ? t("icon_visibility_off", "visibility_off")
+                                  : t("icon_visibility", "visibility")
+                              }
+                              label={
+                                isPreviewingThis
+                                  ? t("btn_stop_preview", "Stop Preview")
+                                  : t("preview", "Preview")
+                              }
+                              onClick={(e?: React.MouseEvent) => {
+                                e?.stopPropagation();
+                                if (isPreviewingThis) {
+                                  if (assetType === "chameleon") stopThemePreview();
+                                  else stopLexiconPreview();
+                                  useStore
+                                    .getState()
+                                    .pushStatus(
+                                      t(
+                                        "status_preview_stopped",
+                                        "Preview stopped — restored your active settings."
+                                      )
+                                    );
+                                } else {
+                                  if (assetType === "chameleon") {
+                                    startThemePreview(targetPreviewId, cleanTitle, data);
+                                  } else {
+                                    startLexiconPreview(targetPreviewId, cleanTitle, data);
+                                  }
+                                  useStore
+                                    .getState()
+                                    .pushStatus(
+                                      t(
+                                        "status_previewing_asset",
+                                        "Previewing {0} — click Stop Preview or Install when done."
+                                      ).replace("{0}", cleanTitle)
+                                    );
+                                }
+                              }}
+                            />
+                          );
+                        })()}
                         {!isDesktop() ? (
                           assetType === "lexicon" || assetType === "chameleon" ? (
                             <ActionButton
@@ -722,14 +787,62 @@ export default function AssetPreviewSidebar({
                     previewImage: data.image_url || data.json_data?.previewImage,
                   }}
                   heightClass="h-44"
+                  insetTopClass="top-3"
+                  expanded
                 />
               </div>
             )}
 
             {assetType === "lexicon" && (
-              <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
-                <DynamicLexiconPreviewBanner data={data} heightClass="h-40" />
-              </div>
+              <>
+                <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shadow-xl">
+                  <DynamicLexiconPreviewBanner data={data} heightClass="h-40" />
+                </div>
+                {(() => {
+                  const parsedLex =
+                    typeof data.json_data === "string"
+                      ? (() => {
+                          try {
+                            return JSON.parse(data.json_data);
+                          } catch {
+                            return {};
+                          }
+                        })()
+                      : data.json_data || {};
+                  const sampleTerms = [
+                    { token: "{Mod} / {Mods}", val: `${parsedLex.term_mod || "Mod"} / ${parsedLex.term_mods || "Mods"}` },
+                    { token: "{Vault}", val: parsedLex.term_vault || "Library" },
+                    { token: "{Blueprint}", val: parsedLex.term_blueprint || "Play Set" },
+                    { token: "{Mason}", val: parsedLex.term_mason || "Creator" },
+                    { token: "{Citizen}", val: parsedLex.term_citizen || "Player" },
+                    { token: "{Backups}", val: parsedLex.term_backups || "Backups" },
+                    { token: "{Lab}", val: parsedLex.term_lab || "Sandbox" },
+                    { token: "{Settings}", val: parsedLex.term_settings || "Settings" },
+                  ];
+                  return (
+                    <UniversalGroup
+                      title={t("lexicon_live_preview_title", "Live {Lexicon} Terminology & UI Sample")}
+                      icon={t("icon_visibility", "visibility")}
+                    >
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {sampleTerms.map((item) => (
+                          <div
+                            key={item.token}
+                            className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-0.5 min-w-0"
+                          >
+                            <span className="text-[8px] font-mono font-black text-[var(--accent)] truncate">
+                              {item.token}
+                            </span>
+                            <span className="text-[11px] font-black text-[var(--text)] truncate">
+                              {String(item.val)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </UniversalGroup>
+                  );
+                })()}
+              </>
             )}
 
             {assetType === "blueprint" && (

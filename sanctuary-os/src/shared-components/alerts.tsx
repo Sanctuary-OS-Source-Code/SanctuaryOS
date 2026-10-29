@@ -317,7 +317,7 @@ export function ActionPill({
     ? "w-[fit-content] md:max-w-[fit-content]"
     : isInsideSidePanel
       ? "w-full max-w-full"
-      : "w-full md:max-w-md lg:max-w-lg";
+      : "w-full md:w-auto md:flex-1 md:min-w-[280px] md:max-w-lg";
 
   return (
     <div
