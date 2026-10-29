@@ -63,6 +63,7 @@ import KeepersCore from "./KeepersCore";
 import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
 import { NexusUpdatesSidePanel } from './side-panels/NexusUpdatesSidePanel';
 import { SupporterCelebrationSidePanel } from './side-panels/SupporterCelebrationSidePanel';
+import { GlobalCommandPalette } from './side-panels/GlobalCommandPalette';
 import CitizensWorkbench from "./CitizensWorkbench";
 import { createPortal } from "react-dom";
 import { ContextMenu } from "./ContextMenu";
@@ -519,6 +520,7 @@ function App() {
     };
 
     const fetchUnread = async () => {
+      if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') return;
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const activeSession = sessionData?.session || session;
@@ -973,6 +975,16 @@ function App() {
       setStatus(`Error: ${err.message || err}`);
     }
   };
+
+  useEffect(() => {
+    const handleResetAllLocalOverrides = () => {
+      if (isDesktop()) {
+        runRadarSweep(true);
+      }
+    };
+    window.addEventListener("sanctuary_reset_all_local_overrides", handleResetAllLocalOverrides);
+    return () => window.removeEventListener("sanctuary_reset_all_local_overrides", handleResetAllLocalOverrides);
+  }, []);
   const [conflictTarget, setConflictTarget] = useState<any | null>(null);
   const [isLoadingAssociated, setIsLoadingAssociated] = useState(false);
 
@@ -3158,6 +3170,167 @@ function App() {
       setLabConflicts([]);
     }
   }, [activeLabMod, view]);
+
+  useEffect(() => {
+    const handleOpenDossierEvent = (e: Event) => {
+      const rawTarget = (e as CustomEvent)?.detail;
+      if (!rawTarget) return;
+
+      const stripSanctuaryPrefix = (val: string) =>
+        String(val || "").replace(/^Sanctuary\d*[/\\]/i, "");
+      const cleanBaseName = (val: string) =>
+        stripSanctuaryPrefix(val)
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(getExtensionRegex(activeGameSchema), "")
+          .trim()
+          .toLowerCase() || "";
+
+      const resolveSingleMod = (item: any) => {
+        const isStr = typeof item === "string";
+        const rawName = isStr
+          ? item
+          : String(item?._originalSetName || item?.name || item?.path || item?.displayName || "");
+        const strippedName = stripSanctuaryPrefix(rawName);
+        const targetBase = cleanBaseName(rawName);
+        const targetHash = !isStr && item?.hash ? String(item.hash) : "";
+        const targetDbId = !isStr && item?.dbId ? String(item.dbId).split("@")[0] : "";
+
+        const allPool: any[] = [...modList];
+        for (const dm of displayModList) {
+          if (dm && !allPool.includes(dm)) allPool.push(dm);
+          if (Array.isArray(dm?.flavors)) {
+            for (const f of dm.flavors) {
+              if (f && !allPool.includes(f)) allPool.push(f);
+            }
+          }
+        }
+
+        const matched = allPool.find((m: any) => {
+          if (!m || m.isCollection) return false;
+          if (targetHash && m.hash && String(m.hash) === targetHash) return true;
+          if (targetDbId && m.dbId && String(m.dbId).split("@")[0] === targetDbId && !m.isVirtual)
+            return true;
+          const mName = stripSanctuaryPrefix(String(m.name || ""));
+          if (strippedName && mName.toLowerCase() === strippedName.toLowerCase()) return true;
+          return Boolean(targetBase && cleanBaseName(m.name || m.displayName || "") === targetBase);
+        });
+
+        if (isStr) {
+          return matched ? { ...matched } : { name: strippedName || rawName, displayName: strippedName || rawName };
+        }
+        return matched
+          ? {
+              ...matched,
+              ...item,
+              name: matched.name || item.name || strippedName,
+              displayName: item.displayName || matched.displayName || matched.name || strippedName,
+              author:
+                item.author && item.author !== "Unknown"
+                  ? item.author
+                  : matched.author || item.author,
+              version:
+                item.version && String(item.version).toLowerCase() !== "v.local"
+                  ? item.version
+                  : matched.version || item.version,
+              description: item.description || matched.description,
+              image_url: item.image_url || item.imageUrl || matched.image_url || matched.imageUrl,
+              url: item.url || item.download_url || matched.url || matched.download_url,
+              hash: item.hash || matched.hash,
+              dbId: item.dbId || matched.dbId,
+              compatible_versions: item.compatible_versions || matched.compatible_versions,
+              requiredDLC: item.requiredDLC || matched.requiredDLC,
+              status_reason: item.status_reason || item._alert_reason || matched.status_reason,
+            }
+          : {
+              ...item,
+              name: item.name || strippedName || item.displayName || "",
+              status_reason: item.status_reason || item._alert_reason,
+            };
+      };
+
+      let resolvedMod: any;
+      const groupedItems = Array.isArray(rawTarget?.flavors)
+        ? rawTarget.flavors
+        : Array.isArray(rawTarget?._groupedMods) && rawTarget._groupedMods.length > 1
+          ? rawTarget._groupedMods
+          : null;
+
+      if (groupedItems && groupedItems.length > 1) {
+        const resolvedFlavors = groupedItems.map((gm: any) => resolveSingleMod(gm));
+        const famId = String(
+          rawTarget?.baseFamilyId ||
+            rawTarget?.familyId ||
+            rawTarget?.dbId ||
+            resolvedFlavors[0]?.baseFamilyId ||
+            resolvedFlavors[0]?.dbId ||
+            ""
+        ).split("@")[0];
+        const virtualMatch = displayModList.find(
+          (dm: any) =>
+            dm?.isVirtual &&
+            !dm?.isCollection &&
+            ((famId &&
+              (String(dm.dbId || "").split("@")[0] === famId ||
+                String(dm.baseFamilyId || "").split("@")[0] === famId)) ||
+              (rawTarget?.displayName &&
+                String(dm.displayName || "").toLowerCase() ===
+                  String(rawTarget.displayName).toLowerCase()))
+        );
+        const primaryRef = resolvedFlavors[0] || {};
+        resolvedMod = {
+          ...(virtualMatch || {}),
+          ...primaryRef,
+          ...rawTarget,
+          isVirtual: true,
+          displayName:
+            rawTarget.displayName ||
+            rawTarget._groupedTitle ||
+            virtualMatch?.displayName ||
+            primaryRef.displayName ||
+            primaryRef.name,
+          name:
+            rawTarget.name ||
+            virtualMatch?.name ||
+            primaryRef.name ||
+            rawTarget.displayName ||
+            "",
+          flavors: resolvedFlavors,
+          status_reason:
+            rawTarget.status_reason || rawTarget._alert_reason || primaryRef.status_reason,
+        };
+      } else {
+        resolvedMod = resolveSingleMod(rawTarget);
+      }
+
+      const defaultName =
+        (resolvedMod.displayName || resolvedMod.name || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(getExtensionRegex(activeGameSchema), "")
+          .replace(/_/g, " ") || "";
+      setMetaNameInput(defaultName);
+      setMetaAuthorInput(resolvedMod.author || "");
+      setMetaVersionInput(resolvedMod.version || "");
+      setMetaDescInput(resolvedMod.description || "");
+      setMetaImageInput(resolvedMod.image_url || resolvedMod.imageUrl || "");
+      setMetaUrlInput(resolvedMod.url || "");
+      setMetaManifestUrlInput(resolvedMod.manifest_url || "");
+      setMetaStatusMsgInput(resolvedMod.status_reason || "");
+      setMetaStatusInput(resolvedMod.status || "WORKING");
+      setMetaAllowWriteInput(resolvedMod.allow_write || false);
+      setMetaIsPaidInput(resolvedMod.is_paid || false);
+      setMetaIsEarlyAccessInput(resolvedMod.is_early_access || false);
+      setIsEditingMeta(false);
+      setEditMode(false);
+      setIsCorrectingMeta(false);
+      setActiveDossier(resolvedMod);
+    };
+
+    window.addEventListener("sanctuary-open-dossier", handleOpenDossierEvent);
+    return () =>
+      window.removeEventListener("sanctuary-open-dossier", handleOpenDossierEvent);
+  }, [modList, displayModList, activeGameSchema]);
   const runLabSimulation = async () => {
     if (!activeLabMod || !conflictTarget) return;
     setIsLoadingAssociated(true);
@@ -3891,6 +4064,35 @@ function App() {
           )}
 
           <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+          <GlobalCommandPalette
+            onInspectMod={(mod) => {
+              window.dispatchEvent(new CustomEvent("sanctuary-open-dossier", { detail: mod }));
+            }}
+            onToggleModInBlueprint={(mod) => {
+              toggleInActiveSet(mod.name);
+            }}
+            onEquipBlueprint={(setName) => {
+              equipPlaySet(setName);
+            }}
+            onQuickLaunch={() => {
+              handleQuickLaunch();
+            }}
+            onRunRadarSweep={() => {
+              runRadarSweep(true);
+            }}
+            onOpenDropzone={() => {
+              setIsDropzoneOpen(true);
+            }}
+            onTriggerFullBackup={() => {
+              triggerFullEngineBackup();
+            }}
+            onTriggerPrePatchSnapshot={() => {
+              triggerPrePatchSnapshot();
+            }}
+            onOpenNotifications={() => {
+              setIsNotificationSidebarOpen(true);
+            }}
+          />
           <DevBuildClearanceGate />
           <UpdateSidePanel />
           <SupporterCelebrationSidePanel />

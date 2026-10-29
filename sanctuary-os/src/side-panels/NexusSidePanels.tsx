@@ -16,7 +16,20 @@ import {
   getNormalizedArtifactName,
   ActionPill,
   VAULT_CHIP_CLASS,
+  formatDisplayName,
+  getExtensionRegex,
+  getModFallbackUrl,
+  getModIcon,
+  handleOpenUrl,
+  EmptyState,
 } from "../shared";
+import {
+  formatCleanModTitle,
+  formatAddonModuleName,
+  normalizeModGroupTitle,
+  extractValidCreator,
+  isKnownCreatorName,
+} from "./CommandIncompatiblePanel";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
@@ -541,57 +554,942 @@ export function MarketReportPanel({
   );
 }
 
+const GENERIC_BLUEPRINT_DIRS = new Set([
+  "mods",
+  "packages",
+  "package",
+  "scripts",
+  "script",
+  "overrides",
+  "override",
+  "cas",
+  "buildbuy",
+  "build_buy",
+  "build-buy",
+  "gameplay",
+  "tuning",
+  "clothing",
+  "hair",
+  "furniture",
+  "sanctuary",
+  "sanctuary2",
+  "sanctuary3",
+  "!_core",
+  "z_overrides",
+]);
+
+function extractSpecificSubfolder(rawPath: string, activeGameSchema?: any): string | null {
+  if (!rawPath || (!rawPath.includes("/") && !rawPath.includes("\\"))) return null;
+  const schemaTiers = Array.isArray(activeGameSchema?.load_order?.priority_tiers)
+    ? activeGameSchema.load_order.priority_tiers
+    : [];
+  const tierFolders = new Set<string>(
+    schemaTiers.map((pt: any) => String(pt?.folder || "").toLowerCase()).filter(Boolean)
+  );
+  const segs = rawPath
+    .replace(/\\/g, "/")
+    .split("/")
+    .slice(0, -1)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const seg = segs[i];
+    const low = seg.toLowerCase();
+    if (low.startsWith("!")) continue;
+    if (GENERIC_BLUEPRINT_DIRS.has(low) || tierFolders.has(low)) continue;
+    return seg;
+  }
+  return null;
+}
+
+export function groupBlueprintArtifactsByFamily(
+  rawArtifacts: any[],
+  options: {
+    modList?: any[];
+    activeGameSchema?: any;
+    localVaultHashes?: Set<string>;
+    cloudEnrichmentMap?: Map<string, any>;
+  } = {}
+): any[] {
+  if (!Array.isArray(rawArtifacts) || rawArtifacts.length === 0) return [];
+
+  const allVaultMods = Array.isArray(options.modList) ? options.modList : [];
+  const activeGameSchema = options.activeGameSchema;
+  const extRegex = getExtensionRegex(activeGameSchema);
+  const localVaultHashes = options.localVaultHashes || new Set<string>();
+  const cloudEnrichmentMap = options.cloudEnrichmentMap;
+
+  const localByHash = new Map<string, any>();
+  const localByExact = new Map<string, any>();
+  const localByFile = new Map<string, any>();
+  const localByBase = new Map<string, any>();
+  const virtualByFamilyId = new Map<string, any>();
+  const parentByDbId = new Map<string, any>();
+
+  for (const vm of allVaultMods) {
+    if (!vm) continue;
+    if (vm.isVirtual) {
+      if (vm.dbId) virtualByFamilyId.set(String(vm.dbId).split("@")[0], vm);
+      if (vm.baseFamilyId) virtualByFamilyId.set(String(vm.baseFamilyId).split("@")[0], vm);
+      if (vm.familyId) virtualByFamilyId.set(String(vm.familyId).split("@")[0], vm);
+      if (vm.setId) virtualByFamilyId.set(`set_${vm.setId}`, vm);
+      if (Array.isArray(vm.flavors)) {
+        for (const fl of vm.flavors) {
+          if (!fl) continue;
+          if (fl.hash && !localByHash.has(fl.hash)) localByHash.set(fl.hash, fl);
+          if (fl.name) {
+            const rawLow = String(fl.name).toLowerCase();
+            localByExact.set(rawLow, fl);
+            const fPart = (String(fl.name).split(/[\\/]/).pop() || String(fl.name)).toLowerCase();
+            if (!localByFile.has(fPart)) localByFile.set(fPart, fl);
+            const bPart = fPart.replace(extRegex, "").toLowerCase();
+            if (bPart && !localByBase.has(bPart)) localByBase.set(bPart, fl);
+          }
+        }
+      }
+      continue;
+    }
+    if (vm.dbId) parentByDbId.set(String(vm.dbId), vm);
+    if (vm.hash) localByHash.set(vm.hash, vm);
+    if (vm.name) {
+      const rawLow = String(vm.name).toLowerCase();
+      localByExact.set(rawLow, vm);
+      const fPart = (String(vm.name).split(/[\\/]/).pop() || String(vm.name)).toLowerCase();
+      if (!localByFile.has(fPart)) localByFile.set(fPart, vm);
+      const bPart = fPart.replace(extRegex, "").toLowerCase();
+      if (bPart && !localByBase.has(bPart)) localByBase.set(bPart, vm);
+    }
+  }
+
+  // Also index in-memory Nexus items (already grouped by family/collection on The Nexus)
+  const nexusParentByHash = new Map<string, any>();
+  const nexusParentByNorm = new Map<string, any>();
+  try {
+    const nexusItems: any[] = (window as any).__sanctuaryCache?.nexus?.nexusItems || [];
+    for (const ni of nexusItems) {
+      if (!ni) continue;
+      if ((ni.isParent || ni.isVirtual || ni.isCollection) && Array.isArray(ni.flavors)) {
+        for (const fl of ni.flavors) {
+          if (!fl) continue;
+          if (fl.hash) nexusParentByHash.set(String(fl.hash), ni);
+          if (Array.isArray(fl.mod_versions)) {
+            for (const mv of fl.mod_versions) {
+              if (mv?.dna_hash) nexusParentByHash.set(String(mv.dna_hash), ni);
+            }
+          }
+          const fn = getNormalizedArtifactName(fl.name || "");
+          if (fn && !nexusParentByNorm.has(fn)) nexusParentByNorm.set(fn, ni);
+        }
+      } else {
+        if (ni.hash) nexusParentByHash.set(String(ni.hash), ni);
+        if (Array.isArray(ni.mod_versions)) {
+          for (const mv of ni.mod_versions) {
+            if (mv?.dna_hash) nexusParentByHash.set(String(mv.dna_hash), ni);
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore cache access errors
+  }
+
+  // Pre-scan counts for multi-module suites and shared folders
+  let mcCount = 0;
+  const subfolderCounts = new Map<string, number>();
+
+  for (const item of rawArtifacts) {
+    const rawStr = typeof item === "string" ? item : String(item?.name || item?.path || item?.id || "");
+    if (!rawStr) continue;
+    const filePart = rawStr.split(/[\\/]/).pop() || rawStr;
+    const label = formatDisplayName(filePart, undefined, activeGameSchema).trim();
+    if (
+      /^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
+        label
+      ) ||
+      /\bmc\s*(cmd|command)\s*center\b/i.test(label)
+    ) {
+      mcCount++;
+    }
+    const sub = extractSpecificSubfolder(rawStr, activeGameSchema);
+    if (sub) {
+      const subKey = sub.toLowerCase();
+      subfolderCounts.set(subKey, (subfolderCounts.get(subKey) || 0) + 1);
+    }
+  }
+
+  const grouped = new Map<string, any>();
+
+  for (let idx = 0; idx < rawArtifacts.length; idx++) {
+    const rawItem = rawArtifacts[idx];
+    const rawObj = typeof rawItem === "string" ? { name: rawItem } : rawItem || {};
+    const rawPath = String(rawObj.name || rawObj.path || rawObj.id || "").trim();
+    if (!rawPath) continue;
+
+    const filePart = rawPath.split(/[\\/]/).pop() || rawPath;
+    const fileLower = filePart.toLowerCase();
+    const baseLower = fileLower.replace(extRegex, "");
+    const normArtifactKey = getNormalizedArtifactName(filePart);
+
+    const matchedLocal =
+      (rawObj.hash && localByHash.get(rawObj.hash)) ||
+      localByExact.get(rawPath.toLowerCase()) ||
+      localByFile.get(fileLower) ||
+      (baseLower ? localByBase.get(baseLower) : undefined);
+
+    const cloudInfo = rawObj.hash ? cloudEnrichmentMap?.get(String(rawObj.hash)) : undefined;
+    const nexusParent =
+      (rawObj.hash && nexusParentByHash.get(String(rawObj.hash))) ||
+      (normArtifactKey ? nexusParentByNorm.get(normArtifactKey) : undefined);
+
+    const famIdRaw = String(
+      cloudInfo?.familyId ||
+        rawObj.baseFamilyId ||
+        rawObj.familyId ||
+        matchedLocal?.baseFamilyId ||
+        matchedLocal?.familyId ||
+        (nexusParent && (nexusParent.isParent || nexusParent.isVirtual) ? nexusParent.id : "") ||
+        ""
+    ).split("@")[0];
+
+    const hasRealFamily = Boolean(
+      famIdRaw &&
+        famIdRaw !== "null" &&
+        famIdRaw !== "undefined" &&
+        !famIdRaw.startsWith("local_")
+    );
+
+    const familyParent =
+      cloudInfo?.parentMod ||
+      (hasRealFamily
+        ? parentByDbId.get(famIdRaw) || virtualByFamilyId.get(famIdRaw) || nexusParent
+        : null);
+
+    const collectionObj =
+      cloudInfo?.collection ||
+      (nexusParent?.isCollection ? nexusParent : null) ||
+      (matchedLocal?.setId ? virtualByFamilyId.get(`set_${matchedLocal.setId}`) : null);
+
+    const resolvedAuthor = extractValidCreator(
+      rawObj,
+      cloudInfo?.dbMod,
+      cloudInfo?.parentMod,
+      collectionObj,
+      matchedLocal,
+      familyParent,
+      nexusParent
+    );
+
+    const isOwned = Boolean(
+      (rawObj.hash && localVaultHashes.has(rawObj.hash)) || matchedLocal
+    );
+
+    const cleanFileDisplay = formatDisplayName(filePart, undefined, activeGameSchema).trim();
+    const cleanModuleTitle = formatCleanModTitle(cleanFileDisplay) || cleanFileDisplay;
+
+    const modEntry: any = {
+      ...(familyParent && !familyParent.isVirtual ? familyParent : {}),
+      ...(matchedLocal || {}),
+      ...(cloudInfo?.dbMod || {}),
+      ...rawObj,
+      id: rawObj.id || cloudInfo?.dbMod?.id || matchedLocal?.dbId || rawObj.hash || `${filePart}_${idx}`,
+      dbId: cloudInfo?.dbMod?.id || matchedLocal?.dbId || rawObj.dbId,
+      hash: rawObj.hash || matchedLocal?.hash,
+      name: rawPath,
+      displayName: cleanModuleTitle,
+      _cleanFilePart: filePart,
+      _cleanModuleTitle: cleanModuleTitle,
+      _isOwned: isOwned,
+      author: resolvedAuthor || undefined,
+      master_author: resolvedAuthor || undefined,
+      url:
+        rawObj.url ||
+        cloudInfo?.downloadUrl ||
+        cloudInfo?.dbMod?.url ||
+        cloudInfo?.parentMod?.url ||
+        collectionObj?.url ||
+        matchedLocal?.url ||
+        familyParent?.url ||
+        nexusParent?.url,
+      image_url:
+        rawObj.image_url ||
+        cloudInfo?.dbMod?.image_url ||
+        cloudInfo?.parentMod?.image_url ||
+        collectionObj?.image_url ||
+        matchedLocal?.image_url ||
+        matchedLocal?.imageUrl ||
+        familyParent?.image_url ||
+        nexusParent?.image_url,
+      version:
+        rawObj.version ||
+        cloudInfo?.versionLabel ||
+        matchedLocal?.version,
+      is_paid: Boolean(
+        rawObj.is_paid ||
+          cloudInfo?.dbMod?.is_paid ||
+          cloudInfo?.parentMod?.is_paid ||
+          nexusParent?.is_paid
+      ),
+      is_early_access: Boolean(
+        rawObj.is_early_access ||
+          cloudInfo?.dbMod?.is_early_access ||
+          cloudInfo?.parentMod?.is_early_access ||
+          nexusParent?.is_early_access
+      ),
+      load_order_index:
+        typeof rawObj.load_order_index === "number" ? rawObj.load_order_index : idx,
+      priority_tier: rawObj.priority_tier,
+      load_rules: rawObj.load_rules,
+    };
+
+    const isMc =
+      mcCount >= 1 &&
+      (/^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
+        cleanFileDisplay
+      ) ||
+        /\bmc\s*(cmd|command)\s*center\b/i.test(cleanFileDisplay));
+
+    const twinNormalized =
+      formatCleanModTitle(normalizeModGroupTitle(cleanFileDisplay)) || cleanModuleTitle;
+    const subFolder = extractSpecificSubfolder(rawPath, activeGameSchema);
+    const hasSharedSubfolder = Boolean(
+      subFolder && (subfolderCounts.get(subFolder.toLowerCase()) || 0) > 1
+    );
+
+    let groupKey: string;
+    let displayTitle = twinNormalized;
+    let isCollectionGroup = false;
+
+    if (isMc) {
+      groupKey = "__suite_mc_command_center__";
+      displayTitle = "MC Command Center";
+      if (!modEntry.author) {
+        modEntry.author = "Deaderpool";
+        modEntry.master_author = "Deaderpool";
+      }
+    } else if (collectionObj && (collectionObj.id || collectionObj.name)) {
+      const colId = String(collectionObj.id || collectionObj.name).toLowerCase();
+      groupKey = `__collection_${colId}__`;
+      const rawColTitle = formatDisplayName(collectionObj.name || twinNormalized, undefined, activeGameSchema).trim();
+      displayTitle = formatCleanModTitle(rawColTitle) || rawColTitle;
+      isCollectionGroup = true;
+    } else if (hasRealFamily) {
+      groupKey = `__family_${famIdRaw}__`;
+      const canonicalParentTitle = familyParent
+        ? formatDisplayName(familyParent.displayName || familyParent.name || "", undefined, activeGameSchema).trim()
+        : "";
+      const normParent = normalizeModGroupTitle(canonicalParentTitle) || canonicalParentTitle;
+      displayTitle = formatCleanModTitle(normParent) || twinNormalized;
+    } else if (modEntry.flavorGroupId) {
+      groupKey = `__flavor_${modEntry.flavorGroupId}__`;
+      const fgTitle = formatDisplayName(modEntry.flavorGroupName || twinNormalized, undefined, activeGameSchema).trim();
+      displayTitle = formatCleanModTitle(fgTitle) || twinNormalized;
+    } else if (hasSharedSubfolder && subFolder) {
+      groupKey = `__folder_${subFolder.toLowerCase()}__`;
+      const folderClean = formatDisplayName(subFolder, undefined, activeGameSchema).trim();
+      displayTitle =
+        formatCleanModTitle(normalizeModGroupTitle(folderClean) || folderClean) ||
+        twinNormalized;
+    } else {
+      groupKey = twinNormalized.toLowerCase();
+      displayTitle = twinNormalized;
+    }
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        ...modEntry,
+        name: displayTitle,
+        displayName: displayTitle,
+        _groupedTitle: displayTitle,
+        _rawFirstPath: rawPath,
+        _moduleCount: 1,
+        _groupedMods: [modEntry],
+        _seenFileKeys: new Set<string>([`${modEntry.hash || ""}::${fileLower}`]),
+        _ownedCount: isOwned ? 1 : 0,
+        _allOwned: isOwned,
+        isCollection: isCollectionGroup || Boolean(modEntry.isCollection),
+        isParent: false,
+      });
+    } else {
+      const existing = grouped.get(groupKey);
+      const dedupFileKey = `${modEntry.hash || ""}::${fileLower}`;
+      const sameFileNameAlready = existing._groupedMods.some(
+        (gm: any) => String(gm._cleanFilePart || "").toLowerCase() === fileLower
+      );
+      if (!existing._seenFileKeys.has(dedupFileKey) && !sameFileNameAlready) {
+        existing._seenFileKeys.add(dedupFileKey);
+        existing._groupedMods.push(modEntry);
+        existing._moduleCount = existing._groupedMods.length;
+        existing.isParent = existing._groupedMods.length > 1;
+        if (isOwned) existing._ownedCount = (existing._ownedCount || 0) + 1;
+        existing._allOwned = existing._ownedCount === existing._groupedMods.length;
+      }
+
+      if (hasRealFamily && String(modEntry.dbId) === famIdRaw) {
+        existing._groupedTitle = twinNormalized;
+        existing.displayName = twinNormalized;
+      }
+      if (!isKnownCreatorName(existing.author) && isKnownCreatorName(modEntry.author)) {
+        existing.author = modEntry.author;
+        existing.master_author = modEntry.author;
+      }
+      if (!existing.url && modEntry.url) existing.url = modEntry.url;
+      if (!existing.image_url && modEntry.image_url) existing.image_url = modEntry.image_url;
+      if (!existing.version && modEntry.version) existing.version = modEntry.version;
+      if (modEntry.is_paid) existing.is_paid = true;
+      if (modEntry.is_early_access) existing.is_early_access = true;
+    }
+  }
+
+  // Second pass: merge prefix-based Addons/Modules into their parent mod card if present
+  const entries = Array.from(grouped.values());
+  const mergedOut = new Set<number>();
+
+  for (let i = 0; i < entries.length; i++) {
+    if (mergedOut.has(i)) continue;
+    const parent = entries[i];
+    const pTitle = String(parent._groupedTitle || "").trim();
+    if (pTitle.length < 4) continue;
+    const pLower = pTitle.toLowerCase();
+
+    for (let j = 0; j < entries.length; j++) {
+      if (i === j || mergedOut.has(j)) continue;
+      const candidate = entries[j];
+      const cTitle = String(candidate._groupedTitle || "").trim();
+      const cLower = cTitle.toLowerCase();
+
+      const isPrefixAddon =
+        cLower.length > pLower.length &&
+        cLower.startsWith(pLower) &&
+        /^(\s*[-:–_(\[]|\s+(addon|add-on|module|modules|pack|part|pt|script|scripts|tuning|strings|override|overrides)\b)/i.test(
+          cTitle.slice(pTitle.length)
+        );
+
+      if (isPrefixAddon) {
+        mergedOut.add(j);
+        for (const cm of candidate._groupedMods || [candidate]) {
+          const fLow = String(cm._cleanFilePart || cm.name || "").toLowerCase();
+          const alreadyIn = parent._groupedMods.some(
+            (gm: any) => String(gm._cleanFilePart || gm.name || "").toLowerCase() === fLow
+          );
+          if (!alreadyIn) {
+            parent._groupedMods.push(cm);
+            if (cm._isOwned) parent._ownedCount = (parent._ownedCount || 0) + 1;
+          }
+        }
+        parent._moduleCount = parent._groupedMods.length;
+        parent.isParent = parent._groupedMods.length > 1;
+        parent._allOwned = parent._ownedCount === parent._groupedMods.length;
+        if (!isKnownCreatorName(parent.author) && isKnownCreatorName(candidate.author)) {
+          parent.author = candidate.author;
+          parent.master_author = candidate.author;
+        }
+        if (!parent.url && candidate.url) parent.url = candidate.url;
+        if (!parent.image_url && candidate.image_url) parent.image_url = candidate.image_url;
+        if (candidate.is_paid) parent.is_paid = true;
+        if (candidate.is_early_access) parent.is_early_access = true;
+      }
+    }
+  }
+
+  // Third pass: group ungrouped items that share an explicit pack tag suffix like "(MAX20)" or "[QICC] SetName"
+  const remaining = entries.filter((_, idx) => !mergedOut.has(idx));
+  const packTagBuckets = new Map<string, { label: string; indices: number[] }>();
+
+  remaining.forEach((entry, idx) => {
+    if ((entry._groupedMods?.length || 1) > 1) return;
+    const title = String(entry._groupedTitle || "").trim();
+    // Match trailing pack tag e.g. "Armchair Provence (MAX20)" -> "MAX20"
+    const suffixMatch = title.match(/\(([A-Za-z0-9][A-Za-z0-9\s_-]{2,22})\)$/);
+    if (suffixMatch) {
+      const tag = suffixMatch[1].trim();
+      if (!/^(v\d|ep\d|gp\d|sp\d|fp\d|base|hq|nonhq|alt|mesh|addon|script)/i.test(tag)) {
+        const key = `suffix_${tag.toLowerCase()}`;
+        if (!packTagBuckets.has(key)) {
+          packTagBuckets.set(key, { label: formatCleanModTitle(tag), indices: [] });
+        }
+        packTagBuckets.get(key)!.indices.push(idx);
+        return;
+      }
+    }
+    // Match leading bracketed creator/pack + 2 words e.g. "[QICC] Lively Living Room ..."
+    const bracketMatch = title.match(/^(\[[^\]]{2,20}\]\s+[A-Za-z0-9']+(?:\s+[A-Za-z0-9']+){1,2})\b/);
+    if (bracketMatch) {
+      const prefix = bracketMatch[1].trim();
+      const key = `bprefix_${prefix.toLowerCase()}`;
+      if (!packTagBuckets.has(key)) {
+        packTagBuckets.set(key, { label: formatCleanModTitle(prefix), indices: [] });
+      }
+      packTagBuckets.get(key)!.indices.push(idx);
+    }
+  });
+
+  const bucketMergedIndices = new Set<number>();
+  const finalResult: any[] = [];
+
+  packTagBuckets.forEach((bucket) => {
+    if (bucket.indices.length < 2) return;
+    const firstIdx = bucket.indices[0];
+    const baseEntry = { ...remaining[firstIdx] };
+    const combinedMods: any[] = [];
+    let ownedCount = 0;
+
+    bucket.indices.forEach((bIdx) => {
+      bucketMergedIndices.add(bIdx);
+      const item = remaining[bIdx];
+      for (const gm of item._groupedMods || [item]) {
+        combinedMods.push(gm);
+        if (gm._isOwned) ownedCount++;
+      }
+      if (!isKnownCreatorName(baseEntry.author) && isKnownCreatorName(item.author)) {
+        baseEntry.author = item.author;
+        baseEntry.master_author = item.author;
+      }
+      if (item.is_paid) baseEntry.is_paid = true;
+      if (item.is_early_access) baseEntry.is_early_access = true;
+    });
+
+    baseEntry._groupedTitle = bucket.label;
+    baseEntry.displayName = bucket.label;
+    baseEntry.name = bucket.label;
+    baseEntry._groupedMods = combinedMods;
+    baseEntry._moduleCount = combinedMods.length;
+    baseEntry._ownedCount = ownedCount;
+    baseEntry._allOwned = ownedCount === combinedMods.length;
+    baseEntry.isParent = true;
+    finalResult.push(baseEntry);
+  });
+
+  remaining.forEach((entry, idx) => {
+    if (!bucketMergedIndices.has(idx)) {
+      finalResult.push(entry);
+    }
+  });
+
+  return finalResult;
+}
+
+export function BlueprintInspectorModCard({
+  mod,
+  onOpenDossier,
+  activeGameSchema,
+  t,
+  showLoadOrderChip = false,
+}: {
+  mod: any;
+  onOpenDossier?: (mod: any) => void;
+  activeGameSchema?: any;
+  t: (key: string, fallback?: string) => string;
+  showLoadOrderChip?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const showImages = useStore((state: any) => state.showImages);
+
+  const groupedMods: any[] =
+    Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0
+      ? mod._groupedMods
+      : [mod];
+
+  const rawTitle =
+    mod._groupedTitle ||
+    formatDisplayName(mod.displayName || mod.name || "", undefined, activeGameSchema);
+  const title = formatCleanModTitle(rawTitle) || rawTitle;
+
+  const image =
+    showImages &&
+    (mod.image_url || mod.imageUrl) &&
+    String(mod.image_url || mod.imageUrl) !== "null" &&
+    String(mod.image_url || mod.imageUrl).trim() !== ""
+      ? mod.image_url || mod.imageUrl
+      : undefined;
+
+  const modIcon = getModIcon(mod, activeGameSchema, t);
+  const validCreator = extractValidCreator(mod, ...groupedMods);
+
+  const hasScriptFile = groupedMods.some((gm) =>
+    /\.ts4script$/i.test(String(gm?._cleanFilePart || gm?.name || ""))
+  );
+  const typeLabel = mod.isCollection
+    ? t("collection", "Collection")
+    : groupedMods.length > 1
+      ? t("suite_label", "Suite")
+      : hasScriptFile
+        ? t("type_script", "Script")
+        : t("type_package", "Package");
+
+  const hasRealVersion = Boolean(
+    mod.version &&
+      String(mod.version).trim() !== "" &&
+      String(mod.version).toLowerCase() !== "v.local" &&
+      String(mod.version).toLowerCase() !== "vlocal" &&
+      String(mod.version).toLowerCase() !== "local" &&
+      String(mod.version).toLowerCase() !== "unknown"
+  );
+  const cleanVer = hasRealVersion
+    ? String(mod.version).replace(/^v\.?/i, "").trim()
+    : null;
+
+  const ownedCount =
+    typeof mod._ownedCount === "number"
+      ? mod._ownedCount
+      : groupedMods.filter((gm) => gm._isOwned).length;
+  const allOwned = ownedCount >= groupedMods.length && groupedMods.length > 0;
+
+  const targetUrl = getModFallbackUrl(
+    title || mod._cleanFilePart || mod.name || "",
+    mod.hash,
+    activeGameSchema,
+    { url: mod.url, author: validCreator || undefined }
+  );
+
+  const seqNum =
+    typeof mod.load_order_index === "number" ? mod.load_order_index + 1 : null;
+
+  return (
+    <div
+      onClick={() => {
+        if (!onOpenDossier && groupedMods.length > 1) {
+          setIsExpanded((prev) => !prev);
+          return;
+        }
+        onOpenDossier?.({
+          ...mod,
+          name: mod._rawFirstPath || mod.name,
+          displayName: title,
+          flavors: groupedMods.length > 1 ? groupedMods : undefined,
+          isParent: groupedMods.length > 1,
+          isVirtual: groupedMods.length > 1 ? true : mod.isVirtual,
+          isNexusView: true,
+        });
+      }}
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer group relative ${
+        isExpanded && groupedMods.length > 1 ? "md:col-span-2" : ""
+      }`}
+    >
+      {/* Top Tier: Icon Well + Clean Title + Creator & Module Metadata */}
+      <div className="flex items-center gap-3 min-w-0 w-full">
+        {image ? (
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+            <img src={image} alt={title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+            <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+              {title}
+            </span>
+            <HoverTooltip className="z-[100]" title={title} icon={modIcon} />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+            {validCreator && (
+              <>
+                <span className="truncate opacity-85">
+                  {formatCleanModTitle(validCreator)}
+                </span>
+                <span className="opacity-40 shrink-0">•</span>
+              </>
+            )}
+            <span className="opacity-85 shrink-0">{typeLabel}</span>
+            {groupedMods.length > 1 && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="opacity-85 shrink-0">
+                  {groupedMods.length} {t("badge_modules_count", "Modules")}
+                </span>
+              </>
+            )}
+            {cleanVer && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
+                  v{cleanVer}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Row: Status Badges on Left | Compact Action Buttons on Right */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+          {showLoadOrderChip && seqNum !== null && (
+            <span className={`${VAULT_CHIP_CLASS} tabular-nums`}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_tag", "tag")}
+              </span>
+              <span>#{String(seqNum).padStart(3, "0")}</span>
+            </span>
+          )}
+
+          {allOwned ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--success)]">
+                {t("icon_check_circle", "check_circle")}
+              </span>
+              <span>{t("status_in_vault", "In {Vault}")}</span>
+            </span>
+          ) : ownedCount > 0 ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                {t("icon_timelapse", "timelapse")}
+              </span>
+              <span>
+                {ownedCount}/{groupedMods.length} {t("status_in_vault", "In {Vault}")}
+              </span>
+            </span>
+          ) : (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_download", "download")}
+              </span>
+              <span>{t("sig_queue_badge_missing", "Acquire")}</span>
+            </span>
+          )}
+
+          {mod.is_early_access && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_science", "science")}
+              </span>
+              <span>{t("badge_early_access", "Early Access")}</span>
+            </span>
+          )}
+
+          {mod.is_paid && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                {t("icon_monetization_on", "monetization_on")}
+              </span>
+              <span>{t("badge_paid", "Paid")}</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {groupedMods.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isExpanded
+                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${groupedMods.length} ${t("badge_modules_count", "Modules")}`}
+                icon={t("icon_account_tree", "account_tree")}
+              />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenUrl(targetUrl);
+            }}
+            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined !text-[14px]">
+              {t("icon_open_in_new", "open_in_new")}
+            </span>
+            <HoverTooltip
+              className="z-[100] !right-0 !translate-x-0 !left-auto"
+              title={t("import_intel", "Open Creator Page")}
+              icon={t("icon_open_in_new", "open_in_new")}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Recessed Linked Modules Tray */}
+      {isExpanded && groupedMods.length > 1 && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <div className="max-h-[210px] overflow-y-auto custom-scrollbar pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {groupedMods.map((gm: any, gIdx: number) => {
+                const gmName =
+                  gm._cleanModuleTitle ||
+                  formatAddonModuleName(gm, activeGameSchema) ||
+                  formatCleanModTitle(
+                    formatDisplayName(
+                      gm._cleanFilePart || gm.displayName || gm.name || "",
+                      undefined,
+                      activeGameSchema
+                    )
+                  );
+                const gmIsScript = /\.ts4script$/i.test(
+                  String(gm?._cleanFilePart || gm?.name || "")
+                );
+                const gmOwned = Boolean(gm._isOwned);
+
+                return (
+                  <div
+                    key={`${gm.hash || gm.name || gIdx}-${gIdx}`}
+                    onClick={() =>
+                      onOpenDossier?.({
+                        ...gm,
+                        name: gm.name,
+                        displayName: gmName,
+                        isNexusView: true,
+                      })
+                    }
+                    className="glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-2 transition-all cursor-pointer group/gm"
+                  >
+                    <div className="relative group/gmtitle flex items-center gap-2 min-w-0 flex-1">
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                        {gmIsScript
+                          ? t("icon_terminal", "terminal")
+                          : t("icon_deployed_code", "deployed_code")}
+                      </span>
+                      <span className="text-xs font-bold text-[var(--text)] group-hover/gm:text-[var(--accent)] transition-colors truncate">
+                        {gmName}
+                      </span>
+                      <HoverTooltip
+                        className="z-[100]"
+                        title={gmName}
+                        icon={
+                          gmIsScript
+                            ? t("icon_terminal", "terminal")
+                            : t("icon_deployed_code", "deployed_code")
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70">
+                        {gmIsScript
+                          ? t("type_script", "Script")
+                          : t("type_package", "Package")}
+                      </span>
+                      <span
+                        className={`material-symbols-outlined !text-[13px] ${
+                          gmOwned
+                            ? "text-[var(--success)]"
+                            : "text-[var(--subtext)] opacity-45"
+                        }`}
+                      >
+                        {gmOwned
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_download", "download")}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MarketBlueprintPanel({
   selectedBlueprint,
   setSelectedBlueprint,
   onOpenDossier,
-  cleanModName,
   syncBlueprintByCode,
   onDownloadSuccess,
 }: any) {
   const { t } = useLexicon();
 
   const [enrichedBlueprint, setEnrichedBlueprint] = useState(selectedBlueprint);
+  const [cloudEnrichmentMap, setCloudEnrichmentMap] = useState<Map<string, any>>(
+    () => new Map()
+  );
   const [visibleCount, setVisibleCount] = useState(100);
   const [filterTab, setFilterTab] = useState<"ALL" | "MISSING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const modList = useStore((state) => state.modList);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const playSets = useStore((state) => state.playSets) || [];
 
   const localVaultHashes = useMemo(() => {
     const hashes = new Set<string>();
-    modList.forEach((m: any) => {
-      if (m.hash) hashes.add(m.hash);
+    (modList || []).forEach((m: any) => {
+      if (m?.hash) hashes.add(m.hash);
+      if (Array.isArray(m?.flavors)) {
+        m.flavors.forEach((fl: any) => {
+          if (fl?.hash) hashes.add(fl.hash);
+        });
+      }
     });
     return hashes;
   }, [modList]);
 
-  const displayArtifacts = useMemo(() => {
-    const artifacts = enrichedBlueprint?.json_data?.artifacts || [];
-    let filtered = artifacts;
-
-    const seenNames = new Set<string>();
-    filtered = filtered.filter((a: any) => {
-      const norm = getNormalizedArtifactName(a.name || a.id);
-      if (seenNames.has(norm)) return false;
-      seenNames.add(norm);
-      return true;
+  const allGroupedFamilies = useMemo(() => {
+    const rawArtifacts =
+      enrichedBlueprint?.json_data?.artifacts ||
+      enrichedBlueprint?.artifacts ||
+      enrichedBlueprint?.originalBlueprint?.artifacts ||
+      [];
+    const grouped = groupBlueprintArtifactsByFamily(rawArtifacts, {
+      modList,
+      activeGameSchema,
+      localVaultHashes,
+      cloudEnrichmentMap,
     });
+    return grouped.sort((a: any, b: any) => {
+      const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
+      const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
+      if (aPremium !== bPremium) return bPremium - aPremium;
+      return String(a._groupedTitle || a.name || "").localeCompare(
+        String(b._groupedTitle || b.name || "")
+      );
+    });
+  }, [enrichedBlueprint, modList, activeGameSchema, localVaultHashes, cloudEnrichmentMap]);
 
+  const missingFamiliesCount = useMemo(
+    () => allGroupedFamilies.filter((f: any) => !f._allOwned).length,
+    [allGroupedFamilies]
+  );
+
+  const displayArtifacts = useMemo(() => {
+    let filtered = allGroupedFamilies;
     if (filterTab === "MISSING") {
-      filtered = filtered.filter((m: any) => !localVaultHashes.has(m.hash));
+      filtered = filtered.filter((f: any) => !f._allOwned);
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (m: any) =>
-          (m.name || "").toLowerCase().includes(q) ||
-          (m.author || "").toLowerCase().includes(q)
-      );
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((f: any) => {
+        if (String(f._groupedTitle || f.name || "").toLowerCase().includes(q)) {
+          return true;
+        }
+        if (String(f.author || "").toLowerCase().includes(q)) {
+          return true;
+        }
+        if (Array.isArray(f._groupedMods)) {
+          return f._groupedMods.some(
+            (gm: any) =>
+              String(gm._cleanModuleTitle || "").toLowerCase().includes(q) ||
+              String(gm._cleanFilePart || gm.name || "").toLowerCase().includes(q) ||
+              String(gm.author || "").toLowerCase().includes(q)
+          );
+        }
+        return false;
+      });
     }
     return filtered;
-  }, [enrichedBlueprint, filterTab, localVaultHashes, searchQuery]);
+  }, [allGroupedFamilies, filterTab, searchQuery]);
 
   const visibleArtifacts = useMemo(
     () => displayArtifacts.slice(0, visibleCount),
@@ -609,134 +1507,210 @@ export function MarketBlueprintPanel({
   useEffect(() => {
     if (!selectedBlueprint) {
       setEnrichedBlueprint(null);
+      setCloudEnrichmentMap(new Map());
       return;
     }
+
+    let cancelled = false;
 
     const processBlueprint = (bp: any) => {
       let parsedJson = bp.json_data;
       if (typeof parsedJson === "string") {
         try {
           parsedJson = JSON.parse(parsedJson);
-        } catch (e) {
+        } catch {
           parsedJson = {};
         }
       }
       parsedJson = parsedJson || {};
+      parsedJson.artifacts =
+        parsedJson.artifacts ||
+        bp.artifacts ||
+        selectedBlueprint.originalBlueprint?.artifacts ||
+        selectedBlueprint.artifacts ||
+        [];
 
-      parsedJson.artifacts = parsedJson.artifacts || bp.artifacts || [];
+      if (!cancelled) {
+        setEnrichedBlueprint({
+          ...selectedBlueprint,
+          ...bp,
+          master_author: selectedBlueprint.master_author || bp.master_author,
+          author: selectedBlueprint.author || bp.author,
+          json_data: parsedJson,
+        });
+        setVisibleCount(100);
+      }
 
-      setEnrichedBlueprint({
-        ...selectedBlueprint,
-        ...bp,
-        master_author: selectedBlueprint.master_author || bp.master_author,
-        author: selectedBlueprint.author || bp.author,
-        json_data: parsedJson,
-      });
-      setVisibleCount(100);
-
-      const fetchPremiumStatus = async () => {
+      const fetchCloudMetadataAndFamilies = async () => {
         const artifacts = parsedJson.artifacts || [];
-        const hashes = artifacts.map((a: any) => a.hash).filter(Boolean);
-        if (hashes.length === 0) {
-          let finalArtifacts = artifacts;
-          finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
-            const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
-            const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
-            if (aPremium !== bPremium) return bPremium - aPremium;
-            return (a.name || "").localeCompare(b.name || "");
-          });
-          setEnrichedBlueprint((prev: any) =>
-            prev
-              ? {
-                  ...prev,
-                  is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
-                  is_early_access:
-                    bp.is_early_access ||
-                    finalArtifacts.some((a: any) => a.is_early_access),
-                  json_data: { ...parsedJson, artifacts: finalArtifacts },
-                }
-              : null
-          );
-          return;
-        }
+        const hashes: string[] = Array.from(
+          new Set(artifacts.map((a: any) => a?.hash).filter(Boolean))
+        );
+        if (hashes.length === 0) return;
 
-        const premiumMap: Record<string, any> = {};
-        const chunkSize = 40;
-        const promises = [];
-
+        const chunkSize = 200;
+        const verPromises = [];
         for (let i = 0; i < hashes.length; i += chunkSize) {
           const chunk = hashes.slice(i, i + chunkSize);
-          promises.push(
+          verPromises.push(
             supabase
               .from("mod_versions")
-              .select("dna_hash, mods(is_paid, is_early_access)")
+              .select(
+                "dna_hash, version_label, download_url, mods(id, name, master_author, category_override, image_url, url, is_paid, is_early_access)"
+              )
               .in("dna_hash", chunk)
           );
         }
 
-        const results = await Promise.all(promises);
-        results.forEach(({ data, error }) => {
-          if (!error && data) {
+        const verResults = await Promise.all(verPromises);
+        if (cancelled) return;
+
+        const hashRows: any[] = [];
+        const modIdsSet = new Set<string>();
+        const modsById = new Map<string, any>();
+
+        verResults.forEach(({ data, error }) => {
+          if (!error && Array.isArray(data)) {
             data.forEach((d: any) => {
-              if (d.mods && (d.mods.is_paid || d.mods.is_early_access)) {
-                premiumMap[d.dna_hash] = {
-                  hash: d.dna_hash,
-                  is_paid: d.mods.is_paid,
-                  is_early_access: d.mods.is_early_access,
-                };
+              const dbMod = Array.isArray(d.mods) ? d.mods[0] : d.mods;
+              if (dbMod?.id) {
+                modIdsSet.add(String(dbMod.id));
+                modsById.set(String(dbMod.id), dbMod);
               }
+              hashRows.push({
+                dna_hash: d.dna_hash,
+                versionLabel: d.version_label,
+                downloadUrl: d.download_url,
+                dbMod,
+              });
             });
           }
         });
 
-        let finalArtifacts = artifacts;
+        const modIds = Array.from(modIdsSet);
+        const childToParentId = new Map<string, string>();
+        const modToCollection = new Map<string, any>();
 
-        if (Object.keys(premiumMap).length > 0) {
-          finalArtifacts = artifacts.map((a: any) => {
-            if (a.hash && premiumMap[a.hash]) {
-              const p = premiumMap[a.hash];
-              if (!a.is_paid && p.is_paid) {
-                a.is_paid = true;
-              }
-              if (!a.is_early_access && p.is_early_access) {
-                a.is_early_access = true;
-              }
+        if (modIds.length > 0) {
+          const relPromises = [];
+          const colPromises = [];
+          for (let i = 0; i < modIds.length; i += chunkSize) {
+            const idChunk = modIds.slice(i, i + chunkSize);
+            relPromises.push(
+              supabase
+                .from("mod_relationships")
+                .select("child_id, parent_id, relationship_type")
+                .in("child_id", idChunk)
+                .in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"])
+            );
+            colPromises.push(
+              supabase
+                .from("collection_members")
+                .select("mod_id, set_id, collections(id, name, creator_name, image_url, url)")
+                .in("mod_id", idChunk)
+            );
+          }
+
+          const [relResults, colResults] = await Promise.all([
+            Promise.all(relPromises),
+            Promise.all(colPromises),
+          ]);
+          if (cancelled) return;
+
+          const missingParentIds = new Set<string>();
+          relResults.forEach(({ data }) => {
+            if (Array.isArray(data)) {
+              data.forEach((r: any) => {
+                if (r.child_id && r.parent_id) {
+                  const pId = String(r.parent_id);
+                  childToParentId.set(String(r.child_id), pId);
+                  if (!modsById.has(pId)) missingParentIds.add(pId);
+                }
+              });
             }
-            return a;
           });
+
+          colResults.forEach(({ data }) => {
+            if (Array.isArray(data)) {
+              data.forEach((c: any) => {
+                const col = Array.isArray(c.collections) ? c.collections[0] : c.collections;
+                if (c.mod_id && col) {
+                  modToCollection.set(String(c.mod_id), col);
+                }
+              });
+            }
+          });
+
+          if (missingParentIds.size > 0) {
+            const parentChunk = Array.from(missingParentIds);
+            const { data: pMods } = await supabase
+              .from("mods")
+              .select("id, name, master_author, category_override, image_url, url, is_paid, is_early_access")
+              .in("id", parentChunk.slice(0, 200));
+            if (Array.isArray(pMods)) {
+              pMods.forEach((pm: any) => {
+                if (pm?.id) modsById.set(String(pm.id), pm);
+              });
+            }
+          }
         }
 
-        finalArtifacts = [...finalArtifacts].sort((a: any, b: any) => {
-          const aPremium = a.is_paid || a.is_early_access ? 1 : 0;
-          const bPremium = b.is_paid || b.is_early_access ? 1 : 0;
-          if (aPremium !== bPremium) return bPremium - aPremium;
-          return (a.name || "").localeCompare(b.name || "");
+        if (cancelled) return;
+
+        const nextMap = new Map<string, any>();
+        let anyPaid = false;
+        let anyEarlyAccess = false;
+
+        hashRows.forEach((row) => {
+          const modId = row.dbMod?.id ? String(row.dbMod.id) : null;
+          const parentId = modId ? childToParentId.get(modId) || modId : null;
+          const parentMod = parentId ? modsById.get(parentId) : null;
+          const collection = modId ? modToCollection.get(modId) : null;
+
+          if (row.dbMod?.is_paid || parentMod?.is_paid) anyPaid = true;
+          if (row.dbMod?.is_early_access || parentMod?.is_early_access) {
+            anyEarlyAccess = true;
+          }
+
+          nextMap.set(String(row.dna_hash), {
+            dbMod: row.dbMod,
+            parentMod,
+            familyId: parentId,
+            collection,
+            versionLabel: row.versionLabel,
+            downloadUrl: row.downloadUrl,
+          });
         });
 
-        setEnrichedBlueprint((prev: any) =>
-          prev
-            ? {
-                ...prev,
-                is_paid: bp.is_paid || finalArtifacts.some((a: any) => a.is_paid),
-                is_early_access:
-                  bp.is_early_access ||
-                  finalArtifacts.some((a: any) => a.is_early_access),
-                json_data: { ...parsedJson, artifacts: finalArtifacts },
-              }
-            : null
-        );
+        setCloudEnrichmentMap(nextMap);
+        if (anyPaid || anyEarlyAccess) {
+          setEnrichedBlueprint((prev: any) =>
+            prev
+              ? {
+                  ...prev,
+                  is_paid: prev.is_paid || anyPaid,
+                  is_early_access: prev.is_early_access || anyEarlyAccess,
+                }
+              : null
+          );
+        }
       };
 
-      fetchPremiumStatus();
+      fetchCloudMetadataAndFamilies();
     };
 
-    if (selectedBlueprint.json_data === undefined) {
+    if (
+      selectedBlueprint.json_data === undefined &&
+      !selectedBlueprint.originalBlueprint?.artifacts &&
+      !selectedBlueprint.artifacts
+    ) {
       supabase
         .from("blueprints")
         .select("*")
         .eq("id", selectedBlueprint.id)
         .single()
         .then(({ data }) => {
+          if (cancelled) return;
           if (data) {
             processBlueprint(data);
           } else {
@@ -745,70 +1719,26 @@ export function MarketBlueprintPanel({
         });
     } else {
       processBlueprint(selectedBlueprint);
+      if (selectedBlueprint.json_data === undefined && selectedBlueprint.id) {
+        supabase
+          .from("blueprints")
+          .select("*")
+          .eq("id", selectedBlueprint.id)
+          .single()
+          .then(({ data }) => {
+            if (!cancelled && data) {
+              processBlueprint(data);
+            }
+          });
+      }
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBlueprint]);
 
   if (!enrichedBlueprint) return null;
-
-  const renderMod = (mod: any, i: number) => {
-    const cleaned = cleanModName(mod.name || mod.id);
-    return (
-      <div
-        key={`${mod.hash || mod.name}_${i}`}
-        onClick={() => onOpenDossier?.({ ...mod, isNexusView: true })}
-        className="group relative flex flex-col justify-between p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all duration-300 cursor-pointer overflow-hidden min-h-[104px]"
-      >
-        <HoverTooltip title={mod.name} />
-        <div className="flex justify-between items-start gap-2 relative z-10">
-          <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-            <span className="material-symbols-rounded !text-[16px]">
-              {cleaned.ext === "PACKAGE"
-                ? t("icon_inventory_2", "inventory_2")
-                : cleaned.ext === "TS4SCRIPT"
-                  ? t("icon_code", "code")
-                  : t("icon_insert_drive_file", "insert_drive_file")}
-            </span>
-          </div>
-          <div className="flex gap-1.5 flex-wrap justify-end">
-            {mod.is_early_access && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                  {t("icon_science", "science")}
-                </span>
-                <span>{t("badge_early_access", "Early Access")}</span>
-                <HoverTooltip title={t("badge_early_access", "Early Access")} />
-              </span>
-            )}
-            {mod.is_paid && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                  {t("icon_monetization_on", "monetization_on")}
-                </span>
-                <span>{t("badge_paid", "Paid")}</span>
-                <HoverTooltip title={t("badge_paid", "Paid")} variant="warning" />
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col justify-end relative z-10 mt-2">
-          <span className="text-[11px] font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors leading-tight mb-1">
-            {cleaned.name}
-          </span>
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold text-[var(--subtext)] opacity-70 tracking-wider">
-              {cleaned.ext}
-            </span>
-            {mod.author && (
-              <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 truncate max-w-[90px] text-right">
-                {mod.author}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -901,7 +1831,7 @@ export function MarketBlueprintPanel({
             badge={
               enrichedBlueprint.is_paid
                 ? t("badge_premium", "Premium")
-                : `${displayArtifacts.length}`
+                : `${allGroupedFamilies.length}`
             }
             badgeIcon={
               enrichedBlueprint.is_paid
@@ -910,7 +1840,7 @@ export function MarketBlueprintPanel({
             }
             variant={enrichedBlueprint.is_paid ? "warning" : "accent"}
           >
-            <div className="grid grid-cols-3 gap-3 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-1">
               <StatBox
                 label={t("blueprint_version_label", "Game Version")}
                 value={
@@ -920,6 +1850,7 @@ export function MarketBlueprintPanel({
                 }
                 icon={t("icon_sell", "sell")}
                 iconColorClass="text-[var(--accent)]"
+                className="col-span-2 sm:col-span-1"
               />
               <StatBox
                 label={t("sort_downloads", "Downloads")}
@@ -944,7 +1875,7 @@ export function MarketBlueprintPanel({
               className="!w-full"
               icon={t("icon_inventory_2", "inventory_2")}
               label={t("filter_all", "Global")}
-              value={displayArtifacts.length}
+              value={allGroupedFamilies.length}
               isActive={filterTab === "ALL"}
               onClick={() => setFilterTab("ALL")}
             />
@@ -953,6 +1884,7 @@ export function MarketBlueprintPanel({
               className="!w-full"
               icon={t("icon_rule", "rule")}
               label={t("filter_missing", "Missing Only")}
+              value={missingFamiliesCount}
               isActive={filterTab === "MISSING"}
               onClick={() => setFilterTab("MISSING")}
             />
@@ -970,8 +1902,16 @@ export function MarketBlueprintPanel({
               icon={t("icon_workspace_premium", "workspace_premium")}
               headerColorClass="text-[var(--warning)]"
             >
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3.5">
-                {premiumMods.map((mod: any, i: number) => renderMod(mod, i))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {premiumMods.map((mod: any, i: number) => (
+                  <BlueprintInspectorModCard
+                    key={`${mod.hash || mod.name}_${i}`}
+                    mod={mod}
+                    onOpenDossier={onOpenDossier}
+                    activeGameSchema={activeGameSchema}
+                    t={t}
+                  />
+                ))}
               </div>
             </UniversalGroup>
           )}
@@ -981,10 +1921,29 @@ export function MarketBlueprintPanel({
               title={`${t("standard_artifacts", "Standard {Mods}")} (${standardMods.length})`}
               icon={t("icon_inventory_2", "inventory_2")}
             >
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3.5">
-                {standardMods.map((mod: any, i: number) => renderMod(mod, i))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {standardMods.map((mod: any, i: number) => (
+                  <BlueprintInspectorModCard
+                    key={`${mod.hash || mod.name}_${i}`}
+                    mod={mod}
+                    onOpenDossier={onOpenDossier}
+                    activeGameSchema={activeGameSchema}
+                    t={t}
+                  />
+                ))}
               </div>
             </UniversalGroup>
+          )}
+
+          {displayArtifacts.length === 0 && (
+            <EmptyState
+              icon={t("icon_inventory_2", "inventory_2")}
+              title={t("empty_title", "No matching {mods} found")}
+              subtitle={t(
+                "empty_desc",
+                "Everything in this {Blueprint} is already in Your {Vault} or filtered out."
+              )}
+            />
           )}
 
           {displayArtifacts.length > visibleCount && (

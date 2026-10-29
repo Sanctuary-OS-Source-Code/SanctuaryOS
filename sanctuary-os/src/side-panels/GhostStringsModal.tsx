@@ -10,6 +10,7 @@ import {
   handleOpenUrl,
   getModFallbackUrl,
   getModFallbackAuthor,
+  openModDossier,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { VAULT_CHIP_CLASS } from "../Cards";
@@ -127,6 +128,16 @@ export function GhostStringsModal({
             subtitle={
               customAuthor ? `${customAuthor}` : mod.split("/").pop() || mod
             }
+            onClick={() =>
+              openModDossier({
+                name: mod,
+                hash: modHash,
+                url: targetUrl || blueprintMeta?.url,
+                author: customAuthor || blueprintMeta?.author,
+                is_paid: meta.is_paid,
+                is_early_access: meta.is_early_access,
+              })
+            }
             badges={
               (meta.is_paid || meta.is_early_access) && (
                 <>
@@ -152,7 +163,10 @@ export function GhostStringsModal({
             actions={
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => handleOpenUrl(targetUrl)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenUrl(targetUrl);
+                  }}
                   className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">
@@ -165,7 +179,10 @@ export function GhostStringsModal({
                   />
                 </button>
                 <button
-                  onClick={() => onIgnore(mod)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIgnore(mod);
+                  }}
                   className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--warning)] hover:text-[var(--warning)] transition-all text-[var(--subtext)] group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">
@@ -178,7 +195,10 @@ export function GhostStringsModal({
                   />
                 </button>
                 <button
-                  onClick={() => onPurge(mod)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPurge(mod);
+                  }}
                   className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] transition-all group/btn relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[15px]">

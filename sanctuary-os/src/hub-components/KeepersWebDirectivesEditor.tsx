@@ -1544,7 +1544,8 @@ export default function KeepersWebDirectivesEditor({
       effectiveSchema.isActive !== undefined
         ? effectiveSchema.isActive !== false
         : post.is_active !== false;
-    const extractedImage = extractPostImage(post);
+    const showCommLinkImages = useStore.getState().showCommLinkImages;
+    const extractedImage = showCommLinkImages !== false ? extractPostImage(post) : undefined;
 
     return (
       <UniversalCard
@@ -1639,7 +1640,8 @@ export default function KeepersWebDirectivesEditor({
     const dateStr = post.created_at
       ? new Date(post.created_at).toLocaleDateString()
       : "";
-    const extractedImage = extractPostImage(post);
+    const showCommLinkImages = useStore.getState().showCommLinkImages;
+    const extractedImage = showCommLinkImages !== false ? extractPostImage(post) : undefined;
 
     return (
       <UniversalCard

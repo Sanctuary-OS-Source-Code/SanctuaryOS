@@ -10,6 +10,7 @@ import {
   DashboardStatTile,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  openModDossier,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -512,11 +513,14 @@ export function DnaMatchQueueSidePanel({
                         setSelectedOverrideName(oldName);
                         setSelectedOverrideHash(match.hash);
                       }
-                    : undefined
+                    : () =>
+                        openModDossier({
+                          name: match.existing_name || newName,
+                          hash: match.hash,
+                          path: match.path,
+                        })
                 }
-                className={`glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex flex-col justify-between gap-3 transition-all ${
-                  overrideData ? "cursor-pointer" : ""
-                }`}
+                className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex flex-col justify-between gap-3 transition-all cursor-pointer"
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">

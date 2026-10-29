@@ -12,10 +12,13 @@ export default function ClientTab({ config, updateConfig }: any) {
   const { t } = useLexicon();
   const showImages = useStore((state) => state.showImages);
   const setShowImages = useStore((state) => state.setShowImages);
+  const showCommLinkImages = useStore((state) => state.showCommLinkImages);
+  const setShowCommLinkImages = useStore((state) => state.setShowCommLinkImages);
+  const localOnly = useStore((state) => state.localOnly);
+  const setLocalOnly = useStore((state) => state.setLocalOnly);
   const useInternalBrowser = useModalStore((state) => state.useInternalBrowser);
   const setUseInternalBrowser = useModalStore((state) => state.setUseInternalBrowser);
 
-  const [localOnly, setLocalOnly] = useState(localStorage.getItem("sanctuary_local_only") === "true");
   const [shareMalwareReports, setShareMalwareReports] = useState(localStorage.getItem("sanctuary_share_malware_reports") === "true");
   const [ingestFileMode, setIngestFileMode] = useState<"copy" | "move">(() => {
     const saved = localStorage.getItem("sanctuary_ingest_file_mode");
@@ -61,9 +64,7 @@ export default function ClientTab({ config, updateConfig }: any) {
   }, [session]);
 
   const toggleLocalOnly = () => {
-    const newVal = !localOnly;
-    setLocalOnly(newVal);
-    localStorage.setItem("sanctuary_local_only", newVal.toString());
+    setLocalOnly(!localOnly);
   };
 
   return (
@@ -105,16 +106,24 @@ export default function ClientTab({ config, updateConfig }: any) {
         <UniversalCard 
           title={t("show_images", "Show {Mod} Images")} 
           subtitle={t("show_images_desc", "Display cover images on {mod} cards and profiles.")} 
-          icon="image"
+          icon={t("icon_image", "image")}
           onClick={() => setShowImages(!showImages)}
           actions={<SettingsToggle checked={showImages} />}
+        />
+
+        <UniversalCard 
+          title={t("show_commlink_images", "Show Comm-Link & Dispatch Images")} 
+          subtitle={t("show_commlink_images_desc", "Display cover images on Comm-Link posts, dispatches, and news cards.")} 
+          icon={t("icon_satellite_alt", "satellite_alt")}
+          onClick={() => setShowCommLinkImages(!showCommLinkImages)}
+          actions={<SettingsToggle checked={showCommLinkImages} />}
         />
         
         {isDesktop() && (
           <UniversalCard 
             title={t("settings_use_internal_browser", "Use the Sanctuary Browser")} 
             subtitle={`${t("use_internal_browser_desc", "Use Sanctuary's built-in web browser for supported {Mod} download pages.")} ${t("use_internal_browser_desc2", "Disable this to use your normal browser, extensions, adblockers, and download workflow.")}`} 
-            icon="language"
+            icon={t("icon_language", "language")}
             onClick={() => setUseInternalBrowser(!useInternalBrowser)}
             actions={<SettingsToggle checked={useInternalBrowser} />}
           />
@@ -124,7 +133,7 @@ export default function ClientTab({ config, updateConfig }: any) {
           <UniversalCard 
             title={t("malware_share_title", "Share Malware Reports")} 
             subtitle={`${t("malware_share_desc", "Send your local quarantine manifests to the Admins for analysis and malware activity updates.")} ${t("malware_share_desc2", "All manifests are strickly metadata only and contain no personal or any identifying information.")}`} 
-            icon="security"
+            icon={t("icon_security", "security")}
             onClick={() => {
               if (!session || isBanned) return;
               const val = !shareMalwareReports;
@@ -154,7 +163,17 @@ export default function ClientTab({ config, updateConfig }: any) {
           statusColor="border-red-500"
           onClick={() => {
             localStorage.removeItem('sanctuary_local_overrides');
-            useStore.getState().pushStatus(t("local_overrides_cleared", "All local metadata overrides have been cleared."));
+            localStorage.removeItem('sanctuary_edge_logic');
+            const state = useStore.getState();
+            if (Array.isArray(state.modList) && state.modList.length > 0) {
+              state.setModList(
+                state.modList.map((m: any) =>
+                  m?.isLocalOverride ? { ...m, isLocalOverride: false } : m
+                )
+              );
+            }
+            window.dispatchEvent(new CustomEvent("sanctuary_reset_all_local_overrides"));
+            state.pushStatus(t("local_overrides_cleared", "All local metadata overrides have been cleared."));
           }}
           actions={
             <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">

@@ -14,8 +14,6 @@ import {
   DashboardStatTile,
   HoverTooltip,
   ActionPill,
-  formatDisplayName,
-  getModIcon,
   EmptyState,
 } from "./shared";
 import {
@@ -35,6 +33,10 @@ import {
   resolveBlueprintConflicts,
 } from "./side-panels/CommandIncompatiblePanel";
 import { GhostStringsModal } from "./side-panels/GhostStringsModal";
+import {
+  groupBlueprintArtifactsByFamily,
+  BlueprintInspectorModCard,
+} from "./side-panels/NexusSidePanels";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicBlueprintPreviewBanner } from "./chameleon-components/ThemeCard";
 import { useStore } from "./store";
@@ -1312,15 +1314,40 @@ export default function Blueprints({
       )}
 
       {(() => {
-        const filteredArtifacts =
-          selectedUplinkBlueprint?.artifacts?.filter((m: any) => {
-            const rawName = m.name || m;
-            const displayName =
-              typeof rawName === "string"
-                ? rawName.split("/").pop()?.replace(/\.[^/.]+$/, "") || rawName
-                : rawName;
-            return displayName.toLowerCase().includes(uplinkArtifactSearch.toLowerCase());
-          }) || [];
+        const localVaultHashes = new Set<string>();
+        (modList || []).forEach((m: any) => {
+          if (m?.hash) localVaultHashes.add(m.hash);
+          if (Array.isArray(m?.flavors)) {
+            m.flavors.forEach((fl: any) => {
+              if (fl?.hash) localVaultHashes.add(fl.hash);
+            });
+          }
+        });
+
+        const groupedUplinkFamilies = groupBlueprintArtifactsByFamily(
+          selectedUplinkBlueprint?.artifacts || [],
+          {
+            modList,
+            activeGameSchema,
+            localVaultHashes,
+          }
+        );
+
+        const filteredArtifacts = groupedUplinkFamilies.filter((f: any) => {
+          if (!uplinkArtifactSearch.trim()) return true;
+          const q = uplinkArtifactSearch.trim().toLowerCase();
+          if (String(f._groupedTitle || f.name || "").toLowerCase().includes(q)) return true;
+          if (String(f.author || "").toLowerCase().includes(q)) return true;
+          if (Array.isArray(f._groupedMods)) {
+            return f._groupedMods.some(
+              (gm: any) =>
+                String(gm._cleanModuleTitle || "").toLowerCase().includes(q) ||
+                String(gm._cleanFilePart || gm.name || "").toLowerCase().includes(q) ||
+                String(gm.author || "").toLowerCase().includes(q)
+            );
+          }
+          return false;
+        });
 
         return (
           <SidePanel
@@ -1344,14 +1371,14 @@ export default function Blueprints({
                   selectedUplinkBlueprint?.name || t("blueprint_inspector", "Blueprint Mods")
                 }
                 description={t("artifacts_linked", "{Mods} Linked")}
-                badge={`${selectedUplinkBlueprint?.artifacts?.length || 0} ${t("term_mods", "Items")}`}
+                badge={`${groupedUplinkFamilies.length} ${t("term_mods", "Items")}`}
                 badgeIcon={t("icon_extension", "extension")}
                 variant="accent"
               >
                 <div className="grid grid-cols-2 gap-3 mt-1">
                   <StatBox
                     label={t("artifacts_linked", "{Mods} Linked")}
-                    value={selectedUplinkBlueprint?.artifacts?.length || 0}
+                    value={groupedUplinkFamilies.length}
                     icon={t("icon_extension", "extension")}
                     iconColorClass="text-[var(--accent)]"
                   />
@@ -1376,111 +1403,15 @@ export default function Blueprints({
                 icon={t("icon_extension", "extension")}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-                  {filteredArtifacts.slice(0, uplinkArtifactsLimit).map((m: any, idx: number) => {
-                    const rawName = String(m?.name || m || "");
-                    const filePart = rawName.split(/[\\/]/).pop() || rawName;
-                    const displayName = formatDisplayName(
-                      filePart.replace(/\.[^/.]+$/, "") || rawName,
-                      undefined,
-                      activeGameSchema
-                    );
-                    const isScript = /\.ts4script$/i.test(rawName);
-                    const matchedMod =
-                      optimizedModList.map.get(rawName) ||
-                      optimizedModList.fallbackArr.find(
-                        (fm: any) =>
-                          fm._mBase?.toLowerCase() ===
-                          filePart.replace(extRegex, "").toLowerCase()
-                      );
-                    const modIcon = matchedMod
-                      ? getModIcon(matchedMod, activeGameSchema, t)
-                      : isScript
-                        ? t("icon_code", "code")
-                        : t("icon_extension", "extension");
-                    const authorName =
-                      (m?.author && m.author !== "Unknown" ? m.author : null) ||
-                      (matchedMod?.author && matchedMod.author !== "Unknown"
-                        ? matchedMod.author
-                        : null) ||
-                      t("unknown", "Unknown");
-                    const seqNum =
-                      typeof m?.load_order_index === "number"
-                        ? m.load_order_index + 1
-                        : idx + 1;
-                    const rawPriority =
-                      typeof m === "object" && m?.priority_tier
-                        ? String(m.priority_tier)
-                        : rawName.includes("/") || rawName.includes("\\")
-                          ? rawName.split(/[\\/]/)[0]
-                          : "";
-                    const isRealPriorityTier = /^!sanctuary/i.test(rawPriority);
-                    const hasRules = Array.isArray(m?.load_rules) && m.load_rules.length > 0;
-
-                    return (
-                      <div
-                        key={idx}
-                        className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex flex-col justify-between gap-3 group/mod"
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined !text-[20px]">
-                              {modIcon}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
-                              {displayName}
-                              <HoverTooltip title={displayName} />
-                            </span>
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
-                              <span className="truncate">
-                                {t("by_author", "BY")} {authorName}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-[rgba(var(--text-rgb),0.06)]">
-                          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                              {t("icon_tag", "tag")}
-                            </span>
-                            <span>{String(seqNum).padStart(3, "0")}</span>
-                          </span>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                              {isScript
-                                ? t("icon_code", "code")
-                                : t("icon_extension", "extension")}
-                            </span>
-                            <span>
-                              {isScript
-                                ? t("type_script", "Script")
-                                : t("type_package", "Package")}
-                            </span>
-                          </span>
-                          {isRealPriorityTier && (
-                            <span className={VAULT_CHIP_CLASS}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                {t("icon_low_priority", "low_priority")}
-                              </span>
-                              <span>{rawPriority}</span>
-                            </span>
-                          )}
-                          {hasRules && (
-                            <span className={VAULT_CHIP_CLASS}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                                {t("icon_tune", "tune")}
-                              </span>
-                              <span>
-                                {m.load_rules.length} {t("lo_rule_badge", "Rule")}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {filteredArtifacts.slice(0, uplinkArtifactsLimit).map((m: any, idx: number) => (
+                    <BlueprintInspectorModCard
+                      key={`${m._groupKey || m.name || idx}-${idx}`}
+                      mod={m}
+                      activeGameSchema={activeGameSchema}
+                      t={t}
+                      showLoadOrderChip={true}
+                    />
+                  ))}
 
                   {filteredArtifacts.length > uplinkArtifactsLimit && (
                     <div className="col-span-full w-full flex justify-center mt-2">

@@ -824,29 +824,64 @@ pub fn extract_proton_user_dir_from_path(any_path: &str) -> Option<PathBuf> {
             }
         }
     }
+    if let Some(idx) = lower.find("/drive_c") {
+        let drive_c_root = PathBuf::from(&norm[..idx + "/drive_c".len()]);
+        let users_dir = drive_c_root.join("users");
+        if users_dir.is_dir() {
+            let steamuser = users_dir.join("steamuser");
+            if steamuser.is_dir() {
+                return Some(steamuser);
+            }
+            if let Ok(entries) = std::fs::read_dir(&users_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    let fname = entry.file_name().to_string_lossy().to_lowercase();
+                    if p.is_dir() && fname != "public" && !fname.starts_with('.') {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+    }
     if let Some(idx) = lower.find("/pfx") {
         let pfx_root = PathBuf::from(&norm[..idx + 4]);
         let steamuser = pfx_root.join("drive_c").join("users").join("steamuser");
         if steamuser.exists() {
             return Some(steamuser);
         }
+        let users_dir = pfx_root.join("drive_c").join("users");
+        if users_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&users_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    let fname = entry.file_name().to_string_lossy().to_lowercase();
+                    if p.is_dir() && fname != "public" && !fname.starts_with('.') {
+                        return Some(p);
+                    }
+                }
+            }
+        }
     }
     None
 }
 
 fn find_pfx_user_dir(compatdata_app_dir: &Path) -> Option<PathBuf> {
-    let users_dir = compatdata_app_dir.join("pfx").join("drive_c").join("users");
-    let steamuser = users_dir.join("steamuser");
-    if steamuser.is_dir() {
-        return Some(steamuser);
-    }
-    if users_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&users_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                let fname = entry.file_name().to_string_lossy().to_lowercase();
-                if p.is_dir() && fname != "public" && !fname.starts_with('.') {
-                    return Some(p);
+    for users_dir in [
+        compatdata_app_dir.join("pfx").join("drive_c").join("users"),
+        compatdata_app_dir.join("drive_c").join("users"),
+    ] {
+        let steamuser = users_dir.join("steamuser");
+        if steamuser.is_dir() {
+            return Some(steamuser);
+        }
+        if users_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&users_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    let fname = entry.file_name().to_string_lossy().to_lowercase();
+                    if p.is_dir() && fname != "public" && !fname.starts_with('.') {
+                        return Some(p);
+                    }
                 }
             }
         }
@@ -1029,6 +1064,60 @@ pub fn resolve_steam_app_and_proton_prefix(
         }
     }
 
+    // 3. Fallback scan of Heroic Games Launcher, Bottles, and Lutris prefixes on Linux/SteamOS
+    if cfg!(target_os = "linux") && !expected_folder_names.is_empty() {
+        if let Some(home) = std::env::var("HOME")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(dirs::home_dir)
+        {
+            let non_steam_prefix_roots = [
+                home.join("Games").join("Heroic").join("Prefixes").join("default"),
+                home.join("Games").join("Heroic").join("Prefixes"),
+                home.join(".var/app/com.heroicgameslauncher.hgl/Games/Heroic/Prefixes/default"),
+                home.join(".local/share/bottles/bottles"),
+                home.join(".var/app/com.usebottles.bottles/data/bottles/bottles"),
+                home.join("Games"),
+            ];
+            let normalize_slug = |s: &str| -> String {
+                s.chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .flat_map(|c| c.to_lowercase())
+                    .collect()
+            };
+            let target_slugs: Vec<String> = expected_folder_names
+                .iter()
+                .map(|n| normalize_slug(n))
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            for root in &non_steam_prefix_roots {
+                if !root.is_dir() {
+                    continue;
+                }
+                if let Ok(entries) = std::fs::read_dir(root) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if !p.is_dir() {
+                            continue;
+                        }
+                        let slug = normalize_slug(&entry.file_name().to_string_lossy());
+                        if !slug.is_empty() && target_slugs.iter().any(|ts| ts == &slug || slug.contains(ts)) {
+                            if let Some(pfx_user) = find_pfx_user_dir(&p) {
+                                return Some(SteamProtonResolution {
+                                    app_id: expected_app_id.unwrap_or_default(),
+                                    library_root: root.clone(),
+                                    install_dir: None,
+                                    compatdata_pfx_user_dir: Some(pfx_user),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     None
 }
 
@@ -1109,12 +1198,18 @@ pub fn expand_schema_path_for_os(
                 } else if let Some(rest) = mapped.strip_prefix("Documents/") {
                     mapped = format!("{}/{}", docs_dir, rest);
                 }
-                return mapped;
+                let normalized = crate::utils::normalize_existing_case_path(Path::new(&mapped));
+                return normalized.to_string_lossy().to_string();
             }
         }
     }
 
-    crate::utils::expand_env_vars(trimmed)
+    let expanded = crate::utils::expand_env_vars(trimmed);
+    if cfg!(target_os = "linux") {
+        let normalized = crate::utils::normalize_existing_case_path(Path::new(&expanded));
+        return normalized.to_string_lossy().to_string();
+    }
+    expanded
 }
 
 pub fn select_os_default_mod_dir(paths: & crate::schema::SchemaPaths) -> &str {

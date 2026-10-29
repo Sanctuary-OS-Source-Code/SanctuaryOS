@@ -90,6 +90,317 @@ export const AccordionDrawer = ({
   );
 };
 export const SidePanelContext = React.createContext(false);
+
+interface ExtractedPanelHeaderAction {
+  key: string;
+  icon?: React.ReactNode;
+  label: React.ReactNode;
+  onClick?: (e: any) => void;
+  disabled?: boolean;
+  variant?: string;
+  isActive?: boolean;
+  className?: string;
+}
+
+function extractPanelHeaderActionItems(
+  node: React.ReactNode,
+): ExtractedPanelHeaderAction[] {
+  if (
+    !node ||
+    typeof node === "boolean" ||
+    typeof node === "string" ||
+    typeof node === "number"
+  ) {
+    return [];
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => extractPanelHeaderActionItems(child));
+  }
+  if (React.isValidElement(node)) {
+    const props = (node.props || {}) as any;
+    const isPanelBtn =
+      node.type === PanelHeaderButton ||
+      (typeof node.type === "function" &&
+        (node.type as any).name === "PanelHeaderButton") ||
+      (props.icon !== undefined &&
+        (props.tooltip !== undefined || props.label !== undefined) &&
+        props.children === undefined);
+
+    if (isPanelBtn) {
+      const resolvedVariant = props.isDestructive
+        ? "danger"
+        : props.isAccent
+          ? "accent"
+          : props.variant || "default";
+      const label = props.label || props.tooltip || "";
+      return [
+        {
+          key: String(node.key ?? label ?? Math.random()),
+          icon: props.icon,
+          label,
+          onClick: props.onClick,
+          disabled: Boolean(props.disabled),
+          variant: resolvedVariant,
+          isActive: Boolean(props.isActive),
+          className: props.className || "",
+        },
+      ];
+    }
+
+    if (props.children) {
+      return extractPanelHeaderActionItems(props.children);
+    }
+  }
+  return [];
+}
+
+function SidePanelHeaderActionBar({
+  headerActions,
+  showCloseButton,
+  onClose,
+  className = "",
+}: {
+  headerActions?: React.ReactNode;
+  showCloseButton: boolean;
+  onClose: () => void;
+  className?: string;
+}) {
+  const { t } = useLexicon();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const instanceId = React.useId();
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const actionItems = React.useMemo(
+    () => extractPanelHeaderActionItems(headerActions),
+    [headerActions],
+  );
+
+  const totalButtons = actionItems.length + (showCloseButton ? 1 : 0);
+  const collapseOnMobile = actionItems.length >= 2 && totalButtons > 2;
+  const collapseOnDesktop = actionItems.length >= 3 && totalButtons > 3;
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", {
+        detail: { id: instanceId, triggerEl: triggerRef.current },
+      }),
+    );
+    const onOtherOpen = (e: any) => {
+      const detailId =
+        typeof e.detail === "object" && e.detail !== null
+          ? e.detail.id
+          : e.detail;
+      const triggerEl =
+        typeof e.detail === "object" && e.detail !== null
+          ? e.detail.triggerEl
+          : null;
+      if (detailId === instanceId) return;
+      if (
+        triggerEl &&
+        popoverRef.current &&
+        popoverRef.current.contains(triggerEl)
+      ) {
+        return;
+      }
+      setIsMenuOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
+  }, [isMenuOpen, instanceId]);
+
+  React.useLayoutEffect(() => {
+    if (!isMenuOpen) return;
+    const updatePosition = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        let leftPos = rect.right - 220;
+        if (popoverRef.current) {
+          const popWidth = popoverRef.current.offsetWidth;
+          leftPos =
+            rect.left >= window.innerWidth / 2
+              ? rect.right - popWidth
+              : rect.left;
+          leftPos = Math.max(
+            8,
+            Math.min(leftPos, window.innerWidth - popWidth - 8),
+          );
+        } else {
+          leftPos = Math.max(
+            8,
+            Math.min(leftPos, window.innerWidth - 220 - 8),
+          );
+          requestAnimationFrame(updatePosition);
+        }
+        setCoords({
+          top: rect.bottom + 8,
+          left: leftPos,
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isMenuOpen]);
+
+  const portalRoot =
+    typeof document !== "undefined"
+      ? document.getElementById("sa-portals") || document.body
+      : null;
+
+  const menuTriggerButton = (
+    <div ref={triggerRef} className="flex items-center shrink-0">
+      <PanelHeaderGroup>
+        <PanelHeaderButton
+          icon={t("icon_more_vert", "more_vert")}
+          tooltip={t("sidebar_actions", "Actions")}
+          isActive={isMenuOpen}
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+        />
+      </PanelHeaderGroup>
+    </div>
+  );
+
+  return (
+    <div
+      className={`flex items-center z-50 glass-surface rounded-2xl p-1 gap-1 shrink-0 ${className}`}
+    >
+      {headerActions &&
+        (collapseOnDesktop ? (
+          menuTriggerButton
+        ) : collapseOnMobile ? (
+          <>
+            <div className="flex md:hidden items-center">
+              {menuTriggerButton}
+            </div>
+            <div className="hidden md:flex items-center gap-1">
+              {headerActions}
+            </div>
+          </>
+        ) : (
+          headerActions
+        ))}
+
+      {headerActions && showCloseButton && (
+        <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
+      )}
+
+      {showCloseButton && (
+        <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
+          <PanelHeaderButton
+            icon={t("icon_close", "close")}
+            tooltip={t("btn_close", "Close") || "Close"}
+            variant="danger"
+            onClick={onClose}
+          />
+        </PanelHeaderGroup>
+      )}
+
+      {isMenuOpen &&
+        portalRoot &&
+        createPortal(
+          <>
+            <div
+              className="!fixed inset-0 pointer-events-auto"
+              style={{ zIndex: 200000 }}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <div
+              ref={popoverRef}
+              onClick={(e) => e.stopPropagation()}
+              className="!fixed glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col min-w-[210px] w-max max-w-[calc(100vw-24px)] max-h-[80vh] !rounded-2xl overflow-hidden text-[var(--text)] shadow-2xl"
+              style={
+                {
+                  zIndex: 200001,
+                  top: coords.top,
+                  left: coords.left,
+                  margin: 0,
+                  bottom: "auto",
+                  transition: "none",
+                  "--glass-x": `${Math.round(coords.left)}px`,
+                  "--glass-y": `${Math.round(coords.top)}px`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1 w-full max-h-[80vh]">
+                {actionItems.map((action, idx) => {
+                  const isDanger =
+                    action.variant === "danger" || action.variant === "error";
+                  const isWarning = action.variant === "warning";
+                  const isSuccess = action.variant === "success";
+                  const isAccent =
+                    action.variant === "accent" || action.isActive;
+
+                  const iconColor = isDanger
+                    ? "text-[var(--danger)]"
+                    : isWarning
+                      ? "text-[var(--warning)]"
+                      : isSuccess
+                        ? "text-[var(--success)]"
+                        : isAccent
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)] group-hover/item:text-[var(--text)]";
+
+                  return (
+                    <button
+                      key={`${action.key}-${idx}`}
+                      type="button"
+                      disabled={action.disabled}
+                      onClick={(e) => {
+                        if (action.disabled) return;
+                        setIsMenuOpen(false);
+                        action.onClick?.(e);
+                      }}
+                      className={`sa-dropdown-item flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-xl text-left group/item relative overflow-hidden transition-all ${
+                        action.disabled
+                          ? "opacity-40 cursor-not-allowed"
+                          : "cursor-pointer"
+                      } ${
+                        action.isActive
+                          ? "is-selected sa-glass-active font-bold"
+                          : "font-semibold"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {action.icon && (
+                          <span
+                            className={`material-symbols-outlined !text-[18px] shrink-0 transition-colors ${iconColor}`}
+                          >
+                            {action.icon}
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs capitalize tracking-wide leading-snug text-left truncate ${
+                            isDanger
+                              ? "text-[var(--danger)]"
+                              : "text-[var(--text)]"
+                          }`}
+                        >
+                          {action.label}
+                        </span>
+                      </div>
+                      {action.isActive && (
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t("icon_check", "check")}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>,
+          portalRoot,
+        )}
+    </div>
+  );
+}
 export function SidePanel({
   isOpen,
   onClose,
@@ -155,7 +466,6 @@ export function SidePanel({
   hideCloseButton?: boolean;
   passthroughBackdrop?: boolean;
 }) {
-  const { t } = useLexicon();
   const theme = useTheme();
   const depth = React.useContext(PanelDepthContext);
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -336,22 +646,12 @@ export function SidePanel({
             )}
 
             {hideHeader && (forceShowCloseBtn || headerActions) && (
-              <div className="absolute top-6 right-6 z-[10000] flex items-center glass-surface rounded-2xl p-1 gap-1 shrink-0">
-                {headerActions}
-                {headerActions && forceShowCloseBtn && (
-                  <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
-                )}
-                {forceShowCloseBtn && (
-                  <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
-                    <PanelHeaderButton
-                      icon="close"
-                      tooltip={t("btn_close", "Close") || "Close"}
-                      variant="danger"
-                      onClick={onClose}
-                    />
-                  </PanelHeaderGroup>
-                )}
-              </div>
+              <SidePanelHeaderActionBar
+                headerActions={headerActions}
+                showCloseButton={forceShowCloseBtn}
+                onClose={onClose}
+                className="absolute top-6 right-6 z-[10000]"
+              />
             )}
 
             {!hideHeader && (
@@ -385,7 +685,7 @@ export function SidePanel({
                       {title}
                     </h2>
                     {subtitle && (
-                      <span className="text-[9px] md:text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-0.5 capitalize tracking-[0.14em] md:tracking-[0.18em] leading-snug break-words">
+                      <span className="text-[9px] md:text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-0.5 capitalize tracking-wider md:tracking-[0.18em] leading-snug line-clamp-1 sm:line-clamp-2 break-words">
                         {subtitle}
                       </span>
                     )}
@@ -393,22 +693,12 @@ export function SidePanel({
                 </div>
 
                 {(headerActions || !hideCloseButton) && (
-                  <div className="flex items-center z-50 glass-surface rounded-2xl p-1 gap-1 shrink-0 self-center">
-                    {headerActions}
-                    {headerActions && !hideCloseButton && (
-                      <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
-                    )}
-                    {!hideCloseButton && (
-                      <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
-                        <PanelHeaderButton
-                          icon="close"
-                          tooltip={t("btn_close", "Close") || "Close"}
-                          variant="danger"
-                          onClick={onClose}
-                        />
-                      </PanelHeaderGroup>
-                    )}
-                  </div>
+                  <SidePanelHeaderActionBar
+                    headerActions={headerActions}
+                    showCloseButton={!hideCloseButton}
+                    onClose={onClose}
+                    className="self-center"
+                  />
                 )}
               </div>
             )}

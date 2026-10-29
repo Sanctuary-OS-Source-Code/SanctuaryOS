@@ -52,6 +52,21 @@ fn reveal_main_window(app: tauri::AppHandle) {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    {
+        // Prevent WebKitGTK 4.1 DMABUF GBM buffer crashes on Linux Wayland + NVIDIA / custom compositors
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            let is_wayland = std::env::var_os("WAYLAND_DISPLAY").is_some()
+                || std::env::var("XDG_SESSION_TYPE")
+                    .map(|s| s.eq_ignore_ascii_case("wayland"))
+                    .unwrap_or(false);
+            let has_nvidia = std::path::Path::new("/proc/driver/nvidia/version").exists();
+            if is_wayland && has_nvidia {
+                std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            }
+        }
+    }
+
     std::thread::spawn(|| {
         ensure_windows_aumid_registered();
     });

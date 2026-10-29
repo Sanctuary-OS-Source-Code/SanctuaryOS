@@ -372,6 +372,15 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
             {/* Scrollable Navigation Items */}
             <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3.5 pt-0.5 flex flex-col gap-1">
+              <MobileNavItem
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.dispatchEvent(new CustomEvent("sanctuary-open-command-palette"));
+                }}
+                icon={t("icon_terminal", "terminal")}
+                label={t("cmd_palette_title", "Command Palette")}
+              />
+
               {!isDesktop() && !isStandalone && (
                 <MobileNavItem
                   onClick={() => {

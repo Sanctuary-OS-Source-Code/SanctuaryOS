@@ -219,13 +219,13 @@ fn compute_lab_test_save_status(
 
     let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
         (
-            docs_dir.join(&primary_save_rel),
-            airgap_root.join(&primary_save_rel),
+            crate::utils::resolve_case_insensitive_path(docs_dir, &primary_save_rel),
+            crate::utils::resolve_case_insensitive_path(&airgap_root, &primary_save_rel),
         )
     } else {
         (
-            sandbox_root.join(&primary_save_rel),
-            docs_dir.join(&primary_save_rel),
+            crate::utils::resolve_case_insensitive_path(&sandbox_root, &primary_save_rel),
+            crate::utils::resolve_case_insensitive_path(docs_dir, &primary_save_rel),
         )
     };
 
@@ -332,9 +332,9 @@ pub fn apply_save_airgap(
         let _ = std::fs::create_dir_all(&sandbox_root);
 
         for target_name in &targets {
-            let live_target = docs_dir.join(target_name);
-            let airgap_target = airgap_root.join(target_name);
-            let sandbox_target = sandbox_root.join(target_name);
+            let live_target = crate::utils::resolve_case_insensitive_path(&docs_dir, target_name);
+            let airgap_target = crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
+            let sandbox_target = crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
             let is_sandbox_already = live_target.join(".sanctuary_sandbox_marker").exists();
 
             // Evacuate live saves only if not already airgapped and not a sandbox folder
@@ -404,9 +404,9 @@ pub fn apply_save_airgap(
         Ok("Saves physically airgapped and sandboxed".to_string())
     } else {
         for target_name in &targets {
-            let live_target = docs_dir.join(target_name);
-            let airgap_target = airgap_root.join(target_name);
-            let sandbox_target = sandbox_root.join(target_name);
+            let live_target = crate::utils::resolve_case_insensitive_path(&docs_dir, target_name);
+            let airgap_target = crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
+            let sandbox_target = crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
 
             if airgap_target.exists() {
                 // Unlock evacuated saves before restoring
@@ -858,10 +858,13 @@ pub fn route_file_if_matched(
             let target_dir = if route.target_subdir.trim().is_empty() {
                 base_root.to_path_buf()
             } else {
-                base_root.join(&route.target_subdir)
+                crate::utils::resolve_case_insensitive_path(base_root, &route.target_subdir)
             };
             let file_name = source.file_name()?;
-            let target_file = target_dir.join(file_name);
+            let target_file = crate::utils::resolve_case_insensitive_path(
+                &target_dir,
+                &file_name.to_string_lossy(),
+            );
             let _ = std::fs::create_dir_all(&target_dir);
 
             let bak_path = PathBuf::from(format!(
@@ -2864,12 +2867,54 @@ pub async fn poll_lab_verification_session(
 
     for (pid, proc_info) in session.sys.processes() {
         let pname = proc_info.name().to_string_lossy().to_lowercase();
+        let is_wrapper = matches!(
+            pname.as_str(),
+            "reaper"
+                | "steam-launch-wrapper"
+                | "srt-bwrap"
+                | "pressure-vessel-adverb"
+                | "proton"
+                | "python3"
+                | "sh"
+                | "bash"
+                | "wineserver"
+        );
+        if is_wrapper {
+            continue;
+        }
+        let exe_path_lower = proc_info
+            .exe()
+            .map(|p| p.to_string_lossy().replace('\\', "/").to_lowercase())
+            .unwrap_or_default();
+        let cmd_joined_lower: String = proc_info
+            .cmd()
+            .iter()
+            .map(|arg| arg.to_string_lossy().replace('\\', "/").to_lowercase())
+            .collect::<Vec<_>>()
+            .join(" ");
+
         let is_match = session.executable_names.iter().any(|exe| {
-            let clean_exe = exe.to_lowercase();
-            let stem = clean_exe
+            let clean_exe = exe.trim().replace('\\', "/").to_lowercase();
+            let exe_filename = clean_exe.rsplit('/').next().unwrap_or(&clean_exe);
+            let stem = exe_filename
                 .trim_end_matches(".exe")
                 .trim_end_matches(".app");
-            pname == clean_exe || pname == stem || pname.starts_with(stem)
+            if stem.is_empty() {
+                return false;
+            }
+            // Linux /proc/<pid>/comm truncates process names to 15 chars (TASK_COMM_LEN - 1)
+            let stem_15: String = stem.chars().take(15).collect();
+            let direct_name_match = pname == exe_filename
+                || pname == stem
+                || pname.starts_with(stem)
+                || (stem_15.len() == 15 && pname == stem_15);
+            let cmd_or_exe_match = (!exe_path_lower.is_empty()
+                && (exe_path_lower.ends_with(&format!("/{}", exe_filename))
+                    || exe_path_lower.ends_with(&format!("/{}", stem))))
+                || (!cmd_joined_lower.is_empty()
+                    && (cmd_joined_lower.contains(&format!("/{}", exe_filename))
+                        || cmd_joined_lower.ends_with(exe_filename)));
+            direct_name_match || cmd_or_exe_match
         });
         if is_match {
             let mem = proc_info.memory();

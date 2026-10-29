@@ -4,7 +4,8 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   PanelHeaderGroup,
-  PanelHeaderButton
+  PanelHeaderButton,
+  openModDossier,
 } from "../../shared";
 import ConflictResolutionSidebar from "../../side-panels/ConflictResolutionSidebar";
 
@@ -102,7 +103,8 @@ export function VaultModals(props: any) {
                 {purgeTargetFiles.map((target: any) => (
                   <div
                     key={target.file}
-                    className="flex items-center gap-3.5 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] glass-surface group"
+                    onClick={() => openModDossier(target.file)}
+                    className="flex items-center gap-3.5 p-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] glass-surface group cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[16px]">

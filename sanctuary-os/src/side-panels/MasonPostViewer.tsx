@@ -151,6 +151,7 @@ export default function MasonPostViewer({
   const [viewMode, setViewMode] = useState<"ui" | "normal">("ui");
 
   const setMasonCommentDrafts = useStore((state) => state.setMasonCommentDrafts);
+  const showCommLinkImages = useStore((state) => state.showCommLinkImages);
 
   const [userCollapsed, setUserCollapsed] = useState<Set<string>>(new Set());
   const [userExpanded, setUserExpanded] = useState<Set<string>>(new Set());
@@ -871,7 +872,7 @@ export default function MasonPostViewer({
           >
             <div className="flex flex-col gap-4 w-full">
               {/* Framed Cover Banner (if present) */}
-              {imageUrl && (
+              {showCommLinkImages !== false && imageUrl && (
                 <div className="w-full h-52 sm:h-64 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
                   <img
                     src={imageUrl}

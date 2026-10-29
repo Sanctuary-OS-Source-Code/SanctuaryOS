@@ -35,6 +35,7 @@ export function SanctuaryAlertsSidePanel({
 }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
+  const showCommLinkImages = useStore((state) => state.showCommLinkImages);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("Active");
@@ -267,7 +268,7 @@ export function SanctuaryAlertsSidePanel({
                 {filteredPosts.map((post) => {
                   const isPinned = isPostPinned(post);
                   const isInactive = !post.is_active;
-                  const postImg = extractPostImage(post);
+                  const postImg = showCommLinkImages !== false ? extractPostImage(post) : undefined;
                   const meta = extractDispatchMetadata(post);
                   const cleanSummary = post.description
                     ? post.description

@@ -13,6 +13,7 @@ import {
   StatBox,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  openModDossier,
 } from "../shared";
 import { useStore } from "../store";
 
@@ -168,7 +169,8 @@ export default function UndoWinnersPanel({
                 return (
                 <div
                   key={file}
-                  className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all"
+                  onClick={() => openModDossier(file)}
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
@@ -190,12 +192,14 @@ export default function UndoWinnersPanel({
                       </span>
                     </div>
                   </div>
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_undo", "undo")}
-                    label={t("undo_title", "Undo")}
-                    onClick={() => undoOverride(file)}
-                  />
+                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_undo", "undo")}
+                      label={t("undo_title", "Undo")}
+                      onClick={() => undoOverride(file)}
+                    />
+                  </div>
                 </div>
                 );
               })}

@@ -639,3 +639,11 @@ export const enrichBlueprintsWithPremiumStatus = async (
   return premiumMap;
 };
 
+export const openModDossier = (target: any) => {
+  if (!target || typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("sanctuary-open-dossier", { detail: target })
+  );
+};
+
+

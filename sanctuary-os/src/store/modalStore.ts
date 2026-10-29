@@ -414,10 +414,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
   maxActiveWebviews: 3,
   setMaxActiveWebviews: (maxActiveWebviews) => set({ maxActiveWebviews }),
   
-  useInternalBrowser: localStorage.getItem('sanctuary_use_internal_browser') === 'true',
+  useInternalBrowser: localStorage.getItem('sanctuary_use_internal_browser') !== 'false',
   setUseInternalBrowser: (useInternalBrowser) => {
     localStorage.setItem('sanctuary_use_internal_browser', useInternalBrowser.toString());
-    set({ useInternalBrowser });
+    set((state) => ({
+      useInternalBrowser,
+      isSideBrowserOpen: useInternalBrowser ? state.isSideBrowserOpen : false,
+    }));
   },
   
   downloadsQueue: [],
@@ -613,35 +616,50 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const state = get();
     const current = state.stagingDraftItems || [];
 
-    // Support grouped parent suites (e.g. MC Command Center with child flavors)
-    if (mod?.isParent && Array.isArray(mod.flavors) && mod.flavors.length > 0 && !mod._stageSingle) {
+    // Support grouped parent suites / folders / collections (e.g. MC Command Center with child flavors)
+    const rawFlavors =
+      Array.isArray(mod?.flavors) && mod.flavors.length > 0
+        ? mod.flavors
+        : Array.isArray(mod?._groupedMods) && mod._groupedMods.length > 0
+          ? mod._groupedMods
+          : [];
+    if (
+      (mod?.isParent || mod?.isVirtual || mod?.isCollection || rawFlavors.length > 1) &&
+      rawFlavors.length > 0 &&
+      !mod._stageSingle
+    ) {
       const seenChildNames = new Set<string>();
-      const childMods = mod.flavors.filter((c: any) => {
+      const childMods = rawFlavors.filter((c: any) => {
         const norm = String(c?.name || c?.displayName || "").trim().toLowerCase();
         if (!norm || seenChildNames.has(norm)) return false;
         seenChildNames.add(norm);
         return true;
       });
       const isChildInDraft = (c: any) => {
-        const cId = String(c.id || c.dbId || c.hash || c.name || "");
-        const cHash = String(c.hash || "");
+        const cId = String(c.id || c.dbId || c.hash || c.name || "").toLowerCase();
+        const cHash = String(c.hash || c.mod_versions?.[0]?.dna_hash || "").toLowerCase();
         const cName = String(c.name || c.displayName || "").toLowerCase();
         return current.some(
           (item: any) =>
-            (cId && item.id === cId) ||
-            (cHash && item.hash && item.hash === cHash) ||
-            (cName && String(item.name || "").toLowerCase() === cName)
+            (cId && String(item.id || item.dbId || "").toLowerCase() === cId) ||
+            (cHash && String(item.hash || item.dna_hash || "").toLowerCase() === cHash) ||
+            (cName && String(item.name || item.displayName || "").toLowerCase() === cName)
         );
       };
-      const allChildrenStaged = childMods.every(isChildInDraft);
+      const allChildrenStaged = childMods.length > 0 && childMods.every(isChildInDraft);
       let nextItems = [...current];
       if (allChildrenStaged) {
-        const childIds = new Set(childMods.map((c: any) => String(c.id || c.dbId || c.hash || c.name || "")));
-        const childNames = new Set(childMods.map((c: any) => String(c.name || c.displayName || "").toLowerCase()));
         nextItems = current.filter(
-          (item: any) =>
-            !childIds.has(String(item.id || "")) &&
-            !childNames.has(String(item.name || "").toLowerCase())
+          (item: any) => !childMods.some((c: any) => {
+            const cId = String(c.id || c.dbId || c.hash || c.name || "").toLowerCase();
+            const cHash = String(c.hash || c.mod_versions?.[0]?.dna_hash || "").toLowerCase();
+            const cName = String(c.name || c.displayName || "").toLowerCase();
+            return (
+              (cId && String(item.id || item.dbId || "").toLowerCase() === cId) ||
+              (cHash && String(item.hash || item.dna_hash || "").toLowerCase() === cHash) ||
+              (cName && String(item.name || item.displayName || "").toLowerCase() === cName)
+            );
+          })
         );
       } else {
         childMods.forEach((c: any) => {

@@ -725,8 +725,10 @@ export function StatBox({
     rawText.length > 26
       ? "text-xs sm:text-[13px]"
       : rawText.length > 16
-        ? "text-[13px] sm:text-sm md:text-[15px]"
-        : "text-sm sm:text-base md:text-lg";
+        ? "text-xs sm:text-sm md:text-[15px]"
+        : rawText.length > 9
+          ? "text-[13px] sm:text-base md:text-lg"
+          : "text-sm sm:text-base md:text-lg";
 
   return (
     <div
@@ -736,12 +738,12 @@ export function StatBox({
         "--glass-nested-shadow": "0 0 #0000",
         boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12))",
       } as React.CSSProperties}
-      className={`glass-panel shadow-none rounded-2xl py-3 px-3.5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-3 relative overflow-hidden transition-all duration-300 group ${
+      className={`glass-panel shadow-none rounded-2xl py-2.5 px-3 sm:py-3 sm:px-3.5 hover:border-[rgba(var(--text-rgb),0.28)] flex items-center gap-2.5 sm:gap-3 relative overflow-hidden transition-all duration-300 group ${
         onClick ? "cursor-pointer active:scale-[0.99]" : "cursor-default"
       } ${className}`}
     >
-      <div className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative z-10 ${resolvedIconColorClass}`}>
-        <span className="material-symbols-outlined !text-[18px]">{icon}</span>
+      <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative z-10 ${resolvedIconColorClass}`}>
+        <span className="material-symbols-outlined !text-[17px] sm:!text-[18px]">{icon}</span>
       </div>
 
       <div className="flex flex-col min-w-0 flex-1 relative z-10">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
+import { useStore } from '../store';
 import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
@@ -202,7 +203,7 @@ export function CommandScreenStats({ children, gridClassOverride }: any) {
     const flatChildren = React.Children.toArray(children).flatMap((child: any) => React.isValidElement(child) && child.type === React.Fragment ? React.Children.toArray((child.props as any).children) : [child]).filter(Boolean);
     const validCount = flatChildren.length;
     
-    let gridClass = "grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+    let gridClass = "grid-cols-2 lg:grid-cols-5";
     if (gridClassOverride) gridClass = gridClassOverride;
     else if (validCount === 4) gridClass = "grid-cols-2 lg:grid-cols-4";
     else if (validCount === 3) gridClass = "grid-cols-2 md:grid-cols-3";
@@ -258,15 +259,17 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
 
 export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
     const { t } = useLexicon();
+    const showCommLinkImages = useStore((state) => state.showCommLinkImages);
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
             {broadcasts.length > 0 ? broadcasts.map((post: any, index: number) => {
+                const postImg = showCommLinkImages !== false ? extractPostImage(post) : undefined;
                 return (
                     <UniversalCard
                         key={post.id}
                         layout="vertical"
-                        image={extractPostImage(post) ? extractPostImage(post) : undefined}
-                        icon={!extractPostImage(post) ? t("icon_satellite_alt", "satellite_alt") : undefined}
+                        image={postImg ? postImg : undefined}
+                        icon={!postImg ? t("icon_satellite_alt", "satellite_alt") : undefined}
                         title={post.title}
                         onClick={() => setViewingPost({ ...post, content: post.message, mason_id: 'system', views: 0, likes: 0, replies: 0 })}
                         className="w-full"

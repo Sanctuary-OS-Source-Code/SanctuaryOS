@@ -17,7 +17,6 @@ import {
   getExtensionRegex,
   getModIcon,
   HoverTooltip,
-  cleanSearchName,
   SidePanel,
   SidePanelHeroCard,
   SidePanelTitleInput,
@@ -32,10 +31,973 @@ import {
   VAULT_CHIP_CLASS,
 } from "./shared";
 import {
+  normalizeModGroupTitle,
+  formatCleanModTitle,
+} from "./side-panels/CommandIncompatiblePanel";
+import {
   LabVerificationGate,
   LabVerificationBadge,
   checkDnaHashVerification,
 } from "./components/LabVerificationGate";
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function extractCleanUuid(...vals: any[]): string {
+  for (const v of vals) {
+    if (!v) continue;
+    const cleaned = String(v)
+      .trim()
+      .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+      .split("@")[0]
+      .trim();
+    if (UUID_REGEX.test(cleaned)) return cleaned;
+  }
+  return "";
+}
+
+function collectAllCandidateUuids(target: any): string[] {
+  if (!target) return [];
+  const seen = new Set<string>();
+  const add = (v: any) => {
+    const u = extractCleanUuid(v);
+    if (u) seen.add(u.toLowerCase());
+  };
+  add(target.dbId);
+  add(target.id);
+  add(target.baseFamilyId);
+  add(target.familyId);
+  add(target.name);
+  if (Array.isArray(target._groupedIds)) {
+    target._groupedIds.forEach(add);
+  }
+  if (Array.isArray(target._groupedMods)) {
+    target._groupedMods.forEach((gm: any) => {
+      add(gm?.dbId);
+      add(gm?.id);
+      add(gm?.baseFamilyId);
+      add(gm?.familyId);
+    });
+  }
+  if (Array.isArray(target.flavors)) {
+    target.flavors.forEach((fl: any) => {
+      add(fl?.dbId);
+      add(fl?.id);
+      add(fl?.baseFamilyId);
+      add(fl?.familyId);
+    });
+  }
+  return Array.from(seen);
+}
+
+function isPlaceholderAuthorStr(val?: any, t?: any): boolean {
+  if (!val || typeof val !== "string") return true;
+  const low = val.trim().toLowerCase();
+  if (
+    low === "" ||
+    low === "unknown" ||
+    low === "unknown creator" ||
+    low === "unknown mason" ||
+    low === "unknown architect" ||
+    low === "local" ||
+    low === "local node" ||
+    low === "local folder" ||
+    low === "local vault" ||
+    low === "local override" ||
+    low === "unlinked" ||
+    low === "v.local" ||
+    low === "vlocal" ||
+    low === "null" ||
+    low === "undefined"
+  ) {
+    return true;
+  }
+  if (t) {
+    const tLocal = String(t("source_local", "Local") || "").trim().toLowerCase();
+    const tNode = String(t("local_node", "Local Node") || "").trim().toLowerCase();
+    const tUnk = String(t("unknown", "Unknown") || "").trim().toLowerCase();
+    if (low === tLocal || low === tNode || low === tUnk) return true;
+  }
+  return false;
+}
+
+function pickFirstValidAuthor(t: any, ...candidates: any[]): string {
+  for (const c of candidates) {
+    if (!c) continue;
+    if (typeof c === "string") {
+      if (!isPlaceholderAuthorStr(c, t)) return c.trim();
+      continue;
+    }
+    const direct =
+      (Array.isArray(c.masons) ? c.masons[0]?.name : c.masons?.name) ||
+      c.author ||
+      c.master_author ||
+      c.creator_name ||
+      c.suggested_author;
+    if (direct && !isPlaceholderAuthorStr(direct, t)) {
+      return String(direct).trim();
+    }
+  }
+  return "";
+}
+
+const MOD_SELECT =
+  "id, name, created_at, category_override, master_author, mason_id, masons(name), compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
+
+async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | null> {
+  if (!targetMod) return null;
+  const candidateIds = collectAllCandidateUuids(targetMod);
+  const rawHash = String(targetMod.hash || "").trim();
+  const candidateHash =
+    rawHash && !/^(virtual_|set_|local_)/i.test(rawHash)
+      ? rawHash
+      : String(
+          targetMod._groupedMods?.find(
+            (gm: any) => gm?.hash && !/^(virtual_|set_|local_)/i.test(String(gm.hash))
+          )?.hash ||
+            targetMod.flavors?.find(
+              (fl: any) => fl?.hash && !/^(virtual_|set_|local_)/i.test(String(fl.hash))
+            )?.hash ||
+            ""
+        ).trim();
+
+  const rawNameStr = String(
+    (targetMod.displayName && !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(targetMod.displayName))
+      ? targetMod.displayName
+      : targetMod.name) || ""
+  )
+    .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+    .split(/[/\\]/)
+    .pop()
+    ?.replace(/\.[^/.]+$/, "")
+    .trim() || "";
+  const candidateName = UUID_REGEX.test(rawNameStr.split("@")[0]) ? "" : rawNameStr;
+
+  let matchedMods: any[] = [];
+
+  if (candidateIds.length > 0) {
+    const { data } = await supabase
+      .from("mods")
+      .select(MOD_SELECT)
+      .in("id", candidateIds.slice(0, 20));
+    if (Array.isArray(data) && data.length > 0) {
+      matchedMods = data;
+    }
+  }
+
+  if (matchedMods.length === 0 && candidateHash) {
+    const { data: vRow } = await supabase
+      .from("mod_versions")
+      .select(`mod_id, dna_hash, mods(${MOD_SELECT})`)
+      .eq("dna_hash", candidateHash)
+      .limit(1)
+      .maybeSingle();
+    if (vRow?.mods) {
+      const mObj = Array.isArray(vRow.mods) ? vRow.mods[0] : vRow.mods;
+      if (mObj) matchedMods = [mObj];
+    }
+  }
+
+  if (matchedMods.length === 0 && candidateName) {
+    const { data } = await supabase
+      .from("mods")
+      .select(MOD_SELECT)
+      .ilike("name", candidateName)
+      .limit(3);
+    if (Array.isArray(data) && data.length > 0) {
+      matchedMods = data;
+    }
+  }
+
+  const allKnownIds = Array.from(
+    new Set([
+      ...candidateIds,
+      ...matchedMods.map((m: any) => String(m?.id || "")).filter(Boolean),
+    ])
+  );
+
+  let relatedMods: any[] = [];
+  let hydratedRequirements: any[] = [];
+  let hydratedTwins: any[] = [];
+
+  if (allKnownIds.length > 0) {
+    const [{ data: relParentRows }, { data: relChildRows }, { data: depRows }] =
+      await Promise.all([
+        supabase
+          .from("mod_relationships")
+          .select("parent_id, child_id, relationship_type")
+          .in("relationship_type", ["addon", "flavor", "set_item", "beta", "twin"])
+          .in("child_id", allKnownIds.slice(0, 15))
+          .limit(30),
+        supabase
+          .from("mod_relationships")
+          .select("parent_id, child_id, relationship_type")
+          .eq("relationship_type", "twin")
+          .in("parent_id", allKnownIds.slice(0, 15))
+          .limit(20),
+        supabase
+          .from("mod_dependencies")
+          .select("parent_id, child_id")
+          .in("child_id", allKnownIds.slice(0, 15))
+          .limit(30),
+      ]);
+
+    const extraParentIds = Array.from(
+      new Set([
+        ...(relParentRows || []).map((r: any) => String(r.parent_id)),
+        ...(relChildRows || []).map((r: any) => String(r.child_id)),
+        ...(depRows || []).map((d: any) => String(d.parent_id)),
+      ])
+    ).filter((pid) => pid && !allKnownIds.includes(pid));
+
+    if (extraParentIds.length > 0) {
+      const { data: pData } = await supabase
+        .from("mods")
+        .select(MOD_SELECT)
+        .in("id", extraParentIds.slice(0, 20));
+      if (Array.isArray(pData)) {
+        relatedMods = pData;
+      }
+    }
+
+    const byId = new Map<string, any>();
+    [...matchedMods, ...relatedMods].forEach((m: any) => {
+      if (m?.id) byId.set(String(m.id), m);
+    });
+
+    const reqIds = Array.from(
+      new Set([
+        ...(depRows || []).map((d: any) => String(d.parent_id)),
+        ...(relParentRows || [])
+          .filter((r: any) => r.relationship_type === "addon")
+          .map((r: any) => String(r.parent_id)),
+      ])
+    ).filter((id) => id && !allKnownIds.includes(id));
+
+    hydratedRequirements = reqIds.map((rid) => {
+      const m = byId.get(rid);
+      return {
+        id: rid,
+        dbId: rid,
+        name: m?.name || rid,
+        displayName: m?.name || rid,
+        url: m?.url || null,
+        author: pickFirstValidAuthor(t, m) || undefined,
+      };
+    });
+
+    const twinIds = Array.from(
+      new Set([
+        ...(relParentRows || [])
+          .filter((r: any) => r.relationship_type === "twin")
+          .map((r: any) => String(r.parent_id)),
+        ...(relChildRows || []).map((r: any) => String(r.child_id)),
+      ])
+    ).filter((id) => id && !allKnownIds.includes(id));
+
+    hydratedTwins = twinIds.map((tid) => {
+      const m = byId.get(tid);
+      return {
+        id: tid,
+        dbId: tid,
+        name: m?.name || tid,
+        displayName: m?.name || tid,
+        url: m?.url || null,
+        author: pickFirstValidAuthor(t, m) || undefined,
+      };
+    });
+  }
+
+  if (matchedMods.length === 0 && relatedMods.length === 0) return null;
+
+  const primaryMod = matchedMods[0] || relatedMods[0];
+  const allCandidates = [...matchedMods, ...relatedMods];
+
+  const allVersions = matchedMods
+    .flatMap((m: any) => (Array.isArray(m?.mod_versions) ? m.mod_versions : []))
+    .concat(
+      relatedMods.flatMap((m: any) => (Array.isArray(m?.mod_versions) ? m.mod_versions : []))
+    );
+  const latestVer = allVersions.length > 0 ? allVersions[0] : null;
+
+  const resolvedAuthor = pickFirstValidAuthor(t, ...allCandidates) || undefined;
+  const resolvedMasonId =
+    allCandidates.find((m: any) => m?.mason_id)?.mason_id || undefined;
+  const resolvedDesc =
+    allCandidates.find((m: any) => m?.description && String(m.description).trim() !== "")
+      ?.description || undefined;
+  const resolvedCategory =
+    allCandidates.find((m: any) => m?.category_override)?.category_override || undefined;
+  const resolvedUrl =
+    allCandidates.find((m: any) => m?.url)?.url || undefined;
+  const resolvedImg =
+    allCandidates.find((m: any) => m?.image_url)?.image_url || undefined;
+  const resolvedCompat =
+    allCandidates.find(
+      (m: any) => Array.isArray(m?.compatible_versions) && m.compatible_versions.length > 0
+    )?.compatible_versions || undefined;
+  const resolvedCreatedAt =
+    matchedMods.find((m: any) => m?.created_at)?.created_at ||
+    latestVer?.created_at ||
+    relatedMods.find((m: any) => m?.created_at)?.created_at ||
+    undefined;
+  const resolvedUpdatedAt =
+    latestVer?.created_at ||
+    matchedMods.find((m: any) => m?.created_at)?.created_at ||
+    relatedMods.find((m: any) => m?.created_at)?.created_at ||
+    undefined;
+
+  return {
+    dbId: primaryMod?.id || candidateIds[0] || undefined,
+    hash: latestVer?.dna_hash || undefined,
+    author: resolvedAuthor,
+    master_author: resolvedAuthor,
+    mason_id: resolvedMasonId,
+    category_override: resolvedCategory,
+    description: resolvedDesc,
+    url: resolvedUrl,
+    image_url: resolvedImg,
+    compatible_versions: resolvedCompat,
+    created_at: resolvedCreatedAt,
+    updated_at: resolvedUpdatedAt,
+    version: latestVer?.version_label || undefined,
+    status: primaryMod?.status || "stable",
+    status_reason:
+      matchedMods.find((m: any) => m?.status_reason)?.status_reason ||
+      primaryMod?.status_reason ||
+      undefined,
+    compliance_tier: primaryMod?.compliance_tier ?? undefined,
+    is_paid: matchedMods.some((m: any) => Boolean(m?.is_paid)),
+    is_early_access: matchedMods.some((m: any) => Boolean(m?.is_early_access)),
+    mod_versions: allVersions.length > 0 ? allVersions : undefined,
+    requirements: hydratedRequirements.length > 0 ? hydratedRequirements : undefined,
+    twins: hydratedTwins.length > 0 ? hydratedTwins : undefined,
+  };
+}
+
+function mergeHydratedMod(
+  baseMod: any,
+  hydratedMeta: any,
+  allVaultMods: any[],
+  t: any
+): any {
+  if (!baseMod) return null;
+
+  const childSources: any[] = [
+    ...(Array.isArray(baseMod._groupedMods) ? baseMod._groupedMods : []),
+    ...(Array.isArray(baseMod.flavors) ? baseMod.flavors : []),
+  ];
+
+  const cleanBaseId = extractCleanUuid(
+    baseMod.dbId,
+    baseMod.id,
+    baseMod.baseFamilyId,
+    baseMod.familyId,
+    baseMod.name
+  );
+
+  if (cleanBaseId && Array.isArray(allVaultMods)) {
+    for (const vm of allVaultMods) {
+      if (!vm) continue;
+      const vmId = extractCleanUuid(vm.dbId, vm.id, vm.baseFamilyId, vm.familyId);
+      if (vmId && vmId.toLowerCase() === cleanBaseId.toLowerCase()) {
+        childSources.push(vm);
+      }
+    }
+  }
+
+  const resolvedAuthor =
+    pickFirstValidAuthor(
+      t,
+      baseMod.author,
+      baseMod.master_author,
+      hydratedMeta?.author,
+      hydratedMeta?.master_author,
+      ...childSources
+    ) ||
+    hydratedMeta?.author ||
+    baseMod.author ||
+    "";
+
+  const resolvedMasonId =
+    baseMod.mason_id ||
+    hydratedMeta?.mason_id ||
+    childSources.find((cs: any) => cs?.mason_id)?.mason_id ||
+    null;
+
+  const resolvedCategory =
+    baseMod.category_override ||
+    baseMod.category ||
+    baseMod.type ||
+    hydratedMeta?.category_override ||
+    childSources.find((cs: any) => cs?.category_override || cs?.category || cs?.type)
+      ?.category_override ||
+    "";
+
+  const resolvedCompat =
+    Array.isArray(baseMod.compatible_versions) && baseMod.compatible_versions.length > 0
+      ? baseMod.compatible_versions
+      : hydratedMeta?.compatible_versions ||
+        childSources.find(
+          (cs: any) =>
+            Array.isArray(cs?.compatible_versions) && cs.compatible_versions.length > 0
+        )?.compatible_versions ||
+        [];
+
+  const latestVerCreated =
+    baseMod.mod_versions?.[0]?.created_at ||
+    hydratedMeta?.mod_versions?.[0]?.created_at ||
+    childSources.find((cs: any) => cs?.mod_versions?.[0]?.created_at)?.mod_versions?.[0]
+      ?.created_at;
+
+  const resolvedCreated =
+    baseMod.created_at ||
+    hydratedMeta?.created_at ||
+    childSources.find((cs: any) => cs?.created_at)?.created_at ||
+    latestVerCreated ||
+    null;
+
+  const resolvedUpdated =
+    baseMod.updated_at ||
+    hydratedMeta?.updated_at ||
+    childSources.find((cs: any) => cs?.updated_at)?.updated_at ||
+    latestVerCreated ||
+    resolvedCreated ||
+    null;
+
+  const isLocalVerStr = (v: any) =>
+    !v || /^(v\.?local|local|unknown)$/i.test(String(v).trim());
+
+  const resolvedVersion =
+    (!isLocalVerStr(baseMod.version) ? baseMod.version : "") ||
+    (!isLocalVerStr(baseMod.latest_version) ? baseMod.latest_version : "") ||
+    hydratedMeta?.version ||
+    childSources.find((cs: any) => !isLocalVerStr(cs?.version))?.version ||
+    baseMod.version ||
+    "";
+
+  const resolvedDesc =
+    baseMod.description ||
+    baseMod.desc ||
+    hydratedMeta?.description ||
+    childSources.find((cs: any) => cs?.description && String(cs.description).trim() !== "")
+      ?.description ||
+    "";
+
+  const resolvedUrl =
+    baseMod.url ||
+    hydratedMeta?.url ||
+    childSources.find((cs: any) => cs?.url)?.url ||
+    "";
+
+  const resolvedImageUrl =
+    baseMod.image_url ||
+    baseMod.imageUrl ||
+    hydratedMeta?.image_url ||
+    childSources.find((cs: any) => cs?.image_url || cs?.imageUrl)?.image_url ||
+    "";
+
+  return {
+    ...baseMod,
+    dbId:
+      baseMod.dbId ||
+      hydratedMeta?.dbId ||
+      cleanBaseId ||
+      (baseMod.isNexusView ? baseMod.id : undefined),
+    hash: baseMod.hash || hydratedMeta?.hash || "",
+    author: resolvedAuthor,
+    master_author: resolvedAuthor,
+    mason_id: resolvedMasonId,
+    category: resolvedCategory,
+    category_override: resolvedCategory,
+    type: resolvedCategory,
+    description: resolvedDesc,
+    url: resolvedUrl,
+    image_url: resolvedImageUrl,
+    compatible_versions: resolvedCompat,
+    created_at: resolvedCreated,
+    updated_at: resolvedUpdated,
+    version: resolvedVersion,
+    status:
+      baseMod.status ||
+      hydratedMeta?.status ||
+      childSources.find((cs: any) => cs?.status)?.status ||
+      (baseMod.isNexusView ? "stable" : ""),
+    status_reason:
+      baseMod.status_reason ||
+      hydratedMeta?.status_reason ||
+      childSources.find((cs: any) => cs?.status_reason)?.status_reason ||
+      undefined,
+    compliance_tier:
+      baseMod.compliance_tier ??
+      hydratedMeta?.compliance_tier ??
+      childSources.find((cs: any) => cs?.compliance_tier != null)?.compliance_tier ??
+      0,
+    is_paid: Boolean(
+      baseMod.is_paid ||
+        hydratedMeta?.is_paid ||
+        childSources.some((cs: any) => Boolean(cs?.is_paid))
+    ),
+    is_early_access: Boolean(
+      baseMod.is_early_access ||
+        hydratedMeta?.is_early_access ||
+        childSources.some((cs: any) => Boolean(cs?.is_early_access))
+    ),
+    mod_versions:
+      baseMod.mod_versions ||
+      hydratedMeta?.mod_versions ||
+      childSources.find((cs: any) => cs?.mod_versions)?.mod_versions,
+    requirements:
+      Array.isArray(baseMod.requirements) && baseMod.requirements.length > 0
+        ? baseMod.requirements
+        : Array.isArray(baseMod.requires) && baseMod.requires.length > 0
+          ? baseMod.requires
+          : hydratedMeta?.requirements || undefined,
+    twins:
+      Array.isArray(baseMod.twins) && baseMod.twins.length > 0
+        ? baseMod.twins
+        : hydratedMeta?.twins || undefined,
+  };
+}
+
+function DossierModuleCard({
+  item,
+  activeMods,
+  isNexusView,
+  activeGameSchema,
+  showImages,
+  t,
+  onInspect,
+  onToggleGroup,
+  onToggleSingle,
+  isSingleItemStaged,
+  handleStageTargetToPc,
+}: any) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const groupedMods: any[] =
+    Array.isArray(item._groupedMods) && item._groupedMods.length > 0
+      ? item._groupedMods
+      : [item];
+  const isInstalled = item.isInstalled !== false;
+  const relationType: "manifest" | "requirement" | "twin" =
+    item.relationType || "manifest";
+
+  const equippableNames = groupedMods
+    .map((gm: any) => gm?.name)
+    .filter(
+      (n: any) =>
+        n &&
+        typeof n === "string" &&
+        !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+    );
+  const isEquipped =
+    isInstalled &&
+    equippableNames.length > 0 &&
+    equippableNames.some((n: string) => activeMods.includes(n));
+
+  const rawTitle =
+    item._groupedTitle ||
+    (item.displayName &&
+    !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(item.displayName))
+      ? item.displayName
+      : (item.name || "")
+          .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
+          .split(/[/\\]/)
+          .pop() || "");
+  const title =
+    formatCleanModTitle(
+      String(rawTitle).replace(/_/g, " ").replace(/\.[^/.]+$/, "")
+    ) || String(rawTitle);
+
+  const validCreator = pickFirstValidAuthor(t, item, ...groupedMods);
+
+  const hasScriptFile = groupedMods.some((gm: any) =>
+    /\.ts4script$/i.test(
+      String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
+    )
+  );
+  const hasPackageFile = groupedMods.some((gm: any) =>
+    /\.package$/i.test(
+      String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
+    )
+  );
+
+  const typeLabel = hasScriptFile
+    ? t("type_script", "Script")
+    : hasPackageFile
+      ? t("type_package", "Package")
+      : item.category_override || item.type || t("type_package", "Package");
+
+  const rawVer =
+    item.mod_versions?.[0]?.version_label ||
+    item.version ||
+    groupedMods.find(
+      (gm: any) =>
+        gm?.mod_versions?.[0]?.version_label ||
+        (gm?.version && !/^(v\.?local|local|unknown)$/i.test(String(gm.version)))
+    )?.version ||
+    "";
+  const hasRealVersion = Boolean(
+    rawVer && !/^(v\.?local|local|unknown)$/i.test(String(rawVer).trim())
+  );
+  const cleanVer = hasRealVersion
+    ? String(rawVer).replace(/^v\.?/i, "").trim()
+    : null;
+
+  const image =
+    showImages &&
+    (item.image_url || item.imageUrl) &&
+    String(item.image_url || item.imageUrl) !== "null" &&
+    String(item.image_url || item.imageUrl).trim() !== ""
+      ? item.image_url || item.imageUrl
+      : undefined;
+
+  const modIcon = !isInstalled
+    ? t("icon_error", "error")
+    : getModIcon(item, activeGameSchema, t);
+
+  const statusRaw = String(item.status || "")
+    .toLowerCase()
+    .replace(/[\[\]]/g, "");
+  const isBroken = statusRaw === "broken" || statusRaw === "corrupted";
+  const isWarn = statusRaw === "unstable" || statusRaw === "paid";
+
+  const iconColorClass = !isInstalled || isBroken
+    ? "text-[var(--danger)]"
+    : isWarn
+      ? "text-[var(--warning)]"
+      : "text-[var(--accent)]";
+
+  const searchOrDownloadUrl =
+    item.url ||
+    getModFallbackUrl(title || item.name || "", item.hash, activeGameSchema, {
+      url: item.url,
+    });
+
+  return (
+    <div
+      onClick={() => {
+        if (isInstalled || item.dbId || (item._groupedIds && item._groupedIds.length > 0)) {
+          onInspect(item);
+        } else {
+          handleOpenUrl(searchOrDownloadUrl);
+        }
+      }}
+      className={`glass-panel rounded-2xl p-3.5 border flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
+        isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
+      } ${
+        !isInstalled
+          ? "border-[color-mix(in_srgb,var(--danger)_32%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+          : isEquipped
+            ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_55%,transparent)]"
+            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+      }`}
+    >
+      {/* Top Tier: Icon Well + Title & Subtitle */}
+      <div className="flex items-center gap-3 min-w-0 w-full">
+        {image ? (
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+            <img src={image} alt={title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${iconColorClass}`}
+          >
+            <span className="material-symbols-outlined !text-[20px]">
+              {modIcon}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+              {title}
+            </span>
+            <HoverTooltip className="z-[100]" title={title} icon={modIcon} />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+            {validCreator && (
+              <>
+                <span className="truncate opacity-85">
+                  {formatCleanModTitle(validCreator)}
+                </span>
+                <span className="opacity-40 shrink-0">•</span>
+              </>
+            )}
+            <span className="opacity-85 shrink-0">{typeLabel}</span>
+            {groupedMods.length > 1 && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="opacity-85 shrink-0">
+                  {groupedMods.length} {t("badge_modules_count", "Modules")}
+                </span>
+              </>
+            )}
+            {cleanVer && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
+                  v{cleanVer}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Status & Action Bar */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {relationType === "requirement" ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                  isInstalled ? "text-[var(--accent)]" : "text-[var(--danger)]"
+                }`}
+              >
+                {isInstalled
+                  ? t("icon_extension", "extension")
+                  : t("icon_error", "error")}
+              </span>
+              <span>
+                {isInstalled
+                  ? t("requirement_essential", "Requirement")
+                  : t("status_missing", "Missing")}
+              </span>
+            </span>
+          ) : relationType === "twin" ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <span>{t("identity_twin", "Twin")}</span>
+            </span>
+          ) : (
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                  isBroken
+                    ? "text-[var(--danger)]"
+                    : isWarn
+                      ? "text-[var(--warning)]"
+                      : statusRaw === "stable" ||
+                          statusRaw === t("status_stable", "stable").toLowerCase()
+                        ? "text-[var(--success)]"
+                        : "text-[var(--subtext)]"
+                }`}
+              >
+                {isBroken
+                  ? t("icon_pest_control", "pest_control")
+                  : isWarn
+                    ? t("icon_warning", "warning")
+                    : statusRaw === "stable" ||
+                        statusRaw === t("status_stable", "stable").toLowerCase()
+                      ? t("icon_verified_user", "verified_user")
+                      : t("icon_label", "label")}
+              </span>
+              <span className="truncate">
+                {isBroken
+                  ? t("status_corrupted", "Broken")
+                  : statusRaw === "stable" ||
+                      statusRaw === t("status_stable", "stable").toLowerCase()
+                    ? t("status_stable", "Stable")
+                    : statusRaw
+                      ? statusRaw.replace(/_/g, " ")
+                      : t("badge_local", "Unlinked")}
+              </span>
+            </span>
+          )}
+        </div>
+
+        {/* Bottom-Right Compact Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {groupedMods.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isExpanded
+                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${groupedMods.length} ${t("badge_modules_count", "Modules")}`}
+                icon={t("icon_account_tree", "account_tree")}
+              />
+            </button>
+          )}
+
+          {(relationType === "requirement" || relationType === "twin") && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenUrl(searchOrDownloadUrl);
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {item.url
+                  ? t("icon_download", "download")
+                  : t("icon_open_in_new", "open_in_new")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  item.url
+                    ? t("btn_download", "Download")
+                    : t("btn_search_web", "Search Web")
+                }
+                icon={
+                  item.url
+                    ? t("icon_download", "download")
+                    : t("icon_open_in_new", "open_in_new")
+                }
+              />
+            </button>
+          )}
+
+          {isInstalled && !isNexusView && equippableNames.length > 0 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleGroup(item);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isEquipped
+                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)]"
+                  : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {isEquipped ? t("icon_close", "close") : t("icon_add", "add")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  isEquipped
+                    ? t("btn_unequip", "Unequip {Mod}")
+                    : t("btn_equip", "Equip {Mod}")
+                }
+                icon={
+                  isEquipped ? t("icon_close", "close") : t("icon_add", "add")
+                }
+                variant={isEquipped ? "danger" : "default"}
+              />
+            </button>
+          ) : isInstalled && isNexusView && !isDesktop() ? (
+            (() => {
+              const kidStaged = isSingleItemStaged(item);
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStageTargetToPc(
+                      { ...item, _stageSingle: true },
+                      kidStaged
+                    );
+                  }}
+                  className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                    kidStaged
+                      ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                      : "text-[var(--subtext)] hover:text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {kidStaged
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_phonelink", "phonelink")}
+                  </span>
+                </button>
+              );
+            })()
+          ) : null}
+        </div>
+      </div>
+
+      {/* Expandable Child Modules Drawer */}
+      {isExpanded && groupedMods.length > 1 && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1.5"
+        >
+          {groupedMods.map((gm: any, idx: number) => {
+            const rawChildFile =
+              (gm?.name || "").split(/[/\\]/).pop() ||
+              gm?.displayName ||
+              title;
+            const childExt = rawChildFile.includes(".")
+              ? `.${rawChildFile.split(".").pop()?.toUpperCase()}`
+              : getFileLabel(gm?.name || "", activeGameSchema);
+            const childClean =
+              formatCleanModTitle(
+                rawChildFile.replace(/_/g, " ").replace(/\.[^/.]+$/, "")
+              ) || rawChildFile;
+            const childEquipped = Boolean(gm?.name && activeMods.includes(gm.name));
+            const isChildScript = /\.ts4script$/i.test(rawChildFile);
+
+            return (
+              <div
+                key={gm?.hash || gm?.name || idx}
+                onClick={() => onInspect(gm)}
+                className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                    {isChildScript
+                      ? t("icon_terminal", "terminal")
+                      : t("icon_deployed_code", "deployed_code")}
+                  </span>
+                  <span className="text-xs font-bold text-[var(--text)] truncate">
+                    {childClean}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={VAULT_CHIP_CLASS}>{childExt}</span>
+                  {!isNexusView &&
+                    gm?.name &&
+                    !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(String(gm.name)) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSingle(gm.name);
+                        }}
+                        className={`w-6 h-6 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${
+                          childEquipped
+                            ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                            : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {childEquipped
+                            ? t("icon_close", "close")
+                            : t("icon_add", "add")}
+                        </span>
+                      </button>
+                    )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ModDossier({
   mod: rawMod,
@@ -57,221 +1019,52 @@ export default function ModDossier({
   setIsCorrecting,
   onSyncToNetwork,
 }: any) {
+  const { t } = useLexicon();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const storeModList = useStore((state: any) => state.modList);
+  const allAvailableMods = useMemo(() => {
+    const combined: any[] = [];
+    const seen = new Set<string>();
+    for (const src of [modList || [], storeModList || []]) {
+      for (const m of src) {
+        if (!m) continue;
+        const key = `${m.name || ""}::${m.hash || ""}::${m.dbId || ""}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          combined.push(m);
+        }
+      }
+    }
+    return combined;
+  }, [modList, storeModList]);
+
   const requireScoutLabTest =
     activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
   const session = useStore((state) => state.session);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
   const [isModLabVerified, setIsModLabVerified] = useState<boolean>(false);
   const [hydratedMeta, setHydratedMeta] = useState<any | null>(null);
+  const [kidHydratedMeta, setKidHydratedMeta] = useState<any | null>(null);
+  const [relationDbMap, setRelationDbMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     setHydratedMeta(null);
     if (!rawMod) return;
-
     let cancelled = false;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const candidateId =
-      rawMod.dbId && uuidRegex.test(String(rawMod.dbId))
-        ? String(rawMod.dbId)
-        : rawMod.id && uuidRegex.test(String(rawMod.id))
-          ? String(rawMod.id)
-          : "";
-    const candidateHash = String(rawMod.hash || "").trim();
-    const candidateName = String(rawMod.name || rawMod.displayName || "").trim();
-
-    const MOD_SELECT =
-      "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
-
-    const hydrateFromSpoke = async () => {
-      try {
-        let matchedMod: any = null;
-        if (candidateId) {
-          const { data } = await supabase
-            .from("mods")
-            .select(MOD_SELECT)
-            .eq("id", candidateId)
-            .maybeSingle();
-          if (data) matchedMod = data;
-        }
-        if (!matchedMod && candidateHash) {
-          const { data: vRow } = await supabase
-            .from("mod_versions")
-            .select(`mod_id, dna_hash, mods(${MOD_SELECT})`)
-            .eq("dna_hash", candidateHash)
-            .limit(1)
-            .maybeSingle();
-          if (vRow?.mods) {
-            matchedMod = Array.isArray(vRow.mods) ? vRow.mods[0] : vRow.mods;
-          }
-        }
-        if (!matchedMod && candidateName) {
-          const { data } = await supabase
-            .from("mods")
-            .select(MOD_SELECT)
-            .eq("name", candidateName)
-            .limit(1)
-            .maybeSingle();
-          if (data) matchedMod = data;
-        }
-
-        const resolvedId = matchedMod?.id || candidateId;
-        let parentMod: any = null;
-
-        if (resolvedId) {
-          const [{ data: relRows }, { data: depRows }] = await Promise.all([
-            supabase
-              .from("mod_relationships")
-              .select("parent_id, child_id, relationship_type")
-              .in("relationship_type", ["addon", "flavor", "set_item", "beta"])
-              .eq("child_id", resolvedId)
-              .limit(5),
-            supabase
-              .from("mod_dependencies")
-              .select("parent_id, child_id")
-              .eq("child_id", resolvedId)
-              .limit(5),
-          ]);
-
-          const parentRow = [...(relRows || []), ...(depRows || [])].find(
-            (r: any) => r.parent_id && r.parent_id !== resolvedId
-          );
-          if (parentRow?.parent_id) {
-            const { data: pData } = await supabase
-              .from("mods")
-              .select(MOD_SELECT)
-              .eq("id", parentRow.parent_id)
-              .maybeSingle();
-            if (pData) parentMod = pData;
-          }
-        }
-
-        if (cancelled || (!matchedMod && !parentMod)) return;
-
-        const latestVer =
-          Array.isArray(matchedMod?.mod_versions) && matchedMod.mod_versions.length > 0
-            ? matchedMod.mod_versions[0]
-            : null;
-        const parentLatestVer =
-          Array.isArray(parentMod?.mod_versions) && parentMod.mod_versions.length > 0
-            ? parentMod.mod_versions[0]
-            : null;
-
-        setHydratedMeta({
-          dbId: matchedMod?.id || resolvedId || undefined,
-          hash: latestVer?.dna_hash || undefined,
-          author: matchedMod?.master_author || parentMod?.master_author || undefined,
-          master_author: matchedMod?.master_author || parentMod?.master_author || undefined,
-          category_override:
-            matchedMod?.category_override || parentMod?.category_override || undefined,
-          description: matchedMod?.description || parentMod?.description || undefined,
-          url: matchedMod?.url || parentMod?.url || undefined,
-          image_url: matchedMod?.image_url || parentMod?.image_url || undefined,
-          compatible_versions:
-            Array.isArray(matchedMod?.compatible_versions) &&
-            matchedMod.compatible_versions.length > 0
-              ? matchedMod.compatible_versions
-              : Array.isArray(parentMod?.compatible_versions)
-                ? parentMod.compatible_versions
-                : undefined,
-          created_at:
-            matchedMod?.created_at ||
-            latestVer?.created_at ||
-            parentMod?.created_at ||
-            undefined,
-          updated_at:
-            latestVer?.created_at ||
-            matchedMod?.created_at ||
-            parentLatestVer?.created_at ||
-            parentMod?.created_at ||
-            undefined,
-          version:
-            latestVer?.version_label || parentLatestVer?.version_label || undefined,
-          status: matchedMod?.status || parentMod?.status || "stable",
-          status_reason:
-            matchedMod?.status_reason || parentMod?.status_reason || undefined,
-          compliance_tier:
-            matchedMod?.compliance_tier ?? parentMod?.compliance_tier ?? undefined,
-          mod_versions: matchedMod?.mod_versions || parentMod?.mod_versions || undefined,
-        });
-      } catch {
-        // Ignore non-fatal hydration error
-      }
-    };
-
-    hydrateFromSpoke();
+    fetchSpokeModMetadata(rawMod, t)
+      .then((res) => {
+        if (!cancelled && res) setHydratedMeta(res);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name]);
 
-  const mod = useMemo(() => {
-    if (!rawMod) return null;
-    const isUnknownStr = (val?: string) => {
-      if (!val) return true;
-      const low = String(val).trim().toLowerCase();
-      return (
-        low === "" ||
-        low === "unknown" ||
-        low === "unknown creator" ||
-        low === "unknown mason" ||
-        low === "local"
-      );
-    };
-
-    const resolvedAuthor = !isUnknownStr(rawMod.author)
-      ? rawMod.author
-      : !isUnknownStr(rawMod.master_author)
-        ? rawMod.master_author
-        : hydratedMeta?.author || rawMod.author || "";
-
-    const resolvedCategory =
-      rawMod.category_override ||
-      rawMod.category ||
-      rawMod.type ||
-      hydratedMeta?.category_override ||
-      "";
-
-    const resolvedCompat =
-      Array.isArray(rawMod.compatible_versions) && rawMod.compatible_versions.length > 0
-        ? rawMod.compatible_versions
-        : hydratedMeta?.compatible_versions || [];
-
-    const latestVerCreated =
-      rawMod.mod_versions?.[0]?.created_at ||
-      hydratedMeta?.mod_versions?.[0]?.created_at;
-
-    return {
-      ...rawMod,
-      dbId: rawMod.dbId || hydratedMeta?.dbId || (rawMod.isNexusView ? rawMod.id : undefined),
-      hash: rawMod.hash || hydratedMeta?.hash || "",
-      author: resolvedAuthor,
-      master_author: resolvedAuthor,
-      category: resolvedCategory,
-      category_override: resolvedCategory,
-      type: resolvedCategory,
-      description: rawMod.description || rawMod.desc || hydratedMeta?.description || "",
-      url: rawMod.url || hydratedMeta?.url || "",
-      image_url: rawMod.image_url || hydratedMeta?.image_url || "",
-      compatible_versions: resolvedCompat,
-      created_at: rawMod.created_at || hydratedMeta?.created_at || latestVerCreated || null,
-      updated_at:
-        rawMod.updated_at ||
-        hydratedMeta?.updated_at ||
-        latestVerCreated ||
-        rawMod.created_at ||
-        hydratedMeta?.created_at ||
-        null,
-      version: rawMod.version || rawMod.latest_version || hydratedMeta?.version || "",
-      status:
-        rawMod.status ||
-        hydratedMeta?.status ||
-        (rawMod.isNexusView ? "stable" : ""),
-      status_reason: rawMod.status_reason || hydratedMeta?.status_reason || undefined,
-      compliance_tier: rawMod.compliance_tier ?? hydratedMeta?.compliance_tier ?? 0,
-      mod_versions: rawMod.mod_versions || hydratedMeta?.mod_versions,
-    };
-  }, [rawMod, hydratedMeta]);
+  const mod = useMemo(
+    () => mergeHydratedMod(rawMod, hydratedMeta, allAvailableMods, t),
+    [rawMod, hydratedMeta, allAvailableMods, t]
+  );
 
   useEffect(() => {
     if (!mod?.hash) {
@@ -295,7 +1088,44 @@ export default function ModDossier({
   useEffect(() => {
     if (selectedKid) setDisplayedKid(selectedKid);
   }, [selectedKid]);
-  const kidToRender = selectedKid || displayedKid;
+  const rawKidToRender = selectedKid || displayedKid;
+
+  useEffect(() => {
+    setKidHydratedMeta(null);
+    if (!rawKidToRender) return;
+    let cancelled = false;
+    fetchSpokeModMetadata(rawKidToRender, t)
+      .then((res) => {
+        if (!cancelled && res) setKidHydratedMeta(res);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    rawKidToRender?.id,
+    rawKidToRender?.dbId,
+    rawKidToRender?.hash,
+    rawKidToRender?.name,
+    rawKidToRender?._groupedTitle,
+  ]);
+
+  const kidToRender = useMemo(() => {
+    if (!rawKidToRender) return null;
+    const preHydratedId = extractCleanUuid(
+      rawKidToRender.dbId,
+      rawKidToRender.id,
+      rawKidToRender.baseFamilyId,
+      rawKidToRender.name
+    );
+    const fromRelMap = preHydratedId ? relationDbMap[preHydratedId.toLowerCase()] : null;
+    return mergeHydratedMod(
+      rawKidToRender,
+      kidHydratedMeta || fromRelMap,
+      allAvailableMods,
+      t
+    );
+  }, [rawKidToRender, kidHydratedMeta, relationDbMap, allAvailableMods, t]);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
   const isNexusView = mod?.isNexusView;
@@ -350,26 +1180,142 @@ export default function ModDossier({
     }
   }, [mod]);
 
-  const { t } = useLexicon();
   const userRole = useStore((state: any) => state.userRole);
   const {
     stagingDraftItems,
     setStagingDraftItems,
     toggleModInStagingDraft,
   } = useModalStore();
-  const isModStaged = stagingDraftItems.some((item: any) => {
-    const itemId = String(item.id || item.mod_id || "").toLowerCase();
-    const itemHash = String(item.hash || item.dna_hash || "").toLowerCase();
-    const itemName = String(item.name || item.displayName || "").toLowerCase();
-    const targetId = String(mod?.id || mod?.dbId || "").toLowerCase();
-    const targetHash = String(mod?.hash || "").toLowerCase();
-    const targetName = String(mod?.name || mod?.displayName || "").toLowerCase();
-    return (
-      (targetId && itemId === targetId) ||
-      (targetHash && itemHash && itemHash === targetHash) ||
-      (targetName && itemName === targetName)
-    );
-  });
+
+  useEffect(() => {
+    if (!mod) {
+      setRelationDbMap({});
+      return;
+    }
+    const candidateSet = new Set<string>();
+    const addEntry = (item: any) => {
+      if (!item) return;
+      const raw =
+        typeof item === "string" ? item : item.id || item.dbId || item.hash || "";
+      const u = extractCleanUuid(raw);
+      if (u) candidateSet.add(u.toLowerCase());
+    };
+    (mod.requirements || mod.requires || []).forEach(addEntry);
+    (mod.twins || []).forEach(addEntry);
+    if (Array.isArray(mod.flavors)) {
+      mod.flavors.forEach((fl: any) => {
+        addEntry(fl);
+        (fl?.requirements || fl?.requires || []).forEach(addEntry);
+        (fl?.twins || []).forEach(addEntry);
+      });
+    }
+    const uuids = Array.from(candidateSet).slice(0, 40);
+    if (uuids.length === 0) return;
+
+    let cancelled = false;
+    supabase
+      .from("mods")
+      .select(MOD_SELECT)
+      .in("id", uuids)
+      .then(({ data }) => {
+        if (cancelled || !Array.isArray(data)) return;
+        const map: Record<string, any> = {};
+        for (const row of data) {
+          if (!row?.id) continue;
+          const latestVer =
+            Array.isArray(row.mod_versions) && row.mod_versions.length > 0
+              ? row.mod_versions[0]
+              : null;
+          const resolvedAuthor = pickFirstValidAuthor(t, row) || undefined;
+          map[String(row.id).toLowerCase()] = {
+            dbId: row.id,
+            name: row.name,
+            hash: latestVer?.dna_hash || undefined,
+            author: resolvedAuthor,
+            master_author: resolvedAuthor,
+            mason_id: row.mason_id || undefined,
+            category_override: row.category_override || undefined,
+            description: row.description || undefined,
+            url: row.url || undefined,
+            image_url: row.image_url || undefined,
+            compatible_versions: row.compatible_versions || undefined,
+            created_at: row.created_at || latestVer?.created_at || undefined,
+            updated_at: latestVer?.created_at || row.created_at || undefined,
+            version: latestVer?.version_label || undefined,
+            status: row.status || "stable",
+            status_reason: row.status_reason || undefined,
+            compliance_tier: row.compliance_tier ?? undefined,
+            is_paid: Boolean(row.is_paid),
+            is_early_access: Boolean(row.is_early_access),
+            mod_versions: row.mod_versions || undefined,
+          };
+        }
+        setRelationDbMap(map);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mod?.dbId, mod?.id, mod?.hash, mod?.requirements, mod?.twins, mod?.flavors, t]);
+  const isSingleItemStaged = (target: any) => {
+    if (!target) return false;
+    const targetId = String(target.id || target.dbId || "").toLowerCase();
+    const targetHash = String(
+      target.hash || target.mod_versions?.[0]?.dna_hash || ""
+    ).toLowerCase();
+    const targetName = String(target.name || target.displayName || "").toLowerCase();
+    return stagingDraftItems.some((item: any) => {
+      const itemId = String(item.id || item.dbId || item.mod_id || "").toLowerCase();
+      const itemHash = String(item.hash || item.dna_hash || "").toLowerCase();
+      const itemName = String(item.name || item.displayName || "").toLowerCase();
+      return (
+        (targetId && itemId === targetId) ||
+        (targetHash && itemHash && itemHash === targetHash) ||
+        (targetName && itemName === targetName)
+      );
+    });
+  };
+
+  const isModStaged = (() => {
+    if (!mod) return false;
+    const childList = Array.isArray(mod.flavors) ? mod.flavors : [];
+    if (
+      (mod.isParent || mod.isVirtual || mod.isCollection || childList.length > 1) &&
+      childList.length > 0
+    ) {
+      return childList.every((c: any) => isSingleItemStaged(c));
+    }
+    return isSingleItemStaged(mod);
+  })();
+
+  const handleStageTargetToPc = async (target: any, currentlyStaged: boolean) => {
+    const added = toggleModInStagingDraft(target);
+    const latestItems = useModalStore.getState().stagingDraftItems || [];
+    if (latestItems.length > 0) {
+      const { mergedItems, addedCount } = await resolvePayloadDependencies(latestItems);
+      setStagingDraftItems(
+        mergedItems.map((item, idx) => ({ ...item, load_order_index: idx }))
+      );
+      if (added && addedCount > 0) {
+        useStore
+          .getState()
+          .pushStatus(
+            `${t("resolved", "Resolved")} ${addedCount} ${t(
+              "status_deps_resolved_suffix",
+              "child dependencies."
+            )}`,
+            "info"
+          );
+        return;
+      }
+    }
+    useStore
+      .getState()
+      .pushStatus(
+        currentlyStaged
+          ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
+          : t("status_staging_item_added", "Added to Remote Staging Queue.")
+      );
+  };
 
   if (!mod) return null;
 
@@ -873,25 +1819,324 @@ export default function ModDossier({
     setIsSaving(false);
   };
 
-  const requirements = (mod.requirements || mod.requires || []).filter(
-    (v: any, i: number, a: any[]) =>
-      a.findIndex((tItem: any) => (tItem.id || tItem) === (v.id || v)) === i
-  );
-  const conflicts = mod.conflicts || [];
-  const twins = (mod.twins || []).filter(
-    (v: any, i: number, a: any[]) =>
-      a.findIndex(
-        (tItem: any) => (tItem.id || tItem.name) === (v.id || v.name)
-      ) === i
-  );
+  const safeToggleGroup = (groupItem: any) => {
+    const groupMods: any[] =
+      Array.isArray(groupItem?._groupedMods) && groupItem._groupedMods.length > 0
+        ? groupItem._groupedMods
+        : [groupItem];
+    const validNames = Array.from(
+      new Set(
+        groupMods
+          .map((gm: any) => gm?.name)
+          .filter(
+            (n: any) =>
+              n &&
+              typeof n === "string" &&
+              !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+          )
+      )
+    );
+    if (validNames.length === 0) {
+      if (groupItem?.name) safeToggle(groupItem.name);
+      return;
+    }
+    safeToggle(validNames[0]);
+  };
 
-  const cleanArtifactTitle = (
-    mod.displayName ||
-    (mod.name || "").split(/[/\\]/).pop() ||
-    ""
+  const groupedKids = (() => {
+    if (!Array.isArray(kids) || kids.length === 0) return [];
+    const map = new Map<string, any>();
+    for (const kid of kids) {
+      if (!kid) continue;
+      const kidUuid = extractCleanUuid(kid.dbId, kid.id).toLowerCase();
+      const hydratedKid = mergeHydratedMod(
+        kid,
+        kidUuid ? relationDbMap[kidUuid] : null,
+        allAvailableMods,
+        t
+      );
+      const rawTitle = (
+        hydratedKid.displayName ||
+        (hydratedKid.name || "").split(/[/\\]/).pop() ||
+        ""
+      )
+        .replace(/_/g, " ")
+        .replace(/\.[^/.]+$/, "");
+      const cleanTitle = formatCleanModTitle(rawTitle) || rawTitle;
+      const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
+      const groupKey = groupTitle.toLowerCase();
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          ...hydratedKid,
+          _groupedTitle: groupTitle,
+          _groupedMods: [hydratedKid],
+          _groupedIds: collectAllCandidateUuids(hydratedKid),
+          isInstalled: true,
+          relationType: "manifest" as const,
+        });
+      } else {
+        const existing = map.get(groupKey);
+        const alreadyHas = existing._groupedMods.some(
+          (gm: any) =>
+            (gm.name && hydratedKid.name && gm.name === hydratedKid.name) ||
+            (gm.hash && hydratedKid.hash && gm.hash === hydratedKid.hash)
+        );
+        if (!alreadyHas) {
+          existing._groupedMods.push(hydratedKid);
+        }
+        for (const cid of collectAllCandidateUuids(hydratedKid)) {
+          if (!existing._groupedIds.includes(cid)) {
+            existing._groupedIds.push(cid);
+          }
+        }
+        if (isPlaceholderAuthorStr(existing.author, t) && !isPlaceholderAuthorStr(hydratedKid.author, t)) {
+          existing.author = hydratedKid.author;
+        }
+        if (!existing.description && hydratedKid.description) {
+          existing.description = hydratedKid.description;
+        }
+        if (!existing.created_at && hydratedKid.created_at) {
+          existing.created_at = hydratedKid.created_at;
+        }
+        if (!existing.updated_at && hydratedKid.updated_at) {
+          existing.updated_at = hydratedKid.updated_at;
+        }
+      }
+    }
+    return Array.from(map.values());
+  })();
+
+  const conflicts = mod.conflicts || [];
+
+  const groupedRelations = (() => {
+    const rawReqs = [
+      ...(mod.requirements || mod.requires || []),
+      ...(mod.isVirtual && Array.isArray(mod.flavors)
+        ? mod.flavors.flatMap((fl: any) => fl?.requirements || fl?.requires || [])
+        : []),
+    ];
+    const rawTwins = [
+      ...(mod.twins || []),
+      ...(mod.isVirtual && Array.isArray(mod.flavors)
+        ? mod.flavors.flatMap((fl: any) => fl?.twins || [])
+        : []),
+    ];
+
+    const selfUuids = new Set<string>(
+      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
+        ? mod.flavors.flatMap((fl: any) => collectAllCandidateUuids(fl))
+        : [extractCleanUuid(mod.dbId, mod.id).toLowerCase()].filter(Boolean)
+    );
+    const selfNames = new Set<string>(
+      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
+        ? mod.flavors
+            .map((fl: any) => String(fl?.name || "").toLowerCase())
+            .filter(Boolean)
+        : [String(mod.name || "").toLowerCase()].filter(Boolean)
+    );
+
+    const physicalVaultMods = allAvailableMods.filter((m: any) => !m.isVirtual);
+    const virtualVaultMods = allAvailableMods.filter(
+      (m: any) => m.isVirtual && !m.isCollection
+    );
+
+    const combinedEntries: Array<{ rawItem: any; relType: "requirement" | "twin" }> = [
+      ...rawReqs.map((r: any) => ({ rawItem: r, relType: "requirement" as const })),
+      ...rawTwins.map((tw: any) => ({ rawItem: tw, relType: "twin" as const })),
+    ];
+
+    const map = new Map<string, any>();
+
+    for (const { rawItem, relType } of combinedEntries) {
+      if (!rawItem) continue;
+      const rawId =
+        typeof rawItem === "string"
+          ? rawItem
+          : rawItem.id || rawItem.dbId || rawItem.hash || "";
+      const cleanId = extractCleanUuid(rawId).toLowerCase();
+      const rawHash =
+        typeof rawItem === "object" && rawItem?.hash
+          ? String(rawItem.hash)
+          : !cleanId && typeof rawId === "string"
+            ? rawId
+            : "";
+
+      if (cleanId && selfUuids.has(cleanId)) continue;
+
+      const matchedPhysical = physicalVaultMods.filter((pm: any) => {
+        const pmUuid = extractCleanUuid(pm.dbId, pm.id).toLowerCase();
+        return (
+          (cleanId && pmUuid === cleanId) ||
+          (rawHash && pm.hash && String(pm.hash) === rawHash)
+        );
+      });
+
+      if (
+        matchedPhysical.length > 0 &&
+        matchedPhysical.every((pm: any) =>
+          selfNames.has(String(pm.name || "").toLowerCase())
+        )
+      ) {
+        continue;
+      }
+
+      const dbHydrated = cleanId ? relationDbMap[cleanId] : null;
+      const virtualMatch = cleanId
+        ? virtualVaultMods.find(
+            (vm: any) =>
+              extractCleanUuid(vm.dbId, vm.baseFamilyId).toLowerCase() === cleanId
+          )
+        : null;
+
+      let primaryMatch: any = null;
+      let isInstalled = false;
+      let resolvedModules: any[] = [];
+
+      if (matchedPhysical.length > 0) {
+        isInstalled = true;
+        resolvedModules = matchedPhysical.map((pm: any) =>
+          mergeHydratedMod(pm, dbHydrated, allAvailableMods, t)
+        );
+        primaryMatch = resolvedModules[0];
+      } else if (virtualMatch) {
+        const nonSelfFlavors = (virtualMatch.flavors || []).filter(
+          (fl: any) => !selfNames.has(String(fl?.name || "").toLowerCase())
+        );
+        if (nonSelfFlavors.length === 0 && mod.isVirtual) continue;
+        isInstalled = true;
+        resolvedModules =
+          nonSelfFlavors.length > 0
+            ? nonSelfFlavors.map((fl: any) =>
+                mergeHydratedMod(fl, dbHydrated, allAvailableMods, t)
+              )
+            : [mergeHydratedMod(virtualMatch, dbHydrated, allAvailableMods, t)];
+        primaryMatch = mergeHydratedMod(
+          { ...virtualMatch, ...(resolvedModules[0] || {}) },
+          dbHydrated,
+          allAvailableMods,
+          t
+        );
+      } else {
+        isInstalled = false;
+        const fallbackBase =
+          typeof rawItem === "string"
+            ? {
+                id: rawItem,
+                dbId: cleanId || undefined,
+                name: dbHydrated?.name || rawItem,
+                displayName: dbHydrated?.name || rawItem,
+              }
+            : {
+                ...rawItem,
+                dbId: cleanId || rawItem.dbId || rawItem.id,
+                name: dbHydrated?.name || rawItem.name || rawItem.displayName || String(rawId),
+                displayName:
+                  dbHydrated?.name || rawItem.displayName || rawItem.name || String(rawId),
+              };
+        primaryMatch = mergeHydratedMod(fallbackBase, dbHydrated, allAvailableMods, t);
+        resolvedModules = [primaryMatch];
+      }
+
+      const rawDisplay =
+        dbHydrated?.name ||
+        (primaryMatch.displayName &&
+        !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(primaryMatch.displayName))
+          ? primaryMatch.displayName
+          : "") ||
+        (typeof rawItem === "object" && (rawItem.displayName || rawItem.name)) ||
+        primaryMatch.name ||
+        String(rawId);
+
+      const cleanedRaw =
+        String(rawDisplay)
+          .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+          .split(/[/\\]/)
+          .pop()
+          ?.replace(/_/g, " ")
+          .replace(/\.[^/.]+$/, "")
+          .trim() || String(rawDisplay);
+
+      const cleanTitle = formatCleanModTitle(cleanedRaw) || cleanedRaw;
+      const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
+      const groupKey = groupTitle.toLowerCase();
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          ...primaryMatch,
+          displayName: groupTitle,
+          _groupedTitle: groupTitle,
+          _groupedMods: [...resolvedModules],
+          _groupedIds: cleanId
+            ? Array.from(new Set([cleanId, ...collectAllCandidateUuids(primaryMatch)]))
+            : collectAllCandidateUuids(primaryMatch),
+          isInstalled,
+          relationType: relType,
+        });
+      } else {
+        const existing = map.get(groupKey);
+        if (isInstalled) existing.isInstalled = true;
+        if (relType === "requirement") existing.relationType = "requirement";
+
+        for (const rm of resolvedModules) {
+          const alreadyHas = existing._groupedMods.some(
+            (gm: any) =>
+              (gm.name && rm.name && gm.name === rm.name) ||
+              (gm.hash && rm.hash && gm.hash === rm.hash) ||
+              (extractCleanUuid(gm.dbId, gm.id) &&
+                extractCleanUuid(gm.dbId, gm.id) === extractCleanUuid(rm.dbId, rm.id))
+          );
+          if (!alreadyHas) {
+            existing._groupedMods.push(rm);
+          }
+        }
+        if (cleanId && !existing._groupedIds.includes(cleanId)) {
+          existing._groupedIds.push(cleanId);
+        }
+        for (const cid of collectAllCandidateUuids(primaryMatch)) {
+          if (!existing._groupedIds.includes(cid)) {
+            existing._groupedIds.push(cid);
+          }
+        }
+        if (
+          isPlaceholderAuthorStr(existing.author, t) &&
+          !isPlaceholderAuthorStr(primaryMatch.author, t)
+        ) {
+          existing.author = primaryMatch.author;
+        }
+        if (!existing.description && primaryMatch.description) {
+          existing.description = primaryMatch.description;
+        }
+        if (!existing.url && primaryMatch.url) {
+          existing.url = primaryMatch.url;
+        }
+        if (!existing.created_at && primaryMatch.created_at) {
+          existing.created_at = primaryMatch.created_at;
+        }
+        if (!existing.updated_at && primaryMatch.updated_at) {
+          existing.updated_at = primaryMatch.updated_at;
+        }
+        if (
+          (!existing.version || /^(v\.?local|local|unknown)$/i.test(String(existing.version))) &&
+          primaryMatch.version &&
+          !/^(v\.?local|local|unknown)$/i.test(String(primaryMatch.version))
+        ) {
+          existing.version = primaryMatch.version;
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  })();
+
+  const rawArtifactTitle = (
+    (mod.displayName && !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(mod.displayName))
+      ? mod.displayName
+      : (mod.name || "").replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "").split(/[/\\]/).pop()) || ""
   )
     .replace(/_/g, " ")
     .replace(/\.[^/.]+$/, "");
+  const cleanArtifactTitle = formatCleanModTitle(rawArtifactTitle) || rawArtifactTitle;
 
   const statusLabel = (() => {
     if (
@@ -1004,17 +2249,17 @@ export default function ModDossier({
                 : "text-[var(--accent)]"
         }
         widthClass="w-[820px] max-w-[100vw]"
-        backdropZ="z-[100002]"
-        panelZ="z-[100003]"
-        headerActions={
-          <PanelHeaderGroup>
-            {editMode ? (
-              <>
+        backdropZ="z-[120000]"
+        panelZ="z-[120001]"
+        headerActions={(() => {
+          if (editMode) {
+            return (
+              <PanelHeaderGroup>
                 {!isCorrecting && (
                   <>
                     <PanelHeaderButton
                       icon={t("hub_save", "save")}
-                      label={
+                      tooltip={
                         isSaving
                           ? t("dossier_btn_saving", "Saving...")
                           : t("btn_save_local", "Save")
@@ -1025,7 +2270,7 @@ export default function ModDossier({
                     />
                     <PanelHeaderButton
                       icon={t("icon_refresh", "refresh")}
-                      label={t("btn_reset", "Reset")}
+                      tooltip={t("btn_reset", "Reset")}
                       variant="danger"
                       onClick={() => {
                         if (onResetMetadata) onResetMetadata(mod.hash);
@@ -1043,7 +2288,7 @@ export default function ModDossier({
                           ? t("icon_lock", "lock")
                           : t("icon_send", "send")
                       }
-                      label={
+                      tooltip={
                         isSaving
                           ? t("btn_submitting", "Submitting...")
                           : t("btn_submit_corrections", "Submit")
@@ -1057,174 +2302,115 @@ export default function ModDossier({
                   )}
                 <PanelHeaderButton
                   icon={t("icon_close", "close")}
-                  label={t("cancel", "Cancel")}
+                  tooltip={t("cancel", "Cancel")}
                   onClick={() => {
                     setEditMode(false);
                     setIsCorrecting(false);
                   }}
                 />
-              </>
-            ) : (
-              <>
-                {mod.hash?.startsWith("dev_sandbox_") && isDesktop() && (
-                  <PanelHeaderButton
-                    icon={t("icon_cloud_sync", "cloud_sync")}
-                    tooltip={t("btn_sync_network", "Sync Network")}
-                    variant="success"
-                    onClick={() => {
-                      if (onSyncToNetwork) onSyncToNetwork(mod);
-                      else setEditMode(true);
-                    }}
-                  />
-                )}
-                {!mod.isVirtual &&
-                  !isNexusView &&
-                  !mod.name?.startsWith("LOCAL_SET_") &&
-                  isDesktop() && (
-                    <PanelHeaderButton
-                      icon={t("icon_rocket_launch", "rocket_launch")}
-                      tooltip={t("btn_export_release", "Export Release")}
-                      onClick={handleExportLocalRelease}
-                      disabled={isSaving}
-                    />
-                  )}
-                {!(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
-                  isDesktop() && (
-                    <PanelHeaderButton
-                      icon={t("icon_science", "science")}
-                      tooltip={t("btn_send_to_lab", "Send to Lab")}
-                      onClick={() => {
-                        handleClose();
-                        onSendToLab();
-                      }}
-                    />
-                  )}
-                {mod.name?.startsWith("LOCAL_SET_")
-                  ? isDesktop() && (
-                      <PanelHeaderButton
-                        icon={t("icon_tune", "tune")}
-                        tooltip={t("local_folders_edit", "Edit Folder")}
-                        variant="warning"
-                        onClick={() => {
-                          handleClose();
-                          window.dispatchEvent(
-                            new CustomEvent("openLocalFolderEditor", {
-                              detail: mod.dbId,
-                            })
-                          );
-                        }}
-                      />
-                    )
-                  : isDesktop() && (
-                      <PanelHeaderButton
-                        icon={t("icon_edit", "edit")}
-                        tooltip={
-                          isCorrecting
-                            ? t("btn_submit_corrections", "Submit Corrections")
-                            : t("btn_edit", "Edit")
-                        }
-                        variant="warning"
-                        onClick={() => setEditMode(true)}
-                      />
-                    )}
-                {userRole === "oversight" && mod.compliance_tier === 5 && (
-                  <PanelHeaderButton
-                    icon={t("icon_delete_forever", "delete_forever")}
-                    tooltip={t("malware_alert_btn_shred", "Shred")}
-                    variant="danger"
-                    onClick={() => {
-                      handleClose();
-                      onSecureShred(mod.name);
-                    }}
-                  />
-                )}
-                {!(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
-                  targetDbId &&
-                  session &&
-                  !isBanned && (
-                    <PanelHeaderButton
-                      icon={t("icon_flag", "flag")}
-                      tooltip={t("btn_flag", "Flag {Mod}")}
-                      variant="warning"
-                      onClick={() => setShowFlagModal(true)}
-                    />
-                  )}
-                {!mod.isVirtual && !isDesktop() && (
-                  <PanelHeaderButton
-                    icon={
-                      isModStaged
-                        ? t("icon_playlist_add_check", "playlist_add_check")
-                        : t("icon_playlist_add", "playlist_add")
-                    }
-                    label={
-                      isModStaged
-                        ? t("staging_btn_staged", "Staged")
-                        : t("staging_btn_stage_mod", "Stage to PC")
-                    }
-                    variant={isModStaged ? "success" : "default"}
-                    onClick={async () => {
-                      const wasStaged = isModStaged;
-                      const added = toggleModInStagingDraft(mod);
-                      const latestItems = useModalStore.getState().stagingDraftItems || [];
-                      if (latestItems.length > 0) {
-                        const { mergedItems, addedCount } = await resolvePayloadDependencies(latestItems);
-                        setStagingDraftItems(
-                          mergedItems.map((item, idx) => ({ ...item, load_order_index: idx }))
-                        );
-                        if (added && addedCount > 0) {
-                          useStore
-                            .getState()
-                            .pushStatus(
-                              `${t("resolved", "Resolved")} ${addedCount} ${t(
-                                "status_deps_resolved_suffix",
-                                "child dependencies."
-                              )}`,
-                              "info"
-                            );
-                          return;
-                        }
-                      }
-                      useStore
-                        .getState()
-                        .pushStatus(
-                          wasStaged
-                            ? t(
-                                "status_staging_item_removed",
-                                "Removed from Remote Staging Queue."
-                              )
-                            : t(
-                                "status_staging_item_added",
-                                "Added to Remote Staging Queue."
-                              )
-                        );
-                    }}
-                  />
-                )}
+              </PanelHeaderGroup>
+            );
+          }
+
+          const canSyncSandbox = Boolean(mod.hash?.startsWith("dev_sandbox_") && isDesktop());
+          const canExportRelease = Boolean(
+            !mod.isVirtual &&
+              !isNexusView &&
+              !mod.name?.startsWith("LOCAL_SET_") &&
+              isDesktop()
+          );
+          const canEditDesktop = Boolean(isDesktop());
+          const canShredMalware = Boolean(
+            userRole === "oversight" && mod.compliance_tier === 5
+          );
+          const canFlagMod = Boolean(
+            !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
+              targetDbId &&
+              session &&
+              !isBanned
+          );
+
+          if (
+            !canSyncSandbox &&
+            !canExportRelease &&
+            !canEditDesktop &&
+            !canShredMalware &&
+            !canFlagMod
+          ) {
+            return undefined;
+          }
+
+          return (
+            <PanelHeaderGroup>
+              {canSyncSandbox && (
                 <PanelHeaderButton
-                  icon={
-                    mod.url || hasOverrides
-                      ? t("icon_download", "download")
-                      : t("icon_search", "search")
-                  }
-                  tooltip={
-                    mod.url || hasOverrides
-                      ? t("btn_download", "Download")
-                      : t("btn_search_web", "Search Web")
-                  }
+                  icon={t("icon_cloud_sync", "cloud_sync")}
+                  tooltip={t("btn_sync_network", "Sync Network")}
+                  variant="success"
                   onClick={() => {
-                    const url = getModFallbackUrl(
-                      mod.displayName || mod.name || "",
-                      mod.hash,
-                      activeGameSchema,
-                      { url: mod.url }
-                    );
-                    handleOpenUrl(url);
+                    if (onSyncToNetwork) onSyncToNetwork(mod);
+                    else setEditMode(true);
                   }}
                 />
-              </>
-            )}
-          </PanelHeaderGroup>
-        }
+              )}
+              {canExportRelease && (
+                <PanelHeaderButton
+                  icon={t("icon_rocket_launch", "rocket_launch")}
+                  tooltip={t("btn_export_release", "Export Release")}
+                  onClick={handleExportLocalRelease}
+                  disabled={isSaving}
+                />
+              )}
+              {mod.name?.startsWith("LOCAL_SET_")
+                ? canEditDesktop && (
+                    <PanelHeaderButton
+                      icon={t("icon_tune", "tune")}
+                      tooltip={t("local_folders_edit", "Edit Folder")}
+                      variant="warning"
+                      onClick={() => {
+                        handleClose();
+                        window.dispatchEvent(
+                          new CustomEvent("openLocalFolderEditor", {
+                            detail: mod.dbId,
+                          })
+                        );
+                      }}
+                    />
+                  )
+                : canEditDesktop && (
+                    <PanelHeaderButton
+                      icon={t("icon_edit", "edit")}
+                      tooltip={
+                        isCorrecting
+                          ? t("btn_submit_corrections", "Submit Corrections")
+                          : t("btn_edit", "Edit")
+                      }
+                      variant="warning"
+                      onClick={() => setEditMode(true)}
+                    />
+                  )}
+              {canShredMalware && (
+                <PanelHeaderButton
+                  icon={t("icon_delete_forever", "delete_forever")}
+                  tooltip={t("malware_alert_btn_shred", "Shred")}
+                  variant="danger"
+                  onClick={() => {
+                    handleClose();
+                    onSecureShred(mod.name);
+                  }}
+                />
+              )}
+              {canFlagMod && (
+                <PanelHeaderButton
+                  icon={t("icon_flag", "flag")}
+                  tooltip={t("btn_flag", "Flag {Mod}")}
+                  variant="warning"
+                  onClick={() => setShowFlagModal(true)}
+                />
+              )}
+            </PanelHeaderGroup>
+          );
+        })()}
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
@@ -1287,7 +2473,23 @@ export default function ModDossier({
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 ml-auto">
+                  {!editMode && !isDesktop() && (
+                    <ActionButton
+                      variant={isModStaged ? "accent" : "glass"}
+                      icon={
+                        isModStaged
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_phonelink", "phonelink")
+                      }
+                      label={
+                        isModStaged
+                          ? t("staging_btn_staged", "Staged")
+                          : t("staging_btn_stage_mod", "Stage to PC")
+                      }
+                      onClick={() => handleStageTargetToPc(mod, isModStaged)}
+                    />
+                  )}
                   {!editMode &&
                     mod.compliance_tier !== 1 &&
                     mod.compliance_tier !== 2 &&
@@ -1667,9 +2869,9 @@ export default function ModDossier({
             )}
           </UniversalGroup>
 
-          {kids.length > 0 && (
+          {groupedKids.length > 0 && (
             <UniversalGroup
-              title={`${t("manifest", "Manifest")} (${kids.length})`}
+              title={`${t("manifest", "Manifest")} (${groupedKids.length})`}
               icon={t("icon_inventory_2", "inventory_2")}
               headerAction={
                 !isNexusView && (
@@ -1695,377 +2897,425 @@ export default function ModDossier({
                 )
               }
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                {kids.map((kid: any, kidIndex: number) => {
-                  const isEquipped = activeMods.includes(kid.name);
-                  const kidStatusRaw = (kid.status || "")
-                    .toLowerCase()
-                    .replace(/[\[\]]/g, "");
-                  const kidStatusVar =
-                    kidStatusRaw === t("status_stable", "stable").toLowerCase() ||
-                    kidStatusRaw === "stable"
-                      ? "var(--success)"
-                      : kidStatusRaw === "broken" ||
-                          kidStatusRaw === "corrupted"
-                        ? "var(--danger)"
-                        : kidStatusRaw === "unstable" || kidStatusRaw === "paid"
-                          ? "var(--warning)"
-                          : "var(--subtext)";
-                  const kidStatusIcon =
-                    kidStatusVar === "var(--success)"
-                      ? t("icon_verified_user", "verified_user")
-                      : kidStatusVar === "var(--danger)"
-                        ? t("icon_pest_control", "pest_control")
-                        : kidStatusVar === "var(--warning)"
-                          ? t("icon_warning", "warning")
-                          : t("icon_label", "label");
-
-                  return (
-                    <div
-                      key={kid.hash || kid.id || `${kid.name}_${kidIndex}`}
-                      onClick={() => setSelectedKid(kid)}
-                      className={`group relative flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border transition-all cursor-pointer ${
-                        isEquipped
-                          ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-                      }`}
-                    >
-                      <div className="flex flex-col min-w-0 flex-1 relative group/title">
-                        <span className="text-xs font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
-                          {(
-                            kid.displayName ||
-                            (kid.name || "").split("/").pop() ||
-                            ""
-                          )
-                            .replace(/_/g, " ")
-                            .replace(/\.[^/.]+$/, "")}
-                        </span>
-                        <HoverTooltip
-                          title={
-                            kid.displayName ||
-                            (kid.name || "").split("/").pop() ||
-                            ""
-                          }
-                          variant="default"
-                          className="!hidden group-hover/title:!flex z-[100] left-0 bottom-full mb-1"
-                        />
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
-                              {String(kid.name || "")
-                                .toLowerCase()
-                                .includes("ts4script")
-                                ? t("icon_terminal", "terminal")
-                                : t("icon_deployed_code", "deployed_code")}
-                            </span>
-                            {kid.name?.includes(".")
-                              ? getFileLabel(kid.name, activeGameSchema)
-                              : (
-                                  kid.type ||
-                                  kid.category_override ||
-                                  t("label_artifact", "{Mod}")
-                                ).toUpperCase()}
-                          </span>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                              {t("icon_history", "history")}
-                            </span>
-                            <span className="truncate max-w-[110px]">
-                              {kid.mod_versions?.[0]?.version_label ||
-                                kid.version ||
-                                t("source_local", "Local")}
-                            </span>
-                          </span>
-                          <span className={`${VAULT_CHIP_CLASS} max-w-[140px]`}>
-                            <span
-                              className="material-symbols-rounded !text-[12px] shrink-0"
-                              style={{ color: kidStatusVar }}
-                            >
-                              {kidStatusIcon}
-                            </span>
-                            <span className="truncate">
-                              {(() => {
-                                const raw = kid.status || "";
-                                const cleaned = raw.replace(/[\[\]]/g, "");
-                                if (cleaned.toLowerCase() === "broken")
-                                  return t("status_corrupted", "Broken");
-                                const translated = cleaned.includes("status_")
-                                  ? t(cleaned, cleaned.replace(/_/g, " "))
-                                  : cleaned.replace(/_/g, " ");
-                                return translated || t("badge_local", "Unlinked");
-                              })()}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                      {!isNexusView && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            safeToggle(kid.name);
-                          }}
-                          className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-black transition-all glass-surface border ${
-                            isEquipped
-                              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)]"
-                              : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[18px]">
-                            {isEquipped
-                              ? t("icon_close", "close")
-                              : t("icon_add", "add")}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {groupedKids.map((kidGroup: any, kidIndex: number) => (
+                  <DossierModuleCard
+                    key={
+                      kidGroup.hash ||
+                      kidGroup.dbId ||
+                      `${kidGroup._groupedTitle}_${kidIndex}`
+                    }
+                    item={kidGroup}
+                    activeMods={activeMods}
+                    isNexusView={isNexusView}
+                    activeGameSchema={activeGameSchema}
+                    showImages={showImages}
+                    t={t}
+                    onInspect={(target: any) => setSelectedKid(target)}
+                    onToggleGroup={safeToggleGroup}
+                    onToggleSingle={safeToggle}
+                    isSingleItemStaged={isSingleItemStaged}
+                    handleStageTargetToPc={handleStageTargetToPc}
+                  />
+                ))}
               </div>
             </UniversalGroup>
           )}
 
-          {(requirements.length > 0 ||
-            twins.length > 0 ||
-            conflicts.length > 0) && (
+          {(groupedRelations.length > 0 || conflicts.length > 0) && (
             <UniversalGroup
               title={t("network_protocols", "Required {Mods}")}
               icon={t("auto_extension", "extension")}
             >
-              <div className="flex flex-col gap-2.5">
-                {requirements.map((req: any, i: number) => {
-                  const reqId =
-                    typeof req === "string" ? req : req.id || req.dbId;
-                  const reqUrl = typeof req === "string" ? null : req.url;
-                  const match =
-                    modList?.find(
-                      (m: any) =>
-                        String(m.dbId) === String(reqId) || m.hash === reqId
-                    ) || (typeof req !== "string" ? req : null);
-                  const displayName = match
-                    ? match.displayName || match.name
-                    : typeof req === "string"
-                      ? req
-                      : req.name;
-                  const searchUrl =
-                    reqUrl ||
-                    `https://www.google.com/search?q=${encodeURIComponent(
-                      activeGameSchema?.display_name || "Mod"
-                    )}+${encodeURIComponent(
-                      cleanSearchName(displayName, activeGameSchema)
-                    )}`;
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        match
-                          ? setSelectedKid(match)
-                          : handleOpenUrl(searchUrl)
-                      }
-                      className={`group flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border transition-all cursor-pointer ${
-                        !match
-                          ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div
-                          className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
-                            match
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--danger)]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[18px]">
-                            {match
-                              ? t("icon_extension", "extension")
-                              : t("icon_error", "error")}
-                          </span>
-                        </div>
-                        <span className="text-xs font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
-                          {displayName}
-                        </span>
-                      </div>
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span
-                          className={`material-symbols-rounded !text-[12px] shrink-0 ${
-                            match ? "text-[var(--accent)]" : "text-[var(--danger)]"
-                          }`}
-                        >
-                          {match
-                            ? t("icon_extension", "extension")
-                            : t("icon_error", "error")}
-                        </span>
-                        {match
-                          ? t("requirement_essential", "Requirement")
-                          : t("vault_missing_artifacts", "Missing {Mods}:")}
-                      </span>
-                    </div>
-                  );
-                })}
-                {twins.map((twin: any, i: number) => {
-                  const twinId = twin.id || twin.dbId || twin.name;
-                  const match =
-                    modList?.find(
-                      (m: any) =>
-                        String(m.dbId) === String(twinId) || m.hash === twinId
-                    ) || twin;
-                  const displayName = match
-                    ? match.displayName || match.name
-                    : twin.displayName || twin.name;
-                  return (
-                    <div
-                      key={i}
-                      onClick={() => match && setSelectedKid(match)}
-                      className="group flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[18px]">
-                            {t("icon_account_tree", "account_tree")}
-                          </span>
-                        </div>
-                        <span className="text-xs font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
-                          {displayName}
-                        </span>
-                      </div>
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                          {t("icon_account_tree", "account_tree")}
-                        </span>
-                        {t("identity_twin", "Twin")}
-                      </span>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {groupedRelations.map((relItem: any, i: number) => (
+                  <DossierModuleCard
+                    key={
+                      relItem.dbId ||
+                      relItem.hash ||
+                      `${relItem._groupedTitle}_${i}`
+                    }
+                    item={relItem}
+                    activeMods={activeMods}
+                    isNexusView={isNexusView}
+                    activeGameSchema={activeGameSchema}
+                    showImages={showImages}
+                    t={t}
+                    onInspect={(target: any) => setSelectedKid(target)}
+                    onToggleGroup={safeToggleGroup}
+                    onToggleSingle={safeToggle}
+                    isSingleItemStaged={isSingleItemStaged}
+                    handleStageTargetToPc={handleStageTargetToPc}
+                  />
+                ))}
               </div>
             </UniversalGroup>
           )}
         </div>
       </SidePanel>
 
-      {kidToRender && (
-        <SidePanel
-          isOpen={!!selectedKid}
-          onClose={() => setSelectedKid(null)}
-          title={(
-            kidToRender.displayName ||
-            (kidToRender.name || "").split(/[/\\]/).pop() ||
-            ""
-          )
-            .replace(/_/g, " ")
-            .replace(/\.[^/.]+$/, "")}
-          subtitle={`${kidToRender.author || mod.author || t("source_local", "Local")} • ${
+      {kidToRender &&
+        (() => {
+          const rawKidTitle =
+            kidToRender._groupedTitle ||
+            (kidToRender.displayName &&
+            !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(kidToRender.displayName))
+              ? kidToRender.displayName
+              : (kidToRender.name || "")
+                  .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
+                  .split(/[/\\]/)
+                  .pop() || "");
+          const cleanKidTitle =
+            formatCleanModTitle(
+              String(rawKidTitle).replace(/_/g, " ").replace(/\.[^/.]+$/, "")
+            ) || String(rawKidTitle);
+
+          const kidAuthor =
+            pickFirstValidAuthor(t, kidToRender, mod) ||
+            t("source_local", "Local");
+
+          const kidVerRaw =
             kidToRender.mod_versions?.[0]?.version_label ||
-            kidToRender.version ||
-            t("source_local", "Local")
-          }`}
-          icon={getModIcon(kidToRender, activeGameSchema, t)}
-          iconColorClass="text-[var(--accent)]"
-          widthClass="w-[660px] max-w-[100vw]"
-          backdropZ="z-[100005]"
-          panelZ="z-[100006]"
-          headerActions={
-            !isNexusView && (
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={
-                    activeMods.includes(kidToRender.name)
-                      ? t("icon_remove", "remove")
-                      : t("icon_add", "add")
-                  }
-                  tooltip={
-                    activeMods.includes(kidToRender.name)
-                      ? t("btn_unequip", "Unequip {Mod}")
-                      : t("btn_equip", "Equip {Mod}")
-                  }
-                  variant={
-                    activeMods.includes(kidToRender.name) ? "danger" : "success"
-                  }
-                  onClick={() => {
-                    safeToggle(kidToRender.name);
-                    if (!activeMods.includes(kidToRender.name))
-                      setSelectedKid(null);
-                  }}
-                  label={
-                    activeMods.includes(kidToRender.name)
-                      ? t("btn_unequip", "Unequip {Mod}")
-                      : t("btn_equip", "Equip {Mod}")
-                  }
-                />
-              </PanelHeaderGroup>
-            )
-          }
-        >
-          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-            <SidePanelHeroCard
+            (kidToRender.version &&
+            !/^(v\.?local|local|unknown)$/i.test(String(kidToRender.version))
+              ? kidToRender.version
+              : "") ||
+            resolvedVersion;
+          const kidResolvedVersion = kidVerRaw || t("source_local", "Local");
+
+          const kidCompat = getVersions(kidToRender);
+          const kidHighestVer =
+            kidCompat.length > 0 ? getHighestVersion(kidCompat) : familyVersion;
+          const kidGameVersionLabel =
+            kidHighestVer === "Unknown" ||
+            kidHighestVer === "ALL" ||
+            kidHighestVer === ""
+              ? t("any", "Any")
+              : kidHighestVer;
+
+          const kidCreatedDt =
+            kidToRender.created_at ||
+            kidToRender.mod_versions?.[0]?.created_at ||
+            kidToRender._groupedMods?.find((gm: any) => gm?.created_at)?.created_at ||
+            kidToRender.flavors?.find((fl: any) => fl?.created_at)?.created_at ||
+            mod.created_at ||
+            mod.mod_versions?.[0]?.created_at;
+          const kidResolvedCreatedAt = kidCreatedDt
+            ? new Date(kidCreatedDt).toLocaleDateString()
+            : t("source_local", "Local");
+
+          const kidUpdatedDt =
+            kidToRender.updated_at ||
+            kidToRender.mod_versions?.[0]?.created_at ||
+            kidToRender.created_at ||
+            kidToRender._groupedMods?.find(
+              (gm: any) => gm?.updated_at || gm?.created_at
+            )?.updated_at ||
+            kidToRender.flavors?.find(
+              (fl: any) => fl?.updated_at || fl?.created_at
+            )?.updated_at ||
+            mod.updated_at ||
+            mod.created_at;
+          const kidResolvedUpdatedAt = kidUpdatedDt
+            ? new Date(kidUpdatedDt).toLocaleDateString()
+            : t("source_local", "Local");
+
+          const kidModules: any[] =
+            Array.isArray(kidToRender._groupedMods) &&
+            kidToRender._groupedMods.length > 0
+              ? kidToRender._groupedMods
+              : Array.isArray(kidToRender.flavors) &&
+                  kidToRender.flavors.length > 0
+                ? kidToRender.flavors
+                : [kidToRender];
+
+          const kidEquippableNames = kidModules
+            .map((km: any) => km?.name)
+            .filter(
+              (n: any) =>
+                n &&
+                typeof n === "string" &&
+                !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+            );
+          const isKidEquipped =
+            kidEquippableNames.length > 0 &&
+            kidEquippableNames.some((n: string) => activeMods.includes(n));
+
+          const rawKidName = String(kidToRender.name || "");
+          const isSyntheticFolderName =
+            /^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawKidName) ||
+            UUID_REGEX.test(rawKidName.split("@")[0]);
+
+          const kidHeroDescription =
+            kidToRender.status_reason ||
+            (!isSyntheticFolderName && rawKidName.includes(".")
+              ? rawKidName.split(/[/\\]/).pop()
+              : `${cleanKidTitle} • ${kidAuthor}`);
+
+          const hasScriptKid = kidModules.some((km: any) =>
+            /\.ts4script$/i.test(String(km?.name || km?.file_extension || ""))
+          );
+          const kidCategoryLabel =
+            kidToRender.category_override ||
+            kidToRender.type ||
+            (hasScriptKid
+              ? t("type_script", "Script")
+              : getFileLabel(rawKidName, activeGameSchema));
+
+          const kidStatusRaw = String(kidToRender.status || "stable")
+            .toLowerCase()
+            .replace(/[\[\]]/g, "");
+          const kidStatusLabel =
+            kidStatusRaw === "broken" || kidStatusRaw === "corrupted"
+              ? t("status_corrupted", "Broken")
+              : kidStatusRaw === "unstable"
+                ? t("label_unstable", "Unstable")
+                : t("status_stable", "Stable");
+
+          return (
+            <SidePanel
+              isOpen={!!selectedKid}
+              onClose={() => setSelectedKid(null)}
+              title={cleanKidTitle}
+              subtitle={`${kidAuthor} • ${kidStatusLabel}`}
               icon={getModIcon(kidToRender, activeGameSchema, t)}
-              overline={
-                kidToRender.author || mod.author || t("source_local", "Local")
+              iconColorClass="text-[var(--accent)]"
+              widthClass="w-[660px] max-w-[100vw]"
+              backdropZ="z-[120004]"
+              panelZ="z-[120005]"
+              headerActions={
+                !isNexusView && kidEquippableNames.length > 0 ? (
+                  <PanelHeaderGroup>
+                    <PanelHeaderButton
+                      icon={
+                        isKidEquipped
+                          ? t("icon_remove", "remove")
+                          : t("icon_add", "add")
+                      }
+                      tooltip={
+                        isKidEquipped
+                          ? t("btn_unequip", "Unequip {Mod}")
+                          : t("btn_equip", "Equip {Mod}")
+                      }
+                      variant={isKidEquipped ? "danger" : "success"}
+                      onClick={() => {
+                        safeToggleGroup(kidToRender);
+                        if (!isKidEquipped) setSelectedKid(null);
+                      }}
+                    />
+                  </PanelHeaderGroup>
+                ) : undefined
               }
-              title={(
-                kidToRender.displayName ||
-                (kidToRender.name || "").split(/[/\\]/).pop() ||
-                ""
-              )
-                .replace(/_/g, " ")
-                .replace(/\.[^/.]+$/, "")}
-              description={kidToRender.status_reason || kidToRender.name}
-              badge={
-                kidToRender.mod_versions?.[0]?.version_label ||
-                kidToRender.version ||
-                t("source_local", "Local")
-              }
-              badgeIcon={t("icon_tag", "tag")}
-              variant="accent"
-            />
-
-            <UniversalGroup
-              title={t("tab_metadata", "Module Telemetry")}
-              icon={t("icon_analytics", "analytics")}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatBox
-                  label={t("comp_type", "Component Type")}
-                  value={
-                    kidToRender.type ||
-                    kidToRender.category_override ||
-                    getFileLabel(kidToRender.name || "", activeGameSchema)
-                  }
-                  icon={t("icon_deployed_code", "deployed_code")}
-                  iconColorClass="text-[var(--accent)]"
-                />
-                <StatBox
-                  label={t("label_uploaded", "Uploaded")}
-                  value={
-                    kidToRender.created_at
-                      ? new Date(kidToRender.created_at).toLocaleDateString()
-                      : t("source_local", "Local")
-                  }
-                  icon={t("icon_calendar_today", "calendar_today")}
-                />
-                <StatBox
-                  label={t("updated_date", "Updated")}
-                  value={
-                    kidToRender.updated_at
-                      ? new Date(kidToRender.updated_at).toLocaleDateString()
-                      : t("source_local", "Local")
-                  }
-                  icon={t("icon_update", "update")}
-                />
-              </div>
-            </UniversalGroup>
+              <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+                <SidePanelHeroCard
+                  icon={getModIcon(kidToRender, activeGameSchema, t)}
+                  overline={kidAuthor}
+                  title={cleanKidTitle}
+                  description={kidHeroDescription}
+                  badge={kidResolvedVersion}
+                  badgeIcon={t("icon_tag", "tag")}
+                  variant="accent"
+                >
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    {!isDesktop() && (
+                      <ActionButton
+                        variant={
+                          isSingleItemStaged(kidToRender) ? "accent" : "glass"
+                        }
+                        icon={
+                          isSingleItemStaged(kidToRender)
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_phonelink", "phonelink")
+                        }
+                        label={
+                          isSingleItemStaged(kidToRender)
+                            ? t("staging_btn_staged", "Staged")
+                            : t("staging_btn_stage_mod", "Stage to PC")
+                        }
+                        onClick={() =>
+                          handleStageTargetToPc(
+                            { ...kidToRender, _stageSingle: true },
+                            isSingleItemStaged(kidToRender)
+                          )
+                        }
+                      />
+                    )}
+                    <ActionButton
+                      variant="glass"
+                      icon={
+                        kidToRender.url || mod.url
+                          ? t("icon_download", "download")
+                          : t("icon_search", "search")
+                      }
+                      label={
+                        kidToRender.url || mod.url
+                          ? t("btn_download", "Download")
+                          : t("btn_search_web", "Search Web")
+                      }
+                      onClick={() => {
+                        const url = getModFallbackUrl(
+                          cleanKidTitle || kidToRender.name || "",
+                          kidToRender.hash,
+                          activeGameSchema,
+                          { url: kidToRender.url || mod.url }
+                        );
+                        handleOpenUrl(url);
+                      }}
+                    />
+                  </div>
+                </SidePanelHeroCard>
 
-            <UniversalGroup
-              title={t("log_manifest", "{Mod} Description")}
-              icon={t("icon_description", "description")}
-            >
-              <div className="text-xs text-[var(--text)] opacity-90 leading-relaxed font-medium glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                {kidToRender.description || t("no_desc_sub", "No specific local description provided for this sub-{mod}.")}
+                <UniversalGroup
+                  title={t("tab_metadata", "Metadata & Telemetry")}
+                  icon={t("icon_analytics", "analytics")}
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatBox
+                      label={t("mason", "{Mason}")}
+                      value={kidAuthor}
+                      icon={t("icon_person", "person")}
+                      iconColorClass="text-[var(--accent)]"
+                      onClick={
+                        kidToRender.mason_id && onOpenMasonProfile
+                          ? () => {
+                              onOpenMasonProfile(kidToRender.mason_id);
+                              onClose();
+                            }
+                          : undefined
+                      }
+                    />
+                    <StatBox
+                      label={t("revision", "Revision")}
+                      value={kidResolvedVersion}
+                      icon={t("icon_tag", "tag")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    <StatBox
+                      label={t("label_game_version", "Game Version")}
+                      value={kidGameVersionLabel}
+                      icon={t("icon_sports_esports", "sports_esports")}
+                      iconColorClass="text-[var(--success)]"
+                    />
+                    <StatBox
+                      label={t("label_mod_category", "{Mod} Category")}
+                      value={kidCategoryLabel}
+                      icon={t("icon_category", "category")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                    <StatBox
+                      label={t("tab_compliance", "Compliance")}
+                      value={
+                        kidToRender.compliance_tier === 1
+                          ? t("tier_nsfw", "NSFW")
+                          : kidToRender.compliance_tier === 2
+                            ? t("tier_adult", "Adult")
+                            : t("tier_clean", "Clean")
+                      }
+                      icon={t("icon_shield", "shield")}
+                      iconColorClass={
+                        kidToRender.compliance_tier === 1 ||
+                        kidToRender.compliance_tier === 2
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--success)]"
+                      }
+                    />
+                    <StatBox
+                      label={t("badge_early_access", "Access Tier")}
+                      value={
+                        kidToRender.is_early_access
+                          ? t("badge_early_access", "Early Access")
+                          : kidToRender.is_paid
+                            ? t("badge_paid", "Paid")
+                            : t("badge_free", "Free")
+                      }
+                      icon={
+                        kidToRender.is_early_access
+                          ? t("icon_science", "science")
+                          : kidToRender.is_paid
+                            ? t("icon_monetization_on", "monetization_on")
+                            : t("icon_public", "public")
+                      }
+                      iconColorClass={
+                        kidToRender.is_paid
+                          ? "text-[var(--warning)]"
+                          : kidToRender.is_early_access
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--success)]"
+                      }
+                    />
+                    <StatBox
+                      label={t("label_uploaded", "Uploaded")}
+                      value={kidResolvedCreatedAt}
+                      icon={t("icon_calendar_today", "calendar_today")}
+                    />
+                    <StatBox
+                      label={t("updated_date", "Updated")}
+                      value={kidResolvedUpdatedAt}
+                      icon={t("icon_update", "update")}
+                    />
+                  </div>
+                </UniversalGroup>
+
+                <UniversalGroup
+                  title={t("log_manifest", "{Mod} Description")}
+                  icon={t("icon_description", "description")}
+                >
+                  <div className="text-xs text-[var(--text)] opacity-90 leading-relaxed font-medium glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] whitespace-pre-wrap">
+                    {kidToRender.description ||
+                      mod.description ||
+                      t(
+                        "no_desc_sub",
+                        "No specific local description provided for this sub-{mod}."
+                      )}
+                  </div>
+                </UniversalGroup>
+
+                {kidModules.length > 1 && (
+                  <UniversalGroup
+                    title={`${t("manifest", "Manifest")} (${kidModules.length})`}
+                    icon={t("icon_inventory_2", "inventory_2")}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {kidModules.map((km: any, kmIdx: number) => {
+                        const rawKmFile =
+                          (km?.name || "").split(/[/\\]/).pop() ||
+                          km?.displayName ||
+                          cleanKidTitle;
+                        const kmClean =
+                          formatCleanModTitle(
+                            rawKmFile.replace(/_/g, " ").replace(/\.[^/.]+$/, "")
+                          ) || rawKmFile;
+                        return (
+                          <DossierModuleCard
+                            key={km?.hash || km?.name || kmIdx}
+                            item={{
+                              ...km,
+                              _groupedTitle: kmClean,
+                              _groupedMods: [km],
+                              isInstalled: true,
+                              relationType: "manifest",
+                            }}
+                            activeMods={activeMods}
+                            isNexusView={isNexusView}
+                            activeGameSchema={activeGameSchema}
+                            showImages={showImages}
+                            t={t}
+                            onInspect={(target: any) => setSelectedKid(target)}
+                            onToggleGroup={safeToggleGroup}
+                            onToggleSingle={safeToggle}
+                            isSingleItemStaged={isSingleItemStaged}
+                            handleStageTargetToPc={handleStageTargetToPc}
+                          />
+                        );
+                      })}
+                    </div>
+                  </UniversalGroup>
+                )}
               </div>
-            </UniversalGroup>
-          </div>
-        </SidePanel>
-      )}
+            </SidePanel>
+          );
+        })()}
 
       {showFlagModal && (
         <SidePanel
@@ -2076,8 +3326,8 @@ export default function ModDossier({
           icon={t("icon_flag", "flag")}
           iconColorClass="text-[var(--warning)]"
           widthClass="w-[520px] max-w-[100vw]"
-          backdropZ="z-[110000]"
-          panelZ="z-[110001]"
+          backdropZ="z-[120008]"
+          panelZ="z-[120009]"
         >
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard

@@ -40,6 +40,7 @@ export function SystemStatusBar({
 
   const {
     isSideBrowserOpen,
+    useInternalBrowser,
     scoutQueue,
     setIsScoutPanelOpen,
     isScoutPanelOpen,
@@ -660,7 +661,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isWorkspaceDockActive && (
+                {isWorkspaceDockActive && useInternalBrowser && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -684,7 +685,7 @@ export function SystemStatusBar({
                   </button>
                 )}
 
-                {isWorkspaceDockActive && (
+                {isWorkspaceDockActive && useInternalBrowser && (
                   <div className="w-[1px] h-4 bg-[color-mix(in_srgb,var(--text)_14%,transparent)] mx-0.5 shrink-0" />
                 )}
 

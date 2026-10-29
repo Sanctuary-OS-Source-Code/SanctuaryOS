@@ -6,6 +6,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  openModDossier,
 } from "../shared";
 
 export function YeetConfirmAlert({
@@ -36,8 +37,8 @@ export function YeetConfirmAlert({
       )}
       icon={t("icon_warning_amber", "warning")}
       iconColorClass="text-[var(--danger)] animate-pulse"
-      backdropZ="z-[100002]"
-      panelZ="z-[100003]"
+      backdropZ="z-[125000]"
+      panelZ="z-[125001]"
       widthClass="w-[90vw] md:w-[620px]"
       headerActions={
         <PanelHeaderGroup>
@@ -73,7 +74,8 @@ export function YeetConfirmAlert({
             {casualties.map((c: any, i: number) => (
               <div
                 key={i}
-                className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                onClick={() => openModDossier(c)}
+                className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_55%,transparent)] flex items-center justify-between gap-3 cursor-pointer transition-all"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">

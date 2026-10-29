@@ -15,6 +15,7 @@ import {
   StatBox,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  openModDossier,
 } from "../shared";
 import {
   normalizeModGroupTitle,
@@ -230,7 +231,18 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
 
   return (
     <div
-      onClick={openUpdateTarget}
+      onClick={() =>
+        openModDossier(
+          groupedMods.length > 1
+            ? {
+                ...update,
+                displayName: title || update._groupedTitle || update.displayName || update.name,
+                isVirtual: true,
+                flavors: groupedMods,
+              }
+            : update
+        )
+      }
       className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
         isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
       }`}
@@ -377,7 +389,11 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className="glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModDossier(gm);
+                  }}
+                  className="glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex items-center justify-between gap-2 cursor-pointer transition-all"
                 >
                   <div className="relative group/gmtitle flex items-center gap-2 min-w-0 flex-1">
                     <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">

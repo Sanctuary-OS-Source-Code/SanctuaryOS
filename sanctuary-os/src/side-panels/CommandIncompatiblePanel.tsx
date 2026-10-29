@@ -20,6 +20,7 @@ import {
   DashboardStatTile,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  openModDossier,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -989,7 +990,19 @@ export function IncompatibleModCard({
 
   return (
     <div
-      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 relative ${
+      onClick={() =>
+        openModDossier(
+          groupedMods.length > 1
+            ? {
+                ...mod,
+                displayName: title || mod._groupedTitle || mod.displayName || mod.name,
+                isVirtual: true,
+                flavors: groupedMods,
+              }
+            : mod
+        )
+      }
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
         isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
       } ${effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""}`}
     >
@@ -1267,7 +1280,11 @@ export function IncompatibleModCard({
               return (
                 <div
                   key={`${gm.name || gIdx}-${gIdx}`}
-                  className={`glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex items-center justify-between gap-2 transition-all ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModDossier(gm);
+                  }}
+                  className={`glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex items-center justify-between gap-2 transition-all cursor-pointer ${
                     gmIgnored ? "opacity-50 grayscale-[40%]" : ""
                   }`}
                 >
@@ -1532,11 +1549,7 @@ export function ConflictComparisonCard({
       </div>
 
       {/* Head-to-Head VS Clash Grid */}
-      <div
-        className={`grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2.5 w-full ${
-          isIgnored ? "pointer-events-none" : ""
-        }`}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2.5 w-full">
         {slots.map((slot, sIdx) => {
           if (!slot.mod) return null;
           const mTitle = formatCleanModTitle(
@@ -1554,7 +1567,8 @@ export function ConflictComparisonCard({
           const cardElement = (
             <div
               key={`${ac.pairId}-slot-${sIdx}`}
-              className={`glass-surface rounded-xl p-3 border transition-all flex flex-col justify-between gap-2.5 min-w-0 ${
+              onClick={() => openModDossier(slot.mod)}
+              className={`glass-surface rounded-xl p-3 border transition-all flex flex-col justify-between gap-2.5 min-w-0 cursor-pointer ${
                 slot.isWinner && !isTier4
                   ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
                   : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
@@ -1615,13 +1629,14 @@ export function ConflictComparisonCard({
                     toggleInActiveSet && (
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           toggleInActiveSet(
                             slot.mod._originalSetName || slot.mod.name,
                             true,
                             true
-                          )
-                        }
+                          );
+                        }}
                         className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
                       >
                         <span className="material-symbols-outlined !text-[15px]">
@@ -1656,13 +1671,14 @@ export function ConflictComparisonCard({
                       applyConflictOverride && (
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             applyConflictOverride(
                               slot.mod._originalSetName || slot.mod.name,
                               ac.pairId,
                               scopeName
-                            )
-                          }
+                            );
+                          }}
                           className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
                         >
                           <span className="material-symbols-outlined !text-[15px]">
@@ -1678,7 +1694,10 @@ export function ConflictComparisonCard({
                       )
                     )
                   ) : getPriorityDrop ? (
-                    <div className="flex items-center gap-2">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-2"
+                    >
                       <div className="w-28">{getPriorityDrop(slot.mod)}</div>
                     </div>
                   ) : null}

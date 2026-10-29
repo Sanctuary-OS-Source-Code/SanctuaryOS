@@ -2947,3 +2947,62 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
     }
 }
 
+/// Resolves `rel` against `base` case-insensitively on case-sensitive filesystems (Linux ext4/btrfs).
+/// For each path segment, if a directory/file already exists on disk with different casing
+/// (e.g. `Saves` vs `saves`, `Data/SKSE/Plugins` vs `data/skse/plugins`, `Mods` vs `mods`),
+/// the existing on-disk casing is preserved so Sanctuary never creates duplicate differently-cased folders.
+pub fn resolve_case_insensitive_path(base: &Path, rel: &str) -> PathBuf {
+    let mut current = base.to_path_buf();
+    let norm = rel.replace('\\', "/");
+    for seg in norm.split('/').map(|s| s.trim()).filter(|s| !s.is_empty() && *s != ".") {
+        let exact = current.join(seg);
+        if exact.exists() || !current.is_dir() {
+            current = exact;
+            continue;
+        }
+        let mut matched: Option<PathBuf> = None;
+        if let Ok(entries) = std::fs::read_dir(&current) {
+            for entry in entries.flatten() {
+                if entry.file_name().to_string_lossy().eq_ignore_ascii_case(seg) {
+                    matched = Some(entry.path());
+                    break;
+                }
+            }
+        }
+        current = matched.unwrap_or(exact);
+    }
+    current
+}
+
+/// Normalizes an absolute or relative path by matching existing parent segments case-insensitively on Linux/Unix.
+pub fn normalize_existing_case_path(full_path: &Path) -> PathBuf {
+    if full_path.exists() || cfg!(target_os = "windows") {
+        return full_path.to_path_buf();
+    }
+    let mut components = full_path.components();
+    let mut current = match components.next() {
+        Some(first) => PathBuf::from(first.as_os_str()),
+        None => return full_path.to_path_buf(),
+    };
+    for comp in components {
+        let seg = comp.as_os_str().to_string_lossy();
+        let exact = current.join(comp.as_os_str());
+        if exact.exists() || !current.is_dir() {
+            current = exact;
+            continue;
+        }
+        let mut matched: Option<PathBuf> = None;
+        if let Ok(entries) = std::fs::read_dir(&current) {
+            for entry in entries.flatten() {
+                if entry.file_name().to_string_lossy().eq_ignore_ascii_case(&seg) {
+                    matched = Some(entry.path());
+                    break;
+                }
+            }
+        }
+        current = matched.unwrap_or(exact);
+    }
+    current
+}
+
+

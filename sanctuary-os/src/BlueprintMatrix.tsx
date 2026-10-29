@@ -11,6 +11,7 @@ import {
   ActionButton,
   HoverTooltip,
   getNormalizedArtifactName,
+  openModDossier,
 } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
@@ -443,7 +444,8 @@ export default function BlueprintMatrix({
                     return (
                       <div
                         key={mod.name}
-                        className="flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] transition-all group/item"
+                        onClick={() => openModDossier(mod)}
+                        className="flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] transition-all group/item cursor-pointer"
                       >
                         {/* Top Row: Full-Width Icon + Title/Subtitle Identity */}
                         <div className="flex items-center gap-3 min-w-0 w-full">
@@ -485,7 +487,10 @@ export default function BlueprintMatrix({
 
                           <button
                             type="button"
-                            onClick={() => handleRemoveArtifact(mod.name)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveArtifact(mod.name);
+                            }}
                             className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0 ml-auto"
                           >
                             <span className="material-symbols-outlined !text-[15px]">

@@ -1009,9 +1009,15 @@ export const LexiconProvider = ({ children }: any) => {
       tCache.set(cacheKey, res);
       return res;
     }
-    const res = fallback
-      ? interpolateGlossaryTokens(fallback, dictionary, activeLangState)
-      : fallback === "" || !key
+    const resolvedFallback =
+      fallback !== undefined
+        ? fallback
+        : /[\s{}]/.test(key)
+          ? key
+          : undefined;
+    const res = resolvedFallback
+      ? interpolateGlossaryTokens(resolvedFallback, dictionary, activeLangState)
+      : resolvedFallback === "" || !key
         ? ""
         : `[${key}]`;
     tCache.set(cacheKey, res);

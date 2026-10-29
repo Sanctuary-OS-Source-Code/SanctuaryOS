@@ -536,6 +536,10 @@ interface GlobalState {
   setNexusUpdateTabs: (tabs: string[]) => void;
   showImages: boolean;
   setShowImages: (show: boolean) => void;
+  showCommLinkImages: boolean;
+  setShowCommLinkImages: (show: boolean) => void;
+  localOnly: boolean;
+  setLocalOnly: (val: boolean) => void;
   marketSearchQuery: string;
   setMarketSearchQuery: (query: string) => void;
   ideOpenFiles: {name: string, path: string, content: string, originalContent: string}[];
@@ -927,6 +931,17 @@ export const useStore = create<GlobalState>((set) => ({
   setNexusUpdateTabs: (nexusUpdateTabs) => set({ nexusUpdateTabs }),
   showImages: localStorage.getItem("sanctuary_show_images") !== "false",
   setShowImages: (showImages) => { safeLocalStorageSetItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
+  showCommLinkImages: localStorage.getItem("sanctuary_show_commlink_images") !== "false",
+  setShowCommLinkImages: (showCommLinkImages) => { safeLocalStorageSetItem("sanctuary_show_commlink_images", showCommLinkImages.toString()); set({ showCommLinkImages }); },
+  localOnly: localStorage.getItem("sanctuary_local_only") === "true",
+  setLocalOnly: (localOnly) => {
+    safeLocalStorageSetItem("sanctuary_local_only", localOnly.toString());
+    set({ localOnly });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sanctuary_local_only_changed", { detail: { localOnly } }));
+      window.dispatchEvent(new Event(localOnly ? "offline" : "online"));
+    }
+  },
   marketSearchQuery: '',
   setMarketSearchQuery: (marketSearchQuery) => set({ marketSearchQuery }),
   ideOpenFiles: [],

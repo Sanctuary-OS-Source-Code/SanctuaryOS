@@ -365,14 +365,117 @@ export default function CommandCenter({
       {(() => {
         const showCritical = (radarTier4Count + radarBrokenCount) > 0;
         const showAlerts = (radarTier3Count + radarUnstableCount) > 0;
+        const showUrgentBroadcast = Boolean(
+          urgentBroadcast &&
+          dismissedBroadcastId !== String(urgentBroadcast.id) &&
+          localStorage.getItem("sanctuary_notify_alert_banner") !== "false"
+        );
 
-        const hasCriticalOrAlerts = (hasSymlinkPerms === false && isDesktop()) ||
-          (activeGameSchema?.features?.has_cc !== false && (showCritical || showAlerts)) ||
-          (urgentBroadcast && localStorage.getItem("sanctuary_notify_alert_banner") !== "false");
+        const systemTiles: React.ReactNode[] = [];
 
-        const updatesOrStableElements = [];
+        if (hasSymlinkPerms === false && isDesktop()) {
+          systemTiles.push(
+            <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
+              <HoverTooltip
+                variant="warning"
+                title={t("perm_restricted", "Permissions Restricted")}
+                subtitle={t("perm_hover_desc", "Application lacks sufficient permissions to manage your {Vault}. Enable Windows Developer Mode or run as Administrator.") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
+                className="group-hover/perms:flex z-[1000] w-full"
+                vAlign="bottom"
+              />
+              <DashboardStatTile
+                icon={<span className="material-symbols-outlined ">{t("icon_warning", "warning")}</span>}
+                number="!"
+                label={t("perm_restricted", "Permissions Restricted")}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] animate-pulse w-full"
+                onClick={() => invoke("open_developer_settings")}
+              />
+            </div>
+          );
+        }
+
+        if (showUrgentBroadcast) {
+          const broadcastMeta = extractDispatchMetadata(urgentBroadcast);
+          const broadcastAlertType = formatDispatchCategory(broadcastMeta.alertOrDispatchType, t);
+          systemTiles.push(
+            <div key="broadcast" className="relative group/broadcast flex-1 flex min-w-0 w-full h-full">
+              <HoverTooltip
+                variant="danger"
+                title={urgentBroadcast.title || t("tile_global_alert", "Global Alert")}
+                subtitle={stripMarkdown(broadcastMeta.cleanContent || urgentBroadcast.message || urgentBroadcast.content)}
+                className="group-hover/broadcast:flex z-[1000] w-full"
+                vAlign="bottom"
+              />
+              <DashboardStatTile
+                icon={<span className="material-symbols-outlined ">{urgentBroadcast.icon || t("icon_campaign", "campaign")}</span>}
+                number={broadcastAlertType}
+                label={t("tile_global_alert", "Global Alert")}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full"
+                onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', masons: { name: `${useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Wayfinders"} Team` }, views: 0, likes: 0, replies: 0 })}
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
+                  setDismissedBroadcastId(String(urgentBroadcast.id));
+                }}
+                className="absolute top-3.5 right-3.5 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-105 cursor-pointer"
+              >
+                <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
+                <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
+              </button>
+            </div>
+          );
+        }
+
+        if (activeGameSchema?.features?.has_cc !== false && showCritical) {
+          systemTiles.push(
+            <div key="critical" className="relative group/critical flex-1 flex min-w-0 w-full h-full">
+              <HoverTooltip
+                variant="danger"
+                title={t("crit_fail", "critical failures") || "Critical Failures"}
+                subtitle={t("radar_fatal_desc", "These {mods} overwrite the same core game files and cannot be used together. One must be removed.") || "Severe conflict detected. Click to view full diagnostic sweep."}
+                className="group-hover/critical:flex z-[1000] w-full"
+                vAlign="bottom"
+              />
+              <DashboardStatTile
+                icon={<span className="material-symbols-outlined ">{t("icon_gpp_bad", "gpp_bad")}</span>}
+                number={radarTier4Count + radarBrokenCount}
+                label={t("crit_fail", "critical failures") || "Critical Failures"}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)] animate-pulse w-full"
+                onClick={() => setAlertsPanelMode('critical')}
+              />
+            </div>
+          );
+        }
+
+        if (activeGameSchema?.features?.has_cc !== false && showAlerts) {
+          systemTiles.push(
+            <div key="alerts" className="relative group/alerts flex-1 flex min-w-0 w-full h-full">
+              <HoverTooltip
+                variant="warning"
+                title={t("system_alerts_title", "System Alerts") || "System Alerts"}
+                subtitle={t("radar_tuning_desc", "These {mods} edit the same features. One {mod} will override the changes of the other based on load order.") || "Potential issues detected. Click to view full diagnostic sweep."}
+                className="group-hover/alerts:flex z-[1000] w-full"
+                vAlign="bottom"
+              />
+              <DashboardStatTile
+                icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>}
+                number={radarTier3Count + radarUnstableCount}
+                label={t("system_alerts_title", "System Alerts") || "System Alerts"}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)] w-full"
+                onClick={() => setAlertsPanelMode('alert')}
+              />
+            </div>
+          );
+        }
+
         if (activeGameSchema?.features?.has_cc !== false && radarUpdatesCount > 0) {
-          updatesOrStableElements.push(
+          systemTiles.push(
             <div key="updates" className="relative group/updates flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="accent"
@@ -392,8 +495,9 @@ export default function CommandCenter({
             </div>
           );
         }
+
         if (hasSymlinkPerms !== false && radarState === 'optimal') {
-          updatesOrStableElements.push(
+          systemTiles.push(
             <DashboardStatTile
               key="stable"
               icon={<span className="material-symbols-outlined ">{t("icon_check_circle", "check_circle")}</span>}
@@ -456,103 +560,12 @@ export default function CommandCenter({
           </div>
         ];
 
-        if (hasCriticalOrAlerts) {
+        if (systemTiles.length > 1) {
           return (
             <>
               <div className="mb-4">
                 <CommandScreenStats>
-                  {hasSymlinkPerms === false && isDesktop() && (
-                    <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
-                      <HoverTooltip
-                        variant="warning"
-                        title={t("perm_restricted", "Permissions Restricted")}
-                        subtitle={t("perm_hover_desc", "Application lacks sufficient permissions to manage your {Vault}. Enable Windows Developer Mode or run as Administrator.") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
-                        className="group-hover/perms:flex z-[1000] w-full"
-                        vAlign="bottom"
-                      />
-                      <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{t("icon_warning", "warning")}</span>}
-                        number="!"
-                        label={t("perm_restricted", "Permissions Restricted")}
-                        disableBgStrip={true}
-                        colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] animate-pulse w-full"
-                        onClick={() => invoke("open_developer_settings")}
-                      />
-                    </div>
-                  )}
-                  {urgentBroadcast && dismissedBroadcastId !== String(urgentBroadcast.id) && (() => {
-                    const broadcastMeta = extractDispatchMetadata(urgentBroadcast);
-                    const broadcastAlertType = formatDispatchCategory(broadcastMeta.alertOrDispatchType, t);
-                    return (
-                    <div key="broadcast" className="relative group/broadcast flex-1 flex min-w-0 w-full h-full">
-                      <HoverTooltip
-                        variant="danger"
-                        title={urgentBroadcast.title || t("tile_global_alert", "Global Alert")}
-                        subtitle={stripMarkdown(broadcastMeta.cleanContent || urgentBroadcast.message || urgentBroadcast.content)}
-                        className="group-hover/broadcast:flex z-[1000] w-full"
-                        vAlign="bottom"
-                      />
-                      <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{urgentBroadcast.icon || t("icon_campaign", "campaign")}</span>}
-                        number={broadcastAlertType}
-                        label={t("tile_global_alert", "Global Alert")}
-                        disableBgStrip={true}
-                        colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)] !text-[var(--danger)] shadow-[0_0_20px_color-mix(in_srgb,var(--danger)_15%,transparent)] animate-pulse w-full"
-                        onClick={() => setViewingPost({ ...urgentBroadcast, content: urgentBroadcast.message || urgentBroadcast.content, mason_id: 'system', masons: { name: `${useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || "Wayfinders"} Team` }, views: 0, likes: 0, replies: 0 })}
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
-                          setDismissedBroadcastId(String(urgentBroadcast.id));
-                        }}
-                        className="absolute top-3.5 right-3.5 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-105 cursor-pointer"
-                      >
-                        <HoverTooltip title={t("dismiss_alert", "Dismiss Alert")} variant="danger" vAlign="bottom" />
-                        <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
-                      </button>
-                    </div>
-                    );
-                  })()}
-                  {activeGameSchema?.features?.has_cc !== false && showCritical && (
-                    <div key="critical" className="relative group/critical flex-1 flex min-w-0 w-full h-full">
-                      <HoverTooltip
-                        variant="danger"
-                        title={t("crit_fail", "critical failures") || "Critical Failures"}
-                        subtitle={t("radar_fatal_desc", "These {mods} overwrite the same core game files and cannot be used together. One must be removed.") || "Severe conflict detected. Click to view full diagnostic sweep."}
-                        className="group-hover/critical:flex z-[1000] w-full"
-                        vAlign="bottom"
-                      />
-                      <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{t("icon_gpp_bad", "gpp_bad")}</span>}
-                        number={radarTier4Count + radarBrokenCount}
-                        label={t("crit_fail", "critical failures") || "Critical Failures"}
-                        disableBgStrip={true}
-                        colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)] animate-pulse w-full"
-                        onClick={() => setAlertsPanelMode('critical')}
-                      />
-                    </div>
-                  )}
-                  {activeGameSchema?.features?.has_cc !== false && showAlerts && (
-                    <div key="alerts" className="relative group/alerts flex-1 flex min-w-0 w-full h-full">
-                      <HoverTooltip
-                        variant="warning"
-                        title={t("system_alerts_title", "System Alerts") || "System Alerts"}
-                        subtitle={t("radar_tuning_desc", "These {mods} edit the same features. One {mod} will override the changes of the other based on load order.") || "Potential issues detected. Click to view full diagnostic sweep."}
-                        className="group-hover/alerts:flex z-[1000] w-full"
-                        vAlign="bottom"
-                      />
-                      <DashboardStatTile
-                        icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>}
-                        number={radarTier3Count + radarUnstableCount}
-                        label={t("system_alerts_title", "System Alerts") || "System Alerts"}
-                        disableBgStrip={true}
-                        colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)] w-full"
-                        onClick={() => setAlertsPanelMode('alert')}
-                      />
-                    </div>
-                  )}
-                  {updatesOrStableElements}
+                  {systemTiles}
                 </CommandScreenStats>
               </div>
               <CommandScreenStats>
@@ -564,7 +577,7 @@ export default function CommandCenter({
 
         return (
           <CommandScreenStats>
-            {updatesOrStableElements}
+            {systemTiles}
             {normalStatsElements}
           </CommandScreenStats>
         );
@@ -578,7 +591,7 @@ export default function CommandCenter({
 
 
 
-          <CommandScreenSectionHeading title={t("feed_title", "Community Feed") || "Comm-Link Feed"} icon="satellite_alt" />
+          <CommandScreenSectionHeading title={t("feed_title", "Community Feed") || "Comm-Link Feed"} icon={t("icon_satellite_alt", "satellite_alt")} />
           <MasonFeed onOpenMasonProfile={handleOpenMasonProfile} noCardWrapper={true} gridCols="grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" />
         </div>
 
@@ -589,7 +602,7 @@ export default function CommandCenter({
           <div className="flex flex-col gap-4">
             {!!urgentBroadcast && (
               <CommandScreenQuickLink
-                icon="priority_high"
+                icon={t("icon_priority_high", "priority_high")}
                 title={t("title_sanctuary_alerts", "Sanctuary Alerts") || "Sanctuary Alerts"}
                 subtitle={t("urgent_alert_active", "Urgent Alert Active") || "URGENT SYSTEM BROADCAST"}
                 onClick={() => setIsAlertsOpen(true)}
@@ -651,7 +664,7 @@ export default function CommandCenter({
             </div>
 
             <CommandScreenQuickLink
-              icon="history"
+              icon={t("icon_history", "history")}
               title={t("audit_logs", "Audit Logs")}
               subtitle={t("audit_logs_desc", "System modification history")}
               onClick={() => setIsAuditLogsOpen(true)}

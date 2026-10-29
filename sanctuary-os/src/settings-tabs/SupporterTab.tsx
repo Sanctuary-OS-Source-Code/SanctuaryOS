@@ -42,13 +42,14 @@ import packageJson from "../../package.json";
 interface SupporterAlertCardProps {
   icon: string;
   badgeIcon: string;
-  badgeLabel: string;
+  badgeLabel: string | number;
   overline: string;
   title: string;
   description: string;
-  footerLeft: string;
-  footerRightIcon: string;
-  footerRightLabel: string;
+  footerLeft?: string;
+  footerRightIcon?: string;
+  footerRightLabel?: string;
+  action?: React.ReactNode;
 }
 
 function SupporterAlertCard({
@@ -61,6 +62,7 @@ function SupporterAlertCard({
   footerLeft,
   footerRightIcon,
   footerRightLabel,
+  action,
 }: SupporterAlertCardProps) {
   return (
     <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
@@ -80,7 +82,7 @@ function SupporterAlertCard({
         <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined !text-[22px]">{icon}</span>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider tabular-nums shrink-0">
           <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
             {badgeIcon}
           </span>
@@ -103,16 +105,22 @@ function SupporterAlertCard({
         {description}
       </p>
 
-      {/* Row 4: Clean Footer Row */}
-      <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider relative z-10">
-        <span>{footerLeft}</span>
-        <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
-          <span className="material-symbols-outlined !text-[13px]">
-            {footerRightIcon}
+      {/* Row 4: Clean Footer Row or Action Control */}
+      {action ? (
+        <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10 w-full">
+          {action}
+        </div>
+      ) : (
+        <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-80 uppercase tracking-wider relative z-10">
+          <span>{footerLeft}</span>
+          <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
+            <span className="material-symbols-outlined !text-[13px]">
+              {footerRightIcon}
+            </span>
+            <span>{footerRightLabel}</span>
           </span>
-          <span>{footerRightLabel}</span>
-        </span>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -630,25 +638,22 @@ export default function SupporterTab() {
               )}
             />
 
-            {/* CARD 2: COUNTER CARD — SUPPORTER TIME, ROLLOVER & DEV STREAM TOGGLE */}
+            {/* CARD 2: COUNTER CARD — SUPPORTER PERKS (DEV BUILD STREAM TOGGLE & COUNTDOWN TIMER) */}
             <UniversalCard
               title={t(
                 "supporter_counter_card_title",
-                "Supporter Time Counter",
+                "Supporter Perks",
               )}
               subtitle={
                 isDevBuildUnlocked
-                  ? `${t("supporter_expires_prefix", "Expires")} ${expiryDateFormatted} • ${
+                  ? `${
                       supporterState.dev_build.channel_enabled
-                        ? t("supporter_active_channel_label", "Active Stream")
-                        : t(
-                            "supporter_dev_builds_locked",
-                            "Standard Stable Channel",
-                          )
-                    }`
-                  : `${t("supporter_no_active_time", "No Active Time")} • ${t(
-                      "supporter_stable_fallback_label",
-                      "$5 = +30 Days Access",
+                        ? t("supporter_dev_toggle_on_lbl", "Dev Build Stream: ON")
+                        : t("supporter_dev_toggle_off_lbl", "Dev Build Stream: OFF")
+                    } • ${t("supporter_expires_prefix", "Expires")} ${expiryDateFormatted}`
+                  : `${t("supporter_dev_toggle_off_lbl", "Dev Build Stream: OFF")} • ${t(
+                      "supporter_no_active_time",
+                      "No Active Time",
                     )}`
               }
               icon={
@@ -660,12 +665,19 @@ export default function SupporterTab() {
               bannerTopLabel={
                 isDevBuildUnlocked
                   ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
-                  : t("supporter_dev_builds_locked", "Standard Stable Channel")
+                  : t("supporter_no_active_time", "No Active Time")
               }
               bannerBottomLabel={
                 isDevBuildUnlocked
-                  ? `${t("supporter_expires_prefix", "Expires")} ${expiryDateFormatted}`
-                  : `$${creditDollars} / $5.00`
+                  ? `${t("supporter_expires_prefix", "Expires")} ${expiryDateFormatted} • ${
+                      supporterState.dev_build.channel_enabled
+                        ? t("supporter_active_channel_label", "Active Stream")
+                        : t("supporter_dev_builds_locked", "Standard Stable Channel")
+                    }`
+                  : `$${creditDollars} / $5.00 • ${t(
+                      "supporter_stable_fallback_label",
+                      "$5 = +30 Days Access",
+                    )}`
               }
               onClick={handleToggleDevChannel}
               actions={
@@ -923,7 +935,7 @@ export default function SupporterTab() {
           </SettingsGrid>
         </TabContainer>
 
-        {/* SECTION 3: MASON SUPPORTER PASSES (4-CARD GRID: ALERT + LINK + SUBSCRIBED + EXPIRED) */}
+        {/* SECTION 3: MASON SUPPORTER PASSES (COMBINED LEADING ALERT CARD + LINKED MASON CARDS) */}
         <TabContainer
           title={t(
             "supporter_masons_vault_title",
@@ -932,11 +944,13 @@ export default function SupporterTab() {
           icon={t("icon_encrypted", "encrypted")}
         >
           <SettingsGrid>
-            {/* CARD 1: BANNERLESS ALERT CARD — LOCAL PRIVACY & PERKS */}
             <SupporterAlertCard
               icon={t("icon_encrypted", "encrypted")}
-              badgeIcon={t("icon_shield_lock", "shield_lock")}
-              badgeLabel={t("supporter_local_vault_chip", "Local PC {Vault}")}
+              badgeIcon={t("icon_verified", "verified")}
+              badgeLabel={`${activeMasonSubs.length} • ${t(
+                "supporter_local_vault_chip",
+                "Local PC {Vault}",
+              )}`}
               overline={t(
                 "supporter_mason_alert_sub",
                 "Direct Device Verification • SQLite {Vault} Only",
@@ -949,150 +963,7 @@ export default function SupporterTab() {
                 "supporter_mason_alert_desc",
                 "Patreon, Ko-fi, Stripe, and Fourthwall passes are verified directly on your PC and saved strictly in your local {Vault}. Unlocks Early Access {Mods} and Priority Support for 30 days.",
               )}
-              footerLeft={`${t("supporter_perk_early_access", "Early Access")} • ${t(
-                "supporter_perk_priority_support",
-                "Priority Support",
-              )}`}
-              footerRightIcon={t("icon_workspace_premium", "workspace_premium")}
-              footerRightLabel={`30 ${t("supporter_celebration_days_unit", "Days")}`}
-            />
-
-            {/* CARD 2: LINK MASON SUPPORTER PASS CARD */}
-            <UniversalCard
-              title={t(
-                "supporter_btn_add_mason_bridge",
-                "Link {Mason} Supporter Pass",
-              )}
-              subtitle={t("supporter_local_vault_chip", "Local PC {Vault}")}
-              description={t(
-                "supporter_link_pass_card_desc",
-                "Verify a Patreon or Ko-fi pass locally on your PC (zero cloud tracking) to unlock Priority Support and Early Access.",
-              )}
-              icon={t("icon_add_link", "add_link")}
-              bannerTopLabel={t(
-                "supporter_local_vault_chip",
-                "Local PC {Vault}",
-              )}
-              bannerBottomLabel="Patreon • Ko-fi • Stripe"
-              onClick={() => handleOpenLinkDrawerForMason()}
-              actions={
-                <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--success)]">
-                    {t("icon_lock", "lock")}
-                  </span>
-                  <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
-                    {t("supporter_local_vault_chip", "Local PC {Vault}")}
-                  </span>
-                </div>
-              }
-            >
-              <ActionButton
-                variant="accent"
-                icon={t("icon_add_link", "add_link")}
-                label={t(
-                  "supporter_btn_add_mason_bridge",
-                  "Link {Mason} Supporter Pass",
-                )}
-                className="w-full pointer-events-none mt-2"
-              />
-            </UniversalCard>
-
-            {/* CARD 3: SUBSCRIBED MASONS CARD (LIST OF MASONS SUBBED TO) */}
-            <UniversalCard
-              title={t(
-                "supporter_masons_active_list_title",
-                "Subscribed {Masons}",
-              )}
-              subtitle={t(
-                "supporter_badge_verified_patron",
-                "Verified Supporter",
-              )}
-              icon={t("icon_workspace_premium", "workspace_premium")}
-              statusColor={activeMasonSubs.length > 0 ? "emerald" : undefined}
-              bannerTopLabel={t(
-                "supporter_masons_active_list_title",
-                "Subscribed {Masons}",
-              )}
-              bannerBottomLabel={`${activeMasonSubs.length} ${t(
-                "supporter_badge_verified_patron",
-                "Verified Supporter",
-              )}`}
-              actions={
-                <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--success)]">
-                    {t("icon_verified", "verified")}
-                  </span>
-                  <span className="text-[9px] font-black tabular-nums text-[var(--text)]">
-                    {activeMasonSubs.length}
-                  </span>
-                </div>
-              }
-            >
-              <div className="flex flex-col gap-2 w-full mt-1">
-                {activeMasonSubs.length > 0 ? (
-                  <div className="flex flex-col gap-1.5 max-h-[156px] overflow-y-auto custom-scrollbar pr-0.5">
-                    {activeMasonSubs.map((pass) => {
-                      const daysLeft = pass.expires_at
-                        ? Math.max(
-                            1,
-                            Math.ceil((pass.expires_at - nowSecs) / 86400),
-                          )
-                        : 30;
-                      return (
-                        <div
-                          key={pass.mason_id}
-                          className="px-2.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2"
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-black text-[var(--text)] truncate">
-                              {pass.mason_name || pass.mason_id}
-                            </span>
-                            <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
-                              {`${pass.provider.toUpperCase()} • ${daysLeft}d`}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenLinkDrawerForMason(pass)}
-                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                              title={t("supporter_btn_renew_pass", "Renew")}
-                            >
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_refresh", "refresh")}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) =>
-                                handleRemoveMasonBridge(pass.mason_id, e)
-                              }
-                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
-                              title={t("remove", "Remove")}
-                            >
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_delete", "delete")}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="px-3 py-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2 text-xs font-medium text-[var(--subtext)]">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
-                      {t("icon_workspace_premium", "workspace_premium")}
-                    </span>
-                    <span>
-                      {t(
-                        "supporter_masons_active_empty",
-                        "No active {Mason} passes linked yet.",
-                      )}
-                    </span>
-                  </div>
-                )}
-
+              action={
                 <ActionButton
                   variant="glass"
                   icon={t("icon_add_link", "add_link")}
@@ -1103,107 +974,92 @@ export default function SupporterTab() {
                   onClick={() => handleOpenLinkDrawerForMason()}
                   className="w-full"
                 />
-              </div>
-            </UniversalCard>
+              }
+            />
 
-            {/* CARD 4: EXPIRED SUBSCRIPTIONS CARD (CLEARABLE) */}
-            <UniversalCard
+            {activeMasonSubs.map((pass) => {
+              const daysLeft = pass.expires_at
+                ? Math.max(1, Math.ceil((pass.expires_at - nowSecs) / 86400))
+                : 30;
+              return (
+                <UniversalCard
+                  key={pass.mason_id}
+                  title={pass.mason_name || pass.mason_id}
+                  subtitle={`${pass.provider.toUpperCase()}${
+                    pass.tier_name ? ` • ${pass.tier_name}` : ""
+                  } • ${daysLeft} ${t("supporter_celebration_days_unit", "Days")}`}
+                  description={`${t(
+                    "supporter_perk_early_access",
+                    "Early Access",
+                  )} • ${t(
+                    "supporter_perk_priority_support",
+                    "Priority Support",
+                  )}`}
+                  icon={t("icon_workspace_premium", "workspace_premium")}
+                  statusColor="emerald"
+                  bannerTopLabel={t(
+                    "supporter_badge_verified_patron",
+                    "Verified Supporter",
+                  )}
+                  bannerBottomLabel={`${pass.provider.toUpperCase()} • ${daysLeft}d`}
+                  actions={
+                    <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--success)]">
+                        {t("icon_verified", "verified")}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider tabular-nums text-[var(--text)]">
+                        {`${daysLeft}d`}
+                      </span>
+                    </div>
+                  }
+                >
+                  <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_refresh", "refresh")}
+                      label={t("supporter_btn_renew_pass", "Renew")}
+                      onClick={() => handleOpenLinkDrawerForMason(pass)}
+                      className="w-full"
+                    />
+                    <ActionButton
+                      variant="danger"
+                      icon={t("icon_delete", "delete")}
+                      label={t("remove", "Remove")}
+                      onClick={(e) =>
+                        handleRemoveMasonBridge(pass.mason_id, e)
+                      }
+                      className="w-full"
+                    />
+                  </div>
+                </UniversalCard>
+              );
+            })}
+          </SettingsGrid>
+        </TabContainer>
+
+        {/* SECTION 4: EXPIRED MASON PASSES (LEADING ALERT CARD + EXPIRED MASON CARDS) */}
+        <TabContainer
+          title={t(
+            "supporter_masons_expired_list_title",
+            "Expired {Mason} Passes",
+          )}
+          icon={t("icon_history", "history")}
+        >
+          <SettingsGrid>
+            <SupporterAlertCard
+              icon={t("icon_history", "history")}
+              badgeIcon={t("icon_history", "history")}
+              badgeLabel={expiredMasonSubs.length}
+              overline={t("supporter_badge_expired_pass", "Expired")}
               title={t(
                 "supporter_masons_expired_list_title",
                 "Expired {Mason} Passes",
               )}
-              subtitle={t("supporter_badge_expired_pass", "Expired")}
-              icon={t("icon_history", "history")}
-              statusColor={expiredMasonSubs.length > 0 ? "warning" : undefined}
-              bannerTopLabel={t(
-                "supporter_masons_expired_list_title",
-                "Expired {Mason} Passes",
+              description={t(
+                "supporter_masons_expired_empty",
+                "No expired {Mason} passes in {Vault}.",
               )}
-              bannerBottomLabel={`${expiredMasonSubs.length} ${t(
-                "supporter_badge_expired_pass",
-                "Expired",
-              )}`}
-              actions={
-                <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--warning)]">
-                    {t("icon_history", "history")}
-                  </span>
-                  <span className="text-[9px] font-black tabular-nums text-[var(--text)]">
-                    {expiredMasonSubs.length}
-                  </span>
-                </div>
-              }
-            >
-              <div className="flex flex-col gap-2 w-full mt-1">
-                {expiredMasonSubs.length > 0 ? (
-                  <div className="flex flex-col gap-1.5 max-h-[156px] overflow-y-auto custom-scrollbar pr-0.5">
-                    {expiredMasonSubs.map((pass) => {
-                      const expDate = pass.expires_at
-                        ? new Date(pass.expires_at * 1000).toLocaleDateString(
-                            undefined,
-                            {
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )
-                        : "";
-                      return (
-                        <div
-                          key={pass.mason_id}
-                          className="px-2.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2"
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-black text-[var(--text)] truncate">
-                              {pass.mason_name || pass.mason_id}
-                            </span>
-                            <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
-                              {`${pass.provider.toUpperCase()}${
-                                expDate ? ` • ${expDate}` : ""
-                              }`}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenLinkDrawerForMason(pass)}
-                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                              title={t("supporter_btn_renew_pass", "Renew")}
-                            >
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_refresh", "refresh")}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) =>
-                                handleRemoveMasonBridge(pass.mason_id, e)
-                              }
-                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
-                              title={t("clear", "Clear")}
-                            >
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_close", "close")}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="px-3 py-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2 text-xs font-medium text-[var(--subtext)]">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] shrink-0">
-                      {t("icon_check_circle", "check_circle")}
-                    </span>
-                    <span>
-                      {t(
-                        "supporter_masons_expired_empty",
-                        "No expired {Mason} passes in {Vault}.",
-                      )}
-                    </span>
-                  </div>
-                )}
-
+              action={
                 <ActionButton
                   variant="glass"
                   icon={t("icon_delete_sweep", "delete_sweep")}
@@ -1212,8 +1068,68 @@ export default function SupporterTab() {
                   onClick={handleClearAllExpiredMasonSubs}
                   className="w-full"
                 />
-              </div>
-            </UniversalCard>
+              }
+            />
+
+            {expiredMasonSubs.map((pass) => {
+              const expDate = pass.expires_at
+                ? new Date(pass.expires_at * 1000).toLocaleDateString(
+                    undefined,
+                    {
+                      month: "short",
+                      day: "numeric",
+                    },
+                  )
+                : "";
+              return (
+                <UniversalCard
+                  key={pass.mason_id}
+                  title={pass.mason_name || pass.mason_id}
+                  subtitle={`${pass.provider.toUpperCase()}${
+                    pass.tier_name ? ` • ${pass.tier_name}` : ""
+                  }${expDate ? ` • ${expDate}` : ""}`}
+                  description={t(
+                    "supporter_local_vault_chip",
+                    "Local PC {Vault}",
+                  )}
+                  icon={t("icon_history", "history")}
+                  statusColor="warning"
+                  bannerTopLabel={t("supporter_badge_expired_pass", "Expired")}
+                  bannerBottomLabel={`${pass.provider.toUpperCase()}${
+                    expDate ? ` • ${expDate}` : ""
+                  }`}
+                  actions={
+                    <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--warning)]">
+                        {t("icon_history", "history")}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
+                        {t("supporter_badge_expired_pass", "Expired")}
+                      </span>
+                    </div>
+                  }
+                >
+                  <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_refresh", "refresh")}
+                      label={t("supporter_btn_renew_pass", "Renew")}
+                      onClick={() => handleOpenLinkDrawerForMason(pass)}
+                      className="w-full"
+                    />
+                    <ActionButton
+                      variant="danger"
+                      icon={t("icon_close", "close")}
+                      label={t("clear", "Clear")}
+                      onClick={(e) =>
+                        handleRemoveMasonBridge(pass.mason_id, e)
+                      }
+                      className="w-full"
+                    />
+                  </div>
+                </UniversalCard>
+              );
+            })}
           </SettingsGrid>
         </TabContainer>
       </div>

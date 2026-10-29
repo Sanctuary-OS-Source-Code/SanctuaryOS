@@ -776,6 +776,14 @@ export async function submitThreatManifestToSpoke(
     options?: { isAuto?: boolean; defaultSignature?: string }
 ): Promise<{ data: any; error: any; skipped?: boolean }> {
     try {
+        if (typeof localStorage !== 'undefined') {
+            if (localStorage.getItem('sanctuary_local_only') === 'true') {
+                return { data: null, error: null, skipped: true };
+            }
+            if (options?.isAuto && localStorage.getItem('sanctuary_share_malware_reports') !== 'true') {
+                return { data: null, error: null, skipped: true };
+            }
+        }
         const state = useStore.getState();
         const wsId = state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || 'sims4';
         const detectedHash = String(item?.detected_hash || item?.hash || 'unknown-hash').trim();

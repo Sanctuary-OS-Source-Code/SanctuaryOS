@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 77;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 78;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -2232,12 +2232,12 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m11",
-            icon: t("icon_terminal", "terminal"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms)"),
             desc: g(
-              "Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, activating {Blueprints}, navigating all 18 OS views, and triggering {Mason}/Architect actions."
+              "Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {mods} in the active {Blueprint}, activating {Blueprints}, navigating all 18 OS views, switching Chameleon themes & {Lexicon} packs, and triggering quick actions."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m12",

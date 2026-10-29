@@ -477,7 +477,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 const [gRes, cgRes, pRes] = await Promise.all([
                   supabase.from("flavor_groups").select("id, name").in("id", chunk),
                   supabase.from("community_groups").select("id, name").in("id", chunk),
-                  supabase.from("mods").select("id, name, master_author, mason_id, image_url, url").in("id", chunk)
+                  supabase.from("mods").select("id, name, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at").in("id", chunk)
                 ]);
                 gResults.push(...((gRes.data as any[]) || []));
                 cgResults.push(...((cgRes.data as any[]) || []));
@@ -491,12 +491,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 communityGroupNames[String(g.id)] = g.name;
               });
               pResults.flat().forEach((pm: any) => {
+                const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
                 parentNameMap[String(pm.id)] = {
                   name: pm.name,
-                  author: pm.master_author || "Unknown",
+                  author: pmMasonName || pm.master_author || null,
                   mason_id: pm.mason_id,
                   image_url: pm.image_url,
                   url: pm.url,
+                  description: pm.description || null,
+                  category_override: pm.category_override || null,
+                  compatible_versions: pm.compatible_versions || null,
+                  created_at: pm.created_at || null,
                 };
               });
             }
@@ -535,15 +540,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           await runInBatches(pIds, 200, 0, async (chunk) => {
             const { data } = await supabase
                 .from("mods")
-                .select("id, name, master_author, image_url, url")
+                .select("id, name, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
                 .in("id", chunk);
             
             ((data as any[]) || []).forEach((pm: any) => {
+              const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
               parentNameMap[String(pm.id)] = {
                 name: pm.name,
-                author: pm.master_author || "Unknown",
+                author: pmMasonName || pm.master_author || null,
+                mason_id: pm.mason_id,
                 image_url: pm.image_url,
                 url: pm.url,
+                description: pm.description || null,
+                category_override: pm.category_override || null,
+                compatible_versions: pm.compatible_versions || null,
+                created_at: pm.created_at || null,
               };
             });
           });
@@ -1407,19 +1418,51 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               ]
             : undefined;
 
+          const validFolderAuthor = [
+            virtualOvr?.author,
+            dossierMember?.author,
+            pData.author,
+            ...familyMembers.map((fm: any) => fm.author),
+          ].find(
+            (a) =>
+              a &&
+              typeof a === "string" &&
+              a.trim() !== "" &&
+              a.trim().toLowerCase() !== "unknown" &&
+              a.trim().toLowerCase() !== "local" &&
+              a.trim().toLowerCase() !== "local node"
+          );
+
           virtualCards.push({
             hash: "virtual_" + fId,
             name: "FOLDER_" + fId,
             dbId: String(fId),
             baseFamilyId: String(baseFId),
             displayName: (virtualOvr?.displayName || safeName).toUpperCase(),
-            author: virtualOvr?.author || dossierMember?.author || pData.author,
+            author: validFolderAuthor || pData.author || familyMembers[0]?.author || "Unknown",
             url: virtualOvr?.url || dossierMember?.url || pData.url || familyMembers[0]?.url || null,
             image_url: virtualOvr?.image_url ?? dossierMember?.image_url ?? pData.image_url ?? familyMembers[0]?.image_url,
-            description: virtualOvr?.description ?? dossierMember?.description,
-            category_override: virtualOvr?.category_override || dossierMember?.category_override || familyMembers[0]?.category_override,
-            compatible_versions: virtualOvr?.compatible_versions || dossierMember?.compatible_versions || familyMembers[0]?.compatible_versions,
+            description:
+              virtualOvr?.description ??
+              dossierMember?.description ??
+              pData.description ??
+              familyMembers.find((fm: any) => fm.description)?.description,
+            category_override: virtualOvr?.category_override || dossierMember?.category_override || pData.category_override || familyMembers[0]?.category_override,
+            compatible_versions: virtualOvr?.compatible_versions || dossierMember?.compatible_versions || pData.compatible_versions || familyMembers[0]?.compatible_versions,
             requiredDLC: virtualOvr?.requiredDLC || dossierMember?.requiredDLC || familyMembers[0]?.requiredDLC,
+            created_at:
+              virtualOvr?.created_at ||
+              dossierMember?.created_at ||
+              pData.created_at ||
+              familyMembers.find((fm: any) => fm.created_at)?.created_at ||
+              null,
+            updated_at:
+              virtualOvr?.updated_at ||
+              dossierMember?.updated_at ||
+              familyMembers.find((fm: any) => fm.updated_at)?.updated_at ||
+              pData.created_at ||
+              familyMembers.find((fm: any) => fm.created_at)?.created_at ||
+              null,
             version:
               virtualOvr?.version ||
               dossierMember?.version ||

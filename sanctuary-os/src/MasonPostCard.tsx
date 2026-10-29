@@ -35,12 +35,13 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   const hashtags = (content.match(/#[a-zA-Z0-9_]+/g) || []).slice(0, 3);
 
   const masonCommentDrafts = useStore(state => state.masonCommentDrafts);
+  const showCommLinkImages = useStore(state => state.showCommLinkImages);
   const hasUnsavedReply = !!masonCommentDrafts[post.id];
   const hasUnsaved = Boolean(hasUnsavedEdits || hasUnsavedReply);
   const isPinned = post.is_pinned === true || post.is_pinned === 'true';
   const hasPoll = Boolean(post.poll_data?.question);
   const isAlert = Boolean(post.category?.toLowerCase().includes('alert'));
-  const showImage = !!imageUrl;
+  const showImage = Boolean(showCommLinkImages !== false && imageUrl);
 
   const authorName = post.mason_id === 'system'
     ? (post.masons?.name || t("author_sanctuary_team", "Sanctuary Foundry"))

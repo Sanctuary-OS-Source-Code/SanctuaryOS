@@ -373,7 +373,8 @@ export function DynamicBlueprintPreviewBanner({
     data?.version ||
     '';
 
-  const previewRows = [0, 1, 2].map((idx) => {
+  const rowCount = modCount > 0 ? Math.min(modCount, 3) : 1;
+  const previewRows = Array.from({ length: rowCount }, (_, idx) => {
     const item = rawArtifacts[idx];
     const rawLabel =
       typeof item === 'string'
@@ -384,7 +385,10 @@ export function DynamicBlueprintPreviewBanner({
           .split(/[\\/]/)
           .pop()!
           .replace(/\.[^/.]+$/, '')
-          .replace(/_/g, ' ')
+          .replace(/(?:[\s_-]+|^)v?\d+(?:\.\d+)+[a-zA-Z0-9_-]*$/i, '')
+          .replace(/[_-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
       : `${t('term_mod', 'Mod')} #0${idx + 1}`;
     const isScript = String(rawLabel).toLowerCase().includes('script');
     return {

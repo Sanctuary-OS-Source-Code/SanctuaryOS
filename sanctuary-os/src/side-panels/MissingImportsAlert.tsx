@@ -16,6 +16,7 @@ import {
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
+  openModDossier,
 } from "../shared";
 import { VAULT_CHIP_CLASS } from "../Cards";
 
@@ -186,7 +187,14 @@ export function MissingImportsAlert({
       return (
         <div
           key={idx}
-          className="flex justify-between items-center glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all group gap-3 flex-wrap sm:flex-nowrap"
+          onClick={() =>
+            openModDossier({
+              ...mod,
+              author: customAuthor || mod.author,
+              url: targetUrl || mod.url,
+            })
+          }
+          className="flex justify-between items-center glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] transition-all group gap-3 flex-wrap sm:flex-nowrap cursor-pointer"
         >
           <div className="flex items-center gap-3.5 min-w-0 pr-2 flex-1">
             <div
@@ -235,7 +243,8 @@ export function MissingImportsAlert({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 const next = missingImportMods.filter((m: any) => m.name !== mod.name);
                 const standardLeft = next.filter(
                   (m: any) => !m.is_paid && !m.is_early_access
@@ -260,7 +269,10 @@ export function MissingImportsAlert({
             </button>
             <button
               type="button"
-              onClick={() => handleOpenUrl(targetUrl)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenUrl(targetUrl);
+              }}
               className="w-9 h-9 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-xl transition-all text-[var(--text)] group/btn relative cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[17px]">

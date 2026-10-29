@@ -50,8 +50,8 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
         {/* Spacer to respect sidebar width */}
         <div className="shrink-0 transition-all duration-500 hidden md:block" style={{ width: isSidebarCollapsed ? '80px' : 'var(--sidebarWidth, 288px)' }} />
 
-        {/* Center Game Selector Pill */}
-        <div className="flex-1 flex justify-center h-full items-center">
+        {/* Center Game Selector Pill + Global Command Palette Trigger */}
+        <div className="flex-1 flex justify-center h-full items-center gap-2">
           {workspaces?.length > 0 ? (
             <button
               type="button"
@@ -82,6 +82,19 @@ export function TitleBar({ isSidebarCollapsed, setIsSidebarCollapsed, subtitleIn
               </span>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("sanctuary-open-command-palette"))}
+            className="pointer-events-auto glass-panel sa-floating-glass-pill h-8 px-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer group/cmd hover:-translate-y-0.5 transition-all duration-300"
+          >
+            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-90 group-hover/cmd:opacity-100 transition-opacity pointer-events-none">
+              {t("icon_terminal", "terminal") || "terminal"}
+            </span>
+            <span className="hidden sm:inline text-[10px] tracking-wider font-extrabold text-[var(--subtext)] group-hover/cmd:text-[var(--text)] opacity-85 group-hover/cmd:opacity-100 transition-all pointer-events-none">
+              {t("cmd_palette_shortcut_badge", "Ctrl+K")}
+            </span>
+          </button>
         </div>
 
         {/* Right Window Controls Pill */}
