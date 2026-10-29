@@ -14,6 +14,7 @@ import {
 } from "./utils/passkeyUtils";
 import {
   ActionButton,
+  CustomDropdown,
   DashboardStatTile,
   PanelHeaderButton,
   PanelHeaderGroup,
@@ -911,24 +912,21 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
                           {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
                         </label>
-                        <select
+                        <CustomDropdown
                           value={selectedPasskeyId}
-                          onChange={(e) => setSelectedPasskeyId(e.target.value)}
-                          className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                        >
-                          {mfaPasskeys.map((pk) => (
-                            <option
-                              key={pk.id}
-                              value={pk.id}
-                              className="bg-[var(--bg)] text-[var(--text)]"
-                            >
-                              {sanitizeFactorFriendlyName(
-                                pk.friendly_name,
-                                t("passkey_unnamed_device", "FIDO2 Passkey")
-                              )}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(vals: any) =>
+                            setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                          }
+                          options={mfaPasskeys.map((pk) => ({
+                            id: pk.id,
+                            label: sanitizeFactorFriendlyName(
+                              pk.friendly_name,
+                              t("passkey_unnamed_device", "FIDO2 Passkey")
+                            ),
+                            icon: t("icon_passkey", "passkey"),
+                          }))}
+                          disableTint={true}
+                        />
                       </div>
                     )}
 

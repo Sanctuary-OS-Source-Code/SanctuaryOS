@@ -3,7 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useTooltipStore } from "../store/tooltipStore";
 import { supabaseAuth } from "../supabase";
-import { ActionButton, LoadingScreen, SidePanel, DashboardStatTile } from "../shared";
+import { ActionButton, CustomDropdown, LoadingScreen, SidePanel, DashboardStatTile } from "../shared";
 import {
   fetchMfaSecurityState,
   getCachedMfaSecurityState,
@@ -41,6 +41,7 @@ export function ElevatedPasskeyGate({
     () => !getCachedMfaSecurityState(session?.user?.id)
   );
   const [mfaEnrollTab, setMfaEnrollTab] = useState<"passkey" | "totp">("passkey");
+  const [selectedPasskeyId, setSelectedPasskeyId] = useState<string>("");
   const [passkeyName, setPasskeyName] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -69,6 +70,11 @@ export function ElevatedPasskeyGate({
     }
     const state = await fetchMfaSecurityState();
     setMfaState(state);
+    if (state?.passkeys?.length > 0) {
+      setSelectedPasskeyId((prev) =>
+        prev && state.passkeys.some((p: any) => p.id === prev) ? prev : state.passkeys[0].id
+      );
+    }
     setLoading(false);
   }, [session?.user?.id, requirePasskey, isOffline]);
 
@@ -217,7 +223,7 @@ export function ElevatedPasskeyGate({
   const handleVerifySessionPasskey = async () => {
     setBusy(true);
     setErrorMsg("");
-    const { error } = await authenticateFidoPasskey();
+    const { error } = await authenticateFidoPasskey(selectedPasskeyId || passkeys[0]?.id);
     if (error) {
       setErrorMsg(formatPasskeyError(error.message));
       setBusy(false);
@@ -521,6 +527,29 @@ export function ElevatedPasskeyGate({
                     "Your account has a registered FIDO2 Passkey, but this session needs to complete Passkey verification before opening this hub."
                   )}
                 </p>
+
+                {passkeys.length > 1 && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                      {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
+                    </label>
+                    <CustomDropdown
+                      value={selectedPasskeyId || passkeys[0]?.id || ""}
+                      onChange={(vals: any) =>
+                        setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                      }
+                      options={passkeys.map((pk: any) => ({
+                        id: pk.id,
+                        label: sanitizeFactorFriendlyName(
+                          pk.friendly_name,
+                          t("passkey_unnamed_device", "FIDO2 Passkey")
+                        ),
+                        icon: t("icon_passkey", "passkey"),
+                      }))}
+                      disableTint={true}
+                    />
+                  </div>
+                )}
 
                 {errorMsg && (
                   <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
