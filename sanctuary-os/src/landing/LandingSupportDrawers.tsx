@@ -6,16 +6,20 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,
+  UniversalGroup,
   CustomDropdown,
-  EmptyState,
 } from '../shared';
 import {
   UniversalInput,
   UniversalTextArea,
   StatBox,
 } from '../components/universal/UniversalLayout';
-import { UniversalCard } from '../components/universal/UniversalCard';
+import CitizenTickets from '../CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
+import { useStore } from '../store';
+import { getActiveGameClient } from '../supabase';
+import { isDesktop } from '../utils/envUtils';
+import { isRootDomain } from '../utils/routingUtils';
 
 interface LandingSupportDrawersProps {
   // Feedback & Bug Drawer
@@ -152,6 +156,28 @@ export function LandingSupportDrawers({
   fetchMyPlatformTickets,
 }: LandingSupportDrawersProps) {
   const { t } = useLexicon();
+  const userId = useStore((state) => state.session?.user?.id || '');
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const availableWorkspaces = useStore((state) => state.workspaces);
+
+  const isWebHub = !isDesktop() && isRootDomain();
+  const hasLoadedSpoke = Boolean(
+    activeWorkspaceId &&
+      activeWorkspaceId !== 'default_workspace' &&
+      activeWorkspaceId !== 'web' &&
+      !isWebHub &&
+      getActiveGameClient()
+  );
+  const activeWorkspaceObj = Array.isArray(availableWorkspaces)
+    ? availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)
+    : null;
+  const activeSpokeName =
+    activeGameSchema?.display_name ||
+    activeGameSchema?.name ||
+    activeWorkspaceObj?.name ||
+    activeWorkspaceId ||
+    t('tab_workspace', 'Workspace');
 
   return (
     <>
@@ -1280,39 +1306,132 @@ export function LandingSupportDrawers({
           'My Platform Tickets & Feedback'
         )}
         subtitle={t('keepers_title', 'Keepers Core')}
-        icon={t('icon_inbox', 'inbox')}
-        widthClass="w-[90vw] md:w-[680px]"
-      >
-        <div className="flex flex-col gap-3 pb-6">
-          {myPlatformTickets.length === 0 ? (
-            <EmptyState
-              icon={t('icon_inbox', 'inbox')}
-              title={t('no_tickets', 'No Support Tickets')}
-              className="py-12"
+        icon={t('icon_support_agent', 'support_agent')}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t('icon_open_in_new', 'open_in_new')}
+              tooltip={t('support_tickets', 'Support Tickets')}
+              onClick={() => {
+                setIsMyTicketsDrawerOpen(false);
+                localStorage.setItem('sanctuary_settings_tab', 'TICKETS');
+                useStore.getState().setView('settings');
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('navigateSettings', {
+                      detail: { tab: 'TICKETS' },
+                    })
+                  );
+                }, 50);
+              }}
             />
-          ) : (
-            myPlatformTickets.map((tk) => (
-              <UniversalCard
-                key={tk.id}
-                layout="vertical"
-                onClick={() => setSelectedMyTicket(tk)}
-                icon={t('icon_receipt_long', 'receipt_long')}
-                title={tk.title}
-                subtitle={`${tk.ticket_type || 'Feedback'} • ${new Date(tk.created_at).toLocaleDateString()}`}
-                footer={
-                  <div className="flex items-center justify-between w-full text-[10px] font-mono font-bold text-[var(--subtext)]">
-                    <span>{String(tk.status || 'NEW').toUpperCase()}</span>
-                    <span className="text-[var(--accent)]">
-                      {`${(tk.metadata?.replies || []).length} ${t('tab_posts', '{Dispatches}')} →`}
-                    </span>
-                  </div>
+            <PanelHeaderButton
+              icon={t('icon_add_circle', 'add_circle')}
+              tooltip={t(
+                'landing_feedback_btn_open',
+                'Transmit Platform Feedback'
+              )}
+              variant="accent"
+              onClick={() => {
+                setIsMyTicketsDrawerOpen(false);
+                setIsFeedbackDrawerOpen(true);
+              }}
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t('icon_support_agent', 'support_agent')}
+            overline={t('keepers_title', 'Keepers Core')}
+            title={t(
+              'landing_feedback_my_tickets_btn',
+              'My Platform Tickets & Feedback'
+            )}
+            description={t(
+              'support_title',
+              'Review active support threads, inspect attached telemetry logs, or open a new support request.'
+            )}
+            badge={t('status_active', 'Online')}
+            badgeIcon={t('icon_verified', 'verified')}
+            variant="accent"
+          >
+            <div className="flex flex-wrap gap-2 w-full">
+              <ActionButton
+                variant="glass"
+                icon={t('icon_add_circle', 'add_circle')}
+                label={t(
+                  'landing_feedback_btn_open',
+                  'Transmit Platform Feedback'
+                )}
+                onClick={() => {
+                  setIsMyTicketsDrawerOpen(false);
+                  setIsFeedbackDrawerOpen(true);
+                }}
+                className="flex-1 min-w-[200px]"
+              />
+              {hasLoadedSpoke && (
+                <ActionButton
+                  variant="glass"
+                  icon={t('icon_local_activity', 'local_activity')}
+                  label={`${activeSpokeName} • ${t('ticket_new', 'New Ticket')}`}
+                  onClick={() => {
+                    setIsMyTicketsDrawerOpen(false);
+                    document.dispatchEvent(
+                      new CustomEvent('open-support-modal')
+                    );
+                  }}
+                  className="flex-1 min-w-[200px]"
+                />
+              )}
+            </div>
+          </SidePanelHeroCard>
+
+          <UniversalGroup
+            title={t(
+              'landing_feedback_my_tickets_btn',
+              'My Platform Tickets & Feedback'
+            )}
+            icon={t('icon_receipt_long', 'receipt_long')}
+          >
+            <CitizenTickets
+              userId={userId}
+              tableName="keeper_tickets"
+              externalTickets={myPlatformTickets}
+              onSelectTicket={(tk) =>
+                setSelectedMyTicket({ ...tk, table_name: 'keeper_tickets' })
+              }
+              onOpenNewTicket={() => {
+                setIsMyTicketsDrawerOpen(false);
+                setIsFeedbackDrawerOpen(true);
+              }}
+              isSidePanel={true}
+            />
+          </UniversalGroup>
+
+          {hasLoadedSpoke && (
+            <UniversalGroup
+              title={`${activeSpokeName} • ${t('support_tickets', 'Support Tickets')}`}
+              icon={t('icon_local_activity', 'local_activity')}
+            >
+              <CitizenTickets
+                userId={userId}
+                tableName="sanctuary_tickets"
+                onSelectTicket={(tk) =>
+                  setSelectedMyTicket({
+                    ...tk,
+                    table_name: 'sanctuary_tickets',
+                  })
                 }
-              >
-                <p className="text-[11px] text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed mt-1">
-                  {tk.description}
-                </p>
-              </UniversalCard>
-            ))
+                onOpenNewTicket={() => {
+                  setIsMyTicketsDrawerOpen(false);
+                  document.dispatchEvent(new CustomEvent('open-support-modal'));
+                }}
+                isSidePanel={true}
+              />
+            </UniversalGroup>
           )}
         </div>
       </SidePanel>
@@ -1321,11 +1440,15 @@ export function LandingSupportDrawers({
         isOpen={!!selectedMyTicket}
         onClose={() => setSelectedMyTicket(null)}
         ticket={selectedMyTicket}
-        tableName="keeper_tickets"
+        tableName={selectedMyTicket?.table_name || 'keeper_tickets'}
         isReadOnly={false}
         canReply={true}
-        onReplyAdded={() => {
+        onReplyAdded={(newMetadata) => {
+          if (selectedMyTicket && newMetadata) {
+            setSelectedMyTicket({ ...selectedMyTicket, metadata: newMetadata });
+          }
           fetchMyPlatformTickets();
+          window.dispatchEvent(new CustomEvent('sanctuary-tickets-updated'));
         }}
       />
     </>

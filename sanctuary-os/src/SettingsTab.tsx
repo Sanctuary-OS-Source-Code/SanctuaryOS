@@ -5,10 +5,10 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from "@tauri-apps/plugin-dialog";
 import { useTheme } from "./ThemeContext";
 import { useLexicon } from "./LexiconContext";
-import { ViewHeader, DashboardStatTile, ActionPill } from './shared';
+import { ViewHeader, DashboardStatTile, ActionPill, InlineFilterGroup } from './shared';
 import { StatTileCarousel } from './hub-components/SharedCommandScreenLayout';
 import { useStore } from "./store";
-import { supabase } from "./supabase";
+import { supabase, getActiveGameClient } from "./supabase";
 
 import CoreTab from './settings-tabs/CoreTab';
 import EngineTab from './settings-tabs/EngineTab';
@@ -18,7 +18,9 @@ import AestheticsTab from './settings-tabs/AestheticsTab';
 import LogicTab from './settings-tabs/LogicTab';
 import MalwareTab from './settings-tabs/MalwareTab';
 import SupporterTab from './settings-tabs/SupporterTab';
+import TicketsTab from './settings-tabs/TicketsTab';
 import { isDesktop } from './utils/envUtils';
+import { isRootDomain } from './utils/routingUtils';
 import { getKeepersPipelineConfig, isTargetVersionNewer } from './utils/supporterManager';
 import packageJson from '../package.json';
 
@@ -56,6 +58,28 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   const [hackerClicks, setHackerClicks] = useState(0);
   const showMalwareTab = hackerClicks >= 5;
+  const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState<"all" | "open" | "pending" | "closed">("all");
+  const [ticketScopeFilter, setTicketScopeFilter] = useState<"all" | "core" | "spoke">("all");
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const availableWorkspaces = useStore((state) => state.workspaces);
+  const hasLoadedSpoke = Boolean(
+    activeWorkspaceId &&
+      activeWorkspaceId !== 'default_workspace' &&
+      activeWorkspaceId !== 'web' &&
+      !(!isDesktop() && isRootDomain()) &&
+      getActiveGameClient()
+  );
+  const activeWorkspaceObj = Array.isArray(availableWorkspaces)
+    ? availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)
+    : null;
+  const activeSpokeName =
+    activeGameSchema?.display_name ||
+    activeGameSchema?.name ||
+    activeWorkspaceObj?.name ||
+    activeWorkspaceId ||
+    t("tab_workspace", "Workspace");
 
   useEffect(() => {
     const handleNav = (e: any) => {
@@ -159,6 +183,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   let TABS = [
     { id: 'CORE', icon: t("icon_account_circle", "account_circle") || "account_circle", label: t("tab_core", "Core") || "Core" },
     { id: 'SUPPORTER', icon: t("icon_volunteer_activism", "volunteer_activism") || "volunteer_activism", label: t("tab_supporter", "Supporter & Perks") || "Supporter & Perks" },
+    { id: 'TICKETS', icon: t("icon_confirmation_number", "confirmation_number") || "confirmation_number", label: t("support_tickets", "Support Tickets") || "Support Tickets" },
     { id: 'ENGINE', icon: t("icon_history", "history") || "history", label: t("tab_engine", "Engine") || "Engine" },
     { id: 'CLIENT', icon: t("icon_tune", "tune") || "tune", label: t("tab_preferences", "Preferences") || "Preferences" },
     { id: 'NOTIFICATIONS', icon: t("icon_notifications", "notifications") || "notifications", label: t("tab_notifs", "Notifications") || "Notifications" },
@@ -168,9 +193,9 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   if (showMalwareTab) TABS.push({ id: 'MALWARE', icon: t("icon_skull", "skull") || "skull", label: t("malware_btn", "Nuclear Override") || "Nuclear Override" });
 
   if (!isDesktop()) {
-    TABS = TABS.filter(t => ['CORE', 'SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
+    TABS = TABS.filter(t => ['CORE', 'SUPPORTER', 'TICKETS', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
   } else if (config?.isGuest) {
-    TABS = TABS.filter(t => ['SUPPORTER', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
+    TABS = TABS.filter(t => ['SUPPORTER', 'TICKETS', 'CLIENT', 'AESTHETICS', 'NOTIFICATIONS'].includes(t.id));
   }
 
   return (
@@ -183,9 +208,53 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         onSubtitleClick={() => setHackerClicks(prev => prev + 1)}
       >
         <ActionPill
-          searchQuery=""
-          setSearchQuery={() => {}}
-          hideSearch={true}
+          searchQuery={activeTab === 'TICKETS' ? ticketSearch : ""}
+          setSearchQuery={activeTab === 'TICKETS' ? setTicketSearch : () => {}}
+          hideSearch={activeTab !== 'TICKETS'}
+          searchPlaceholder={t("ph_search_tickets", "Search Tickets...") || "Search Tickets..."}
+          primaryPopover={
+            activeTab === 'TICKETS'
+              ? {
+                  icon: t("icon_tune", "tune"),
+                  label: t("filters", "Filters") || "Filters",
+                  content: (
+                    <div className="flex flex-col gap-4 w-[300px] p-2">
+                      {hasLoadedSpoke && (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
+                            {t("filter_category", "Filter Category")}
+                          </span>
+                          <InlineFilterGroup
+                            value={ticketScopeFilter}
+                            onChange={(v) => setTicketScopeFilter(v as any)}
+                            options={[
+                              { id: "all", label: t("filter_all", "All") },
+                              { id: "core", label: t("keepers_title", "Keepers Core") },
+                              { id: "spoke", label: activeSpokeName },
+                            ]}
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
+                          {t("ticket_status", "Ticket Status") || "Ticket Status"}
+                        </span>
+                        <InlineFilterGroup
+                          value={ticketStatusFilter}
+                          onChange={(v) => setTicketStatusFilter(v as any)}
+                          options={[
+                            { id: "all", label: t("filter_all", "All") },
+                            { id: "open", label: t("ticket_status_open", "Open") },
+                            { id: "pending", label: t("ticket_status_pending", "Pending") },
+                            { id: "closed", label: t("filter_closed", "Closed") },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  ),
+                }
+              : undefined
+          }
           leftContent={
             <span className="text-[11px] font-semibold tracking-wider text-[var(--subtext)] px-1 whitespace-nowrap">
               {appVersion}
@@ -231,6 +300,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         <div className="w-full relative">
           {activeTab === 'CORE' && <CoreTab config={config} updateConfig={updateConfig} pickPath={pickPath} pathMap={pathMap} />}
           {activeTab === 'SUPPORTER' && <SupporterTab />}
+          {activeTab === 'TICKETS' && <TicketsTab searchQuery={ticketSearch} ticketStatusFilter={ticketStatusFilter} scopeFilter={ticketScopeFilter} />}
           {activeTab === 'ENGINE' && <EngineTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'CLIENT' && <ClientTab config={config} updateConfig={updateConfig} />}
           {activeTab === 'NOTIFICATIONS' && <NotificationsTab />}

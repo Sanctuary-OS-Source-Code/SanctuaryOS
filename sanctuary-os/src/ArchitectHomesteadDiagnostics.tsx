@@ -26,6 +26,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
+import { isDesktop } from "./utils/envUtils";
 import {
   LabVerificationGate,
   LabVerificationStatus,
@@ -90,6 +91,19 @@ export function HomesteadDiagnostics({
   const [downloadState, setDownloadState] = useState<"idle" | "done">("idle");
   const [triggerCreateRule, setTriggerCreateRule] = useState<number>(0);
   const [triggerCreateGameBug, setTriggerCreateGameBug] = useState<number>(0);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const canRunOrEdit = isDesktop() && !isMobileViewport;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -949,7 +963,7 @@ export function HomesteadDiagnostics({
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={tabs}
         actions={
-          filterTab === "known_errors"
+          canRunOrEdit && filterTab === "known_errors"
             ? [
                 {
                   id: "add_game_bug",
@@ -1043,7 +1057,7 @@ export function HomesteadDiagnostics({
           <div className="flex flex-col gap-6 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <KnownErrorRulesManager
               searchQuery={searchTerm}
-              canEdit={true}
+              canEdit={canRunOrEdit}
               externalTriggerCreate={triggerCreateRule}
               externalTriggerCreateGameBug={triggerCreateGameBug}
               hideTopBarButton={true}
@@ -1089,46 +1103,48 @@ export function HomesteadDiagnostics({
               widthClass="w-[90vw] md:w-[820px]"
               headerActions={
                 <PanelHeaderGroup>
-                  {isLoading ? (
-                    <>
-                      <PanelHeaderButton
-                        icon={isDiagVerified ? t("icon_check", "check") : t("icon_lock", "lock")}
-                        variant="success"
-                        disabled={!isDiagVerified}
-                        tooltip={
-                          isDiagVerified
-                            ? t("auto_conclude_pass", "Conclude & Pass") || "Conclude Pass"
-                            : t(
-                                "lab_tooltip_approve_locked",
-                                "Approval Locked (Lab Test Required)"
-                              )
-                        }
-                        onClick={() => concludeTest(true)}
-                      />
-                      <PanelHeaderButton
-                        icon={t("icon_block", "block")}
-                        variant="danger"
-                        tooltip={t("auto_conclude_fail", "Conclude & Fail") || "Conclude Fail"}
-                        onClick={() => concludeTest(false)}
-                      />
-                    </>
-                  ) : !testRun ? (
-                    isModMissingLocally(activeReport.name) ? (
-                      <PanelHeaderButton
-                        icon={t("icon_download", "download")}
-                        variant="warning"
-                        tooltip={t("missing_artifacts", "Missing {Mods}") || "Missing Artifacts"}
-                        onClick={() => setIsMissingArtifactPanelOpen(true)}
-                      />
-                    ) : (
-                      <PanelHeaderButton
-                        icon={t("icon_play_arrow", "play_arrow")}
-                        variant="accent"
-                        tooltip={t("btn_run_diagnostic", "Run Diagnostic") || "Run Diagnostic"}
-                        onClick={runSimulation}
-                      />
-                    )
-                  ) : null}
+                  {canRunOrEdit && (
+                    isLoading ? (
+                      <>
+                        <PanelHeaderButton
+                          icon={isDiagVerified ? t("icon_check", "check") : t("icon_lock", "lock")}
+                          variant="success"
+                          disabled={!isDiagVerified}
+                          tooltip={
+                            isDiagVerified
+                              ? t("auto_conclude_pass", "Conclude & Pass") || "Conclude Pass"
+                              : t(
+                                  "lab_tooltip_approve_locked",
+                                  "Approval Locked (Lab Test Required)"
+                                )
+                          }
+                          onClick={() => concludeTest(true)}
+                        />
+                        <PanelHeaderButton
+                          icon={t("icon_block", "block")}
+                          variant="danger"
+                          tooltip={t("auto_conclude_fail", "Conclude & Fail") || "Conclude Fail"}
+                          onClick={() => concludeTest(false)}
+                        />
+                      </>
+                    ) : !testRun ? (
+                      isModMissingLocally(activeReport.name) ? (
+                        <PanelHeaderButton
+                          icon={t("icon_download", "download")}
+                          variant="warning"
+                          tooltip={t("missing_artifacts", "Missing {Mods}") || "Missing Artifacts"}
+                          onClick={() => setIsMissingArtifactPanelOpen(true)}
+                        />
+                      ) : (
+                        <PanelHeaderButton
+                          icon={t("icon_play_arrow", "play_arrow")}
+                          variant="accent"
+                          tooltip={t("btn_run_diagnostic", "Run Diagnostic") || "Run Diagnostic"}
+                          onClick={runSimulation}
+                        />
+                      )
+                    ) : null
+                  )}
                   <PanelHeaderButton
                     icon={
                       downloadState === "done"
@@ -1228,20 +1244,22 @@ export function HomesteadDiagnostics({
                 </SidePanelHeroCard>
 
                 {/* Timed Lab Verification Gate (hideErrorLog avoids duplicate raw log box) */}
-                <LabVerificationGate
-                  dnaHash={
-                    activeReport?.dna_hash ||
-                    activeReport?.hash ||
-                    activeReport?.id
-                  }
-                  modName={activeReport?.name || "Diagnostic Target"}
-                  physicalPath={activeReport?.physical_path || activeReport?.name}
-                  roleContext="lab"
-                  isGateRequired={true}
-                  externalStatus={diagSessionStatus}
-                  hideErrorLog={true}
-                  onStatusChange={(st) => setIsDiagVerified(st.verified)}
-                />
+                {canRunOrEdit && (
+                  <LabVerificationGate
+                    dnaHash={
+                      activeReport?.dna_hash ||
+                      activeReport?.hash ||
+                      activeReport?.id
+                    }
+                    modName={activeReport?.name || "Diagnostic Target"}
+                    physicalPath={activeReport?.physical_path || activeReport?.name}
+                    roleContext="lab"
+                    isGateRequired={true}
+                    externalStatus={diagSessionStatus}
+                    hideErrorLog={true}
+                    onStatusChange={(st) => setIsDiagVerified(st.verified)}
+                  />
+                )}
 
                 {/* Side-by-Side Dependencies & Conflict Matrix Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1257,17 +1275,19 @@ export function HomesteadDiagnostics({
                         {dependencies.length}
                       </span>
                     </div>
-                    <ModSearchDropdown
-                      selectedItem={null}
-                      onSelect={handleSelectDependency}
-                      onClear={() => {}}
-                      placeholder={t("search_dep_ph", "Search dependencies...") || "Search dependency..."}
-                      modList={allMods.filter(
-                        (m) =>
-                          m.id !== activeReport.id &&
-                          !dependencies.some((d) => d.id === m.id)
-                      )}
-                    />
+                    {canRunOrEdit && (
+                      <ModSearchDropdown
+                        selectedItem={null}
+                        onSelect={handleSelectDependency}
+                        onClear={() => {}}
+                        placeholder={t("search_dep_ph", "Search dependencies...") || "Search dependency..."}
+                        modList={allMods.filter(
+                          (m) =>
+                            m.id !== activeReport.id &&
+                            !dependencies.some((d) => d.id === m.id)
+                        )}
+                      />
+                    )}
                     {dependencies.length > 0 ? (
                       <div className="flex flex-col gap-1.5">
                         {dependencies.map((d) => (
@@ -1293,15 +1313,17 @@ export function HomesteadDiagnostics({
                                 )}{" "}
                                 &bull; v{getModVersionLabel(d, modList, dependencies)}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDependency(d.id)}
-                                className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_close", "close") || "close"}
-                                </span>
-                              </button>
+                              {canRunOrEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDependency(d.id)}
+                                  className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t("icon_close", "close") || "close"}
+                                  </span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1327,19 +1349,21 @@ export function HomesteadDiagnostics({
                         {conflictTarget ? 1 : 0}
                       </span>
                     </div>
-                    <ModSearchDropdown
-                      selectedItem={null}
-                      onSelect={(m: any) => setConflictTarget(m)}
-                      onClear={() => {}}
-                      placeholder={
-                        t("search_conflict_ph", "Select conflict target...") || "Search conflict target..."
-                      }
-                      modList={allMods.filter(
-                        (m) =>
-                          m.id !== activeReport.id &&
-                          !dependencies.some((d) => d.id === m.id)
-                      )}
-                    />
+                    {canRunOrEdit && (
+                      <ModSearchDropdown
+                        selectedItem={null}
+                        onSelect={(m: any) => setConflictTarget(m)}
+                        onClear={() => {}}
+                        placeholder={
+                          t("search_conflict_ph", "Select conflict target...") || "Search conflict target..."
+                        }
+                        modList={allMods.filter(
+                          (m) =>
+                            m.id !== activeReport.id &&
+                            !dependencies.some((d) => d.id === m.id)
+                        )}
+                      />
+                    )}
                     {conflictTarget ? (
                       <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -1359,15 +1383,17 @@ export function HomesteadDiagnostics({
                             )}{" "}
                             &bull; v{getModVersionLabel(conflictTarget, modList)}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setConflictTarget(null)}
-                            className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[14px]">
-                              {t("icon_close", "close") || "close"}
-                            </span>
-                          </button>
+                          {canRunOrEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setConflictTarget(null)}
+                              className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_close", "close") || "close"}
+                              </span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -1384,7 +1410,7 @@ export function HomesteadDiagnostics({
                 {activeRawLog && (
                   <KnownErrorDiagnosisBanner
                     logText={activeRawLog}
-                    canEdit={true}
+                    canEdit={canRunOrEdit}
                     reportFailed={!isVerified}
                   />
                 )}
@@ -1468,7 +1494,7 @@ export function HomesteadDiagnostics({
                   </pre>
                 </div>
 
-                {testRun && !testPassed && conflictTarget && (
+                {canRunOrEdit && testRun && !testPassed && conflictTarget && (
                   <UniversalGroup
                     title={t("btn_add_to_nexus", "Add To {Nexus}")}
                     icon={t("icon_warning", "warning")}

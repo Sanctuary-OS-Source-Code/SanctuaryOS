@@ -521,25 +521,25 @@ export default function ModStructureBuilder({
     return (
       <div
         key={file.id}
-        className="min-h-[46px] px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex flex-wrap items-center justify-between gap-3 transition-colors"
+        className="min-h-[46px] p-3 sm:px-3.5 sm:py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors"
       >
         {/* Left: Icon + Filename + Full Install Path */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full">
           <span
-            className={`material-symbols-outlined !text-[18px] shrink-0 ${
+            className={`material-symbols-outlined !text-[18px] shrink-0 mt-0.5 sm:mt-0 ${
               isCore ? "text-[var(--accent)]" : "text-[var(--subtext)]"
             }`}
           >
             {iconName}
           </span>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs font-bold text-[var(--text)] truncate">{file.name}</span>
-              <span className="px-2 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] shrink-0">
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+              <span className="text-xs font-bold text-[var(--text)] break-all sm:truncate">{file.name}</span>
+              <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] shrink-0">
                 {roleLabel}
               </span>
             </div>
-            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
+            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate mt-0.5">
               {loc.folderPath}
               {file.name}
             </span>
@@ -547,9 +547,9 @@ export default function ModStructureBuilder({
         </div>
 
         {/* Right: Folder Placement + Config Actions (Family Logic is never mixed into Folder Structure) */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center justify-end gap-2 shrink-0 w-full sm:w-auto">
           {allFolders.length > 1 && (
-            <div className="w-44">
+            <div className="flex-1 sm:flex-none sm:w-48 min-w-0">
               <CustomDropdown
                 disableTint={true}
                 className="h-8"
@@ -575,7 +575,7 @@ export default function ModStructureBuilder({
                   path: file.rawRef?.path || file.name,
                 })
               }
-              className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+              className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                 {t("icon_code", "code")}
@@ -588,7 +588,7 @@ export default function ModStructureBuilder({
             <button
               type="button"
               onClick={() => onDetachConfig(file.name)}
-              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_link_off", "link_off")}
@@ -606,7 +606,7 @@ export default function ModStructureBuilder({
                   path: file.rawRef?.path,
                 })
               }
-              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_delete", "delete")}
@@ -643,23 +643,23 @@ export default function ModStructureBuilder({
           return (
             <div key={folder.id} className="flex flex-col gap-1.5">
               {/* Folder Row */}
-              <div className="h-11 px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="min-h-[44px] py-2 px-3 sm:px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <button
                     type="button"
                     onClick={() => toggleCollapse(folder.id)}
                     className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
                   >
                     <span className="material-symbols-outlined !text-[18px]">
-                      {isCollapsed ? "chevron_right" : "expand_more"}
+                      {isCollapsed ? t("icon_chevron_right", "chevron_right") : t("icon_expand_more", "expand_more")}
                     </span>
                   </button>
                   <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
-                    {isCollapsed ? "folder" : "folder_open"}
+                    {isCollapsed ? t("icon_folder", "folder") : t("icon_folder_open", "folder_open")}
                   </span>
 
                   {isEditing ? (
-                    <div className="flex items-center gap-2 flex-1 max-w-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-1 max-w-sm min-w-0">
                       <input
                         autoFocus
                         value={editingFolderName}
@@ -668,26 +668,26 @@ export default function ModStructureBuilder({
                           if (e.key === "Enter") handleRenameFolder(folder.id);
                           if (e.key === "Escape") setEditingFolderId(null);
                         }}
-                        className="h-7 px-2.5 rounded-lg glass-surface border border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 outline-none"
+                        className="h-7 px-2.5 rounded-lg glass-surface border border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 min-w-0 outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => handleRenameFolder(folder.id)}
-                        className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] hover:border-[var(--accent)] cursor-pointer"
+                        className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] hover:border-[var(--accent)] cursor-pointer shrink-0"
                       >
                         {t("hub_save", "Save")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingFolderId(null)}
-                        className="h-7 px-2 rounded-lg text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                        className="h-7 px-2 rounded-lg text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
                       >
                         {t("btn_cancel", "Cancel")}
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-[var(--text)] truncate">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-xs font-bold text-[var(--text)] break-all sm:truncate">
                         {folder.name}/
                       </span>
                       <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate hidden sm:inline">
@@ -698,14 +698,14 @@ export default function ModStructureBuilder({
                 </div>
 
                 {/* Folder Actions: Rename, + Subfolder, Delete */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
                       setEditingFolderId(folder.id);
                       setEditingFolderName(folder.name);
                     }}
-                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
                   >
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_edit", "edit")}
@@ -719,7 +719,7 @@ export default function ModStructureBuilder({
                       setAddingChildToFolderId(isAddingSub ? null : folder.id);
                       setNewFolderName("");
                     }}
-                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
                   >
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_create_new_folder", "create_new_folder")}
@@ -730,7 +730,7 @@ export default function ModStructureBuilder({
                   <button
                     type="button"
                     onClick={() => handleDeleteFolder(folder.id)}
-                    className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
                   >
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_delete", "delete")}
@@ -742,7 +742,7 @@ export default function ModStructureBuilder({
 
               {/* Inline Add Subfolder Input */}
               {isAddingSub && (
-                <div className="pl-6 ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-2 py-1">
+                <div className="pl-2.5 ml-1.5 sm:pl-6 sm:ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-2 py-1">
                   <input
                     autoFocus
                     value={newFolderName}
@@ -752,19 +752,19 @@ export default function ModStructureBuilder({
                       if (e.key === "Escape") setAddingChildToFolderId(null);
                     }}
                     placeholder={t("studio_structure_subfolder_ph", "Subfolder name...")}
-                    className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 max-w-xs outline-none"
+                    className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 max-w-xs min-w-0 outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleAddFolder(folder.id)}
-                    className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
+                    className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer shrink-0"
                   >
                     {t("ql_add", "Add")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAddingChildToFolderId(null)}
-                    className="h-9 px-2.5 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                    className="h-9 px-2.5 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
                   >
                     {t("btn_cancel", "Cancel")}
                   </button>
@@ -773,7 +773,7 @@ export default function ModStructureBuilder({
 
               {/* Folder Children (Subfolders + Files inside this folder) */}
               {!isCollapsed && (
-                <div className="pl-6 ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                <div className="pl-2.5 ml-1.5 sm:pl-6 sm:ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
                   {folder.children && folder.children.length > 0 ? (
                     renderFolderTree(folder.children, currentPath)
                   ) : (
@@ -799,7 +799,7 @@ export default function ModStructureBuilder({
       <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
-            folder_open
+            {t("icon_folder_open", "folder_open")}
           </span>
           <span className="text-xs font-black font-mono tracking-wider text-[var(--text)]">
             Mods/
@@ -810,9 +810,9 @@ export default function ModStructureBuilder({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           {addingChildToFolderId === ROOT_MODS_ID ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 autoFocus
                 value={newFolderName}
@@ -822,19 +822,19 @@ export default function ModStructureBuilder({
                   if (e.key === "Escape") setAddingChildToFolderId(null);
                 }}
                 placeholder={defaultModFolderName}
-                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] w-44 outline-none"
+                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 sm:w-44 min-w-0 outline-none"
               />
               <button
                 type="button"
                 onClick={() => handleAddFolder(ROOT_MODS_ID)}
-                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer"
+                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer shrink-0"
               >
                 {t("ql_add", "Add")}
               </button>
               <button
                 type="button"
                 onClick={() => setAddingChildToFolderId(null)}
-                className="h-8 px-2 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                className="h-8 px-2 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
               >
                 {t("btn_cancel", "Cancel")}
               </button>

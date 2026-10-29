@@ -1,12 +1,18 @@
 import { useState, useMemo } from "react";
+import Editor from "@monaco-editor/react";
 import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
-  UniversalGroup,
-  ActionButton,
-  HoverTooltip,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  SidePanelHeroCard,
+  StatBox,
 } from "../shared";
 import { VAULT_CHIP_CLASS } from "../Cards";
+import {
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+} from "../utils/monacoTheme";
 
 interface CodeSnippetSidebarProps {
   isOpen?: boolean;
@@ -20,13 +26,18 @@ export default function CodeSnippetSidebar({
   isOpen = true,
   onClose,
   code,
-  widthClass = "w-[90vw] md:w-[760px]",
+  widthClass = "w-full md:w-[860px]",
   title,
 }: CodeSnippetSidebarProps) {
   const { t } = useLexicon();
   const [copied, setCopied] = useState(false);
   const [wrapLines, setWrapLines] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const isLight =
+    typeof document !== "undefined" &&
+    document.body.classList.contains("theme-light");
+  useSanctuaryMonacoTheme(isLight);
 
   const safeCode = code || "";
 
@@ -35,18 +46,47 @@ export default function CodeSnippetSidebar({
     return safeCode.replace(/\r\n/g, "\n").split("\n");
   }, [safeCode]);
 
-  const trimmedQuery = searchQuery.trim().toLowerCase();
-
-  const matchingLineIndices = useMemo(() => {
-    if (!trimmedQuery) return new Set<number>();
-    const set = new Set<number>();
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toLowerCase().includes(trimmedQuery)) {
-        set.add(i);
-      }
+  const detectedLanguage = useMemo(() => {
+    const trimmed = safeCode.trim();
+    const lowerTitle = (title || "").toLowerCase();
+    if (
+      lowerTitle.endsWith(".json") ||
+      trimmed.startsWith("{") ||
+      trimmed.startsWith("[") ||
+      /^\s*"[^"]+"\s*:/.test(trimmed)
+    ) {
+      return "json";
     }
-    return set;
-  }, [lines, trimmedQuery]);
+    if (
+      lowerTitle.endsWith(".xml") ||
+      lowerTitle.endsWith(".html") ||
+      trimmed.startsWith("<")
+    ) {
+      return "xml";
+    }
+    if (
+      lowerTitle.endsWith(".py") ||
+      /^(def |import |from |class )/m.test(trimmed)
+    ) {
+      return "python";
+    }
+    if (
+      lowerTitle.endsWith(".ts") ||
+      lowerTitle.endsWith(".tsx") ||
+      lowerTitle.endsWith(".js") ||
+      /^(export |const |function |interface )/m.test(trimmed)
+    ) {
+      return "typescript";
+    }
+    if (
+      lowerTitle.endsWith(".cfg") ||
+      lowerTitle.endsWith(".ini") ||
+      /^\[[^\]]+\]/m.test(trimmed)
+    ) {
+      return "ini";
+    }
+    return "json";
+  }, [safeCode, title]);
 
   if (!isOpen || !code) return null;
 
@@ -68,166 +108,144 @@ export default function CodeSnippetSidebar({
     URL.revokeObjectURL(url);
   };
 
-  const renderHighlightedLine = (lineText: string) => {
-    if (!lineText) return "\u00A0";
-    if (!trimmedQuery) return lineText;
-
-    const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const parts = lineText.split(new RegExp(`(${escaped})`, "gi"));
-    if (parts.length === 1) return lineText;
-
-    return parts.map((part, idx) =>
-      part.toLowerCase() === trimmedQuery ? (
-        <mark
-          key={idx}
-          className="bg-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--text)] rounded px-0.5 font-bold"
-        >
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
-
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={title || t("code_snippet", "Code Snippet")}
-      subtitle={t("code_snippet_desc", "Attached Code Block")}
-      icon={t("icon_data_object", "data_object")}
-      widthClass={widthClass}
+      title={t("editor_mode", "Editor Mode")}
+      subtitle={title || t("code_snippet", "Code Snippet")}
+      icon={t("icon_code", "code")}
+      iconColorClass="text-[var(--accent)]"
+      isResizable={!isFullscreen}
+      widthClass={isFullscreen ? "!w-full !max-w-[100vw]" : widthClass}
+      panelClass={
+        isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""
+      }
       headerActions={
-        <div className="flex items-center gap-1.5">
-          <div className="relative group flex items-center">
-            <ActionButton
-              onClick={() => setWrapLines(!wrapLines)}
-              variant="glass"
-              icon={t("icon_wrap_text", "wrap_text")}
-              className={`!px-2.5 !py-1.5 !text-[10px] ${
-                wrapLines
-                  ? "!border-[var(--accent)] !text-[var(--accent)]"
-                  : ""
-              }`}
-            />
-            <HoverTooltip
-              title={t("wrap_text", "Wrap Text")}
-              variant="accent"
-            />
-          </div>
-          <div className="relative group flex items-center">
-            <ActionButton
-              onClick={handleDownload}
-              variant="glass"
-              icon={t("icon_download", "download")}
-              className="!px-2.5 !py-1.5 !text-[10px]"
-            />
-            <HoverTooltip
-              title={t("download_txt", "Download .txt")}
-              variant="accent"
-            />
-          </div>
-          <ActionButton
-            onClick={handleCopy}
-            variant="accent"
+        <PanelHeaderGroup>
+          <PanelHeaderButton
             icon={
               copied
                 ? t("icon_check", "check")
                 : t("icon_content_copy", "content_copy")
             }
-            className="!px-3 !py-1.5 !text-[10px]"
-          >
-            {copied ? t("copied", "Copied!") : t("copy_code", "Copy Code")}
-          </ActionButton>
-        </div>
+            variant={copied ? "success" : "accent"}
+            tooltip={copied ? t("copied", "Copied!") : t("copy_code", "Copy Code")}
+            onClick={handleCopy}
+          />
+          <PanelHeaderButton
+            icon={t("icon_wrap_text", "wrap_text")}
+            isActive={wrapLines}
+            tooltip={t("wrap_text", "Wrap Text")}
+            onClick={() => setWrapLines(!wrapLines)}
+          />
+          <PanelHeaderButton
+            icon={t("icon_download", "download")}
+            tooltip={t("download_txt", "Download .txt")}
+            onClick={handleDownload}
+          />
+          <PanelHeaderButton
+            icon={
+              isFullscreen
+                ? t("icon_fullscreen_exit", "fullscreen_exit")
+                : t("icon_fullscreen", "fullscreen")
+            }
+            tooltip={
+              isFullscreen
+                ? t("btn_exit_fullscreen", "Exit Fullscreen")
+                : t("btn_fullscreen", "Fullscreen")
+            }
+            onClick={() => setIsFullscreen(!isFullscreen)}
+          />
+        </PanelHeaderGroup>
       }
     >
-      <div className="flex flex-col gap-4 pb-8">
-        {/* Search & Telemetry Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="relative flex-1 min-w-[200px] flex items-center">
-            <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] absolute left-3.5 pointer-events-none">
-              {t("icon_search", "search")}
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("search_code_placeholder", "Search code...")}
-              className="w-full h-9 pl-9 pr-8 rounded-xl glass-surface text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] transition-all"
+      <div className="flex-1 min-h-0 flex flex-col h-full w-full relative gap-3 pb-6">
+        <SidePanelHeroCard
+          title={title || t("code_snippet", "Code Snippet")}
+          subtitle={t("code_snippet_desc", "Attached Code Block")}
+          label={t("editor_mode", "Editor Mode")}
+          icon={t("icon_code", "code")}
+          variant="accent"
+          badges={[
+            {
+              icon: t("icon_lock", "lock"),
+              label: t("read_only", "Read Only"),
+              colorClass:
+                "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+            },
+          ]}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+            <StatBox
+              label={t("label_format", "Format")}
+              value={detectedLanguage.toUpperCase()}
+              icon={t("icon_data_object", "data_object")}
+              iconColorClass="text-[var(--accent)]"
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_close", "close")}
-                </span>
-              </button>
-            )}
+            <StatBox
+              label={t("lines", "Lines")}
+              value={lines.length}
+              icon={t("icon_format_list_numbered", "format_list_numbered")}
+              iconColorClass="text-[var(--accent)]"
+            />
+            <StatBox
+              label={t("size", "Size")}
+              value={`${(safeCode.length / 1024).toFixed(1)} KB`}
+              icon={t("icon_memory", "memory")}
+              iconColorClass="text-[var(--accent)]"
+            />
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {trimmedQuery && (
+        </SidePanelHeroCard>
+
+        <div className="monaco-wrapper relative flex flex-col flex-1 min-w-0 min-h-[420px] glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden shadow-inner">
+          <div className="px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                {t("icon_code", "code")}
+              </span>
+              <span className="text-xs font-black font-mono text-[var(--text)] truncate">
+                {title || t("code_snippet", "Code Snippet")}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
               <span className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_find_in_page", "find_in_page")}
+                  {t("icon_data_object", "data_object")}
                 </span>
-                {matchingLineIndices.size} / {lines.length}
+                <span>{detectedLanguage.toUpperCase()}</span>
               </span>
-            )}
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_format_list_numbered", "format_list_numbered")}
-              </span>
-              {lines.length} {t("lines", "Lines")}
-            </span>
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_data_object", "data_object")}
-              </span>
-              {(safeCode.length / 1024).toFixed(1)} KB
-            </span>
-          </div>
-        </div>
-
-        <UniversalGroup
-          title={t("code_viewer", "Code Viewer")}
-          icon={t("icon_terminal", "terminal")}
-        >
-          <div className="w-full rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-x-auto custom-scrollbar py-3">
-            <div className="font-mono text-[12px] leading-[1.65] text-[var(--text)] min-w-full">
-              {lines.map((line, idx) => {
-                const isMatch = matchingLineIndices.has(idx);
-                return (
-                  <div
-                    key={idx}
-                    className={`flex items-start px-3 transition-colors ${
-                      isMatch
-                        ? "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]"
-                        : "hover:bg-[rgba(var(--text-rgb),0.03)]"
-                    }`}
-                  >
-                    <span className="w-9 shrink-0 select-none text-right pr-3 text-[10px] font-mono text-[var(--subtext)] opacity-45 pt-[1px]">
-                      {idx + 1}
-                    </span>
-                    <span
-                      className={`flex-1 min-w-0 ${
-                        wrapLines
-                          ? "whitespace-pre-wrap break-words"
-                          : "whitespace-pre"
-                      }`}
-                    >
-                      {renderHighlightedLine(line)}
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           </div>
-        </UniversalGroup>
+
+          <div className="flex-1 w-full min-h-[380px] relative">
+            <Editor
+              height="100%"
+              language={detectedLanguage}
+              theme={isLight ? "sanctuary-light" : "sanctuary-dark"}
+              beforeMount={(monaco) => {
+                defineSanctuaryMonacoThemes(monaco);
+              }}
+              value={safeCode}
+              options={{
+                readOnly: true,
+                domReadOnly: true,
+                minimap: { enabled: false },
+                fontSize: 13,
+                fontFamily:
+                  "var(--font-mono), 'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                wordWrap: wrapLines ? "on" : "off",
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 16, bottom: 24 },
+                renderLineHighlight: "all",
+                smoothScrolling: true,
+                folding: true,
+                bracketPairColorization: { enabled: true },
+              }}
+            />
+          </div>
+        </div>
       </div>
     </SidePanel>
   );

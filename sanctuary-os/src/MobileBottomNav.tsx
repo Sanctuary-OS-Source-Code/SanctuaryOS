@@ -5,6 +5,8 @@ import { useLexicon } from './LexiconContext';
 import { isRootDomain, scrollToLandingSection, getActiveLandingTab, normalizeLandingTab } from './utils/routingUtils';
 import { isDesktop } from './utils/envUtils';
 import { usePwaInstall, PwaInstallPrompt } from './utils/pwaManager';
+import { supabase } from './supabase';
+import { openSanctuaryLogin } from './AuthWrapper';
 
 function MobileNavItem({
   active,
@@ -95,6 +97,30 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const [isLandingContext, setIsLandingContext] = useState<boolean>(() =>
     view === 'landing' || !isConfigured || (!isDesktop() && isRootDomain())
   );
+  const [hasLinkedMasonRecord, setHasLinkedMasonRecord] = useState(false);
+  const [isMasonRecordVerified, setIsMasonRecordVerified] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setHasLinkedMasonRecord(false);
+      setIsMasonRecordVerified(false);
+      return;
+    }
+    supabase
+      .from('masons')
+      .select('id, is_verified')
+      .eq('owner_id', session.user.id)
+      .limit(1)
+      .then(({ data }) => {
+        setHasLinkedMasonRecord(Boolean(data && data.length > 0));
+        setIsMasonRecordVerified(Boolean(data?.[0]?.is_verified));
+      });
+  }, [session?.user?.id]);
+
+  const isVerifiedMason =
+    (hasLinkedMasonRecord && isMasonRecordVerified) ||
+    ['mason', 'architect', 'senior_architect', 'oversight', 'wayfinder', 'admin'].includes(userRole) ||
+    ['core_dev', 'admin', 'keeper'].includes(osRole);
 
   useEffect(() => {
     if (view === 'landing' || !isConfigured || (!isDesktop() && isRootDomain())) {
@@ -137,7 +163,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     tabs.push({ id: 'directives', icon: t("icon_folder_special", "folder_special"), label: t("landing_directives_short", "Directives") });
     if (view === "KeepersCore") {
       hubNavLabel = t("sidebar_keepers_core", "Keepers Core");
-      hubNavIcon = t("icon_terminal", "terminal");
+      hubNavIcon = t("icon_admin_panel_settings", "admin_panel_settings");
       tabs.push({ id: 'hub_nav', icon: hubNavIcon, label: hubNavLabel });
     }
     tabs.push({ id: 'menu', icon: t("icon_menu", "menu"), label: t("ui_btn_more", "More") });
@@ -160,7 +186,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     else if (view === "ArchitectHub") { hubNavLabel = t("sidebar_architect_hub", "Console"); hubNavIcon = t("icon_analytics", "analytics"); }
     else if (view === "Oversight") { hubNavLabel = t("wf_tab_command", "Command"); hubNavIcon = t("icon_security", "security"); }
     else if (view === "WayfinderHub") { hubNavLabel = t("ui_btn_operations", "Operations"); hubNavIcon = t("icon_terminal", "terminal"); }
-    else if (view === "KeepersCore") { hubNavLabel = t("sidebar_keepers_core", "Keepers Core"); hubNavIcon = t("icon_terminal", "terminal"); }
+    else if (view === "KeepersCore") { hubNavLabel = t("sidebar_keepers_core", "Keepers Core"); hubNavIcon = t("icon_admin_panel_settings", "admin_panel_settings"); }
 
     if (hubNavLabel) {
       tabs.push({ id: 'hub_nav', icon: hubNavIcon, label: hubNavLabel });
@@ -203,8 +229,11 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
     return () => window.clearTimeout(timer);
   }, [isMenuOpen, isHubNavOpen, view, activeLandingSection]);
 
-  const hasRoleHubs =
-    !isLandingContext || ["core_dev", "admin", "keeper"].includes(osRole);
+  const hasRoleHubs = Boolean(
+    session &&
+      ((!isLandingContext && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc) ||
+        ["core_dev", "admin", "keeper"].includes(osRole))
+  );
 
   return (
     <>
@@ -394,12 +423,14 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
               {isLandingContext && (
                 <>
-                  <MobileNavItem
-                    active={view === 'landing' && activeLandingSection === 'download'}
-                    onClick={() => handleTabClick('download')}
-                    icon={t("icon_download", "download")}
-                    label={t("landing_download_sidebar", "Download Sanctuary OS")}
-                  />
+                  {(isDesktop() || !isRootDomain()) && (
+                    <MobileNavItem
+                      active={view === 'landing' && activeLandingSection === 'download'}
+                      onClick={() => handleTabClick('download')}
+                      icon={t("icon_download", "download")}
+                      label={t("landing_download_sidebar", "Download Sanctuary OS")}
+                    />
+                  )}
                   <MobileNavItem
                     active={view === 'landing' && activeLandingSection === 'support'}
                     onClick={() => handleTabClick('support')}
@@ -446,9 +477,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 <MobileNavItem
                   onClick={() => {
                     setIsMenuOpen(false);
-                    localStorage.setItem("sanctuary_show_login", "true");
-                    localStorage.removeItem("sanctuary_login_bypassed");
-                    window.dispatchEvent(new CustomEvent("sanctuary-open-login"));
+                    openSanctuaryLogin();
                   }}
                   icon={t("icon_key", "key")}
                   label={t("sidebar_signin", "Authenticate")}
@@ -469,17 +498,16 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_14%,transparent)] to-transparent my-1.5 shrink-0" />
               )}
 
-              {!isLandingContext && (
+              {session && !isLandingContext && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && (
                 <MobileNavItem
                   active={view === 'MasonHub'}
                   onClick={() => handleTabClick('MasonHub')}
                   icon={t("icon_construction", "construction")}
                   label={t("mason_hub_title", "{Mason} Workshop")}
-                  iconColorClass="text-[var(--warning)]"
                 />
               )}
 
-              {["architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
+              {session && ["architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && (
                 <MobileNavItem
                   active={view === 'ArchitectHub'}
                   onClick={() => handleTabClick('ArchitectHub')}
@@ -488,17 +516,16 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 />
               )}
 
-              {["oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && (
+              {session && ["oversight", "wayfinder", "admin"].includes(userRole) && !isLandingContext && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && (
                 <MobileNavItem
                   active={view === 'Oversight'}
                   onClick={() => handleTabClick('Oversight')}
                   icon={t("icon_security", "security")}
                   label={t("sa_title", "Admin Command")}
-                  iconColorClass="text-[var(--danger)]"
                 />
               )}
 
-              {(userRole === "wayfinder" || userRole === "admin") && !isLandingContext && (
+              {session && (userRole === "wayfinder" || userRole === "admin") && !isLandingContext && !(!isDesktop() && isRootDomain()) && schemaFeatures.has_cc && (
                 <MobileNavItem
                   active={view === 'WayfinderHub'}
                   onClick={() => handleTabClick('WayfinderHub')}
@@ -507,13 +534,12 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                 />
               )}
 
-              {["core_dev", "admin", "keeper"].includes(osRole) && (
+              {session && ["core_dev", "admin", "keeper"].includes(osRole) && (
                 <MobileNavItem
                   active={view === 'KeepersCore'}
                   onClick={() => handleTabClick('KeepersCore')}
                   icon={t("icon_admin_panel_settings", "admin_panel_settings")}
                   label={t("sidebar_keepers_core", "Keepers Core")}
-                  iconColorClass="text-[var(--success)]"
                 />
               )}
             </div>
@@ -574,17 +600,50 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
             <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 pt-0.5 flex flex-col gap-1 w-full">
               {view === "MasonHub" && [
-                { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-                { id: "sandbox", icon: t("icon_deployed_code", "deployed_code"), label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
-                { id: "nexus", icon: t("icon_hub", "hub"), label: (t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, '').trim() },
-                { id: "chameleons", icon: t("icon_palette", "palette"), label: (t("tab_aesthetics", "Aesthetics") || "Aesthetics").replace(/^[^\w]*/, '').trim() },
-                { id: "collections", icon: t("icon_collections_bookmark", "collections_bookmark"), label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
-                { id: "posts", icon: t("icon_edit_document", "edit_document"), label: (t("tab_posts", "{Dispatches}") || "Posts").replace(/^[^\w]*/, '').trim() },
-                { id: "bug_reports", icon: t("icon_bug_report", "bug_report"), label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
+                {
+                  id: "command_center",
+                  active: masonActiveTab === "command_center",
+                  icon: t("icon_desktop_windows", "desktop_windows"),
+                  label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim(),
+                },
+                {
+                  id: "sandbox",
+                  active: masonActiveTab === "sandbox" || masonActiveTab === "registry",
+                  icon: isVerifiedMason ? t("icon_deployed_code", "deployed_code") : t("icon_handyman", "handyman"),
+                  label: (isVerifiedMason ? (t("term_mods", "Mods") || "Registry") : (t("filter_dev", "Sandbox") || "Sandbox")).replace(/^[^\w]*/, '').trim(),
+                },
+                {
+                  id: "nexus",
+                  active: masonActiveTab === "nexus",
+                  icon: t("icon_hub", "hub"),
+                  label: (t("tab_nexus", "{Nexus}") || "Nexus").replace(/^[^\w]*/, '').trim(),
+                },
+                ...(isVerifiedMason
+                  ? [
+                      {
+                        id: "collections",
+                        active: masonActiveTab === "collections",
+                        icon: t("icon_collections_bookmark", "collections_bookmark"),
+                        label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim(),
+                      },
+                      {
+                        id: "posts",
+                        active: masonActiveTab === "posts",
+                        icon: t("icon_edit_document", "edit_document"),
+                        label: (t("tab_posts", "{Dispatches}") || "Posts").replace(/^[^\w]*/, '').trim(),
+                      },
+                      {
+                        id: "bug_reports",
+                        active: masonActiveTab === "bug_reports",
+                        icon: t("icon_bug_report", "bug_report"),
+                        label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim(),
+                      },
+                    ]
+                  : []),
               ].map(tab => (
                 <MobileNavItem
                   key={tab.id}
-                  active={masonActiveTab === tab.id || (tab.id === "sandbox" && masonActiveTab === "registry")}
+                  active={tab.active}
                   onClick={() => {
                     setMasonActiveTab(tab.id);
                     setIsHubNavOpen(false);
@@ -595,19 +654,19 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               ))}
 
               {view === "ArchitectHub" && [
-                { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-                { id: "registry", icon: t("icon_inventory_2", "inventory_2"), label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
-                { id: "queue", icon: t("icon_search", "search"), label: (t("tab_queue", "Scanner") || "Queue").replace(/^[^\w]*/, '').trim() },
-                { id: "lab", icon: t("icon_monitor_heart", "monitor_heart"), label: (t("tab_diagnostics", "Diagnostics") || "Diagnostics").replace(/^[^\w]*/, '').trim() },
-                { id: "collections", icon: t("icon_collections_bookmark", "collections_bookmark"), label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
-                { id: "mason_queue", icon: t("icon_construction", "construction"), label: (t("mason", "{Mason}") || "Mason").replace(/^[^\w]*/, '').trim() },
-                { id: "template_oversight", icon: t("icon_data_object", "data_object"), label: (t("ql_templates", "Templates") || "Templates").replace(/^[^\w]*/, '').trim() },
-                { id: "nexus_reports", icon: t("icon_flag", "flag"), label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
-                { id: "support_tickets", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
+                { id: "command_center", active: architectActiveTab === "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+                { id: "registry", active: architectActiveTab === "registry", icon: t("icon_inventory_2", "inventory_2"), label: (t("term_mods", "Mods") || "Registry").replace(/^[^\w]*/, '').trim() },
+                { id: "queue", active: architectActiveTab === "queue", icon: t("icon_search", "search"), label: (t("tab_queue", "Scanner") || "Queue").replace(/^[^\w]*/, '').trim() },
+                { id: "lab", active: architectActiveTab === "lab", icon: t("icon_monitor_heart", "monitor_heart"), label: (t("tab_diagnostics", "Diagnostics") || "Diagnostics").replace(/^[^\w]*/, '').trim() },
+                { id: "collections", active: architectActiveTab === "collections", icon: t("icon_collections_bookmark", "collections_bookmark"), label: (t("tab_cc", "Collections") || "Collections").replace(/^[^\w]*/, '').trim() },
+                { id: "mason_queue", active: architectActiveTab === "mason_queue", icon: t("icon_construction", "construction"), label: (t("mason", "{Mason}") || "Mason").replace(/^[^\w]*/, '').trim() },
+                { id: "template_oversight", active: architectActiveTab === "template_oversight", icon: t("icon_data_object", "data_object"), label: (t("ql_templates", "Templates") || "Templates").replace(/^[^\w]*/, '').trim() },
+                { id: "nexus_reports", active: architectActiveTab === "nexus_reports", icon: t("icon_flag", "flag"), label: (t("stat_bugs", "Reports") || "Bug Reports").replace(/^[^\w]*/, '').trim() },
+                { id: "support_tickets", active: architectActiveTab === "support_tickets", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
               ].map(tab => (
                 <MobileNavItem
                   key={tab.id}
-                  active={architectActiveTab === tab.id}
+                  active={tab.active}
                   onClick={() => {
                     setArchitectActiveTab(tab.id);
                     setIsHubNavOpen(false);
@@ -618,20 +677,19 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               ))}
 
               {view === "Oversight" && [
-                { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-                { id: "oversight_comms", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-                { id: "identities", icon: t("icon_group", "group"), label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
-                { id: "compliance", icon: t("icon_policy", "policy"), label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
-                { id: "malware_oversight", icon: t("icon_coronavirus", "coronavirus"), label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
-                { id: "sanctuary_tickets", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
-                { id: "mass_update", icon: t("icon_dynamic_feed", "dynamic_feed"), label: (t("tab_mass_update", "Mass Update") || "Mass Update").replace(/^[^\w]*/, '').trim() },
-                { id: "game_versions", icon: t("icon_settings", "settings"), label: (t("tab_game_versions", "Management") || "Game Versions").replace(/^[^\w]*/, '').trim() },
-                { id: "support_settings", icon: t("icon_support_agent", "support_agent"), label: (t("term_settings", "Settings") || "Support").replace(/^[^\w]*/, '').trim() },
-                { id: "audit_logs", icon: t("icon_history", "history"), label: (t("tab_audit", "Logs") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
+                { id: "command_center", active: oversightActiveTab === "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+                { id: "oversight_comms", active: oversightActiveTab === "oversight_comms", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+                { id: "identities", active: oversightActiveTab === "identities" || oversightActiveTab === "linker", icon: t("icon_group", "group"), label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
+                { id: "compliance", active: oversightActiveTab === "compliance", icon: t("icon_policy", "policy"), label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
+                { id: "malware_oversight", active: oversightActiveTab === "malware_oversight" || oversightActiveTab === "oversight_reports", icon: t("icon_coronavirus", "coronavirus"), label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
+                { id: "sanctuary_tickets", active: oversightActiveTab === "sanctuary_tickets" || oversightActiveTab === "support_settings", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
+                { id: "mass_update", active: oversightActiveTab === "mass_update", icon: t("icon_dynamic_feed", "dynamic_feed"), label: (t("tab_mass_update", "Mass Update") || "Mass Update").replace(/^[^\w]*/, '').trim() },
+                { id: "game_versions", active: oversightActiveTab === "game_versions", icon: t("icon_settings", "settings"), label: (t("tab_game_versions", "Management") || "Game Versions").replace(/^[^\w]*/, '').trim() },
+                { id: "audit_logs", active: oversightActiveTab === "audit_logs", icon: t("icon_history", "history"), label: (t("tab_audit", "Logs") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
               ].map(tab => (
                 <MobileNavItem
                   key={tab.id}
-                  active={oversightActiveTab === tab.id}
+                  active={tab.active}
                   onClick={() => {
                     setOversightActiveTab(tab.id);
                     setIsHubNavOpen(false);
@@ -642,21 +700,19 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               ))}
 
               {view === "WayfinderHub" && [
-                { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-                { id: "wf_comms_title", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-                { id: "sanctuary_tickets", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
-                { id: "identities", icon: t("icon_group", "group"), label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
-                { id: "compliance", icon: t("icon_policy", "policy"), label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
-                { id: "malware_oversight", icon: t("icon_coronavirus", "coronavirus"), label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
-                { id: "reports", icon: t("icon_flag", "flag"), label: (t("stat_bugs", "Reports") || "Reports").replace(/^[^\w]*/, '').trim() },
-                { id: "audit_logs", icon: t("icon_history", "history"), label: (t("tab_audit", "Logs") || "Audit Logs").replace(/^[^\w]*/, '').trim() },
-                { id: "support_settings", icon: t("icon_support_agent", "support_agent"), label: (t("term_settings", "Settings") || "Support Settings").replace(/^[^\w]*/, '').trim() },
-                { id: "ide", icon: t("icon_data_object", "data_object"), label: (t("wf_tab_spoke_control", "Spoke Control") || "Spoke Control").replace(/^[^\w]*/, '').trim() },
-                { id: "chameleons", icon: t("icon_palette", "palette"), label: (t("wf_tab_spoke_aesthetics", "Spoke Aesthetics") || "Spoke Aesthetics").replace(/^[^\w]*/, '').trim() },
+                { id: "command_center", active: wayfinderActiveTab === "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+                { id: "wf_comms_title", active: wayfinderActiveTab === "wf_comms_title", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+                { id: "sanctuary_tickets", active: wayfinderActiveTab === "sanctuary_tickets" || wayfinderActiveTab === "support_settings", icon: t("icon_local_activity", "local_activity"), label: (t("wf_tab_tickets", "Support") || "Tickets").replace(/^[^\w]*/, '').trim() },
+                { id: "identities", active: wayfinderActiveTab === "identities" || wayfinderActiveTab === "linker", icon: t("icon_group", "group"), label: (t("tab_identities", "Identity") || "Identities").replace(/^[^\w]*/, '').trim() },
+                { id: "compliance", active: wayfinderActiveTab === "compliance", icon: t("icon_policy", "policy"), label: (t("tab_compliance", "Compliance") || "Compliance").replace(/^[^\w]*/, '').trim() },
+                { id: "malware_oversight", active: wayfinderActiveTab === "malware_oversight" || wayfinderActiveTab === "oversight_reports", icon: t("icon_coronavirus", "coronavirus"), label: (t("rating_malware", "Malware") || "Malware").replace(/^[^\w]*/, '').trim() },
+                { id: "reports", active: wayfinderActiveTab === "reports", icon: t("icon_flag", "flag"), label: (t("stat_bugs", "Reports") || "Reports").replace(/^[^\w]*/, '').trim() },
+                { id: "ide", active: ["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(wayfinderActiveTab), icon: t("icon_data_object", "data_object"), label: (t("wf_tab_spoke_control", "Spoke Control") || "Spoke Control").replace(/^[^\w]*/, '').trim() },
+                { id: "chameleons", active: wayfinderActiveTab === "chameleons", icon: t("icon_palette", "palette"), label: (t("wf_tab_spoke_aesthetics", "Spoke Aesthetics") || "Spoke Aesthetics").replace(/^[^\w]*/, '').trim() },
               ].map(tab => (
                 <MobileNavItem
                   key={tab.id}
-                  active={wayfinderActiveTab === tab.id}
+                  active={tab.active}
                   onClick={() => {
                     setWayfinderActiveTab(tab.id);
                     setIsHubNavOpen(false);
@@ -667,19 +723,18 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
               ))}
 
               {view === "KeepersCore" && [
-                { id: "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
-                { id: "keepers_comms", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
-                { id: "web_directives", icon: t("icon_public", "public"), label: t("keepers_tab_web_landing", "Web Landing") },
-                { id: "active_games", icon: t("icon_dns", "dns"), label: t("keepers_tab_partner_spokes", "Partner Spokes") || "Partner Spokes" },
-                { id: "identities", icon: t("icon_group", "group"), label: t("citizen_oversight", "{Citizen} Management") || "Citizen Oversight" },
-                { id: "heuristics", icon: t("icon_shield_lock", "shield_lock"), label: t("core_heuristics_tab", "Core Heuristics") || "Core Heuristics" },
-                { id: "support", icon: t("icon_support_agent", "support_agent"), label: t("support_tickets", "Support Center") || "Support Center" },
-                { id: "support_settings", icon: t("icon_support_agent", "support_agent"), label: (t("term_settings", "Settings") || "Support Settings").replace(/^[^\w]*/, '').trim() },
-                { id: "chameleons", icon: t("icon_palette", "palette"), label: (t("keepers_tab_core_aesthetics", "Core Aesthetics") || "Core Aesthetics").replace(/^[^\w]*/, '').trim() },
+                { id: "command_center", active: keepersActiveTab === "command_center", icon: t("icon_desktop_windows", "desktop_windows"), label: (t("wf_tab_command", "Command") || "Command Center").replace(/^[^\w]*/, '').trim() },
+                { id: "keepers_comms", active: keepersActiveTab === "keepers_comms", icon: t("icon_satellite_alt", "satellite_alt"), label: (t("wf_tab_dispatch", "Dispatch") || "Dispatch").replace(/^[^\w]*/, '').trim() },
+                { id: "web_directives", active: keepersActiveTab === "web_directives" || keepersActiveTab === "web_news" || keepersActiveTab === "web_legal", icon: t("icon_public", "public"), label: t("keepers_tab_web_landing", "Web Landing") },
+                { id: "active_games", active: ["active_games", "ide", "schemas", "audit_logs"].includes(keepersActiveTab), icon: t("icon_dns", "dns"), label: t("keepers_tab_partner_spokes", "Partner Spokes") || "Partner Spokes" },
+                { id: "identities", active: keepersActiveTab === "identities", icon: t("icon_group", "group"), label: t("citizen_oversight", "Oversight") || "Oversight" },
+                { id: "heuristics", active: keepersActiveTab === "heuristics", icon: t("icon_shield_lock", "shield_lock"), label: t("core_heuristics_tab", "Core Heuristics") || "Core Heuristics" },
+                { id: "support", active: keepersActiveTab === "support" || keepersActiveTab === "support_settings", icon: t("icon_support_agent", "support_agent"), label: (t("wf_tab_tickets", "Support") || "Support").replace(/^[^\w]*/, '').trim() },
+                { id: "chameleons", active: keepersActiveTab === "chameleons", icon: t("icon_palette", "palette"), label: (t("keepers_tab_core_aesthetics", "Core Aesthetics") || "Core Aesthetics").replace(/^[^\w]*/, '').trim() },
               ].map(tab => (
                 <MobileNavItem
                   key={tab.id}
-                  active={keepersActiveTab === tab.id}
+                  active={tab.active}
                   onClick={() => {
                     setKeepersActiveTab(tab.id);
                     setIsHubNavOpen(false);

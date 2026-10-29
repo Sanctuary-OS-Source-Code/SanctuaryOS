@@ -338,7 +338,7 @@ export default function ArchitectTemplateOversight() {
                         title={newFileName.trim() || t("add_target_file", "Add Target File")}
                         subtitle={t("desc_file_name", "Specify the exact configuration filename to track.")}
                         label={t("architect_templates", "Template Oversight")}
-                        icon="description"
+                        icon={t("icon_description", "description")}
                         variant="accent"
                     />
                     <SidePanelTitleInput
@@ -357,20 +357,20 @@ export default function ArchitectTemplateOversight() {
                 onClose={() => setSelectedFileGroup(null)}
                 title={t("ui_template_config", "Template Configuration")}
                 subtitle={t("manage_community_defaults", "Manage community defaults")}
-                icon="description"
+                icon={t("icon_description", "description")}
                 iconColorClass="text-[var(--accent)]"
                 isResizable={false}
-                widthClass="w-[900px]"
+                widthClass="w-full md:w-[900px]"
             >
-                <div className="flex flex-col gap-6 h-full">
+                <div className="flex flex-col gap-5 pb-8">
                     <SidePanelHeroCard
                         title={selectedFileGroup || t("ui_template_config", "Template Configuration")}
                         subtitle={t("manage_community_defaults", "Manage community defaults")}
                         label={t("architect_templates", "Template Oversight")}
-                        icon="description"
+                        icon={t("icon_description", "description")}
                         variant="accent"
                     >
-                        <div className="grid grid-cols-2 gap-3 w-full">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                             <StatBox
                                 label={t("available", "Available Templates")}
                                 value={processedTemplates.length}
@@ -385,11 +385,6 @@ export default function ArchitectTemplateOversight() {
                             />
                         </div>
                     </SidePanelHeroCard>
-
-                    <SidePanelTitleInput
-                        value={selectedFileGroup || ""}
-                        readOnly
-                    />
 
                     {processedTemplates.find(t => t.is_community_default) && (
                         <UniversalGroup
@@ -446,18 +441,18 @@ export default function ArchitectTemplateOversight() {
                         title={t("available", "Available Templates")}
                         icon={t("icon_folder_open", "folder_open")}
                     >
-                        <div className="flex items-center gap-4">
-                            <div className="flex-1 relative">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            <div className="flex-1 relative min-w-0">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] !text-[16px]">{t("icon_search", "search")}</span>
                                 <input
                                     type="text"
                                     placeholder={t("search_tmpl", "Search templates...")}
                                     value={tmplSearch}
                                     onChange={(e) => setTmplSearch(e.target.value)}
-                                    className="w-full h-12 pl-10 pr-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
+                                    className="w-full h-11 pl-10 pr-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-colors bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[12px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] outline-none"
                                 />
                             </div>
-                            <div className="shrink-0 flex items-center gap-2 w-max min-w-[192px] max-w-xs">
+                            <div className="shrink-0 w-full sm:w-48">
                                 <CustomDropdown
                                     disableTint={true}
                                     value={tmplSort}
@@ -471,9 +466,9 @@ export default function ArchitectTemplateOversight() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pb-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-2">
                             {processedTemplates.filter(t => !t.is_community_default).length === 0 ? (
-                                <EmptyState icon={t("icon_folder_open", "folder_open")} title={t("no_additional", "No additional templates")} className="col-span-2 py-8" />
+                                <EmptyState icon={t("icon_folder_open", "folder_open")} title={t("no_additional", "No additional templates")} className="col-span-full py-8" />
                             ) : processedTemplates.filter(t => !t.is_community_default).map((tmpl) => {
                                 const isFlagged = flaggedTemplateIds.includes(tmpl.id);
                                 return (
@@ -527,10 +522,10 @@ export default function ArchitectTemplateOversight() {
                 onClose={() => setSelectedTemplateForPreview(null)}
                 title={selectedTemplateForPreview?.name || selectedTemplateForPreview?.targetFile || t("preview_title", "Preview")}
                 subtitle={t("preview_subtitle", "Template Preview")}
-                icon="visibility"
+                icon={t("icon_visibility", "visibility")}
                 iconColorClass="text-[var(--accent)]"
                 isResizable={false}
-                widthClass="w-[850px]"
+                widthClass="w-full md:w-[850px]"
                 backdropZ="z-[45000]"
                 panelZ="z-[45001]"
                 noBackdropDim={true}
@@ -538,21 +533,21 @@ export default function ArchitectTemplateOversight() {
                     selectedTemplateForPreview ? (
                         <PanelHeaderGroup>
                             {selectedTemplateForPreview.is_community_default ? (
-                                <PanelHeaderButton icon="verified" variant="success" tooltip={t("active_default", "Active Default")} disabled={true} />
+                                <PanelHeaderButton icon={t("icon_verified", "verified")} variant="success" tooltip={t("active_default", "Active Default")} disabled={true} />
                             ) : (
-                                <PanelHeaderButton icon="check" variant="success" tooltip={isSettingDefault === selectedTemplateForPreview.id ? t("setting", "Setting...") : t("set_default", "Set Default")} disabled={isSettingDefault === selectedTemplateForPreview.id} onClick={() => handleSetDefault(selectedTemplateForPreview)} />
+                                <PanelHeaderButton icon={t("icon_check", "check")} variant="success" tooltip={isSettingDefault === selectedTemplateForPreview.id ? t("setting", "Setting...") : t("set_default", "Set Default")} disabled={isSettingDefault === selectedTemplateForPreview.id} onClick={() => handleSetDefault(selectedTemplateForPreview)} />
                             )}
                         </PanelHeaderGroup>
                     ) : null
                 }
             >
                 {selectedTemplateForPreview && (
-                    <div className="flex flex-col h-full w-full gap-6">
+                    <div className="flex flex-col w-full gap-5 pb-8">
                         <SidePanelHeroCard
                             title={selectedTemplateForPreview.name || selectedTemplateForPreview.targetFile || t("preview_title", "Preview")}
                             subtitle={selectedTemplateForPreview.description || t("preview_subtitle", "Template Preview")}
                             label={selectedTemplateForPreview.targetFile || t("ui_template_config", "Template Configuration")}
-                            icon="visibility"
+                            icon={t("icon_visibility", "visibility")}
                             variant={selectedTemplateForPreview.is_community_default ? "success" : "accent"}
                             badges={selectedTemplateForPreview.is_community_default ? [
                                 {
@@ -563,16 +558,11 @@ export default function ArchitectTemplateOversight() {
                             ] : undefined}
                         />
 
-                        <SidePanelTitleInput
-                            value={selectedTemplateForPreview.name || selectedTemplateForPreview.targetFile || ""}
-                            readOnly
-                        />
-
                         <UniversalGroup
                             title={t("preview_subtitle", "Template Preview")}
-                            icon="visibility"
+                            icon={t("icon_visibility", "visibility")}
                         >
-                            <div className="flex-1 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] p-5 overflow-y-auto custom-scrollbar min-h-[400px]">
+                            <div className="flex-1 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] p-4 sm:p-5 overflow-y-auto custom-scrollbar min-h-[360px]">
                                 <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
                             </div>
                         </UniversalGroup>

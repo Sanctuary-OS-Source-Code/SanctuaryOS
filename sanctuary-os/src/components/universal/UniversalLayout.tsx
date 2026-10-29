@@ -444,7 +444,7 @@ export function UniversalGroup({
   const resolvedHeaderAction = headerAction || headerActions || actions;
   return (
     <div
-      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col relative ${delayClass} ${className}`}
+      className={`glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0 relative ${delayClass} ${className}`}
     >
       {heading && (
         <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">

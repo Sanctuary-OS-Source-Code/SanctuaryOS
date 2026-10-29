@@ -76,6 +76,11 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   useEffect(() => {
     if (!loading && !isVerifiedMason && VERIFIED_ONLY_TABS.includes(masonActiveTab)) {
       setMasonActiveTab("command_center");
+      return;
+    }
+    const isMobileView = !isDesktop() || (typeof window !== "undefined" && window.innerWidth < 768);
+    if (isMobileView && masonActiveTab === "chameleons") {
+      setMasonActiveTab("command_center");
     }
   }, [loading, isVerifiedMason, masonActiveTab, setMasonActiveTab]);
 

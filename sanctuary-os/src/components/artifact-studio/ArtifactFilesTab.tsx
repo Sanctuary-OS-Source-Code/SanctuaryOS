@@ -299,24 +299,24 @@ export function ArtifactFilesTab({
             {t("studio_standalone_section_desc", "{Mods} without linked addons, twins, or flavors.")}
           </div>
         ) : (
-          <div className="max-h-[204px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
+          <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
             {filteredFamily.map((rel) => (
               <div
                 key={rel.id}
-                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2"
+                className="min-h-[40px] py-2 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
                 <button
                   type="button"
                   onClick={() => {
                     if (onSwitchMod && rel.mod) onSwitchMod(rel.mod);
                   }}
-                  className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] truncate transition-colors text-left flex-1 min-w-0 cursor-pointer flex items-center gap-1.5"
+                  className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors text-left flex-1 min-w-0 cursor-pointer flex items-center gap-1.5"
                 >
-                  <span className="truncate">
-                    {(rel.mod?.name || "Module").split(/[\\/]/).pop()}
+                  <span className="break-all sm:truncate">
+                    {(rel.mod?.name || t("module", "Module")).split(/[\\/]/).pop()}
                   </span>
                   {rel.mod?.file_extension && (
-                    <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono font-bold text-[var(--subtext)] shrink-0">
+                    <span className="px-1.5 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-mono font-bold text-[var(--subtext)] shrink-0">
                       {String(rel.mod.file_extension).startsWith(".")
                         ? String(rel.mod.file_extension).toLowerCase()
                         : `.${String(rel.mod.file_extension).toLowerCase()}`}
@@ -324,8 +324,8 @@ export function ArtifactFilesTab({
                   )}
                 </button>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <div className="w-28">
+                <div className="flex items-center justify-end gap-1.5 shrink-0 w-full sm:w-auto">
+                  <div className="flex-1 sm:flex-none sm:w-28 min-w-0">
                     <CustomDropdown
                       disableTint={true}
                       className="h-7"

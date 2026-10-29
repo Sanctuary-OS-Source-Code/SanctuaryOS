@@ -789,6 +789,7 @@ export function GlobalCommandPalette({
     const settingsSubsections: { id: string; label: string; icon: string; kw: string; desktopOnly?: boolean }[] = [
       { id: "CORE", label: t("tab_core", "Core"), icon: t("icon_account_circle", "account_circle"), kw: "core account profile paths coordinates vault" },
       { id: "SUPPORTER", label: t("tab_supporter", "Supporter & Perks"), icon: t("icon_volunteer_activism", "volunteer_activism"), kw: "supporter perks dev builds donations" },
+      { id: "TICKETS", label: t("support_tickets", "Support Tickets"), icon: t("icon_confirmation_number", "confirmation_number"), kw: "support tickets feedback core spoke my tickets" },
       { id: "ENGINE", label: t("tab_engine", "Engine"), icon: t("icon_history", "history"), kw: "engine retention backups cycles", desktopOnly: true },
       { id: "CLIENT", label: t("tab_preferences", "Preferences"), icon: t("icon_tune", "tune"), kw: "client preferences interface behavior" },
       { id: "NOTIFICATIONS", label: t("tab_notifs", "Notifications"), icon: t("icon_notifications", "notifications"), kw: "notifications alerts sounds" },

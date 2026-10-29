@@ -465,6 +465,7 @@ export default function SupportHub() {
 
       if (error) throw error;
 
+      window.dispatchEvent(new CustomEvent("sanctuary-tickets-updated"));
       useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
 
       // Reset form after submit

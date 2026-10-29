@@ -357,7 +357,10 @@ export default function WebLandingPage() {
       .select('*')
       .eq('author_id', uid)
       .order('created_at', { ascending: false });
-    if (data) setMyPlatformTickets(data);
+    if (data) {
+      setMyPlatformTickets(data);
+      window.dispatchEvent(new CustomEvent('sanctuary-tickets-updated'));
+    }
   }, [session?.user?.id]);
 
   useEffect(() => {
