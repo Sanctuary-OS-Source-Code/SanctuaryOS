@@ -20,7 +20,6 @@ import {
   DashboardStatTile,
   StatTileCarousel,
   ActionPill,
-  ActionButton,
 } from './shared';
 import {
   getPinnedWorkspaceIds,
@@ -1350,88 +1349,73 @@ export default function WebLandingPage() {
     donations: t('wf_tab_donations', 'Donations'),
   };
 
-  const renderFilterChipButton = (
-    active: boolean,
-    label: string,
-    onClick: () => void
+  const renderFilterSection = (
+    title: string,
+    options: { id: string; label: string }[],
+    value: string,
+    onChange: (val: any) => void
   ) => (
-    <button
-      key={label}
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all text-left truncate cursor-pointer ${
-        active
-          ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]'
-          : 'bg-transparent border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-      }`}
-    >
-      {label}
-    </button>
+    <div className="flex flex-col mb-5 w-full last:mb-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+        {title}
+        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {options.map((opt) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? 'is-selected font-bold' : 'font-semibold'
+              }`}
+            >
+              <span className="truncate flex items-center gap-2 min-w-0">
+                {opt.label}
+              </span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t('icon_check', 'check')}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 
   const renderActiveTabFilterPopoverContent = () => {
     if (activeLandingTab === 'workspaces' || activeLandingTab === 'overview') {
-      const hasWorkspaceFilter =
-        workspaceStatusFilter !== 'ALL' || workspaceSortMode !== 'recent';
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('status', 'Status')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {renderFilterChipButton(
-                workspaceStatusFilter === 'ALL',
-                t('all', 'All'),
-                () => setWorkspaceStatusFilter('ALL')
-              )}
-              {renderFilterChipButton(
-                workspaceStatusFilter === 'active',
-                t('active', 'Active'),
-                () => setWorkspaceStatusFilter('active')
-              )}
-              {renderFilterChipButton(
-                workspaceStatusFilter === 'inactive',
-                t('workspace_badge_not_setup', 'Not Setup'),
-                () => setWorkspaceStatusFilter('inactive')
-              )}
-              {renderFilterChipButton(
-                workspaceStatusFilter === 'pinned',
-                t('ws_pin_tooltip', 'Pin Workspace'),
-                () => setWorkspaceStatusFilter('pinned')
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {renderFilterChipButton(
-                workspaceSortMode === 'recent',
-                t('workspace_sort_recent', 'Recently Loaded'),
-                () => setWorkspaceSortMode('recent')
-              )}
-              {renderFilterChipButton(
-                workspaceSortMode === 'name',
-                t('sort_alphabetical', 'Alphabetical'),
-                () => setWorkspaceSortMode('name')
-              )}
-            </div>
-          </div>
-
-          {hasWorkspaceFilter && (
-            <ActionButton
-              onClick={() => {
-                setWorkspaceStatusFilter('ALL');
-                setWorkspaceSortMode('recent');
-              }}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_status', 'Filter Status'),
+            [
+              { id: 'ALL', label: t('filter_all', 'All') },
+              { id: 'active', label: t('active', 'Active') },
+              {
+                id: 'inactive',
+                label: t('workspace_badge_not_setup', 'Not Setup'),
+              },
+              { id: 'pinned', label: t('pinned', 'Pinned') },
+            ],
+            workspaceStatusFilter,
+            setWorkspaceStatusFilter
+          )}
+          {renderFilterSection(
+            t('filters', 'Filters'),
+            [
+              {
+                id: 'recent',
+                label: t('workspace_sort_recent', 'Recently Loaded'),
+              },
+              { id: 'name', label: t('sort_alphabetical', 'Alphabetical') },
+            ],
+            workspaceSortMode,
+            setWorkspaceSortMode
           )}
         </div>
       );
@@ -1439,7 +1423,7 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'news') {
       const categories = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         { id: 'Announcement', label: t('cat_announcement', 'Announcement') },
         { id: 'Update', label: t('cat_update', 'Update') },
         { id: 'Blog', label: t('cat_blog', 'Blog') },
@@ -1447,29 +1431,12 @@ export default function WebLandingPage() {
         { id: 'Event', label: t('cat_event', 'Event') },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {categories.map((c) =>
-                renderFilterChipButton(
-                  newsCategoryFilter === c.id,
-                  c.label,
-                  () => setNewsCategoryFilter(c.id)
-                )
-              )}
-            </div>
-          </div>
-          {newsCategoryFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setNewsCategoryFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            categories,
+            newsCategoryFilter,
+            setNewsCategoryFilter
           )}
         </div>
       );
@@ -1477,7 +1444,7 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'directives') {
       const modules = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         { id: 'guide', label: t('sd_card_guide_badge', 'Citizen Guide') },
         { id: 'roadmap', label: t('dir_roadmap_tab_value', 'Phase Roadmap') },
         { id: 'forking', label: t('sd_card_fork_badge', 'Spoke & Fork') },
@@ -1485,29 +1452,12 @@ export default function WebLandingPage() {
         { id: 'protocols', label: t('sd_card_proto_sub', 'Governance') },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {modules.map((m) =>
-                renderFilterChipButton(
-                  directiveModuleFilter === m.id,
-                  m.label,
-                  () => setDirectiveModuleFilter(m.id)
-                )
-              )}
-            </div>
-          </div>
-          {directiveModuleFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setDirectiveModuleFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            modules,
+            directiveModuleFilter,
+            setDirectiveModuleFilter
           )}
         </div>
       );
@@ -1515,35 +1465,18 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'download') {
       const platforms = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         { id: 'windows', label: t('landing_win_exe', 'Windows (.exe)') },
         { id: 'mac', label: t('landing_mac_dmg', 'macOS (.dmg)') },
         { id: 'web', label: t('pwa_badge_standalone', 'Standalone PWA') },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {platforms.map((p) =>
-                renderFilterChipButton(
-                  downloadPlatformFilter === p.id,
-                  p.label,
-                  () => setDownloadPlatformFilter(p.id)
-                )
-              )}
-            </div>
-          </div>
-          {downloadPlatformFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setDownloadPlatformFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            platforms,
+            downloadPlatformFilter,
+            setDownloadPlatformFilter
           )}
         </div>
       );
@@ -1551,7 +1484,7 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'support') {
       const sections = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         {
           id: 'feedback',
           label: t('landing_feedback_card_title', 'Platform Feedback'),
@@ -1562,29 +1495,12 @@ export default function WebLandingPage() {
         },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {sections.map((s) =>
-                renderFilterChipButton(
-                  supportSectionFilter === s.id,
-                  s.label,
-                  () => setSupportSectionFilter(s.id)
-                )
-              )}
-            </div>
-          </div>
-          {supportSectionFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setSupportSectionFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            sections,
+            supportSectionFilter,
+            setSupportSectionFilter
           )}
         </div>
       );
@@ -1592,7 +1508,7 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'partners') {
       const sections = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         {
           id: 'guide',
           label: t('landing_partners_about_btn', 'Partner Guide'),
@@ -1607,29 +1523,12 @@ export default function WebLandingPage() {
         },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {sections.map((s) =>
-                renderFilterChipButton(
-                  partnerSectionFilter === s.id,
-                  s.label,
-                  () => setPartnerSectionFilter(s.id)
-                )
-              )}
-            </div>
-          </div>
-          {partnerSectionFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setPartnerSectionFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            sections,
+            partnerSectionFilter,
+            setPartnerSectionFilter
           )}
         </div>
       );
@@ -1637,40 +1536,25 @@ export default function WebLandingPage() {
 
     if (activeLandingTab === 'legal') {
       const docs = [
-        { id: 'ALL', label: t('all', 'All') },
+        { id: 'ALL', label: t('filter_all', 'All') },
         { id: 'eula', label: t('landing_eula', 'System EULA') },
         { id: 'terms', label: t('landing_terms', 'Terms of Service') },
         { id: 'privacy', label: t('landing_privacy', 'Privacy Protocol') },
       ];
       return (
-        <div className="flex flex-col gap-4 p-1 w-[300px]">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-              {t('filters', 'Filters')}
-            </span>
-            <div className="grid grid-cols-2 gap-1.5">
-              {docs.map((d) =>
-                renderFilterChipButton(legalDocFilter === d.id, d.label, () =>
-                  setLegalDocFilter(d.id)
-                )
-              )}
-            </div>
-          </div>
-          {legalDocFilter !== 'ALL' && (
-            <ActionButton
-              onClick={() => setLegalDocFilter('ALL')}
-              variant="glass"
-              icon={t('icon_filter_alt_off', 'filter_alt_off')}
-              label={t('clear', 'Clear')}
-              className="w-full"
-            />
+        <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+          {renderFilterSection(
+            t('filter_category', 'Filter Category'),
+            docs,
+            legalDocFilter,
+            setLegalDocFilter
           )}
         </div>
       );
     }
 
     const targets = [
-      { id: 'ALL', label: t('all', 'All') },
+      { id: 'ALL', label: t('filter_all', 'All') },
       {
         id: 'core',
         label: t('supporter_keepers_title', 'Sanctuary OS (Keepers Core)'),
@@ -1681,29 +1565,12 @@ export default function WebLandingPage() {
       },
     ];
     return (
-      <div className="flex flex-col gap-4 p-1 w-[300px]">
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70 px-1">
-            {t('filters', 'Filters')}
-          </span>
-          <div className="grid grid-cols-2 gap-1.5">
-            {targets.map((tg) =>
-              renderFilterChipButton(
-                donationTargetFilter === tg.id,
-                tg.label,
-                () => setDonationTargetFilter(tg.id)
-              )
-            )}
-          </div>
-        </div>
-        {donationTargetFilter !== 'ALL' && (
-          <ActionButton
-            onClick={() => setDonationTargetFilter('ALL')}
-            variant="glass"
-            icon={t('icon_filter_alt_off', 'filter_alt_off')}
-            label={t('clear', 'Clear')}
-            className="w-full"
-          />
+      <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
+        {renderFilterSection(
+          t('filter_category', 'Filter Category'),
+          targets,
+          donationTargetFilter,
+          setDonationTargetFilter
         )}
       </div>
     );

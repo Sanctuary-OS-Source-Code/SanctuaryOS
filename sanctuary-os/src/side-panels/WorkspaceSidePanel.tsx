@@ -45,7 +45,10 @@ export function WorkspaceSidePanel({
   const [globalGames, setGlobalGames] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<"all" | "pinned">("all");
+  const [filterMode, setFilterMode] = useState<
+    "all" | "active" | "inactive" | "pinned"
+  >("all");
+  const [sortMode, setSortMode] = useState<"recent" | "name">("recent");
   const [pinnedIds, setPinnedIds] = useState<string[]>(() =>
     getPinnedWorkspaceIds(activeWorkspaceId ? [activeWorkspaceId] : undefined)
   );
@@ -220,7 +223,18 @@ export function WorkspaceSidePanel({
 
   const filteredCards = sortWorkspacesList(
     cards.filter((c: any) => {
+      const isSetup = isWorkspaceSetupConfigured(
+        c,
+        workspaces,
+        activeWorkspaceId
+      );
       if (filterMode === "pinned" && !isWorkspacePinned(c, pinnedIds)) {
+        return false;
+      }
+      if (filterMode === "active" && !isSetup) {
+        return false;
+      }
+      if (filterMode === "inactive" && isSetup) {
         return false;
       }
       const search = searchQuery.toLowerCase();
@@ -235,7 +249,7 @@ export function WorkspaceSidePanel({
       recentTimestamps,
       workspaces,
       activeWorkspaceId,
-      sortBy: "recent",
+      sortBy: sortMode,
       prioritizePinned: true,
     }
   );
@@ -330,14 +344,14 @@ export function WorkspaceSidePanel({
             <button
               type="button"
               onClick={(e) => togglePin(card, e)}
-              className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all relative group/pin cursor-pointer ${
-                isPinned
-                  ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]"
-              }`}
+              className="h-6 w-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative group/pin cursor-pointer"
             >
               <span
-                className="material-symbols-outlined !text-[15px]"
+                className={`material-symbols-outlined !text-[13px] transition-colors ${
+                  isPinned
+                    ? "text-[var(--accent)] opacity-90 group-hover/pin:opacity-100"
+                    : "text-[var(--subtext)] opacity-55 group-hover/pin:opacity-100 group-hover/pin:text-[var(--text)]"
+                }`}
                 style={{
                   fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0',
                 }}
@@ -475,11 +489,97 @@ export function WorkspaceSidePanel({
           />
         </div>
 
-        {/* Search Bar */}
+        {/* Search & Filter Bar */}
         <ActionPill
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           searchPlaceholder={t("workspace_search", "Search Workspaces...")}
+          primaryPopover={{
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters"),
+            content: (
+              <div className="flex flex-col w-[460px] p-4 max-w-[calc(100vw-40px)] text-left">
+                <div className="flex flex-col mb-5 w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+                    {t("filter_status", "Filter Status")}
+                    <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      { id: "all", label: t("filter_all", "All") },
+                      { id: "active", label: t("active", "Active") },
+                      {
+                        id: "inactive",
+                        label: t("workspace_badge_not_setup", "Not Setup"),
+                      },
+                      { id: "pinned", label: t("pinned", "Pinned") },
+                    ].map((opt) => {
+                      const active = filterMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setFilterMode(opt.id as any)}
+                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                            active ? "is-selected font-bold" : "font-semibold"
+                          }`}
+                        >
+                          <span className="truncate flex items-center gap-2 min-w-0">
+                            {opt.label}
+                          </span>
+                          {active && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                              {t("icon_check", "check")}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+                    {t("filters", "Filters")}
+                    <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      {
+                        id: "recent",
+                        label: t("workspace_sort_recent", "Recently Loaded"),
+                      },
+                      {
+                        id: "name",
+                        label: t("sort_alphabetical", "Alphabetical"),
+                      },
+                    ].map((opt) => {
+                      const active = sortMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setSortMode(opt.id as any)}
+                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                            active ? "is-selected font-bold" : "font-semibold"
+                          }`}
+                        >
+                          <span className="truncate flex items-center gap-2 min-w-0">
+                            {opt.label}
+                          </span>
+                          {active && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                              {t("icon_check", "check")}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ),
+          }}
         />
 
         {isLoading ? (

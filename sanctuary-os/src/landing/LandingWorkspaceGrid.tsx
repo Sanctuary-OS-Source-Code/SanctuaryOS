@@ -135,14 +135,14 @@ export function LandingWorkspaceGrid({
                       <button
                         type="button"
                         onClick={(e) => onTogglePin(game, e)}
-                        className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all relative group/pin cursor-pointer ${
-                          isPinned
-                            ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
-                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:text-[var(--accent)]'
-                        }`}
+                        className="h-6 w-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative group/pin cursor-pointer"
                       >
                         <span
-                          className="material-symbols-outlined !text-[15px]"
+                          className={`material-symbols-outlined !text-[13px] transition-colors ${
+                            isPinned
+                              ? 'text-[var(--accent)] opacity-90 group-hover/pin:opacity-100'
+                              : 'text-[var(--subtext)] opacity-55 group-hover/pin:opacity-100 group-hover/pin:text-[var(--text)]'
+                          }`}
                           style={{
                             fontVariationSettings: isPinned
                               ? '"FILL" 1'
