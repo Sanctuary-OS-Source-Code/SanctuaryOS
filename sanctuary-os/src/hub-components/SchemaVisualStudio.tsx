@@ -807,6 +807,19 @@ export default function SchemaVisualStudio({
 
               <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_steam_app_id", "Steam AppID (Proton / SteamOS)")}
+                </label>
+                <input
+                  type="text"
+                  value={parsedSchema.steam_app_id ?? ""}
+                  onChange={(e) => updateField("steam_app_id", e.target.value)}
+                  placeholder="1222670 / 271590 / 489830"
+                  className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                   {t("schema_studio_min_scout", "Min Scout Submissions")}
                 </label>
                 <GlassNumberInput
@@ -900,6 +913,21 @@ export default function SchemaVisualStudio({
 
                 <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_linux_mod_dir", "Default Linux / Proton {Mods} Directory")}
+                  </label>
+                  <input
+                    type="text"
+                    value={pathsObj.default_mod_dir_linux ?? ""}
+                    onChange={(e) =>
+                      updateNestedField("paths", "default_mod_dir_linux", e.target.value)
+                    }
+                    placeholder="%USERPROFILE%/Documents/... or ~/.steam/steam/..."
+                    className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                     {t("schema_studio_user_data_win", "Windows User Data / Saves Root")}
                   </label>
                   <input
@@ -927,9 +955,24 @@ export default function SchemaVisualStudio({
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_user_data_linux", "Linux / Proton User Data / Saves Root")}
+                  </label>
+                  <input
+                    type="text"
+                    value={pathsObj.user_data_dir_linux ?? ""}
+                    onChange={(e) =>
+                      updateNestedField("paths", "user_data_dir_linux", e.target.value)
+                    }
+                    placeholder="%USERPROFILE%/Documents/... (Auto-maps to Proton pfx)"
+                    className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 @[920px]:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 @[920px]:grid-cols-3 gap-3.5">
                 <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                     {t("schema_studio_auto_scan_win", "Windows Auto-Discovery Paths")}
@@ -962,6 +1005,23 @@ export default function SchemaVisualStudio({
                     }
                     onChange={(next) => updateNestedField("paths", "auto_scan_paths_mac", next)}
                     placeholder="/Applications/..."
+                    addButtonLabel={t("add", "Add")}
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_auto_scan_linux", "Linux / SteamOS Auto-Discovery Paths")}
+                  </label>
+                  <StringListBuilder
+                    layout="paths"
+                    items={
+                      Array.isArray(pathsObj.auto_scan_paths_linux)
+                        ? pathsObj.auto_scan_paths_linux
+                        : []
+                    }
+                    onChange={(next) => updateNestedField("paths", "auto_scan_paths_linux", next)}
+                    placeholder="~/.steam/steam/steamapps/common/..."
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>

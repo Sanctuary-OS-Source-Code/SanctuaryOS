@@ -156,6 +156,8 @@ pub struct GameSchema {
     #[serde(default)]
     pub game_id: String,
     #[serde(default)]
+    pub steam_app_id: Option<String>,
+    #[serde(default)]
     pub display_name: String,
     #[serde(default)]
     pub default_lexicon: Option<String>,
@@ -205,17 +207,23 @@ pub struct SchemaPaths {
     #[serde(default)]
     pub default_mod_dir_mac: String,
     #[serde(default)]
+    pub default_mod_dir_linux: String,
+    #[serde(default)]
     pub manifest_file: String,
     #[serde(default)]
     pub auto_scan_paths_windows: Vec<String>,
     #[serde(default)]
     pub auto_scan_paths_mac: Vec<String>,
     #[serde(default)]
+    pub auto_scan_paths_linux: Vec<String>,
+    #[serde(default)]
     pub executable_subdir: Option<String>,
     #[serde(default)]
     pub user_data_dir_windows: Option<String>,
     #[serde(default)]
     pub user_data_dir_mac: Option<String>,
+    #[serde(default)]
+    pub user_data_dir_linux: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

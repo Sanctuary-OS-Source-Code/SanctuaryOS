@@ -718,6 +718,7 @@ export interface KeepersPipelineConfig {
   stable_exe_url?: string;
   stable_msi_url?: string;
   stable_dmg_url?: string;
+  stable_linux_url?: string;
   stable_published_at?: string;
   stable_release_notes?: string;
   stable_release_url?: string;
@@ -725,6 +726,7 @@ export interface KeepersPipelineConfig {
   dev_build_endpoint: string;
   dev_build_download_url: string;
   dev_build_dmg_url?: string;
+  dev_build_linux_url?: string;
   dev_build_notes: string;
   dev_published_at?: string;
   dev_release_url?: string;
@@ -856,6 +858,13 @@ export function isMacClient(): boolean {
   return /Mac|iPod|iPhone|iPad/i.test(plat) || /Macintosh|Mac OS X/i.test(ua);
 }
 
+export function isLinuxClient(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const plat = String(navigator.platform || "");
+  const ua = String(navigator.userAgent || "");
+  return (/Linux|X11/i.test(plat) || /Linux|SteamOS|Steam Deck/i.test(ua)) && !/Android/i.test(ua);
+}
+
 export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
   keepers_donation_url: "sandbox://checkout",
   keepers_payment_processor: "SANDBOX",
@@ -870,6 +879,8 @@ export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
   dev_build_download_url:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_dmg_url:
+    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
+  dev_build_linux_url:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_notes:
     "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
@@ -947,6 +958,11 @@ export async function fetchLiveGitHubReleases(
             String(a.name || "").toLowerCase().endsWith(".dmg") ||
             String(a.name || "").toLowerCase().endsWith(".app.tar.gz"),
         );
+        const linuxAsset = stableRel.assets.find(
+          (a: any) =>
+            String(a.name || "").toLowerCase().endsWith(".appimage") ||
+            String(a.name || "").toLowerCase().endsWith(".deb"),
+        );
         if (exeAsset?.browser_download_url) {
           result.stable_exe_url = exeAsset.browser_download_url;
         }
@@ -955,6 +971,9 @@ export async function fetchLiveGitHubReleases(
         }
         if (dmgAsset?.browser_download_url) {
           result.stable_dmg_url = dmgAsset.browser_download_url;
+        }
+        if (linuxAsset?.browser_download_url) {
+          result.stable_linux_url = linuxAsset.browser_download_url;
         }
       }
     }
@@ -1021,6 +1040,16 @@ export async function fetchLiveGitHubReleases(
           ) || null
         );
       };
+      const findLinuxAsset = (rel: any) => {
+        if (!Array.isArray(rel?.assets)) return null;
+        return (
+          rel.assets.find(
+            (a: any) =>
+              String(a.name || "").toLowerCase().endsWith(".appimage") ||
+              String(a.name || "").toLowerCase().endsWith(".deb"),
+          ) || null
+        );
+      };
       const directExe = findExeAsset(devRel);
       if (directExe?.browser_download_url) {
         result.dev_build_download_url = directExe.browser_download_url;
@@ -1045,6 +1074,20 @@ export async function fetchLiveGitHubReleases(
           result.dev_build_dmg_url = fallbackDmg.browser_download_url;
         } else if (devRel.html_url) {
           result.dev_build_dmg_url = devRel.html_url;
+        }
+      }
+      const directLinux = findLinuxAsset(devRel);
+      if (directLinux?.browser_download_url) {
+        result.dev_build_linux_url = directLinux.browser_download_url;
+      } else {
+        const fallbackDevWithLinux = devReleases.find((r: any) =>
+          Boolean(findLinuxAsset(r)?.browser_download_url),
+        );
+        const fallbackLinux = findLinuxAsset(fallbackDevWithLinux);
+        if (fallbackLinux?.browser_download_url) {
+          result.dev_build_linux_url = fallbackLinux.browser_download_url;
+        } else if (devRel.html_url) {
+          result.dev_build_linux_url = devRel.html_url;
         }
       }
     } else {
@@ -1396,10 +1439,14 @@ export async function checkStableGitHubReleaseUpdate(
       ? pipeline.stable_dmg_url ||
         pipeline.stable_release_url ||
         `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`
-      : pipeline.stable_exe_url ||
-        pipeline.stable_msi_url ||
-        pipeline.stable_release_url ||
-        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
+      : isLinuxClient()
+        ? pipeline.stable_linux_url ||
+          pipeline.stable_release_url ||
+          `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`
+        : pipeline.stable_exe_url ||
+          pipeline.stable_msi_url ||
+          pipeline.stable_release_url ||
+          `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
 
     return {
       updateAvailable: true,
@@ -1447,9 +1494,14 @@ export async function checkSupporterDevBuildUpdate(
       pipeline.dev_release_url ||
       pipeline.dev_build_download_url ||
       "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
-    : pipeline.dev_build_download_url ||
-      pipeline.dev_release_url ||
-      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+    : isLinuxClient()
+      ? pipeline.dev_build_linux_url ||
+        pipeline.dev_release_url ||
+        pipeline.dev_build_download_url ||
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+      : pipeline.dev_build_download_url ||
+        pipeline.dev_release_url ||
+        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
 
   const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
   const cleanTarget = (latestDevVersion || "").replace(/^v/i, "").trim();
@@ -1518,9 +1570,14 @@ export function buildChannelUpdatePayload(
         pipeline.dev_release_url ||
         pipeline.dev_build_download_url ||
         "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
-      : pipeline.dev_build_download_url ||
-        pipeline.dev_release_url ||
-        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+      : isLinuxClient()
+        ? pipeline.dev_build_linux_url ||
+          pipeline.dev_release_url ||
+          pipeline.dev_build_download_url ||
+          "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+        : pipeline.dev_build_download_url ||
+          pipeline.dev_release_url ||
+          "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
 
     return {
       version: latestDevVersion,
@@ -1552,10 +1609,14 @@ export function buildChannelUpdatePayload(
     ? pipeline.stable_dmg_url ||
       pipeline.stable_release_url ||
       `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`
-    : pipeline.stable_exe_url ||
-      pipeline.stable_msi_url ||
-      pipeline.stable_release_url ||
-      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
+    : isLinuxClient()
+      ? pipeline.stable_linux_url ||
+        pipeline.stable_release_url ||
+        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`
+      : pipeline.stable_exe_url ||
+        pipeline.stable_msi_url ||
+        pipeline.stable_release_url ||
+        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
 
   return {
     version: latestStableVersion,

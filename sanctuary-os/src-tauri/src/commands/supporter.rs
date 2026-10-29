@@ -473,11 +473,14 @@ pub async fn download_and_install_update(
     let want_dev = is_dev.unwrap_or_else(|| clean_ver.to_lowercase().contains("dev"));
 
     let is_macos_target = cfg!(target_os = "macos");
+    let is_linux_target = cfg!(target_os = "linux");
 
     let is_direct_installer = |url: &str| -> bool {
         let path_part = url.split('?').next().unwrap_or(url).to_lowercase();
         if is_macos_target {
             path_part.ends_with(".dmg") || path_part.ends_with(".app.tar.gz")
+        } else if is_linux_target {
+            path_part.ends_with(".appimage") || path_part.ends_with(".deb")
         } else {
             path_part.ends_with(".exe") || path_part.ends_with(".msi")
         }
@@ -517,6 +520,27 @@ pub async fn download_and_install_update(
                         for asset in assets {
                             let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
                             if name.ends_with(".app.tar.gz") {
+                                if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                    return Some(u.to_string());
+                                }
+                            }
+                        }
+                        return None;
+                    }
+                    if is_linux_target {
+                        // Linux / SteamOS Priority 1: .AppImage
+                        for asset in assets {
+                            let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                            if name.ends_with(".appimage") {
+                                if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
+                                    return Some(u.to_string());
+                                }
+                            }
+                        }
+                        // Linux / SteamOS Priority 2: .deb
+                        for asset in assets {
+                            let name = asset.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                            if name.ends_with(".deb") {
                                 if let Some(u) = asset.get("browser_download_url").and_then(|v| v.as_str()) {
                                     return Some(u.to_string());
                                 }
@@ -613,6 +637,9 @@ pub async fn download_and_install_update(
         if is_macos_target {
             return Err("No direct macOS installer asset (.dmg or .app.tar.gz) found on GitHub Releases for this build.".into());
         }
+        if is_linux_target {
+            return Err("No direct Linux / SteamOS installer asset (.AppImage or .deb) found on GitHub Releases for this build.".into());
+        }
         return Err("No direct Windows installer asset (.exe or .msi) found on GitHub Releases for this build.".into());
     }
 
@@ -648,10 +675,16 @@ pub async fn download_and_install_update(
     let is_msi = lower_resolved_path.ends_with(".msi");
     let is_dmg = lower_resolved_path.ends_with(".dmg");
     let is_app_tar = lower_resolved_path.ends_with(".app.tar.gz");
+    let is_appimage = lower_resolved_path.ends_with(".appimage");
+    let is_deb = lower_resolved_path.ends_with(".deb");
     let ext = if is_dmg {
         "dmg"
     } else if is_app_tar {
         "app.tar.gz"
+    } else if is_appimage {
+        "AppImage"
+    } else if is_deb {
+        "deb"
     } else if is_msi {
         "msi"
     } else {
@@ -757,6 +790,31 @@ pub async fn download_and_install_update(
                 .arg(&installer_str)
                 .spawn()
                 .map_err(|e| format!("Failed to open macOS update package: {}", e))?;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let installer_str = installer_path.to_string_lossy().to_string();
+        if is_appimage {
+            let current_appimage = std::env::var("APPIMAGE").unwrap_or_default();
+            let linux_update_script = if !current_appimage.trim().is_empty() {
+                format!(
+                    "sleep 1; chmod +x \"{}\"; cp -f \"{}\" \"{}\" && chmod +x \"{}\" && \"{}\" &",
+                    installer_str, installer_str, current_appimage, current_appimage, current_appimage
+                )
+            } else {
+                format!("sleep 1; chmod +x \"{}\" && \"{}\" &", installer_str, installer_str)
+            };
+            std::process::Command::new("sh")
+                .args(["-c", &linux_update_script])
+                .spawn()
+                .map_err(|e| format!("Failed to launch Linux AppImage updater: {}", e))?;
+        } else {
+            std::process::Command::new("xdg-open")
+                .arg(&installer_str)
+                .spawn()
+                .map_err(|e| format!("Failed to open Linux update package: {}", e))?;
         }
     }
 

@@ -66,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v43';
+export const SHADER_REV = 'webgl_glass_v44';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -87,6 +87,7 @@ uniform float u_refractScale;
 uniform float u_bezelScale;
 uniform float u_shadowScale;
 uniform float u_isPassthrough;
+uniform vec2 u_mobileDockFade;
 
 out vec4 outColor;
 
@@ -279,6 +280,14 @@ void main() {
           : clamp(0.30 + opScale * 0.65, 0.24, 0.74);
     float rimAlphaBoost = rimSlope * 0.22 + totalSpecular * 0.75;
     finalAlpha = edgeAlpha * clamp(baseAlpha + rimAlphaBoost, 0.15, 0.96);
+  }
+
+  if (u_mobileDockFade.y < 50000.0 && isSideDrawer < 1.25) {
+    float dockMask = 1.0 - smoothstep(u_mobileDockFade.x, u_mobileDockFade.y, v_fragPx.y);
+    if (dockMask <= 0.001) {
+      discard;
+    }
+    finalAlpha *= dockMask;
   }
 
   outColor = vec4(finalRgb, finalAlpha);
@@ -488,6 +497,7 @@ export function SystemBackground() {
     const glassUniformBezelScale = gl.getUniformLocation(glassProg, 'u_bezelScale');
     const glassUniformShadowScale = gl.getUniformLocation(glassProg, 'u_shadowScale');
     const glassUniformIsPassthrough = gl.getUniformLocation(glassProg, 'u_isPassthrough');
+    const glassUniformMobileDockFade = gl.getUniformLocation(glassProg, 'u_mobileDockFade');
 
     let metaCache = new WeakMap<HTMLElement, CachedElementMeta>();
     const overlayCanvasMap = new WeakMap<HTMLElement, HTMLCanvasElement>();
@@ -840,11 +850,15 @@ export function SystemBackground() {
       const mainPageCount = count;
 
       // 3. Floating overlays (TitleBar, SystemStatusBar, SidePanel) & their internal children
+      let mobileDockRect: DOMRect | null = null;
       for (let i = 0; i < cachedLayer2.length && count < MAX_INSTANCES; i++) {
         const ovEl = cachedLayer2[i];
         const ovStartIdx = count;
         const ovRect = pushElementInstance(ovEl, true);
         if (ovRect) {
+          if (ovEl.classList.contains('sa-mobile-bottom-dock')) {
+            mobileDockRect = ovRect;
+          }
           let childSig = '';
           const children = cachedOverlayChildren.get(ovEl);
           if (children) {
@@ -867,7 +881,7 @@ export function SystemBackground() {
         }
       }
 
-      const drawGlassSlice = (startIdx: number, instCount: number) => {
+      const drawGlassSlice = (startIdx: number, instCount: number, dockFadeStart = 99999.0, dockFadeEnd = 99999.0) => {
         if (instCount <= 0) return;
         gl!.enable(gl!.BLEND);
         gl!.blendFunc(gl!.SRC_ALPHA, gl!.ONE_MINUS_SRC_ALPHA);
@@ -890,6 +904,7 @@ export function SystemBackground() {
         gl!.uniform1f(glassUniformBezelScale, bezelScale);
         gl!.uniform1f(glassUniformShadowScale, shadowScale);
         gl!.uniform1f(glassUniformIsPassthrough, isTransparentPassthrough ? 1.0 : 0.0);
+        gl!.uniform2f(glassUniformMobileDockFade, dockFadeStart, dockFadeEnd);
 
         gl!.bindVertexArray(glassVao);
         gl!.bindBuffer(gl!.ARRAY_BUFFER, instanceVbo);
@@ -957,8 +972,41 @@ export function SystemBackground() {
       // Main viewport pass: sharp wallpaper + main-page glass instances only
       // (overlays render via their own internal sa-webgl-overlay-canvas so closing an overlay never leaves a ghost)
       drawWallpaperPass();
+
+      // Blit the bottom sharp-wallpaper strip into the Mobile Bottom Dock underlay mask canvas
+      // so scrolling HTML card text/borders fade out behind the dock while keeping the wallpaper crisp above the gesture pill
+      if (vw < 768) {
+        const underlayCanvas = document.querySelector('canvas.sa-mobile-dock-underlay-canvas') as HTMLCanvasElement | null;
+        if (underlayCanvas) {
+          const uRect = underlayCanvas.getBoundingClientRect();
+          if (uRect.width > 4 && uRect.height > 4) {
+            const uw = Math.max(1, Math.round(uRect.width * dpr));
+            const uh = Math.max(1, Math.round(uRect.height * dpr));
+            const sx = Math.max(0, Math.round((uRect.left - canvasOffsetX) * dpr));
+            const sy = Math.max(0, Math.round((uRect.top - canvasOffsetY) * dpr));
+            const sw = Math.min(targetW - sx, uw);
+            const sh = Math.min(targetH - sy, uh);
+            const uBlitKey = `${themeKey}:${texGeneration}:${targetW}x${targetH}:${sx},${sy},${sw},${sh},${uw},${uh}`;
+            if (underlayCanvas.width !== uw || underlayCanvas.height !== uh || (underlayCanvas as any).__lastBlitKey !== uBlitKey) {
+              if (underlayCanvas.width !== uw || underlayCanvas.height !== uh) {
+                underlayCanvas.width = uw;
+                underlayCanvas.height = uh;
+              }
+              const uCtx = underlayCanvas.getContext('2d');
+              if (uCtx && sw > 0 && sh > 0) {
+                uCtx.clearRect(0, 0, uw, uh);
+                uCtx.drawImage(canvas!, sx, sy, sw, sh, 0, 0, uw, uh);
+                (underlayCanvas as any).__lastBlitKey = uBlitKey;
+              }
+            }
+          }
+        }
+      }
+
       if (mainPageCount > 0) {
-        drawGlassSlice(0, mainPageCount);
+        const dockFadeStart = vw < 768 && mobileDockRect ? mobileDockRect.top + 18.0 : 99999.0;
+        const dockFadeEnd = vw < 768 && mobileDockRect ? mobileDockRect.top + mobileDockRect.height - 22.0 : 99999.0;
+        drawGlassSlice(0, mainPageCount, dockFadeStart, dockFadeEnd);
       }
 
       if (performance.now() < animEndTimestamp) {

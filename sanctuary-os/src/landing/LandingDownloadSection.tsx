@@ -38,7 +38,7 @@ export function LandingDownloadSection({
 
   const showDesktopDownloadCards = !isStandalone && !isMobileDevice();
   const q = searchQuery.trim().toLowerCase();
-  const matchesFilter = (platformKey: 'web' | 'windows' | 'mac', text: string) => {
+  const matchesFilter = (platformKey: 'web' | 'windows' | 'mac' | 'linux', text: string) => {
     if (platformFilter !== 'ALL' && platformFilter !== platformKey) return false;
     if (!q) return true;
     return text.toLowerCase().includes(q);
@@ -46,6 +46,7 @@ export function LandingDownloadSection({
   const showWebCards = matchesFilter('web', 'pwa web app ios android mobile stream beta public');
   const showWinCards = showDesktopDownloadCards && matchesFilter('windows', 'windows exe native setup desktop supporter');
   const showMacCards = showDesktopDownloadCards && matchesFilter('mac', 'mac macos dmg apple silicon intel desktop supporter');
+  const showLinuxCards = showDesktopDownloadCards && matchesFilter('linux', 'linux steamos steam deck proton appimage deb desktop supporter');
 
   return (
     <div className="w-full flex flex-col gap-10">
@@ -58,7 +59,7 @@ export function LandingDownloadSection({
           icon={t('icon_system_update_alt', 'system_update_alt')}
         />
 
-        {!showWebCards && !showWinCards && !showMacCards ? (
+        {!showWebCards && !showWinCards && !showMacCards && !showLinuxCards ? (
           <EmptyState
             icon={t('icon_system_update_alt', 'system_update_alt')}
             title={t('no_results', 'No matching items found.')}
@@ -311,6 +312,59 @@ export function LandingDownloadSection({
               </a>
               )}
 
+              {showLinuxCards && (
+              <a
+                href={
+                  keepersConfig.stable_linux_url ||
+                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_amd64.AppImage`
+                }
+                className="block group"
+              >
+                <UniversalCard
+                  layout="vertical"
+                  onClick={() => {}}
+                  icon={t('icon_sports_esports', 'sports_esports')}
+                  bannerTopLabel={t(
+                    'landing_banner_linux_top',
+                    'Steam Deck & Linux (x86_64)'
+                  )}
+                  bannerBottomLabel={`${t('landing_banner_linux_bottom', 'Portable AppImage')} • v${stableVersion}`}
+                  title={t('landing_download_linux_title', 'Sanctuary OS for Linux & SteamOS')}
+                  subtitle={
+                    <span className="text-[10px] font-mono tracking-widest">
+                      {t('landing_linux_appimage', 'Linux & SteamOS (.AppImage)')}
+                    </span>
+                  }
+                  className="h-full"
+                  footer={
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                        {`v${stableVersion}`}
+                      </span>
+                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                        <span>
+                          {t(
+                            'landing_download_linux_footer',
+                            'SteamOS & Proton Ready'
+                          )}
+                        </span>
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t('icon_arrow_forward', 'arrow_forward')}
+                        </span>
+                      </span>
+                    </div>
+                  }
+                >
+                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                    {t(
+                      'landing_download_linux_desc',
+                      'Portable Linux & SteamOS client with automatic Steam libraryfolders.vdf discovery and Proton compatdata prefix mapping for Steam Deck and Linux desktops.'
+                    )}
+                  </p>
+                </UniversalCard>
+              </a>
+              )}
+
               {hasUserSession && isDevUnlocked && (
                 <>
                   {showWinCards && (
@@ -432,6 +486,69 @@ export function LandingDownloadSection({
                         {t(
                           'landing_download_dev_mac_desc',
                           'Early preview macOS disk image unlocked by your active Global Dev Build supporter time—featuring the latest experimental features on Apple Silicon and Intel.'
+                        )}
+                      </p>
+                    </UniversalCard>
+                  </a>
+                  )}
+
+                  {showLinuxCards && (
+                  <a
+                    href={
+                      keepersConfig.dev_build_linux_url ||
+                      keepersConfig.dev_release_url ||
+                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block group"
+                  >
+                    <UniversalCard
+                      layout="vertical"
+                      onClick={() => {}}
+                      icon={t('icon_sports_esports', 'sports_esports')}
+                      statusColor="emerald"
+                      bannerTopLabel={t(
+                        'landing_banner_dev_linux_top',
+                        'Supporter Dev Stream • Linux & SteamOS'
+                      )}
+                      bannerBottomLabel={`${t('landing_banner_dev_linux_bottom', 'Early Preview (.AppImage)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                      title={t(
+                        'landing_download_dev_linux_title',
+                        'Dev Build for Linux & SteamOS'
+                      )}
+                      subtitle={
+                        <span className="text-[10px] font-mono tracking-widest">
+                          {t(
+                            'landing_download_dev_linux_subtitle',
+                            'Supporter Early Preview (.AppImage)'
+                          )}
+                        </span>
+                      }
+                      className="h-full"
+                      footer={
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
+                            {`v${keepersConfig.dev_build_version || 'dev-latest'}`}
+                          </span>
+                          <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                            <span>
+                              {t(
+                                'landing_download_dev_linux_footer',
+                                'Download Linux Dev .AppImage'
+                              )}
+                            </span>
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t('icon_arrow_forward', 'arrow_forward')}
+                            </span>
+                          </span>
+                        </div>
+                      }
+                    >
+                      <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
+                        {t(
+                          'landing_download_dev_linux_desc',
+                          'Early preview Linux & SteamOS AppImage unlocked by your active Global Dev Build supporter time—featuring the latest experimental Proton & Steam Deck enhancements.'
                         )}
                       </p>
                     </UniversalCard>

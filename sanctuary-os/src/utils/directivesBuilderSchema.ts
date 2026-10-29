@@ -40,7 +40,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 76;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 77;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -2205,12 +2205,12 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m8",
-            icon: t("icon_sports_esports", "sports_esports"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity)"),
             desc: g(
-              "Parses Steam libraryfolders.vdf and maps ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix for out-of-the-box Steam Deck and Linux support."
+              "Parses Steam libraryfolders.vdf & appmanifest_*.acf across native, Flatpak, Snap, and Steam Deck SD card libraries, mapping ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix alongside native Linux .AppImage/.deb builds and Proton WINEPREFIX tool execution."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m9",

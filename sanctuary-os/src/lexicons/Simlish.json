@@ -2299,5 +2299,21 @@
   "workspace_badge_not_setup": "Not Setup",
   "workspace_sort_recent": "Recently Loaded",
   "workspace_no_pinned_overview": "No Pinned Workspaces",
-  "workspace_no_pinned_overview_sub": "Pin your favorite game workspaces in Active Workspaces to open them quickly from Overview!"
+  "workspace_no_pinned_overview_sub": "Pin your favorite game workspaces in Active Workspaces to open them quickly from Overview!",
+  "schema_studio_steam_app_id": "Steam AppID (Steam Deck / Proton)",
+  "schema_studio_linux_mod_dir": "Default Linux / Steam Deck {Mods} Folder",
+  "schema_studio_user_data_linux": "Linux / Steam Deck Saves & User Folder",
+  "schema_studio_auto_scan_linux": "Linux / SteamOS Auto-Find Paths",
+  "landing_banner_linux_top": "Steam Deck & Linux (x86_64)",
+  "landing_banner_linux_bottom": "Portable AppImage",
+  "landing_download_linux_title": "Sanctuary OS for Linux & Steam Deck",
+  "landing_linux_appimage": "Linux & SteamOS (.AppImage)",
+  "landing_download_linux_footer": "Steam Deck & Proton Ready",
+  "landing_download_linux_desc": "Portable Linux & Steam Deck app that automatically finds your Steam library and Proton save/mod folders out of the box!",
+  "landing_banner_dev_linux_top": "Supporter Dev Stream • Linux & Steam Deck",
+  "landing_banner_dev_linux_bottom": "Early Preview (.AppImage)",
+  "landing_download_dev_linux_title": "Dev Build for Linux & Steam Deck",
+  "landing_download_dev_linux_subtitle": "Supporter Early Preview (.AppImage)",
+  "landing_download_dev_linux_footer": "Download Linux Dev .AppImage",
+  "landing_download_dev_linux_desc": "Early preview Linux & Steam Deck AppImage unlocked by your Supporter time—with the newest SteamOS and Proton features!"
 }

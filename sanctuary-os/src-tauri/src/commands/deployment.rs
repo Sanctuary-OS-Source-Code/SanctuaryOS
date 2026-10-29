@@ -41,28 +41,74 @@ pub fn launch_game(
         None => return Err("backend_exe_not_found".to_string()),
     };
 
-    #[cfg(target_os = "macos")]
-    {
-        if exe_path
+    if cfg!(target_os = "macos")
+        && exe_path
             .extension()
             .and_then(|e| e.to_str())
             .map_or(false, |e| e.eq_ignore_ascii_case("app"))
+    {
+        return match std::process::Command::new("open")
+            .arg("-a")
+            .arg(&exe_path)
+            .spawn()
         {
-            return match std::process::Command::new("open")
-                .arg("-a")
-                .arg(&exe_path)
-                .spawn()
-            {
-                Ok(_) => Ok("backend_ignition_started".to_string()),
-                Err(e) => Err(e.to_string()),
-            };
-        }
+            Ok(_) => Ok("backend_ignition_started".to_string()),
+            Err(e) => Err(e.to_string()),
+        };
     }
 
     let parent_dir = exe_path
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."));
+
+    if cfg!(target_os = "linux")
+        && exe_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map_or(false, |e| e.eq_ignore_ascii_case("exe"))
+    {
+        let resolved_steam =
+            crate::game_logic::resolve_steam_app_and_proton_prefix(game_schema, Some(&live_path));
+        let steam_app_id = resolved_steam
+            .as_ref()
+            .map(|r| r.app_id.clone())
+            .filter(|id| !id.trim().is_empty())
+            .or_else(|| crate::game_logic::default_steam_app_id(game_schema));
+
+        if let Some(app_id) = steam_app_id {
+            if std::process::Command::new("steam")
+                .args(["-applaunch", &app_id])
+                .spawn()
+                .is_ok()
+            {
+                return Ok("backend_ignition_started".to_string());
+            }
+            if std::process::Command::new("xdg-open")
+                .arg(format!("steam://rungameid/{}", app_id))
+                .spawn()
+                .is_ok()
+            {
+                return Ok("backend_ignition_started".to_string());
+            }
+        }
+
+        let mut wine_cmd = std::process::Command::new("wine");
+        wine_cmd.arg(&exe_path).current_dir(&parent_dir);
+        if let Some(pfx_user) = resolved_steam
+            .and_then(|r| r.compatdata_pfx_user_dir)
+            .or_else(|| crate::game_logic::extract_proton_user_dir_from_path(&mods_path))
+        {
+            // pfx_user is .../pfx/drive_c/users/steamuser -> pfx is 3 parents up
+            if let Some(pfx_root) = pfx_user.parent().and_then(|u| u.parent()).and_then(|dc| dc.parent()) {
+                wine_cmd.env("WINEPREFIX", pfx_root);
+            }
+        }
+        return match wine_cmd.spawn() {
+            Ok(_) => Ok("backend_ignition_started".to_string()),
+            Err(e) => Err(e.to_string()),
+        };
+    }
 
     match std::process::Command::new(&exe_path)
         .current_dir(parent_dir)
@@ -621,7 +667,11 @@ pub fn launch_external_tool(
         .and_then(|e| e.to_str())
         .map(|s| s.to_lowercase())
         .unwrap_or_default();
-    if !matches!(ext_lower.as_str(), "exe" | "bat" | "cmd" | "app") {
+    let allowed_ext = matches!(
+        ext_lower.as_str(),
+        "exe" | "bat" | "cmd" | "app" | "sh" | "appimage"
+    ) || (cfg!(target_os = "linux") && ext_lower.is_empty());
+    if !allowed_ext {
         return Err("Invalid external tool extension.".to_string());
     }
 
@@ -647,13 +697,12 @@ pub fn launch_external_tool(
     }
 
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let resolved_docs = docs_path.unwrap_or_default();
     if enforce_airgap.unwrap_or(true) {
-        let resolved_docs = docs_path.unwrap_or_default();
         let _ = apply_save_airgap(&resolved_docs, true, &game_schema);
     }
 
-    #[cfg(target_os = "macos")]
-    if is_app_bundle {
+    if cfg!(target_os = "macos") && is_app_bundle {
         let mut cmd = std::process::Command::new("open");
         cmd.arg("-a").arg(&exe_path);
         if let Some(arg_list) = args {
@@ -678,6 +727,37 @@ pub fn launch_external_tool(
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."));
+
+    if cfg!(target_os = "linux") && ext_lower == "exe" {
+        let mut wine_cmd = std::process::Command::new("wine");
+        wine_cmd.arg(&exe_path).current_dir(&parent_dir);
+        if let Some(pfx_user) = crate::game_logic::resolve_steam_app_and_proton_prefix(
+            &game_schema,
+            Some(&resolved_docs),
+        )
+        .and_then(|r| r.compatdata_pfx_user_dir)
+        .or_else(|| crate::game_logic::extract_proton_user_dir_from_path(&resolved_docs))
+        {
+            if let Some(pfx_root) = pfx_user
+                .parent()
+                .and_then(|u| u.parent())
+                .and_then(|dc| dc.parent())
+            {
+                wine_cmd.env("WINEPREFIX", pfx_root);
+            }
+        }
+        if let Some(arg_list) = args {
+            for a in arg_list {
+                if !a.trim().is_empty() {
+                    wine_cmd.arg(a);
+                }
+            }
+        }
+        return match wine_cmd.spawn() {
+            Ok(_) => Ok("backend_external_tool_started".to_string()),
+            Err(e) => Err(e.to_string()),
+        };
+    }
 
     let mut cmd = std::process::Command::new(&exe_path);
     cmd.current_dir(parent_dir);

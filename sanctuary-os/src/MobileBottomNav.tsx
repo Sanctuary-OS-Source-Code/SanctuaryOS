@@ -213,7 +213,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       {/* Click-outside backdrop when Mobile Menu or Hub Navigation Drawer is open */}
       {(isMenuOpen || isHubNavOpen) && (
         <div
-          className="md:hidden fixed inset-0 z-[999997] transition-opacity duration-300"
+          className="md:hidden fixed inset-0 z-[8997] transition-opacity duration-300"
           style={{ backgroundColor: 'var(--glass-backdrop-dim, rgba(0, 0, 0, 0.28))' }}
           onClick={() => {
             setIsMenuOpen(false);
@@ -232,9 +232,30 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
         }}
       />
 
+      {/* Mobile Bottom Dock Wallpaper Underlay Mask — softly masks scrolling page cards/text behind the dock so nothing peeks out in the gap above the gesture pill while letting the crisp theme wallpaper shine through */}
+      <div
+        aria-hidden="true"
+        className="sa-mobile-dock-underlay md:hidden fixed bottom-0 left-0 right-0 h-[calc(0.625rem+env(safe-area-inset-bottom,0px)+48px)] pointer-events-none select-none z-[8995] overflow-hidden"
+        style={{
+          WebkitMaskImage:
+            'linear-gradient(to top, #000000 0%, #000000 calc(100% - 26px), transparent 100%)',
+          maskImage:
+            'linear-gradient(to top, #000000 0%, #000000 calc(100% - 26px), transparent 100%)',
+        }}
+      >
+        <canvas className="sa-mobile-dock-underlay-canvas absolute inset-0 w-full h-full pointer-events-none select-none" />
+        <div
+          className="sa-mobile-bottom-bar-feather absolute bottom-0 inset-x-0 h-[64px] pointer-events-none select-none"
+          style={{
+            background:
+              'linear-gradient(to top, var(--sa-bottom-bar-blend, #0e2244) 0%, color-mix(in srgb, var(--sa-bottom-bar-blend, #0e2244) 62%, transparent) 45%, transparent 100%)',
+          }}
+        />
+      </div>
+
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className="md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[999999] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
+        className="sa-mobile-bottom-dock md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[9000] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
         style={{
           backgroundColor: 'var(--glass-base-fill)',
           borderTopColor: 'var(--glass-border-top)',
@@ -288,7 +309,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Mobile "More" Menu Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[8998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
           isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -493,7 +514,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Hub Navigation Drawer (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[999998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
+        className={`md:hidden fixed inset-x-0 bottom-[calc(82px+env(safe-area-inset-bottom,0px))] z-[8998] sa-mobile-drawer-wrapper transition-opacity duration-200 ${
           isHubNavOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >

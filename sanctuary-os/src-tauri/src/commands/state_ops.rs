@@ -191,27 +191,71 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     let vault_path = String::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
 
-    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut search_paths = if let Some(schema) = &game_schema {
-        #[cfg(target_os = "macos")]
-        {
-            schema
-                .paths
-                .auto_scan_paths_mac
-                .clone()
-                .filter(|v| !v.is_empty())
-                .unwrap_or_else(|| schema.paths.auto_scan_paths_windows.clone())
-        }
-        #[cfg(not(target_os = "macos"))]
-        {
+        if cfg!(target_os = "linux") {
+            let mut list = schema.paths.auto_scan_paths_linux.clone();
+            for wp in &schema.paths.auto_scan_paths_windows {
+                if !list.contains(wp) {
+                    list.push(wp.clone());
+                }
+            }
+            list
+        } else if cfg!(target_os = "macos") {
+            let mut list = schema.paths.auto_scan_paths_mac.clone();
+            for wp in &schema.paths.auto_scan_paths_windows {
+                if !list.contains(wp) {
+                    list.push(wp.clone());
+                }
+            }
+            list
+        } else {
             schema.paths.auto_scan_paths_windows.clone()
         }
     } else {
         vec![]
     };
 
-    #[cfg(target_os = "macos")]
-    {
+    // Resolve Steam libraryfolders.vdf & Proton compatdata prefix across Windows, macOS, Linux & SteamOS
+    let steam_resolution =
+        crate::game_logic::resolve_steam_app_and_proton_prefix(&game_schema, None);
+    if let Some(ref res) = steam_resolution {
+        if let Some(ref install_dir) = res.install_dir {
+            let install_str = install_dir.to_string_lossy().to_string();
+            if !search_paths.contains(&install_str) {
+                search_paths.insert(0, install_str);
+            }
+        }
+    }
+
+    // Expand Steam library roots from libraryfolders.vdf for any steamapps/common/<Folder> targets
+    let steam_libs = crate::game_logic::discover_steam_libraries();
+    if !steam_libs.is_empty() {
+        let mut extra_steam_paths = Vec::new();
+        for raw_p in &search_paths {
+            let norm = raw_p.replace('\\', "/");
+            if let Some(idx) = norm.to_lowercase().find("steamapps/common/") {
+                let rel_after_common = &norm[idx + "steamapps/common/".len()..];
+                if !rel_after_common.is_empty() {
+                    for lib in &steam_libs {
+                        let candidate = lib
+                            .join("steamapps")
+                            .join("common")
+                            .join(rel_after_common)
+                            .to_string_lossy()
+                            .to_string();
+                        if !search_paths.contains(&candidate)
+                            && !extra_steam_paths.contains(&candidate)
+                        {
+                            extra_steam_paths.push(candidate);
+                        }
+                    }
+                }
+            }
+        }
+        search_paths.extend(extra_steam_paths);
+    }
+
+    if cfg!(target_os = "macos") {
         if crate::game_logic::is_sims4_schema(&game_schema) {
             for default_mac_p in [
                 "/Applications/The Sims 4.app",
@@ -258,7 +302,7 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     }
 
     for raw_p in search_paths {
-        let expanded_p = crate::utils::expand_env_vars(&raw_p);
+        let expanded_p = crate::game_logic::expand_schema_path_for_os(&raw_p, &game_schema, None);
         let p_path = std::path::Path::new(&expanded_p);
         if p_path.exists() {
             let has_exe = game_schema
@@ -284,24 +328,19 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
 
     let default_mod_raw = game_schema
         .as_ref()
-        .map(|s| {
-            #[cfg(target_os = "macos")]
-            {
-                s.paths
-                    .default_mod_dir_mac
-                    .clone()
-                    .filter(|d| !d.trim().is_empty())
-                    .unwrap_or_else(|| s.paths.default_mod_dir_windows.clone())
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                s.paths.default_mod_dir_windows.clone()
-            }
-        })
+        .map(|s| crate::game_logic::select_os_default_mod_dir(&s.paths).to_string())
         .unwrap_or_default();
 
     if mods_path.is_empty() && !default_mod_raw.is_empty() {
-        let expanded_mod = crate::utils::expand_env_vars(&default_mod_raw);
+        let expanded_mod = crate::game_logic::expand_schema_path_for_os(
+            &default_mod_raw,
+            &game_schema,
+            if live_path.is_empty() {
+                None
+            } else {
+                Some(&live_path)
+            },
+        );
         let exp_path = std::path::Path::new(&expanded_mod);
         if exp_path.is_absolute() && exp_path.exists() {
             mods_path = exp_path.to_string_lossy().to_string();
@@ -328,9 +367,21 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
         }
     }
 
+    let steam_app_id = steam_resolution
+        .as_ref()
+        .map(|r| r.app_id.clone())
+        .or_else(|| crate::game_logic::default_steam_app_id(&game_schema))
+        .unwrap_or_default();
+    let proton_prefix = steam_resolution
+        .and_then(|r| r.compatdata_pfx_user_dir)
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
     serde_json::json!({
         "live_path": live_path,
         "mods_path": mods_path,
-        "vault_path": vault_path
+        "vault_path": vault_path,
+        "steam_app_id": steam_app_id,
+        "proton_prefix": proton_prefix
     })
 }

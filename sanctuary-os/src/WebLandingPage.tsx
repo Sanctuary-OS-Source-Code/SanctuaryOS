@@ -1281,9 +1281,7 @@ export default function WebLandingPage() {
 
   // Overview -> Active Workspaces: Up to 6 pinned workspaces, sorted by recently loaded
   const overviewPinnedWorkspaces = sortWorkspacesList(
-    games
-      .filter((g) => isWorkspacePinned(g, pinnedIds))
-      .filter(matchesWorkspaceSearch),
+    games.filter((g) => isWorkspacePinned(g, pinnedIds)),
     {
       pinnedIds,
       recentTimestamps,
@@ -1388,7 +1386,7 @@ export default function WebLandingPage() {
   );
 
   const renderActiveTabFilterPopoverContent = () => {
-    if (activeLandingTab === 'workspaces' || activeLandingTab === 'overview') {
+    if (activeLandingTab === 'workspaces') {
       return (
         <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
           {renderFilterSection(
@@ -1468,6 +1466,7 @@ export default function WebLandingPage() {
         { id: 'ALL', label: t('filter_all', 'All') },
         { id: 'windows', label: t('landing_win_exe', 'Windows (.exe)') },
         { id: 'mac', label: t('landing_mac_dmg', 'macOS (.dmg)') },
+        { id: 'linux', label: t('landing_linux_appimage', 'Linux & SteamOS (.AppImage)') },
         { id: 'web', label: t('pwa_badge_standalone', 'Standalone PWA') },
       ];
       return (
@@ -1593,21 +1592,22 @@ export default function WebLandingPage() {
           }
           onTitleClick={() => scrollToLandingSection('overview')}
         >
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={
-              activeLandingTab === 'workspaces' ||
-              activeLandingTab === 'overview'
-                ? t('ws_search_placeholder', 'Search workspaces...')
-                : t('search', 'Search...')
-            }
-            primaryPopover={{
-              icon: t('icon_tune', 'tune'),
-              label: t('filters', 'Filters'),
-              content: renderActiveTabFilterPopoverContent(),
-            }}
-          />
+          {activeLandingTab !== 'overview' && (
+            <ActionPill
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchPlaceholder={
+                activeLandingTab === 'workspaces'
+                  ? t('ws_search_placeholder', 'Search workspaces...')
+                  : t('search', 'Search...')
+              }
+              primaryPopover={{
+                icon: t('icon_tune', 'tune'),
+                label: t('filters', 'Filters'),
+                content: renderActiveTabFilterPopoverContent(),
+              }}
+            />
+          )}
         </ViewHeader>
 
         {/* Clean Icon + Label StatTileCarousel (No Numbers, Matching System Preferences) */}
@@ -1739,7 +1739,6 @@ export default function WebLandingPage() {
                   <WebNewsFeed
                     limit={3}
                     onCountChange={setNewsCount}
-                    searchQuery={searchQuery}
                   />
                 </div>
               </section>

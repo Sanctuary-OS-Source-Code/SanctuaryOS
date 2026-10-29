@@ -783,23 +783,27 @@ pub fn expand_env_vars(path: &str) -> String {
                     match var_name.to_uppercase().as_str() {
                         "USERPROFILE" | "HOME" => home_dir.clone(),
                         "LOCALAPPDATA" => home_dir.as_ref().map(|p| {
-                            #[cfg(target_os = "windows")]
-                            {
+                            if cfg!(target_os = "windows") {
                                 format!("{}\\AppData\\Local", p)
-                            }
-                            #[cfg(not(target_os = "windows"))]
-                            {
+                            } else if cfg!(target_os = "macos") {
                                 format!("{}/Library/Application Support", p)
+                            } else {
+                                std::env::var("XDG_DATA_HOME")
+                                    .ok()
+                                    .filter(|v| !v.trim().is_empty())
+                                    .unwrap_or_else(|| format!("{}/.local/share", p))
                             }
                         }),
                         "APPDATA" => home_dir.as_ref().map(|p| {
-                            #[cfg(target_os = "windows")]
-                            {
+                            if cfg!(target_os = "windows") {
                                 format!("{}\\AppData\\Roaming", p)
-                            }
-                            #[cfg(not(target_os = "windows"))]
-                            {
+                            } else if cfg!(target_os = "macos") {
                                 format!("{}/Library/Application Support", p)
+                            } else {
+                                std::env::var("XDG_CONFIG_HOME")
+                                    .ok()
+                                    .filter(|v| !v.trim().is_empty())
+                                    .unwrap_or_else(|| format!("{}/.config", p))
                             }
                         }),
                         "PROGRAMFILES" => Some("C:\\Program Files".to_string()),
@@ -822,9 +826,13 @@ pub fn expand_env_vars(path: &str) -> String {
             result.push(c);
         }
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        if dollar_expanded.contains("%USERPROFILE%") && result.contains('\\') {
+    if !cfg!(target_os = "windows") {
+        let upper = dollar_expanded.to_uppercase();
+        if (upper.contains("%USERPROFILE%")
+            || upper.contains("%LOCALAPPDATA%")
+            || upper.contains("%APPDATA%"))
+            && result.contains('\\')
+        {
             result = result.replace('\\', "/");
         }
     }
@@ -2032,6 +2040,33 @@ fn resolve_unix_backup_dir(source_path: &Path, vault_path: &str, lane: &str) -> 
                     .join(&vault_name)
                     .join(lane),
             );
+        }
+    }
+    for prefix in ["/run/media/", "/media/", "/mnt/"] {
+        if let Some(rest) = src_str.strip_prefix(prefix) {
+            let parts: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+            let mount_root = if (prefix == "/run/media/" || prefix == "/media/") && parts.len() >= 2 {
+                // e.g. /run/media/deck/SDCard or /media/user/Drive
+                let candidate_two = PathBuf::from(prefix).join(parts[0]).join(parts[1]);
+                if candidate_two.is_dir() {
+                    Some(candidate_two)
+                } else {
+                    Some(PathBuf::from(prefix).join(parts[0]))
+                }
+            } else if !parts.is_empty() {
+                // e.g. /run/media/mmcblk0p1 or /mnt/gamedrive
+                Some(PathBuf::from(prefix).join(parts[0]))
+            } else {
+                None
+            };
+            if let Some(root_dir) = mount_root {
+                return Some(
+                    root_dir
+                        .join(".sanctuary_backups")
+                        .join(&vault_name)
+                        .join(lane),
+                );
+            }
         }
     }
 

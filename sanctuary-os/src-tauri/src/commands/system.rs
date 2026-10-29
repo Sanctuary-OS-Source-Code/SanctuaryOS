@@ -161,10 +161,25 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        if let Ok(output) = std::process::Command::new("uname").arg("-r").output() {
-            let ver_str = String::from_utf8_lossy(&output.stdout);
-            os_version = ver_str.trim().to_string();
+        let mut distro_name = String::new();
+        if let Ok(os_rel) = std::fs::read_to_string("/etc/os-release") {
+            for line in os_rel.lines() {
+                if let Some(val) = line.strip_prefix("PRETTY_NAME=") {
+                    distro_name = val.trim().trim_matches('"').to_string();
+                    break;
+                }
+            }
         }
+        let mut kernel_ver = String::new();
+        if let Ok(output) = std::process::Command::new("uname").arg("-r").output() {
+            kernel_ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        }
+        os_version = match (distro_name.is_empty(), kernel_ver.is_empty()) {
+            (false, false) => format!("{} (Kernel {})", distro_name, kernel_ver),
+            (false, true) => distro_name,
+            (true, false) => format!("{} {}", os, kernel_ver),
+            (true, true) => os.to_string(),
+        };
     }
 
     let mut info = format!(

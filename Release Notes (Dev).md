@@ -1,8 +1,8 @@
 # Sanctuary OS — Daily Dev Build v0.6.0-Dev.1
 ### Liquid Glass Surface Unification, Smarter Malware Scanning, Studio Guides & Mac Downloads
-**Release Date:** October 28, 2026 | **Version:** 0.6.0-Dev.1
+**Release Date:** October 28, 2026 | **Version:** 0.6.0-Dev.0
 
-Welcome to **Sanctuary OS v0.6.0-Dev.1**! This Daily Dev Build focuses on making every card easier to read, scanning downloaded mods even more thoroughly, adding plain-English guides and visual icon pickers to our creator studios, and letting guides and legal docs update automatically from the cloud without needing an app update.
+Welcome to **Sanctuary OS v0.6.0-Dev.0**! This Daily Dev Build focuses on making every card easier to read, scanning downloaded mods even more thoroughly, adding plain-English guides and visual icon pickers to our creator studios, and letting guides and legal docs update automatically from the cloud without needing an app update.
 
 ---
 

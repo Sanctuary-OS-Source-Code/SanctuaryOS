@@ -15,6 +15,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   sims4: {
     id: "sims4",
     game_id: "sims4",
+    steam_app_id: "1222670",
     display_name: "The Sims 4",
     default_lexicon: "en-sims",
     schema_version: 10,
@@ -30,8 +31,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "Game/Bin",
       default_mod_dir_windows: "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
       default_mod_dir_mac: "~/Documents/Electronic Arts/The Sims 4/Mods",
+      default_mod_dir_linux: "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
       user_data_dir_windows: "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
       user_data_dir_mac: "~/Documents/Electronic Arts/The Sims 4",
+      user_data_dir_linux: "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
       manifest_file: "Resource.cfg",
       auto_scan_paths_windows: [
         "C:\\Program Files\\EA Games\\The Sims 4",
@@ -67,6 +70,12 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "~/Applications/EA Games/The Sims 4.app",
         "~/Library/Application Support/Origin/LocalContent/The Sims 4",
         "~/Library/Application Support/Steam/steamapps/common/The Sims 4/The Sims 4.app",
+      ],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/The Sims 4",
+        "~/.local/share/Steam/steamapps/common/The Sims 4",
+        "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/The Sims 4",
+        "/run/media/mmcblk0p1/steamapps/common/The Sims 4",
       ],
     },
     extensions: {
@@ -272,6 +281,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   gtav: {
     id: "gtav",
     game_id: "gtav",
+    steam_app_id: "271590",
     display_name: "Grand Theft Auto V",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -281,8 +291,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/Grand Theft Auto V/mods",
       default_mod_dir_mac: "",
+      default_mod_dir_linux: "~/.steam/steam/steamapps/common/Grand Theft Auto V/mods",
       user_data_dir_windows: "%USERPROFILE%/Documents/Rockstar Games/GTA V",
       user_data_dir_mac: "",
+      user_data_dir_linux: "%USERPROFILE%/Documents/Rockstar Games/GTA V",
       manifest_file: "",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Grand Theft Auto V",
@@ -290,6 +302,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "C:/Program Files/Epic Games/GTAV",
       ],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/Grand Theft Auto V",
+        "~/.local/share/Steam/steamapps/common/Grand Theft Auto V",
+        "/run/media/mmcblk0p1/steamapps/common/Grand Theft Auto V",
+      ],
     },
     extensions: {
       supported: [".rpf", ".asi", ".dll", ".ini", ".xml", ".meta", ".ymt", ".ydr", ".ytd", ".yft", ".oiv"],
@@ -463,6 +480,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   wwe2k: {
     id: "wwe2k",
     game_id: "wwe2k",
+    steam_app_id: "2315690",
     display_name: "WWE 2K Series",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -472,8 +490,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/WWE 2K24/_mods",
       default_mod_dir_mac: "",
+      default_mod_dir_linux: "~/.steam/steam/steamapps/common/WWE 2K24/_mods",
       user_data_dir_windows: "%LOCALAPPDATA%/WWE2K24",
       user_data_dir_mac: "",
+      user_data_dir_linux: "%LOCALAPPDATA%/WWE2K24",
       manifest_file: "",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/WWE 2K24",
@@ -481,6 +501,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "C:/Program Files (x86)/Steam/steamapps/common/WWE 2K23",
       ],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/WWE 2K24",
+        "~/.local/share/Steam/steamapps/common/WWE 2K24",
+        "/run/media/mmcblk0p1/steamapps/common/WWE 2K24",
+      ],
     },
     extensions: {
       supported: [".cak", ".pac", ".bk2", ".wem", ".pck", ".dds", ".jsfb", ".mdl"],
@@ -624,6 +649,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   skyrim: {
     id: "skyrim",
     game_id: "skyrim",
+    steam_app_id: "489830",
     display_name: "Skyrim Special Edition",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -633,14 +659,21 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/Skyrim Special Edition/Data",
       default_mod_dir_mac: "",
+      default_mod_dir_linux: "~/.steam/steam/steamapps/common/Skyrim Special Edition/Data",
       user_data_dir_windows: "%USERPROFILE%/Documents/My Games/Skyrim Special Edition",
       user_data_dir_mac: "",
+      user_data_dir_linux: "%USERPROFILE%/Documents/My Games/Skyrim Special Edition",
       manifest_file: "plugins.txt",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Skyrim Special Edition",
         "C:/GOG Games/Skyrim Anniversary Edition",
       ],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/Skyrim Special Edition",
+        "~/.local/share/Steam/steamapps/common/Skyrim Special Edition",
+        "/run/media/mmcblk0p1/steamapps/common/Skyrim Special Edition",
+      ],
     },
     extensions: {
       supported: [".esp", ".esm", ".esl", ".bsa", ".ba2", ".pex", ".nif", ".dds", ".dll", ".ini", ".seq"],
@@ -791,6 +824,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   cyberpunk2077: {
     id: "cyberpunk2077",
     game_id: "cyberpunk2077",
+    steam_app_id: "1091500",
     display_name: "Cyberpunk 2077",
     default_lexicon: "en-sanctuary",
     schema_version: 2,
@@ -800,8 +834,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "bin/x64",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/Cyberpunk 2077/archive/pc/mod",
       default_mod_dir_mac: "",
+      default_mod_dir_linux: "~/.steam/steam/steamapps/common/Cyberpunk 2077/archive/pc/mod",
       user_data_dir_windows: "%USERPROFILE%/Saved Games/CD Projekt Red/Cyberpunk 2077",
       user_data_dir_mac: "",
+      user_data_dir_linux: "%USERPROFILE%/Saved Games/CD Projekt Red/Cyberpunk 2077",
       manifest_file: "modlist.txt",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Cyberpunk 2077",
@@ -809,6 +845,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "C:/Program Files/Epic Games/Cyberpunk2077",
       ],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/Cyberpunk 2077",
+        "~/.local/share/Steam/steamapps/common/Cyberpunk 2077",
+        "/run/media/mmcblk0p1/steamapps/common/Cyberpunk 2077",
+      ],
     },
     extensions: {
       supported: [".archive", ".xl", ".reds", ".lua", ".dll", ".yaml", ".yml", ".json", ".ini"],
@@ -964,6 +1005,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   bg3: {
     id: "bg3",
     game_id: "bg3",
+    steam_app_id: "1086940",
     display_name: "Baldur's Gate 3",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -973,14 +1015,21 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "bin",
       default_mod_dir_windows: "%LOCALAPPDATA%/Larian Studios/Baldur's Gate 3/Mods",
       default_mod_dir_mac: "~/Documents/Larian Studios/Baldur's Gate 3/Mods",
+      default_mod_dir_linux: "%LOCALAPPDATA%/Larian Studios/Baldur's Gate 3/Mods",
       user_data_dir_windows: "%LOCALAPPDATA%/Larian Studios/Baldur's Gate 3",
       user_data_dir_mac: "~/Documents/Larian Studios/Baldur's Gate 3",
+      user_data_dir_linux: "%LOCALAPPDATA%/Larian Studios/Baldur's Gate 3",
       manifest_file: "modsettings.lsx",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Baldurs Gate 3",
         "C:/GOG Games/Baldur's Gate 3",
       ],
       auto_scan_paths_mac: ["/Applications/Baldur's Gate 3.app"],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/Baldurs Gate 3",
+        "~/.local/share/Steam/steamapps/common/Baldurs Gate 3",
+        "/run/media/mmcblk0p1/steamapps/common/Baldurs Gate 3",
+      ],
     },
     extensions: {
       supported: [".pak", ".json", ".dll", ".lua"],
@@ -1078,23 +1127,31 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   stardew: {
     id: "stardew",
     game_id: "stardew",
+    steam_app_id: "413150",
     display_name: "Stardew Valley",
     default_lexicon: "en-default",
     schema_version: 2,
     min_scout_submissions: 3,
-    executable_names: ["StardewModdingAPI.exe", "Stardew Valley.exe"],
+    executable_names: ["StardewModdingAPI.exe", "Stardew Valley.exe", "StardewModdingAPI", "StardewValley"],
     paths: {
       executable_subdir: "",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley/Mods",
       default_mod_dir_mac: "~/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods",
+      default_mod_dir_linux: "~/.steam/steam/steamapps/common/Stardew Valley/Mods",
       user_data_dir_windows: "%APPDATA%/StardewValley",
       user_data_dir_mac: "~/.config/StardewValley",
+      user_data_dir_linux: "~/.config/StardewValley",
       manifest_file: "",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
         "C:/GOG Games/Stardew Valley",
       ],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [
+        "~/.steam/steam/steamapps/common/Stardew Valley",
+        "~/.local/share/Steam/steamapps/common/Stardew Valley",
+        "/run/media/mmcblk0p1/steamapps/common/Stardew Valley",
+      ],
     },
     extensions: {
       supported: [".dll", ".json", ".png", ".tmx", ".tbin", ".xnb", ".ogg"],
@@ -1190,6 +1247,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   universal: {
     id: "universal",
     game_id: "universal",
+    steam_app_id: "",
     display_name: "Universal Game Schema",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -1199,11 +1257,14 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       executable_subdir: "",
       default_mod_dir_windows: "",
       default_mod_dir_mac: "",
+      default_mod_dir_linux: "",
       user_data_dir_windows: "",
       user_data_dir_mac: "",
+      user_data_dir_linux: "",
       manifest_file: "",
       auto_scan_paths_windows: [],
       auto_scan_paths_mac: [],
+      auto_scan_paths_linux: [],
     },
     extensions: {
       supported: [".pak", ".archive", ".zip"],
