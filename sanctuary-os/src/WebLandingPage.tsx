@@ -1233,7 +1233,7 @@ export default function WebLandingPage() {
           title={t('landing_welcome', 'Welcome to Sanctuary OS')}
           subtitle={t(
             'landing_subtitle',
-            'Your centralized hub for community-driven game modifications, {blueprints}, and assets. Select a workspace below to enter.'
+            'Your Unified Hub for community-driven game modifications, {blueprints}, and assets.'
           )}
           icon={t('icon_shield', 'shield')}
           breadcrumb={
