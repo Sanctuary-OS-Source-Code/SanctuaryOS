@@ -11,6 +11,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  EmptyState,
 } from "../shared";
 import { logArchitectAction } from "../lib/audit";
 
@@ -191,14 +192,10 @@ export function DefconSidePanel({
     >
       <div className="flex flex-col gap-4 mt-2 pb-6">
         {loading ? (
-          <div className="glass-panel rounded-2xl p-12 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-3">
-            <span className="material-symbols-outlined animate-spin !text-[28px] text-[var(--accent)]">
-              {t("icon_sync", "sync")}
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)] animate-pulse">
-              {t("defcon_accessing", "Accessing Network Status...")}
-            </span>
-          </div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("defcon_accessing", "Accessing Network Status...")}
+          />
         ) : (
           <>
             {/* 1. Global Network Status & Telemetry Card */}

@@ -148,14 +148,10 @@ export default function MasonRecentRepliesSidePanel({
           icon={t("icon_forum", "forum")}
         >
           {isLoading ? (
-            <div className="glass-surface rounded-xl px-4 py-12 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex justify-center items-center gap-2 opacity-70">
-              <span className="material-symbols-outlined animate-spin !text-[18px] text-[var(--accent)]">
-                {t("icon_sync", "sync")}
-              </span>
-              <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t("loading_transmissions", "Loading {dispatches}...")}
-              </span>
-            </div>
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("loading_transmissions", "Loading {dispatches}...")}
+            />
           ) : interactions.length === 0 ? (
             <EmptyState
               icon={t("icon_heart_broken", "heart_broken")}

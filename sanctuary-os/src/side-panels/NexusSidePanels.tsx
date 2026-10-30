@@ -37,6 +37,256 @@ import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "../utils/envUtils";
 import { DynamicThemePreviewBanner } from "../chameleon-components/ThemeCard";
 import { importThemeWithAssets, getLuminance } from "../chameleon-components/ChameleonShared";
+import enDefault from "../lexicons/en-default.json";
+import { deepCompare } from "../lib/MasonValidation";
+
+export function NexusFlagResolutionCard({
+  activeFlags = [],
+  isHidden = false,
+  isOutdated = false,
+  assetType = "lexicon",
+  fileContent = null,
+  onResubmit,
+  disabled = false,
+}: {
+  activeFlags?: any[];
+  isHidden?: boolean;
+  isOutdated?: boolean;
+  assetType?: string;
+  fileContent?: any;
+  onResubmit?: () => void;
+  disabled?: boolean;
+}) {
+  const { t } = useLexicon();
+
+  const lexiconParity = useMemo(() => {
+    if (assetType !== "lexicon" || !fileContent || typeof fileContent !== "object") return null;
+    try {
+      return deepCompare(enDefault, fileContent, true);
+    } catch {
+      return null;
+    }
+  }, [assetType, fileContent]);
+
+  const hasFlags = activeFlags.length > 0;
+  if (!hasFlags && !isHidden && !isOutdated) return null;
+
+  const whyText =
+    isHidden && hasFlags
+      ? t(
+          "flag_res_why_hidden_report",
+          "Flagged by Community / Architect Review and temporarily hidden from public {Nexus} listings until an updated revision is submitted."
+        )
+      : hasFlags
+        ? t(
+            "flag_res_why_citizen_report",
+            "Flagged by a {Citizen} report in {Nexus}. Review the reported issue below, apply the needed fixes, and resubmit to clear the flag."
+          )
+        : isOutdated
+          ? t(
+              "flag_res_why_outdated",
+              "Flagged because the target game or OS version is behind the current release baseline."
+            )
+          : t("flag_res_why_hidden_only", "Currently hidden from public {Nexus} listings.");
+
+  return (
+    <UniversalGroup
+      title={t("flag_res_dossier_title", "Flag & Resolution Dossier")}
+      icon={t("icon_flag", "flag")}
+    >
+      <div className="flex flex-col gap-3.5">
+        {/* Telemetry Chip Row */}
+        <div className="flex flex-wrap items-center gap-2">
+          {hasFlags && (
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                {t("icon_flag", "flag")}
+              </span>
+              <span>
+                {activeFlags.length} {t("flag_res_reports_count", "Active Report(s)")}
+              </span>
+            </div>
+          )}
+          {isHidden && (
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                {t("icon_visibility_off", "visibility_off")}
+              </span>
+              <span>{t("reply_hidden", "Hidden")}</span>
+            </div>
+          )}
+          {isOutdated && (
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                {t("icon_update", "update")}
+              </span>
+              <span>{t("status_outdated", "Outdated")}</span>
+            </div>
+          )}
+          {activeFlags[0]?.created_at && (
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                {t("icon_calendar_today", "calendar_today")}
+              </span>
+              <span>{new Date(activeFlags[0].created_at).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 1. Why It Was Flagged */}
+        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">
+              {t("icon_help", "help")}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+              {t("flag_res_why_title", "Why This Item Was Flagged")}
+            </span>
+          </div>
+          <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+            {whyText}
+          </p>
+        </div>
+
+        {/* 2. What The Issue Was */}
+        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)]">
+                {t("icon_report_problem", "report_problem")}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                {t("flag_res_issue_title", "What the Issue Was")}
+              </span>
+            </div>
+          </div>
+
+          {hasFlags ? (
+            <div className="flex flex-col gap-2">
+              {activeFlags.map((flag: any, idx: number) => (
+                <div
+                  key={flag.id || idx}
+                  className="p-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                        {t("icon_person", "person")}
+                      </span>
+                      <span>
+                        {t("by_prefix", "By")}{" "}
+                        {flag.reporter_name || t("anonymous", "Anonymous")}
+                      </span>
+                    </span>
+                    {flag.created_at && (
+                      <span className="opacity-75 shrink-0">
+                        {new Date(flag.created_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-[var(--text)] leading-relaxed">
+                    {flag.reason ||
+                      flag.description ||
+                      t(
+                        "flag_res_default_issue_desc",
+                        "Reported for missing keys, broken formatting, or version incompatibility."
+                      )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+              {isOutdated
+                ? t(
+                    "flag_res_outdated_issue_desc",
+                    "This asset's recorded game or OS version is older than the current active release."
+                  )
+                : t(
+                    "flag_res_default_issue_desc",
+                    "Reported for missing keys, broken formatting, or version incompatibility."
+                  )}
+            </p>
+          )}
+
+          {lexiconParity && (lexiconParity.missing > 0 || lexiconParity.deprecated > 0) && (
+            <div className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] flex items-center gap-2 text-[11px] font-bold text-[var(--text)]">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
+                {t("icon_fact_check", "fact_check")}
+              </span>
+              <span>
+                {t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")}{" "}
+                {lexiconParity.missing} {t("flag_res_missing_keys", "missing keys")} •{" "}
+                {lexiconParity.deprecated} {t("flag_res_deprecated_keys", "deprecated keys")}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* 3. How To Resolve & Resubmit */}
+        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_28%,transparent)] flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
+              {t("icon_task_alt", "task_alt")}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+              {t("flag_res_how_title", "How to Resolve & Resubmit")}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2 text-xs font-semibold text-[var(--subtext)]">
+            <div className="flex items-start gap-2.5">
+              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                1
+              </span>
+              <span className="leading-relaxed">
+                {t(
+                  "flag_res_step1_nexus",
+                  "Fix the reported issue in your local editor or use Replace below to attach your updated file."
+                )}
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                2
+              </span>
+              <span className="leading-relaxed">
+                {t(
+                  "flag_res_step2_nexus",
+                  "Increment the Revision number (e.g. 1.0.1 → 1.0.2) and describe your fix in What's New."
+                )}
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                3
+              </span>
+              <span className="leading-relaxed">
+                {t(
+                  "flag_res_step3_nexus",
+                  "Click Resolve & Resubmit below to publish the updated build, restore public visibility, and clear the active flag."
+                )}
+              </span>
+            </div>
+          </div>
+
+          {onResubmit && (
+            <div className="pt-1">
+              <ActionButton
+                variant="primary"
+                icon={t("icon_published_with_changes", "published_with_changes")}
+                label={t("flag_res_btn_resubmit", "Resolve & Resubmit Fix")}
+                onClick={onResubmit}
+                disabled={disabled}
+                className="w-full justify-center"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </UniversalGroup>
+  );
+}
 
 export function MarketUploadPanel({
   uploadState,
@@ -44,11 +294,71 @@ export function MarketUploadPanel({
   marketTab,
   availableLanguages,
   submitUpload,
+  flags = [],
   backdropZ = "z-[15000]",
   panelZ = "z-[15001]",
 }: any) {
   const { t } = useLexicon();
+  const [fetchedFlags, setFetchedFlags] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!uploadState.isOpen || !uploadState.editId) {
+      setFetchedFlags([]);
+      return;
+    }
+    let mounted = true;
+    supabase
+      .from("nexus_reports")
+      .select("*")
+      .eq("asset_id", uploadState.editId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (mounted && data) {
+          setFetchedFlags(data);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [uploadState.isOpen, uploadState.editId]);
+
+  const activeFlags = useMemo(() => {
+    if (!uploadState.editId) return [];
+    const combined = [
+      ...(Array.isArray(flags) ? flags.filter((f: any) => f.asset_id === uploadState.editId) : []),
+      ...fetchedFlags,
+    ];
+    const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values());
+    return unique.filter(
+      (f: any) =>
+        f.status !== "dismissed" &&
+        (f.status === "pending" || uploadState.isHidden || f.status !== "creator_resolved")
+    );
+  }, [flags, fetchedFlags, uploadState.editId, uploadState.isHidden]);
+
   if (!uploadState.isOpen) return null;
+
+  const isEdit = Boolean(uploadState.editId);
+  const isFlagged = activeFlags.length > 0;
+  const resolvedTitle =
+    marketTab === "LEXICONS"
+      ? isEdit
+        ? t("upload_edit_lexicon_title", "Update {Lexicon}")
+        : t("upload_lexicon_title", "Upload {Lexicon}")
+      : marketTab === "TEMPLATES"
+        ? isEdit
+          ? t("upload_edit_template_title", "Update Template")
+          : t("upload_template_title", "Upload Template")
+        : isEdit
+          ? t("upload_edit_chameleon_title", "Update {Chameleon}")
+          : t("upload_chameleon_title", "Upload {Chameleon}");
+
+  const resolvedSubtitle = isFlagged
+    ? t("flag_res_subtitle_flagged", "Flagged Item — Review & Resubmit")
+    : isEdit
+      ? t("upload_edit_asset_sub", "Update your published creation")
+      : t("auto_upload_new_asset", "Upload your custom creation");
+
   return (
     <>
       <SidePanel
@@ -57,28 +367,26 @@ export function MarketUploadPanel({
         widthClass="w-[90vw] md:w-[680px]"
         backdropZ={backdropZ}
         panelZ={panelZ}
-        icon={t("icon_cloud_upload", "cloud_upload")}
-        iconColorClass="text-[var(--accent)]"
-        title={
-          marketTab === "LEXICONS"
-            ? t("upload_lexicon_title", "Upload {Lexicon}")
-            : marketTab === "TEMPLATES"
-              ? t("upload_template_title", "Upload Template")
-              : t("upload_chameleon_title", "Upload {Chameleon}")
-        }
-        subtitle={t("auto_upload_new_asset", "Upload your custom creation")}
+        icon={isFlagged ? t("icon_flag", "flag") : t("icon_cloud_upload", "cloud_upload")}
+        iconColorClass={isFlagged ? "text-[var(--danger)]" : "text-[var(--accent)]"}
+        title={resolvedTitle}
+        subtitle={resolvedSubtitle}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={
-                uploadState.editId
-                  ? t("icon_save", "save")
-                  : t("icon_cloud_upload", "cloud_upload")
+                isFlagged
+                  ? t("icon_published_with_changes", "published_with_changes")
+                  : uploadState.editId
+                    ? t("icon_save", "save")
+                    : t("icon_cloud_upload", "cloud_upload")
               }
               tooltip={
-                uploadState.editId
-                  ? t("upload_btn_update", "Update")
-                  : t("upload_submit", "Submit")
+                isFlagged
+                  ? t("flag_res_btn_resubmit", "Resolve & Resubmit Fix")
+                  : uploadState.editId
+                    ? t("upload_btn_update", "Update")
+                    : t("upload_submit", "Submit")
               }
               onClick={submitUpload}
               disabled={
@@ -92,42 +400,41 @@ export function MarketUploadPanel({
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
-            icon={t("icon_cloud_upload", "cloud_upload")}
-            overline={marketTab}
-            title={
+            icon={isFlagged ? t("icon_flag", "flag") : t("icon_cloud_upload", "cloud_upload")}
+            overline={
               marketTab === "LEXICONS"
-                ? t("upload_lexicon_title", "Upload {Lexicon}")
+                ? t("term_lexicons", "Lexicons")
                 : marketTab === "TEMPLATES"
-                  ? t("upload_template_title", "Upload Template")
-                  : t("upload_chameleon_title", "Upload {Chameleon}")
+                  ? t("tab_templates", "Templates")
+                  : t("term_chameleons", "Chameleons")
             }
-            description={t("auto_upload_new_asset", "Upload your custom creation")}
+            title={uploadState.name || resolvedTitle}
+            description={resolvedSubtitle}
             badge={`v${uploadState.version || "1.0.0"}`}
             badgeIcon={t("icon_new_releases", "new_releases")}
-            variant="accent"
+            variant={isFlagged ? "danger" : "accent"}
           />
 
-          <SidePanelTitleInput
-            value={uploadState.name}
-            onChange={(val) => setUploadState((s: any) => ({ ...s, name: val }))}
-            label={
+          <NexusFlagResolutionCard
+            activeFlags={activeFlags}
+            isHidden={Boolean(uploadState.isHidden)}
+            assetType={
               marketTab === "LEXICONS"
-                ? t("upload_lexicon_name", "{Lexicon} Name")
+                ? "lexicon"
                 : marketTab === "TEMPLATES"
-                  ? t("upload_template_name", "Template Name")
-                  : t("upload_chameleon_name", "{Chameleon} Name")
+                  ? "workbench_template"
+                  : "chameleon"
             }
-            placeholder={
-              marketTab === "LEXICONS"
-                ? t("upload_lexicon_name", "{Lexicon} Name")
-                : marketTab === "TEMPLATES"
-                  ? t("upload_template_name", "Template Name")
-                  : t("upload_chameleon_name", "{Chameleon} Name")
+            fileContent={uploadState.fileContent}
+            onResubmit={submitUpload}
+            disabled={
+              !uploadState.name ||
+              (uploadState.language === "add_new" && !uploadState.newLanguage)
             }
           />
 
           <UniversalGroup
-            title={t("upload_desc", "Asset Configuration")}
+            title={t("upload_config_group", "Asset Configuration")}
             icon={t("icon_edit_note", "edit_note")}
           >
             <div className="flex flex-col gap-1.5">

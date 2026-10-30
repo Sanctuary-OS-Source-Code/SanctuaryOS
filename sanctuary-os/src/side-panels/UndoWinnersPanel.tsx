@@ -147,11 +147,10 @@ export default function UndoWinnersPanel({
         </SidePanelHeroCard>
 
         {loading ? (
-          <div className="glass-panel rounded-2xl p-12 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)]">
-            <span className="material-symbols-outlined animate-spin">
-              {t("icon_sync", "sync")}
-            </span>
-          </div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading", "Loading...")}
+          />
         ) : overrides.length === 0 ? (
           <EmptyState
             icon={t("icon_check_circle", "check_circle")}

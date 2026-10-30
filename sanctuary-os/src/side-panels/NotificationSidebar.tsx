@@ -549,14 +549,10 @@ export default function NotificationSidebar({
         </StatTileCarousel>
 
         {loading ? (
-          <div className="glass-panel rounded-2xl p-12 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col items-center justify-center gap-3">
-            <span className="material-symbols-outlined animate-spin !text-[24px] text-[var(--accent)]">
-              {t("icon_sync", "sync")}
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest text-[var(--subtext)]">
-              {t("loading", "Loading...")}
-            </span>
-          </div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading", "Loading...")}
+          />
         ) : visibleNotifications.length === 0 ? (
           <EmptyState
             icon={t("icon_notifications_off", "notifications_off")}

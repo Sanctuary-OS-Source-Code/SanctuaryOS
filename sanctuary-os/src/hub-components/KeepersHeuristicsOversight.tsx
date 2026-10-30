@@ -281,9 +281,10 @@ export default function KeepersHeuristicsOversight() {
   const renderGrid = (items: any[]) => (
     <>
       {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">
-          {t("comp_scanning", "Scanning...")}
-        </div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("comp_scanning", "Scanning...")}
+        />
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {items.map(renderCard)}

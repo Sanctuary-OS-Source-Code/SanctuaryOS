@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { CustomDropdown } from "../shared";
+import { CustomDropdown, EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import SASupportSettings from "./SASupportSettings";
@@ -606,7 +606,10 @@ export default function ArchitectSupportTickets({
           onCountsChange={setSettingsCount}
         />
       ) : isLoading ? (
-        <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting {Dispatches}...")}</div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("intercepting", "Intercepting {Dispatches}...")}
+        />
       ) : activeFilter === 'overview' ? (
         renderLanding()
       ) : (

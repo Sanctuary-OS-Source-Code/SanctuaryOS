@@ -216,9 +216,11 @@ export default function CitizenTickets({
 
       <div className={gridClassName}>
         {isLoading ? (
-          <div className="col-span-full flex justify-center items-center h-32 opacity-50">
-            <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
-          </div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("ui_btn_processing", "Processing...")}
+            className="col-span-full"
+          />
         ) : filteredTickets.length === 0 ? (
           <div className="col-span-full">
             <EmptyState icon={t("icon_receipt_long", "receipt_long")} title={t("ticket_no_tickets", "No Active Tickets Found")} className={`col-span-full ${embedded ? "py-10" : "py-16"}`} />

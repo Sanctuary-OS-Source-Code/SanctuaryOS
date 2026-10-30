@@ -1154,9 +1154,10 @@ export default function MasonPostViewer({
 
                 <div className="flex flex-col gap-3">
                   {loading ? (
-                    <div className="text-[11px] font-bold text-[var(--subtext)] opacity-60 text-center py-8 animate-pulse">
-                      {t("loading_replies", "Loading replies...")}
-                    </div>
+                    <EmptyState
+                      icon={t("icon_sync", "sync")}
+                      title={t("loading_replies", "Loading replies...")}
+                    />
                   ) : visibleCommentCount === 0 ? (
                     <EmptyState
                       icon={t("icon_forum", "forum")}

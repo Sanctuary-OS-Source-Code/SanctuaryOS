@@ -238,7 +238,15 @@ export function interpolateGlossaryTokens(
 
   const resolveToken = (tokName: string): string | null => {
     const entry = TOKEN_TO_TERM_DEF[tokName];
-    if (!entry) return null;
+    if (!entry) {
+      if (tokName === 'Glossary') return 'Glossary';
+      if (tokName === 'glossary') return 'glossary';
+      if (tokName === 'GLOSSARY') return 'GLOSSARY';
+      if (tokName === 'Token') return 'Token';
+      if (tokName === 'token') return 'token';
+      if (tokName === 'TOKEN') return 'TOKEN';
+      return null;
+    }
     const langBucket =
       activeLang === 'en-default'
         ? 'en-default'
@@ -1034,7 +1042,12 @@ export const LexiconProvider = ({ children }: any) => {
       } else if (key === "icon_architecture" && val === "structure") {
         val = "architecture";
       }
-      if (emojiRegex.test(val) && (key.includes('icon') || key.startsWith('emote_'))) {
+      const isIconOrEmoteKey =
+        key.startsWith('icon_') ||
+        key.endsWith('_icon') ||
+        key.includes('_icon_') ||
+        key.startsWith('emote_');
+      if (emojiRegex.test(val) && isIconOrEmoteKey) {
         tCache.set(cacheKey, "");
         return "";
       }
@@ -1047,7 +1060,12 @@ export const LexiconProvider = ({ children }: any) => {
       tCache.set(cacheKey, res);
       return res;
     }
-    if (key.includes('icon') || key.startsWith('emote_')) {
+    const isIconOrEmoteKey =
+      key.startsWith('icon_') ||
+      key.endsWith('_icon') ||
+      key.includes('_icon_') ||
+      key.startsWith('emote_');
+    if (isIconOrEmoteKey) {
       const res =
         fallback && !emojiRegex.test(fallback)
           ? fallback

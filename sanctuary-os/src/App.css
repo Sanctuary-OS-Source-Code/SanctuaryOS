@@ -837,6 +837,23 @@ nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
     var(--glass-inset-highlight) !important;
 }
 
+@media (min-width: 768px) {
+  .sa-side-panel-window .glass-panel.sa-ide-alert-pill {
+    isolation: isolate;
+    background-color: color-mix(
+      in srgb,
+      var(--glass-dropdown-bg, rgba(10, 16, 28, 0.88)) 74%,
+      var(--glass-portal-bg, rgba(15, 23, 42, 0.52))
+    ) !important;
+    background-image: var(--glass-portal-sheen, var(--glass-nested-sheen, none)) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(var(--glassSaturation, 185%)) !important;
+    backdrop-filter: blur(24px) saturate(var(--glassSaturation, 185%)) !important;
+    box-shadow:
+      var(--glass-portal-shadow, var(--glass-outer-shadow)),
+      var(--glass-inset-highlight) !important;
+  }
+}
+
 nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
 .sa-side-panel-window .glass-surface:not(.portal-glass-fix),
 .sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix),

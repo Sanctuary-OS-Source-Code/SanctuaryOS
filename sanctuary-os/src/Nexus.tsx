@@ -1616,10 +1616,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   />
                   <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6 w-full">
                     {loadingHome ? (
-                      <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse flex flex-col items-center gap-4">
-                        <span className="material-symbols-outlined animate-spin theme-text-accent">{t("icon_autorenew", "autorenew")}</span>
-                        {t("loading", "Loading")}
-                      </div>
+                      <EmptyState
+                        icon={t("icon_sync", "sync")}
+                        title={t("loading", "Loading")}
+                        className="col-span-full"
+                      />
                     ) : recentFeed.length > 0 ? recentFeed.map((item, index) => {
                       const mainKey = item.id || `${item.feed_type}_${index}`;
                       const isFolder = item.feed_type === 'artifact' && (item.isVirtual || item.isParent || item.familyCount > 1);
@@ -2002,9 +2003,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingMods ? (
-                <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse">
-                  {t("searching", "Searching The {Nexus}...")}
-                </div>
+                <EmptyState
+                  icon={t("icon_sync", "sync")}
+                  title={t("searching", "Searching The {Nexus}...")}
+                  className="col-span-full"
+                />
               ) : paginatedResults.length > 0 ? (
                 <>
                   {paginatedResults.map((mod: any, index: number) => {
@@ -2413,9 +2416,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
             <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6 pb-8 mt-6">
               {loadingAssets ? (
-                <div className="col-span-full py-20 text-center opacity-50 font-black capitalize tracking-widest animate-pulse">
-                  {t("searching", "Searching The {Nexus}...")}
-                </div>
+                <EmptyState
+                  icon={t("icon_sync", "sync")}
+                  title={t("searching", "Searching The {Nexus}...")}
+                  className="col-span-full"
+                />
               ) : assetPaginatedResults.length > 0 ? (
                 assetPaginatedResults.map((asset: any, index: number) => (
                   <div

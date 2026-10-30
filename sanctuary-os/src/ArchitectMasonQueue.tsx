@@ -246,7 +246,10 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         tabs={tabs}
       >
         {loading ? (
-          <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("hub_loading", "Loading...")}</div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("hub_loading", "Loading...")}
+          />
         ) : filterTab === 'overview' ? (
           renderLanding()
         ) : filteredSubmissions.length === 0 ? (

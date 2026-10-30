@@ -1145,10 +1145,15 @@ export function TimeCapsuleSnapshotDossier({
         {/* Table Body */}
         <div className="divide-y divide-[color-mix(in_srgb,var(--text)_6%,transparent)] max-h-[440px] overflow-y-auto custom-scrollbar">
           {isLoading ? (
-            <div className="text-center text-xs text-[var(--subtext)] py-12 animate-pulse">
-              {activeView === "DIFF"
-                ? t("calculating_diff", "Calculating differences...")
-                : t("loading_contents", "Loading contents...")}
+            <div className="p-4">
+              <EmptyState
+                icon={t("icon_sync", "sync")}
+                title={
+                  activeView === "DIFF"
+                    ? t("calculating_diff", "Calculating differences...")
+                    : t("loading_contents", "Loading contents...")
+                }
+              />
             </div>
           ) : activeView === "DELTA" ? (
             filteredDelta.length === 0 ? (

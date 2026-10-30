@@ -302,7 +302,10 @@ export default function ArchitectTemplateOversight() {
                 {activeFilterTab === 'overview' ? renderLanding() : (
                     <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {isLoading ? (
-                            <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting {Dispatches}...")}</div>
+                            <EmptyState
+                                icon={t("icon_sync", "sync")}
+                                title={t("intercepting", "Intercepting {Dispatches}...")}
+                            />
                         ) : processedFiles.length === 0 ? (
                             <EmptyState icon={t("icon_architecture", "architecture")} title={t("no_tracked_files", "No tracked files")} className="col-span-full py-16" />
                         ) : (

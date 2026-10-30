@@ -1496,9 +1496,10 @@ export default function KeepersActiveGames({
       ) : activeTab === "workspaces" ? (
         <div className="flex flex-col gap-4 pb-16">
           {loading ? (
-            <div className="p-12 font-black animate-pulse capitalize tracking-widest text-[var(--accent)]">
-              {t("ui_fetching_nodes", "Fetching Nodes...")}
-            </div>
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("ui_fetching_nodes", "Fetching Nodes...")}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGames.map(renderGameCard)}

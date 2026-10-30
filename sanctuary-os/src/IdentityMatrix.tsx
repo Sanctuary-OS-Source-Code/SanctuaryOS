@@ -1880,9 +1880,10 @@ export function IdentityMatrix({
       onTabChange={(id) => setActiveTab(id as string)}
     >
       {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">
-          {t("audit_fetching", "Fetching identities...")}
-        </div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("audit_fetching", "Fetching identities...")}
+        />
       ) : activeTab === "overview" ? (
         renderLanding()
       ) : (

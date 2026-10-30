@@ -350,7 +350,10 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
         {activeStatus === 'overview' ? (
           renderLanding()
         ) : loading ? (
-          <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)]">{t("hub_loading", "Loading...")}</div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("hub_loading", "Loading...")}
+          />
         ) : filteredReports.length === 0 ? (
           <EmptyState icon={t("icon_security", "security")} title={t("auto_no_tickets_found_38", "No reports found")} className="col-span-full py-16" />
         ) : (

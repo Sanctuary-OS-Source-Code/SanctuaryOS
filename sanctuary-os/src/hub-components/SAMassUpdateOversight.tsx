@@ -396,7 +396,10 @@ export function MassUpdateOversight() {
     >
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
         {loading ? (
-          <div className="py-20 text-center font-black opacity-50 capitalize tracking-widest animate-pulse">{t("loading_registry", "Loading Registry...")}</div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading_registry", "Loading Registry...")}
+          />
         ) : activeTab === 'overview' ? (
           <HubOverviewLanding>
             <HubOverviewSection

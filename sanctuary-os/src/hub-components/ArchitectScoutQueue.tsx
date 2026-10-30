@@ -520,7 +520,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[], setSt
         {filterTab === 'overview' ? renderLanding() : (
           <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {loading ? (
-              <div className="h-full flex items-center justify-center theme-text-accent font-black tracking-widest text-xs capitalize animate-pulse">{t("intercepting", "Intercepting {Dispatches}...")}</div>
+              <EmptyState
+                icon={t("icon_sync", "sync")}
+                title={t("intercepting", "Intercepting {Dispatches}...")}
+              />
             ) : filteredSubmissions.length === 0 ? (
               <EmptyState icon={t("icon_account_balance", "account_balance")} title={t("no_pending_submissions", "No pending submissions")} className="col-span-full py-16" />
             ) : (

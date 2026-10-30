@@ -59,6 +59,16 @@ export function ArtifactCard({
             : t("editor_addon", "Addon")
     : null;
 
+  const openTickets = Array.isArray(mod?._openTickets) ? mod._openTickets : [];
+  const isModFlagged =
+    rawStatus === "corrupted" ||
+    rawStatus === "broken" ||
+    rawStatus === "rejected" ||
+    rawStatus === "unstable" ||
+    rawStatus === "under review" ||
+    rawStatus === "under_review" ||
+    openTickets.length > 0;
+
   const statusMeta = (() => {
     if (rawStatus === "corrupted" || rawStatus === "broken") {
       return {
@@ -81,11 +91,18 @@ export function ArtifactCard({
         iconColor: "text-[var(--warning)]",
       };
     }
-    if (rawStatus === "under review" || rawStatus === "pending") {
+    if (rawStatus === "under review" || rawStatus === "under_review" || rawStatus === "pending") {
       return {
         label: t("status_dd_review", "Under Review"),
         icon: t("icon_schedule", "schedule"),
         iconColor: "text-[var(--accent)]",
+      };
+    }
+    if (openTickets.length > 0) {
+      return {
+        label: t("flagged", "Flagged"),
+        icon: t("icon_flag", "flag"),
+        iconColor: "text-[var(--danger)]",
       };
     }
     if (rawStatus === "unverified" || rawStatus === "unknown") {
@@ -121,6 +138,46 @@ export function ArtifactCard({
       icon: t("icon_verified", "verified"),
       iconColor: "text-[var(--success)]",
     };
+  })();
+
+  const flagSummary = (() => {
+    if (!isModFlagged) return "";
+    if (openTickets.length > 0) {
+      const first = openTickets[0];
+      const text =
+        first?.title ||
+        first?.subject ||
+        first?.description ||
+        first?.content ||
+        first?.steps ||
+        "";
+      if (text) return text;
+    }
+    if (rawStatus === "corrupted" || rawStatus === "broken") {
+      return t(
+        "flag_res_mod_corrupted_short",
+        "Marked Corrupted — crashes or critical game errors reported."
+      );
+    }
+    if (rawStatus === "unstable") {
+      return t(
+        "flag_res_mod_unstable_short",
+        "Marked Unstable — compatibility issues or glitches reported."
+      );
+    }
+    if (rawStatus === "under review" || rawStatus === "under_review") {
+      return t(
+        "flag_res_mod_review_short",
+        "Under Review — pending safety or compatibility verification."
+      );
+    }
+    if (rawStatus === "rejected") {
+      return t(
+        "flag_res_mod_rejected_short",
+        "Rejected — requires compliance or metadata fixes."
+      );
+    }
+    return "";
   })();
 
   const extClean = mod?.file_extension
@@ -279,8 +336,18 @@ export function ArtifactCard({
             )}
           </span>
         )}
-        <button className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0">
-          {overrideActionLabel || t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+        <button
+          className={`text-[10px] font-black ${
+            isModFlagged
+              ? "text-[var(--danger)]"
+              : "text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)]"
+          } uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0`}
+        >
+          {overrideActionLabel ||
+            (isModFlagged
+              ? t("flag_res_card_action", "Resolve & Resubmit")
+              : t("edit", "Edit"))}{" "}
+          <span className="text-base leading-none">&rarr;</span>
         </button>
       </div>
     ) : undefined;
@@ -313,7 +380,18 @@ export function ArtifactCard({
       actions={removeAction}
       badges={cardBadges}
       footer={footer}
-    />
+    >
+      {layout === "vertical" && isModFlagged && flagSummary ? (
+        <div className="rounded-xl px-2.5 py-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2">
+          <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
+            {t("icon_report_problem", "report_problem")}
+          </span>
+          <span className="text-[11px] font-bold text-[var(--text)] leading-snug line-clamp-2">
+            {flagSummary}
+          </span>
+        </div>
+      ) : undefined}
+    </UniversalCard>
   );
 }
 

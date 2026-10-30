@@ -38,6 +38,19 @@ export function ChameleonSandboxPreview({
   const rebuildTexturesRef = useRef<(() => void) | null>(null);
   const scheduleRenderRef = useRef<(() => void) | null>(null);
   const [mobilePane, setMobilePane] = useState<'controls' | 'preview'>('controls');
+  const [previewView, setPreviewView] = useState<'workspace' | 'card'>('workspace');
+  const [bgImgFailed, setBgImgFailed] = useState(false);
+
+  useEffect(() => {
+    setBgImgFailed(false);
+  }, [currentTheme.bgImage]);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      scheduleRenderRef.current?.();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [previewView]);
 
   useEffect(() => {
     if (embedded) return;
@@ -519,6 +532,11 @@ export function ChameleonSandboxPreview({
   };
 
   const displayBezelPct = toPct(currentTheme.glassBezel, 100);
+  const displayOpacityPct = toPct(currentTheme.glassOpacity, 14);
+  const displayRefractPct = toPct(currentTheme.glassRefraction, 100);
+  const displaySpecPct = toPct(currentTheme.glassSpecular, 26);
+  const parsedBlurVal = parseInt(String(currentTheme.glassBlur ?? '36'), 10);
+  const displayBlurPx = isNaN(parsedBlurVal) ? 36 : parsedBlurVal;
 
   const isPassthrough =
     !currentTheme.bgImage &&
@@ -560,33 +578,67 @@ export function ChameleonSandboxPreview({
       className={
         embedded
           ? 'w-full h-[540px] shrink-0 flex flex-col overflow-hidden'
-          : `${mobilePane === 'preview' ? 'flex' : 'hidden lg:flex'} w-full lg:w-[440px] xl:w-[480px] shrink-0 h-full min-h-0 p-3 sm:p-4 flex-col gap-3 overflow-hidden`
+          : `${mobilePane === 'preview' ? 'flex' : 'hidden lg:flex'} w-full lg:w-[450px] xl:w-[490px] shrink-0 h-full min-h-0 p-3.5 sm:p-4 flex-col gap-3 overflow-hidden`
       }
     >
       {!embedded && (
-        <div className="lg:hidden glass-panel px-3.5 py-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-              {t('icon_visibility', 'visibility')}
-            </span>
-            <span className="text-xs font-black text-[var(--text)] truncate">
-              {currentTheme.name || t('btn_preview_theme', 'Preview')}
-            </span>
+        <div className="glass-panel px-3.5 py-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+              <span className="material-symbols-outlined !text-[16px]">
+                {t('icon_visibility', 'visibility')}
+              </span>
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-black text-[var(--text)] leading-tight truncate">
+                {currentTheme.name || t('btn_preview_theme', 'Preview')}
+              </span>
+              <span className="text-[9.5px] font-mono font-bold text-[var(--subtext)] opacity-80 leading-tight truncate">
+                {`${displayOpacityPct}% · ${displayBlurPx}px · ${displayRefractPct}%`}
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              window.dispatchEvent(
-                new CustomEvent('sanctuary-chameleon-mobile-pane', { detail: 'controls' })
-              )
-            }
-            className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer shrink-0`}
-          >
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-              {t('icon_tune', 'tune')}
-            </span>
-            <span>{t('edit', 'Edit')}</span>
-          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPreviewView('workspace')}
+              className={`${VAULT_CHIP_CLASS} ${
+                previewView === 'workspace' ? 'sa-glass-pill-active' : 'hover:sa-glass-pill-active'
+              } transition-all cursor-pointer`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t('icon_desktop_windows', 'desktop_windows')}
+              </span>
+              <span>{t('tab_workspace', 'Workspace')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewView('card')}
+              className={`${VAULT_CHIP_CLASS} ${
+                previewView === 'card' ? 'sa-glass-pill-active' : 'hover:sa-glass-pill-active'
+              } transition-all cursor-pointer`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t('icon_style', 'style')}
+              </span>
+              <span>{t('chameleon_dynamic_preview_badge', 'Card')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('sanctuary-chameleon-mobile-pane', { detail: 'controls' })
+                )
+              }
+              className={`lg:hidden ${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer shrink-0`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t('icon_tune', 'tune')}
+              </span>
+              <span>{t('edit', 'Edit')}</span>
+            </button>
+          </div>
         </div>
       )}
       <div
@@ -621,11 +673,12 @@ export function ChameleonSandboxPreview({
       >
         {/* Fallback Backdrop while WebGL2 Initializes (or Desktop Passthrough grid cue) */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {currentTheme.bgImage ? (
+          {currentTheme.bgImage && !bgImgFailed ? (
             <img
               src={currentTheme.bgImage}
               alt=""
               draggable={false}
+              onError={() => setBgImgFailed(true)}
               className="absolute inset-0 w-full h-full object-cover object-center opacity-100 select-none"
             />
           ) : isPassthrough ? (
@@ -666,453 +719,544 @@ export function ChameleonSandboxPreview({
 
         <div
           ref={scrollContainerRef}
-          className="relative z-10 flex-1 min-h-full flex flex-col justify-between p-5 gap-4 overflow-y-auto custom-scrollbar"
+          className="relative z-10 flex-1 min-h-full flex flex-col justify-between p-4 sm:p-5 gap-3.5 overflow-y-auto custom-scrollbar"
         >
-          {/* Row 0: Public ViewHeader & ActionPill Search/Filter Bar */}
-          <div className="flex items-center justify-between gap-2.5 shrink-0">
-            <div
-              data-sandbox-glass="panel"
-              style={panelBorderStyle}
-              className="px-3.5 py-2.5 flex items-center gap-3 min-w-0"
-            >
-              <div
-                data-sandbox-glass="surface"
-                style={surfaceBorderStyle}
-                className="w-9 h-9 flex items-center justify-center shrink-0 text-[var(--accent)]"
-              >
-                <span className="material-symbols-outlined !text-[18px]">
-                  {t('icon_desktop_windows', 'desktop_windows')}
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1
-                    className="leading-tight"
-                    style={{
-                      fontSize: currentTheme.fontSizeTitle || '1.05rem',
-                      color: currentTheme.headerText || currentTheme.text,
-                      fontWeight: 900,
-                    }}
+          {previewView === 'workspace' ? (
+            <>
+              {/* Row 0: Public ViewHeader & Upper-Right Segmented TitleBar Capsule */}
+              <div className="flex items-center justify-between gap-2.5 shrink-0">
+                <div
+                  data-sandbox-glass="panel"
+                  style={panelBorderStyle}
+                  className="px-3 py-2 flex items-center gap-2.5 min-w-0"
+                >
+                  <div
+                    data-sandbox-glass="surface"
+                    style={surfaceBorderStyle}
+                    className="w-8 h-8 flex items-center justify-center shrink-0 text-[var(--accent)]"
                   >
-                    {t('nav_dashboard', 'Command Center')}
-                  </h1>
-                  {isPassthrough && (
-                    <span
-                      data-sandbox-glass="surface"
-                      style={chipBorderStyle}
-                      className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
-                    >
-                      <span
-                        className="material-symbols-outlined !text-[11px]"
-                        style={{ color: currentTheme.accent || '#38bdf8' }}
-                      >
-                        {t('icon_desktop_windows', 'desktop_windows')}
-                      </span>
-                      {t('forge_wp_desktop_passthrough', 'Desktop Passthrough')}
+                    <span className="material-symbols-outlined !text-[16px]">
+                      {t('icon_desktop_windows', 'desktop_windows')}
                     </span>
-                  )}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h1
+                        className="leading-tight whitespace-nowrap truncate"
+                        style={{
+                          fontSize: '0.88rem',
+                          color: currentTheme.headerText || currentTheme.text,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {t('nav_dashboard', 'Command Center')}
+                      </h1>
+                      {isPassthrough && (
+                        <span
+                          data-sandbox-glass="surface"
+                          style={chipBorderStyle}
+                          className="px-1.5 py-0.5 text-[7.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 shrink-0"
+                        >
+                          <span
+                            className="material-symbols-outlined !text-[10px]"
+                            style={{ color: currentTheme.accent || '#38bdf8' }}
+                          >
+                            {t('icon_desktop_windows', 'desktop_windows')}
+                          </span>
+                          {t('forge_wp_desktop_passthrough', 'Desktop Passthrough')}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className="leading-snug truncate"
+                      style={{
+                        fontSize: '0.62rem',
+                        color: currentTheme.subtext,
+                        opacity: 0.85,
+                      }}
+                    >
+                      {t('overview', 'Overview')}
+                    </p>
+                  </div>
                 </div>
-                <p
-                  className="leading-snug truncate"
-                  style={{
-                    fontSize: currentTheme.fontSizeSubtext || '0.68rem',
-                    color: currentTheme.subtext,
-                    opacity: 0.9,
-                  }}
+
+                {/* Miniature Upper-Right Segmented TitleBar Capsule */}
+                <div
+                  data-sandbox-glass="panel"
+                  style={panelBorderStyle}
+                  className="h-9 px-2.5 flex items-center gap-2 shrink-0"
                 >
-                  {t('dashboard_subtitle', 'System Status & Active Deployment Overview')}
-                </p>
+                  <div className="flex items-center gap-1.5 pr-2 border-r border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                      {t('icon_sports_esports', 'sports_esports')}
+                    </span>
+                    <div className="flex flex-col leading-none">
+                      <span className="text-[6px] font-black uppercase tracking-wider text-[var(--accent)]">
+                        {t('tab_workspace', 'Workspace')}
+                      </span>
+                      <span className="text-[9px] font-black text-[var(--text)] whitespace-nowrap">
+                        {t('theme_name_sims4', 'The Sims 4')}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="flex items-center gap-0.5 text-[9px] font-black"
+                    style={{ color: currentTheme.success || '#10b981' }}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t('icon_layers', 'layers')}
+                    </span>
+                    <span>2</span>
+                  </span>
+                  <span className="flex items-center gap-0.5 text-[9px] font-black text-[var(--accent)]">
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t('icon_notifications', 'notifications')}
+                    </span>
+                    <span>2</span>
+                  </span>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-75">
+                    {t('icon_terminal', 'terminal')}
+                  </span>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-75">
+                    {t('icon_settings', 'settings')}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Public ActionPill (Search + Filters) */}
-            <div
-              data-sandbox-glass="panel"
-              style={panelBorderStyle}
-              className="px-3 py-2.5 flex items-center gap-2 shrink-0"
-            >
-              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
-                {t('icon_search', 'search')}
-              </span>
-              <span className="text-[10px] font-medium text-[var(--subtext)]">
-                {t('search', 'Search')}...
-              </span>
-              <div className="w-px h-3.5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)]" />
-              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                {t('icon_tune', 'tune')}
-              </span>
-            </div>
-          </div>
-
-          {/* Row 1: Public 3-Up StatTileCarousel Specimen */}
-          <div className="grid grid-cols-3 gap-2.5 shrink-0">
-            <div
-              data-sandbox-glass="panel"
-              style={panelBorderStyle}
-              className="p-3 flex items-center gap-2.5 overflow-hidden"
-            >
-              <div
-                data-sandbox-glass="surface"
-                style={surfaceBorderStyle}
-                className="w-8 h-8 flex items-center justify-center shrink-0"
-              >
-                <span
-                  className="material-symbols-outlined !text-[16px]"
-                  style={{ color: currentTheme.success || '#10b981' }}
+              {/* Row 1: 2-Column StatTile Specimen (Spacious, Zero Truncation) */}
+              <div className="grid grid-cols-2 gap-3 shrink-0">
+                <div
+                  data-sandbox-glass="panel"
+                  style={panelBorderStyle}
+                  className="p-3 flex items-center gap-3 overflow-hidden"
                 >
-                  {t('icon_verified', 'verified')}
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
-                  {t('stat_system_stable', 'System Stable')}
-                </span>
-                <span className="text-base font-black text-[var(--text)] leading-tight">0</span>
-              </div>
-            </div>
-
-            <div
-              data-sandbox-glass="panel"
-              style={panelBorderStyle}
-              className="p-3 flex items-center gap-2.5 overflow-hidden"
-            >
-              <div
-                data-sandbox-glass="surface"
-                style={surfaceBorderStyle}
-                className="w-8 h-8 flex items-center justify-center shrink-0"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-[var(--text)]">
-                  {t('icon_account_balance', 'account_balance')}
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
-                  {t('nav_vault', 'Your Vault')}
-                </span>
-                <span className="text-base font-black text-[var(--text)] leading-tight">3,075</span>
-              </div>
-            </div>
-
-            <div
-              data-sandbox-glass="panel"
-              style={panelBorderStyle}
-              className="p-3 flex items-center gap-2.5 overflow-hidden"
-            >
-              <div
-                data-sandbox-glass="surface"
-                style={surfaceBorderStyle}
-                className="w-8 h-8 flex items-center justify-center shrink-0"
-              >
-                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                  {t('icon_hub', 'hub')}
-                </span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-[7.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
-                  {t('nav_nexus', 'The Nexus')}
-                </span>
-                <span className="text-base font-black text-[var(--accent)] leading-tight">2,990</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Public Sidebar Navigation & Quick Launch Specimen */}
-          <div
-            data-sandbox-glass="nav"
-            style={panelBorderStyle}
-            className="p-3 flex flex-col gap-2.5 shrink-0"
-          >
-            <div className="grid grid-cols-2 gap-2">
-              {/* Active NavButton (Command Center) */}
-              <div
-                className="px-3 py-2 rounded-xl flex items-center gap-2 min-w-0"
-                style={{
-                  backgroundColor: opticalVars['--glass-nav-active-bg'],
-                  backgroundImage:
-                    'linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 52%, rgba(255, 255, 255, 0.05) 100%)',
-                  boxShadow: opticalVars['--glass-nav-active-shadow'],
-                  borderTop: '1px solid rgba(255, 255, 255, 0.28)',
-                  borderLeft: '1px solid rgba(255, 255, 255, 0.18)',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                }}
-              >
-                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
-                  {t('icon_desktop_windows', 'desktop_windows')}
-                </span>
-                <span
-                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
-                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
-                >
-                  {t('nav_dashboard', 'Command Center')}
-                </span>
-              </div>
-
-              {/* Inactive Public NavButton (Your Vault) */}
-              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-75 min-w-0">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
-                  {t('icon_account_balance', 'account_balance')}
-                </span>
-                <span
-                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
-                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
-                >
-                  {t('nav_vault', 'Your Vault')}
-                </span>
-              </div>
-
-              {/* Inactive Public NavButton (The Nexus) */}
-              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-70 min-w-0">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
-                  {t('icon_hub', 'hub')}
-                </span>
-                <span
-                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
-                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
-                >
-                  {t('nav_nexus', 'The Nexus')}
-                </span>
-              </div>
-
-              {/* Inactive Public NavButton (Blueprints) */}
-              <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-65 min-w-0">
-                <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
-                  {t('icon_map', 'map')}
-                </span>
-                <span
-                  className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
-                  style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
-                >
-                  {t('nav_blueprints', 'Blueprints')}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Launch Bar */}
-            <div
-              data-sandbox-glass="surface"
-              className="relative px-3.5 py-2 rounded-xl font-black capitalize tracking-[0.16em] flex items-center justify-center gap-2 overflow-hidden"
-              style={{
-                ...surfaceBorderStyle,
-                borderRadius: `max(0px, calc((${currentTheme.radius || '1.25rem'}) * 0.65))`,
-                borderColor: `color-mix(in srgb, ${currentTheme.success || '#10b981'} 55%, rgba(255, 255, 255, 0.32))`,
-                color: currentTheme.success || '#10b981',
-                fontSize: currentTheme.fontSizeSidebar || '10px',
-              }}
-            >
-              <div
-                className="absolute inset-0 rounded-[inherit] pointer-events-none opacity-85"
-                style={{
-                  background: `linear-gradient(135deg, color-mix(in srgb, ${currentTheme.success || '#10b981'} 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${currentTheme.success || '#10b981'} 5%, transparent) 55%, transparent 100%)`,
-                }}
-              />
-              <span className="relative z-10 material-symbols-outlined !text-[15px] leading-none">
-                {t('icon_rocket_launch', 'rocket_launch')}
-              </span>
-              <span className="relative z-10">
-                {t('sidebar_quick_launch', 'Quick Launch')}
-              </span>
-            </div>
-          </div>
-
-          {/* Row 3: 2-Column Public Sanctuary Cards Specimen (Vault / Nexus Cards) */}
-          <div className="grid grid-cols-2 gap-3 shrink-0">
-            {[
-              {
-                title: t('nav_vault', 'Your Vault'),
-                author: t('term_mason', 'Mason'),
-                icon: t('icon_extension', 'extension'),
-                badgeIcon: t('icon_verified', 'verified'),
-                badgeLabel: t('verified', 'Verified'),
-                badgeColor: currentTheme.success || '#10b981',
-                catIcon: t('icon_code', 'code'),
-                catLabel: t('filter_script', 'Script'),
-                actionIcon: t('icon_download', 'download'),
-                actionLabel: t('btn_install', 'Install'),
-              },
-              {
-                title: t('nav_blueprints', 'Blueprints'),
-                author: t('term_citizen', 'Citizen'),
-                icon: t('icon_map', 'map'),
-                badgeIcon: t('icon_cloud_done', 'cloud_done'),
-                badgeLabel: t('synced_badge', 'Synced'),
-                badgeColor: currentTheme.success || '#10b981',
-                catIcon: t('icon_extension', 'extension'),
-                catLabel: t('filter_package', 'Package'),
-                actionIcon: t('icon_visibility', 'visibility'),
-                actionLabel: t('btn_preview_theme', 'Preview'),
-              },
-            ].map((card, cIdx) => (
-              <div
-                key={cIdx}
-                data-sandbox-glass="panel"
-                style={panelBorderStyle}
-                className="p-3.5 flex flex-col justify-between gap-3 overflow-hidden"
-              >
-                <div className="flex items-start justify-between gap-2">
                   <div
                     data-sandbox-glass="surface"
                     style={surfaceBorderStyle}
                     className="w-9 h-9 flex items-center justify-center shrink-0"
                   >
-                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-                      {card.icon}
+                    <span className="material-symbols-outlined !text-[17px] text-[var(--text)]">
+                      {t('icon_account_balance', 'account_balance')}
                     </span>
                   </div>
-                  <span
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[8.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
+                      {t('nav_vault', 'Your Vault')}
+                    </span>
+                    <span className="text-lg font-black text-[var(--text)] leading-tight">3,075</span>
+                  </div>
+                </div>
+
+                <div
+                  data-sandbox-glass="panel"
+                  style={panelBorderStyle}
+                  className="p-3 flex items-center gap-3 overflow-hidden"
+                >
+                  <div
+                    data-sandbox-glass="surface"
+                    style={surfaceBorderStyle}
+                    className="w-9 h-9 flex items-center justify-center shrink-0"
+                  >
+                    <span className="material-symbols-outlined !text-[17px] text-[var(--accent)]">
+                      {t('icon_hub', 'hub')}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[8.5px] font-black uppercase tracking-widest text-[var(--subtext)] leading-tight truncate">
+                      {t('nav_nexus', 'The Nexus')}
+                    </span>
+                    <span className="text-lg font-black text-[var(--accent)] leading-tight">2,990</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Public Sidebar Navigation & Quick Launch Specimen */}
+              <div
+                data-sandbox-glass="nav"
+                style={panelBorderStyle}
+                className="p-3 flex flex-col gap-2.5 shrink-0"
+              >
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Active NavButton (Command Center) */}
+                  <div
+                    className="px-3 py-2 rounded-xl flex items-center gap-2 min-w-0"
+                    style={{
+                      backgroundColor: opticalVars['--glass-nav-active-bg'],
+                      backgroundImage:
+                        'linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 52%, rgba(255, 255, 255, 0.05) 100%)',
+                      boxShadow: opticalVars['--glass-nav-active-shadow'],
+                      borderTop: '1px solid rgba(255, 255, 255, 0.28)',
+                      borderLeft: '1px solid rgba(255, 255, 255, 0.18)',
+                      borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}
+                  >
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                      {t('icon_desktop_windows', 'desktop_windows')}
+                    </span>
+                    <span
+                      className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                      style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                    >
+                      {t('nav_dashboard', 'Command Center')}
+                    </span>
+                  </div>
+
+                  {/* Inactive Public NavButton (Your Vault) */}
+                  <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-75 min-w-0">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
+                      {t('icon_account_balance', 'account_balance')}
+                    </span>
+                    <span
+                      className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                      style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                    >
+                      {t('nav_vault', 'Your Vault')}
+                    </span>
+                  </div>
+
+                  {/* Inactive Public NavButton (The Nexus) */}
+                  <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-70 min-w-0">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
+                      {t('icon_hub', 'hub')}
+                    </span>
+                    <span
+                      className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                      style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                    >
+                      {t('nav_nexus', 'The Nexus')}
+                    </span>
+                  </div>
+
+                  {/* Inactive Public NavButton (Blueprints) */}
+                  <div className="px-3 py-2 rounded-xl flex items-center gap-2 opacity-65 min-w-0">
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--sidebartext)] shrink-0">
+                      {t('icon_map', 'map')}
+                    </span>
+                    <span
+                      className="font-black capitalize tracking-[0.08em] text-[var(--sidebartext)] leading-tight truncate"
+                      style={{ fontSize: currentTheme.fontSizeSidebar || '10px' }}
+                    >
+                      {t('nav_blueprints', 'Blueprints')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Launch Bar */}
+                <div
+                  data-sandbox-glass="surface"
+                  className="relative px-3.5 py-2 rounded-xl font-black capitalize tracking-[0.16em] flex items-center justify-center gap-2 overflow-hidden"
+                  style={{
+                    ...surfaceBorderStyle,
+                    borderRadius: `max(0px, calc((${currentTheme.radius || '1.25rem'}) * 0.65))`,
+                    borderColor: `color-mix(in srgb, ${currentTheme.success || '#10b981'} 55%, rgba(255, 255, 255, 0.32))`,
+                    color: currentTheme.success || '#10b981',
+                    fontSize: currentTheme.fontSizeSidebar || '10px',
+                  }}
+                >
+                  <div
+                    className="absolute inset-0 rounded-[inherit] pointer-events-none opacity-85"
+                    style={{
+                      background: `linear-gradient(135deg, color-mix(in srgb, ${currentTheme.success || '#10b981'} 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, ${currentTheme.success || '#10b981'} 5%, transparent) 55%, transparent 100%)`,
+                    }}
+                  />
+                  <span className="relative z-10 material-symbols-outlined !text-[15px] leading-none">
+                    {t('icon_rocket_launch', 'rocket_launch')}
+                  </span>
+                  <span className="relative z-10">
+                    {t('sidebar_quick_launch', 'Quick Launch')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Row 3: 2-Column Public Sanctuary Cards Specimen (Vault / Nexus Cards) */}
+              <div className="grid grid-cols-2 gap-3 shrink-0">
+                {[
+                  {
+                    title: t('nav_vault', 'Your Vault'),
+                    author: t('term_mason', 'Mason'),
+                    icon: t('icon_extension', 'extension'),
+                    badgeIcon: t('icon_verified', 'verified'),
+                    badgeLabel: t('verified', 'Verified'),
+                    badgeColor: currentTheme.success || '#10b981',
+                    catIcon: t('icon_code', 'code'),
+                    catLabel: t('filter_script', 'Script'),
+                    actionIcon: t('icon_download', 'download'),
+                    actionLabel: t('btn_install', 'Install'),
+                  },
+                  {
+                    title: t('nav_blueprints', 'Blueprints'),
+                    author: t('term_citizen', 'Citizen'),
+                    icon: t('icon_map', 'map'),
+                    badgeIcon: t('icon_cloud_done', 'cloud_done'),
+                    badgeLabel: t('synced_badge', 'Synced'),
+                    badgeColor: currentTheme.success || '#10b981',
+                    catIcon: t('icon_extension', 'extension'),
+                    catLabel: t('filter_package', 'Package'),
+                    actionIcon: t('icon_visibility', 'visibility'),
+                    actionLabel: t('btn_preview_theme', 'Preview'),
+                  },
+                ].map((card, cIdx) => (
+                  <div
+                    key={cIdx}
+                    data-sandbox-glass="panel"
+                    style={panelBorderStyle}
+                    className="p-3.5 flex flex-col justify-between gap-3 overflow-hidden"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div
+                        data-sandbox-glass="surface"
+                        style={surfaceBorderStyle}
+                        className="w-9 h-9 flex items-center justify-center shrink-0"
+                      >
+                        <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                          {card.icon}
+                        </span>
+                      </div>
+                      <span
+                        data-sandbox-glass="surface"
+                        style={chipBorderStyle}
+                        className="px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 shrink-0"
+                      >
+                        <span
+                          className="material-symbols-outlined !text-[11px]"
+                          style={{ color: card.badgeColor }}
+                        >
+                          {card.badgeIcon}
+                        </span>
+                        <span>{card.badgeLabel}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span
+                        className="font-black text-[var(--text)] leading-tight truncate"
+                        style={{ fontSize: currentTheme.fontSizeText || '0.9rem' }}
+                      >
+                        {card.title}
+                      </span>
+                      <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
+                        {card.author}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span
+                        data-sandbox-glass="surface"
+                        style={chipBorderStyle}
+                        className="px-2 py-1 text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                          {card.catIcon}
+                        </span>
+                        <span>{card.catLabel}</span>
+                      </span>
+
+                      <span
+                        data-sandbox-glass="surface"
+                        style={chipBorderStyle}
+                        className="px-2.5 py-1 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                          {card.actionIcon}
+                        </span>
+                        <span>{card.actionLabel}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Row 4: Semantic Status Badges (Transparent Background per Sanctuary Design Rules) */}
+              <div className="grid grid-cols-3 gap-2.5 shrink-0">
+                {[
+                  {
+                    key: 'success' as const,
+                    icon: t('icon_verified', 'verified'),
+                    label: t('verified', 'Verified'),
+                    color: currentTheme.success || '#10b981',
+                  },
+                  {
+                    key: 'warning' as const,
+                    icon: t('icon_warning', 'warning'),
+                    label: t('label_unstable', 'Unstable'),
+                    color: currentTheme.warning || '#f59e0b',
+                  },
+                  {
+                    key: 'danger' as const,
+                    icon: t('icon_error', 'error'),
+                    label: t('status_corrupted', 'Broken'),
+                    color: currentTheme.danger || '#f43f5e',
+                  },
+                ].map((badge) => (
+                  <div
+                    key={badge.key}
                     data-sandbox-glass="surface"
                     style={chipBorderStyle}
-                    className="px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 shrink-0"
+                    className="px-2.5 py-2 flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)] overflow-hidden"
                   >
                     <span
-                      className="material-symbols-outlined !text-[11px]"
-                      style={{ color: card.badgeColor }}
+                      className="material-symbols-outlined !text-[12px] shrink-0"
+                      style={{ color: badge.color }}
                     >
-                      {card.badgeIcon}
+                      {badge.icon}
                     </span>
-                    <span>{card.badgeLabel}</span>
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span
-                    className="font-black text-[var(--text)] leading-tight truncate"
-                    style={{ fontSize: currentTheme.fontSizeText || '0.9rem' }}
-                  >
-                    {card.title}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
-                    {card.author}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <span
-                    data-sandbox-glass="surface"
-                    style={chipBorderStyle}
-                    className="px-2 py-1 text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                      {card.catIcon}
-                    </span>
-                    <span>{card.catLabel}</span>
-                  </span>
-
-                  <span
-                    data-sandbox-glass="surface"
-                    style={chipBorderStyle}
-                    className="px-2.5 py-1 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                      {card.actionIcon}
-                    </span>
-                    <span>{card.actionLabel}</span>
-                  </span>
-                </div>
+                    <span className="leading-none">{badge.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Row 4: Semantic Status Badges (Transparent Background per Sanctuary Design Rules) */}
-          <div className="grid grid-cols-3 gap-2.5 shrink-0">
-            {[
-              {
-                key: 'success' as const,
-                icon: t('icon_verified', 'verified'),
-                label: t('verified', 'Verified'),
-                color: currentTheme.success || '#10b981',
-              },
-              {
-                key: 'warning' as const,
-                icon: t('icon_warning', 'warning'),
-                label: t('label_unstable', 'Unstable'),
-                color: currentTheme.warning || '#f59e0b',
-              },
-              {
-                key: 'danger' as const,
-                icon: t('icon_error', 'error'),
-                label: t('status_corrupted', 'Broken'),
-                color: currentTheme.danger || '#f43f5e',
-              },
-            ].map((badge) => (
-              <div
-                key={badge.key}
-                data-sandbox-glass="surface"
-                style={chipBorderStyle}
-                className="px-2.5 py-2 flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)] overflow-hidden"
-              >
-                <span
-                  className="material-symbols-outlined !text-[12px] shrink-0"
-                  style={{ color: badge.color }}
+              {/* Row 5: Bottom-Right Sculpted Status Toast Specimen */}
+              <div className="pt-0.5 flex justify-end shrink-0">
+                <div
+                  data-sandbox-glass="panel"
+                  style={panelBorderStyle}
+                  className="px-3 py-2 flex items-center gap-2.5 max-w-[85%]"
                 >
-                  {badge.icon}
-                </span>
-                <span className="leading-none">{badge.label}</span>
+                  <div
+                    data-sandbox-glass="surface"
+                    style={surfaceBorderStyle}
+                    className="w-7 h-7 flex items-center justify-center shrink-0"
+                  >
+                    <span
+                      className="material-symbols-outlined !text-[14px]"
+                      style={{ color: currentTheme.success || '#10b981' }}
+                    >
+                      {t('icon_check_circle', 'check_circle')}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="text-[7px] font-black uppercase tracking-widest leading-none"
+                      style={{ color: currentTheme.success || '#10b981' }}
+                    >
+                      {t('stat_system_stable', 'System Stable')}
+                    </span>
+                    <span className="text-[10px] font-bold text-[var(--text)] leading-tight truncate mt-0.5">
+                      {t('status_synced', 'Synced')}
+                    </span>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-
-          {/* Row 5: Live Dynamic Nexus Preview Card Specimen */}
-          <div className="flex flex-col gap-2 shrink-0">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t('chameleon_dynamic_preview_badge', 'Nexus Card Preview')}
-              </span>
-              <span
-                data-sandbox-glass="surface"
-                style={chipBorderStyle}
-                className="px-2.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0"
+            </>
+          ) : (
+            <div className="flex flex-col gap-4 my-auto">
+              {/* Nexus Marketplace Card Specimen */}
+              <div
+                data-sandbox-glass="panel"
+                style={panelBorderStyle}
+                className="overflow-hidden flex flex-col"
               >
-                <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                  {t('icon_auto_awesome', 'auto_awesome')}
-                </span>
-                <span>
-                  {currentTheme.previewImage
-                    ? t('forge_preview_custom_mode', 'Custom Banner')
-                    : t('forge_preview_dynamic_mode', 'Auto-Generated')}
-                </span>
-              </span>
-            </div>
-            <div className="rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-xl">
-              <DynamicThemePreviewBanner
-                data={currentTheme}
-                heightClass="h-32"
-                insetTopClass="top-2.5"
-                expanded
-              />
-            </div>
-          </div>
+                <div className="relative">
+                  <DynamicThemePreviewBanner
+                    data={currentTheme}
+                    heightClass="h-44"
+                    insetTopClass="top-3"
+                    expanded
+                  />
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-base font-black text-[var(--text)] leading-tight truncate">
+                        {currentTheme.name || t('market_untitled', 'Untitled')}
+                      </span>
+                      <span className="text-[11px] font-bold text-[var(--subtext)] truncate mt-0.5">
+                        {t('term_chameleon', 'Chameleon')}
+                      </span>
+                    </div>
+                    <span
+                      data-sandbox-glass="surface"
+                      style={chipBorderStyle}
+                      className="px-2.5 py-1 text-[8.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0"
+                    >
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t('icon_auto_awesome', 'auto_awesome')}
+                      </span>
+                      <span>
+                        {currentTheme.previewImage
+                          ? t('forge_preview_custom_mode', 'Custom Banner')
+                          : t('forge_preview_dynamic_mode', 'Auto-Generated')}
+                      </span>
+                    </span>
+                  </div>
 
-          {/* Row 6: Bottom Dock Telemetry Pill (Matches Sanctuary OS Bottom Status Bar) */}
-          <div className="pt-0.5 flex justify-center shrink-0">
-            <div
-              data-sandbox-glass="panel"
-              style={{
-                ...panelBorderStyle,
-                borderRadius: '9999px',
-              }}
-              className="px-4 py-1.5 flex items-center gap-3.5 text-[9px] font-mono font-bold"
-            >
-              <span className="flex items-center gap-1" style={{ color: currentTheme.success || '#10b981' }}>
-                <span className="material-symbols-outlined !text-[12px]">
-                  {t('icon_memory', 'memory')}
-                </span>
-                <span>2</span>
-              </span>
-              <span className="flex items-center gap-1" style={{ color: currentTheme.accent || '#38bdf8' }}>
-                <span className="material-symbols-outlined !text-[12px]">
-                  {t('icon_cloud_done', 'cloud_done')}
-                </span>
-                <span>1</span>
-              </span>
-              <span className="flex items-center gap-1 text-[var(--subtext)]">
-                <span className="material-symbols-outlined !text-[12px]">
-                  {t('icon_blur_on', 'blur_on')}
-                </span>
-                <span>{displayBezelPct}%</span>
-              </span>
+                  {/* Color Swatch Strip */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        currentTheme.bg || '#040812',
+                        currentTheme.panelTint || '#060d1f',
+                        currentTheme.accent || '#38bdf8',
+                        currentTheme.text || '#f8fafc',
+                        currentTheme.subtext || '#94a3b8',
+                        currentTheme.success || '#10b981',
+                        currentTheme.warning || '#f59e0b',
+                        currentTheme.danger || '#ef4444',
+                      ].map((hex, idx) => (
+                        <span
+                          key={idx}
+                          className="w-4 h-4 rounded-full border border-white/25 shadow-sm"
+                          style={{ backgroundColor: hex === 'transparent' ? '#040812' : hex }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[9.5px] font-mono font-bold text-[var(--accent)]">
+                      {String(currentTheme.accent || '#38bdf8').toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optical Spec Sheet */}
+              <div
+                data-sandbox-glass="panel"
+                style={panelBorderStyle}
+                className="p-4 grid grid-cols-2 gap-3"
+              >
+                {[
+                  {
+                    label: t('forge_glass_opacity', 'Glass Opacity'),
+                    val: `${displayOpacityPct}%`,
+                  },
+                  {
+                    label: t('forge_glass_blur', 'Refractive Blur'),
+                    val: `${displayBlurPx}px`,
+                  },
+                  {
+                    label: t('forge_glass_refraction', "Snell's Refraction"),
+                    val: `${displayRefractPct}%`,
+                  },
+                  {
+                    label: t('forge_glass_specular', 'Specular Glare'),
+                    val: `${displaySpecPct}%`,
+                  },
+                  {
+                    label: t('forge_glass_bezel', 'Meniscus Lip Width'),
+                    val: `${displayBezelPct}%`,
+                  },
+                  {
+                    label: t('forge_radius', 'Corner Radius'),
+                    val: currentTheme.radius || '1.25rem',
+                  },
+                ].map((spec, idx) => (
+                  <div
+                    key={idx}
+                    data-sandbox-glass="surface"
+                    style={surfaceBorderStyle}
+                    className="px-3 py-2 flex items-center justify-between gap-2"
+                  >
+                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
+                      {spec.label}
+                    </span>
+                    <span className="text-[10px] font-mono font-black text-[var(--accent)] shrink-0">
+                      {spec.val}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

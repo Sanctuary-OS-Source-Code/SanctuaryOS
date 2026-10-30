@@ -400,9 +400,10 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         >
             <div className="w-full flex flex-col gap-6">
                 {isLoading ? (
-                    <div className="flex justify-center items-center h-32 opacity-50">
-                        <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
-                    </div>
+                    <EmptyState
+                        icon={t("icon_sync", "sync")}
+                        title={t("ui_btn_processing", "Processing...")}
+                    />
                 ) : activeTab === 'LANDING' ? renderLanding() : renderList()}
                 {selectedTicket && (
                     <TicketDossierSidePanel

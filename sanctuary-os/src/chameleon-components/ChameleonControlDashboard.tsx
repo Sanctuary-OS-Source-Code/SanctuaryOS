@@ -15,7 +15,6 @@ import {
   getLuminance,
   analyzeAndHarmonizeTheme,
 } from './ChameleonShared';
-import { UniversalCard } from '../components/universal/UniversalCard';
 import { Slider } from '../components/universal/Slider';
 import { DashboardStatTile } from '../hub-components/SharedCommandScreenLayout';
 import { UniversalGroup, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
@@ -26,6 +25,17 @@ interface ChameleonControlDashboardProps {
   handleUpdateTheme: (updates: any) => void;
   editingThemeId: string | null;
   renameTheme?: (id: string, newName: string) => void;
+  livePreview?: boolean;
+  onToggleLivePreview?: () => void;
+  onApplyTheme?: () => void;
+  isActiveOnOs?: boolean;
+  onSaveTheme?: () => void;
+  saveLabel?: string;
+  onPublishTheme?: () => void;
+  publishLabel?: string;
+  isSaving?: boolean;
+  publishDisabled?: boolean;
+  themeBadge?: string;
 }
 
 export function ChameleonControlDashboard({
@@ -33,17 +43,42 @@ export function ChameleonControlDashboard({
   handleUpdateTheme,
   editingThemeId,
   renameTheme,
+  livePreview = false,
+  onToggleLivePreview,
+  onApplyTheme,
+  isActiveOnOs = false,
+  onSaveTheme,
+  saveLabel,
+  onPublishTheme,
+  publishLabel,
+  isSaving = false,
+  publishDisabled = false,
+  themeBadge,
 }: ChameleonControlDashboardProps) {
   const { t } = useLexicon();
-  const { currentTheme: osActiveTheme } = useTheme();
+  const { currentTheme: osActiveTheme, activeThemeId } = useTheme();
   const osActiveThemeRef = useRef<any>(osActiveTheme);
   osActiveThemeRef.current = osActiveTheme;
+  const initialOsThemeRef = useRef<any>(null);
+  if (!initialOsThemeRef.current && osActiveTheme) {
+    initialOsThemeRef.current = JSON.parse(JSON.stringify(osActiveTheme));
+  }
+  useEffect(() => {
+    if (!livePreview && editingThemeId !== activeThemeId && osActiveTheme) {
+      initialOsThemeRef.current = JSON.parse(JSON.stringify(osActiveTheme));
+    }
+  }, [osActiveTheme, livePreview, editingThemeId, activeThemeId]);
   const pushStatus = useStore((state) => state.pushStatus);
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
   const [pickerCoords, setPickerCoords] = useState<{ top?: number; left?: number; right?: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'presets' | 'optics' | 'typography' | 'backgrounds'>('presets');
   const [syncPaletteWallpaper, setSyncPaletteWallpaper] = useState(false);
   const [mobilePane, setMobilePane] = useState<'controls' | 'preview'>('controls');
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bodyScrollRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   useEffect(() => {
     const handlePaneSwitch = (e: Event) => {
@@ -61,25 +96,42 @@ export function ChameleonControlDashboard({
   const [bgBuilderColor1, setBgBuilderColor1] = useState('#1e1b4b');
   const [bgBuilderColor2, setBgBuilderColor2] = useState('#020617');
 
-  // Drive the live WebGL2 SDF Liquid Glass Engine AND :root CSS variables in real time even when editing cloud/sandbox theme objects
+  // Drive the live WebGL2 SDF Liquid Glass Engine AND :root CSS variables ONLY when livePreview is explicitly enabled
   const prevTexKeyRef = useRef<string>('');
+  const wasLiveRef = useRef<boolean>(false);
   useEffect(() => {
+    if (!livePreview) {
+      (window as any).__sanctuaryPreviewTheme = null;
+      if (initialOsThemeRef.current) {
+        applyThemeCssVarsToRoot(initialOsThemeRef.current);
+      }
+      if (wasLiveRef.current) {
+        wasLiveRef.current = false;
+        prevTexKeyRef.current = '';
+        (window as any).__sanctuaryRebuildWebGLGlass?.();
+        (window as any).__sanctuaryRenderWebGLGlass?.(true);
+      }
+      return;
+    }
+
+    wasLiveRef.current = true;
     (window as any).__sanctuaryPreviewTheme = currentTheme;
     applyThemeCssVarsToRoot(currentTheme);
     const texKey = `${currentTheme?.bgImage || ''}::${currentTheme?.bg || ''}::${Boolean(currentTheme?.transparentWindow)}::${currentTheme?.glassBlur || ''}::${currentTheme?.glassSaturation || ''}::${currentTheme?.ambientOrb ?? true}`;
-    if (prevTexKeyRef.current && prevTexKeyRef.current !== texKey) {
+    if (!prevTexKeyRef.current || prevTexKeyRef.current !== texKey) {
       (window as any).__sanctuaryRebuildWebGLGlass?.();
     } else {
       (window as any).__sanctuaryRenderWebGLGlass?.(true);
     }
     prevTexKeyRef.current = texKey;
-  }, [currentTheme]);
+  }, [currentTheme, livePreview]);
 
   useEffect(() => {
     return () => {
       (window as any).__sanctuaryPreviewTheme = null;
-      if (osActiveThemeRef.current) {
-        applyThemeCssVarsToRoot(osActiveThemeRef.current);
+      const restoreTarget = initialOsThemeRef.current || osActiveThemeRef.current;
+      if (restoreTarget) {
+        applyThemeCssVarsToRoot(restoreTarget);
       }
       (window as any).__sanctuaryRebuildWebGLGlass?.();
       (window as any).__sanctuaryRenderWebGLGlass?.(true);
@@ -165,15 +217,6 @@ export function ChameleonControlDashboard({
     compressUploadedImage(file, 1280, 720, (dataUrl) => {
       handleUpdateTheme({ previewImage: dataUrl });
     });
-  };
-
-  const handleCopyThemeJson = () => {
-    try {
-      navigator.clipboard.writeText(JSON.stringify(currentTheme, null, 2));
-      pushStatus?.(t('forge_status_copied_json', '{Chameleon} JSON copied to clipboard.'));
-    } catch {
-      // ignore clipboard errors
-    }
   };
 
   const handleAutoHarmonize = async () => {
@@ -271,42 +314,41 @@ export function ChameleonControlDashboard({
   const specularPct = toPercentInt(currentTheme.glassSpecular, 24);
   const shadowPct = toPercentInt(currentTheme.glassShadow, 42);
 
+  const handleApplyThemeClick = () => {
+    initialOsThemeRef.current = JSON.parse(JSON.stringify(currentTheme));
+    applyThemeCssVarsToRoot(currentTheme);
+    (window as any).__sanctuaryRebuildWebGLGlass?.();
+    (window as any).__sanctuaryRenderWebGLGlass?.(true);
+    onApplyTheme?.();
+  };
+
   return (
     <div
       className={`${mobilePane === 'preview' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col h-full min-h-0 lg:border-r border-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden`}
-      style={{ '--accent': currentTheme.accent || '#38bdf8' } as React.CSSProperties}
     >
-      {/* Compact Theme Matrix Header & 4-Tile Navigation */}
-      <div className="flex flex-col gap-3 px-3.5 sm:px-6 pt-3.5 sm:pt-4 pb-3.5 sm:pb-4 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-transparent shrink-0">
-        <div className="glass-panel p-3 sm:p-3.5 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-              <span className="material-symbols-outlined !text-[20px]">
-                {t('icon_palette', 'palette')}
+      {/* Sculpted Theme Studio Header & Single-Line 4-Tab Bar */}
+      <div className="flex flex-col gap-2.5 px-3.5 sm:px-5 pt-3 pb-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-transparent shrink-0">
+        <div className="glass-panel p-2.5 sm:p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+          {/* Left: Recessed Editable Theme Name Input */}
+          <div className="flex items-center gap-2 h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] transition-all min-w-[160px] sm:min-w-[210px] flex-1 max-w-[300px]">
+            <input
+              type="text"
+              value={currentTheme.name || ''}
+              onChange={(e) =>
+                canRename && renameTheme && editingThemeId && renameTheme(editingThemeId, e.target.value)
+              }
+              className="w-full bg-transparent border-none outline-none text-sm font-black text-[var(--text)] tracking-tight truncate"
+              placeholder={t('forge_theme_name_placeholder', 'Enter Theme Name...')}
+              disabled={!canRename}
+            />
+            {canRename && (
+              <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)] opacity-65 shrink-0">
+                {t('icon_edit', 'edit')}
               </span>
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0 px-2.5 py-0.5 -ml-2.5 rounded-xl border border-transparent hover:glass-surface hover:border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus-within:glass-surface focus-within:border-[color-mix(in_srgb,var(--accent)_45%,rgba(255,255,255,0.32))] transition-all w-fit max-w-full">
-                <input
-                  type="text"
-                  value={currentTheme.name || ''}
-                  onChange={(e) => canRename && renameTheme && editingThemeId && renameTheme(editingThemeId, e.target.value)}
-                  className="w-full max-w-[260px] bg-transparent border-none outline-none text-base font-black text-[var(--text)] tracking-tight py-0.5 truncate"
-                  placeholder={t('forge_theme_name_placeholder', 'Enter Theme Name...')}
-                  disabled={!canRename}
-                />
-                {canRename && (
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] opacity-75 shrink-0">
-                    {t('icon_edit', 'edit')}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-[var(--subtext)] opacity-80 truncate">
-                {t('ui_use_dashboard', 'Customize Liquid Glass optics, chromatic palettes, typography, and refractive wallpapers.')}
-              </p>
-            </div>
+            )}
           </div>
 
+          {/* Right: Primary Theme Studio & Commit Actions */}
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
             <button
               type="button"
@@ -317,83 +359,159 @@ export function ChameleonControlDashboard({
               }
               className={`lg:hidden ${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
             >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                 {t('icon_visibility', 'visibility')}
               </span>
               <span>{t('btn_preview_theme', 'Preview')}</span>
             </button>
+
+            {onToggleLivePreview && (
+              <button
+                type="button"
+                onClick={onToggleLivePreview}
+                className={`${VAULT_CHIP_CLASS} ${
+                  livePreview
+                    ? 'sa-glass-pill-active !border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))]'
+                    : 'hover:sa-glass-pill-active'
+                } transition-all cursor-pointer`}
+              >
+                <span
+                  className={`material-symbols-outlined !text-[13px] ${
+                    livePreview ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'
+                  }`}
+                >
+                  {livePreview
+                    ? t('icon_visibility', 'visibility')
+                    : t('icon_visibility_off', 'visibility_off')}
+                </span>
+                <span>{t('btn_live_preview_short', 'OS Preview')}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleToggleThemeMode}
               className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
             >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                 {isDarkMode ? t('icon_dark_mode', 'dark_mode') : t('icon_light_mode', 'light_mode')}
               </span>
               <span>{isDarkMode ? t('mode_dark', 'Dark') : t('mode_light', 'Light')}</span>
             </button>
+
             <button
               type="button"
               onClick={handleAutoHarmonize}
               className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
             >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_contrast', 'contrast')}
+              <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                {t('icon_auto_fix_high', 'auto_fix_high')}
               </span>
               <span>{t('forge_btn_auto_contrast', 'Auto-Harmonize')}</span>
             </button>
-            <button
-              type="button"
-              onClick={handleCopyThemeJson}
-              className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
-            >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t('icon_content_copy', 'content_copy')}
-              </span>
-              <span>{t('forge_btn_copy_json', 'Copy JSON')}</span>
-            </button>
+
+            {onApplyTheme && (
+              <button
+                type="button"
+                onClick={handleApplyThemeClick}
+                className={`${VAULT_CHIP_CLASS} ${
+                  isActiveOnOs
+                    ? 'sa-glass-pill-active !border-[color-mix(in_srgb,var(--success)_50%,transparent)]'
+                    : 'hover:sa-glass-pill-active'
+                } transition-all cursor-pointer`}
+              >
+                <span
+                  className={`material-symbols-outlined !text-[13px] ${
+                    isActiveOnOs ? 'text-[var(--success)]' : 'text-[var(--accent)]'
+                  }`}
+                >
+                  {t('icon_check_circle', 'check_circle')}
+                </span>
+                <span>
+                  {isActiveOnOs ? t('theme_active', 'Active') : t('theme_activate', 'Apply Theme')}
+                </span>
+              </button>
+            )}
+
+            {onSaveTheme && (
+              <button
+                type="button"
+                onClick={onSaveTheme}
+                className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
+              >
+                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                  {t('icon_save', 'save')}
+                </span>
+                <span>{saveLabel || t('save', 'Save')}</span>
+              </button>
+            )}
+
+            {onPublishTheme && (
+              <button
+                type="button"
+                onClick={onPublishTheme}
+                disabled={publishDisabled || isSaving}
+                className={`${VAULT_CHIP_CLASS} sa-glass-pill-active !border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.35))] transition-all cursor-pointer disabled:opacity-40`}
+              >
+                <span
+                  className={`material-symbols-outlined !text-[13px] text-[var(--accent)] ${
+                    isSaving ? 'animate-spin' : ''
+                  }`}
+                >
+                  {isSaving ? t('icon_sync', 'sync') : t('icon_cloud_upload', 'cloud_upload')}
+                </span>
+                <span>
+                  {isSaving
+                    ? t('btn_saving', 'Saving...')
+                    : publishLabel || t('btn_publish', 'Publish')}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 4-Tile Filter Grid */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-2.5 w-full">
+        {/* Sleek Single-Line 4-Tab Grid */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 w-full">
           <DashboardStatTile
             variant="filter"
             icon={t('icon_auto_awesome', 'auto_awesome')}
             label={t('forge_tab_presets', 'Presets')}
-            value={t('forge_tab_presets_sub', 'Quick Styles')}
             isActive={activeTab === 'presets'}
             onClick={() => setActiveTab('presets')}
+            className="!min-h-[44px] !py-1.5 !px-3"
           />
           <DashboardStatTile
             variant="filter"
             icon={t('icon_blur_on', 'blur_on')}
             label={t('forge_tab_optics', 'Liquid Glass')}
-            value={t('forge_tab_optics_sub', 'Optics & Colors')}
             isActive={activeTab === 'optics'}
             onClick={() => setActiveTab('optics')}
+            className="!min-h-[44px] !py-1.5 !px-3"
           />
           <DashboardStatTile
             variant="filter"
             icon={t('icon_text_fields', 'text_fields')}
             label={t('forge_tab_fonts', 'Typography')}
-            value={t('forge_tab_type_shape_sub', 'Fonts & Shape')}
             isActive={activeTab === 'typography'}
             onClick={() => setActiveTab('typography')}
+            className="!min-h-[44px] !py-1.5 !px-3"
           />
           <DashboardStatTile
             variant="filter"
             icon={t('icon_wallpaper', 'wallpaper')}
             label={t('forge_tab_atmosphere', 'Atmosphere')}
-            value={t('forge_tab_atmosphere_sub', 'Wallpapers')}
             isActive={activeTab === 'backgrounds'}
             onClick={() => setActiveTab('backgrounds')}
+            className="!min-h-[44px] !py-1.5 !px-3"
           />
         </div>
       </div>
 
       {/* Tab Content Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-6 flex flex-col gap-5 sm:gap-6 pb-28">
+      <div
+        ref={bodyScrollRef}
+        className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-6 flex flex-col gap-5 sm:gap-6 pb-28"
+      >
         {/* TAB 1: QUICK PRESETS (1-CLICK GLASS MATERIALS & CURATED COLOR PALETTES) */}
         {activeTab === 'presets' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -495,6 +613,13 @@ export function ChameleonControlDashboard({
                     currentTheme.accent?.toLowerCase() === palette.colors.accent.toLowerCase() &&
                     currentTheme.bg?.toLowerCase() === palette.colors.bg.toLowerCase();
                   const isLightPalette = palette.id === 'alabaster' || palette.id === 'sims';
+                  const swatchChannels = [
+                    { color: palette.colors.bg, label: t('color_bg', 'Background') },
+                    { color: palette.colors.panelTint, label: t('forge_color_panel_tint', 'Surface') },
+                    { color: palette.colors.accent, label: t('color_accent', 'Accent') },
+                    { color: palette.colors.text, label: t('color_text', 'Text') },
+                    { color: palette.colors.subtext, label: t('color_subtext', 'Subtext') },
+                  ];
 
                   return (
                     <button
@@ -516,51 +641,57 @@ export function ChameleonControlDashboard({
                           : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                       }`}
                     >
-                      <div className="relative z-10 flex items-center justify-between gap-2 w-full">
-                        <span className={`text-xs font-black tracking-tight leading-snug ${isActivePalette ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}>
-                          {t(palette.labelKey, palette.fallbackLabel)}
-                        </span>
-                        {isActivePalette && (
-                          <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                            <span className="material-symbols-outlined !text-[13px]">
+                      <div className="relative z-10 flex items-center justify-between gap-2.5 w-full">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                            <span
+                              className="material-symbols-outlined !text-[16px]"
+                              style={{ color: palette.colors.accent }}
+                            >
+                              {t('icon_palette', 'palette')}
+                            </span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span
+                              className={`text-xs font-black tracking-tight leading-snug truncate ${
+                                isActivePalette ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+                              }`}
+                            >
+                              {t(palette.labelKey, palette.fallbackLabel)}
+                            </span>
+                            <span className="text-[9.5px] text-[var(--subtext)] opacity-80 leading-tight">
+                              {isLightPalette ? t('mode_light', 'Light') : t('mode_dark', 'Dark')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isActivePalette ? (
+                          <div className="w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                            <span className="material-symbols-outlined !text-[14px]">
                               {t('icon_check_circle', 'check_circle')}
                             </span>
                           </div>
+                        ) : (
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: palette.colors.accent }}
+                            />
+                            <span className="font-mono text-[9.5px]">{palette.colors.accent}</span>
+                          </span>
                         )}
                       </div>
 
-                      {/* 5-Swatch Color Preview Bar */}
-                      <div
-                        className="w-full h-11 rounded-xl p-2 flex items-center justify-between border border-white/15 shadow-inner relative overflow-hidden"
-                        style={{
-                          background: `linear-gradient(135deg, ${palette.colors.bg} 0%, ${palette.colors.panelTint} 62%, ${palette.colors.accent}40 100%)`,
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 relative z-10">
-                          {[
-                            palette.colors.bg,
-                            palette.colors.panelTint,
-                            palette.colors.accent,
-                            palette.colors.text,
-                            palette.colors.subtext,
-                          ].map((swatch, idx) => (
-                            <span
-                              key={idx}
-                              className="w-4 h-4 rounded-full border border-white/30 shadow-md"
-                              style={{ backgroundColor: swatch }}
-                            />
-                          ))}
-                        </div>
-                        <span
-                          className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border relative z-10"
-                          style={{
-                            backgroundColor: 'rgba(0,0,0,0.65)',
-                            color: palette.colors.accent,
-                            borderColor: `${palette.colors.accent}66`,
-                          }}
-                        >
-                          {palette.colors.accent}
-                        </span>
+                      {/* 5-Channel Sculpted Swatch Grid */}
+                      <div className="relative z-10 w-full p-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] grid grid-cols-5 gap-1.5">
+                        {swatchChannels.map((sw, idx) => (
+                          <div
+                            key={idx}
+                            className="h-7 rounded-lg border border-white/20 shadow-sm transition-transform group-hover:scale-[1.02]"
+                            style={{ backgroundColor: sw.color }}
+                            title={`${sw.label}: ${sw.color}`}
+                          />
+                        ))}
                       </div>
                     </button>
                   );
@@ -1571,21 +1702,26 @@ export function ChameleonControlDashboard({
 
             {/* Section 2: Custom Wallpaper & Nexus Preview Banner Uploads */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col gap-0.5">
+              <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-3.5">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                      <span className="text-xs font-black tracking-tight text-[var(--text)]">
                         {t('forge_wallpaper_engine', 'Custom Desktop Wallpaper')}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[8px] font-black uppercase tracking-wider">
-                        {!currentTheme.bgImage && (currentTheme.bg === 'transparent' || currentTheme.transparentWindow)
-                          ? t('forge_wp_desktop_passthrough', 'Desktop Passthrough')
-                          : String(currentTheme.bgImage || '').startsWith('http')
-                            ? t('forge_wp_source_cloud', 'Cloud CDN Wallpaper')
-                            : String(currentTheme.bgImage || '').startsWith('data:')
-                              ? t('forge_wp_source_embedded', 'Portable WebP Asset')
-                              : t('forge_wp_source_builtin', 'Built-In Wallpaper')}
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t('icon_wallpaper', 'wallpaper')}
+                        </span>
+                        <span>
+                          {!currentTheme.bgImage && (currentTheme.bg === 'transparent' || currentTheme.transparentWindow)
+                            ? t('forge_wp_desktop_passthrough', 'Desktop Passthrough')
+                            : String(currentTheme.bgImage || '').startsWith('http')
+                              ? t('forge_wp_source_cloud', 'Cloud CDN Wallpaper')
+                              : String(currentTheme.bgImage || '').startsWith('data:')
+                                ? t('forge_wp_source_embedded', 'Portable WebP Asset')
+                                : t('forge_wp_source_builtin', 'Built-In Wallpaper')}
+                        </span>
                       </span>
                     </div>
                     <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">
@@ -1596,40 +1732,47 @@ export function ChameleonControlDashboard({
                     <button
                       type="button"
                       onClick={() => handleUpdateTheme({ bgImage: null })}
-                      className="px-2.5 py-1 rounded-lg bg-transparent border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest hover:border-red-400 transition-all cursor-pointer shrink-0"
+                      className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-danger transition-all cursor-pointer shrink-0`}
                     >
-                      {t('clear', 'Clear')}
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                        {t('icon_close', 'close')}
+                      </span>
+                      <span>{t('clear', 'Clear')}</span>
                     </button>
                   )}
                 </div>
 
-                <label className="relative h-28 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group">
+                <label className="relative h-28 rounded-xl glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,rgba(255,255,255,0.35))] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group">
                   <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   {currentTheme.bgImage ? (
                     <>
-                      <img src={currentTheme.bgImage} alt="Wallpaper" className="absolute inset-0 w-full h-full object-cover opacity-55 group-hover:opacity-75 transition-opacity" />
-                      <div className="relative z-10 px-3 py-1.5 rounded-xl bg-black/70 border border-white/20 flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                      <img
+                        src={currentTheme.bgImage}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                      />
+                      <div className="relative z-10 glass-panel sa-floating-glass-pill px-3.5 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_16%,transparent)] group-hover:sa-glass-pill-active flex items-center gap-2 shadow-lg transition-all">
+                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                           {t('icon_upload', 'upload')}
                         </span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                        <span className="text-[10px] font-black tracking-wider text-[var(--text)]">
                           {t('forge_bg_upload', 'Replace Wallpaper')}
                         </span>
                       </div>
                     </>
                   ) : (
-                    <>
-                      <span className="material-symbols-outlined !text-[26px] text-[var(--accent)]">
+                    <div className="relative z-10 glass-panel sa-floating-glass-pill px-3.5 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_16%,transparent)] group-hover:sa-glass-pill-active flex items-center gap-2 shadow-sm transition-all">
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                         {t('icon_upload', 'upload')}
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                      <span className="text-[10px] font-black tracking-wider text-[var(--text)]">
                         {t('forge_bg_upload', 'Upload Custom Wallpaper')}
                       </span>
-                    </>
+                    </div>
                   )}
                 </label>
 
-                <span className="text-[9px] text-[var(--subtext)] opacity-75 leading-relaxed">
+                <span className="text-[9.5px] text-[var(--subtext)] opacity-75 leading-relaxed">
                   {t(
                     'forge_wp_cloud_sync_hint',
                     'Custom wallpapers are automatically compressed as portable WebP in local JSON exports and uploaded to Cloud Storage when published to The {Nexus}.'
@@ -1637,13 +1780,13 @@ export function ChameleonControlDashboard({
                 </span>
               </div>
 
-              <div className="glass-panel p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+              <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-3.5">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-xs font-black tracking-tight text-[var(--text)]">
                       {t('forge_preview_banner_title', 'Custom Card Banner (Optional)')}
                     </span>
-                    <span className="text-[10px] text-[var(--subtext)] opacity-75">
+                    <span className="text-[10px] text-[var(--subtext)] opacity-80 leading-snug">
                       {t('forge_preview_banner_desc', 'If omitted, Sanctuary generates a live Dynamic OS Preview Card automatically.')}
                     </span>
                   </div>
@@ -1651,38 +1794,49 @@ export function ChameleonControlDashboard({
                     <button
                       type="button"
                       onClick={() => handleUpdateTheme({ previewImage: undefined })}
-                      className="px-2.5 py-1 rounded-lg bg-transparent border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest hover:border-red-400 transition-all cursor-pointer"
+                      className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-danger transition-all cursor-pointer shrink-0`}
                     >
-                      {t('clear', 'Clear')}
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                        {t('icon_close', 'close')}
+                      </span>
+                      <span>{t('clear', 'Clear')}</span>
                     </button>
                   )}
                 </div>
 
-                <label className="relative h-28 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group">
+                <label className="relative h-28 rounded-xl glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,rgba(255,255,255,0.35))] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden group px-4">
                   <input type="file" accept="image/*" onChange={handlePreviewImageUpload} className="hidden" />
                   {currentTheme.previewImage ? (
                     <>
-                      <img src={currentTheme.previewImage} alt="Banner" className="absolute inset-0 w-full h-full object-cover opacity-65 group-hover:opacity-85 transition-opacity" />
-                      <div className="relative z-10 px-3 py-1.5 rounded-xl bg-black/70 border border-white/20 flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                      <img
+                        src={currentTheme.previewImage}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover opacity-65 group-hover:opacity-85 transition-opacity"
+                      />
+                      <div className="relative z-10 glass-panel sa-floating-glass-pill px-3.5 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_16%,transparent)] group-hover:sa-glass-pill-active flex items-center gap-2 shadow-lg transition-all">
+                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                           {t('icon_image', 'image')}
                         </span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                        <span className="text-[10px] font-black tracking-wider text-[var(--text)]">
                           {t('forge_preview_banner_replace', 'Replace Custom Banner')}
                         </span>
                       </div>
                     </>
                   ) : (
-                    <>
-                      <span className="material-symbols-outlined !text-[26px] text-[var(--accent)]">
+                    <div className="relative z-10 glass-panel sa-floating-glass-pill px-3.5 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_16%,transparent)] group-hover:sa-glass-pill-active flex items-center gap-2 shadow-sm transition-all">
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                         {t('icon_auto_awesome_mosaic', 'auto_awesome_mosaic')}
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] text-center px-4">
+                      <span className="text-[10px] font-black tracking-wider text-[var(--text)] text-center">
                         {t('forge_preview_banner_auto', 'Using Default Dynamic OS Preview Card (Click to Override)')}
                       </span>
-                    </>
+                    </div>
                   )}
                 </label>
+
+                <span className="text-[9.5px] text-[var(--subtext)] opacity-75 leading-relaxed">
+                  {t('forge_preview_banner_desc', 'If omitted, Sanctuary generates a live Dynamic OS Preview Card automatically.')}
+                </span>
               </div>
             </div>
 
@@ -1692,7 +1846,7 @@ export function ChameleonControlDashboard({
               title={t('forge_bg_selector', 'Atmospheric Underlay Gradients')}
             >
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { id: 'none', label: t('forge_bg_solid', 'Solid Canvas') },
                     { id: 'linear-gradient(to bottom right, #171520, #241b2f)', label: t('forge_bg_miami', 'Nocturne') },
@@ -1709,17 +1863,17 @@ export function ChameleonControlDashboard({
                         key={preset.id}
                         type="button"
                         onClick={() => handleUpdateTheme({ bgGradient: preset.id })}
-                        className={`h-16 rounded-xl border transition-all flex items-center justify-center p-2 relative overflow-hidden group shadow-md cursor-pointer ${
+                        className={`h-16 rounded-2xl border transition-all flex items-center justify-center p-2.5 relative overflow-hidden group shadow-md cursor-pointer ${
                           isGradActive
                             ? 'sa-glass-pill-active z-10'
-                            : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
                         }`}
                       >
                         <div
-                          className="absolute inset-0 opacity-75 group-hover:opacity-100 transition-opacity"
+                          className="absolute inset-0 opacity-85 group-hover:opacity-100 transition-opacity"
                           style={{ background: preset.id === 'none' ? currentTheme.bg : preset.id }}
                         />
-                        <span className="relative z-10 text-[9px] font-black uppercase tracking-widest text-white drop-shadow-md text-center">
+                        <span className="relative z-10 px-2.5 py-1 rounded-lg bg-black/65 border border-white/20 text-[9.5px] font-black tracking-wider text-white shadow-sm text-center truncate max-w-full">
                           {preset.label}
                         </span>
                       </button>
@@ -1826,91 +1980,61 @@ export function ChameleonControlDashboard({
                   </div>
                 </div>
 
-                {/* Ambient Grain, Ambient Orb & Holo-Scanline Toggles */}
+                {/* Ambient Grain, Ambient Orb & Holo-Scanline Toggles (Full-Width Non-Truncated Titles) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
-                  <UniversalCard
-                    layout="horizontal"
-                    icon={t('icon_grain', 'grain')}
-                    title={t('forge_ambient_grain', 'Micro-Silica Film Grain')}
-                    actions={
-                      <label className="flex items-center gap-2 cursor-pointer mt-1">
-                        <div
-                          className={`sa-glass-toggle ${
-                            currentTheme.ambientNoise !== false ? 'is-on' : ''
-                          }`}
-                        >
+                  {[
+                    {
+                      key: 'ambientNoise',
+                      icon: t('icon_grain', 'grain'),
+                      title: t('forge_ambient_grain', 'Micro-Silica Film Grain'),
+                      desc: t('forge_ambient_grain_desc', 'Adds subtle tactile film grain across frosted glass surfaces.'),
+                      isOn: currentTheme.ambientNoise !== false,
+                      onToggle: () => handleUpdateTheme({ ambientNoise: currentTheme.ambientNoise === false }),
+                    },
+                    {
+                      key: 'ambientOrb',
+                      icon: t('icon_blur_on', 'blur_on'),
+                      title: t('forge_ambient_orb', 'Ambient Backlight Orbs'),
+                      desc: t('forge_ambient_orb_desc', 'Projects soft chromatic light blooms behind glass panels.'),
+                      isOn: currentTheme.ambientOrb !== false,
+                      onToggle: () => handleUpdateTheme({ ambientOrb: currentTheme.ambientOrb === false }),
+                    },
+                    {
+                      key: 'scanlines',
+                      icon: t('icon_line_weight', 'line_weight'),
+                      title: t('forge_scanlines', 'CRT Holo-Scanlines'),
+                      desc: t('forge_scanlines_desc', 'Projects subtle horizontal tactical scanlines across the viewport.'),
+                      isOn: Boolean(currentTheme.scanlines),
+                      onToggle: () => handleUpdateTheme({ scanlines: !currentTheme.scanlines }),
+                    },
+                  ].map((fx) => (
+                    <div
+                      key={fx.key}
+                      onClick={fx.onToggle}
+                      className={`glass-panel p-4 rounded-2xl border transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
+                        fx.isOn
+                          ? 'border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.22))]'
+                          : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[18px]">{fx.icon}</span>
+                        </div>
+                        <div className={`sa-glass-toggle shrink-0 ${fx.isOn ? 'is-on' : ''}`}>
                           <div className="sa-glass-toggle-thumb" />
                         </div>
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={currentTheme.ambientNoise !== false}
-                          onChange={(e) => handleUpdateTheme({ ambientNoise: e.target.checked })}
-                        />
-                      </label>
-                    }
-                    className="w-full"
-                  >
-                    <p className="text-[10px] text-[var(--subtext)] leading-relaxed mt-1">
-                      {t('forge_ambient_grain_desc', 'Adds subtle tactile film grain across frosted glass surfaces.')}
-                    </p>
-                  </UniversalCard>
-
-                  <UniversalCard
-                    layout="horizontal"
-                    icon={t('icon_blur_on', 'blur_on')}
-                    title={t('forge_ambient_orb', 'Ambient Backlight Orbs')}
-                    actions={
-                      <label className="flex items-center gap-2 cursor-pointer mt-1">
-                        <div
-                          className={`sa-glass-toggle ${
-                            currentTheme.ambientOrb !== false ? 'is-on' : ''
-                          }`}
-                        >
-                          <div className="sa-glass-toggle-thumb" />
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={currentTheme.ambientOrb !== false}
-                          onChange={(e) => handleUpdateTheme({ ambientOrb: e.target.checked })}
-                        />
-                      </label>
-                    }
-                    className="w-full"
-                  >
-                    <p className="text-[10px] text-[var(--subtext)] leading-relaxed mt-1">
-                      {t('forge_ambient_orb_desc', 'Projects soft chromatic light blooms behind glass panels.')}
-                    </p>
-                  </UniversalCard>
-
-                  <UniversalCard
-                    layout="horizontal"
-                    icon={t('icon_line_weight', 'line_weight')}
-                    title={t('forge_scanlines', 'CRT Holo-Scanlines')}
-                    actions={
-                      <label className="flex items-center gap-2 cursor-pointer mt-1">
-                        <div
-                          className={`sa-glass-toggle ${
-                            Boolean(currentTheme.scanlines) ? 'is-on' : ''
-                          }`}
-                        >
-                          <div className="sa-glass-toggle-thumb" />
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={Boolean(currentTheme.scanlines)}
-                          onChange={(e) => handleUpdateTheme({ scanlines: e.target.checked })}
-                        />
-                      </label>
-                    }
-                    className="w-full"
-                  >
-                    <p className="text-[10px] text-[var(--subtext)] leading-relaxed mt-1">
-                      {t('forge_scanlines_desc', 'Projects subtle horizontal tactical scanlines across the viewport.')}
-                    </p>
-                  </UniversalCard>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-xs font-black text-[var(--text)] leading-snug">
+                          {fx.title}
+                        </span>
+                        <p className="text-[10px] text-[var(--subtext)] opacity-80 leading-relaxed">
+                          {fx.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </UniversalGroup>

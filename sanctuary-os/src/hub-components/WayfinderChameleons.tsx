@@ -27,7 +27,6 @@ import {
 import { ChameleonControlDashboard } from "../chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "../chameleon-components/ChameleonSandboxPreview";
 import {
-  autoHarmonizeThemeColors,
   exportThemeWithAssets,
   importThemeWithAssets,
   uploadThemeAssetsToCloud,
@@ -244,11 +243,13 @@ export function WayfinderChameleons({
     }
   };
 
+  const initialEditSnapshotRef = useRef<any>(null);
+
   const handleUpdateTheme = (updates: any) => {
     setHasChanges(true);
     setActiveEditingTheme((prev: any) => ({ ...prev, ...updates }));
 
-    if (editingThemeId) {
+    if (editingThemeId && livePreview) {
       setCoreThemes((prevCore: any) => {
         const baseTheme = prevCore[editingThemeId] || activeEditingTheme;
         return {
@@ -294,6 +295,10 @@ export function WayfinderChameleons({
       setHasChanges(false);
       setActiveEditingTheme(syncedThemeData);
       setCloudThemes((prev) => ({ ...prev, [editingThemeId]: syncedThemeData }));
+      setCoreThemes((prevCore: any) => ({
+        ...prevCore,
+        [editingThemeId]: syncedThemeData,
+      }));
     } catch (err: any) {
       console.error(err);
       pushStatus(`${t("alert_error", "Error:")} ${err.message}`, "error");
@@ -330,17 +335,17 @@ export function WayfinderChameleons({
   };
 
   const openEditor = (id: string) => {
+    setLivePreview(false);
     setEditingThemeId(id);
-    setActiveEditingTheme(cloudThemes[id]);
+    const snap = cloudThemes[id] ? JSON.parse(JSON.stringify(cloudThemes[id])) : null;
+    initialEditSnapshotRef.current = snap;
+    setActiveEditingTheme(snap ? JSON.parse(JSON.stringify(snap)) : cloudThemes[id]);
     setOriginalThemeId(activeThemeId);
     setHasChanges(false);
-    if (livePreview) {
-      setCoreThemes((prev: any) => ({ ...prev, [id]: cloudThemes[id] }));
-      setActiveThemeId(id);
-    }
   };
 
   const closeEditor = () => {
+    setLivePreview(false);
     setEditingThemeId(null);
     setActiveEditingTheme(null);
     setHasChanges(false);
@@ -1366,99 +1371,104 @@ export function WayfinderChameleons({
         noPadding={true}
         noScroll={true}
         headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_contrast", "contrast")}
-              tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
-              onClick={() => {
-                if (activeEditingTheme) {
-                  const harmonized = autoHarmonizeThemeColors(activeEditingTheme);
-                  handleUpdateTheme(harmonized);
-                  pushStatus(
-                    t("forge_status_harmonized", "Text & surface contrast automatically harmonized."),
-                    "success"
-                  );
+          <>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={
+                  livePreview
+                    ? t("icon_visibility", "visibility")
+                    : t("icon_visibility_off", "visibility_off")
                 }
-              }}
-            />
-            <PanelHeaderButton
-              icon={t("icon_download", "download")}
-              tooltip={t("btn_import", "Import")}
-              onClick={async () => {
-                const res = await importThemeWithAssets({ t, pushStatus });
-                if (res?.theme) {
-                  handleUpdateTheme(res.theme);
-                } else if (res?.imageOnlyDataUrl) {
-                  handleUpdateTheme({ bgImage: res.imageOnlyDataUrl });
+                tooltip={
+                  livePreview
+                    ? t("ui_os_preview_on", "Live Preview On")
+                    : t("ui_os_preview_off", "Live Preview Off")
                 }
-              }}
-            />
-            <PanelHeaderButton
-              icon={t("icon_upload", "upload")}
-              tooltip={t("btn_export", "Export")}
-              onClick={() => {
-                if (activeEditingTheme) {
-                  exportThemeWithAssets(activeEditingTheme, {
-                    t,
-                    pushStatus,
-                  });
-                }
-              }}
-            />
-            <PanelHeaderButton
-              icon={livePreview ? t("icon_visibility", "visibility") : t("icon_visibility_off", "visibility_off")}
-              tooltip={
-                livePreview
-                  ? t("ui_os_preview_on", "Live Preview On")
-                  : t("ui_os_preview_off", "Live Preview Off")
-              }
-              variant={livePreview ? "success" : "default"}
-              onClick={() => {
-                if (livePreview) {
-                  if (originalThemeId) setActiveThemeId(originalThemeId);
-                } else {
+                variant={livePreview ? "success" : "default"}
+                onClick={() => setLivePreview((prev) => !prev)}
+              />
+              <PanelHeaderButton
+                icon={t("icon_check_circle", "check_circle")}
+                tooltip={t("ui_btn_apply", "Apply Theme")}
+                variant={editingThemeId === activeThemeId ? "success" : "default"}
+                onClick={() => {
                   if (editingThemeId) {
-                    if (activeEditingTheme) {
-                      setCoreThemes((prev: any) => ({
-                        ...prev,
-                        [editingThemeId]: activeEditingTheme,
-                      }));
-                    }
+                    setCoreThemes((prev: any) => ({
+                      ...prev,
+                      [editingThemeId]: activeEditingTheme,
+                    }));
                     setActiveThemeId(editingThemeId);
+                    setOriginalThemeId(editingThemeId);
+                    pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
                   }
-                }
-                setLivePreview(!livePreview);
-              }}
-            />
-            <PanelHeaderButton
-              icon={t("icon_refresh", "refresh")}
-              tooltip={t("btn_reset", "Reset")}
-              onClick={() => {
-                if (originalThemeId) setActiveThemeId(originalThemeId);
-                pushStatus(t("ui_theme_reset", "Theme Reset"), "success");
-              }}
-            />
-            <PanelHeaderButton
-              icon={t("icon_check_circle", "check_circle")}
-              tooltip={t("ui_btn_apply", "Apply Theme")}
-              variant="success"
-              onClick={() => {
-                if (editingThemeId) {
-                  setActiveThemeId(editingThemeId);
-                  setOriginalThemeId(editingThemeId);
-                  setEditingThemeId(null);
-                  pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
-                }
-              }}
-            />
-            <PanelHeaderButton
-              icon={t("icon_cloud_upload", "cloud_upload")}
-              tooltip={t("btn_publish", "Publish")}
-              onClick={saveToCloud}
-              disabled={isSaving || !hasChanges}
-              variant="accent"
-            />
-          </PanelHeaderGroup>
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_cloud_upload", "cloud_upload")}
+                tooltip={t("btn_publish", "Publish")}
+                onClick={saveToCloud}
+                disabled={isSaving || !hasChanges}
+                variant="accent"
+              />
+            </PanelHeaderGroup>
+            <PanelHeaderGroup overflow>
+              <PanelHeaderButton
+                icon={t("icon_download", "download")}
+                tooltip={t("btn_import", "Import")}
+                onClick={async () => {
+                  const res = await importThemeWithAssets({ t, pushStatus });
+                  if (res?.theme) {
+                    handleUpdateTheme(res.theme);
+                  } else if (res?.imageOnlyDataUrl) {
+                    handleUpdateTheme({ bgImage: res.imageOnlyDataUrl });
+                  }
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_upload", "upload")}
+                tooltip={t("btn_export", "Export")}
+                onClick={() => {
+                  if (activeEditingTheme) {
+                    exportThemeWithAssets(activeEditingTheme, {
+                      t,
+                      pushStatus,
+                    });
+                  }
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_content_copy", "content_copy")}
+                tooltip={t("forge_btn_copy_json", "Copy JSON")}
+                onClick={() => {
+                  if (!activeEditingTheme) return;
+                  try {
+                    navigator.clipboard.writeText(JSON.stringify(activeEditingTheme, null, 2));
+                    pushStatus(
+                      t("forge_status_copied_json", "{Chameleon} JSON copied to clipboard."),
+                      "success"
+                    );
+                  } catch {
+                    // ignore clipboard errors
+                  }
+                }}
+              />
+              <PanelHeaderButton
+                icon={t("icon_restart_alt", "restart_alt")}
+                tooltip={t("btn_reset", "Reset")}
+                onClick={() => {
+                  if (initialEditSnapshotRef.current) {
+                    const restored = JSON.parse(JSON.stringify(initialEditSnapshotRef.current));
+                    setActiveEditingTheme(restored);
+                    setHasChanges(false);
+                    if (editingThemeId && livePreview) {
+                      setCoreThemes((prev: any) => ({ ...prev, [editingThemeId]: restored }));
+                    }
+                    pushStatus(t("ui_theme_reset", "Theme Reset"), "success");
+                  }
+                }}
+              />
+            </PanelHeaderGroup>
+          </>
         }
       >
         {activeEditingTheme && (
@@ -1468,6 +1478,25 @@ export function WayfinderChameleons({
               handleUpdateTheme={handleUpdateTheme}
               editingThemeId={editingThemeId}
               renameTheme={renameTheme}
+              livePreview={livePreview}
+              onToggleLivePreview={() => setLivePreview((prev) => !prev)}
+              isActiveOnOs={editingThemeId === activeThemeId}
+              onApplyTheme={() => {
+                if (editingThemeId) {
+                  setCoreThemes((prev: any) => ({
+                    ...prev,
+                    [editingThemeId]: activeEditingTheme,
+                  }));
+                  setActiveThemeId(editingThemeId);
+                  setOriginalThemeId(editingThemeId);
+                  pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
+                }
+              }}
+              onPublishTheme={saveToCloud}
+              publishLabel={t("btn_publish", "Publish")}
+              isSaving={isSaving}
+              publishDisabled={!hasChanges}
+              themeBadge={t("wf_master_theme_edit", "Master Cloud Theme Configuration")}
             />
             <ChameleonSandboxPreview currentTheme={activeEditingTheme} />
           </div>

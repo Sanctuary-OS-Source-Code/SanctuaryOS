@@ -1,10 +1,10 @@
+import { useEffect, useRef, useState } from "react";
 import { SidePanel, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { ChameleonControlDashboard } from "../chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "../chameleon-components/ChameleonSandboxPreview";
 import {
-  analyzeAndHarmonizeTheme,
   exportThemeWithAssets,
   importThemeWithAssets,
 } from "../chameleon-components/ChameleonShared";
@@ -20,6 +20,17 @@ export function ChameleonEditorPanel({
   const { t } = useLexicon();
   const { currentTheme, activeThemeId, updateActiveTheme, renameTheme } = useTheme();
   const pushStatus = useStore((state) => state.pushStatus);
+  const [livePreview, setLivePreview] = useState(false);
+  const initialSnapshotRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLivePreview(false);
+      initialSnapshotRef.current = currentTheme
+        ? JSON.parse(JSON.stringify(currentTheme))
+        : null;
+    }
+  }, [isOpen]);
 
   const handleUpdateTheme = (updates: any) => {
     updateActiveTheme(updates);
@@ -28,7 +39,10 @@ export function ChameleonEditorPanel({
   return (
     <SidePanel
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        setLivePreview(false);
+        onClose();
+      }}
       title={t("ui_theme_editor", "Chameleon Editor")}
       subtitle={t("ui_system_theme", "Live Liquid Glass Theme Forge")}
       icon={t("icon_palette", "palette")}
@@ -40,18 +54,18 @@ export function ChameleonEditorPanel({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
-            icon={t("icon_contrast", "contrast")}
-            tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
-            onClick={async () => {
-              const harmonized = await analyzeAndHarmonizeTheme(currentTheme);
-              handleUpdateTheme(harmonized);
-              pushStatus?.(
-                t(
-                  "forge_status_harmonized",
-                  "Liquid Glass optics, surfaces & text contrast harmonized to active background."
-                )
-              );
-            }}
+            icon={
+              livePreview
+                ? t("icon_visibility", "visibility")
+                : t("icon_visibility_off", "visibility_off")
+            }
+            tooltip={
+              livePreview
+                ? t("ui_os_preview_on", "Live Preview On")
+                : t("ui_os_preview_off", "Live Preview Off")
+            }
+            variant={livePreview ? "success" : "default"}
+            onClick={() => setLivePreview((prev) => !prev)}
           />
           <PanelHeaderButton
             icon={t("icon_download", "download")}
@@ -75,6 +89,30 @@ export function ChameleonEditorPanel({
               });
             }}
           />
+          <PanelHeaderButton
+            icon={t("icon_content_copy", "content_copy")}
+            tooltip={t("forge_btn_copy_json", "Copy JSON")}
+            onClick={() => {
+              try {
+                navigator.clipboard.writeText(JSON.stringify(currentTheme, null, 2));
+                pushStatus?.(
+                  t("forge_status_copied_json", "{Chameleon} JSON copied to clipboard.")
+                );
+              } catch {
+                // ignore clipboard errors
+              }
+            }}
+          />
+          <PanelHeaderButton
+            icon={t("icon_restart_alt", "restart_alt")}
+            tooltip={t("btn_reset", "Reset")}
+            onClick={() => {
+              if (initialSnapshotRef.current) {
+                handleUpdateTheme(initialSnapshotRef.current);
+                pushStatus?.(t("ui_theme_reset", "Theme Reset"));
+              }
+            }}
+          />
         </PanelHeaderGroup>
       }
     >
@@ -84,6 +122,10 @@ export function ChameleonEditorPanel({
           handleUpdateTheme={handleUpdateTheme}
           editingThemeId={activeThemeId}
           renameTheme={renameTheme}
+          livePreview={livePreview}
+          onToggleLivePreview={() => setLivePreview((prev) => !prev)}
+          isActiveOnOs={true}
+          themeBadge={t("ui_system_theme", "System Theme")}
         />
         <ChameleonSandboxPreview currentTheme={currentTheme} />
       </div>

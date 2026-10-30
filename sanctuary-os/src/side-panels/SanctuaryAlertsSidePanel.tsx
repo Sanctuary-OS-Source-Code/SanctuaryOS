@@ -252,14 +252,10 @@ export function SanctuaryAlertsSidePanel({
             icon={t("icon_podcasts", "podcasts")}
           >
             {loading ? (
-              <div className="glass-surface rounded-xl p-12 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col items-center justify-center opacity-70">
-                <span className="material-symbols-outlined animate-spin-slow text-[var(--accent)] mb-3 !text-[28px]">
-                  {t("icon_sync", "sync")}
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--text)]">
-                  {t("ui_loading", "Loading...")}
-                </span>
-              </div>
+              <EmptyState
+                icon={t("icon_sync", "sync")}
+                title={t("ui_loading", "Loading...")}
+              />
             ) : filteredPosts.length === 0 ? (
               <EmptyState
                 icon={t("icon_satellite_alt", "satellite_alt")}

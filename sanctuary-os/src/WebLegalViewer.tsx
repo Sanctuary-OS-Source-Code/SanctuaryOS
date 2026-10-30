@@ -14,6 +14,7 @@ import {
   StatTileCarousel,
   PanelHeaderGroup,
   PanelHeaderButton,
+  EmptyState,
 } from "./shared";
 import {
   StructuredReleaseNotesView,
@@ -203,11 +204,10 @@ export default function WebLegalViewer() {
           icon={t("icon_description", "description")}
         >
           {loading ? (
-            <div className="glass-surface rounded-xl py-16 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex justify-center items-center">
-              <span className="material-symbols-outlined animate-spin text-4xl text-[var(--accent)]">
-                {t("icon_autorenew", "autorenew")}
-              </span>
-            </div>
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("loading", "Loading...")}
+            />
           ) : viewMode === "ui" ? (
             <StructuredReleaseNotesView
               content={legalContent?.message || legalContent?.content || ""}

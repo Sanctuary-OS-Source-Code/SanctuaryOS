@@ -1269,9 +1269,10 @@ export function MasonSandbox({
       }
     >
       {isLoading && hubTab === "sandbox" ? (
-        <div className="flex justify-center items-center h-40 opacity-50 capitalize font-black tracking-widest text-[var(--text)]">
-          {t("scanning", "Scanning...")}
-        </div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("scanning", "Scanning...")}
+        />
       ) : hubTab === "overview" ? (
         renderLanding()
       ) : hubTab === "sandbox" ? (

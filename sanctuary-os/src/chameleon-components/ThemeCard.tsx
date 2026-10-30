@@ -83,7 +83,7 @@ export function DynamicThemePreviewBanner({
     !hasCustomPreview &&
     (!data?.bgImage || String(data.bgImage).trim() === '') &&
     (data?.bg === 'transparent' || Boolean(data?.transparentWindow));
-  const bgImageUrl = hasCustomPreview
+  const rawBgImageUrl = hasCustomPreview
     ? data.previewImage
     : data?.bgImage && String(data.bgImage).trim() !== '' && data.bgImage !== 'none'
       ? data.bgImage
@@ -92,6 +92,12 @@ export function DynamicThemePreviewBanner({
           !String(data.image_url).includes('placeholder')
         ? data.image_url
         : null;
+
+  const [imgFailed, setImgFailed] = React.useState(false);
+  React.useEffect(() => {
+    setImgFailed(false);
+  }, [rawBgImageUrl]);
+  const bgImageUrl = imgFailed ? null : rawBgImageUrl;
 
   const hasOrbs =
     Boolean(data?.ambientOrb) ||
@@ -148,7 +154,8 @@ export function DynamicThemePreviewBanner({
       {bgImageUrl && (
         <img
           src={bgImageUrl}
-          alt={data?.name || 'Theme Preview'}
+          alt=""
+          onError={() => setImgFailed(true)}
           className="absolute inset-0 w-full h-full object-cover object-center"
           loading="lazy"
         />
@@ -498,25 +505,33 @@ export function DynamicLexiconPreviewBanner({
 
   const samplePairs = [
     {
-      token: '{Mod}',
+      id: 'mod',
+      icon: t('icon_extension', 'extension'),
+      label: t('lex_preview_mod', 'Core Asset'),
       val:
         parsed?.term_mod ||
         (isSimlish ? 'Plumbob' : isSanctuary ? 'Artifact' : 'Mod'),
     },
     {
-      token: '{Vault}',
+      id: 'vault',
+      icon: t('icon_inventory_2', 'inventory_2'),
+      label: t('lex_preview_vault', 'Storage'),
       val:
         parsed?.term_vault ||
         (isSimlish ? 'Bweb' : isSanctuary ? 'Vault' : 'Library'),
     },
     {
-      token: '{Blueprint}',
+      id: 'blueprint',
+      icon: t('icon_map', 'map'),
+      label: t('lex_preview_blueprint', 'Collection'),
       val:
         parsed?.term_blueprint ||
         (isSimlish ? 'Nooboo' : isSims ? 'Modpack' : isSanctuary ? 'Blueprint' : 'Play Set'),
     },
     {
-      token: '{Mason}',
+      id: 'mason',
+      icon: t('icon_construction', 'construction'),
+      label: t('lex_preview_mason', 'Author'),
       val:
         parsed?.term_mason ||
         (isSimlish ? 'Sul Sul' : isSanctuary ? 'Mason' : 'Creator'),
@@ -551,14 +566,15 @@ export function DynamicLexiconPreviewBanner({
         <div className="flex-1 h-full grid grid-cols-2 grid-rows-2 gap-1.5 min-w-0">
           {samplePairs.map((pair) => (
             <div
-              key={pair.token}
+              key={pair.id}
               className="px-3 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col justify-center min-w-0 overflow-hidden"
             >
               <span
-                className="text-[7px] font-mono font-black tracking-wider truncate leading-tight"
+                className="text-[7px] font-black uppercase tracking-wider truncate leading-tight flex items-center gap-1"
                 style={{ color: accentColor }}
               >
-                {pair.token}
+                <span className="material-symbols-outlined !text-[9px] shrink-0">{pair.icon}</span>
+                <span className="truncate">{pair.label}</span>
               </span>
               <span className="text-[9px] font-black text-[var(--text)] truncate leading-tight">
                 {String(pair.val)}
@@ -1053,7 +1069,7 @@ export function DynamicArtifactPreviewBanner({
   );
 }
 
-export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isCloud = false, activeThemeId, setActiveThemeId, onClick, CORE_THEMES, handleOpenThemeEditor, toggleFavoriteTheme, handleExportTheme, setNewThemeName, setEditingThemeId, editingThemeId, newThemeName, renameTheme, confirmDelete, setConfirmDelete, deleteTheme, onDelete }: any) {
+export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isCloud = false, isFlagged = false, flagReason = '', activeThemeId, setActiveThemeId, onClick, CORE_THEMES, handleOpenThemeEditor, toggleFavoriteTheme, handleExportTheme, setNewThemeName, setEditingThemeId, editingThemeId, newThemeName, renameTheme, confirmDelete, setConfirmDelete, deleteTheme, onDelete }: any) {
   const { t } = useLexicon();
   const raw = data || theme;
   if (!raw) return null;
@@ -1156,7 +1172,7 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
     <UniversalCard
       layout="vertical"
       title={titleNode}
-      subtitle={`${badgeLabel} • ${modeLabel}`}
+      subtitle={isFlagged ? `${t("flagged", "Flagged")} • ${modeLabel}` : `${badgeLabel} • ${modeLabel}`}
       isActive={isActive}
       onClick={() => {
         if (onClick) onClick();
@@ -1194,6 +1210,14 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
           <DynamicThemePreviewBanner data={resolvedData} heightClass="h-full">
             <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between gap-2 z-20">
               <div className="flex items-center gap-1.5 flex-wrap">
+                {isFlagged && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                      {t("icon_flag", "flag")}
+                    </span>
+                    <span>{t("flagged", "Flagged")}</span>
+                  </span>
+                )}
                 {isActive && (
                   <span className={VAULT_CHIP_CLASS}>
                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -1277,6 +1301,30 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
           </DynamicThemePreviewBanner>
         </div>
       }
-    />
+      footer={
+        isFlagged ? (
+          <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+            <span className="flex items-center gap-1.5 text-[var(--danger)]">
+              <span className="material-symbols-outlined !text-[13px]">{t("icon_flag", "flag")}</span>
+              <span>{t("flag_res_action_needed", "Action Needed")}</span>
+            </span>
+            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 shrink-0">
+              {t("flag_res_resolve_btn_short", "Resolve & Resubmit")} <span className="text-base leading-none">&rarr;</span>
+            </span>
+          </div>
+        ) : undefined
+      }
+    >
+      {isFlagged && flagReason ? (
+        <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2 mt-1">
+          <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
+            {t("icon_report", "report")}
+          </span>
+          <p className="text-[11px] font-semibold text-[var(--text)] leading-snug line-clamp-2">
+            {flagReason}
+          </p>
+        </div>
+      ) : undefined}
+    </UniversalCard>
   );
 }

@@ -295,6 +295,46 @@ export default function MasonEditorPanel({
               </span>
               <span>{t("ide_toggle_word_wrap", "Wrap Text")}</span>
             </button>
+            {!isMobileViewport &&
+              hasReference &&
+              (!hasVisualStudio || effectiveViewMode === "raw") && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowReference(!showReference)}
+                    className={`${VAULT_CHIP_CLASS} ${
+                      effectiveShowReference
+                        ? "sa-glass-pill-active"
+                        : "hover:sa-glass-pill-active"
+                    } transition-all cursor-pointer`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {effectiveShowReference
+                        ? t("icon_vertical_split", "vertical_split")
+                        : t("icon_splitscreen", "splitscreen")}
+                    </span>
+                    <span>{t("btn_reference", "Toggle Reference Split")}</span>
+                  </button>
+                  {effectiveShowReference && (
+                    <button
+                      type="button"
+                      onClick={() => setIsScrollLocked(!isScrollLocked)}
+                      className={`${VAULT_CHIP_CLASS} ${
+                        isScrollLocked
+                          ? "sa-glass-pill-active"
+                          : "hover:sa-glass-pill-active"
+                      } transition-all cursor-pointer`}
+                    >
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {isScrollLocked
+                          ? t("icon_lock", "lock")
+                          : t("icon_lock_open", "lock_open")}
+                      </span>
+                      <span>{t("sync_scroll", "Sync Scroll")}</span>
+                    </button>
+                  )}
+                </>
+              )}
             <div className={VAULT_CHIP_CLASS}>
               <span
                 className={`material-symbols-outlined !text-[12px] ${
@@ -419,7 +459,7 @@ export default function MasonEditorPanel({
         headerActions={
           <>
             {hasVisualStudio && (
-              <PanelHeaderGroup className="mr-2">
+              <PanelHeaderGroup className="mr-1">
                 <PanelHeaderButton
                   icon={t("icon_auto_awesome", "auto_awesome")}
                   tooltip={t("lex_studio_visual", "Visual Studio")}
@@ -443,43 +483,9 @@ export default function MasonEditorPanel({
               </PanelHeaderGroup>
             )}
 
-            {(!hasVisualStudio || effectiveViewMode !== "visual") && (
-              <PanelHeaderGroup className="mr-2">
-                <PanelHeaderButton
-                  icon={t("icon_wrap_text", "wrap_text")}
-                  tooltip={t("ide_toggle_word_wrap", "Wrap Text")}
-                  isActive={wordWrap}
-                  onClick={() => setWordWrap((w) => !w)}
-                />
-              </PanelHeaderGroup>
-            )}
-
             <PanelHeaderGroup>
-              {validationStats && validationStats.deprecated > 0 && purgeDeprecatedStrings && (
-                <PanelHeaderButton
-                  icon={t("icon_delete_sweep", "delete_sweep")}
-                  tooltip={`${t("lexicon_purge_keys", "Purge Keys")} (${validationStats.deprecated})`}
-                  variant="error"
-                  onClick={purgeDeprecatedStrings}
-                />
-              )}
-              {validationStats && validationStats.completelyMissing > 0 && addMissingStrings && (
-                <PanelHeaderButton
-                  icon={t("icon_playlist_add", "playlist_add")}
-                  tooltip={`${t("lexicon_add_missing", "Add Missing")} (${validationStats.completelyMissing})`}
-                  variant="accent"
-                  onClick={addMissingStrings}
-                />
-              )}
-              {isDirty && discardChanges && (
-                <PanelHeaderButton
-                  icon={t("icon_undo", "undo")}
-                  tooltip={t("lex_studio_discard_draft_btn", "Revert Unsaved Changes")}
-                  onClick={discardChanges}
-                />
-              )}
               <PanelHeaderButton
-                icon={isCloudMode ? "cloud" : "save"}
+                icon={isCloudMode ? t("icon_cloud", "cloud") : t("icon_save", "save")}
                 tooltip={getSaveTooltip()}
                 variant={getSaveVariant()}
                 disabled={isPublishDisabled}
@@ -500,42 +506,15 @@ export default function MasonEditorPanel({
                 )}
             </PanelHeaderGroup>
 
-            {!isMobileViewport && hasReference && (!hasVisualStudio || effectiveViewMode === "raw") && (
-              <PanelHeaderGroup className="ml-2">
+            <PanelHeaderGroup overflow>
+              {isDirty && discardChanges && (
                 <PanelHeaderButton
-                  icon={effectiveShowReference ? "vertical_split" : "splitscreen"}
-                  tooltip={t("btn_reference", "Toggle Reference Split")}
-                  isActive={effectiveShowReference}
-                  disabled={!activeFile}
-                  onClick={() => setShowReference(!showReference)}
-                />
-              </PanelHeaderGroup>
-            )}
-
-            <PanelHeaderGroup className="ml-2">
-              {(isSchemaActive || isLexiconActive) && (
-                <PanelHeaderButton
-                  icon={t("icon_menu_book", "menu_book")}
-                  tooltip={
-                    isSchemaActive
-                      ? t("schema_guide_btn", "Schema Guide")
-                      : t("lexicon_guide_btn", "{Lexicon} Guide")
-                  }
-                  isActive={isStudioGuideOpen}
-                  onClick={() => setIsStudioGuideOpen(true)}
+                  icon={t("icon_undo", "undo")}
+                  tooltip={t("lex_studio_discard_draft_btn", "Revert Unsaved Changes")}
+                  variant="warning"
+                  onClick={discardChanges}
                 />
               )}
-              {!isMobileViewport &&
-                hasReference &&
-                effectiveShowReference &&
-                (!hasVisualStudio || effectiveViewMode === "raw") && (
-                  <PanelHeaderButton
-                    icon={isScrollLocked ? "lock" : "lock_open"}
-                    tooltip={t("sync_scroll", "Sync Scroll")}
-                    isActive={isScrollLocked}
-                    onClick={() => setIsScrollLocked(!isScrollLocked)}
-                  />
-                )}
               {activeFile && !isCloudMode && setShowTimeline && (
                 <PanelHeaderButton
                   icon={t("icon_history", "history")}
@@ -544,14 +523,37 @@ export default function MasonEditorPanel({
                   onClick={() => setShowTimeline(true)}
                 />
               )}
+              {isValidatorDismissed &&
+                validationStats &&
+                (validationStats.completelyMissing > 0 ||
+                  validationStats.deprecated > 0) && (
+                  <PanelHeaderButton
+                    icon={t("icon_verified_user", "verified_user")}
+                    tooltip={
+                      isSchemaActive
+                        ? t("schema_validator_title", "Schema Validation Alert")
+                        : t(
+                            "lexicon_validator_title",
+                            "{Lexicon} Validation Alert"
+                          )
+                    }
+                    variant="warning"
+                    onClick={() => setIsValidatorDismissed(false)}
+                  />
+                )}
               {!isMobileViewport && setIsFullscreen && (
                 <PanelHeaderButton
-                  icon={isFullscreen ? "fullscreen_exit" : "fullscreen"}
+                  icon={
+                    isFullscreen
+                      ? t("icon_fullscreen_exit", "fullscreen_exit")
+                      : t("icon_fullscreen", "fullscreen")
+                  }
                   tooltip={
                     isFullscreen
                       ? t("exit_fullscreen", "Exit Fullscreen")
                       : t("fullscreen", "Fullscreen")
                   }
+                  isActive={isFullscreen}
                   onClick={() => setIsFullscreen(!isFullscreen)}
                 />
               )}
@@ -696,7 +698,7 @@ export default function MasonEditorPanel({
                     (isLexiconActive &&
                       effectiveViewMode !== "visual" &&
                       validationStats.missing > 0)) && (
-                    <div className="pointer-events-auto w-full md:w-fit max-w-full glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 md:gap-3.5 transition-all">
+                    <div className="pointer-events-auto w-full md:w-fit max-w-full glass-panel sa-ide-alert-pill border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 md:gap-3.5 transition-all">
                       <div className="flex items-center justify-between gap-2.5 md:gap-3 min-w-0">
                         <div className="flex items-center gap-2.5 md:gap-3 min-w-0 flex-1">
                           <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)] shrink-0">
@@ -861,7 +863,7 @@ export default function MasonEditorPanel({
 
                 {problemsList.length > 0 && (
                   <div
-                    className="pointer-events-auto w-full md:w-fit max-w-full glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3 py-2 md:px-4 md:py-3 flex items-center justify-between gap-2 md:gap-3.5 cursor-pointer transition-all group/problem"
+                    className="pointer-events-auto w-full md:w-fit max-w-full glass-panel sa-ide-alert-pill border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3 py-2 md:px-4 md:py-3 flex items-center justify-between gap-2 md:gap-3.5 cursor-pointer transition-all group/problem"
                     onClick={() => {
                       if (hasVisualStudio && effectiveViewMode === "visual") {
                         setEditorViewMode(isMobileViewport ? "raw" : "split");

@@ -23,7 +23,6 @@ import {
 import { ChameleonControlDashboard } from "./chameleon-components/ChameleonControlDashboard";
 import { ChameleonSandboxPreview } from "./chameleon-components/ChameleonSandboxPreview";
 import {
-  analyzeAndHarmonizeTheme,
   exportThemeWithAssets,
   importThemeWithAssets,
   uploadThemeAssetsToCloud,
@@ -268,11 +267,16 @@ export function MasonChameleons({
     if (themesRes.data) setSyncedThemes(themesRes.data);
     if (lexRes.data) setSyncedLexicons(lexRes.data);
     if (flagsRes.data) {
-      const myAssetIds = [
-        ...(themesRes.data || []).map((d: any) => d.id),
-        ...(lexRes.data || []).map((d: any) => d.id),
-      ];
-      setFlags(flagsRes.data.filter((f: any) => myAssetIds.includes(f.asset_id)));
+      const allMyAssets = [...(themesRes.data || []), ...(lexRes.data || [])];
+      const assetMap = new Map(allMyAssets.map((a: any) => [a.id, a]));
+      setFlags(
+        flagsRes.data.filter((f: any) => {
+          const asset = assetMap.get(f.asset_id);
+          if (!asset) return false;
+          if (f.status === "dismissed" || f.status === "creator_resolved") return false;
+          return f.status === "pending" || asset.is_public === false || f.status !== "resolved";
+        })
+      );
     }
   };
 
@@ -449,13 +453,22 @@ export function MasonChameleons({
             .update(payload)
             .eq("id", uploadState.editId);
           if (error) throw error;
+          await supabase
+            .from("nexus_reports")
+            .update({ status: "dismissed" })
+            .eq("asset_id", uploadState.editId);
+          setFlags((prev) => prev.filter((f) => f.asset_id !== uploadState.editId));
+          pushStatus(
+            t("flag_res_toast_success", "Updated and resubmitted! Active flag cleared."),
+            "success"
+          );
         } else {
           const { error } = await supabase
             .from("nexus_assets")
             .insert([{ ...payload, downloads: 0 }]);
           if (error) throw error;
+          pushStatus(t("upload_success", "Asset published successfully."), "success");
         }
-        pushStatus(t("upload_success", "Asset published successfully."), "success");
         setUploadState((s) => ({ ...s, isOpen: false }));
         fetchPublished();
         return;
@@ -485,12 +498,24 @@ export function MasonChameleons({
           .update(payload)
           .eq("id", uploadState.editId);
         if (error) throw error;
-        useStore.getState().pushStatus("Theme updated successfully.", "success");
+        await supabase
+          .from("nexus_reports")
+          .update({ status: "dismissed" })
+          .eq("asset_id", uploadState.editId);
+        setFlags((prev) => prev.filter((f) => f.asset_id !== uploadState.editId));
+        useStore
+          .getState()
+          .pushStatus(
+            t("flag_res_toast_success", "Updated and resubmitted! Active flag cleared."),
+            "success"
+          );
       } else {
         payload.downloads = 0;
         const { error } = await supabase.from("nexus_assets").insert([payload]);
         if (error) throw error;
-        useStore.getState().pushStatus("Theme published successfully.", "success");
+        useStore
+          .getState()
+          .pushStatus(t("upload_success", "Asset published successfully."), "success");
       }
       setUploadState((s) => ({ ...s, isOpen: false }));
       fetchPublished();
@@ -640,10 +665,14 @@ export function MasonChameleons({
     }
   };
 
+  const initialEditSnapshotRef = useRef<any>(null);
+
   const openEditor = (id: string) => {
+    setLivePreview(false);
     setEditingThemeId(id);
     setOriginalThemeId(activeThemeId);
-    if (livePreview) setActiveThemeId(id);
+    const snap = allThemes[id] || osTheme;
+    initialEditSnapshotRef.current = snap ? JSON.parse(JSON.stringify(snap)) : null;
   };
 
   const localCustomThemes = Object.entries(customThemes);
@@ -863,6 +892,14 @@ export function MasonChameleons({
           ))}
           {flaggedThemes.map((pt: any) => {
             const themeData = syncedThemesMap[pt.id] || parseSyncedThemeData(pt);
+            const itemFlag = flags.find((f) => f.asset_id === pt.id);
+            const flagReason =
+              itemFlag?.reason ||
+              itemFlag?.description ||
+              t(
+                "flag_res_default_issue_desc",
+                "Reported for missing keys, broken formatting, or version incompatibility."
+              );
             return (
               <ThemeCard
                 key={`flag_theme_${pt.id}`}
@@ -870,6 +907,8 @@ export function MasonChameleons({
                 data={themeData}
                 theme={themeData}
                 isDev={false}
+                isFlagged={true}
+                flagReason={flagReason}
                 activeThemeId={activeThemeId}
                 onClick={() => openEditor(pt.id)}
                 confirmDelete={confirmDelete}
@@ -878,54 +917,87 @@ export function MasonChameleons({
               />
             );
           })}
-          {flaggedLexicons.map((lx: any) => (
-            <UniversalCard
-              key={`flag_lex_${lx.id}`}
-              layout="vertical"
-              icon={t("icon_translate", "translate")}
-              customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
-              title={lx.name}
-              subtitle={t("flagged", "Flagged")}
-              onClick={() => {
-                const parsed =
-                  typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
-                setUploadState({
-                  isOpen: true,
-                  editId: lx.id,
-                  assetType: "lexicon",
-                  isHidden: false,
-                  fileContent: parsed,
-                  fileName: `${lx.name}.json`,
-                  name: lx.name,
-                  version: lx.version || "1.0.0",
-                  description: lx.description || "",
-                  releaseNotes: lx.release_notes || "",
-                  language: lx.language || "English",
-                  newLanguage: "",
-                  lexiconType: lx.lexicon_type || "Theme",
-                  themeMode: "Dark",
-                });
-              }}
-              imageOverlay={
-                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                      {t("icon_flag", "flag")}
-                    </span>
-                    <span>{t("flagged", "Flagged")}</span>
+          {flaggedLexicons.map((lx: any) => {
+            const itemFlag = flags.find((f) => f.asset_id === lx.id);
+            const flagReason =
+              itemFlag?.reason ||
+              itemFlag?.description ||
+              t(
+                "flag_res_default_issue_desc",
+                "Reported for missing keys, broken formatting, or version incompatibility."
+              );
+            return (
+              <UniversalCard
+                key={`flag_lex_${lx.id}`}
+                layout="vertical"
+                icon={t("icon_translate", "translate")}
+                customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
+                title={lx.name}
+                subtitle={`${t("flagged", "Flagged")} • ${lx.language || "English"} • v${lx.version || "1.0.0"}`}
+                onClick={() => {
+                  const parsed =
+                    typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+                  setUploadState({
+                    isOpen: true,
+                    editId: lx.id,
+                    assetType: "lexicon",
+                    isHidden: lx.is_public === false,
+                    fileContent: parsed,
+                    fileName: `${lx.name}.json`,
+                    name: lx.name,
+                    version: lx.version || "1.0.0",
+                    description: lx.description || "",
+                    releaseNotes: lx.release_notes || "",
+                    language: lx.language || "English",
+                    newLanguage: "",
+                    lexiconType: lx.lexicon_type || "Theme",
+                    themeMode: "Dark",
+                  });
+                }}
+                imageOverlay={
+                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                        {t("icon_flag", "flag")}
+                      </span>
+                      <span>{t("flagged", "Flagged")}</span>
+                    </div>
                   </div>
-                </div>
-              }
-              badges={
-                <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t("icon_translate", "translate")}
+                }
+                badges={
+                  <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_translate", "translate")}
+                    </span>
+                    <span>{t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                  </div>
+                }
+                footer={
+                  <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    <span className="flex items-center gap-1.5 text-[var(--danger)]">
+                      <span className="material-symbols-outlined !text-[13px]">
+                        {t("icon_flag", "flag")}
+                      </span>
+                      <span>{t("flag_res_action_needed", "Action Needed")}</span>
+                    </span>
+                    <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 shrink-0">
+                      {t("flag_res_resolve_btn_short", "Resolve & Resubmit")}{" "}
+                      <span className="text-base leading-none">&rarr;</span>
+                    </span>
+                  </div>
+                }
+              >
+                <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2 mt-1">
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
+                    {t("icon_report", "report")}
                   </span>
-                  <span>{t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                  <p className="text-[11px] font-semibold text-[var(--text)] leading-snug line-clamp-2">
+                    {flagReason}
+                  </p>
                 </div>
-              }
-            />
-          ))}
+              </UniversalCard>
+            );
+          })}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -950,6 +1022,15 @@ export function MasonChameleons({
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
               {filteredSynced.map((pt: any) => {
                 const themeData = syncedThemesMap[pt.id] || parseSyncedThemeData(pt);
+                const itemFlag = flags.find((f) => f.asset_id === pt.id);
+                const isItemFlagged = Boolean(itemFlag);
+                const flagReason =
+                  itemFlag?.reason ||
+                  itemFlag?.description ||
+                  t(
+                    "flag_res_default_issue_desc",
+                    "Reported for missing keys, broken formatting, or version incompatibility."
+                  );
                 return (
                   <ThemeCard
                     key={pt.id}
@@ -957,6 +1038,8 @@ export function MasonChameleons({
                     data={themeData}
                     theme={themeData}
                     isDev={false}
+                    isFlagged={isItemFlagged}
+                    flagReason={isItemFlagged ? flagReason : ""}
                     activeThemeId={activeThemeId}
                     onClick={() => openEditor(pt.id)}
                     handleExportTheme={handleExportThemeCard}
@@ -1067,55 +1150,105 @@ export function MasonChameleons({
               .filter(
                 (lx) => !searchQuery || (lx.name || "").toLowerCase().includes(searchQuery.toLowerCase())
               )
-              .map((lx: any) => (
-                <UniversalCard
-                  key={lx.id}
-                  layout="vertical"
-                  title={lx.name}
-                  subtitle={`${lx.language || "Language"} • v${lx.version || "1.0.0"}`}
-                  onClick={() => {
-                    const parsed =
-                      typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
-                    setUploadState({
-                      isOpen: true,
-                      editId: lx.id,
-                      assetType: "lexicon",
-                      isHidden: false,
-                      fileContent: parsed,
-                      fileName: `${lx.name}.json`,
-                      name: lx.name,
-                      version: lx.version || "1.0.0",
-                      description: lx.description || "",
-                      releaseNotes: lx.release_notes || "",
-                      language: lx.language || "English",
-                      newLanguage: "",
-                      lexiconType: lx.lexicon_type || "Theme",
-                      themeMode: "Dark",
-                    });
-                  }}
-                  customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
-                  imageOverlay={
-                    <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                          {t("icon_cloud_done", "cloud_done")}
-                        </span>
-                        <span>{t("synced", "Synced")}</span>
+              .map((lx: any) => {
+                const itemFlag = flags.find((f) => f.asset_id === lx.id);
+                const isItemFlagged = Boolean(itemFlag);
+                const flagReason =
+                  itemFlag?.reason ||
+                  itemFlag?.description ||
+                  t(
+                    "flag_res_default_issue_desc",
+                    "Reported for missing keys, broken formatting, or version incompatibility."
+                  );
+                return (
+                  <UniversalCard
+                    key={lx.id}
+                    layout="vertical"
+                    title={lx.name}
+                    subtitle={
+                      isItemFlagged
+                        ? `${t("flagged", "Flagged")} • ${lx.language || "Language"} • v${lx.version || "1.0.0"}`
+                        : `${lx.language || "Language"} • v${lx.version || "1.0.0"}`
+                    }
+                    onClick={() => {
+                      const parsed =
+                        typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+                      setUploadState({
+                        isOpen: true,
+                        editId: lx.id,
+                        assetType: "lexicon",
+                        isHidden: lx.is_public === false,
+                        fileContent: parsed,
+                        fileName: `${lx.name}.json`,
+                        name: lx.name,
+                        version: lx.version || "1.0.0",
+                        description: lx.description || "",
+                        releaseNotes: lx.release_notes || "",
+                        language: lx.language || "English",
+                        newLanguage: "",
+                        lexiconType: lx.lexicon_type || "Theme",
+                        themeMode: "Dark",
+                      });
+                    }}
+                    customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
+                    imageOverlay={
+                      <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              isItemFlagged ? "text-[var(--danger)]" : "text-[var(--accent)]"
+                            }`}
+                          >
+                            {isItemFlagged
+                              ? t("icon_flag", "flag")
+                              : t("icon_cloud_done", "cloud_done")}
+                          </span>
+                          <span>
+                            {isItemFlagged ? t("flagged", "Flagged") : t("synced", "Synced")}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  }
-                  badges={
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                          {t("icon_language", "language")}
-                        </span>
-                        <span>{lx.language || t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                    }
+                    badges={
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_language", "language")}
+                          </span>
+                          <span>{lx.language || t("auto_lexicon_pack", "Lexicon Pack")}</span>
+                        </div>
                       </div>
-                    </div>
-                  }
-                />
-              ))}
+                    }
+                    footer={
+                      isItemFlagged ? (
+                        <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          <span className="flex items-center gap-1.5 text-[var(--danger)]">
+                            <span className="material-symbols-outlined !text-[13px]">
+                              {t("icon_flag", "flag")}
+                            </span>
+                            <span>{t("flag_res_action_needed", "Action Needed")}</span>
+                          </span>
+                          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 shrink-0">
+                            {t("flag_res_resolve_btn_short", "Resolve & Resubmit")}{" "}
+                            <span className="text-base leading-none">&rarr;</span>
+                          </span>
+                        </div>
+                      ) : undefined
+                    }
+                  >
+                    {isItemFlagged && (
+                      <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2 mt-1">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
+                          {t("icon_report", "report")}
+                        </span>
+                        <p className="text-[11px] font-semibold text-[var(--text)] leading-snug line-clamp-2">
+                          {flagReason}
+                        </p>
+                      </div>
+                    )}
+                  </UniversalCard>
+                );
+              })}
           </div>
         )}
       </div>
@@ -1175,6 +1308,7 @@ export function MasonChameleons({
       <SidePanel
         isOpen={!!editingThemeId}
         onClose={() => {
+          setLivePreview(false);
           setEditingThemeId(null);
           setActiveThemeId(originalThemeId);
         }}
@@ -1192,109 +1326,201 @@ export function MasonChameleons({
         noScroll={true}
         headerActions={
           typeof editingThemeId === "string" ? (
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t("icon_contrast", "contrast")}
-                tooltip={t("forge_btn_auto_contrast", "Auto-Harmonize")}
-                onClick={async () => {
-                  const harmonized = await analyzeAndHarmonizeTheme(currentTheme);
-                  handleUpdateTheme(harmonized);
-                  useStore.getState().pushStatus(
-                    t("forge_status_harmonized", "Liquid Glass optics, surfaces & text contrast harmonized to active background."),
-                    "success"
-                  );
-                }}
-              />
-              <PanelHeaderButton
-                icon={t("icon_download", "download")}
-                tooltip={t("btn_import", "Import")}
-                onClick={async () => {
-                  const res = await importThemeWithAssets({
-                    t,
-                    pushStatus: useStore.getState().pushStatus,
-                  });
-                  if (res?.theme) {
-                    handleUpdateTheme(res.theme);
-                  } else if (res?.imageOnlyDataUrl) {
-                    handleUpdateTheme({ bgImage: res.imageOnlyDataUrl });
+            <>
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={
+                    livePreview
+                      ? t("icon_visibility", "visibility")
+                      : t("icon_visibility_off", "visibility_off")
                   }
-                }}
-              />
-              <PanelHeaderButton
-                icon={t("icon_upload", "upload")}
-                tooltip={t("btn_export", "Export")}
-                onClick={() => {
-                  exportThemeWithAssets(currentTheme, {
-                    vaultPath,
-                    t,
-                    pushStatus: useStore.getState().pushStatus,
-                  });
-                }}
-              />
-              <PanelHeaderButton
-                icon={livePreview ? t("icon_visibility", "visibility") : t("icon_visibility_off", "visibility_off")}
-                tooltip={livePreview ? t("ui_os_preview_on", "Preview On") : t("ui_os_preview_off", "Preview Off")}
-                variant={livePreview ? "success" : "default"}
-                onClick={() => {
-                  if (livePreview) setActiveThemeId(originalThemeId);
-                  else setActiveThemeId(editingThemeId);
-                  setLivePreview(!livePreview);
-                }}
-              />
-              {editingThemeId.startsWith("dev_") && (
-                <>
-                  <PanelHeaderButton
-                    icon="refresh"
-                    tooltip={t("btn_reset", "Reset")}
-                    onClick={() => {
-                      setActiveThemeId(originalThemeId);
-                      useStore.getState().pushStatus(t("ui_theme_reset", "Theme Reset"), "success");
-                    }}
-                  />
-                  <PanelHeaderButton
-                    icon="check_circle"
-                    tooltip={t("ui_btn_apply", "Apply Theme")}
-                    variant="success"
-                    onClick={() => {
-                      setActiveThemeId(editingThemeId);
-                      setOriginalThemeId(editingThemeId);
-                      setEditingThemeId(null);
-                      useStore.getState().pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
-                    }}
-                  />
-                </>
-              )}
-              {isVerifiedMason && (
-                <PanelHeaderButton
-                  icon="cloud_upload"
-                  tooltip={t("btn_publish", "Publish")}
-                  onClick={publishThemeToNexus}
-                  variant="primary"
+                  tooltip={
+                    livePreview
+                      ? t("ui_os_preview_on", "Live Preview On")
+                      : t("ui_os_preview_off", "Live Preview Off")
+                  }
+                  variant={livePreview ? "success" : "default"}
+                  onClick={() => setLivePreview((prev) => !prev)}
                 />
-              )}
-              {editingThemeId.startsWith("dev_") && (
                 <PanelHeaderButton
-                  icon="save"
-                  tooltip={t("ui_export_theme", "Save Locally")}
+                  icon={t("icon_check_circle", "check_circle")}
+                  tooltip={t("ui_btn_apply", "Apply Theme")}
+                  variant={editingThemeId === activeThemeId ? "success" : "default"}
                   onClick={() => {
-                    exportDevThemeToCustom(editingThemeId);
-                    useStore.getState().pushStatus(t("ui_saved_personal", "Saved to Themes"), "success");
+                    setActiveThemeId(editingThemeId);
+                    setOriginalThemeId(editingThemeId);
+                    useStore
+                      .getState()
+                      .pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
                   }}
-                  variant="primary"
                 />
-              )}
-            </PanelHeaderGroup>
+                {editingThemeId.startsWith("dev_") && (
+                  <PanelHeaderButton
+                    icon={t("icon_save", "save")}
+                    tooltip={t("ui_export_theme", "Save Locally")}
+                    onClick={() => {
+                      exportDevThemeToCustom(editingThemeId);
+                      useStore
+                        .getState()
+                        .pushStatus(t("ui_saved_personal", "Saved to Themes"), "success");
+                    }}
+                    variant="primary"
+                  />
+                )}
+                {isVerifiedMason && (
+                  <PanelHeaderButton
+                    icon={t("icon_cloud_upload", "cloud_upload")}
+                    tooltip={t("btn_publish", "Publish")}
+                    onClick={publishThemeToNexus}
+                    variant="primary"
+                  />
+                )}
+              </PanelHeaderGroup>
+              <PanelHeaderGroup overflow>
+                <PanelHeaderButton
+                  icon={t("icon_download", "download")}
+                  tooltip={t("btn_import", "Import")}
+                  onClick={async () => {
+                    const res = await importThemeWithAssets({
+                      t,
+                      pushStatus: useStore.getState().pushStatus,
+                    });
+                    if (res?.theme) {
+                      handleUpdateTheme(res.theme);
+                    } else if (res?.imageOnlyDataUrl) {
+                      handleUpdateTheme({ bgImage: res.imageOnlyDataUrl });
+                    }
+                  }}
+                />
+                <PanelHeaderButton
+                  icon={t("icon_upload", "upload")}
+                  tooltip={t("btn_export", "Export")}
+                  onClick={() => {
+                    exportThemeWithAssets(currentTheme, {
+                      vaultPath,
+                      t,
+                      pushStatus: useStore.getState().pushStatus,
+                    });
+                  }}
+                />
+                <PanelHeaderButton
+                  icon={t("icon_content_copy", "content_copy")}
+                  tooltip={t("forge_btn_copy_json", "Copy JSON")}
+                  onClick={() => {
+                    try {
+                      navigator.clipboard.writeText(JSON.stringify(currentTheme, null, 2));
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("forge_status_copied_json", "{Chameleon} JSON copied to clipboard."),
+                          "success"
+                        );
+                    } catch {
+                      // ignore clipboard errors
+                    }
+                  }}
+                />
+                <PanelHeaderButton
+                  icon={t("icon_restart_alt", "restart_alt")}
+                  tooltip={t("btn_reset", "Reset")}
+                  onClick={() => {
+                    if (initialEditSnapshotRef.current) {
+                      handleUpdateTheme(initialEditSnapshotRef.current);
+                      useStore
+                        .getState()
+                        .pushStatus(t("ui_theme_reset", "Theme Reset"), "success");
+                    }
+                  }}
+                />
+              </PanelHeaderGroup>
+            </>
           ) : undefined
         }
       >
-        <div className="flex-1 flex flex-col lg:flex-row w-full h-full min-h-0 overflow-hidden">
-          <ChameleonControlDashboard
-            currentTheme={currentTheme}
-            handleUpdateTheme={handleUpdateTheme}
-            editingThemeId={editingThemeId}
-            renameTheme={renameTheme}
-          />
-          <ChameleonSandboxPreview currentTheme={currentTheme} />
+        <div className="flex-1 flex flex-col w-full h-full min-h-0 overflow-hidden">
+          {editingThemeId && flags.some((f) => f.asset_id === editingThemeId) && (
+            <div className="shrink-0 mx-4 mt-3 p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                  <span className="material-symbols-outlined !text-[18px]">
+                    {t("icon_flag", "flag")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)]">
+                    {t("flag_res_theme_banner_title", "Flagged {Chameleon} — Action Required")}
+                  </span>
+                  <p className="text-xs font-semibold text-[var(--text)] leading-snug">
+                    {flags.find((f) => f.asset_id === editingThemeId)?.reason ||
+                      flags.find((f) => f.asset_id === editingThemeId)?.description ||
+                      t(
+                        "flag_res_default_issue_desc",
+                        "Reported for missing keys, broken formatting, or version incompatibility."
+                      )}
+                  </p>
+                  <span className="text-[11px] font-medium text-[var(--subtext)]">
+                    {t(
+                      "flag_res_theme_banner_how",
+                      "Adjust your theme settings or click Auto-Harmonize above, then click Resolve & Resubmit to update and clear the flag."
+                    )}
+                  </span>
+                </div>
+              </div>
+              {isVerifiedMason && (
+                <button
+                  type="button"
+                  onClick={publishThemeToNexus}
+                  className="px-4 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:border-[var(--accent)] text-xs font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-2 shrink-0 cursor-pointer transition-all"
+                >
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                    {t("icon_published_with_changes", "published_with_changes")}
+                  </span>
+                  <span>{t("flag_res_btn_resubmit", "Resolve & Resubmit Fix")}</span>
+                </button>
+              )}
+            </div>
+          )}
+          <div className="flex-1 flex flex-col lg:flex-row w-full h-full min-h-0 overflow-hidden">
+            <ChameleonControlDashboard
+              currentTheme={currentTheme}
+              handleUpdateTheme={handleUpdateTheme}
+              editingThemeId={editingThemeId}
+              renameTheme={renameTheme}
+              livePreview={livePreview}
+              onToggleLivePreview={() => setLivePreview((prev) => !prev)}
+              isActiveOnOs={editingThemeId === activeThemeId}
+              onApplyTheme={
+                typeof editingThemeId === "string"
+                  ? () => {
+                      setActiveThemeId(editingThemeId);
+                      setOriginalThemeId(editingThemeId);
+                      useStore
+                        .getState()
+                        .pushStatus(t("ui_theme_applied", "Theme Applied"), "success");
+                    }
+                  : undefined
+              }
+              onSaveTheme={
+                typeof editingThemeId === "string" && editingThemeId.startsWith("dev_")
+                  ? () => {
+                      exportDevThemeToCustom(editingThemeId);
+                      useStore
+                        .getState()
+                        .pushStatus(t("ui_saved_personal", "Saved to Themes"), "success");
+                    }
+                  : undefined
+              }
+              saveLabel={t("save", "Save")}
+              onPublishTheme={isVerifiedMason ? publishThemeToNexus : undefined}
+              publishLabel={t("btn_publish", "Publish")}
+              themeBadge={
+                typeof editingThemeId === "string" && editingThemeId.startsWith("dev_")
+                  ? t("ui_dev_matrix", "Dev Matrix")
+                  : t("ui_system_theme", "System Theme")
+              }
+            />
+            <ChameleonSandboxPreview currentTheme={currentTheme} />
+          </div>
         </div>
       </SidePanel>
 
@@ -1405,6 +1631,7 @@ export function MasonChameleons({
         uploadState={uploadState}
         setUploadState={setUploadState}
         marketTab={uploadState.assetType === "lexicon" ? "LEXICONS" : "CHAMELEONS"}
+        flags={flags}
         availableLanguages={[
           "English",
           "Spanish",

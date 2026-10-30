@@ -68,9 +68,10 @@ export function HeuristicsReadOnlyList({
       )}
 
       {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">
-          {t("auto_loading_signatures", "Loading Signatures...")}
-        </div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("auto_loading_signatures", "Loading Signatures...")}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredSignatures.map(sig => {

@@ -782,9 +782,10 @@ export default function KeepersSupportTickets({
       ) : resolvedTab === 'overview' ? renderLanding() : (
         <div className="flex flex-col gap-4">
           {isLoading ? (
-            <div className="flex justify-center items-center h-40 opacity-50">
-              <span className="text-sm font-bold animate-pulse capitalize tracking-widest">{t("ui_btn_processing", "Processing...")}</span>
-            </div>
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("ui_btn_processing", "Processing...")}
+            />
           ) : (() => {
             const filteredTickets = tickets.filter(t => {
               if (resolvedTab === "closed") {

@@ -2,7 +2,7 @@ import { useLexicon } from '../LexiconContext';
 import React from 'react';
 import { useTooltipStore } from '../store/tooltipStore';
 import { FilterPopover } from "./misc";
-import { SidePanelContext, HeaderActionPortalContext, useHubActionsState } from "./layout";
+import { SidePanelContext, HeaderActionPortalContext, useHubActionsState, EmptyState } from "./layout";
 export function LoadingScreen({
   title,
   subtitle,
@@ -13,51 +13,12 @@ export function LoadingScreen({
   icon?: string;
 }) {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden">
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[600px] max-h-[600px] rounded-full blur-[100px] opacity-10 pointer-events-none"
-        style={{ backgroundColor: "var(--accent)" }}
+    <div className="w-full flex-1 flex flex-col items-center justify-center py-6">
+      <EmptyState
+        icon={icon}
+        title={title}
+        subtitle={subtitle}
       />
-
-      <div className="flex flex-col items-center gap-12 relative z-10 text-center">
-        <div className="relative w-24 h-24 flex items-center justify-center">
-          {/* Subtle background glow */}
-          <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-[0.05] blur-xl animate-pulse" />
-
-          {/* Outer track */}
-          <div className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--accent)_15%,transparent)]" />
-
-          {/* Smooth spinning gradient ring */}
-          <div
-            className="absolute inset-0 rounded-full border-[2px] border-transparent border-t-[var(--accent)] border-r-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-            style={{ animation: "spin 1.2s linear infinite" }}
-          />
-
-          {/* Icon Box */}
-          <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center relative z-10">
-            <span
-              className={`material-symbols-outlined !text-[22px] text-[var(--accent)] ${icon === "sync" ? "animate-spin" : ""}`}
-            >
-              {icon}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-6 opacity-90">
-            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-[var(--accent)] opacity-50" />
-            <h2 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--text)] drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
-              {title}
-            </h2>
-            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-[var(--accent)] opacity-50" />
-          </div>
-          {subtitle && (
-            <p className="text-[10px] font-bold text-[var(--subtext)] tracking-[0.2em] uppercase opacity-50">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

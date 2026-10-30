@@ -67,14 +67,10 @@ export default function MasonFollowingSidePanel({
           icon={t("icon_groups", "groups")}
         >
           {loading ? (
-            <div className="glass-surface rounded-xl px-4 py-10 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center gap-2 opacity-70">
-              <span className="material-symbols-outlined animate-spin !text-[18px] text-[var(--accent)]">
-                {t("icon_sync", "sync")}
-              </span>
-              <span className="text-xs font-black uppercase tracking-widest text-[var(--subtext)]">
-                {t("loading", "Loading...")}
-              </span>
-            </div>
+            <EmptyState
+              icon={t("icon_sync", "sync")}
+              title={t("loading", "Loading...")}
+            />
           ) : masons.length === 0 ? (
             <EmptyState
               icon={t("icon_groups", "groups")}

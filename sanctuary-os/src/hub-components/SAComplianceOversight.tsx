@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
@@ -354,7 +354,10 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       }
     >
       {loading ? (
-        <div className="glass-panel p-8 rounded-2xl text-center text-sm font-bold text-[var(--subtext)] capitalize tracking-widest animate-pulse">{t("comp_scanning", "Scanning...")}</div>
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={t("comp_scanning", "Scanning...")}
+        />
       ) : filterStatus === 'overview' ? renderLanding() : (
         <HubListGrid
           isEmpty={filteredMods.length === 0}

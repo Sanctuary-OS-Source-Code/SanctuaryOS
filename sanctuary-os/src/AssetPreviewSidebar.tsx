@@ -13,6 +13,7 @@ import {
   PanelHeaderButton,
   getModFallbackUrl,
   handleOpenUrl,
+  EmptyState,
 } from "./shared";
 import { VAULT_CHIP_CLASS } from "./Cards";
 import { useTheme } from "./ThemeContext";
@@ -264,11 +265,10 @@ export default function AssetPreviewSidebar({
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8 break-words">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="text-xs font-black capitalize tracking-widest text-[var(--subtext)] animate-pulse">
-              {t("loading", "Loading...")}
-            </span>
-          </div>
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading", "Loading...")}
+          />
         ) : error ? (
           <SidePanelHeroCard
             icon={t("icon_error", "error")}
