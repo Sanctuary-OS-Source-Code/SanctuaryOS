@@ -3,7 +3,9 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useTooltipStore } from "../store/tooltipStore";
 import { supabaseAuth } from "../supabase";
-import { ActionButton, CustomDropdown, LoadingScreen, SidePanel, DashboardStatTile } from "../shared";
+import { ActionButton, CustomDropdown, LoadingScreen, SidePanel, DashboardStatTile, VAULT_CHIP_CLASS } from "../shared";
+import { isDesktop } from "../utils/envUtils";
+import { isRootDomain } from "../utils/routingUtils";
 import {
   fetchMfaSecurityState,
   getCachedMfaSecurityState,
@@ -120,7 +122,7 @@ export function ElevatedPasskeyGate({
         title: t("passkey_gate_hover_locked_title", "Hub Locked — FIDO2 Passkey Required"),
         subtitle: t(
           "passkey_gate_hover_locked_desc",
-          "Complete FIDO2 Passkey setup in the side panel to unlock this hub, or use the Sidebar and Dock to switch sections."
+          "Complete FIDO2 Passkey setup in the side panel to unlock this hub, or use the Sidebar to switch sections."
         ),
         variant: "warning",
         icon: t("icon_block", "block"),
@@ -383,6 +385,16 @@ export function ElevatedPasskeyGate({
   const totpFactors = mfaState?.totpFactors || [];
   const activeTabFactors = mfaEnrollTab === "passkey" ? passkeys : totpFactors;
 
+  const handleExitLockedHub = () => {
+    useTooltipStore.getState().clearTooltip();
+    const { isConfigured, setView } = useStore.getState();
+    if (isConfigured && !(!isDesktop() && isRootDomain())) {
+      setView("dashboard");
+    } else {
+      setView("landing");
+    }
+  };
+
   return (
     <>
       <div className="w-full h-full relative cursor-passkey-locked">
@@ -396,8 +408,8 @@ export function ElevatedPasskeyGate({
 
       <SidePanel
         isOpen={true}
-        onClose={() => {}}
-        hideCloseButton={true}
+        onClose={handleExitLockedHub}
+        hideCloseButton={false}
         passthroughBackdrop={true}
         noBackdropDim={true}
         title={t("auth_passkey_2fa_title", "Passkeys & Two-Factor Auth (2FA)")}
@@ -409,19 +421,33 @@ export function ElevatedPasskeyGate({
           className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
           onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
         >
-          <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined !text-[22px]">
-                {t("icon_shield", "shield")}
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {roleTitle}
-              </span>
-              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                {t("auth_passkey_policy_elevated_desc", "Verified {Masons}, Architects, Oversight, Wayfinders, and Keepers must maintain at least one active FIDO2 Passkey to access elevated hubs.")}
-              </p>
+          <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3.5">
+              <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[22px]">
+                    {t("icon_shield", "shield")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                    {roleTitle}
+                  </span>
+                  <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                    {t("auth_passkey_policy_elevated_desc", "Verified {Masons}, Architects, Oversight, Wayfinders, and Keepers must maintain at least one active FIDO2 Passkey to access elevated hubs.")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleExitLockedHub}
+                className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer shrink-0`}
+              >
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_arrow_back", "arrow_back")}
+                </span>
+                <span>{t("back", "Back")}</span>
+              </button>
             </div>
           </div>
 

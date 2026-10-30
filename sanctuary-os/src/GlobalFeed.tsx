@@ -371,7 +371,24 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                   {loading ? (
                     <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="animate-pulse" />
                   ) : filteredPosts.length === 0 ? (
-                    <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} />
+                    <EmptyState
+                      icon={searchQuery.trim() || startDate || endDate ? t("icon_search_off", "search_off") : t("icon_dynamic_feed", "dynamic_feed")}
+                      title={t("no_posts", "No Community Posts Found")}
+                      action={
+                        (searchQuery.trim() || startDate || endDate) ? (
+                          <button
+                            type="button"
+                            onClick={() => { setSearchQuery(""); setStartDate(null); setEndDate(null); }}
+                            className="px-4 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.30))] text-xs font-black tracking-wide text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-2 transition-all cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                              {t("icon_filter_alt_off", "filter_alt_off")}
+                            </span>
+                            <span>{t("btn_clear", "Clear Filters")}</span>
+                          </button>
+                        ) : undefined
+                      }
+                    />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
                       {filteredPosts.map((p, index) => (
@@ -407,7 +424,24 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           ) : activeTab === "FOLLOWING" && !userId ? (
             <EmptyState icon={t("icon_lock", "lock")} title={t("login_required", "Login Required To Reply")} />
           ) : filteredPosts.length === 0 ? (
-            <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} />
+            <EmptyState
+              icon={searchQuery.trim() || startDate || endDate ? t("icon_search_off", "search_off") : t("icon_dynamic_feed", "dynamic_feed")}
+              title={t("no_posts", "No Community Posts Found")}
+              action={
+                (searchQuery.trim() || startDate || endDate) ? (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(""); setStartDate(null); setEndDate(null); }}
+                    className="px-4 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.30))] text-xs font-black tracking-wide text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                      {t("icon_filter_alt_off", "filter_alt_off")}
+                    </span>
+                    <span>{t("btn_clear", "Clear Filters")}</span>
+                  </button>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
               {filteredPosts.map((p, index) => {

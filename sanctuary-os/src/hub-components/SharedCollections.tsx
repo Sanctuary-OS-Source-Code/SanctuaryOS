@@ -262,7 +262,7 @@ export function MasonCollectionBuilder({
           {flaggedSets.length === 0 ? (
             <EmptyState
               icon="collections_bookmark"
-              title={t("cc_no_sets", "No collections found")}
+              title={t("cc_no_sets", "No issues detected")}
               className="py-8"
             />
           ) : (

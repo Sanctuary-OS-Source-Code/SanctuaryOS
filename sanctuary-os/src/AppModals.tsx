@@ -30,8 +30,6 @@ import { getExtensionRegex, handleOpenUrl } from "./shared";
 import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
 import { isDesktop } from "./utils/envUtils";
 export const AppModals = React.memo(function AppModals(props: any) {
-  const [isLogExpanded, setIsLogExpanded] = React.useState(false);
-  const [isSystemStatusOpen, setIsSystemStatusOpen] = React.useState(false);
   const [isScreenshotTourOpen, setIsScreenshotTourOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -61,7 +59,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const setIsAlertsOpen = useStore(state => state.setIsAlertsOpen);
   const { applyConflictOverride } = usePlaySetLogic();
 
-  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel } = useModalStore();
+  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel, isLogExpanded, setIsLogExpanded, isSystemStatusOpen, setIsSystemStatusOpen } = useModalStore();
 
   const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
 

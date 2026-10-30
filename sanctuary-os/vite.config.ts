@@ -21,9 +21,140 @@ const DIRECTIVE_FILE_MAP: Record<string, string> = {
 };
 
 function devLexiconSyncPlugin() {
+  let cachedDevSession: {
+    access_token: string;
+    refresh_token: string;
+    user_id?: string;
+    updated_at: number;
+  } | null = null;
+  const desktopWebAuthnClients = new Set<any>();
+  const pendingWebAuthnRequests = new Map<string, { res: any; timer: any }>();
+
   return {
     name: 'dev-lexicon-sync',
     configureServer(server: any) {
+      server.middlewares.use('/__dev-session', (req: any, res: any) => {
+        res.setHeader('Content-Type', 'application/json');
+        if (req.method === 'GET') {
+          res.statusCode = 200;
+          res.end(JSON.stringify({ session: cachedDevSession }));
+          return;
+        }
+        if (req.method === 'DELETE') {
+          cachedDevSession = null;
+          res.statusCode = 200;
+          res.end(JSON.stringify({ ok: true }));
+          return;
+        }
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              if (data.access_token && data.refresh_token) {
+                cachedDevSession = {
+                  access_token: String(data.access_token),
+                  refresh_token: String(data.refresh_token),
+                  user_id: data.user_id ? String(data.user_id) : undefined,
+                  updated_at: Date.now(),
+                };
+              }
+              res.statusCode = 200;
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e: any) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: e?.message || 'Invalid JSON' }));
+            }
+          });
+          return;
+        }
+        res.statusCode = 405;
+        res.end(JSON.stringify({ error: 'Method not allowed' }));
+      });
+
+      server.middlewares.use('/__dev-webauthn/stream', (req: any, res: any) => {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        });
+        res.write(': connected\n\n');
+        desktopWebAuthnClients.add(res);
+        req.on('close', () => {
+          desktopWebAuthnClients.delete(res);
+        });
+      });
+
+      server.middlewares.use('/__dev-webauthn/request', (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: any) => { body += chunk; });
+        req.on('end', () => {
+          res.setHeader('Content-Type', 'application/json');
+          if (desktopWebAuthnClients.size === 0) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: 'no_desktop_bridge' }));
+            return;
+          }
+          try {
+            const { kind, options } = JSON.parse(body || '{}');
+            const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const timer = setTimeout(() => {
+              pendingWebAuthnRequests.delete(requestId);
+              if (!res.writableEnded) {
+                res.statusCode = 504;
+                res.end(JSON.stringify({ error: 'Desktop WebAuthn bridge timed out.' }));
+              }
+            }, 65000);
+            pendingWebAuthnRequests.set(requestId, { res, timer });
+
+            const payload = JSON.stringify({ requestId, kind, options });
+            const targetClient = Array.from(desktopWebAuthnClients)[0];
+            if (targetClient) {
+              targetClient.write(`data: ${payload}\n\n`);
+            }
+          } catch (e: any) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: e?.message || 'Invalid WebAuthn bridge payload' }));
+          }
+        });
+      });
+
+      server.middlewares.use('/__dev-webauthn/response', (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: any) => { body += chunk; });
+        req.on('end', () => {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const { requestId, credential, error } = JSON.parse(body || '{}');
+            const pending = pendingWebAuthnRequests.get(requestId);
+            if (pending) {
+              clearTimeout(pending.timer);
+              pendingWebAuthnRequests.delete(requestId);
+              if (!pending.res.writableEnded) {
+                pending.res.statusCode = error ? 400 : 200;
+                pending.res.end(JSON.stringify({ credential, error }));
+              }
+            }
+            res.statusCode = 200;
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e: any) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: e?.message || 'Invalid response payload' }));
+          }
+        });
+      });
+
       server.middlewares.use('/__update-lexicon', (req: any, res: any) => {
         if (req.method === 'POST') {
           let body = '';

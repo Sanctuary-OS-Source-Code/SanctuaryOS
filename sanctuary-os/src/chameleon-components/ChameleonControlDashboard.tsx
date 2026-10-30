@@ -43,6 +43,18 @@ export function ChameleonControlDashboard({
   const [pickerCoords, setPickerCoords] = useState<{ top?: number; left?: number; right?: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'presets' | 'optics' | 'typography' | 'backgrounds'>('presets');
   const [syncPaletteWallpaper, setSyncPaletteWallpaper] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'controls' | 'preview'>('controls');
+
+  useEffect(() => {
+    const handlePaneSwitch = (e: Event) => {
+      const next = (e as CustomEvent<'controls' | 'preview'>).detail;
+      if (next === 'controls' || next === 'preview') {
+        setMobilePane(next);
+      }
+    };
+    window.addEventListener('sanctuary-chameleon-mobile-pane', handlePaneSwitch);
+    return () => window.removeEventListener('sanctuary-chameleon-mobile-pane', handlePaneSwitch);
+  }, []);
 
   const [bgBuilderType, setBgBuilderType] = useState<'solid' | 'linear' | 'radial'>('linear');
   const [bgBuilderAngle, setBgBuilderAngle] = useState(135);
@@ -261,12 +273,12 @@ export function ChameleonControlDashboard({
 
   return (
     <div
-      className="flex-1 flex flex-col h-full border-r border-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden"
+      className={`${mobilePane === 'preview' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col h-full min-h-0 lg:border-r border-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden`}
       style={{ '--accent': currentTheme.accent || '#38bdf8' } as React.CSSProperties}
     >
       {/* Compact Theme Matrix Header & 4-Tile Navigation */}
-      <div className="flex flex-col gap-3.5 px-6 pt-4 pb-4 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-transparent shrink-0">
-        <div className="glass-panel p-3.5 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 px-3.5 sm:px-6 pt-3.5 sm:pt-4 pb-3.5 sm:pb-4 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-transparent shrink-0">
+        <div className="glass-panel p-3 sm:p-3.5 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
               <span className="material-symbols-outlined !text-[20px]">
@@ -296,6 +308,20 @@ export function ChameleonControlDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('sanctuary-chameleon-mobile-pane', { detail: 'preview' })
+                )
+              }
+              className={`lg:hidden ${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t('icon_visibility', 'visibility')}
+              </span>
+              <span>{t('btn_preview_theme', 'Preview')}</span>
+            </button>
             <button
               type="button"
               onClick={handleToggleThemeMode}
@@ -330,7 +356,7 @@ export function ChameleonControlDashboard({
         </div>
 
         {/* 4-Tile Filter Grid */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 w-full">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-2.5 w-full">
           <DashboardStatTile
             variant="filter"
             icon={t('icon_auto_awesome', 'auto_awesome')}
@@ -367,7 +393,7 @@ export function ChameleonControlDashboard({
       </div>
 
       {/* Tab Content Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 pb-28">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-6 flex flex-col gap-5 sm:gap-6 pb-28">
         {/* TAB 1: QUICK PRESETS (1-CLICK GLASS MATERIALS & CURATED COLOR PALETTES) */}
         {activeTab === 'presets' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">

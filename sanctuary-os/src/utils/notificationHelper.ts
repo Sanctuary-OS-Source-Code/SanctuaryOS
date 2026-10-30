@@ -580,6 +580,11 @@ export async function fetchUnifiedSanctuaryNotifications(opts: {
           _source: 'hub_broadcast',
           _releaseChannel: isDev ? 'dev' : 'stable',
           _version: versionStr,
+          _rawPost: {
+            ...row,
+            title: cleanTitle,
+            message: rawMsg.replace(/^<!--\s*RELEASE_META:\{.*?\}\s*-->\s*/s, ''),
+          },
         });
       }
 

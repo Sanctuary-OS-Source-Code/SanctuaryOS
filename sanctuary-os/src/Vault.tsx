@@ -104,6 +104,35 @@ const Vault = React.memo(function Vault(props: any) {
     return ids;
   }, [displayModList]);
 
+  const archivedVirtualFolderIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    if (!selectedVersion || selectedVersion === "") return ids;
+    displayModList.forEach((v: any) => {
+      if (v.isVirtual && v.dbId) {
+        if (v.isLocalOverride && (!v.flavors || v.flavors.length === 0)) return;
+        const vGameVersions = Array.from(
+          new Set(
+            (v.flavors || []).flatMap((f: any) => {
+              const ver = f.compatible_versions;
+              if (!ver) return [];
+              if (typeof ver === "string") {
+                return ver
+                  .split(",")
+                  .map((s: string) => s.trim())
+                  .filter(Boolean);
+              }
+              return Array.isArray(ver) ? ver : [];
+            }),
+          ),
+        ).filter(Boolean) as string[];
+        if (!isVersionMatch(vGameVersions, selectedVersion)) {
+          ids.add(String(v.dbId));
+        }
+      }
+    });
+    return ids;
+  }, [displayModList, selectedVersion]);
+
   const localConflictsMemo = React.useMemo(() => {
     try {
       const stored = null;
@@ -240,7 +269,7 @@ const Vault = React.memo(function Vault(props: any) {
       }
 
       if (hideGhostCards) {
-        if (!isCompatibleWithOS) return false;
+        if (equipFilter !== "ARCHIVES" && !isCompatibleWithOS) return false;
         if (mod.isGhosted) return false;
         if (mod.missingReqs && mod.missingReqs.length > 0) return false;
 
@@ -370,10 +399,11 @@ const Vault = React.memo(function Vault(props: any) {
       }
 
       if (mod.isVirtual) return true;
-      const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
+      const activeFolderSet = equipFilter === "ARCHIVES" ? archivedVirtualFolderIds : virtualFolderIds;
+      const folderExists = (mod.familyId && activeFolderSet.has(String(mod.familyId))) || (mod.setId && activeFolderSet.has(String(mod.setId)));
       return !folderExists;
     });
-  }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, equippedDisplayMods, modListIndex]);
+  }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, archivedVirtualFolderIds, equippedDisplayMods, modListIndex]);
   const dependencyGraph = React.useMemo(() => {
     const graph = new Map<string, any[]>();
 
@@ -794,6 +824,15 @@ const Vault = React.memo(function Vault(props: any) {
             expandedFolder={expandedFolder}
             setExpandedFolder={setExpandedFolder}
             hideGhostCards={hideGhostCards}
+            hasActiveFilters={Boolean(searchQuery?.trim() || activeCategory !== "ALL" || activeSubType !== "ALL" || filterStatus !== "ALL" || hideGhostCards || archiveVersionFilter)}
+            onResetFilters={() => {
+              setSearchQuery("");
+              setActiveCategory("ALL");
+              setActiveSubType("ALL");
+              setFilterStatus("ALL");
+              setHideGhostCards(false);
+              setArchiveVersionFilter("");
+            }}
             setSelectedMods={setSelectedMods}
             setActiveLocalFolder={setActiveLocalFolder}
             setIsLocalFolderEditorOpen={setIsLocalFolderEditorOpen}

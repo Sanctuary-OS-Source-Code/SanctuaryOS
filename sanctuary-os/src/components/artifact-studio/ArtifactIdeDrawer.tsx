@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
@@ -24,6 +25,9 @@ export function ArtifactIdeDrawer({
   setWbShowTimeline: (val: boolean) => void;
 }) {
   const { t } = useLexicon();
+  const [wordWrap, setWordWrap] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
 
   if (!cwSelectedFile) return null;
 
@@ -51,6 +55,12 @@ export function ArtifactIdeDrawer({
         panelClass={wbLayoutState.isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
         headerActions={
           <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_wrap_text", "wrap_text")}
+              tooltip={t("ide_toggle_word_wrap", "Wrap Text")}
+              isActive={wordWrap}
+              onClick={() => setWordWrap((w) => !w)}
+            />
             <PanelHeaderButton
               icon={t("icon_save", "save")}
               tooltip={wbFileState.isSaving ? t("btn_saving", "Saving...") : t("save", "Save")}
@@ -157,6 +167,7 @@ export function ArtifactIdeDrawer({
               isLight={wbLayoutState.isLight}
               problemsList={wbEditorState.problemsList}
               setProblemsList={wbEditorState.setProblemsList}
+              wordWrap={wordWrap}
               onEditorMount={(editor) => {
                 wbEditorState.setEditorRef(editor);
               }}

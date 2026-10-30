@@ -64,7 +64,24 @@ export function SystemStatusPanel({
         .then((res: any) => {
           setTelemetry(res);
         })
-        .catch((err) => console.error("Failed to get telemetry", err));
+        .catch(async () => {
+          let diskUsed = 0;
+          let diskTotal = 0;
+          try {
+            if (navigator.storage && navigator.storage.estimate) {
+              const est = await navigator.storage.estimate();
+              diskUsed = est.usage || 0;
+              diskTotal = est.quota || 0;
+            }
+          } catch {}
+          setTelemetry({
+            host_os: (navigator as any).userAgentData?.platform || navigator.platform || "Web / PWA",
+            logical_cores: navigator.hardwareConcurrency || 4,
+            total_memory: ((navigator as any).deviceMemory || 8) * 1024 ** 3,
+            disk_used: diskUsed,
+            disk_total: diskTotal,
+          });
+        });
 
       const fetchFootprint = () => {
         invoke("fetch_app_footprint")
@@ -96,7 +113,16 @@ export function SystemStatusPanel({
             prevFootprintRef.current = res;
             prevTimeRef.current = now;
           })
-          .catch((err) => console.error("Failed to get footprint", err));
+          .catch(() => {
+            const jsMem = (performance as any)?.memory?.usedJSHeapSize || 64 * 1024 * 1024;
+            setAppFootprint({
+              cpu_usage: 1,
+              memory_used: jsMem,
+              memory_private: jsMem,
+              disk_read_speed: 0,
+              disk_write_speed: 0,
+            });
+          });
       };
 
       fetchFootprint();

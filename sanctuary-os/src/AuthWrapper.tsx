@@ -7,10 +7,16 @@ import { hashString } from "./lib/cryptoUtils";
 import { isDesktop } from "./utils/envUtils";
 import {
   authenticateFidoPasskey,
+  clearDevSessionOnVite,
   clearPasskeySessionVerified,
   fetchMfaSecurityState,
+  initDevPasskeyBridge,
+  isLocalhostBrowser,
   isPasskeySessionVerified,
+  markPasskeySessionVerified,
+  restoreDevSessionFromVite,
   sanitizeFactorFriendlyName,
+  syncDevSessionToVite,
 } from "./utils/passkeyUtils";
 import {
   ActionButton,
@@ -112,8 +118,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    initDevPasskeyBridge();
+
     const handleSessionUpdate = async (newSession: any, isInitialBoot = false) => {
       if (newSession) {
+        if (isLocalhostBrowser()) {
+          markPasskeySessionVerified(newSession.user?.id);
+        }
+        syncDevSessionToVite(newSession).catch(() => {});
         try {
           if (!isPasskeySessionVerified(newSession)) {
             const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -197,9 +209,17 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error("Timeout")), 5000)
           );
-          const {
+          let {
             data: { session: fetchedSession },
           } = (await Promise.race([sessionPromise, timeoutPromise])) as any;
+          if (
+            !fetchedSession &&
+            isLocalhostBrowser() &&
+            (typeof sessionStorage === "undefined" ||
+              sessionStorage.getItem("sanctuary_dev_signed_out") !== "true")
+          ) {
+            fetchedSession = await restoreDevSessionFromVite();
+          }
           await handleSessionUpdate(fetchedSession, true);
         }
       } catch (e) {
@@ -216,6 +236,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (event === "SIGNED_OUT") {
         clearPasskeySessionVerified();
+        clearDevSessionOnVite().catch(() => {});
       }
       if (event === "PASSWORD_RECOVERY") {
         setIsPasswordRecovery(true);
@@ -449,15 +470,22 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (error) throw error;
 
         if (data?.user) {
-          const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (
-            mfaStatus.data?.nextLevel === "aal2" &&
-            mfaStatus.data?.currentLevel === "aal1"
-          ) {
-            if (await prepareMfaChallengeFromState()) {
-              setIsProcessing(false);
-              setStatus(t("auth_mfa_required_title", "Two-Factor Authentication Required"));
-              return;
+          if (isLocalhostBrowser()) {
+            markPasskeySessionVerified(data.user.id);
+            if (data.session) {
+              syncDevSessionToVite(data.session).catch(() => {});
+            }
+          } else {
+            const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (
+              mfaStatus.data?.nextLevel === "aal2" &&
+              mfaStatus.data?.currentLevel === "aal1"
+            ) {
+              if (await prepareMfaChallengeFromState()) {
+                setIsProcessing(false);
+                setStatus(t("auth_mfa_required_title", "Two-Factor Authentication Required"));
+                return;
+              }
             }
           }
           await finalizeLogin(data.user);

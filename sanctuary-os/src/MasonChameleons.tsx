@@ -1287,7 +1287,7 @@ export function MasonChameleons({
           ) : undefined
         }
       >
-        <div className="flex-1 flex w-full h-full overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row w-full h-full min-h-0 overflow-hidden">
           <ChameleonControlDashboard
             currentTheme={currentTheme}
             handleUpdateTheme={handleUpdateTheme}

@@ -2427,8 +2427,8 @@ export default function KeepersWebDirectivesEditor({
                           </div>
 
                           {/* Row 1: Icon Picker + Full-Width Card Title */}
-                          <div className="flex items-end gap-3 w-full">
-                            <div className="relative">
+                          <div className="flex items-end gap-2.5 sm:gap-3 w-full">
+                            <div className="relative shrink-0">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -2443,15 +2443,15 @@ export default function KeepersWebDirectivesEditor({
                                         }
                                   )
                                 }
-                                className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="h-10 w-10 sm:w-auto sm:px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                   {card.icon || t("icon_layers", "layers")}
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-wider">
+                                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">
                                   {t("visual_editor_icon_btn", "Icon")}
                                 </span>
-                                <span className="material-symbols-outlined !text-[14px] opacity-70">
+                                <span className="hidden sm:inline material-symbols-outlined !text-[14px] opacity-70">
                                   {t("icon_expand_more", "expand_more")}
                                 </span>
                                 <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
@@ -2815,8 +2815,8 @@ export default function KeepersWebDirectivesEditor({
                                       </div>
 
                                       {/* Icon + Item Title */}
-                                      <div className="flex items-end gap-3 w-full">
-                                        <div className="relative">
+                                      <div className="flex items-end gap-2.5 sm:gap-3 w-full">
+                                        <div className="relative shrink-0">
                                           <button
                                             type="button"
                                             onClick={() =>
@@ -2835,7 +2835,7 @@ export default function KeepersWebDirectivesEditor({
                                                     }
                                               )
                                             }
-                                            className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+                                            className="h-10 w-10 sm:w-auto sm:px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                                           >
                                             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                               {sub.icon ||
@@ -2844,10 +2844,10 @@ export default function KeepersWebDirectivesEditor({
                                                   "check_circle"
                                                 )}
                                             </span>
-                                            <span className="text-[10px] font-black uppercase tracking-wider">
+                                            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">
                                               {t("visual_editor_icon_btn", "Icon")}
                                             </span>
-                                            <span className="material-symbols-outlined !text-[14px] opacity-70">
+                                            <span className="hidden sm:inline material-symbols-outlined !text-[14px] opacity-70">
                                               {t("icon_expand_more", "expand_more")}
                                             </span>
                                             <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />

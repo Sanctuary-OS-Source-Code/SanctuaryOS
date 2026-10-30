@@ -299,7 +299,7 @@ export function ArtifactFilesTab({
             {t("studio_standalone_section_desc", "{Mods} without linked addons, twins, or flavors.")}
           </div>
         ) : (
-          <div className="max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
+          <div className="md:max-h-[240px] md:overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
             {filteredFamily.map((rel) => (
               <div
                 key={rel.id}

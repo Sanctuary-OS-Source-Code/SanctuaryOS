@@ -57,8 +57,8 @@ export function EditableVersionHistoryCard({
 
   return (
     <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <span
             className={`material-symbols-outlined !text-[18px] shrink-0 ${
               idx === 0 ? "text-[var(--accent)]" : "text-[var(--subtext)]"
@@ -73,7 +73,7 @@ export function EditableVersionHistoryCard({
             onBlur={commitLabel}
             onKeyDown={(e) => e.key === "Enter" && commitLabel()}
             placeholder={t("studio_version_edit_label_ph", "Version label (e.g. 1.0.0)")}
-            className="h-9 w-28 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] outline-none px-3 text-xs font-bold text-[var(--text)] transition-all"
+            className="h-9 w-24 sm:w-28 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] outline-none px-3 text-xs font-bold text-[var(--text)] transition-all shrink-0"
           />
           {idx === 0 && (
             <span className="px-2 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)] shrink-0">
@@ -82,9 +82,13 @@ export function EditableVersionHistoryCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
           {ver.dna_hash && (
-            <span className="font-mono text-[10px] text-[var(--subtext)] opacity-80 truncate max-w-[160px] sm:max-w-[210px] relative group/btn cursor-default">
+            <span
+              className={`${
+                idx === 0 ? "hidden sm:inline" : "inline"
+              } font-mono text-[10px] text-[var(--subtext)] opacity-80 truncate max-w-[110px] sm:max-w-[210px] relative group/btn cursor-default`}
+            >
               {formatDisplayHash(ver.dna_hash)}
               <HoverTooltip title={ver.dna_hash} />
             </span>
@@ -229,7 +233,7 @@ export function ArtifactVersionHistorySection({
       {versions.length === 0 ? (
         <EmptyState icon="history" title={t("no_versions_found", "No Versions Registered")} className="py-6" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {versions.map((ver, idx) => (
             <EditableVersionHistoryCard
               key={ver.id || ver.dna_hash || idx}

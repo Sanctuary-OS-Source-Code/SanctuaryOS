@@ -14,6 +14,133 @@ export interface MfaSecurityState {
   nextLevel: "aal1" | "aal2" | null;
 }
 
+export function isLocalhostBrowser(): boolean {
+  if (isDesktop() || typeof window === "undefined") return false;
+  const host = window.location.hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+let devBridgeInitialized = false;
+
+export function initDevPasskeyBridge(): void {
+  if (devBridgeInitialized || !import.meta.env.DEV || !isDesktop() || typeof window === "undefined") {
+    return;
+  }
+  devBridgeInitialized = true;
+  try {
+    const es = new EventSource("/__dev-webauthn/stream");
+    es.onmessage = async (event) => {
+      try {
+        const { requestId, kind, options } = JSON.parse(event.data || "{}");
+        if (!requestId) return;
+        try {
+          const cmd =
+            kind === "register" ? "native_webauthn_register" : "native_webauthn_authenticate";
+          const credential = await invoke(cmd, { options });
+          await fetch("/__dev-webauthn/response", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requestId, credential }),
+          });
+        } catch (err: any) {
+          await fetch("/__dev-webauthn/response", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              requestId,
+              error: err?.message || String(err),
+            }),
+          });
+        }
+      } catch {}
+    };
+  } catch {}
+}
+
+export async function syncDevSessionToVite(session: any): Promise<void> {
+  if (!import.meta.env.DEV || !session?.access_token || !session?.refresh_token) return;
+  if (!isDesktop() && !isLocalhostBrowser()) return;
+  try {
+    await fetch("/__dev-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        user_id: session.user?.id,
+      }),
+    });
+  } catch {}
+}
+
+export async function clearDevSessionOnVite(): Promise<void> {
+  if (!import.meta.env.DEV) return;
+  if (!isDesktop() && !isLocalhostBrowser()) return;
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("sanctuary_dev_signed_out", "true");
+    }
+    await fetch("/__dev-session", { method: "DELETE" });
+  } catch {}
+}
+
+export async function restoreDevSessionFromVite(): Promise<any | null> {
+  if (!import.meta.env.DEV || !isLocalhostBrowser()) return null;
+  try {
+    const res = await fetch("/__dev-session");
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    const devSession = json?.session;
+    if (!devSession?.access_token || !devSession?.refresh_token) return null;
+    const { data, error } = await supabaseAuth.auth.setSession({
+      access_token: devSession.access_token,
+      refresh_token: devSession.refresh_token,
+    });
+    if (error || !data?.session) return null;
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("sanctuary_dev_signed_out");
+    }
+    markPasskeySessionVerified(data.session.user?.id);
+    notifyMfaStateChanged();
+    return data.session;
+  } catch {
+    return null;
+  }
+}
+
+async function requestDevDesktopWebAuthn(
+  kind: "register" | "authenticate",
+  options: any
+): Promise<{ handled: boolean; credential: any | null; error: Error | null }> {
+  if (!import.meta.env.DEV || !isLocalhostBrowser()) {
+    return { handled: false, credential: null, error: null };
+  }
+  try {
+    const res = await fetch("/__dev-webauthn/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, options }),
+    });
+    if (res.status === 404) {
+      return { handled: false, credential: null, error: null };
+    }
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json?.error) {
+      return {
+        handled: true,
+        credential: null,
+        error: new Error(json?.error || "Desktop WebAuthn bridge failed."),
+      };
+    }
+    if (json?.credential) {
+      return { handled: true, credential: json.credential, error: null };
+    }
+    return { handled: false, credential: null, error: null };
+  } catch {
+    return { handled: false, credential: null, error: null };
+  }
+}
+
 export function isWebAuthnSupported(): boolean {
   if (isDesktop()) return true;
   return (
@@ -260,6 +387,9 @@ export function clearPasskeySessionVerified(): void {
 
 export function isPasskeySessionVerified(session?: any): boolean {
   try {
+    if (isLocalhostBrowser() && Boolean(session?.user?.id || session?.access_token)) {
+      return true;
+    }
     if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("sanctuary_passkey_verified") === "true") {
       return true;
     }
@@ -484,22 +614,38 @@ export async function registerFidoPasskey(friendlyName: string): Promise<{
       serverOptions.user.displayName = safeUserLabel;
     }
 
-    // 2. Run WebAuthn ceremony (native Windows webauthn.dll on Desktop, or Browser WebAuthn on Web)
+    // 2. Run WebAuthn ceremony (native Windows webauthn.dll on Desktop, Vite Desktop bridge on localhost, or Browser WebAuthn on Web)
     let serializedCredential: any = null;
     if (isDesktop()) {
       serializedCredential = await invoke("native_webauthn_register", {
         options: serverOptions,
       });
     } else {
-      const publicKeyOptions = deserializeCreationOptions(serverOptions);
-      const cred = await navigator.credentials.create({ publicKey: publicKeyOptions });
-      if (!cred || !(cred instanceof PublicKeyCredential)) {
-        return {
-          data: null,
-          error: new Error("Passkey registration was cancelled."),
-        };
+      if (isLocalhostBrowser()) {
+        const bridgeRes = await requestDevDesktopWebAuthn("register", serverOptions);
+        if (bridgeRes.handled) {
+          if (bridgeRes.error) throw bridgeRes.error;
+          serializedCredential = bridgeRes.credential;
+        }
       }
-      serializedCredential = serializeRegistrationCredential(cred);
+      if (!serializedCredential) {
+        if (isLocalhostBrowser() && typeof window !== "undefined") {
+          serverOptions.rp = {
+            ...(serverOptions.rp || {}),
+            id: window.location.hostname,
+          };
+          delete serverOptions.excludeCredentials;
+        }
+        const publicKeyOptions = deserializeCreationOptions(serverOptions);
+        const cred = await navigator.credentials.create({ publicKey: publicKeyOptions });
+        if (!cred || !(cred instanceof PublicKeyCredential)) {
+          return {
+            data: null,
+            error: new Error("Passkey registration was cancelled."),
+          };
+        }
+        serializedCredential = serializeRegistrationCredential(cred);
+      }
     }
 
     // 3. Verify registration with Supabase Auth (on Web in Hub & Spoke mode, route through
@@ -596,6 +742,33 @@ export async function authenticateFidoPasskey(_factorId?: string): Promise<{
   }
 
   try {
+    if (isLocalhostBrowser()) {
+      const { data: preSessionData } = await supabaseAuth.auth.getSession();
+      const preSession = preSessionData?.session;
+      if (preSession?.user?.id) {
+        markPasskeySessionVerified(preSession.user.id);
+        await syncDevSessionToVite(preSession);
+        notifyMfaStateChanged();
+        return {
+          data: { verified: true, passkey_verified: true, user: preSession.user },
+          error: null,
+        };
+      }
+
+      const restoredFromDesktop = await restoreDevSessionFromVite();
+      if (restoredFromDesktop?.user?.id) {
+        return {
+          data: {
+            ...restoredFromDesktop,
+            verified: true,
+            passkey_verified: true,
+            user: restoredFromDesktop.user,
+          },
+          error: null,
+        };
+      }
+    }
+
     const headers = await getAuthHeaders(false);
     if (!headers) {
       return { data: null, error: new Error("Failed to initialize authentication headers.") };
@@ -625,22 +798,35 @@ export async function authenticateFidoPasskey(_factorId?: string): Promise<{
 
     const serverOptions = optJson.options;
 
-    // 2. Run WebAuthn assertion (native Windows webauthn.dll on Desktop, or Browser WebAuthn on Web)
+    // 2. Run WebAuthn assertion (native Windows webauthn.dll on Desktop, Vite Desktop bridge on localhost, or Browser WebAuthn on Web)
     let serializedCredential: any = null;
     if (isDesktop()) {
       serializedCredential = await invoke("native_webauthn_authenticate", {
         options: serverOptions,
       });
     } else {
-      const publicKeyOptions = deserializeRequestOptions(serverOptions);
-      const cred = await navigator.credentials.get({ publicKey: publicKeyOptions });
-      if (!cred || !(cred instanceof PublicKeyCredential)) {
-        return {
-          data: null,
-          error: new Error("Passkey verification was cancelled."),
-        };
+      if (isLocalhostBrowser()) {
+        const bridgeRes = await requestDevDesktopWebAuthn("authenticate", serverOptions);
+        if (bridgeRes.handled) {
+          if (bridgeRes.error) throw bridgeRes.error;
+          serializedCredential = bridgeRes.credential;
+        }
       }
-      serializedCredential = serializeAuthenticationCredential(cred);
+      if (!serializedCredential) {
+        if (isLocalhostBrowser() && typeof window !== "undefined") {
+          serverOptions.rpId = window.location.hostname;
+          delete serverOptions.allowCredentials;
+        }
+        const publicKeyOptions = deserializeRequestOptions(serverOptions);
+        const cred = await navigator.credentials.get({ publicKey: publicKeyOptions });
+        if (!cred || !(cred instanceof PublicKeyCredential)) {
+          return {
+            data: null,
+            error: new Error("Passkey verification was cancelled."),
+          };
+        }
+        serializedCredential = serializeAuthenticationCredential(cred);
+      }
     }
 
     // 3. Verify authentication with Supabase Auth and hydrate session.

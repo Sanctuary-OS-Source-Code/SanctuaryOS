@@ -881,42 +881,521 @@ export function EmptyState({
 }) {
   const { t } = useLexicon();
   const rawIcon = (icon || "inbox").trim();
+  const baseIconKey = rawIcon.replace(/^icon_/, "").toLowerCase();
   const resolvedIcon = rawIcon.startsWith("icon_")
     ? t(rawIcon, rawIcon.replace(/^icon_/, ""))
     : t(`icon_${rawIcon}`, rawIcon);
 
+  const lowerTitle = String(title || "").toLowerCase();
+  const lowerSub = String(subtitle || "").toLowerCase();
+  const combinedText = `${baseIconKey} ${lowerTitle} ${lowerSub}`;
+
+  const isLoadingState =
+    baseIconKey.includes("sync") ||
+    baseIconKey.includes("autorenew") ||
+    baseIconKey.includes("hourglass") ||
+    /\b(loading|syncing|synchronizing|fetching)\b/.test(lowerTitle);
+
+  const isAuthState =
+    baseIconKey === "lock" ||
+    baseIconKey === "key" ||
+    baseIconKey === "vpn_key" ||
+    baseIconKey.includes("shield_lock") ||
+    /\b(login|sign in|clearance required|authentication)\b/.test(lowerTitle);
+
+  const isAllClearState =
+    !isLoadingState &&
+    !isAuthState &&
+    (baseIconKey === "check_circle" ||
+      baseIconKey === "verified" ||
+      baseIconKey === "verified_user" ||
+      baseIconKey === "task_alt" ||
+      baseIconKey === "gpp_good" ||
+      baseIconKey === "health_and_safety" ||
+      /\b(all clear|all caught up|no conflicts|no alerts|no differences|no issues|healthy|queues clear|zero issues)\b/.test(
+        lowerTitle,
+      ));
+
+  const isSearchFilterState =
+    !isLoadingState &&
+    !isAuthState &&
+    !isAllClearState &&
+    (baseIconKey.includes("search") ||
+      baseIconKey.includes("filter") ||
+      /\b(search|filter|matching|criteria)\b/.test(combinedText));
+
+  const isRepliesState =
+    !isLoadingState &&
+    !isAuthState &&
+    !isAllClearState &&
+    (baseIconKey === "forum" ||
+      baseIconKey === "chat" ||
+      baseIconKey === "chat_bubble" ||
+      baseIconKey === "comment" ||
+      baseIconKey === "quickreply" ||
+      /\b(replies|reply|comments|discussion)\b/.test(lowerTitle));
+
+  const isTransmissionsState =
+    !isLoadingState &&
+    !isAuthState &&
+    !isAllClearState &&
+    !isRepliesState &&
+    (baseIconKey === "cell_tower" ||
+      baseIconKey === "dynamic_feed" ||
+      baseIconKey === "satellite_alt" ||
+      baseIconKey === "campaign" ||
+      baseIconKey === "podcasts" ||
+      baseIconKey === "rss_feed" ||
+      /\b(transmission|transmissions|comm-link|dispatch|dispatches|broadcast|posts|feed)\b/.test(
+        lowerTitle,
+      ));
+
+  const isHistoryState =
+    !isLoadingState &&
+    !isAuthState &&
+    !isAllClearState &&
+    (baseIconKey.includes("history") ||
+      baseIconKey === "restore" ||
+      baseIconKey === "schedule" ||
+      /\b(snapshot|snapshots|history|timeline|backup|backups|time capsule)\b/.test(
+        lowerTitle,
+      ));
+
+  const semanticColorVar = isAllClearState
+    ? "var(--success)"
+    : isAuthState
+      ? "var(--warning)"
+      : "var(--accent)";
+
+  const statusBadgeMeta = isLoadingState
+    ? {
+        icon: t("icon_sync", "sync"),
+        label: t("loading", "Loading"),
+        telemetryIcon: t("icon_cloud_sync", "cloud_sync"),
+        telemetryLabel: t("loading", "Loading"),
+        consoleLine: t(
+          "empty_console_loading",
+          "Workspace Sync • Fetching Records",
+        ),
+        defaultSubtitle: t(
+          "empty_sub_loading",
+          "Synchronizing records and data for the active workspace...",
+        ),
+        hintIcon: t("icon_sync", "sync"),
+        hintLabel: t(
+          "empty_console_loading",
+          "Workspace Sync • Fetching Records",
+        ),
+        leftSatIcon: t("icon_cloud_sync", "cloud_sync"),
+        rightSatIcon: t("icon_database", "database"),
+        footerRightLabel: t("loading", "Loading"),
+      }
+    : isAuthState
+      ? {
+          icon: t("icon_lock", "lock"),
+          label: t("empty_badge_auth", "Sign-In Required"),
+          telemetryIcon: t("icon_key", "key"),
+          telemetryLabel: t("empty_badge_auth", "Sign-In Required"),
+          consoleLine: t(
+            "empty_console_auth",
+            "Account Session • Authentication Required",
+          ),
+          defaultSubtitle: t(
+            "empty_sub_auth",
+            "Sign in with your Sanctuary account to view and interact with this channel.",
+          ),
+          hintIcon: t("icon_verified_user", "verified_user"),
+          hintLabel: t(
+            "empty_console_auth",
+            "Account Session • Authentication Required",
+          ),
+          leftSatIcon: t("icon_key", "key"),
+          rightSatIcon: t("icon_badge", "badge"),
+          footerRightLabel: t("empty_badge_auth", "Sign-In Required"),
+        }
+      : isAllClearState
+        ? {
+            icon: t("icon_verified", "verified"),
+            label: t("empty_badge_nominal", "All Clear"),
+            telemetryIcon: t("icon_check_circle", "check_circle"),
+            telemetryLabel: t("status_stable", "Stable"),
+            consoleLine: t(
+              "empty_console_nominal",
+              "System Check Complete • Zero Issues Detected",
+            ),
+            defaultSubtitle: t(
+              "empty_sub_nominal",
+              "All monitored files and records passed verification with zero active alerts or conflicts.",
+            ),
+            hintIcon: t("icon_shield", "shield"),
+            hintLabel: t(
+              "empty_hint_nominal",
+              "Real-Time Monitoring • Automatic background checks are active",
+            ),
+            leftSatIcon: t("icon_shield", "shield"),
+            rightSatIcon: t("icon_verified_user", "verified_user"),
+            footerRightLabel: t("status_stable", "Stable"),
+          }
+        : isSearchFilterState
+          ? {
+              icon: t("icon_manage_search", "manage_search"),
+              label: t("empty_badge_filter", "Filter Active"),
+              telemetryIcon: t("icon_filter_alt", "filter_alt"),
+              telemetryLabel: t("empty_telemetry_zero_matches", "0 Matches"),
+              consoleLine: t(
+                "empty_console_search",
+                "Search & Filter Query • No Matching Items",
+              ),
+              defaultSubtitle: t(
+                "vault_no_results_sub",
+                "Try adjusting your search criteria or filters.",
+              ),
+              hintIcon: t("icon_tune", "tune"),
+              hintLabel: t(
+                "empty_hint_search",
+                "Tip: Clear your search query or reset active filters to view all items",
+              ),
+              leftSatIcon: t("icon_tune", "tune"),
+              rightSatIcon: t("icon_filter_alt", "filter_alt"),
+              footerRightLabel: t("workspace_badge_ready", "Ready"),
+            }
+          : isRepliesState
+            ? {
+                icon: t("icon_forum", "forum"),
+                label: t("empty_badge_quiet", "Channel Quiet"),
+                telemetryIcon: t("icon_chat_bubble", "chat_bubble"),
+                telemetryLabel: t("empty_telemetry_zero_replies", "0 Replies"),
+                consoleLine: t(
+                  "empty_console_replies",
+                  "Discussion Feed • Waiting for {Citizen} Replies",
+                ),
+                defaultSubtitle: t(
+                  "empty_sub_replies",
+                  "{Citizen} replies and thread discussions will appear here automatically once conversations begin.",
+                ),
+                hintIcon: t("icon_sensors", "sensors"),
+                hintLabel: t(
+                  "empty_hint_replies",
+                  "Live Sync • Replies appear automatically as {Citizens} respond",
+                ),
+                leftSatIcon: t("icon_chat_bubble", "chat_bubble"),
+                rightSatIcon: t("icon_notifications", "notifications"),
+                footerRightLabel: t("empty_badge_standby", "Standby"),
+              }
+            : isTransmissionsState
+              ? {
+                  icon: t("icon_sensors", "sensors"),
+                  label: t("empty_badge_standby", "Standby"),
+                  telemetryIcon: t("icon_cell_tower", "cell_tower"),
+                  telemetryLabel: t("empty_telemetry_zero_signals", "0 Posts"),
+                  consoleLine: t(
+                    "empty_console_transmissions",
+                    "Community Feed • No Matching {Dispatches}",
+                  ),
+                  defaultSubtitle: t(
+                    "empty_sub_transmissions",
+                    "No {dispatches} match the current view or search criteria. New broadcasts will appear here automatically.",
+                  ),
+                  hintIcon: t("icon_satellite_alt", "satellite_alt"),
+                  hintLabel: t(
+                    "empty_hint_transmissions",
+                    "Live Channel • Follow {Masons} or clear filters to see more posts",
+                  ),
+                  leftSatIcon: t("icon_satellite_alt", "satellite_alt"),
+                  rightSatIcon: t("icon_cell_tower", "cell_tower"),
+                  footerRightLabel: t("empty_badge_standby", "Standby"),
+                }
+              : isHistoryState
+                ? {
+                    icon: t("icon_history", "history"),
+                    label: t("empty_badge_timeline", "Timeline Empty"),
+                    telemetryIcon: t("icon_restore", "restore"),
+                    telemetryLabel: t(
+                      "empty_telemetry_zero_snapshots",
+                      "0 Snapshots",
+                    ),
+                    consoleLine: t(
+                      "empty_console_history",
+                      "{Backups} Timeline • Awaiting First Snapshot",
+                    ),
+                    defaultSubtitle: t(
+                      "empty_sub_history",
+                      "Create a snapshot or {backups} point to track changes and restore previous configurations anytime.",
+                    ),
+                    hintIcon: t("icon_history", "history"),
+                    hintLabel: t(
+                      "empty_hint_default",
+                      "Ready • New entries will populate this view automatically",
+                    ),
+                    leftSatIcon: t("icon_restore", "restore"),
+                    rightSatIcon: t("icon_inventory_2", "inventory_2"),
+                    footerRightLabel: t("workspace_badge_ready", "Ready"),
+                  }
+                : {
+                    icon: t("icon_inbox", "inbox"),
+                    label: t("empty_badge_standby", "Standby"),
+                    telemetryIcon: t("icon_layers", "layers"),
+                    telemetryLabel: t("empty_telemetry_zero_items", "0 Items"),
+                    consoleLine: t(
+                      "empty_console_default",
+                      "Collection Index • Ready for New Items",
+                    ),
+                    defaultSubtitle: t(
+                      "empty_sub_default",
+                      "No items are registered in this view yet. Try adjusting your filters or adding a new entry.",
+                    ),
+                    hintIcon: t("icon_auto_awesome_motion", "auto_awesome_motion"),
+                    hintLabel: t(
+                      "empty_hint_default",
+                      "Ready • New entries will populate this view automatically",
+                    ),
+                    leftSatIcon: t("icon_layers", "layers"),
+                    rightSatIcon: t(
+                      "icon_auto_awesome_motion",
+                      "auto_awesome_motion",
+                    ),
+                    footerRightLabel: t("workspace_badge_ready", "Ready"),
+                  };
+
+  const resolvedSubtitle =
+    typeof subtitle === "string" && subtitle.trim().length > 0
+      ? subtitle
+      : statusBadgeMeta.defaultSubtitle;
+
+  const isCompact =
+    /min-h-\[(?:80|90|100|110|120|130|140|150|160|170|180)px\]|\bpy-[23456]\b/.test(
+      `${minHeightClass} ${className}`,
+    );
+  const isSpacious = /\bpy-(?:16|20|24)\b/.test(className);
+
+  // Strip outer padding utilities from caller className so Top Console Bar and Bottom Footer Bar stay flush with card borders
+  const sanitizedClassName = className
+    .split(/\s+/)
+    .filter((tok) => !/^!?p[xytrbl]?-\d+$/.test(tok))
+    .join(" ");
+
   return (
     <div
-      className={`glass-panel sa-empty-state-card rounded-3xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-center py-12 px-6 sm:px-10 flex flex-col items-center justify-center gap-4 ${minHeightClass} col-span-full w-full relative overflow-hidden ${className}`}
+      className={`glass-panel sa-empty-state-card rounded-3xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-center flex flex-col justify-between ${minHeightClass} col-span-full w-full relative overflow-hidden ${sanitizedClassName}`}
     >
+      {/* 3D Liquid Glass Meniscus Rim Overlay */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_srgb,var(--accent)_10%,transparent)_0%,transparent_70%)] opacity-80"
+        className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
+        style={{
+          boxShadow: "var(--glass-inset-highlight)",
+        }}
       />
-      <div className="w-14 h-14 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0 relative z-10">
-        <span className="material-symbols-outlined !text-[26px]">
-          {resolvedIcon}
+
+      {/* Ambient Top Radial Accent Wash & Watermark Glyph */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-85"
+        style={{
+          background: `radial-gradient(ellipse at 50% 0%, color-mix(in srgb, ${semanticColorVar} 14%, transparent) 0%, transparent 68%)`,
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className="material-symbols-outlined pointer-events-none select-none absolute -right-3 -bottom-5 !text-[110px] opacity-[0.035] rotate-[-12deg]"
+        style={{ color: semanticColorVar }}
+      >
+        {resolvedIcon}
+      </span>
+
+      {/* Top Header Console Bar */}
+      <div
+        className={`w-full ${
+          isCompact ? "px-4 py-2.5" : "px-5 py-3 sm:px-6 sm:py-3.5"
+        } border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.12))] flex items-center justify-between gap-3 relative z-10 shrink-0`}
+        style={{ background: "var(--glass-card-banner-bg)" }}
+      >
+        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+          <span
+            className={`material-symbols-outlined !text-[12px] ${
+              isLoadingState ? "animate-spin" : ""
+            }`}
+            style={{ color: semanticColorVar }}
+          >
+            {statusBadgeMeta.icon}
+          </span>
+          <span>{normalizeAllCapsForThemeCase(statusBadgeMeta.label)}</span>
+        </div>
+
+        <div className="h-px flex-1 min-w-[12px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_14%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-[color-mix(in_srgb,var(--text)_14%,transparent)]" />
+
+        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] tabular-nums flex items-center gap-1.5 shrink-0">
+          <span
+            className="material-symbols-outlined !text-[12px] opacity-85"
+            style={{ color: semanticColorVar }}
+          >
+            {statusBadgeMeta.telemetryIcon}
+          </span>
+          <span>
+            {normalizeAllCapsForThemeCase(statusBadgeMeta.telemetryLabel)}
+          </span>
+        </div>
+      </div>
+
+      {/* Centerpiece Showcase Deck */}
+      <div
+        className={`flex-1 flex flex-col items-center justify-center ${
+          isCompact
+            ? "px-4 py-5 gap-3.5"
+            : isSpacious
+              ? "px-6 py-10 sm:px-10 sm:py-12 gap-5"
+              : "px-6 py-7 sm:px-10 sm:py-9 gap-4.5"
+        } relative z-10`}
+      >
+        {/* Flanked 3-Card Liquid Glass Emblem */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 relative">
+          {/* Left Ghosted Satellite Mini-Console */}
+          <div
+            aria-hidden="true"
+            className={`${
+              isCompact ? "hidden md:flex w-24 h-14 p-2" : "hidden sm:flex w-32 h-[66px] p-2.5"
+            } rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-60 -rotate-3 translate-x-2 translate-y-1 flex-col justify-between pointer-events-none select-none shrink-0`}
+          >
+            <div className="flex items-center gap-1.5">
+              <div className="w-6 h-6 rounded-lg glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.20))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.06))] flex items-center justify-center shrink-0">
+                <span
+                  className="material-symbols-outlined !text-[13px] opacity-85"
+                  style={{ color: semanticColorVar }}
+                >
+                  {statusBadgeMeta.leftSatIcon}
+                </span>
+              </div>
+              <div className="flex-1 h-5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 flex items-center">
+                <div className="h-1.5 w-full rounded-full bg-[color-mix(in_srgb,var(--text)_18%,transparent)]" />
+              </div>
+            </div>
+            <div className="h-4 w-full rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] px-1.5 flex items-center gap-1.5">
+              <div
+                className="w-2 h-1.5 rounded-full shrink-0 opacity-70"
+                style={{ backgroundColor: semanticColorVar }}
+              />
+              <div className="h-1.5 w-2/3 rounded-full bg-[color-mix(in_srgb,var(--text)_14%,transparent)]" />
+            </div>
+          </div>
+
+          {/* Center Hero Medallion Pedestal */}
+          <div className="p-2 rounded-3xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.18))] shadow-2xl relative z-20 flex items-center justify-center shrink-0">
+            <div
+              className={`${
+                isCompact ? "w-12 h-12" : "w-14 h-14 sm:w-16 sm:h-16"
+              } rounded-2xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.26))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.10))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 relative`}
+              style={{ color: semanticColorVar }}
+            >
+              <span
+                className={`material-symbols-outlined ${
+                  isCompact ? "!text-[24px]" : "!text-[28px] sm:!text-[32px]"
+                } ${isLoadingState ? "animate-spin" : ""}`}
+              >
+                {resolvedIcon}
+              </span>
+            </div>
+          </div>
+
+          {/* Right Ghosted Satellite Mini-Console */}
+          <div
+            aria-hidden="true"
+            className={`${
+              isCompact ? "hidden md:flex w-24 h-14 p-2" : "hidden sm:flex w-32 h-[66px] p-2.5"
+            } rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-60 rotate-3 -translate-x-2 translate-y-1 flex-col justify-between pointer-events-none select-none shrink-0`}
+          >
+            <div className="flex items-center gap-1.5">
+              <div className="w-6 h-6 rounded-lg glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.20))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.06))] flex items-center justify-center shrink-0">
+                <span
+                  className="material-symbols-outlined !text-[13px] opacity-85"
+                  style={{ color: semanticColorVar }}
+                >
+                  {statusBadgeMeta.rightSatIcon}
+                </span>
+              </div>
+              <div className="flex-1 h-5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 flex items-center">
+                <div className="h-1.5 w-4/5 rounded-full bg-[color-mix(in_srgb,var(--text)_18%,transparent)]" />
+              </div>
+            </div>
+            <div className="h-4 w-full rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] px-1.5 flex items-center gap-1.5">
+              <div
+                className="w-2 h-1.5 rounded-full shrink-0 opacity-70"
+                style={{ backgroundColor: semanticColorVar }}
+              />
+              <div className="h-1.5 w-3/4 rounded-full bg-[color-mix(in_srgb,var(--text)_14%,transparent)]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Title & Contextual Subtitle */}
+        {(title || resolvedSubtitle) && (
+          <div className="flex flex-col gap-1.5 items-center text-center max-w-lg relative z-10">
+            {title && (
+              <span
+                className={`${
+                  isCompact ? "text-sm sm:text-base" : "text-base sm:text-lg"
+                } font-black tracking-tight text-[var(--text)] leading-snug whitespace-pre-line`}
+              >
+                {normalizeAllCapsForThemeCase(title)}
+              </span>
+            )}
+            {resolvedSubtitle && (
+              <span className="text-xs sm:text-[13px] font-medium text-[var(--subtext)] opacity-85 leading-relaxed whitespace-pre-line max-w-md">
+                {normalizeAllCapsForThemeCase(resolvedSubtitle)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Action Slot or Recessed Diagnostic Hint Pill */}
+        {action ? (
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-3 relative z-10">
+            {action}
+          </div>
+        ) : !isCompact ? (
+          <div className="mt-0.5 px-3.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold text-[var(--subtext)] opacity-85 max-w-md">
+            <span
+              className="material-symbols-outlined !text-[14px] shrink-0"
+              style={{ color: semanticColorVar }}
+            >
+              {statusBadgeMeta.hintIcon}
+            </span>
+            <span className="truncate">
+              {normalizeAllCapsForThemeCase(statusBadgeMeta.hintLabel)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Bottom Card Telemetry Footer */}
+      <div
+        className={`w-full ${
+          isCompact ? "px-4 py-2" : "px-5 py-2.5 sm:px-6 sm:py-3"
+        } border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.10))] bg-[color-mix(in_srgb,var(--text)_2%,transparent)] flex items-center justify-between gap-4 relative z-10 shrink-0`}
+      >
+        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-60 flex items-center gap-1.5 min-w-0 truncate">
+          <span
+            className="material-symbols-outlined !text-[13px] shrink-0"
+            style={{ color: semanticColorVar }}
+          >
+            {resolvedIcon}
+          </span>
+          <span className="truncate">
+            {normalizeAllCapsForThemeCase(statusBadgeMeta.consoleLine)}
+          </span>
+        </span>
+
+        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] opacity-80 flex items-center gap-1.5 shrink-0">
+          <span
+            className="material-symbols-outlined !text-[13px] shrink-0"
+            style={{ color: semanticColorVar }}
+          >
+            {statusBadgeMeta.icon}
+          </span>
+          <span>
+            {normalizeAllCapsForThemeCase(statusBadgeMeta.footerRightLabel)}
+          </span>
         </span>
       </div>
-      {(title || subtitle) && (
-        <div className="flex flex-col gap-1.5 items-center text-center max-w-md relative z-10">
-          {title && (
-            <span className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] leading-snug whitespace-pre-line">
-              {normalizeAllCapsForThemeCase(title)}
-            </span>
-          )}
-          {subtitle && (
-            <span className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed whitespace-pre-line">
-              {normalizeAllCapsForThemeCase(subtitle)}
-            </span>
-          )}
-        </div>
-      )}
-      {action && (
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3 relative z-10">
-          {action}
-        </div>
-      )}
     </div>
   );
 }

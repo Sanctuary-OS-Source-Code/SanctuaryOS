@@ -3,7 +3,7 @@ import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer } fro
 import { ModCard } from '../../ModCard';
 
 export function VaultGrid(props: any) {
-  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, setSelectedMods } = props;
+  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, hasActiveFilters, onResetFilters, setSelectedMods } = props;
   const localSets = Array.isArray(playSets) ? playSets : [];
   const [drawerSearchQuery, setDrawerSearchQuery] = React.useState("");
   React.useEffect(() => {
@@ -520,7 +520,26 @@ export function VaultGrid(props: any) {
     <>
       <div id="vault-grid-container" className={`${gridLayoutClass} gap-6 pb-24 pl-2 pr-6 relative`}>
         {paginatedMods.length === 0 ? (
-          <EmptyState icon="search_off" title={t("registry_no_mods", "No {Mods} Found")} subtitle={t("vault_no_results_sub", "Try adjusting your search criteria or filters.")} className="col-span-full py-24" />
+          <EmptyState
+            icon="search_off"
+            title={t("registry_no_mods", "No {Mods} Found")}
+            subtitle={t("vault_no_results_sub", "Try adjusting your search criteria or filters.")}
+            action={
+              hasActiveFilters && onResetFilters ? (
+                <button
+                  type="button"
+                  onClick={onResetFilters}
+                  className="px-4 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.30))] text-xs font-black tracking-wide text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                    {t("icon_filter_alt_off", "filter_alt_off")}
+                  </span>
+                  <span>{t("btn_clear", "Clear Filters")}</span>
+                </button>
+              ) : undefined
+            }
+            className="col-span-full py-24"
+          />
         ) : (
           paginatedMods.map((mod: any, index: number) => {
             const mainKey = `${mod.hash || mod.name}-${index}`;

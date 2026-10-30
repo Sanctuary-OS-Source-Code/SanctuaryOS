@@ -12,6 +12,7 @@ interface WorkbenchRawEditorProps {
    setProblemsList: (list: any[]) => void;
    onEditorMount?: (editor: any, monaco: any) => void;
    isResizingPreview?: boolean;
+   wordWrap?: boolean;
 }
 
 export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
@@ -20,7 +21,8 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
    language,
    isLight,
    onEditorMount,
-   isResizingPreview = false
+   isResizingPreview = false,
+   wordWrap = false,
 }) => {
    const { currentTheme } = useTheme();
    const [, setEditorRef] = useState<any>(null);
@@ -53,6 +55,8 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
                hover: { enabled: 'on', above: false },
                smoothScrolling: true,
                automaticLayout: true,
+               wordWrap: wordWrap ? 'on' : 'off',
+               minimap: { enabled: false },
             }}
             onMount={(editor, monaco) => {
                setEditorRef(editor);

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { computeGlassOpticalVars } from '../ThemeContext';
+import { VAULT_CHIP_CLASS } from '../shared';
 import {
   SHADER_REV,
   VERTEX_SHADER_BG,
@@ -36,6 +37,25 @@ export function ChameleonSandboxPreview({
 
   const rebuildTexturesRef = useRef<(() => void) | null>(null);
   const scheduleRenderRef = useRef<(() => void) | null>(null);
+  const [mobilePane, setMobilePane] = useState<'controls' | 'preview'>('controls');
+
+  useEffect(() => {
+    if (embedded) return;
+    const handlePaneSwitch = (e: Event) => {
+      const next = (e as CustomEvent<'controls' | 'preview'>).detail;
+      if (next === 'controls' || next === 'preview') {
+        setMobilePane(next);
+        if (next === 'preview') {
+          requestAnimationFrame(() => {
+            rebuildTexturesRef.current?.();
+            scheduleRenderRef.current?.();
+          });
+        }
+      }
+    };
+    window.addEventListener('sanctuary-chameleon-mobile-pane', handlePaneSwitch);
+    return () => window.removeEventListener('sanctuary-chameleon-mobile-pane', handlePaneSwitch);
+  }, [embedded]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -540,14 +560,40 @@ export function ChameleonSandboxPreview({
       className={
         embedded
           ? 'w-full h-[540px] shrink-0 flex flex-col overflow-hidden'
-          : 'w-full lg:w-[440px] xl:w-[480px] shrink-0 h-full p-4 flex flex-col overflow-hidden'
+          : `${mobilePane === 'preview' ? 'flex' : 'hidden lg:flex'} w-full lg:w-[440px] xl:w-[480px] shrink-0 h-full min-h-0 p-3 sm:p-4 flex-col gap-3 overflow-hidden`
       }
     >
+      {!embedded && (
+        <div className="lg:hidden glass-panel px-3.5 py-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+              {t('icon_visibility', 'visibility')}
+            </span>
+            <span className="text-xs font-black text-[var(--text)] truncate">
+              {currentTheme.name || t('btn_preview_theme', 'Preview')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent('sanctuary-chameleon-mobile-pane', { detail: 'controls' })
+              )
+            }
+            className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer shrink-0`}
+          >
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t('icon_tune', 'tune')}
+            </span>
+            <span>{t('edit', 'Edit')}</span>
+          </button>
+        </div>
+      )}
       <div
         ref={sandboxRootRef}
         data-sandbox-preview-root="true"
         data-text-case={currentTheme.textCase || 'capitalize'}
-        className="w-full h-full rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl relative flex flex-col overflow-hidden"
+        className="w-full flex-1 min-h-0 rounded-[var(--radius)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl relative flex flex-col overflow-hidden"
         style={{
           '--bg': currentTheme.bg,
           '--text': currentTheme.text,

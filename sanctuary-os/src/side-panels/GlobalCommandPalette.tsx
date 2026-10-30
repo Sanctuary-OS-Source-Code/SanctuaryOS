@@ -11,6 +11,7 @@ import {
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "../utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "../utils/routingUtils";
 
@@ -998,23 +999,73 @@ export function GlobalCommandPalette({
       );
     }
 
-    items.push({
-      id: "action_notifications",
-      category: "actions",
-      title: t("notifications", "Notifications"),
-      subtitle: t(
-        "cmd_palette_notifications_sub",
-        "Open System Alerts, {Mod} Updates & Broadcast Drawer"
-      ),
-      badgeLabel: actionsBadge,
-      badgeIcon: t("icon_notifications", "notifications"),
-      icon: t("icon_notifications", "notifications"),
-      keywords: "notifications alerts inbox updates messages",
-      onSelect: () => {
-        onOpenNotifications();
-        closePalette();
+    items.push(
+      {
+        id: "action_notifications",
+        category: "actions",
+        title: t("notifications", "Notifications"),
+        subtitle: t(
+          "cmd_palette_notifications_sub",
+          "Open System Alerts, {Mod} Updates & Broadcast Drawer"
+        ),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_notifications", "notifications"),
+        icon: t("icon_notifications", "notifications"),
+        keywords: "notifications alerts inbox updates messages",
+        onSelect: () => {
+          onOpenNotifications();
+          closePalette();
+        },
       },
-    });
+      {
+        id: "action_system_queues",
+        category: "actions",
+        title: t("system_queues_title", "System Queues & Updates"),
+        subtitle: t(
+          "system_queues_subtitle",
+          "Pending updates, file verification queues, and quick system utilities."
+        ),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_layers", "layers"),
+        icon: t("icon_layers", "layers"),
+        keywords: "queues updates scout signature dna malware quarantine pending",
+        onSelect: () => {
+          useModalStore.getState().setIsQueuesPanelOpen(true);
+          closePalette();
+        },
+      },
+      {
+        id: "action_system_logs",
+        category: "actions",
+        title: t("sys_log_history", "System Log History"),
+        subtitle: t("audit_logs", "Audit Logs"),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_terminal", "terminal"),
+        icon: t("icon_terminal", "terminal"),
+        keywords: "logs terminal console history audit status",
+        onSelect: () => {
+          useModalStore.getState().setIsLogExpanded(true);
+          closePalette();
+        },
+      }
+    );
+
+    if (isDesktop()) {
+      items.push({
+        id: "action_system_status",
+        category: "actions",
+        title: t("system_status", "System Status"),
+        subtitle: t("sys_panel_desc", "Hardware & Environment Telemetry"),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_memory", "memory"),
+        icon: t("icon_memory", "memory"),
+        keywords: "system status hardware telemetry ram cpu disk version update",
+        onSelect: () => {
+          useModalStore.getState().setIsSystemStatusOpen(true);
+          closePalette();
+        },
+      });
+    }
 
     // Chameleon Themes
     const mergedThemes: Record<string, any> = {

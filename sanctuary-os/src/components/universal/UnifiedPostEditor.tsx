@@ -326,6 +326,7 @@ export function UnifiedPostBodyEditor({
   }>(() => parseMarkdownIntoReleaseSections(content));
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
   const [iconPickerFor, setIconPickerFor] = useState<string | null>(null);
+  const [openActionMenuKey, setOpenActionMenuKey] = useState<string | null>(null);
   const [confirmDeleteIntro, setConfirmDeleteIntro] = useState(false);
   const [confirmDeleteSecIdx, setConfirmDeleteSecIdx] = useState<number | null>(
     null
@@ -336,6 +337,22 @@ export function UnifiedPostBodyEditor({
   const [visibleEmptyHeaders, setVisibleEmptyHeaders] = useState<
     Record<number, boolean>
   >({});
+
+  useEffect(() => {
+    if (!openActionMenuKey) return;
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest("[data-mobile-action-menu]")) {
+        setOpenActionMenuKey(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [openActionMenuKey]);
 
   useEffect(() => {
     const modeChangedToVisual =
@@ -848,9 +865,9 @@ export function UnifiedPostBodyEditor({
           {/* Top Intro Block (Direct In-Place Editing — Zero Mode-Swap Jump) */}
           {hasIntro && (
             <div className="flex flex-col gap-2.5 w-full" data-visual-target="intro">
-              <div className="glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
-                <div className="flex items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="glass-panel rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                <div className="flex items-center justify-between gap-2 sm:gap-2.5">
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
                     <div className="relative shrink-0">
                       <button
                         type="button"
@@ -859,7 +876,7 @@ export function UnifiedPostBodyEditor({
                             iconPickerFor === "intro" ? null : "intro"
                           )
                         }
-                        className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                       >
                         <span className="material-symbols-outlined !text-[17px]">
                           {resolveSectionIcon(
@@ -895,59 +912,90 @@ export function UnifiedPostBodyEditor({
                         "visual_editor_overview_heading_ph",
                         "Overview Heading (Optional)..."
                       )}
-                      className="flex-1 min-w-0 h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-sm sm:text-base font-black text-[var(--text)] outline-none transition-colors"
+                      className="flex-1 min-w-0 h-9 pl-2.5 pr-2.5 sm:pl-3.5 sm:pr-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-xs sm:text-base font-black text-[var(--text)] outline-none transition-colors"
                     />
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {visualDoc.introTitle.trim() && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          commitVisualDoc({
-                            ...visualDoc,
-                            introTitle: "",
-                          })
-                        }
-                        className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[15px]">
-                          {t("icon_close", "close")}
-                        </span>
-                        <HoverTooltip title={t("clear", "Clear")} />
-                      </button>
-                    )}
+                  <div className="relative flex items-center gap-1.5 shrink-0" data-mobile-action-menu>
                     <button
                       type="button"
-                      onClick={() => handleDeleteIntro()}
-                      className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                        confirmDeleteIntro
-                          ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
-                          : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                      onClick={() =>
+                        setOpenActionMenuKey(
+                          openActionMenuKey === "intro" ? null : "intro"
+                        )
+                      }
+                      className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
+                        openActionMenuKey === "intro"
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                       }`}
                     >
-                      <span
-                        className={`material-symbols-outlined !text-[15px] ${
-                          confirmDeleteIntro ? "text-[var(--danger)]" : ""
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t("icon_more_vert", "more_vert")}
+                      </span>
+                    </button>
+
+                    <div
+                      className={`${
+                        openActionMenuKey === "intro"
+                          ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                          : "hidden"
+                      } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
+                    >
+                      {visualDoc.introTitle.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            commitVisualDoc({
+                              ...visualDoc,
+                              introTitle: "",
+                            });
+                            setOpenActionMenuKey(null);
+                          }}
+                          className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_close", "close")}
+                          </span>
+                          <HoverTooltip title={t("clear", "Clear")} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const wasConfirmed = confirmDeleteIntro;
+                          handleDeleteIntro();
+                          if (wasConfirmed) setOpenActionMenuKey(null);
+                        }}
+                        className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                          confirmDeleteIntro
+                            ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
+                            : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                         }`}
                       >
-                        {confirmDeleteIntro
-                          ? t("icon_delete_forever", "delete_forever")
-                          : t("icon_delete", "delete")}
-                      </span>
-                      {confirmDeleteIntro && (
-                        <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)]">
-                          {t("btn_confirm_delete", "Confirm {Delete}")}
+                        <span
+                          className={`material-symbols-outlined !text-[15px] ${
+                            confirmDeleteIntro ? "text-[var(--danger)]" : ""
+                          }`}
+                        >
+                          {confirmDeleteIntro
+                            ? t("icon_delete_forever", "delete_forever")
+                            : t("icon_delete", "delete")}
                         </span>
-                      )}
-                      <HoverTooltip
-                        title={
-                          confirmDeleteIntro
-                            ? t("btn_confirm_delete", "Confirm {Delete}")
-                            : t("btn_delete", "{Delete}")
-                        }
-                        variant="danger"
-                      />
-                    </button>
+                        {confirmDeleteIntro && (
+                          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] whitespace-nowrap">
+                            {t("btn_confirm_delete", "Confirm {Delete}")}
+                          </span>
+                        )}
+                        <HoverTooltip
+                          title={
+                            confirmDeleteIntro
+                              ? t("btn_confirm_delete", "Confirm {Delete}")
+                              : t("btn_delete", "{Delete}")
+                          }
+                          variant="danger"
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="rounded-2xl p-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-colors">
@@ -1064,9 +1112,9 @@ export function UnifiedPostBodyEditor({
                 {showSectionHeader && (
                   <div
                     data-visual-target={`sec-${sIdx}-header`}
-                    className="glass-panel px-3.5 py-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2.5"
+                    className="glass-panel px-3 sm:px-3.5 py-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 sm:gap-2.5"
                   >
-                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
                       <div className="relative shrink-0">
                         <button
                           type="button"
@@ -1077,13 +1125,10 @@ export function UnifiedPostBodyEditor({
                                 : secIconPickerKey
                             )
                           }
-                          className="h-9 px-2.5 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1 cursor-pointer transition-all"
+                          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                         >
-                          <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[17px]">
                             {resolveSectionIcon(section.title, section.icon)}
-                          </span>
-                          <span className="material-symbols-outlined !text-[13px] opacity-70">
-                            {t("icon_expand_more", "expand_more")}
                           </span>
                           <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
                         </button>
@@ -1107,65 +1152,103 @@ export function UnifiedPostBodyEditor({
                           "visual_editor_section_title_ph",
                           "Section Title..."
                         )}
-                        className="flex-1 min-w-0 h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-sm sm:text-base font-black tracking-tight text-[var(--text)] outline-none transition-colors"
+                        className="flex-1 min-w-0 h-9 pl-2.5 pr-2.5 sm:pl-3.5 sm:pr-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-xs sm:text-base font-black tracking-tight text-[var(--text)] outline-none transition-colors"
                       />
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="relative flex items-center gap-1.5 shrink-0" data-mobile-action-menu>
                       <button
                         type="button"
-                        disabled={sIdx === 0}
-                        onClick={() => handleMoveSection(sIdx, -1)}
-                        className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[15px]">
-                          {t("icon_arrow_upward", "arrow_upward")}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={sIdx === visualDoc.sections.length - 1}
-                        onClick={() => handleMoveSection(sIdx, 1)}
-                        className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer transition-all"
-                      >
-                        <span className="material-symbols-outlined !text-[15px]">
-                          {t("icon_arrow_downward", "arrow_downward")}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSection(sIdx)}
-                        className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                          confirmDeleteSecIdx === sIdx
-                            ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
-                            : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                        onClick={() =>
+                          setOpenActionMenuKey(
+                            openActionMenuKey === `sec-${sIdx}`
+                              ? null
+                              : `sec-${sIdx}`
+                          )
+                        }
+                        className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
+                          openActionMenuKey === `sec-${sIdx}`
+                            ? "border-[var(--accent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                         }`}
                       >
-                        <span
-                          className={`material-symbols-outlined !text-[15px] ${
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t("icon_more_vert", "more_vert")}
+                        </span>
+                      </button>
+
+                      <div
+                        className={`${
+                          openActionMenuKey === `sec-${sIdx}`
+                            ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                            : "hidden"
+                        } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
+                      >
+                        <button
+                          type="button"
+                          disabled={sIdx === 0}
+                          onClick={() => {
+                            handleMoveSection(sIdx, -1);
+                            setOpenActionMenuKey(null);
+                          }}
+                          className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer transition-all"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_arrow_upward", "arrow_upward")}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={sIdx === visualDoc.sections.length - 1}
+                          onClick={() => {
+                            handleMoveSection(sIdx, 1);
+                            setOpenActionMenuKey(null);
+                          }}
+                          className="w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer transition-all"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_arrow_downward", "arrow_downward")}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const wasConfirmed = confirmDeleteSecIdx === sIdx;
+                            handleDeleteSection(sIdx);
+                            if (wasConfirmed) setOpenActionMenuKey(null);
+                          }}
+                          className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                             confirmDeleteSecIdx === sIdx
-                              ? "text-[var(--danger)]"
-                              : ""
+                              ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
+                              : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                           }`}
                         >
-                          {confirmDeleteSecIdx === sIdx
-                            ? t("icon_delete_forever", "delete_forever")
-                            : t("icon_delete", "delete")}
-                        </span>
-                        {confirmDeleteSecIdx === sIdx && (
-                          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)]">
-                            {t("btn_confirm_delete", "Confirm {Delete}")}
+                          <span
+                            className={`material-symbols-outlined !text-[15px] ${
+                              confirmDeleteSecIdx === sIdx
+                                ? "text-[var(--danger)]"
+                                : ""
+                            }`}
+                          >
+                            {confirmDeleteSecIdx === sIdx
+                              ? t("icon_delete_forever", "delete_forever")
+                              : t("icon_delete", "delete")}
                           </span>
-                        )}
-                        <HoverTooltip
-                          title={
-                            confirmDeleteSecIdx === sIdx
-                              ? t("btn_confirm_delete", "Confirm {Delete}")
-                              : t("remove", "Remove")
-                          }
-                          variant="danger"
-                        />
-                      </button>
+                          {confirmDeleteSecIdx === sIdx && (
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] whitespace-nowrap">
+                              {t("btn_confirm_delete", "Confirm {Delete}")}
+                            </span>
+                          )}
+                          <HoverTooltip
+                            title={
+                              confirmDeleteSecIdx === sIdx
+                                ? t("btn_confirm_delete", "Confirm {Delete}")
+                                : t("remove", "Remove")
+                            }
+                            variant="danger"
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1237,7 +1320,7 @@ export function UnifiedPostBodyEditor({
                         <div
                           key={cardKey}
                           data-visual-target={cardKey}
-                          className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
+                          className={`glass-panel rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
                             spanFull ? "md:col-span-2" : ""
                           }`}
                         >
@@ -1254,7 +1337,7 @@ export function UnifiedPostBodyEditor({
                                         : cardIconKey
                                     )
                                   }
-                                  className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
+                                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)] cursor-pointer transition-all"
                                 >
                                   <span className="material-symbols-outlined !text-[17px]">
                                     {card.icon
@@ -1286,83 +1369,123 @@ export function UnifiedPostBodyEditor({
                                   "visual_editor_card_title_ph",
                                   "Card Heading (Optional)..."
                                 )}
-                                className="flex-1 min-w-0 h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-xs sm:text-sm font-bold text-[var(--text)] outline-none transition-colors"
+                                className="flex-1 min-w-0 h-9 pl-2.5 pr-2.5 sm:pl-3.5 sm:pr-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] focus:border-[var(--accent)] text-xs sm:text-sm font-bold text-[var(--text)] outline-none transition-colors"
                               />
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
-                              {card.icon && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateCard(sIdx, cIdx, {
-                                      icon: undefined,
-                                    })
-                                  }
-                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
-                                >
-                                  <span className="material-symbols-outlined !text-[13px]">
-                                    {t("icon_close", "close")}
-                                  </span>
-                                  <HoverTooltip
-                                    title={t("visual_editor_clear_icon", "Clear Icon")}
-                                  />
-                                </button>
-                              )}
+                            <div className="relative flex items-center gap-1 shrink-0" data-mobile-action-menu>
                               <button
                                 type="button"
-                                disabled={cIdx === 0}
-                                onClick={() => handleMoveCard(sIdx, cIdx, -1)}
-                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_arrow_upward", "arrow_upward")}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                disabled={cIdx === section.cards.length - 1}
-                                onClick={() => handleMoveCard(sIdx, cIdx, 1)}
-                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined !text-[14px]">
-                                  {t("icon_arrow_downward", "arrow_downward")}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteCard(sIdx, cIdx)}
-                                className={`h-7 rounded-lg glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                                  confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                    ? "px-2.5 sa-glass-pill-danger !text-[var(--text)]"
-                                    : "w-7 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                onClick={() =>
+                                  setOpenActionMenuKey(
+                                    openActionMenuKey === cardKey
+                                      ? null
+                                      : cardKey
+                                  )
+                                }
+                                className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
+                                  openActionMenuKey === cardKey
+                                    ? "border-[var(--accent)] text-[var(--accent)]"
+                                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                                 }`}
                               >
-                                <span
-                                  className={`material-symbols-outlined !text-[14px] ${
+                                <span className="material-symbols-outlined !text-[16px]">
+                                  {t("icon_more_vert", "more_vert")}
+                                </span>
+                              </button>
+
+                              <div
+                                className={`${
+                                  openActionMenuKey === cardKey
+                                    ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                                    : "hidden"
+                                } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1`}
+                              >
+                                {card.icon && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateCard(sIdx, cIdx, {
+                                        icon: undefined,
+                                      });
+                                      setOpenActionMenuKey(null);
+                                    }}
+                                    className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined !text-[13px]">
+                                      {t("icon_close", "close")}
+                                    </span>
+                                    <HoverTooltip
+                                      title={t("visual_editor_clear_icon", "Clear Icon")}
+                                    />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={cIdx === 0}
+                                  onClick={() => {
+                                    handleMoveCard(sIdx, cIdx, -1);
+                                    setOpenActionMenuKey(null);
+                                  }}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t("icon_arrow_upward", "arrow_upward")}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={cIdx === section.cards.length - 1}
+                                  onClick={() => {
+                                    handleMoveCard(sIdx, cIdx, 1);
+                                    setOpenActionMenuKey(null);
+                                  }}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] disabled:opacity-30 flex items-center justify-center cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t("icon_arrow_downward", "arrow_downward")}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const wasConfirmed =
+                                      confirmDeleteCardKey === `${sIdx}-${cIdx}`;
+                                    handleDeleteCard(sIdx, cIdx);
+                                    if (wasConfirmed) setOpenActionMenuKey(null);
+                                  }}
+                                  className={`h-7 rounded-lg glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                                     confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                      ? "text-[var(--danger)]"
-                                      : ""
+                                      ? "px-2.5 sa-glass-pill-danger !text-[var(--text)]"
+                                      : "w-7 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                                   }`}
                                 >
-                                  {confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                    ? t("icon_delete_forever", "delete_forever")
-                                    : t("icon_delete", "delete")}
-                                </span>
-                                {confirmDeleteCardKey === `${sIdx}-${cIdx}` && (
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)]">
-                                    {t("btn_confirm_delete", "Confirm {Delete}")}
+                                  <span
+                                    className={`material-symbols-outlined !text-[14px] ${
+                                      confirmDeleteCardKey === `${sIdx}-${cIdx}`
+                                        ? "text-[var(--danger)]"
+                                        : ""
+                                    }`}
+                                  >
+                                    {confirmDeleteCardKey === `${sIdx}-${cIdx}`
+                                      ? t("icon_delete_forever", "delete_forever")
+                                      : t("icon_delete", "delete")}
                                   </span>
-                                )}
-                                <HoverTooltip
-                                  title={
-                                    confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                      ? t("btn_confirm_delete", "Confirm {Delete}")
-                                      : t("btn_delete", "{Delete}")
-                                  }
-                                  variant="danger"
-                                />
-                              </button>
+                                  {confirmDeleteCardKey === `${sIdx}-${cIdx}` && (
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text)] whitespace-nowrap">
+                                      {t("btn_confirm_delete", "Confirm {Delete}")}
+                                    </span>
+                                  )}
+                                  <HoverTooltip
+                                    title={
+                                      confirmDeleteCardKey === `${sIdx}-${cIdx}`
+                                        ? t("btn_confirm_delete", "Confirm {Delete}")
+                                        : t("btn_delete", "{Delete}")
+                                    }
+                                    variant="danger"
+                                  />
+                                </button>
+                              </div>
                             </div>
                           </div>
 

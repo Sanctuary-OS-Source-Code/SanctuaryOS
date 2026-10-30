@@ -205,6 +205,38 @@ function isAllowedWebAuthnOrigin(originStr: string, rpId: string): boolean {
   }
 }
 
+async function matchesAllowedRpIdHash(
+  authDataBytes: Uint8Array,
+  rpId: string,
+  originStr: string
+): Promise<boolean> {
+  const candidates = new Set<string>([rpId || 'sanctuaryos.net']);
+  try {
+    const u = new URL(originStr);
+    const host = u.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1') {
+      candidates.add(host);
+      candidates.add('localhost');
+      candidates.add('127.0.0.1');
+    }
+  } catch {}
+
+  for (const candidate of candidates) {
+    const expectedRpIdHash = new Uint8Array(
+      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(candidate))
+    );
+    let matches = true;
+    for (let i = 0; i < 32; i++) {
+      if (authDataBytes[i] !== expectedRpIdHash[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
 function formatUuidFromBytes(bytes: Uint8Array): string {
   const hex = Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -365,13 +397,9 @@ serve(async (req) => {
         throw new Error('Invalid authenticatorData length.')
       }
 
-      const expectedRpIdHash = new Uint8Array(
-        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId))
-      )
-      for (let i = 0; i < 32; i++) {
-        if (authDataBytes[i] !== expectedRpIdHash[i]) {
-          throw new Error('WebAuthn RP ID hash mismatch.')
-        }
+      const rpHashValid = await matchesAllowedRpIdHash(authDataBytes, rpId, clientData.origin)
+      if (!rpHashValid) {
+        throw new Error('WebAuthn RP ID hash mismatch.')
       }
 
       const flags = authDataBytes[32]
@@ -550,13 +578,9 @@ serve(async (req) => {
         throw new Error('Invalid attestation authData.')
       }
 
-      const expectedRpIdHash = new Uint8Array(
-        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rpId))
-      )
-      for (let i = 0; i < 32; i++) {
-        if (authDataBytes[i] !== expectedRpIdHash[i]) {
-          throw new Error('WebAuthn registration RP ID hash mismatch.')
-        }
+      const regRpHashValid = await matchesAllowedRpIdHash(authDataBytes, rpId, clientData.origin)
+      if (!regRpHashValid) {
+        throw new Error('WebAuthn registration RP ID hash mismatch.')
       }
 
       const flags = authDataBytes[32]

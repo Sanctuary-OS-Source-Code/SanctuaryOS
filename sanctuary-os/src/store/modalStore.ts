@@ -101,6 +101,12 @@ interface ModalState {
   setShowIncompatiblePanel: (val: boolean) => void;
   showUpdatesModal: boolean;
   setShowUpdatesModal: (val: boolean) => void;
+  isLogExpanded: boolean;
+  setIsLogExpanded: (val: boolean | ((prev: boolean) => boolean)) => void;
+  isSystemStatusOpen: boolean;
+  setIsSystemStatusOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  isQueuesPanelOpen: boolean;
+  setIsQueuesPanelOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
@@ -384,6 +390,12 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setShowIncompatiblePanel: (showIncompatiblePanel) => set({ showIncompatiblePanel }),
   showUpdatesModal: false,
   setShowUpdatesModal: (showUpdatesModal) => set({ showUpdatesModal }),
+  isLogExpanded: false,
+  setIsLogExpanded: (isLogExpanded) => set((state) => ({ isLogExpanded: typeof isLogExpanded === 'function' ? isLogExpanded(state.isLogExpanded) : isLogExpanded })),
+  isSystemStatusOpen: false,
+  setIsSystemStatusOpen: (isSystemStatusOpen) => set((state) => ({ isSystemStatusOpen: typeof isSystemStatusOpen === 'function' ? isSystemStatusOpen(state.isSystemStatusOpen) : isSystemStatusOpen })),
+  isQueuesPanelOpen: false,
+  setIsQueuesPanelOpen: (isQueuesPanelOpen) => set((state) => ({ isQueuesPanelOpen: typeof isQueuesPanelOpen === 'function' ? isQueuesPanelOpen(state.isQueuesPanelOpen) : isQueuesPanelOpen })),
   
   sideBrowserUrl: '',
   sideBrowserTrigger: 0,

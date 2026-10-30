@@ -59,8 +59,35 @@ export default function MasonEditorPanel({
   const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<"visual" | "split" | "raw">("visual");
   const [isStudioGuideOpen, setIsStudioGuideOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [wordWrap, setWordWrap] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  const [isValidatorDismissed, setIsValidatorDismissed] = useState(false);
   const rightEditorRef = useRef<any>(null);
   const isSyncingScroll = useRef(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobileViewport(mobile);
+      if (mobile) {
+        setEditorViewMode((prev) => (prev === "split" ? "visual" : prev));
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    setIsValidatorDismissed(false);
+  }, [activeFileIndex, activeFile?.name]);
+
+  const effectiveViewMode: "visual" | "split" | "raw" =
+    isMobileViewport && editorViewMode === "split" ? "visual" : editorViewMode;
+  const effectiveShowReference = !isMobileViewport && Boolean(showReference);
 
   useEffect(() => {
     if (!isScrollLocked || !editorRef || !rightEditorRef.current) return;
@@ -255,23 +282,37 @@ export default function MasonEditorPanel({
               {activeFile.name}
             </span>
           </div>
-          <div className={VAULT_CHIP_CLASS}>
-            <span
-              className={`material-symbols-outlined !text-[12px] ${
-                problemsList.length > 0 || isJsonParseError
-                  ? "text-[var(--danger)]"
-                  : isDirty
-                    ? "text-[var(--warning)]"
-                    : "text-[var(--success)]"
-              }`}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setWordWrap((w) => !w)}
+              className={`${VAULT_CHIP_CLASS} ${
+                wordWrap ? "sa-glass-pill-active" : "hover:sa-glass-pill-active"
+              } transition-all cursor-pointer`}
             >
-              {problemsList.length > 0 || isJsonParseError
-                ? t("icon_error", "error")
-                : isDirty
-                  ? t("icon_edit_note", "edit_note")
-                  : t("icon_check_circle", "check_circle")}
-            </span>
-            <span>{isDirty ? t("unsaved_changes", "Modified") : t("status_synced", "Synced")}</span>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_wrap_text", "wrap_text")}
+              </span>
+              <span>{t("ide_toggle_word_wrap", "Wrap Text")}</span>
+            </button>
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  problemsList.length > 0 || isJsonParseError
+                    ? "text-[var(--danger)]"
+                    : isDirty
+                      ? "text-[var(--warning)]"
+                      : "text-[var(--success)]"
+                }`}
+              >
+                {problemsList.length > 0 || isJsonParseError
+                  ? t("icon_error", "error")
+                  : isDirty
+                    ? t("icon_edit_note", "edit_note")
+                    : t("icon_check_circle", "check_circle")}
+              </span>
+              <span>{isDirty ? t("unsaved_changes", "Modified") : t("status_synced", "Synced")}</span>
+            </div>
           </div>
         </div>
         <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
@@ -311,12 +352,16 @@ export default function MasonEditorPanel({
             options={{
               contextmenu: false,
               minimap: { enabled: false },
-              fontSize: 14,
+              fontSize: isMobileViewport ? 12 : 14,
               fontFamily: "var(--font-mono), Consolas, monospace",
-              padding: { top: 20, bottom: 120 },
+              padding: { top: 16, bottom: isMobileViewport ? 48 : 120 },
               smoothScrolling: true,
               cursorBlinking: "smooth",
-              lineHeight: 24,
+              lineHeight: isMobileViewport ? 20 : 24,
+              lineNumbersMinChars: isMobileViewport ? 3 : 5,
+              folding: !isMobileViewport,
+              glyphMargin: false,
+              wordWrap: wordWrap ? "on" : "off",
               automaticLayout: true,
               hover: { enabled: "on", above: false },
               scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
@@ -360,7 +405,7 @@ export default function MasonEditorPanel({
         defaultWidth={
           isFullscreen
             ? window.innerWidth
-            : showReference || (hasVisualStudio && editorViewMode === "split")
+            : effectiveShowReference || (hasVisualStudio && effectiveViewMode === "split")
               ? 1450
               : hasVisualStudio
                 ? 1240
@@ -378,25 +423,54 @@ export default function MasonEditorPanel({
                 <PanelHeaderButton
                   icon={t("icon_auto_awesome", "auto_awesome")}
                   tooltip={t("lex_studio_visual", "Visual Studio")}
-                  isActive={editorViewMode === "visual"}
+                  isActive={effectiveViewMode === "visual"}
                   onClick={() => setEditorViewMode("visual")}
                 />
-                <PanelHeaderButton
-                  icon={t("icon_vertical_split", "vertical_split")}
-                  tooltip={t("lex_studio_split", "Split View")}
-                  isActive={editorViewMode === "split"}
-                  onClick={() => setEditorViewMode("split")}
-                />
+                {!isMobileViewport && (
+                  <PanelHeaderButton
+                    icon={t("icon_vertical_split", "vertical_split")}
+                    tooltip={t("lex_studio_split", "Split View")}
+                    isActive={effectiveViewMode === "split"}
+                    onClick={() => setEditorViewMode("split")}
+                  />
+                )}
                 <PanelHeaderButton
                   icon={t("icon_data_object", "data_object")}
                   tooltip={t("lex_studio_raw", "Raw JSON")}
-                  isActive={editorViewMode === "raw"}
+                  isActive={effectiveViewMode === "raw"}
                   onClick={() => setEditorViewMode("raw")}
                 />
               </PanelHeaderGroup>
             )}
 
+            {(!hasVisualStudio || effectiveViewMode !== "visual") && (
+              <PanelHeaderGroup className="mr-2">
+                <PanelHeaderButton
+                  icon={t("icon_wrap_text", "wrap_text")}
+                  tooltip={t("ide_toggle_word_wrap", "Wrap Text")}
+                  isActive={wordWrap}
+                  onClick={() => setWordWrap((w) => !w)}
+                />
+              </PanelHeaderGroup>
+            )}
+
             <PanelHeaderGroup>
+              {validationStats && validationStats.deprecated > 0 && purgeDeprecatedStrings && (
+                <PanelHeaderButton
+                  icon={t("icon_delete_sweep", "delete_sweep")}
+                  tooltip={`${t("lexicon_purge_keys", "Purge Keys")} (${validationStats.deprecated})`}
+                  variant="error"
+                  onClick={purgeDeprecatedStrings}
+                />
+              )}
+              {validationStats && validationStats.completelyMissing > 0 && addMissingStrings && (
+                <PanelHeaderButton
+                  icon={t("icon_playlist_add", "playlist_add")}
+                  tooltip={`${t("lexicon_add_missing", "Add Missing")} (${validationStats.completelyMissing})`}
+                  variant="accent"
+                  onClick={addMissingStrings}
+                />
+              )}
               {isDirty && discardChanges && (
                 <PanelHeaderButton
                   icon={t("icon_undo", "undo")}
@@ -426,12 +500,12 @@ export default function MasonEditorPanel({
                 )}
             </PanelHeaderGroup>
 
-            {hasReference && (!hasVisualStudio || editorViewMode === "raw") && (
+            {!isMobileViewport && hasReference && (!hasVisualStudio || effectiveViewMode === "raw") && (
               <PanelHeaderGroup className="ml-2">
                 <PanelHeaderButton
-                  icon={showReference ? "vertical_split" : "splitscreen"}
+                  icon={effectiveShowReference ? "vertical_split" : "splitscreen"}
                   tooltip={t("btn_reference", "Toggle Reference Split")}
-                  isActive={showReference}
+                  isActive={effectiveShowReference}
                   disabled={!activeFile}
                   onClick={() => setShowReference(!showReference)}
                 />
@@ -451,9 +525,10 @@ export default function MasonEditorPanel({
                   onClick={() => setIsStudioGuideOpen(true)}
                 />
               )}
-              {hasReference &&
-                showReference &&
-                (!hasVisualStudio || editorViewMode === "raw") && (
+              {!isMobileViewport &&
+                hasReference &&
+                effectiveShowReference &&
+                (!hasVisualStudio || effectiveViewMode === "raw") && (
                   <PanelHeaderButton
                     icon={isScrollLocked ? "lock" : "lock_open"}
                     tooltip={t("sync_scroll", "Sync Scroll")}
@@ -469,7 +544,7 @@ export default function MasonEditorPanel({
                   onClick={() => setShowTimeline(true)}
                 />
               )}
-              {setIsFullscreen && (
+              {!isMobileViewport && setIsFullscreen && (
                 <PanelHeaderButton
                   icon={isFullscreen ? "fullscreen_exit" : "fullscreen"}
                   tooltip={
@@ -485,11 +560,11 @@ export default function MasonEditorPanel({
         }
       >
         <div className="absolute inset-0 flex flex-col w-full min-w-full">
-          <div className="flex-1 relative flex w-full min-w-full h-full min-h-0">
-            <div className="flex-1 flex w-full min-w-0 relative h-full">
-              {hasVisualStudio && editorViewMode === "visual" ? (
+          <div className="flex-1 relative flex flex-col md:flex-row w-full min-w-full h-full min-h-0">
+            <div className="flex-1 flex w-full min-w-0 relative h-full min-h-0">
+              {hasVisualStudio && effectiveViewMode === "visual" ? (
                 <div className="w-full h-full min-w-0 flex flex-col">{renderVisualPane()}</div>
-              ) : hasVisualStudio && editorViewMode === "split" ? (
+              ) : hasVisualStudio && effectiveViewMode === "split" ? (
                 <>
                   <div
                     style={{ width: `${splitRatio}%` }}
@@ -517,13 +592,13 @@ export default function MasonEditorPanel({
               ) : (
                 <>
                   <div
-                    style={{ width: showReference && hasReference ? `${splitRatio}%` : "100%" }}
+                    style={{ width: effectiveShowReference && hasReference ? `${splitRatio}%` : "100%" }}
                     className="flex-shrink-0 w-full flex flex-col relative h-full min-w-0 transition-none"
                   >
                     {renderMonacoPane()}
                   </div>
 
-                  {showReference && hasReference && (
+                  {effectiveShowReference && hasReference && (
                     <>
                       <div
                         onMouseDown={(e) => {
@@ -604,105 +679,123 @@ export default function MasonEditorPanel({
               )}
             </div>
 
-            {/* Floating 3D Liquid Glass Key Validator & Syntax Error Alert Dock */}
+            {/* Floating / Docked 3D Liquid Glass Key Validator & Syntax Error Alert Bar */}
             {(problemsList.length > 0 ||
-              (validationStats &&
+              (!isValidatorDismissed &&
+                validationStats &&
                 (validationStats.deprecated > 0 ||
                   (!isLexiconActive && validationStats.missing > 0) ||
                   (isLexiconActive &&
-                    editorViewMode !== "visual" &&
+                    effectiveViewMode !== "visual" &&
                     validationStats.missing > 0)))) && (
-              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[80] flex flex-col items-center gap-2.5 w-max max-w-[calc(100%-2.5rem)] pointer-events-none">
-                {validationStats &&
+              <div className="max-md:static max-md:w-full max-md:px-3 max-md:pt-1.5 max-md:pb-3 max-md:bg-transparent shrink-0 md:absolute md:bottom-5 md:left-1/2 md:-translate-x-1/2 z-[80] flex flex-col items-center gap-2 md:w-max md:max-w-[calc(100%-2.5rem)] pointer-events-none">
+                {!isValidatorDismissed &&
+                  validationStats &&
                   (validationStats.deprecated > 0 ||
                     (!isLexiconActive && validationStats.missing > 0) ||
                     (isLexiconActive &&
-                      editorViewMode !== "visual" &&
+                      effectiveViewMode !== "visual" &&
                       validationStats.missing > 0)) && (
-                    <div className="pointer-events-auto w-fit max-w-full glass-panel portal-glass-fix sa-dropdown-popover !rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3.5 transition-all">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)] shrink-0">
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {t("icon_neurology", "neurology")}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 min-w-0">
-                            <span className="text-xs font-black tracking-wide text-[var(--text)]">
-                              {isLexiconActive
-                                ? t("validator_lexicon_title", "Lexicon Validation Alert")
-                                : t("validator_schema_title", "Schema Validation Alert")}
+                    <div className="pointer-events-auto w-full md:w-fit max-w-full glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 md:gap-3.5 transition-all">
+                      <div className="flex items-center justify-between gap-2.5 md:gap-3 min-w-0">
+                        <div className="flex items-center gap-2.5 md:gap-3 min-w-0 flex-1">
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)] shrink-0">
+                            <span className="material-symbols-outlined !text-[17px] md:!text-[20px]">
+                              {t("icon_neurology", "neurology")}
                             </span>
-
-                            <div className={`${VAULT_CHIP_CLASS} font-mono`}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                                {t("icon_fact_check", "fact_check")}
-                              </span>
-                              <span>
-                                {`${Math.max(
-                                  0,
-                                  validationStats.total - validationStats.missing
-                                )} / ${validationStats.total}`}
-                              </span>
-                            </div>
-
-                            <div className={VAULT_CHIP_CLASS}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                {t("icon_verified", "verified")}
-                              </span>
-                              <span>
-                                {referenceLabel ||
-                                  (isLexiconActive
-                                    ? t("validator_source_default_lex", "en-default.json Baseline")
-                                    : t(
-                                        "validator_source_keepers",
-                                        "Keepers Core Default Schema"
-                                      ))}
-                              </span>
-                            </div>
                           </div>
 
-                          <p className="text-[11px] font-medium text-[var(--subtext)] leading-snug">
-                            {validationStats.missing > 0 && validationStats.deprecated > 0
-                              ? (isLexiconActive
-                                  ? t(
-                                      "validator_desc_lex_both",
-                                      "{missing} missing strings and {deprecated} deprecated keys detected against baseline."
-                                    )
-                                  : t(
-                                      "validator_desc_schema_both",
-                                      "{missing} missing schema keys and {deprecated} unrecognized fields detected against baseline."
-                                    )
-                                )
-                                  .replace("{missing}", String(validationStats.missing))
-                                  .replace("{deprecated}", String(validationStats.deprecated))
-                              : validationStats.missing > 0
+                          <div className="flex flex-col gap-0.5 md:gap-1 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 min-w-0">
+                              <span className="text-xs font-black tracking-wide text-[var(--text)] whitespace-nowrap">
+                                {isLexiconActive
+                                  ? t("validator_lexicon_title", "Lexicon Validation Alert")
+                                  : t("validator_schema_title", "Schema Validation Alert")}
+                              </span>
+
+                              <div className={`${VAULT_CHIP_CLASS} font-mono shrink-0`}>
+                                <span className="material-symbols-outlined !text-[11px] md:!text-[12px] text-[var(--warning)]">
+                                  {t("icon_fact_check", "fact_check")}
+                                </span>
+                                <span>
+                                  {`${Math.max(
+                                    0,
+                                    validationStats.total - validationStats.missing
+                                  )} / ${validationStats.total}`}
+                                </span>
+                              </div>
+
+                              <div className={`hidden md:inline-flex ${VAULT_CHIP_CLASS}`}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                  {t("icon_verified", "verified")}
+                                </span>
+                                <span>
+                                  {referenceLabel ||
+                                    (isLexiconActive
+                                      ? t("validator_source_default_lex", "en-default.json Baseline")
+                                      : t(
+                                          "validator_source_keepers",
+                                          "Keepers Core Default Schema"
+                                        ))}
+                                </span>
+                              </div>
+                            </div>
+
+                            <p className="hidden md:block text-[11px] font-medium text-[var(--subtext)] leading-snug">
+                              {validationStats.missing > 0 && validationStats.deprecated > 0
                                 ? (isLexiconActive
                                     ? t(
-                                        "validator_desc_lex_missing",
-                                        "{missing} untranslated or missing strings detected — add missing keys or jump to next empty."
+                                        "validator_desc_lex_both",
+                                        "{missing} missing strings and {deprecated} deprecated keys detected against baseline."
                                       )
                                     : t(
-                                        "validator_desc_schema_missing",
-                                        "{missing} required schema keys are missing from this configuration — inject defaults to sync."
+                                        "validator_desc_schema_both",
+                                        "{missing} missing schema keys and {deprecated} unrecognized fields detected against baseline."
                                       )
-                                  ).replace("{missing}", String(validationStats.missing))
-                                : (isLexiconActive
-                                    ? t(
-                                        "validator_desc_lex_deprecated",
-                                        "{deprecated} deprecated or unused keys are no longer in the baseline and can be removed."
-                                      )
-                                    : t(
-                                        "validator_desc_schema_deprecated",
-                                        "{deprecated} unrecognized fields are not in the baseline schema and can be safely removed."
-                                      )
-                                  ).replace("{deprecated}", String(validationStats.deprecated))}
-                          </p>
+                                  )
+                                    .replace("{missing}", String(validationStats.missing))
+                                    .replace("{deprecated}", String(validationStats.deprecated))
+                                : validationStats.missing > 0
+                                  ? (isLexiconActive
+                                      ? t(
+                                          "validator_desc_lex_missing",
+                                          "{missing} untranslated or missing strings detected — add missing keys or jump to next empty."
+                                        )
+                                      : t(
+                                          "validator_desc_schema_missing",
+                                          "{missing} required schema keys are missing from this configuration — inject defaults to sync."
+                                        )
+                                    ).replace("{missing}", String(validationStats.missing))
+                                  : (isLexiconActive
+                                      ? t(
+                                          "validator_desc_lex_deprecated",
+                                          "{deprecated} deprecated or unused keys are no longer in the baseline and can be removed."
+                                        )
+                                      : t(
+                                          "validator_desc_schema_deprecated",
+                                          "{deprecated} unrecognized fields are not in the baseline schema and can be safely removed."
+                                        )
+                                    ).replace("{deprecated}", String(validationStats.deprecated))}
+                            </p>
+                          </div>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsValidatorDismissed(true);
+                          }}
+                          className="md:hidden w-7 h-7 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--text)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all shrink-0 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {t("icon_close", "close")}
+                          </span>
+                          <HoverTooltip title={t("close", "Close")} />
+                        </button>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 shrink-0 pl-3 border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto md:pl-3 md:border-l md:border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         {validationStats.deprecated > 0 && (
                           <ActionButton
                             onClick={purgeDeprecatedStrings}
@@ -714,7 +807,7 @@ export default function MasonEditorPanel({
                                 "Purge Keys"
                               )} (${validationStats.deprecated})`}</span>
                             }
-                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                            className="flex-1 md:flex-initial !h-8 md:!h-9 !px-3 md:!px-3.5 !text-[11px] md:!text-xs !rounded-xl"
                           />
                         )}
                         {validationStats.completelyMissing > 0 ? (
@@ -728,13 +821,13 @@ export default function MasonEditorPanel({
                                 "Add Missing"
                               )} (${validationStats.completelyMissing})`}</span>
                             }
-                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                            className="flex-1 md:flex-initial !h-8 md:!h-9 !px-3 md:!px-3.5 !text-[11px] md:!text-xs !rounded-xl"
                           />
                         ) : validationStats.missing > 0 ? (
                           <ActionButton
                             onClick={() => {
-                              if (hasVisualStudio && editorViewMode === "visual") {
-                                setEditorViewMode("split");
+                              if (hasVisualStudio && effectiveViewMode === "visual") {
+                                setEditorViewMode(isMobileViewport ? "raw" : "split");
                               }
                               if (jumpToNextEmpty) jumpToNextEmpty();
                             }}
@@ -745,19 +838,33 @@ export default function MasonEditorPanel({
                                 {t("lexicon_next_empty", "Next Empty")}
                               </span>
                             }
-                            className="!h-9 !px-3.5 !text-xs !rounded-xl"
+                            className="flex-1 md:flex-initial !h-8 md:!h-9 !px-3 md:!px-3.5 !text-[11px] md:!text-xs !rounded-xl"
                           />
                         ) : null}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsValidatorDismissed(true);
+                          }}
+                          className="hidden md:flex w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--text)] items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all shrink-0 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_close", "close")}
+                          </span>
+                          <HoverTooltip title={t("close", "Close")} />
+                        </button>
                       </div>
                     </div>
                   )}
 
                 {problemsList.length > 0 && (
                   <div
-                    className="pointer-events-auto w-fit max-w-full glass-panel portal-glass-fix sa-dropdown-popover !rounded-2xl px-4 py-3 flex items-center justify-between gap-3.5 cursor-pointer transition-all group/problem"
+                    className="pointer-events-auto w-full md:w-fit max-w-full glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] !rounded-2xl px-3 py-2 md:px-4 md:py-3 flex items-center justify-between gap-2 md:gap-3.5 cursor-pointer transition-all group/problem"
                     onClick={() => {
-                      if (hasVisualStudio && editorViewMode === "visual") {
-                        setEditorViewMode("split");
+                      if (hasVisualStudio && effectiveViewMode === "visual") {
+                        setEditorViewMode(isMobileViewport ? "raw" : "split");
                       }
                       if (editorRef && problemsList[0]) {
                         editorRef.revealLineInCenter(problemsList[0].line);

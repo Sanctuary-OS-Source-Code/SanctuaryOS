@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase, supabaseAuth, getSpokeClientById } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import {
   SidePanel,
   PanelHeaderGroup,
@@ -36,8 +37,6 @@ export default function NotificationSidebar({
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const workspaces = useStore((state: any) => state.workspaces);
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
-  const setView = useStore((state: any) => state.setView);
-  const setIsConfigured = useStore((state: any) => state.setIsConfigured);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -219,12 +218,28 @@ export default function NotificationSidebar({
     }
 
     if (notif.type === "patch_update_logs") {
-      onClose();
-      setIsConfigured(false);
-      setView("dashboard");
-      setTimeout(() => {
-        window.location.hash = "release_notes";
-      }, 80);
+      if (useModalStore.getState().updatePayload) {
+        useModalStore.getState().setIsUpdatePanelOpen(true);
+      } else if (onOpenPost) {
+        onOpenPost({
+          id: notif.id,
+          title: notif.title || t("notify_patch_update_logs", "Update Log"),
+          content: notif.message || "",
+          created_at: notif.created_at,
+          mason_id: "system",
+          masons: {
+            name: t("author_sanctuary_team", "Sanctuary Foundry"),
+          },
+          views: 0,
+          likes: 0,
+          replies: 0,
+        });
+      }
+      return;
+    }
+
+    if (notif.type === "support_reply") {
+      useModalStore.getState().setIsSupportPanelOpen(true);
       return;
     }
 

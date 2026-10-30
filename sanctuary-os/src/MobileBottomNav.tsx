@@ -70,7 +70,15 @@ function MobileNavItem({
   );
 }
 
-export function MobileBottomNav({ view, setView }: { view: string, setView: (v: string) => void }) {
+export function MobileBottomNav({
+  view,
+  setView,
+  subtitleIndex = 0,
+}: {
+  view: string;
+  setView: (v: string) => void;
+  subtitleIndex?: number;
+}) {
   const { t, osLogoUrl } = useLexicon();
   const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
@@ -91,8 +99,26 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHubNavOpen, setIsHubNavOpen] = useState(false);
+  const [hasOpenSidePanel, setHasOpenSidePanel] = useState(false);
   const [activeLandingSection, setActiveLandingSection] = useState<string>(() => getActiveLandingTab());
   const { isStandalone, triggerInstall } = usePwaInstall();
+
+  useEffect(() => {
+    const checkPanels = () => {
+      const openPanels = document.querySelectorAll('.sa-side-panel-wrapper.sa-panel-open');
+      setHasOpenSidePanel(openPanels.length > 0);
+    };
+    checkPanels();
+    const portalRoot = document.getElementById('sa-portals') || document.body;
+    const observer = new MutationObserver(checkPanels);
+    observer.observe(portalRoot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'data-passthrough'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const [isLandingContext, setIsLandingContext] = useState<boolean>(() =>
     view === 'landing' || !isConfigured || (!isDesktop() && isRootDomain())
@@ -264,7 +290,9 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
       {/* Mobile Bottom Dock Wallpaper Underlay Mask — softly masks scrolling page cards/text behind the dock so nothing peeks out in the gap above the gesture pill while letting the crisp theme wallpaper shine through */}
       <div
         aria-hidden="true"
-        className="sa-mobile-dock-underlay md:hidden fixed bottom-0 left-0 right-0 h-[calc(0.625rem+env(safe-area-inset-bottom,0px)+48px)] pointer-events-none select-none z-[8995] overflow-hidden"
+        className={`sa-mobile-dock-underlay md:hidden fixed bottom-0 left-0 right-0 h-[calc(0.625rem+env(safe-area-inset-bottom,0px)+48px)] pointer-events-none select-none z-[8995] overflow-hidden transition-all duration-300 ${
+          hasOpenSidePanel ? "translate-y-28 opacity-0" : "translate-y-0 opacity-100"
+        }`}
         style={{
           WebkitMaskImage:
             'linear-gradient(to top, #000000 0%, #000000 calc(100% - 26px), transparent 100%)',
@@ -284,7 +312,11 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
 
       {/* Mobile Bottom Navigation Dock (WebGL2 3D Liquid Glass Engine) */}
       <div
-        className="sa-mobile-bottom-dock md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[9000] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden"
+        className={`sa-mobile-bottom-dock md:hidden fixed bottom-[calc(0.625rem+env(safe-area-inset-bottom,0px))] left-3.5 right-3.5 h-[68px] z-[9000] glass-panel sa-mobile-glass-overlay rounded-3xl border overflow-hidden transition-all duration-300 ${
+          hasOpenSidePanel
+            ? "translate-y-28 opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100"
+        }`}
         style={{
           backgroundColor: 'var(--glass-base-fill)',
           borderTopColor: 'var(--glass-border-top)',
@@ -384,7 +416,7 @@ export function MobileBottomNav({ view, setView }: { view: string, setView: (v: 
                     </span>
                   </div>
                   <span className="text-[7.5px] font-black tracking-[0.14em] text-[var(--accent)] opacity-85 capitalize leading-snug mt-0.5">
-                    {t("sidebar_app_subtitle_0", "No Black Boxes")}
+                    {t(`sidebar_app_subtitle_${subtitleIndex}`, "No Black Boxes")}
                   </span>
                 </div>
               </div>
