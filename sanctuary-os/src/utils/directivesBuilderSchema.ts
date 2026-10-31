@@ -91,7 +91,7 @@ export function getRoadmapStatusMeta(
   }
   return {
     status: "completed",
-    label: t("dir_roadmap_status_complete_stable", "Complete (In Stable Build)"),
+    label: t("dir_roadmap_status_complete_stable", "Complete"),
     icon: t("icon_check_circle", "check_circle"),
     colorClass: "text-[var(--success)]",
   };
@@ -207,18 +207,18 @@ function extractMarkdownSubCards(
         }
         const cleanTitle = rawHeading
           .replace(
-            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete\s*\(In Stable Build\)|Completed)[^\]]*\]\s*/i,
+            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete\s*\|Completed)[^\]]*\]\s*/i,
             ""
           )
           .replace(
-            /\s*(?:\((?:Completed|Complete\s*\(In Stable Build\)|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])/gi,
+            /\s*(?:\((?:Completed|Complete\s*\|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])/gi,
             ""
           )
           .replace(/:\s*$/, "")
           .trim();
         const cleanInline = rawRest
           .replace(
-            /^(?:\((?:Completed|Complete\s*\(In Stable Build\)|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
+            /^(?:\((?:Completed|Complete\s*\|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
             ""
           )
           .trim();
@@ -618,7 +618,7 @@ export function parseMarkdownToDirectiveSchema(
             ? "In Testing [In Dev Build]"
             : resolvedCardStatus === "active"
               ? "In Progress"
-              : "Complete (In Stable Build)";
+              : "Completed";
 
         return {
           id: fallback?.id || `phase_${phaseNum}`,
@@ -1014,7 +1014,7 @@ export function compileDirectiveSchemaToMarkdown(
                 ? " (In Testing [In Dev Build])"
                 : subStatus === "in_progress"
                   ? " (In Progress)"
-                  : " (Complete (In Stable Build))";
+                  : " (Complete)";
             lines.push(`- **${sub.title}${statusSuffix}:** ${sub.desc}`);
           } else {
             lines.push(`- **${sub.title}:** ${sub.desc}`);

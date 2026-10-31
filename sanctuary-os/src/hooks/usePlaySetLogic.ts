@@ -360,41 +360,117 @@ export function packageBlueprintLoadOrder(
     true
   );
 
+  const extRegex = getExtensionRegex(schema);
   const itemByCleanKey = new Map<string, CompiledLoadOrderItem>();
+  const itemByNoExtKey = new Map<string, CompiledLoadOrderItem>();
   compiled.items.forEach((it) => {
-    itemByCleanKey.set(it.cleanName.toLowerCase(), it);
+    const low = it.cleanName.toLowerCase();
+    itemByCleanKey.set(low, it);
+    const noExt = low.replace(extRegex, "");
+    if (noExt) itemByNoExtKey.set(noExt, it);
   });
 
+  const resolveCanonicalItem = (rawModStr: string): CompiledLoadOrderItem | undefined => {
+    const str = String(rawModStr || "");
+    const lastSlash = Math.max(str.lastIndexOf("/"), str.lastIndexOf("\\"));
+    const base = (lastSlash >= 0 ? str.slice(lastSlash + 1) || str : str).toLowerCase();
+    if (!base) return undefined;
+    return itemByCleanKey.get(base) || itemByNoExtKey.get(base.replace(extRegex, ""));
+  };
+
   const rules: LoadOrderRule[] = Array.isArray(targetSet?.loadRules) ? targetSet.loadRules : [];
+  const canonicalRules: LoadOrderRule[] = [];
   const rulesByModA = new Map<string, LoadOrderRule[]>();
+  const rulesByModB = new Map<string, LoadOrderRule[]>();
+
   rules.forEach((r) => {
     if (!r?.modA || !r?.modB) return;
     const strA = String(r.modA);
     const strB = String(r.modB);
     const lastA = Math.max(strA.lastIndexOf("/"), strA.lastIndexOf("\\"));
     const lastB = Math.max(strB.lastIndexOf("/"), strB.lastIndexOf("\\"));
-    const baseA = lastA >= 0 ? strA.slice(lastA + 1) || strA : strA;
-    const baseB = lastB >= 0 ? strB.slice(lastB + 1) || strB : strB;
+    const itemA = resolveCanonicalItem(strA);
+    const itemB = resolveCanonicalItem(strB);
+    const baseA = itemA?.cleanName || (lastA >= 0 ? strA.slice(lastA + 1) || strA : strA);
+    const baseB = itemB?.cleanName || (lastB >= 0 ? strB.slice(lastB + 1) || strB : strB);
     const cleanA = baseA.toLowerCase();
-    const list = rulesByModA.get(cleanA) || [];
-    list.push({
-      id: r.id || `rule_${cleanA}_${r.type}_${r.modB}`,
+    const cleanB = baseB.toLowerCase();
+    const ruleObj: LoadOrderRule = {
+      id: r.id || `rule_${cleanA}_${r.type}_${baseB}`,
       modA: baseA,
       modB: baseB,
       type: r.type === "before" ? "before" : "after",
-    });
-    rulesByModA.set(cleanA, list);
+    };
+    canonicalRules.push(ruleObj);
+
+    const listA = rulesByModA.get(cleanA) || [];
+    listA.push(ruleObj);
+    rulesByModA.set(cleanA, listA);
+    const noExtA = cleanA.replace(extRegex, "");
+    if (noExtA && noExtA !== cleanA) {
+      rulesByModA.set(noExtA, listA);
+    }
+
+    const listB = rulesByModB.get(cleanB) || [];
+    listB.push(ruleObj);
+    rulesByModB.set(cleanB, listB);
+    const noExtB = cleanB.replace(extRegex, "");
+    if (noExtB && noExtB !== cleanB) {
+      rulesByModB.set(noExtB, listB);
+    }
   });
 
+  // Collect resolved/ignored conflict pairs belonging to this Blueprint
+  const ignoredPairsSet = new Set<string>();
+  if (Array.isArray(targetSet?.ignoredConflicts)) {
+    targetSet.ignoredConflicts.forEach((pair: any) => {
+      if (typeof pair === "string" && pair.trim()) ignoredPairsSet.add(pair.trim());
+    });
+  }
+  const globalIgnored: string[] = (() => {
+    const fromStore = useStore.getState().ignoredGlobal;
+    if (Array.isArray(fromStore) && fromStore.length > 0) return fromStore;
+    try {
+      return JSON.parse(localStorage.getItem("sanctuary_ignored_conflicts") || "[]");
+    } catch {
+      return [];
+    }
+  })();
+  globalIgnored.forEach((pair) => {
+    if (typeof pair !== "string" || !pair.includes("::")) return;
+    const [partA, partB] = pair.split("::");
+    if (resolveCanonicalItem(partA) && resolveCanonicalItem(partB)) {
+      ignoredPairsSet.add(pair.trim());
+    }
+  });
+  const ignored_conflicts = Array.from(ignoredPairsSet);
+
   const enrichAndSortArtifacts = (rawModObjects: any[]) => {
+    const presentKeys = new Set<string>();
+    rawModObjects.forEach((m: any) => {
+      const rawName = typeof m === "string" ? m : String(m?.name || m?.path || "");
+      const lastSlash = Math.max(rawName.lastIndexOf("/"), rawName.lastIndexOf("\\"));
+      const cleanName = (lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName).toLowerCase();
+      if (cleanName) {
+        presentKeys.add(cleanName);
+        presentKeys.add(cleanName.replace(extRegex, ""));
+      }
+    });
+
     const enriched = rawModObjects.map((m: any, idx: number) => {
       const rawName = typeof m === "string" ? m : String(m?.name || m?.path || "");
       const lastSlash = Math.max(rawName.lastIndexOf("/"), rawName.lastIndexOf("\\"));
       const cleanName = lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName;
       const key = cleanName.toLowerCase();
-      const compiledItem = itemByCleanKey.get(key);
+      const noExtKey = key.replace(extRegex, "");
+      const compiledItem = itemByCleanKey.get(key) || itemByNoExtKey.get(noExtKey);
       const tierFolder = compiledItem?.tierFolder || "";
-      const modRules = rulesByModA.get(key);
+      const directRules = rulesByModA.get(key) || rulesByModA.get(noExtKey) || [];
+      // If a rule's modA was filtered out of rawModObjects (e.g. non-Tier-0 on Cloud upload), attach it on modB so it isn't lost
+      const fallbackRules = (rulesByModB.get(key) || rulesByModB.get(noExtKey) || []).filter(
+        (r) => !presentKeys.has(r.modA.toLowerCase()) && !presentKeys.has(r.modA.toLowerCase().replace(extRegex, ""))
+      );
+      const modRules = [...directRules, ...fallbackRules];
       const packagedName = tierFolder ? `${tierFolder}/${cleanName}` : cleanName;
 
       const out: any = {
@@ -405,7 +481,7 @@ export function packageBlueprintLoadOrder(
       if (tierFolder) {
         out.priority_tier = tierFolder;
       }
-      if (modRules && modRules.length > 0) {
+      if (modRules.length > 0) {
         out.load_rules = modRules;
       }
       return out;
@@ -414,6 +490,9 @@ export function packageBlueprintLoadOrder(
     enriched.sort((a, b) => (a.load_order_index ?? 0) - (b.load_order_index ?? 0));
     for (let i = 0; i < enriched.length; i++) {
       enriched[i].load_order_index = i;
+    }
+    if (enriched.length > 0 && ignored_conflicts.length > 0) {
+      enriched[0].ignored_conflicts = ignored_conflicts;
     }
     return enriched;
   };
@@ -428,9 +507,10 @@ export function packageBlueprintLoadOrder(
   return {
     compiled,
     load_order_strategy: compiled.strategy,
-    load_rules: rules,
+    load_rules: canonicalRules,
     mod_tiers: modTiersOut,
     load_order: compiled.items.map((it) => it.cleanName),
+    ignored_conflicts,
     enrichAndSortArtifacts,
   };
 }
@@ -440,6 +520,7 @@ export function unpackBlueprintLoadOrder(
   nameRemap?: Map<string, string>,
   schema: any = null
 ) {
+  const extRegex = getExtensionRegex(schema);
   const schemaTiers = Array.isArray(schema?.load_order?.priority_tiers)
     ? schema.load_order.priority_tiers
     : [];
@@ -447,6 +528,7 @@ export function unpackBlueprintLoadOrder(
     ["sanctuary", "Sanctuary"],
     ["sanctuary2", "Sanctuary2"],
     ["sanctuary3", "Sanctuary3"],
+    ["4_overrides", "Sanctuary"],
   ]);
   schemaTiers.forEach((pt: any) => {
     if (pt?.folder) {
@@ -454,19 +536,37 @@ export function unpackBlueprintLoadOrder(
     }
   });
 
+  const normalizeTierFolder = (rawTier: any): string => {
+    if (typeof rawTier !== "string" || !rawTier.trim()) return "";
+    const low = rawTier.trim().toLowerCase();
+    return knownTierMap.get(low) || "";
+  };
+
+  const noExtRemap = new Map<string, string>();
+  if (nameRemap) {
+    nameRemap.forEach((val, key) => {
+      const stripped = key.replace(extRegex, "");
+      if (stripped && !noExtRemap.has(stripped)) {
+        noExtRemap.set(stripped, val);
+      }
+    });
+  }
+
   const remapCleanName = (rawName: string): string => {
     const clean = String(rawName || "").split(/[\\/]/).pop() || String(rawName || "");
     if (!clean) return "";
-    return nameRemap?.get(clean.toLowerCase()) || clean;
+    const low = clean.toLowerCase();
+    return nameRemap?.get(low) || noExtRemap.get(low.replace(extRegex, "")) || clean;
   };
 
   const modTiers: Record<string, string> = {};
   const topTiers = rawPayload?.mod_tiers || rawPayload?.modTiers;
   if (topTiers && typeof topTiers === "object") {
     Object.entries(topTiers).forEach(([k, v]) => {
-      if (typeof v === "string" && v.trim()) {
+      const normalized = normalizeTierFolder(v);
+      if (normalized) {
         const remappedKey = remapCleanName(k);
-        if (remappedKey) modTiers[remappedKey] = v.trim();
+        if (remappedKey) modTiers[remappedKey] = normalized;
       }
     });
   }
@@ -500,6 +600,17 @@ export function unpackBlueprintLoadOrder(
     topRules.forEach(addRule);
   }
 
+  const ignoredSet = new Set<string>();
+  const addIgnoredList = (list: any) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((pair: any) => {
+      if (typeof pair === "string" && pair.trim()) {
+        ignoredSet.add(pair.trim());
+      }
+    });
+  };
+  addIgnoredList(rawPayload?.ignored_conflicts || rawPayload?.ignoredConflicts);
+
   const indexedItems: { cleanName: string; index: number }[] = [];
   rawList.forEach((item: any, idx: number) => {
     const rawStr = typeof item === "string" ? item : String(item?.name || item?.path || "");
@@ -510,13 +621,12 @@ export function unpackBlueprintLoadOrder(
     let detectedTier = "";
     if (typeof item === "object" && item !== null) {
       const explicitTier = item.priority_tier || item.priorityTier || item.tierFolder;
-      if (typeof explicitTier === "string" && explicitTier.trim()) {
-        detectedTier = explicitTier.trim();
-      }
+      detectedTier = normalizeTierFolder(explicitTier);
       const itemRules = item.load_rules || item.loadRules;
       if (Array.isArray(itemRules)) {
         itemRules.forEach(addRule);
       }
+      addIgnoredList(item.ignored_conflicts || item.ignoredConflicts);
     }
     if (!detectedTier && parts.length > 1) {
       const firstSegLower = parts[0].toLowerCase();
@@ -579,6 +689,7 @@ export function unpackBlueprintLoadOrder(
     loadRules: Array.from(ruleMap.values()),
     modTiers,
     loadOrder,
+    ignoredConflicts: Array.from(ignoredSet),
     formatModWithTier,
   };
 }
@@ -1445,12 +1556,22 @@ export function usePlaySetLogic() {
         } catch {}
       }
 
-      const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
+      const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
         parsed,
         nameRemap,
         activeGameSchema
       );
       const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+
+      if (ignoredConflicts.length > 0) {
+        setIgnoredGlobal((prevIgnored: string[]) => {
+          const merged = Array.from(new Set([...(prevIgnored || []), ...ignoredConflicts]));
+          try {
+            localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
 
       let baseName = `${parsed.name} (Imported)`;
       let newName = baseName;
@@ -1469,6 +1590,7 @@ export function usePlaySetLogic() {
         loadRules,
         modTiers,
         loadOrder,
+        ignoredConflicts,
         ignoredGhosts: [],
       };
       if (missing.length > 0) {
@@ -1881,6 +2003,7 @@ export function usePlaySetLogic() {
             return cleanM === cleanWinner;
           });
 
+          let canonicalWinnerFile = cleanWinnerFile;
           if (index !== -1) {
             const strM = typeof newMods[index] === "string" ? newMods[index] : newMods[index].name || newMods[index].path || "";
             const segs = strM.replace(/\\/g, "/").split("/");
@@ -1888,6 +2011,7 @@ export function usePlaySetLogic() {
               segs.shift();
             }
             const baseRel = segs.join("/");
+            canonicalWinnerFile = baseRel.split("/").pop() || cleanWinnerFile;
             const nextPath = firstOverrideTier ? `${firstOverrideTier}/${baseRel}` : baseRel;
             if (typeof newMods[index] === "string") {
               newMods[index] = nextPath;
@@ -1899,8 +2023,8 @@ export function usePlaySetLogic() {
           }
 
           const nextModTiers = { ...(currentSet.modTiers || {}) };
-          if (cleanWinnerFile) {
-            nextModTiers[cleanWinnerFile] = firstOverrideTier;
+          if (canonicalWinnerFile) {
+            nextModTiers[canonicalWinnerFile] = firstOverrideTier;
           }
 
           let nextLoadRules: LoadOrderRule[] = Array.isArray(currentSet.loadRules) ? [...currentSet.loadRules] : [];
@@ -1911,28 +2035,55 @@ export function usePlaySetLogic() {
                   .split("::")
                   .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
               : undefined);
-          if (cleanWinnerFile && resolvedLoser) {
-            const cleanLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
-            const wLow = cleanWinnerFile.toLowerCase();
-            const lLow = cleanLoserFile.toLowerCase();
-            nextLoadRules = nextLoadRules.filter(
-              (r) =>
-                !(
-                  (r.modA.toLowerCase() === wLow && r.modB.toLowerCase() === lLow) ||
-                  (r.modA.toLowerCase() === lLow && r.modB.toLowerCase() === wLow)
-                )
-            );
+          if (canonicalWinnerFile && resolvedLoser) {
+            const rawLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
+            const cleanLoserNoExt = rawLoserFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
+            let canonicalLoserFile = rawLoserFile;
+            const loserIdx = newMods.findIndex((m: any) => {
+              const strM = typeof m === "string" ? m : m.name || m.path || "";
+              const cleanM = (strM.split(/[\\/]/).pop() || strM)
+                .replace(getExtensionRegex(activeGameSchema), "")
+                .toLowerCase();
+              return cleanM === cleanLoserNoExt;
+            });
+            if (loserIdx !== -1) {
+              const strL = typeof newMods[loserIdx] === "string" ? newMods[loserIdx] : newMods[loserIdx].name || newMods[loserIdx].path || "";
+              canonicalLoserFile = strL.split(/[\\/]/).pop() || rawLoserFile;
+            }
+            const wLow = canonicalWinnerFile.toLowerCase();
+            const lLow = canonicalLoserFile.toLowerCase();
+            const wNoExt = wLow.replace(getExtensionRegex(activeGameSchema), "");
+            const lNoExt = lLow.replace(getExtensionRegex(activeGameSchema), "");
+            nextLoadRules = nextLoadRules.filter((r) => {
+              const rA = (r.modA || "").toLowerCase();
+              const rB = (r.modB || "").toLowerCase();
+              const rANoExt = rA.replace(getExtensionRegex(activeGameSchema), "");
+              const rBNoExt = rB.replace(getExtensionRegex(activeGameSchema), "");
+              return !(
+                ((rA === wLow || rANoExt === wNoExt) && (rB === lLow || rBNoExt === lNoExt)) ||
+                ((rA === lLow || rANoExt === lNoExt) && (rB === wLow || rBNoExt === wNoExt))
+              );
+            });
             nextLoadRules.push({
               id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              modA: cleanWinnerFile,
-              modB: cleanLoserFile,
+              modA: canonicalWinnerFile,
+              modB: canonicalLoserFile,
               type: "after",
             });
           }
 
+          const prevIgnoredSet: string[] = Array.isArray(currentSet.ignoredConflicts)
+            ? currentSet.ignoredConflicts
+            : [];
+          const nextIgnoredSet =
+            modPair && !prevIgnoredSet.includes(modPair)
+              ? [...prevIgnoredSet, modPair]
+              : prevIgnoredSet;
+
           currentSet.mods = newMods;
           currentSet.modTiers = nextModTiers;
           currentSet.loadRules = nextLoadRules;
+          currentSet.ignoredConflicts = nextIgnoredSet;
           updatedSets[playSetIndex] = currentSet;
           return updatedSets;
         }

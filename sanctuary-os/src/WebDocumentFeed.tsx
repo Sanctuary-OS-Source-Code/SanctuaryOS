@@ -2317,30 +2317,6 @@ export default function WebDocumentFeed({
           />
         </StatTileCarousel>
 
-        {/* 3-State Roadmap Status Legend Strip */}
-        <div className="glass-panel rounded-2xl px-4 py-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            {(
-              ["in_progress", "in_testing", "completed"] as RoadmapMilestoneStatus[]
-            ).map((stKey) => {
-              const meta = getRoadmapStatusMeta(stKey, t);
-              return (
-                <span
-                  key={stKey}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap"
-                >
-                  <span
-                    className={`material-symbols-outlined !text-[13px] ${meta.colorClass}`}
-                  >
-                    {meta.icon}
-                  </span>
-                  <span>{meta.label}</span>
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
           {filteredPhases.map((phase, idx) => {

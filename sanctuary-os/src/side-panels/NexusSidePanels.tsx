@@ -68,28 +68,11 @@ export function NexusFlagResolutionCard({
   const [violationSearch, setViolationSearch] = useState("");
   const [violationReasonFilter, setViolationReasonFilter] = useState<string>("ALL");
   const [visibleViolationCount, setVisibleViolationCount] = useState(60);
-  const [showAllLexiconKeys, setShowAllLexiconKeys] = useState(false);
 
   const lexiconParity = useMemo(() => {
     if (assetType !== "lexicon" || !fileContent || typeof fileContent !== "object") return null;
     try {
-      const counts = deepCompare(enDefault, fileContent, true);
-      const missingKeys: string[] = [];
-      const deprecatedKeys: string[] = [];
-      for (const k of Object.keys(enDefault as Record<string, any>)) {
-        if (k.startsWith("_meta") || k === "schema_version") continue;
-        const val = (fileContent as Record<string, any>)[k];
-        if (typeof val !== "string" || val.trim() === "") {
-          missingKeys.push(k);
-        }
-      }
-      for (const k of Object.keys(fileContent as Record<string, any>)) {
-        if (k.startsWith("_meta") || k === "schema_version" || k.startsWith("icon_")) continue;
-        if (!(k in (enDefault as Record<string, any>))) {
-          deprecatedKeys.push(k);
-        }
-      }
-      return { ...counts, missingKeys, deprecatedKeys };
+      return deepCompare(enDefault, fileContent, true);
     } catch {
       return null;
     }
@@ -453,74 +436,15 @@ export function NexusFlagResolutionCard({
           )}
 
           {lexiconParity && (lexiconParity.missing > 0 || lexiconParity.deprecated > 0) && (
-            <div className="flex flex-col gap-2.5 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 text-xs font-bold text-[var(--text)]">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
-                    {t("icon_fact_check", "fact_check")}
-                  </span>
-                  <span>
-                    {t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")}{" "}
-                    {lexiconParity.missing} {t("flag_res_missing_keys", "missing keys")} •{" "}
-                    {lexiconParity.deprecated} {t("flag_res_deprecated_keys", "deprecated keys")}
-                  </span>
-                </div>
-                {(lexiconParity.missingKeys.length > 0 || lexiconParity.deprecatedKeys.length > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllLexiconKeys((prev) => !prev)}
-                    className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer shrink-0"
-                  >
-                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                      {showAllLexiconKeys
-                        ? t("icon_expand_less", "expand_less")
-                        : t("icon_expand_more", "expand_more")}
-                    </span>
-                    <span>
-                      {showAllLexiconKeys ? t("close", "Close") : t("btn_inspect", "Inspect")}
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {showAllLexiconKeys && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  {lexiconParity.missingKeys.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--warning)]">
-                        {t("flag_res_missing_keys", "Missing Keys")} ({lexiconParity.missingKeys.length})
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                        {lexiconParity.missingKeys.slice(0, 120).map((k) => (
-                          <code
-                            key={`miss_${k}`}
-                            className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono font-bold text-[var(--text)]"
-                          >
-                            {k}
-                          </code>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {lexiconParity.deprecatedKeys.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("flag_res_deprecated_keys", "Deprecated Keys")} ({lexiconParity.deprecatedKeys.length})
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                        {lexiconParity.deprecatedKeys.slice(0, 80).map((k) => (
-                          <code
-                            key={`dep_${k}`}
-                            className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono font-bold text-[var(--subtext)]"
-                          >
-                            {k}
-                          </code>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="flex items-center gap-2.5 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--text)] leading-snug">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
+                {t("icon_fact_check", "fact_check")}
+              </span>
+              <span className="break-words">
+                {t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")}{" "}
+                {lexiconParity.missing.toLocaleString()} {t("flag_res_missing_keys", "missing keys")} •{" "}
+                {lexiconParity.deprecated.toLocaleString()} {t("flag_res_deprecated_keys", "deprecated keys")}
+              </span>
             </div>
           )}
 
@@ -1506,14 +1430,22 @@ export interface BlueprintComplianceAuditResult {
   isCompliant: boolean;
   violations: BlueprintComplianceViolation[];
   compliantArtifacts: any[];
+  totalRawCount?: number;
 }
 
 export async function auditBlueprintsTier0Compliance(
   supabaseClient: any,
   blueprints: any[],
   options: { autoFlagInDb?: boolean; existingPendingReportBpIds?: Set<any> } = {}
-): Promise<Map<any, BlueprintComplianceAuditResult>> {
-  const results = new Map<any, BlueprintComplianceAuditResult>();
+): Promise<
+  Map<any, BlueprintComplianceAuditResult> &
+    Record<string, BlueprintComplianceAuditResult>
+> {
+  const results = new Map<any, BlueprintComplianceAuditResult>() as Map<
+    any,
+    BlueprintComplianceAuditResult
+  > &
+    Record<string, BlueprintComplianceAuditResult>;
   if (!Array.isArray(blueprints) || blueprints.length === 0) return results;
 
   const allHashesSet = new Set<string>();
@@ -1645,12 +1577,17 @@ export async function auditBlueprintsTier0Compliance(
     }
 
     const isCompliant = violations.length === 0;
-    results.set(bp.id, {
+    const auditEntry: BlueprintComplianceAuditResult = {
       blueprintId: bp.id,
       isCompliant,
       violations,
       compliantArtifacts,
-    });
+      totalRawCount: violations.length + compliantArtifacts.length,
+    };
+    results.set(bp.id, auditEntry);
+    if (bp.id !== undefined && bp.id !== null) {
+      results[String(bp.id)] = auditEntry;
+    }
 
     if (options.autoFlagInDb && !isCompliant && bp.id) {
       const alreadyFlagged = options.existingPendingReportBpIds?.has(bp.id);

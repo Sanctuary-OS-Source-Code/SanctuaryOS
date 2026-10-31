@@ -474,7 +474,7 @@ export function SignatureQueueSidePanel({
           }
         });
 
-        const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
+        const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
           {
             mods: nonAssetSelected,
             load_rules: queue.payload.loadRules,
@@ -484,6 +484,15 @@ export function SignatureQueueSidePanel({
           nameRemap,
           activeGameSchema
         );
+
+        if (ignoredConflicts.length > 0) {
+          const prevIgnored = useStore.getState().ignoredGlobal || [];
+          const mergedIgnored = Array.from(new Set([...prevIgnored, ...ignoredConflicts]));
+          useStore.getState().setIgnoredGlobal(mergedIgnored);
+          try {
+            localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(mergedIgnored));
+          } catch {}
+        }
 
         const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
         const readySet = {
@@ -495,6 +504,7 @@ export function SignatureQueueSidePanel({
           loadRules,
           modTiers,
           loadOrder,
+          ignoredConflicts,
           ignoredGhosts: [],
         };
 

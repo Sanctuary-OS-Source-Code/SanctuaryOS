@@ -297,12 +297,21 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
          }
       });
 
-      const { loadRules, modTiers, loadOrder, formatModWithTier } = unpackBlueprintLoadOrder(
+      const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
         { mods: rawArtifacts, ...data },
         nameRemap,
         activeGameSchema
       );
       const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+
+      if (ignoredConflicts.length > 0) {
+        const prevIgnored = useStore.getState().ignoredGlobal || [];
+        const mergedIgnored = Array.from(new Set([...prevIgnored, ...ignoredConflicts]));
+        useStore.getState().setIgnoredGlobal(mergedIgnored);
+        try {
+          localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(mergedIgnored));
+        } catch {}
+      }
 
       const readySet = {
         name: finalName,
@@ -313,6 +322,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         loadRules,
         modTiers,
         loadOrder,
+        ignoredConflicts,
         ignoredGhosts: [],
       };
 

@@ -2628,5 +2628,5 @@
   "dir_toast_published_live": "Broadcast live to {Citizens} and synchronized with local .md file!",
   "dir_roadmap_status_wip": "In Progress",
   "dir_roadmap_status_testing": "In Testing [In Dev Build]",
-  "dir_roadmap_status_complete_stable": "Complete (In Stable Build)"
+  "dir_roadmap_status_complete_stable": "Complete"
 }

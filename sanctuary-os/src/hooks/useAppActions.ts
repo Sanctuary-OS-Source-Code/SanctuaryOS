@@ -59,6 +59,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       loadRules: Array.isArray(activeSet?.loadRules) ? activeSet.loadRules.map((r: any) => ({ ...r })) : undefined,
       modTiers: activeSet?.modTiers ? { ...activeSet.modTiers } : undefined,
       loadOrder: Array.isArray(activeSet?.loadOrder) ? [...activeSet.loadOrder] : undefined,
+      ignoredConflicts: Array.isArray(activeSet?.ignoredConflicts) ? [...activeSet.ignoredConflicts] : undefined,
     };
     const updatedSets = [...playSets, newSet];
     setPlaySets(updatedSets); 
@@ -124,6 +125,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       load_rules: packagedLO.load_rules,
       mod_tiers: packagedLO.mod_tiers,
       load_order: packagedLO.load_order,
+      ignored_conflicts: packagedLO.ignored_conflicts,
       mods: packagedLO.enrichAndSortArtifacts(rawModObjects),
     };
     try {

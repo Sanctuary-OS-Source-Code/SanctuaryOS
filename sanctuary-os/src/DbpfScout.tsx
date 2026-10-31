@@ -923,7 +923,14 @@ export const DbpfScout = () => {
                 }
                 if (Array.isArray(currentSet.loadRules)) {
                     currentSet.loadRules = currentSet.loadRules.filter(
-                        (r: LoadOrderRule) => r.modA.toLowerCase() !== cleanWinnerFile.toLowerCase()
+                        (r: LoadOrderRule) =>
+                            r.modA.toLowerCase() !== cleanWinnerFile.toLowerCase() &&
+                            r.modA.replace(getExtensionRegex(activeGameSchema), "").toLowerCase() !== cleanWinner
+                    );
+                }
+                if (Array.isArray(currentSet.ignoredConflicts)) {
+                    currentSet.ignoredConflicts = currentSet.ignoredConflicts.filter(
+                        (pair: string) => !pair.toLowerCase().includes(cleanWinner)
                     );
                 }
                 updatedSets[playSetIndex] = currentSet;
@@ -957,6 +964,7 @@ export const DbpfScout = () => {
                 });
                 currentSet.modTiers = {};
                 currentSet.loadRules = [];
+                currentSet.ignoredConflicts = [];
                 updatedSets[playSetIndex] = currentSet;
                 setPlaySets(updatedSets);
 
@@ -2179,7 +2187,7 @@ export const DbpfScout = () => {
                                                                                 <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-[var(--accent)] leading-none">
                                                                                     {t("overridden_file", "Overridden File")}
                                                                                 </span>
-                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug line-clamp-2 break-words">
+                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug break-words">
                                                                                     {displayLoserName}
                                                                                 </span>
                                                                             </div>
@@ -2310,7 +2318,7 @@ export const DbpfScout = () => {
                                                                                 <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-[var(--warning)] leading-none">
                                                                                     {t("ignored_conflicts", "Ignored Conflicts")}
                                                                                 </span>
-                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug line-clamp-2 break-words">
+                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug break-words">
                                                                                     {rightDisplay}
                                                                                 </span>
                                                                             </div>
@@ -2628,7 +2636,7 @@ export const DbpfScout = () => {
                                                                                             ? t("lo_badge_overridden", "Overridden")
                                                                                             : t("vs", "VS")}
                                                                                     </span>
-                                                                                    <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug line-clamp-2 break-words">
+                                                                                    <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug break-words">
                                                                                         {topOverlap.enemyDisplay}
                                                                                     </span>
                                                                                 </div>
@@ -2640,7 +2648,7 @@ export const DbpfScout = () => {
                                                                                         {item.tierMeta.icon}
                                                                                     </span>
                                                                                 </div>
-                                                                                <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2 break-words">
+                                                                                <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug break-words">
                                                                                     {item.tierMeta.roleDesc}
                                                                                 </span>
                                                                             </div>
@@ -3185,7 +3193,7 @@ export const DbpfScout = () => {
                                                                                                         ? t("lo_badge_wins_override", "Wins Override")
                                                                                                         : t("lo_badge_overridden", "Overridden")}
                                                                                                 </span>
-                                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug line-clamp-2 break-words">
+                                                                                                <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug break-words">
                                                                                                     {topOverlap.enemyDisplay}
                                                                                                 </span>
                                                                                             </div>
@@ -3202,7 +3210,7 @@ export const DbpfScout = () => {
                                                                                             <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-[var(--accent)] leading-none">
                                                                                                 {t("overridden_file", "Overridden File")}
                                                                                             </span>
-                                                                                            <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug line-clamp-2 break-words">
+                                                                                            <span className="text-[11.5px] font-bold text-[var(--text)] opacity-95 leading-snug break-words">
                                                                                                 {otherRuleModDisplay}
                                                                                             </span>
                                                                                         </div>
@@ -3214,7 +3222,7 @@ export const DbpfScout = () => {
                                                                                                 {tierMeta.icon}
                                                                                             </span>
                                                                                         </div>
-                                                                                        <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2 break-words">
+                                                                                        <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug break-words">
                                                                                             {tierMeta.roleDesc}
                                                                                         </span>
                                                                                     </div>

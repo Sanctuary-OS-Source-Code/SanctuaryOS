@@ -452,7 +452,7 @@ function ConflictCardInner({
                 {severityIcon}
               </span>
             </div>
-            <div className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2 break-words min-w-0 flex-1">
+            <div className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug break-words min-w-0 flex-1">
               {alertMessage}
             </div>
           </div>

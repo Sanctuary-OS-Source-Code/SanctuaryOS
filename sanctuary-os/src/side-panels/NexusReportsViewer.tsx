@@ -58,7 +58,7 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
       { data: masonsData },
     ] = await Promise.all([
       supabase.from('nexus_reports').select('*, nexus_assets(*)'),
-      supabase.from('blueprint_reports').select('*, blueprints(*, masons(id, name, profile_id))'),
+      supabase.from('blueprint_reports').select('*, blueprints(*)'),
       supabase.from('content_flags').select('*'),
       supabase.from('masons').select('id, name, profile_id'),
     ]);
@@ -142,12 +142,12 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
             const parity = deepCompare(enDefault, parsedJson, true);
             issueCount = (parity.missing || 0) + (parity.deprecated || 0);
             if (parity.missing > 0) {
-              issueBadgeLabel = `${parity.missing} ${t("flag_res_missing_keys", "Missing Keys")}`;
+              issueBadgeLabel = `${parity.missing.toLocaleString()} ${t("flag_res_missing_keys", "Missing Keys")}`;
             } else if (parity.deprecated > 0) {
-              issueBadgeLabel = `${parity.deprecated} ${t("flag_res_deprecated_keys", "Deprecated Keys")}`;
+              issueBadgeLabel = `${parity.deprecated.toLocaleString()} ${t("flag_res_deprecated_keys", "Deprecated Keys")}`;
             }
             if (parity.missing > 0 || parity.deprecated > 0) {
-              diagnosticCallout = `${t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")} ${parity.missing} ${t("flag_res_missing_keys", "missing keys")} • ${parity.deprecated} ${t("flag_res_deprecated_keys", "deprecated keys")}`;
+              diagnosticCallout = `${parity.missing.toLocaleString()} ${t("flag_res_missing_keys", "Missing Keys")} • ${parity.deprecated.toLocaleString()} ${t("flag_res_deprecated_keys", "Deprecated Keys")}`;
             }
           } catch {}
         }
@@ -483,6 +483,7 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
 
     const authorName = report.metadata?.author_name || t("unknown", "Unknown");
     const reporterName = report.reporter_name || t("anonymous", "Anonymous");
+    const reporterPrefix = t("reporter", "Reporter").replace(/:+$/, "");
     const canOpenAsset =
       (report.source === "nexus" && (report.metadata?.asset_full || report.target_id)) ||
       (report.source === "blueprint" && report.metadata?.blueprint_full) ||
@@ -495,7 +496,14 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
         layout="vertical"
         icon={isPending ? t("icon_flag", "flag") : t("icon_done_all", "done_all")}
         title={report.title}
-        subtitle={`${t("by_prefix", "By")} ${authorName} • ${t("reporter", "Reporter")}: ${reporterName}`}
+        subtitle={`${t("by_prefix", "By")} ${authorName} • ${reporterPrefix}: ${reporterName}`}
+        bannerTopLabel={`${reporterPrefix}: ${reporterName}`}
+        bannerTopRightLabel={new Date(report.created_at).toLocaleDateString()}
+        bannerBottomLabel={
+          report.metadata?.diagnostic_callout ||
+          report.clean_summary ||
+          report.description
+        }
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>
@@ -595,7 +603,7 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
               <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0">
                 {t("icon_report_problem", "report_problem")}
               </span>
-              <span className="text-[11px] font-bold text-[var(--text)] truncate">
+              <span className="text-[11px] font-bold text-[var(--text)] leading-snug break-words">
                 {report.metadata.diagnostic_callout}
               </span>
             </div>
@@ -792,13 +800,12 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
                   </div>
 
                   {/* Direct Asset Panel Access Links */}
-                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1 w-full ml-auto">
                     {selectedReport.source === "nexus" && (selectedReport.metadata?.asset_full || selectedReport.target_id) && (
                       <ActionButton
                         variant="accent"
                         icon={t("icon_open_in_new", "open_in_new")}
                         onClick={() => openAssetInspector(selectedReport)}
-                        className="flex-1 justify-center !py-2.5"
                       >
                         {t("btn_view_nexus", "View {Nexus} Asset")}
                       </ActionButton>
@@ -808,7 +815,6 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
                         variant="accent"
                         icon={t("icon_open_in_new", "open_in_new")}
                         onClick={() => openAssetInspector(selectedReport)}
-                        className="flex-1 justify-center !py-2.5"
                       >
                         {`${t("btn_inspect", "Inspect")} ${t("playsets_title", "{Blueprints}")}`}
                       </ActionButton>
@@ -818,7 +824,6 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
                         variant="accent"
                         icon={t("icon_open_in_new", "open_in_new")}
                         onClick={() => openAssetInspector(selectedReport)}
-                        className="flex-1 justify-center !py-2.5"
                       >
                         {`${t("btn_inspect", "Inspect")} ${t("feed_title", "Comm-Link")}`}
                       </ActionButton>
@@ -834,7 +839,6 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
                               : JSON.stringify(selectedReport.metadata.json_data, null, 2)
                           )
                         }
-                        className="flex-1 justify-center !py-2.5"
                       >
                         {t("btn_view_code", "View Code")}
                       </ActionButton>
@@ -956,7 +960,7 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
         <CodeSnippetSidebar
           onClose={() => setActiveCodeSnippet(null)}
           code={activeCodeSnippet}
-          widthClass="w-[30vw] min-w-[400px] max-w-lg"
+          title={selectedReport?.title}
         />
       )}
 
