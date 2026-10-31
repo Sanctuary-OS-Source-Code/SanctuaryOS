@@ -40,6 +40,11 @@ import {
   LabVerificationBadge,
   checkDnaHashVerification,
 } from "./components/LabVerificationGate";
+import {
+  groupModVersionPoolItems,
+  ModVersionHistorySidePanel,
+  ModVersionBinaryGroup,
+} from "./side-panels/VaultSidePanels";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1150,6 +1155,110 @@ export default function ModDossier({
   const [relationDbMap, setRelationDbMap] = useState<Record<string, any>>({});
   const [collectionFilter, setCollectionFilter] = useState<"all" | "in_vault" | "missing">("all");
   const [kidCollectionFilter, setKidCollectionFilter] = useState<"all" | "in_vault" | "missing">("all");
+  const [versionPoolItems, setVersionPoolItems] = useState<any[]>([]);
+  const [selectedVersionGroupKeys, setSelectedVersionGroupKeys] = useState<string[]>([]);
+
+  const loadDossierVersionPool = async () => {
+    if (!isDesktop()) return;
+    try {
+      let vaultPath = useStore.getState().vaultPath;
+      if (!vaultPath) {
+        const cfg: any = await invoke("get_saved_coordinates");
+        vaultPath = cfg?.vault_path || "";
+      }
+      if (vaultPath) {
+        const res: any = await invoke("get_mod_version_pool_status", { vaultPath });
+        if (res && Array.isArray(res.items)) {
+          setVersionPoolItems(res.items);
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (isDossierOpen && isDesktop()) {
+      loadDossierVersionPool();
+    } else if (!isDossierOpen) {
+      setSelectedVersionGroupKeys([]);
+    }
+  }, [isDossierOpen, rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name]);
+
+  const handleActivateDossierVersion = async (relPath: string, dnaHash: string) => {
+    try {
+      let vaultPath = useStore.getState().vaultPath;
+      if (!vaultPath) {
+        const cfg: any = await invoke("get_saved_coordinates");
+        vaultPath = cfg?.vault_path || "";
+      }
+      if (!vaultPath) return;
+      await invoke("activate_archived_mod_version", {
+        vaultPath,
+        relPath,
+        dnaHash,
+      });
+      await loadDossierVersionPool();
+    } catch {}
+  };
+
+  const handleDeleteDossierVersion = async (relPath: string, dnaHash: string) => {
+    try {
+      let vaultPath = useStore.getState().vaultPath;
+      if (!vaultPath) {
+        const cfg: any = await invoke("get_saved_coordinates");
+        vaultPath = cfg?.vault_path || "";
+      }
+      if (!vaultPath) return;
+      await invoke("delete_archived_mod_version", {
+        vaultPath,
+        relPath,
+        dnaHash,
+      });
+      await loadDossierVersionPool();
+    } catch {}
+  };
+
+  const allVersionGroups = useMemo(
+    () => groupModVersionPoolItems(versionPoolItems, t),
+    [versionPoolItems, t]
+  );
+
+  const filterVersionGroupsForTarget = (targetObj: any): ModVersionBinaryGroup[] => {
+    if (!targetObj || allVersionGroups.length === 0) return [];
+    const relPaths = new Set<string>();
+    const fileNames = new Set<string>();
+    const hashes = new Set<string>();
+
+    const registerCandidate = (item: any) => {
+      if (!item) return;
+      if (item.hash) hashes.add(String(item.hash).toLowerCase());
+      const rawName = String(item.name || "");
+      if (rawName && !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawName)) {
+        const normRel = rawName.replace(/\\/g, "/").toLowerCase();
+        relPaths.add(normRel);
+        const base = normRel.split("/").pop();
+        if (base) fileNames.add(base);
+      }
+    };
+
+    registerCandidate(targetObj);
+    if (Array.isArray(targetObj.flavors)) targetObj.flavors.forEach(registerCandidate);
+    if (Array.isArray(targetObj._groupedMods)) targetObj._groupedMods.forEach(registerCandidate);
+    if (targetObj === mod && Array.isArray(kids)) kids.forEach(registerCandidate);
+
+    return allVersionGroups.filter((g) => {
+      if (relPaths.has(g.key)) return true;
+      if (fileNames.has(g.fileName.toLowerCase())) return true;
+      return g.versions.some((v: any) => v?.dna_hash && hashes.has(String(v.dna_hash).toLowerCase()));
+    });
+  };
+
+  const selectedVersionGroups = useMemo(
+    () =>
+      selectedVersionGroupKeys.length > 0
+        ? allVersionGroups.filter((g) => selectedVersionGroupKeys.includes(g.key))
+        : [],
+    [allVersionGroups, selectedVersionGroupKeys]
+  );
 
   useEffect(() => {
     setHydratedMeta(null);
@@ -2710,6 +2819,22 @@ export default function ModDossier({
                         }}
                       />
                     )}
+                  {!editMode && !isNexusView && isDesktop() && (() => {
+                    const mainVersionGroups = filterVersionGroupsForTarget(mod);
+                    if (mainVersionGroups.length === 0) return null;
+                    return (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_history", "history")}
+                        label={t("version_pool_btn_versions", "Versions")}
+                        onClick={() =>
+                          setSelectedVersionGroupKeys(
+                            mainVersionGroups.map((g) => g.key)
+                          )
+                        }
+                      />
+                    );
+                  })()}
                   {!editMode && (
                     <ActionButton
                       variant="glass"
@@ -3315,15 +3440,9 @@ export default function ModDossier({
             kidEquippableNames.some((n: string) => activeMods.includes(n));
 
           const rawKidName = String(kidToRender.name || "");
-          const isSyntheticFolderName =
-            /^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawKidName) ||
-            UUID_REGEX.test(rawKidName.split("@")[0]);
 
           const kidHeroDescription =
-            kidToRender.status_reason ||
-            (!isSyntheticFolderName && rawKidName.includes(".")
-              ? rawKidName.split(/[/\\]/).pop()
-              : `${cleanKidTitle} • ${kidAuthor}`);
+            kidToRender.status_reason || `${cleanKidTitle} • ${kidAuthor}`;
 
           const hasScriptKid = kidModules.some((km: any) =>
             /\.ts4script$/i.test(String(km?.name || km?.file_extension || ""))
@@ -3356,29 +3475,33 @@ export default function ModDossier({
               widthClass="w-[660px] max-w-[100vw]"
               backdropZ="z-[120004]"
               panelZ="z-[120005]"
-              headerActions={
-                !isNexusView && kidEquippableNames.length > 0 ? (
+              headerActions={(() => {
+                const hasKidEquip = !isNexusView && kidEquippableNames.length > 0;
+                if (!hasKidEquip) return undefined;
+                return (
                   <PanelHeaderGroup>
-                    <PanelHeaderButton
-                      icon={
-                        isKidEquipped
-                          ? t("icon_remove", "remove")
-                          : t("icon_add", "add")
-                      }
-                      tooltip={
-                        isKidEquipped
-                          ? t("btn_unequip", "Unequip {Mod}")
-                          : t("btn_equip", "Equip {Mod}")
-                      }
-                      variant={isKidEquipped ? "danger" : "success"}
-                      onClick={() => {
-                        safeToggleGroup(kidToRender);
-                        if (!isKidEquipped) setSelectedKid(null);
-                      }}
-                    />
+                    {hasKidEquip && (
+                      <PanelHeaderButton
+                        icon={
+                          isKidEquipped
+                            ? t("icon_remove", "remove")
+                            : t("icon_add", "add")
+                        }
+                        tooltip={
+                          isKidEquipped
+                            ? t("btn_unequip", "Unequip {Mod}")
+                            : t("btn_equip", "Equip {Mod}")
+                        }
+                        variant={isKidEquipped ? "danger" : "success"}
+                        onClick={() => {
+                          safeToggleGroup(kidToRender);
+                          if (!isKidEquipped) setSelectedKid(null);
+                        }}
+                      />
+                    )}
                   </PanelHeaderGroup>
-                ) : undefined
-              }
+                );
+              })()}
             >
               <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
                 <SidePanelHeroCard
@@ -3414,6 +3537,22 @@ export default function ModDossier({
                         }
                       />
                     )}
+                    {!isNexusView && isDesktop() && (() => {
+                      const kidVersionGroups = filterVersionGroupsForTarget(kidToRender);
+                      if (kidVersionGroups.length === 0) return null;
+                      return (
+                        <ActionButton
+                          variant="glass"
+                          icon={t("icon_history", "history")}
+                          label={t("version_pool_btn_versions", "Versions")}
+                          onClick={() =>
+                            setSelectedVersionGroupKeys(
+                              kidVersionGroups.map((g) => g.key)
+                            )
+                          }
+                        />
+                      );
+                    })()}
                     <ActionButton
                       variant="glass"
                       icon={
@@ -3616,6 +3755,15 @@ export default function ModDossier({
             </SidePanel>
           );
         })()}
+
+      <ModVersionHistorySidePanel
+        groups={selectedVersionGroups}
+        isOpen={selectedVersionGroups.length > 0}
+        onClose={() => setSelectedVersionGroupKeys([])}
+        onActivateVersion={handleActivateDossierVersion}
+        onDeleteVersion={handleDeleteDossierVersion}
+        parentTitle={cleanArtifactTitle}
+      />
 
       {showFlagModal && (
         <SidePanel

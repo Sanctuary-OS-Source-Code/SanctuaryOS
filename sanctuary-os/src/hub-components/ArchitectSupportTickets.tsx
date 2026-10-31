@@ -117,15 +117,21 @@ export default function ArchitectSupportTickets({
       }
 
       if (validModIds.length > 0) {
-        const { data: modsData } = await supabase.from('mods').select('id, mason_id').in('id', validModIds);
+        const { data: modsData } = await supabase.from('mods').select('id, mason_id, compliance_tier').in('id', validModIds);
         modsData?.forEach(m => {
           modAuthorMap[m.id] = m.mason_id;
+          modAuthorMap[`TIER_${m.id}`] = String(Number(m.compliance_tier || 0));
         });
       }
 
       let finalTickets = mergedTickets;
       if (userRole !== "mason") {
         finalTickets = mergedTickets.filter(t => {
+          const rawTargetModId = t.target_mod_id || t.metadata?.target_mod_id;
+          const resolvedModId = rawTargetModId ? (modAuthorMap[`HASH_MAP_${rawTargetModId}`] || rawTargetModId) : null;
+          const targetModTier = resolvedModId ? Number(modAuthorMap[`TIER_${resolvedModId}`] || 0) : 0;
+          if (userRole === 'architect' && targetModTier > 0) return false;
+
           const typeStr = t.ticket_type || t.category;
           const cat = catData?.find((c: any) => c.category_name === typeStr || c.category_code === typeStr);
           let baseDest = cat?.ticket_destination || 'architect';

@@ -53,7 +53,9 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const fetchData = async () => {
     setLoading(true);
     const { data: qData } = await fetchAllPaginated(() => supabase.from('mods').select('*').order('updated_at', { ascending: false }));
-    if (qData) setSubmissions(qData);
+    if (qData) {
+      setSubmissions(qData.filter((m: any) => Number(m?.compliance_tier || 0) === 0));
+    }
     const { data: mData } = await supabase.from('masons').select('id, name').order('name');
     if (mData) setMasonsList(mData);
     setLoading(false);
@@ -176,7 +178,9 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   };
 
   const verifiedMasonIds = new Set(masonsList.map((m: any) => m.id));
-  const verifiedSubmissions = submissions.filter((s: any) => s.mason_id && verifiedMasonIds.has(s.mason_id));
+  const verifiedSubmissions = submissions.filter(
+    (s: any) => Number(s?.compliance_tier || 0) === 0 && s.mason_id && verifiedMasonIds.has(s.mason_id)
+  );
 
   const activeSubmissions = verifiedSubmissions.filter((s: any) => {
     if (filterTab === 'pending') return s.status === 'under_review';

@@ -35,8 +35,8 @@ pub async fn sanitize_vault(
         let _ = crate::utils::get_db_conn(&vault_path);
 
         let backups_dir = vault_root.join("Backups");
-        let backups_world = backups_dir.join("World");
-        let backups_engine = backups_dir.join("Engine");
+        let legacy_backups_world = backups_dir.join("World");
+        let legacy_backups_engine = backups_dir.join("Engine");
         let backups_mods = backups_dir.join("Mods");
         let blueprints_dir = vault_root.join("Blueprints");
         let templates_dir = vault_root.join("Templates");
@@ -48,8 +48,8 @@ pub async fn sanitize_vault(
         let theme_chameleon = master_data_dir.join("Themes");
         let theme_lexicon = master_data_dir.join("Lexicons");
 
-        let _ = std::fs::create_dir_all(&backups_world);
-        let _ = std::fs::create_dir_all(&backups_engine);
+        let _ = std::fs::remove_dir(&legacy_backups_world);
+        let _ = std::fs::remove_dir(&legacy_backups_engine);
         let _ = std::fs::create_dir_all(&backups_mods);
         let _ = std::fs::create_dir_all(&blueprints_dir);
         let _ = std::fs::create_dir_all(&templates_dir);
@@ -66,7 +66,13 @@ pub async fn sanitize_vault(
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() && path.extension().map_or(false, |ext| ext == "zst") {
-                    let dest = backups_world.join(path.file_name().unwrap());
+                    let coords = get_saved_coordinates();
+                    let docs_base = coords.mods_path.replace("\\Mods", "").replace("/Mods", "");
+                    let target_world_dir =
+                        crate::utils::get_world_backups_dir(&docs_base, &vault_path)
+                            .unwrap_or_else(|| backups_dir.clone());
+                    let _ = std::fs::create_dir_all(&target_world_dir);
+                    let dest = target_world_dir.join(path.file_name().unwrap());
                     if std::fs::rename(&path, &dest).is_ok()
                         || (std::fs::copy(&path, &dest).is_ok()
                             && std::fs::remove_file(&path).is_ok())
@@ -90,6 +96,13 @@ pub async fn sanitize_vault(
                         } else {
                             is_empty = false;
                         }
+                    } else if path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| e.eq_ignore_ascii_case("tmp_sanctuary_conflict"))
+                        .unwrap_or(false)
+                    {
+                        let _ = std::fs::remove_file(&path);
                     } else {
                         is_empty = false;
                     }
@@ -121,7 +134,12 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                 for e in entries.flatten() {
                     let name = e.file_name().to_string_lossy().into_owned();
                     if e.path().is_dir() {
-                        if name == "World" || name == "Mods" || name == "Engine" {
+                        if name == "World"
+                            || name == "Mods"
+                            || name == "Engine"
+                            || name == "Config"
+                            || name.starts_with('.')
+                        {
                             continue;
                         }
                         let size_file = e.path().join(".size_bytes.txt");
@@ -179,7 +197,6 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         };
 
         process_dir(&base.join("World"));
-        process_dir(&base.join("Mods"));
         process_dir(&base);
 
         // Scan legacy vault Engine

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { useModalStore } from '../store/modalStore';
@@ -45,6 +46,41 @@ export default function ClientTab({ config, updateConfig }: any) {
     localStorage.setItem("sanctuary_ingest_file_mode", mode);
     if (typeof updateConfig === "function") {
       updateConfig("ingest_file_mode", mode);
+    }
+  };
+
+  const [archiveModVersions, setArchiveModVersions] = useState<boolean>(() => {
+    return localStorage.getItem("sanctuary_archive_mod_versions") !== "false";
+  });
+
+  useEffect(() => {
+    if (!isDesktop()) return;
+    const vaultPath = config?.vault_path || useStore.getState().vaultPath;
+    if (!vaultPath || vaultPath === "web") return;
+    invoke("get_mod_version_pool_status", { vaultPath })
+      .then((res: any) => {
+        if (res && typeof res.enabled === "boolean") {
+          setArchiveModVersions(res.enabled);
+          localStorage.setItem("sanctuary_archive_mod_versions", res.enabled ? "true" : "false");
+        }
+      })
+      .catch(() => {});
+  }, [config?.vault_path]);
+
+  const handleToggleArchiveModVersions = async () => {
+    const nextVal = !archiveModVersions;
+    setArchiveModVersions(nextVal);
+    localStorage.setItem("sanctuary_archive_mod_versions", nextVal ? "true" : "false");
+    if (isDesktop()) {
+      const vaultPath = config?.vault_path || useStore.getState().vaultPath;
+      if (vaultPath && vaultPath !== "web") {
+        try {
+          await invoke("set_mod_version_archiving_enabled", {
+            vaultPath,
+            enabled: nextVal,
+          });
+        } catch {}
+      }
     }
   };
 
@@ -154,6 +190,19 @@ export default function ClientTab({ config, updateConfig }: any) {
               />
             }
           />
+
+          {isDesktop() && (
+            <UniversalCard
+              title={t("version_pool_auto_archive", "Auto-Archive {Mod} Versions")}
+              subtitle={t(
+                "version_pool_auto_archive_desc",
+                "Keep previous {mod} binaries in {Backups} for automatic game version matching"
+              )}
+              icon={t("icon_history", "history")}
+              onClick={handleToggleArchiveModVersions}
+              actions={<SettingsToggle checked={archiveModVersions} />}
+            />
+          )}
 
           {isDesktop() && (
             <UniversalCard

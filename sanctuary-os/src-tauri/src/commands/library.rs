@@ -1031,6 +1031,7 @@ pub async fn ingest_dropped_file(
 
     if exists && force_replace {
         target = Path::new(&existing_name).to_path_buf();
+        let _ = crate::utils::archive_mod_binary_version(&config.vault_path, &target, None, None, None);
     } else if !force_replace && target.exists() {
         let _ = app.emit(
             "dna_match_detected",
@@ -1387,6 +1388,13 @@ pub async fn ingest_dropped_file(
                                     } else if force_replace || is_lineage_upgrade {
                                         final_path =
                                             Path::new(&resolution_existing_name).to_path_buf();
+                                        let _ = crate::utils::archive_mod_binary_version(
+                                            &config.vault_path,
+                                            &final_path,
+                                            None,
+                                            None,
+                                            None,
+                                        );
                                     } else {
                                         needs_resolution = true;
                                     }
@@ -1399,10 +1407,13 @@ pub async fn ingest_dropped_file(
                                         final_path.file_name().unwrap().to_os_string();
                                     new_name.push(".tmp_sanctuary_conflict");
                                     extract_target = final_path.with_file_name(new_name);
+                                } else if !is_setting_file && extract_target.exists() {
+                                    let _ = std::fs::remove_file(&extract_target);
                                 }
 
                                 if let Ok(mut out_file) = std::fs::File::create(&extract_target) {
                                     let _ = std::io::copy(&mut zf, &mut out_file);
+                                    drop(out_file);
                                     extracted_files.push(file_name_str.clone());
 
                                     let fn_lower = file_name_str.to_lowercase();
@@ -1529,24 +1540,69 @@ pub async fn ingest_dropped_file(
                                                 "detection_type": manifest.detection_type
                                             }),
                                         );
-                                        drop(out_file);
                                         return Err("MALWARE".into());
                                     } else {
                                         if needs_resolution {
-                                            let reason = if is_setting_file {
-                                                "SETTINGS_CONFLICT"
+                                            let existing_hash = cache
+                                                .get(&resolution_existing_name)
+                                                .map(|c| c.dna_hash.clone())
+                                                .filter(|h| !h.is_empty())
+                                                .or_else(|| {
+                                                    calculate_hash(Path::new(
+                                                        &resolution_existing_name,
+                                                    ))
+                                                    .ok()
+                                                })
+                                                .unwrap_or_default();
+
+                                            if !is_setting_file
+                                                && !extracted_hash.is_empty()
+                                                && existing_hash
+                                                    .eq_ignore_ascii_case(&extracted_hash)
+                                            {
+                                                let _ = std::fs::remove_file(&extract_target);
+                                                let mut cur_dir = extract_target.parent().map(|p| p.to_path_buf());
+                                                while let Some(d) = cur_dir {
+                                                    if std::fs::remove_dir(&d).is_err() {
+                                                        break;
+                                                    }
+                                                    cur_dir = d.parent().map(|p| p.to_path_buf());
+                                                }
+                                                let _ = crate::utils::archive_mod_binary_version(
+                                                    &config.vault_path,
+                                                    Path::new(&resolution_existing_name),
+                                                    Some(&existing_hash),
+                                                    None,
+                                                    None,
+                                                );
                                             } else {
-                                                "ZIP_NAME_MATCH"
-                                            };
-                                            let _ = app.emit("dna_match_detected", serde_json::json!({
-                                                "path": extract_target.to_string_lossy().to_string(), 
-                                                "hash": "", 
-                                                "existing_name": resolution_existing_name, 
-                                                "source_action": "ingest_dropped_file", 
-                                                "reason": reason,
-                                                "override_json": zip_override_json.clone()
-                                            }));
+                                                let reason = if is_setting_file {
+                                                    "SETTINGS_CONFLICT"
+                                                } else {
+                                                    "ZIP_NAME_MATCH"
+                                                };
+                                                let _ = app.emit(
+                                                    "dna_match_detected",
+                                                    serde_json::json!({
+                                                        "path": extract_target.to_string_lossy().to_string(),
+                                                        "hash": extracted_hash,
+                                                        "existing_name": resolution_existing_name,
+                                                        "source_action": "ingest_dropped_file",
+                                                        "reason": reason,
+                                                        "override_json": zip_override_json.clone()
+                                                    }),
+                                                );
+                                            }
                                         } else {
+                                            if !is_setting_file && found_existing {
+                                                let _ = crate::utils::archive_mod_binary_version(
+                                                    &config.vault_path,
+                                                    &extract_target,
+                                                    Some(&extracted_hash),
+                                                    None,
+                                                    None,
+                                                );
+                                            }
                                             let mut hash_match_found = false;
                                             let mut matched_existing_name = String::new();
                                             for (k, v) in cache.iter() {
@@ -1555,6 +1611,7 @@ pub async fn ingest_dropped_file(
                                                 }
                                                 if v.dna_hash == extracted_hash
                                                     && !extracted_hash.is_empty()
+                                                    && Path::new(k) != extract_target.as_path()
                                                     && Path::new(k).exists()
                                                 {
                                                     hash_match_found = true;
@@ -1841,6 +1898,13 @@ pub async fn ingest_dropped_file(
                                     needs_resolution = true;
                                 } else if force_replace {
                                     final_path = Path::new(&resolution_existing_name).to_path_buf();
+                                    let _ = crate::utils::archive_mod_binary_version(
+                                        &config.vault_path,
+                                        &final_path,
+                                        None,
+                                        None,
+                                        None,
+                                    );
                                 } else {
                                     needs_resolution = true;
                                 }
@@ -1851,6 +1915,8 @@ pub async fn ingest_dropped_file(
                                 let mut new_name = final_path.file_name().unwrap().to_os_string();
                                 new_name.push(".tmp_sanctuary_conflict");
                                 extract_target = final_path.with_file_name(new_name);
+                            } else if !is_setting_file && extract_target.exists() {
+                                let _ = std::fs::remove_file(&extract_target);
                             }
 
                             if let Ok(_) = std::fs::copy(p, &extract_target) {
@@ -1977,26 +2043,71 @@ pub async fn ingest_dropped_file(
                                     return Err("MALWARE".into());
                                 } else {
                                     if needs_resolution {
-                                        let reason = if is_setting_file {
-                                            "SETTINGS_CONFLICT"
-                                        } else {
-                                            "ZIP_NAME_MATCH"
-                                        };
-                                        let mut override_json = None::<String>;
-                                        if file_name_str.to_lowercase() == "override.json" {
-                                            if let Ok(content) = std::fs::read_to_string(&extract_target) {
-                                                override_json = Some(content);
+                                        let existing_hash = cache
+                                            .get(&resolution_existing_name)
+                                            .map(|c| c.dna_hash.clone())
+                                            .filter(|h| !h.is_empty())
+                                            .or_else(|| {
+                                                calculate_hash(Path::new(&resolution_existing_name))
+                                                    .ok()
+                                            })
+                                            .unwrap_or_default();
+
+                                        if !is_setting_file
+                                            && !extracted_hash.is_empty()
+                                            && existing_hash.eq_ignore_ascii_case(&extracted_hash)
+                                        {
+                                            let _ = std::fs::remove_file(&extract_target);
+                                            let mut cur_dir = extract_target.parent().map(|p| p.to_path_buf());
+                                            while let Some(d) = cur_dir {
+                                                if std::fs::remove_dir(&d).is_err() {
+                                                    break;
+                                                }
+                                                cur_dir = d.parent().map(|p| p.to_path_buf());
                                             }
+                                            let _ = crate::utils::archive_mod_binary_version(
+                                                &config.vault_path,
+                                                Path::new(&resolution_existing_name),
+                                                Some(&existing_hash),
+                                                None,
+                                                None,
+                                            );
+                                        } else {
+                                            let reason = if is_setting_file {
+                                                "SETTINGS_CONFLICT"
+                                            } else {
+                                                "ZIP_NAME_MATCH"
+                                            };
+                                            let mut override_json = None::<String>;
+                                            if file_name_str.to_lowercase() == "override.json" {
+                                                if let Ok(content) =
+                                                    std::fs::read_to_string(&extract_target)
+                                                {
+                                                    override_json = Some(content);
+                                                }
+                                            }
+                                            let _ = app.emit(
+                                                "dna_match_detected",
+                                                serde_json::json!({
+                                                    "path": extract_target.to_string_lossy().to_string(),
+                                                    "hash": extracted_hash,
+                                                    "existing_name": resolution_existing_name,
+                                                    "source_action": "ingest_dropped_file",
+                                                    "reason": reason,
+                                                    "override_json": override_json
+                                                }),
+                                            );
                                         }
-                                        let _ = app.emit("dna_match_detected", serde_json::json!({
-                                            "path": extract_target.to_string_lossy().to_string(), 
-                                            "hash": "", 
-                                            "existing_name": resolution_existing_name, 
-                                            "source_action": "ingest_dropped_file", 
-                                            "reason": reason,
-                                            "override_json": override_json
-                                        }));
                                     } else {
+                                        if !is_setting_file && found_existing {
+                                            let _ = crate::utils::archive_mod_binary_version(
+                                                &config.vault_path,
+                                                &extract_target,
+                                                Some(&extracted_hash),
+                                                None,
+                                                None,
+                                            );
+                                        }
                                         let mut hash_match_found = false;
                                         let mut matched_existing_name = String::new();
                                         for (k, v) in cache.iter() {
@@ -2005,6 +2116,7 @@ pub async fn ingest_dropped_file(
                                             }
                                             if v.dna_hash == extracted_hash
                                                 && !extracted_hash.is_empty()
+                                                && Path::new(k) != extract_target.as_path()
                                                 && Path::new(k).exists()
                                             {
                                                 hash_match_found = true;

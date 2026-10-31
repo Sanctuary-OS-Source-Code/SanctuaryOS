@@ -1,5 +1,5 @@
 import React from 'react';
-import { isVersionMatch, getHighestVersion, getLowestVersion, ActionPill } from "../../shared";
+import { ActionPill } from "../../shared";
 
 function FilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;
@@ -48,55 +48,17 @@ export const VaultFilters = React.memo(function VaultFilters({
   filterStatus,
   setFilterStatus,
   equipFilter,
-  archiveVersionFilter,
-  setArchiveVersionFilter,
-  displayModList,
-  selectedVersion,
   hideGhostCards,
   setHideGhostCards,
   vaultLayout,
   setVaultLayout,
   onCreateLocalFolder,
+  onOpenVersionPool,
   setSelectedMods
 }: any) {
-  const archiveOptions = React.useMemo(() => {
-    if (equipFilter !== "ARCHIVES") return [];
-    const archiveOptionsRaw = Array.from(new Set((displayModList || []).flatMap((m: any) => {
-      const getVersions = (target: any) => {
-        const v = target.compatible_versions;
-        return typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
-      };
-      let highest = "0.0.0";
-      if (m.isVirtual) {
-        const highestPerFlavor = (m.flavors || []).map((f: any) => getHighestVersion(getVersions(f)));
-        highest = getLowestVersion(highestPerFlavor);
-      } else {
-        highest = getHighestVersion(getVersions(m));
-      }
-
-      if (selectedVersion && selectedVersion !== "") {
-        if (isVersionMatch([highest], selectedVersion)) return [];
-      }
-      return [highest];
-    }).filter(Boolean)));
-
-    return (archiveOptionsRaw as string[])
-      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }))
-      .map(v => ({ id: v, label: v === "Unknown" ? t("unknown", "Unknown") : v }));
-  }, [equipFilter, displayModList, selectedVersion, t]);
-
-  React.useEffect(() => {
-    if (equipFilter === "ARCHIVES" && !archiveVersionFilter && archiveOptions.length > 0) {
-      setArchiveVersionFilter(archiveOptions[0].id);
-    }
-  }, [equipFilter, archiveVersionFilter, archiveOptions, setArchiveVersionFilter]);
-
   const FilterContent = React.useMemo(() => {
     const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
     const subcats = activeSchemaCategory?.subcategories || [];
-    const activeArchiveVal = archiveVersionFilter && archiveOptions.some(o => o.id === archiveVersionFilter)
-      ? archiveVersionFilter
-      : (archiveOptions[0]?.id || "");
 
     return (
       <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
@@ -147,19 +109,9 @@ export const VaultFilters = React.memo(function VaultFilters({
             { id: "unknown", label: t("unknown", "Unknown") },
           ]}
         />
-
-        {equipFilter === "ARCHIVES" && (
-          <FilterSection
-            t={t}
-            title={t("filter_archive_version", "Archive Version")}
-            value={activeArchiveVal}
-            onChange={(val: string) => setArchiveVersionFilter(val || "")}
-            options={archiveOptions}
-          />
-        )}
       </div>
     );
-  }, [activeCategory, activeSubType, activeGameSchema, filterStatus, equipFilter, archiveVersionFilter, archiveOptions, setActiveCategory, setActiveSubType, setFilterStatus, setArchiveVersionFilter, t]);
+  }, [activeCategory, activeSubType, activeGameSchema, filterStatus, setActiveCategory, setActiveSubType, setFilterStatus, t]);
 
   const actions = React.useMemo(() => {
     const list: any[] = [
@@ -184,6 +136,15 @@ export const VaultFilters = React.memo(function VaultFilters({
       });
     }
 
+    if (onOpenVersionPool) {
+      list.push({
+        id: "version_pool",
+        icon: <span className="material-symbols-outlined !text-[20px] sm:!text-[20px]">{t("icon_history", "history")}</span>,
+        label: t("version_pool_title", "{Mod} Version {Backups}"),
+        onClick: () => onOpenVersionPool()
+      });
+    }
+
     if (equipFilter === "ALL" || equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
       list.push({
         id: "hide_ghosts",
@@ -195,7 +156,7 @@ export const VaultFilters = React.memo(function VaultFilters({
     }
 
     return list;
-  }, [vaultLayout, setVaultLayout, onCreateLocalFolder, setSelectedMods, equipFilter, hideGhostCards, setHideGhostCards, t]);
+  }, [vaultLayout, setVaultLayout, onCreateLocalFolder, onOpenVersionPool, setSelectedMods, equipFilter, hideGhostCards, setHideGhostCards, t]);
 
   return (
     <ActionPill

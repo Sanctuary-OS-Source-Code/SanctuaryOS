@@ -111,7 +111,13 @@ export function UniversalCard({
 
   // For ghosted or disabled states (keep filter off the .glass-panel host so fixed background attachment never breaks)
   const opacityClasses = isDisabled ? "opacity-50 cursor-not-allowed" : "";
-  const innerGhostClasses = isGhosted || isDisabled ? "opacity-60 grayscale-[0.8]" : "";
+  const innerGhostClasses =
+    isGhosted || isDisabled
+      ? "opacity-45 grayscale group-hover/card:opacity-100 group-hover/card:grayscale-0 transition-all duration-300"
+      : "";
+  const ghostBorderClasses = isGhosted
+    ? "!border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+    : "";
 
   // The hover effect should only apply if the card is interactive
   const isInteractive = !!onClick || !!onContextMenu;
@@ -119,7 +125,7 @@ export function UniversalCard({
     ? "hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300"
     : "transition-colors duration-300";
 
-  const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
+  const containerClasses = `glass-panel rounded-[var(--radius)] relative flex group group/card shrink-0 ${activeClasses} ${ghostBorderClasses} ${opacityClasses} ${hoverClasses} ${layoutClasses} ${isInteractive ? 'cursor-pointer' : ''} ${className}`;
 
   const renderMedia = () => {
     if (!image && !icon && !customIcon && !imageOverlay) return null;
@@ -413,7 +419,11 @@ export function UniversalCard({
             </div>
           )}
         </div>
-        {imageOverlay}
+        {imageOverlay && (
+          <div className={`absolute inset-0 pointer-events-none z-30 ${innerGhostClasses}`}>
+            {imageOverlay}
+          </div>
+        )}
       </div>
     );
   };
@@ -435,11 +445,15 @@ export function UniversalCard({
       }
       {...restProps}
     >
-
+      {isGhosted && (
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-black/20 group-hover/card:bg-transparent transition-colors duration-300 z-[15]" />
+      )}
 
       {/* 3D Liquid Glass Meniscus Rim Overlay so card banner images sit beneath the continuous curved glass lens */}
       <div
-        className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
+        className={`pointer-events-none absolute inset-0 rounded-[inherit] z-20 ${
+          isGhosted ? "opacity-50 group-hover/card:opacity-100 transition-opacity duration-300" : ""
+        }`}
         style={{
           boxShadow: "var(--glass-inset-highlight)",
         }}
@@ -511,7 +525,7 @@ export function UniversalCard({
         {footer && (
           <div className="w-full shrink-0 mt-auto">
             {(layout === 'vertical' || layout === 'vertical-compact') && <div className="relative h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent w-full flex items-center justify-center shrink-0" />}
-            <div className={`sanctuary-card-footer w-full ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'}`}>
+            <div className={`sanctuary-card-footer w-full ${layout === 'vertical-compact' ? 'py-2 px-4' : layout === 'vertical' ? 'p-4' : 'p-3'} ${innerGhostClasses}`}>
               {footer}
             </div>
           </div>

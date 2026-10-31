@@ -80,7 +80,9 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
           "name",
           (firstBatch) => {
             if (!registryCache.cloudMods || registryCache.cloudMods.length === 0) {
-              registryCache.cloudMods = firstBatch;
+              registryCache.cloudMods = (firstBatch || []).filter(
+                (m: any) => Number(m?.compliance_tier || 0) === 0
+              );
               registryCache.isComplete = false;
               notifyRegistryListeners();
             }
@@ -94,7 +96,9 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
         supabase.from("masons").select("id, name").order("name"),
       ]);
       if (modsData) {
-        registryCache.cloudMods = modsData;
+        registryCache.cloudMods = modsData.filter(
+          (m: any) => Number(m?.compliance_tier || 0) === 0
+        );
         registryCache.isComplete = true;
       }
       if (relsData) registryCache.modRelationships = relsData;
@@ -158,10 +162,12 @@ export function ArchitectRegistry({
 
   useEffect(() => {
     if (initialActiveMod) {
-      setStudioTab("overview");
       const full = cloudMods.find((cm) => cm.id === initialActiveMod?.id) || initialActiveMod;
-      setOriginalMod(JSON.parse(JSON.stringify(full)));
-      setActiveMod(JSON.parse(JSON.stringify(full)));
+      if (Number(full?.compliance_tier || 0) === 0) {
+        setStudioTab("overview");
+        setOriginalMod(JSON.parse(JSON.stringify(full)));
+        setActiveMod(JSON.parse(JSON.stringify(full)));
+      }
       if (onClearActiveMod) onClearActiveMod();
     }
   }, [initialActiveMod]);
@@ -183,8 +189,11 @@ export function ArchitectRegistry({
       Array.isArray(registryCache.cloudMods) && registryCache.cloudMods.length > 0;
 
     if (hasWarmCache) {
-      setCloudMods(registryCache.cloudMods!);
-      setTotalCount(registryCache.cloudMods!.length);
+      const tier0Mods = registryCache.cloudMods!.filter(
+        (m: any) => Number(m?.compliance_tier || 0) === 0
+      );
+      setCloudMods(tier0Mods);
+      setTotalCount(tier0Mods.length);
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
       setIsLoading(false);
@@ -195,8 +204,11 @@ export function ArchitectRegistry({
     try {
       await prefetchArchitectRegistry(forceRefresh);
       if (registryCache.cloudMods) {
-        setCloudMods(registryCache.cloudMods);
-        setTotalCount(registryCache.cloudMods.length);
+        const tier0Mods = registryCache.cloudMods.filter(
+          (m: any) => Number(m?.compliance_tier || 0) === 0
+        );
+        setCloudMods(tier0Mods);
+        setTotalCount(tier0Mods.length);
       }
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
@@ -208,8 +220,11 @@ export function ArchitectRegistry({
   useEffect(() => {
     const syncFromCache = () => {
       if (registryCache.cloudMods) {
-        setCloudMods(registryCache.cloudMods);
-        setTotalCount(registryCache.cloudMods.length);
+        const tier0Mods = registryCache.cloudMods.filter(
+          (m: any) => Number(m?.compliance_tier || 0) === 0
+        );
+        setCloudMods(tier0Mods);
+        setTotalCount(tier0Mods.length);
         setIsLoading(false);
       }
       if (registryCache.modRelationships) {
@@ -258,6 +273,7 @@ export function ArchitectRegistry({
 
     return cloudMods
       .filter((mod) => {
+        if (Number(mod?.compliance_tier || 0) > 0) return false;
         const childInfo = childToRootMap.get(mod.id);
         if (groupFamilies && childInfo && modById.has(childInfo.rootId)) {
           return false;
@@ -284,6 +300,7 @@ export function ArchitectRegistry({
     const q = searchTerm.trim().toLowerCase();
 
     return baseGroupedMods.filter((mod) => {
+      if (Number(mod?.compliance_tier || 0) > 0) return false;
       if (activeCategory !== "ALL") {
         if (mod.category_override !== activeCategory) return false;
         if (activeCategory === "CAS" && activeSubType !== "ALL" && mod.sub_type !== activeSubType) {
@@ -318,9 +335,6 @@ export function ArchitectRegistry({
       }
 
       if (q) {
-        if (q === "nsfw") return mod.compliance_tier === 1;
-        if (q === "explicit") return mod.compliance_tier === 2;
-
         const selfMatches =
           (mod.name || "").toLowerCase().includes(q) ||
           (mod.master_author || "").toLowerCase().includes(q);
@@ -332,7 +346,7 @@ export function ArchitectRegistry({
           if (childIds) {
             for (const cid of childIds) {
               const cm = modById.get(cid);
-              if (cm && (cm.name || "").toLowerCase().includes(q)) {
+              if (cm && Number(cm?.compliance_tier || 0) === 0 && (cm.name || "").toLowerCase().includes(q)) {
                 return true;
               }
             }
@@ -435,7 +449,12 @@ export function ArchitectRegistry({
           false,
           diff
         );
-        setOriginalMod(JSON.parse(JSON.stringify(updatedPayload)));
+        if (Number(updatedPayload.compliance_tier || 0) > 0) {
+          setActiveMod(null);
+          setOriginalMod(null);
+        } else {
+          setOriginalMod(JSON.parse(JSON.stringify(updatedPayload)));
+        }
         if (setStatus) setStatus(`${t("icon_check_circle", "check_circle")} [${activeMod.name}] ${t("alert_saved", "Saved successfully!")}`);
         useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
         setPage(0);
@@ -453,8 +472,9 @@ export function ArchitectRegistry({
   };
 
   const openArchitectMod = (mod: any) => {
-    setStudioTab("overview");
     const full = cloudMods.find((cm) => cm.id === mod?.id) || mod;
+    if (Number(full?.compliance_tier || 0) > 0) return;
+    setStudioTab("overview");
     setOriginalMod(JSON.parse(JSON.stringify(full)));
     setActiveMod(JSON.parse(JSON.stringify(full)));
   };

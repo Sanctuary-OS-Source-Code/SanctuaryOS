@@ -63,14 +63,18 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
     };
     const fetchRecentItems = async () => {
         const [scoutRes, masonRes, nexusRepRes, bpRepRes, commRepRes] = await Promise.all([
-            supabase.from('scout_suggestions').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
-            supabase.from('mods').select('id, name, created_at, description').eq('status', 'under_review').order('created_at', { ascending: false }).limit(6),
+            supabase.from('scout_suggestions').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(24),
+            supabase.from('mods').select('id, name, created_at, description, compliance_tier').eq('status', 'under_review').or('compliance_tier.is.null,compliance_tier.eq.0').order('created_at', { ascending: false }).limit(6),
             supabase.from('nexus_reports').select('*, nexus_assets(name, asset_type, author)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
             supabase.from('blueprint_reports').select('*, blueprints(name, code)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
             supabase.from('content_flags').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
         ]);
-        if (scoutRes.data) setRecentScout(scoutRes.data);
-        if (masonRes.data) setRecentMason(masonRes.data);
+        if (scoutRes.data) {
+            setRecentScout(scoutRes.data.filter((s: any) => Number(s?.compliance_tier || 0) === 0).slice(0, 6));
+        }
+        if (masonRes.data) {
+            setRecentMason(masonRes.data.filter((m: any) => Number(m?.compliance_tier || 0) === 0).slice(0, 6));
+        }
         const mergedReports: any[] = [];
         (nexusRepRes.data || []).forEach((r: any) => {
             mergedReports.push({
@@ -112,8 +116,8 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
         { count: bpRepCount },
         { count: commRepCount },
       ] = await Promise.all([
-        supabase.from('scout_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'under_review'),
+        supabase.from('scout_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending').or('compliance_tier.is.null,compliance_tier.eq.0'),
+        supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'under_review').or('compliance_tier.is.null,compliance_tier.eq.0'),
         supabase.from('nexus_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('blueprint_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('content_flags').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -136,12 +140,17 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
         const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         const targetModIds = [...new Set(ticketsData.filter(t => t.target_mod_id).map(t => t.target_mod_id as string))].filter(Boolean).filter(isValidUUID);
         const modAuthorMap: Record<string, string> = {};
+        const modTierMap: Record<string, number> = {};
         if (targetModIds.length > 0) {
-          const { data: modsData } = await supabase.from('mods').select('id, mason_id').in('id', targetModIds);
-          modsData?.forEach(m => modAuthorMap[m.id] = m.mason_id);
+          const { data: modsData } = await supabase.from('mods').select('id, mason_id, compliance_tier').in('id', targetModIds);
+          modsData?.forEach(m => {
+            modAuthorMap[m.id] = m.mason_id;
+            modTierMap[m.id] = Number(m.compliance_tier || 0);
+          });
         }
 
         supportTicketsCount = ticketsData.filter(t => {
+          if (t.target_mod_id && modTierMap[t.target_mod_id] > 0) return false;
           const typeStr = t.category;
           const cat = catData.find(c => c.category_name === typeStr || c.category_code === typeStr);
           let baseDest = cat?.ticket_destination || 'architect';
@@ -199,14 +208,12 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
             if (!modAuthorId) dest = 'architect';
           }
 
-          return dest === 'architect' || dest === 'oversight';
+          return dest === 'architect';
         }).length;
       }
-      const { count: nsfwCount } = { count: 0 };
-      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).in('compliance_tier', [1,2,3,4]);
 
-      const { count: totalArtifactsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true });
-      const { count: unverifiedModsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'unverified');
+      const { count: totalArtifactsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).or('compliance_tier.is.null,compliance_tier.eq.0');
+      const { count: unverifiedModsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'unverified').or('compliance_tier.is.null,compliance_tier.eq.0');
       const { count: tier4ConflictsCount } = await supabase.from('logical_conflicts').select('*', { count: 'exact', head: true }).eq('severity_rank', 4);
       const { count: tier3ConflictsCount } = await supabase.from('logical_conflicts').select('*', { count: 'exact', head: true }).eq('severity_rank', 3);
       const { count: labQueueCount } = await supabase.from('homestead_lab_logs').select('*', { count: 'exact', head: true });
@@ -216,8 +223,8 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
         masonQueue: masonQueueCount || 0,
         nexusReports: nexusReportsCount || 0,
         supportTickets: supportTicketsCount || 0,
-        nsfw: nsfwCount || 0,
-        explicit: explicitCount || 0,
+        nsfw: 0,
+        explicit: 0,
         totalArtifacts: totalArtifactsCount || 0,
         unverifiedMods: unverifiedModsCount || 0,
         tier4Conflicts: tier4ConflictsCount || 0,
@@ -240,7 +247,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_search", "search")}</span>} number={stats.scoutQueue} label={t("reviewing", "Scanner Queue")} colorClass="text-blue-500" onClick={() => onNavigate("queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_handyman", "handyman")}</span>} number={stats.masonQueue} label={t("mason_queue", "{Mason} Queue")} colorClass="text-emerald-500" onClick={() => onNavigate("mason_queue")} />
         <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity", "local_activity")}</span>} number={stats.supportTickets} label={t("ql_support", "Support Queue")} colorClass="text-indigo-500" onClick={() => onNavigate("support_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating", "18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={`${t("stat_nsfw_flags", "Nsfw Flags")} / ${t("stat_explicit_reports", "Explicit Reports")}`} colorClass="text-orange-500" onClick={() => onNavigate('registry', 'nsfw')} />
+        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_monitor_heart", "monitor_heart")}</span>} number={stats.labQueue} label={t("tab_diagnostics", "Diagnostics")} colorClass="text-orange-500" onClick={() => onNavigate("lab")} />
         {!urgentBroadcast && (
           <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_flag", "flag")}</span>} number={stats.nexusReports} label={t("title_reports", "Reports Queue")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
         )}

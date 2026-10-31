@@ -24,6 +24,7 @@ export function SharedMetadataEditorSidePanel({
   initialModId,
   masonsList,
   onModUpdated,
+  isOversight = true,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +32,7 @@ export function SharedMetadataEditorSidePanel({
   initialModId?: string;
   masonsList?: any[];
   onModUpdated?: () => void;
+  isOversight?: boolean;
 }) {
   const { t } = useLexicon();
   const [modForm, setModForm] = useState<any>(null);
@@ -42,6 +44,10 @@ export function SharedMetadataEditorSidePanel({
 
   useEffect(() => {
     if (activeMod) {
+      if (!isOversight && Number(activeMod?.compliance_tier || 0) > 0) {
+        setModForm({ _error: true, id: activeMod.id });
+        return;
+      }
       const cloned = JSON.parse(JSON.stringify(activeMod));
       setOriginalMod(cloned);
       setModForm({ ...cloned });
@@ -67,7 +73,7 @@ export function SharedMetadataEditorSidePanel({
           .select("*")
           .eq("id", modId)
           .single();
-        if (data) {
+        if (data && (isOversight || Number(data?.compliance_tier || 0) === 0)) {
           const cloned = JSON.parse(JSON.stringify(data));
           setOriginalMod(cloned);
           setModForm({ ...cloned });
@@ -80,7 +86,7 @@ export function SharedMetadataEditorSidePanel({
       setModForm(null);
       setOriginalMod(null);
     }
-  }, [activeMod, initialModId, isOpen]);
+  }, [activeMod, initialModId, isOpen, isOversight]);
 
   useEffect(() => {
     if (!masonsList && isOpen) {

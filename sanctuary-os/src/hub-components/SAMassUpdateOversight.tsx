@@ -42,7 +42,7 @@ export function MassUpdateOversight() {
   const loadData = async () => {
     setLoading(true);
     const { data } = await fetchAllPaginated(() => supabase.from('mods').select('id, name, status, category_override, sub_type, compliance_tier, compatible_versions, master_author').order('name'));
-    if (data) setMods(data);
+    if (data) setMods(data.filter((m: any) => Number(m?.compliance_tier || 0) === 0));
 
     const { data: auditData } = await supabase.from('audit_logs')
       .select('*')

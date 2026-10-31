@@ -436,7 +436,7 @@ export function DnaMatchQueueSidePanel({
     );
   };
 
-  const renderGroup = (title: string, icon: string, group: any[]) => {
+  const renderGroup = (title: string, icon: string, group: any[], isSettingsGroup = false) => {
     if (group.length === 0) return null;
     return (
       <UniversalGroup
@@ -457,7 +457,11 @@ export function DnaMatchQueueSidePanel({
                 {t("icon_close", "close")}
               </span>
               <HoverTooltip
-                title={t("dna_btn_keep_all_existing", "Keep All Existing")}
+                title={
+                  isSettingsGroup
+                    ? t("dna_btn_keep_all_existing", "Keep All Existing")
+                    : t("dna_btn_skip_all", "Skip All")
+                }
                 className="!hidden group-hover/actionbtn:!flex z-[100]"
               />
             </button>
@@ -474,7 +478,11 @@ export function DnaMatchQueueSidePanel({
                 {t("icon_done_all", "done_all")}
               </span>
               <HoverTooltip
-                title={t("dna_btn_overwrite_all", "Overwrite All")}
+                title={
+                  isSettingsGroup
+                    ? t("dna_btn_overwrite_all", "Overwrite All")
+                    : t("dna_btn_archive_update_all", "Update & Archive All")
+                }
                 variant="accent"
                 className="!hidden group-hover/actionbtn:!flex z-[100]"
               />
@@ -526,14 +534,18 @@ export function DnaMatchQueueSidePanel({
                   <div className="flex items-center justify-between gap-2">
                     <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined !text-[18px]">
-                        {t("icon_difference", "difference")}
+                        {isSettingsGroup
+                          ? t("icon_settings", "settings")
+                          : t("icon_inventory_2", "inventory_2")}
                       </span>
                     </div>
                     <span className={VAULT_CHIP_CLASS}>
                       <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
                         {overrideData
                           ? t("icon_network_wifi", "network_wifi")
-                          : t("icon_difference", "difference")}
+                          : isSettingsGroup
+                          ? t("icon_difference", "difference")
+                          : t("icon_sync_alt", "sync_alt")}
                       </span>
                       {overrideData
                         ? t("title_edge_override_detected", "Edge Override")
@@ -550,9 +562,19 @@ export function DnaMatchQueueSidePanel({
                       {t("desc_override_authority", "Author Edge Authority")}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate">
-                      {t("overlay_dna_existing", "Existing {Mod}")}: {oldName}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 truncate">
+                        {t("overlay_dna_existing", "Existing {Mod}")}: {oldName}
+                      </span>
+                      {!isSettingsGroup && (
+                        <span className="text-[10px] font-medium text-[var(--accent)] opacity-85 truncate">
+                          {t(
+                            "dna_desc_archived_to_backups",
+                            "Archives existing version to {Backups} for auto version matching"
+                          )}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -562,7 +584,9 @@ export function DnaMatchQueueSidePanel({
                     label={
                       overrideData
                         ? t("btn_keep_local", "Keep Local")
-                        : t("dna_btn_keep_existing", "Keep Existing")
+                        : isSettingsGroup
+                        ? t("dna_btn_keep_existing", "Keep Existing")
+                        : t("dna_btn_skip", "Skip")
                     }
                     onClick={(e: any) => {
                       e.preventDefault();
@@ -576,7 +600,9 @@ export function DnaMatchQueueSidePanel({
                     label={
                       overrideData
                         ? t("btn_import_override", "Import Override")
-                        : t("dna_btn_overwrite", "Overwrite")
+                        : isSettingsGroup
+                        ? t("dna_btn_overwrite", "Overwrite")
+                        : t("dna_btn_archive_update", "Update & Archive")
                     }
                     onClick={(e: any) => {
                       e.preventDefault();
@@ -605,6 +631,19 @@ export function DnaMatchQueueSidePanel({
     <SidePanel
       isOpen={totalCount > 0 || isSuccess}
       onClose={() => {
+        const pendingFiles = (dnaMatchQueue || []).filter(
+          (m: any) => m?.reason !== "EDGE_OVERRIDE" && m?.path
+        );
+        if (pendingFiles.length > 0) {
+          for (const match of pendingFiles) {
+            invoke("resolve_dna_match", {
+              path: match.path,
+              existingName: match.existing_name || "",
+              action: "ignore",
+              moveOriginal: false,
+            }).catch(() => {});
+          }
+        }
         isResolvingRef.current = false;
         setDnaMatchQueue([]);
         setIsSuccess(false);
@@ -714,13 +753,15 @@ export function DnaMatchQueueSidePanel({
               renderGroup(
                 t("overlay_dna_settings_conflicts", "Settings Conflicts"),
                 t("icon_settings", "settings"),
-                settingsConflicts
+                settingsConflicts,
+                true
               )}
             {(queueFilter === "all" || queueFilter === "files") &&
               renderGroup(
-                t("overlay_dna_file_conflicts", "File Conflicts"),
+                t("overlay_dna_file_conflicts", "File Updates"),
                 t("icon_file_copy", "file_copy"),
-                fileConflicts
+                fileConflicts,
+                false
               )}
           </div>
         )}

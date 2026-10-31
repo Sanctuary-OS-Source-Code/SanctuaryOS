@@ -43,7 +43,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       .or('compliance_tier.in.(1,2,3,4,5),status.in.(under_review,pending,blacklisted,quarantined)')
       .order('compliance_tier', { ascending: false });
 
-    if (data) setMods(data);
+    if (data) {
+      setMods(
+        data.filter(
+          (m: any) =>
+            Number(m?.compliance_tier || 0) >= 1 ||
+            ["blacklisted", "quarantined"].includes(String(m?.status || "").toLowerCase())
+        )
+      );
+    }
     const { data: mData } = await supabase.from('profiles').select('id, username').eq('role', 'mason');
     if (mData) setMasonsList(mData);
     setLoading(false);
@@ -153,13 +161,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   };
 
   const filteredMods = mods.filter(m => {
-    if (m.compliance_tier === 5) return false;
     const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase());
     const matchesTier = filterTier ? m.compliance_tier === filterTier : true;
 
     let matchesStatus = true;
     const statusLower = m.status?.toLowerCase() || "";
-    const isPending = ["under_review", "pending", "unverified"].includes(statusLower);
+    const isPending = m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(statusLower);
     const isInactive = m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(statusLower);
     const isActive = !isPending && !isInactive && m.compliance_tier >= 1 && m.compliance_tier <= 4;
 

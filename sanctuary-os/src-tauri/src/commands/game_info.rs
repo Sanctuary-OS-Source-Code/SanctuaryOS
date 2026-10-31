@@ -10,12 +10,19 @@ pub fn rip_game_version(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let root_path = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
-    let mut exe_path = crate::game_logic::resolve_executable_path(&live_path, &game_schema);
+    rip_game_version_with_schema(&live_path, &game_schema)
+}
+
+pub fn rip_game_version_with_schema(
+    live_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<String, String> {
+    let root_path = crate::game_logic::resolve_game_engine_root(live_path, game_schema);
+    let mut exe_path = crate::game_logic::resolve_executable_path(live_path, game_schema);
 
     if exe_path.is_none() {
         let mut search_folder = root_path.clone();
-        if let Some(schema) = &game_schema {
+        if let Some(schema) = game_schema {
             if let Some(sub_str) = schema
                 .paths
                 .executable_subdir
@@ -26,7 +33,7 @@ pub fn rip_game_version(
                 if sub.exists() {
                     search_folder = sub;
                 }
-            } else if crate::game_logic::is_sims4_schema(&game_schema) {
+            } else if crate::game_logic::is_sims4_schema(game_schema) {
                 let bin_folder = root_path.join("Game").join("Bin");
                 if bin_folder.exists() {
                     search_folder = bin_folder;
@@ -120,11 +127,11 @@ pub fn rip_game_version(
         }
     }
 
-    if crate::game_logic::is_sims4_schema(&game_schema) {
+    if crate::game_logic::is_sims4_schema(game_schema) {
         let ini_candidates = [
             root_path.join("Game").join("Bin").join("Default.ini"),
             root_path.join("Contents").join("Resources").join("Default.ini"),
-            PathBuf::from(&live_path)
+            PathBuf::from(live_path)
                 .join("Contents")
                 .join("Resources")
                 .join("Default.ini"),

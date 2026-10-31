@@ -3678,7 +3678,7 @@ function App() {
                             selectedMods={selectedMods} setSelectedMods={setSelectedMods}
                             setConfirmDialog={setConfirmDialog} setStatus={setStatus}
                             runRadarSweep={runRadarSweep} setIsDropzoneOpen={setIsDropzoneOpen}
-                            setLocalFolderModal={setLocalFolderModal} playSets={playSets}
+                            setLocalFolderModal={setLocalFolderModal} playSets={playSets} setPlaySets={setPlaySets}
                             equipFilter={equipFilter} setEquipFilter={setEquipFilter}
                             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
                             filterStatus={filterStatus} setFilterStatus={setFilterStatus}

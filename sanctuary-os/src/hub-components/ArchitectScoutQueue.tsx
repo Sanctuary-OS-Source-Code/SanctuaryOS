@@ -98,13 +98,21 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
         )
         .order("name")
     );
-    if (cData) setCloudModsList(cData);
+    if (cData) {
+      setCloudModsList(
+        cData.filter((m: any) => Number(m?.compliance_tier || 0) === 0)
+      );
+    }
 
     const { data, error } = await supabase
       .from("scout_suggestions")
       .select("*")
       .order("created_at", { ascending: true });
-    if (!error && data) setSubmissions(data);
+    if (!error && data) {
+      setSubmissions(
+        data.filter((s: any) => Number(s?.compliance_tier || 0) === 0)
+      );
+    }
     setLoading(false);
   };
 
@@ -498,7 +506,8 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
 
   const pendingSubmissions = Array.from(pendingGroupsMap.entries())
     .filter(([, rows]) => rows.length >= minScoutSubmissions)
-    .map(([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows));
+    .map(([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows))
+    .filter((g: any) => Number(g?.compliance_tier || 0) === 0);
 
   const completedGroupsMap = new Map<string, any[]>();
   completedRaw.forEach((s: any) => {
@@ -507,9 +516,9 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
     completedGroupsMap.get(key)!.push(s);
   });
 
-  const completedSubmissions = Array.from(completedGroupsMap.entries()).map(
-    ([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows)
-  );
+  const completedSubmissions = Array.from(completedGroupsMap.entries())
+    .map(([dnaHash, rows]) => buildConsensusGroup(dnaHash, rows))
+    .filter((g: any) => Number(g?.compliance_tier || 0) === 0);
 
   const activeSubmissions = filterTab === "pending" ? pendingSubmissions : completedSubmissions;
 

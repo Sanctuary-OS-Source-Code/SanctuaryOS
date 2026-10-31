@@ -725,27 +725,37 @@ export function CollectionForge({ setStatus }: any) {
 
   const fetchSets = async () => {
     const { data } = await supabase.from("collections").select("*").order("name");
-    if (data) setSets(data);
+    if (data) {
+      setSets(data.filter((s: any) => Number(s?.compliance_tier || 0) === 0));
+    }
   };
 
   const fetchManifest = async (setId: string) => {
     const { data } = await supabase
       .from("collection_members")
       .select(
-        "id, mod_id, mods(id, name, image_url, status, category_override, created_at, mason_id, master_author, file_extension)"
+        "id, mod_id, mods(id, name, image_url, status, category_override, created_at, mason_id, master_author, file_extension, compliance_tier)"
       )
       .eq("set_id", setId);
-    if (data) setManifestMembers(data);
+    if (data) {
+      setManifestMembers(
+        data.filter((m: any) => Number(m?.mods?.compliance_tier || 0) === 0)
+      );
+    }
   };
 
   const searchCCAssets = async () => {
     setIsSearching(true);
     const { data } = await supabase
       .from("mods")
-      .select("id, name, image_url, master_author, masons(name)")
+      .select("id, name, image_url, master_author, compliance_tier, masons(name)")
       .ilike("name", `%${assetSearch}%`)
       .limit(20);
-    if (data) setAvailableAssets(data);
+    if (data) {
+      setAvailableAssets(
+        data.filter((m: any) => Number(m?.compliance_tier || 0) === 0)
+      );
+    }
     setIsSearching(false);
   };
 
@@ -831,6 +841,9 @@ export function CollectionForge({ setStatus }: any) {
         false,
         computeAuditDiff(prevSet, updatedPayload)
       );
+      if (Number(updatedPayload.compliance_tier || 0) > 0) {
+        setActiveSet(null);
+      }
       await fetchSets();
       if (setStatus)
         setStatus(
@@ -929,6 +942,7 @@ export function CollectionForge({ setStatus }: any) {
   };
 
   const filteredSets = sets.filter((s: any) => {
+    if (Number(s?.compliance_tier || 0) > 0) return false;
     if (filterTab === "overview") {
       // Do not filter by status
     } else if (filterTab === "unknown") {

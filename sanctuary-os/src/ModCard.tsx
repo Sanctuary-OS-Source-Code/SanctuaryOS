@@ -42,11 +42,12 @@ interface ModCardProps {
 
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, onToggleSet: _onToggleSet, ownedDLC = [],
   maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand: _onExpand = () => { },
-  isBulkMode = false, isSelected = false, onResolveConflict: _onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
+  isBulkMode = false, isSelected = false, onToggleSelect: _onToggleSelect, onResolveConflict: _onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
   onInspectItem: _onInspectItem, onContextMenu: _onContextMenu, id, compact = false, layout = "standard", isGhostPlaceholder = false, hideHitBox = false, flavorGhostReason, isSelfGhosted, isSelfSwapped, isSelfBetaSwap, _callbacksRef }: ModCardProps) {
   const onSelect = (e: any) => (_callbacksRef?.current?.onSelect || _onSelect)?.(e);
   const onToggleSet = (e: any, force?: boolean) => (_callbacksRef?.current?.onToggleSet || _onToggleSet)?.(e, force);
   const onExpand = (e?: any) => (_callbacksRef?.current?.onExpand || _onExpand)?.(e);
+  const onToggleSelect = () => (_callbacksRef?.current?.onToggleSelect || _onToggleSelect)?.();
   const onResolveConflict = (e: any, t3: any, m: any, winner?: string) => (_callbacksRef?.current?.onResolveConflict || _onResolveConflict)?.(e, t3, m, winner);
   const onInspectItem = (_callbacksRef?.current?.onInspectItem || _onInspectItem) ? (target: any) => (_callbacksRef?.current?.onInspectItem || _onInspectItem)?.(target) : undefined;
   const onContextMenu = (_callbacksRef?.current?.onContextMenu || _onContextMenu) ? (e: any) => (_callbacksRef?.current?.onContextMenu || _onContextMenu)?.(e) : undefined;
@@ -129,12 +130,71 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   const isShadowed = (isGhosted || isNemesisEquipped || isSwappedState || brokenMods.length > 0) && !isInActiveSet;
   const hasTier3 = tier3List.length > 0;
 
-  let reqCount = mod.requirements?.length || 0;
-  if (!reqCount && mod.flavors) {
-    const allReqs = new Set();
-    mod.flavors.forEach((f: any) => f.requirements?.forEach((r: string) => allReqs.add(r)));
-    reqCount = allReqs.size;
-  }
+  const reqCount = (() => {
+    const normalizeReqName = (raw: any) =>
+      String(raw || "")
+        .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(/\.(package|ts4script|script|zip|rar|7z)$/i, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\b(script|scripts|package|pkg|core)\b/gi, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase() || "";
+
+    const extractReqId = (raw: any) =>
+      String(raw || "")
+        .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+        .split("@")[0]
+        .trim()
+        .toLowerCase();
+
+    const selfIds = new Set<string>();
+    const selfNames = new Set<string>();
+    const registerSelf = (item: any) => {
+      if (!item) return;
+      [item.dbId, item.baseFamilyId, item.id, item.hash].forEach((val) => {
+        const cid = extractReqId(val);
+        if (cid) selfIds.add(cid);
+      });
+      [item.name, item.displayName].forEach((val) => {
+        const cname = normalizeReqName(val);
+        if (cname) selfNames.add(cname);
+      });
+    };
+
+    registerSelf(mod);
+    if (Array.isArray(mod.flavors)) {
+      mod.flavors.forEach(registerSelf);
+    }
+
+    const rawReqs = [
+      ...(Array.isArray(mod.requirements) ? mod.requirements : []),
+      ...(Array.isArray(mod.flavors)
+        ? mod.flavors.flatMap((f: any) =>
+            Array.isArray(f?.requirements) ? f.requirements : []
+          )
+        : []),
+    ];
+
+    const uniqueReqs = new Set<string>();
+    rawReqs.forEach((r: any) => {
+      if (!r) return;
+      const rId = extractReqId(
+        typeof r === "string" ? r : r.id || r.dbId || r.hash || ""
+      );
+      const rName = normalizeReqName(
+        typeof r === "string" ? r : r.name || r.displayName || r.id || ""
+      );
+      if (rId && selfIds.has(rId)) return;
+      if (rName && selfNames.has(rName)) return;
+      const dedupKey = rName || rId;
+      if (dedupKey) uniqueReqs.add(dedupKey);
+    });
+
+    return uniqueReqs.size;
+  })();
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -326,7 +386,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                 )}
               </div>
             }
-            onClick={(e) => { if (isShadowed) { e.preventDefault(); return; } onSelect(e); }}
+            onClick={(e) => {
+              if (isBulkMode && (_callbacksRef?.current?.onToggleSelect || _onToggleSelect)) {
+                e.preventDefault();
+                onToggleSelect();
+                return;
+              }
+              onSelect(e);
+            }}
             onContextMenu={(e) => {
               if (onContextMenu) {
                 e.preventDefault();

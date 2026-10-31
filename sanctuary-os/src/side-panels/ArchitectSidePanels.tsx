@@ -39,7 +39,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         let fetchedMod = null;
         if (verData && verData.mods) {
           fetchedMod = { ...verData.mods, version_label: verData.version_label, version_number: verData.version_number };
-          setMatchedMod(fetchedMod);
+          if (!isOversight && Number(fetchedMod?.compliance_tier || 0) > 0) {
+            fetchedMod = null;
+          } else {
+            setMatchedMod(fetchedMod);
+          }
         }
         setIsHashing(false);
       };
@@ -68,7 +72,11 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         let fetchedMod = null;
         if (verData && verData.mods) {
           fetchedMod = { ...verData.mods, version_label: verData.version_label, version_number: verData.version_number };
-          setMatchedMod(fetchedMod);
+          if (!isOversight && Number(fetchedMod?.compliance_tier || 0) > 0) {
+            fetchedMod = null;
+          } else {
+            setMatchedMod(fetchedMod);
+          }
         }
 
         setSessionHistory(prev => [{

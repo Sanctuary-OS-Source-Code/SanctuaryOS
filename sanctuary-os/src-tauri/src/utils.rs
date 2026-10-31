@@ -3048,4 +3048,472 @@ pub fn normalize_existing_case_path(full_path: &Path) -> PathBuf {
     current
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+pub struct ArchivedModVersion {
+    pub rel_path: String,
+    pub dna_hash: String,
+    #[serde(default)]
+    pub backup_rel_path: String,
+    #[serde(default)]
+    pub mod_version: String,
+    #[serde(default)]
+    pub compatible_versions: Vec<String>,
+    #[serde(default)]
+    pub recorded_at: u64,
+}
+
+pub fn get_vault_backups_mods_dir(vault_path: &str) -> PathBuf {
+    let p = Path::new(vault_path);
+    let vault_root = if is_mods_dir(p) {
+        p.parent().unwrap_or(p).to_path_buf()
+    } else {
+        p.to_path_buf()
+    };
+    vault_root.join("Backups").join("Mods")
+}
+
+pub fn load_mod_versions_index(
+    vault_path: &str,
+) -> std::collections::HashMap<String, Vec<ArchivedModVersion>> {
+    let index_path = get_vault_backups_mods_dir(vault_path).join(".mod_versions.json");
+    if let Ok(raw) = std::fs::read_to_string(&index_path) {
+        if let Ok(parsed) =
+            serde_json::from_str::<std::collections::HashMap<String, Vec<ArchivedModVersion>>>(&raw)
+        {
+            return parsed;
+        }
+    }
+    std::collections::HashMap::new()
+}
+
+pub fn save_mod_versions_index(
+    vault_path: &str,
+    index: &std::collections::HashMap<String, Vec<ArchivedModVersion>>,
+) {
+    let backups_mods = get_vault_backups_mods_dir(vault_path);
+    let _ = std::fs::create_dir_all(&backups_mods);
+    let index_path = backups_mods.join(".mod_versions.json");
+    if let Ok(json_str) = serde_json::to_string_pretty(index) {
+        let _ = std::fs::write(&index_path, json_str);
+    }
+}
+
+pub fn is_game_version_compatible(compatible_versions: &[String], target_game_version: &str) -> bool {
+    let clean_target = target_game_version
+        .trim()
+        .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
+        .trim()
+        .to_lowercase();
+    if clean_target.is_empty() || clean_target == "unknown" || clean_target == "all" {
+        return true;
+    }
+    if compatible_versions.is_empty() {
+        return false;
+    }
+    for v in compatible_versions {
+        let clean_v = v
+            .trim()
+            .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
+            .trim()
+            .to_lowercase();
+        if clean_v.is_empty() || clean_v == "any" || clean_v == "all" || clean_v == "vlocal" || clean_v == "local" {
+            return true;
+        }
+        if clean_v == clean_target
+            || clean_target.starts_with(&format!("{}.", clean_v))
+            || clean_v.starts_with(&format!("{}.", clean_target))
+        {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn is_mod_version_archiving_enabled(vault_path: &str) -> bool {
+    if vault_path.trim().is_empty() {
+        return true;
+    }
+    if let Some((val, _)) = get_vault_kv(vault_path, "archive_mod_versions") {
+        return !val.trim().eq_ignore_ascii_case("false") && val.trim() != "0";
+    }
+    true
+}
+
+pub fn archive_mod_binary_version(
+    vault_path: &str,
+    active_file_path: &Path,
+    known_hash: Option<&str>,
+    mod_version: Option<&str>,
+    compatible_versions: Option<Vec<String>>,
+) -> Option<ArchivedModVersion> {
+    if !is_mod_version_archiving_enabled(vault_path) {
+        return None;
+    }
+    if !active_file_path.exists() || !active_file_path.is_file() {
+        return None;
+    }
+    let mods_lane = get_vault_mods_lane(vault_path);
+    let rel = active_file_path
+        .strip_prefix(&mods_lane)
+        .unwrap_or(active_file_path);
+    let rel_str = rel.to_string_lossy().replace('\\', "/");
+    if rel_str.is_empty() || rel_str.starts_with('.') {
+        return None;
+    }
+
+    let hash = match known_hash.filter(|h| !h.trim().is_empty()) {
+        Some(h) => h.trim().to_lowercase(),
+        None => calculate_hash(active_file_path).ok()?.to_lowercase(),
+    };
+    if hash.is_empty() {
+        return None;
+    }
+
+    let short_hash: String = hash.chars().take(12).collect();
+    let orig_file_name = active_file_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let backup_rel_path = if let Some(parent) = rel.parent() {
+        let p_str = parent.to_string_lossy().replace('\\', "/");
+        if p_str.is_empty() {
+            format!("{}/{}", short_hash, orig_file_name)
+        } else {
+            format!("{}/{}/{}", p_str, short_hash, orig_file_name)
+        }
+    } else {
+        format!("{}/{}", short_hash, orig_file_name)
+    };
+
+    let backups_mods = get_vault_backups_mods_dir(vault_path);
+    let backup_full_path = backups_mods.join(backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+    if let Some(b_parent) = backup_full_path.parent() {
+        let _ = std::fs::create_dir_all(b_parent);
+    }
+
+    if !backup_full_path.exists() {
+        let linked = std::fs::hard_link(active_file_path, &backup_full_path)
+            .or_else(|_| std::fs::copy(active_file_path, &backup_full_path).map(|_| ()));
+        if linked.is_err() {
+            return None;
+        }
+    }
+
+    let mut index = load_mod_versions_index(vault_path);
+    let key = rel_str.to_lowercase();
+    let entries = index.entry(key).or_default();
+    let now_secs = current_epoch_ms() / 1000;
+
+    let entry = if let Some(existing) = entries.iter_mut().find(|e| e.dna_hash.eq_ignore_ascii_case(&hash)) {
+        if existing.backup_rel_path != backup_rel_path && existing.backup_rel_path.contains("__") {
+            let old_b_full = backups_mods
+                .join(existing.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if old_b_full.exists() {
+                let _ = std::fs::remove_file(&old_b_full);
+            }
+        }
+        existing.rel_path = rel_str.clone();
+        existing.backup_rel_path = backup_rel_path.clone();
+        if let Some(mv) = mod_version.filter(|s| !s.trim().is_empty()) {
+            existing.mod_version = mv.trim().to_string();
+        }
+        if let Some(cv) = compatible_versions {
+            for v in cv {
+                let trimmed = v.trim().to_string();
+                if !trimmed.is_empty() && !existing.compatible_versions.contains(&trimmed) {
+                    existing.compatible_versions.push(trimmed);
+                }
+            }
+        }
+        existing.clone()
+    } else {
+        let created = ArchivedModVersion {
+            rel_path: rel_str,
+            dna_hash: hash,
+            backup_rel_path,
+            mod_version: mod_version.unwrap_or_default().trim().to_string(),
+            compatible_versions: compatible_versions
+                .unwrap_or_default()
+                .into_iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect(),
+            recorded_at: now_secs,
+        };
+        entries.push(created.clone());
+        created
+    };
+
+    save_mod_versions_index(vault_path, &index);
+    Some(entry)
+}
+
+pub fn sync_vault_mod_versions_for_game(
+    vault_path: &str,
+    target_game_version: &str,
+    metadata_updates: &[ArchivedModVersion],
+) -> Vec<ArchivedModVersion> {
+    if vault_path.trim().is_empty() {
+        return Vec::new();
+    }
+    let mods_lane = get_vault_mods_lane(vault_path);
+    let backups_mods = get_vault_backups_mods_dir(vault_path);
+    let archiving_enabled = is_mod_version_archiving_enabled(vault_path);
+    let mut index = load_mod_versions_index(vault_path);
+    let mut index_dirty = false;
+
+    for meta in metadata_updates {
+        let rel_norm = meta.rel_path.replace('\\', "/");
+        if rel_norm.is_empty() || meta.dna_hash.trim().is_empty() {
+            continue;
+        }
+        let key = rel_norm.to_lowercase();
+        let hash_lower = meta.dna_hash.trim().to_lowercase();
+        let active_full = mods_lane.join(rel_norm.replace('/', std::path::MAIN_SEPARATOR_STR));
+
+        let entries = index.entry(key).or_default();
+        if let Some(existing) = entries
+            .iter_mut()
+            .find(|e| e.dna_hash.eq_ignore_ascii_case(&hash_lower))
+        {
+            if !meta.mod_version.trim().is_empty() && existing.mod_version != meta.mod_version.trim() {
+                existing.mod_version = meta.mod_version.trim().to_string();
+                index_dirty = true;
+            }
+            for v in &meta.compatible_versions {
+                let trimmed = v.trim().to_string();
+                if !trimmed.is_empty() && !existing.compatible_versions.contains(&trimmed) {
+                    existing.compatible_versions.push(trimmed);
+                    index_dirty = true;
+                }
+            }
+            if !existing.backup_rel_path.is_empty() {
+                let short_hash: String = hash_lower.chars().take(12).collect();
+                let orig_file_name = Path::new(&rel_norm)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let canonical_backup_rel = if let Some(parent) = Path::new(&rel_norm).parent() {
+                    let p_str = parent.to_string_lossy().replace('\\', "/");
+                    if p_str.is_empty() {
+                        format!("{}/{}", short_hash, orig_file_name)
+                    } else {
+                        format!("{}/{}/{}", p_str, short_hash, orig_file_name)
+                    }
+                } else {
+                    format!("{}/{}", short_hash, orig_file_name)
+                };
+                if existing.backup_rel_path != canonical_backup_rel
+                    && existing.backup_rel_path.contains("__")
+                {
+                    let old_b_full = backups_mods.join(
+                        existing
+                            .backup_rel_path
+                            .replace('/', std::path::MAIN_SEPARATOR_STR),
+                    );
+                    let new_b_full = backups_mods
+                        .join(canonical_backup_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
+                    if let Some(np) = new_b_full.parent() {
+                        let _ = std::fs::create_dir_all(np);
+                    }
+                    if old_b_full.exists() {
+                        if !new_b_full.exists() {
+                            let _ = std::fs::rename(&old_b_full, &new_b_full);
+                        } else {
+                            let _ = std::fs::remove_file(&old_b_full);
+                        }
+                    }
+                    existing.backup_rel_path = canonical_backup_rel;
+                    index_dirty = true;
+                }
+                let b_full = backups_mods
+                    .join(existing.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if !b_full.exists() && active_full.exists() {
+                    if let Some(bp) = b_full.parent() {
+                        let _ = std::fs::create_dir_all(bp);
+                    }
+                    let _ = std::fs::hard_link(&active_full, &b_full)
+                        .or_else(|_| std::fs::copy(&active_full, &b_full).map(|_| ()));
+                }
+            }
+        } else if archiving_enabled && !meta.compatible_versions.is_empty() && active_full.exists() {
+            let short_hash: String = hash_lower.chars().take(12).collect();
+            let orig_file_name = active_full
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let backup_rel_path = if let Some(parent) = Path::new(&rel_norm).parent() {
+                let p_str = parent.to_string_lossy().replace('\\', "/");
+                if p_str.is_empty() {
+                    format!("{}/{}", short_hash, orig_file_name)
+                } else {
+                    format!("{}/{}/{}", p_str, short_hash, orig_file_name)
+                }
+            } else {
+                format!("{}/{}", short_hash, orig_file_name)
+            };
+            let b_full =
+                backups_mods.join(backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if !b_full.exists() {
+                if let Some(bp) = b_full.parent() {
+                    let _ = std::fs::create_dir_all(bp);
+                }
+                let _ = std::fs::hard_link(&active_full, &b_full)
+                    .or_else(|_| std::fs::copy(&active_full, &b_full).map(|_| ()));
+            }
+            if b_full.exists() {
+                entries.push(ArchivedModVersion {
+                    rel_path: rel_norm,
+                    dna_hash: hash_lower,
+                    backup_rel_path,
+                    mod_version: meta.mod_version.trim().to_string(),
+                    compatible_versions: meta
+                        .compatible_versions
+                        .iter()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    recorded_at: current_epoch_ms() / 1000,
+                });
+                index_dirty = true;
+            }
+        }
+    }
+
+    let clean_target = target_game_version
+        .trim()
+        .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
+        .trim();
+    if clean_target.is_empty() || clean_target.eq_ignore_ascii_case("unknown") {
+        if index_dirty {
+            save_mod_versions_index(vault_path, &index);
+        }
+        return Vec::new();
+    }
+
+    let mut cache = load_cache(vault_path);
+    let mut cache_dirty = false;
+    let mut swapped = Vec::new();
+
+    for entries in index.values() {
+        if entries.is_empty() {
+            continue;
+        }
+        let rel_norm = &entries[0].rel_path;
+        let active_full = mods_lane.join(rel_norm.replace('/', std::path::MAIN_SEPARATOR_STR));
+        let active_full_str = active_full.to_string_lossy().to_string();
+
+        let current_hash = if let Some(c) = cache.get(&active_full_str) {
+            if !c.dna_hash.is_empty() && active_full.exists() {
+                c.dna_hash.to_lowercase()
+            } else if active_full.exists() {
+                calculate_hash(&active_full).unwrap_or_default().to_lowercase()
+            } else {
+                String::new()
+            }
+        } else if active_full.exists() {
+            calculate_hash(&active_full).unwrap_or_default().to_lowercase()
+        } else {
+            String::new()
+        };
+
+        let current_entry = entries
+            .iter()
+            .find(|e| !current_hash.is_empty() && e.dna_hash.eq_ignore_ascii_case(&current_hash));
+
+        if let Some(cur) = current_entry {
+            if cur.compatible_versions.is_empty()
+                || is_game_version_compatible(&cur.compatible_versions, clean_target)
+            {
+                continue;
+            }
+        } else if active_full.exists() {
+            // Current file is not in version index or has no known version constraint
+            continue;
+        }
+
+        // Look for an archived version that matches clean_target and exists in Backups/Mods
+        let mut best_match: Option<&ArchivedModVersion> = None;
+        for candidate in entries {
+            if candidate.backup_rel_path.is_empty() {
+                continue;
+            }
+            if !is_game_version_compatible(&candidate.compatible_versions, clean_target) {
+                continue;
+            }
+            let b_full = backups_mods
+                .join(candidate.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if !b_full.exists() {
+                continue;
+            }
+            match best_match {
+                None => best_match = Some(candidate),
+                Some(prev) => {
+                    if candidate.recorded_at >= prev.recorded_at {
+                        best_match = Some(candidate);
+                    }
+                }
+            }
+        }
+
+        if let Some(winner) = best_match {
+            if !current_hash.is_empty() && winner.dna_hash.eq_ignore_ascii_case(&current_hash) {
+                continue;
+            }
+            let b_full =
+                backups_mods.join(winner.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if let Some(ap) = active_full.parent() {
+                let _ = std::fs::create_dir_all(ap);
+            }
+            if active_full.exists() {
+                let _ = std::fs::remove_file(&active_full);
+            }
+            let linked = std::fs::hard_link(&b_full, &active_full)
+                .or_else(|_| create_symlink_file(&b_full, &active_full))
+                .or_else(|_| std::fs::copy(&b_full, &active_full).map(|_| ()));
+            if linked.is_ok() {
+                let mtime = std::fs::metadata(&active_full)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                if let Some(c) = cache.get_mut(&active_full_str) {
+                    c.dna_hash = winner.dna_hash.clone();
+                    c.mtime = mtime;
+                    cache_dirty = true;
+                } else {
+                    cache.insert(
+                        active_full_str,
+                        crate::state::CacheEntry {
+                            mtime,
+                            dna_hash: winner.dna_hash.clone(),
+                            explicitly_local: false,
+                            quarantined: false,
+                            heuristic_malware_sig: None,
+                            heuristic_sigs_mtime: 0,
+                        },
+                    );
+                    cache_dirty = true;
+                }
+                swapped.push(winner.clone());
+            }
+        }
+    }
+
+    if index_dirty {
+        save_mod_versions_index(vault_path, &index);
+    }
+    if cache_dirty {
+        save_cache(vault_path, &cache);
+    }
+
+    swapped
+}
+
+
 

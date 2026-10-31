@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton } from "./shared";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
 import { useLexicon } from "./LexiconContext";
@@ -27,6 +27,12 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   const [inspectMod, setInspectMod] = useState<any>(null);
   const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
   const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
+
+  // Strict Tier 0 enforcement: No Tier 1-5 mods appear anywhere in Architect Console
+  const tier0ModList = useMemo(
+    () => (modList || []).filter((m: any) => Number(m?.compliance_tier || 0) === 0),
+    [modList]
+  );
 
   useEffect(() => {
     prefetchArchitectRegistry(false);
@@ -156,7 +162,9 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
       <FileVerificationSidePanel
         isOpen={isVerifyPanelOpen}
         onClose={() => setIsVerifyPanelOpen(false)}
+        isOversight={false}
         onJumpToArtifact={(mod) => {
+          if (Number(mod?.compliance_tier || 0) > 0) return;
           setInspectMod(mod);
           setActiveTab("registry");
         }}
@@ -176,11 +184,11 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
             setRegistryTargetMod(null);
             setInspectMod(null);
           }}
-          modList={modList}
+          modList={tier0ModList}
         />
         {activeTab === "collections" && <CollectionForge setStatus={setStatus} />}
-        {activeTab === "queue" && <ScoutQueue modList={modList || []} setStatus={setStatus} />}
-        {activeTab === "mason_queue" && <MasonQueue modList={modList || []} setStatus={setStatus} />}
+        {activeTab === "queue" && <ScoutQueue modList={tier0ModList} setStatus={setStatus} />}
+        {activeTab === "mason_queue" && <MasonQueue modList={tier0ModList} setStatus={setStatus} />}
         {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
         {activeTab === "nexus_reports" && <NexusReportsViewer onOpenDossier={onOpenDossier} />}
         {activeTab === "support_tickets" && (
@@ -192,7 +200,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
             }}
           />
         )}
-        {activeTab === "lab" && <HomesteadDiagnostics modList={modList || []} setStatus={setStatus} />}
+        {activeTab === "lab" && <HomesteadDiagnostics modList={tier0ModList} setStatus={setStatus} />}
       </div>
       {viewingPost && (
         <MasonPostViewer
@@ -207,6 +215,7 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         isOpen={isMetadataEditorOpen}
         onClose={() => setIsMetadataEditorOpen(false)}
         initialModId={metadataEditorInitialId}
+        isOversight={false}
       />
     </div>
   );

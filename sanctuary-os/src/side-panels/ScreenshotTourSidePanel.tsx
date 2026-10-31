@@ -11,7 +11,7 @@ import {
   ActionButton,
   SidePanelHeroCard,
   UniversalGroup,
-  StatBox,
+  DashboardStatTile,
 } from "../shared";
 import { notifyOS } from "../utils/notificationHelper";
 
@@ -46,6 +46,8 @@ export type TourPanelId =
   | "system_status"
   | "system_logs";
 
+type TourConfigCategory = "themes" | "screens" | "hubs" | "panels";
+
 export interface TourTargetStep {
   id: string;
   view: string;
@@ -61,6 +63,22 @@ export interface TourTargetStep {
   iconFallback: string;
   isSubTab?: boolean;
   isPanel?: boolean;
+}
+
+const SETTLE_DELAY_OPTIONS: { ms: number; label: string }[] = [
+  { ms: 500, label: "500ms" },
+  { ms: 1000, label: "1.0s" },
+  { ms: 1500, label: "1.5s" },
+  { ms: 2500, label: "2.5s" },
+  { ms: 4000, label: "4.0s" },
+];
+
+export function obfuscateUserPath(rawPath?: string | null): string {
+  if (!rawPath) return "";
+  return String(rawPath)
+    .replace(/([A-Za-z]:[\\/][Uu]sers[\\/])([^\\/]+)/g, "$1***")
+    .replace(/(\/[Uu]sers\/)([^/]+)/g, "$1***")
+    .replace(/(\/home\/)([^/]+)/g, "$1***");
 }
 
 const CORE_TOUR_STEPS: TourTargetStep[] = [
@@ -1165,6 +1183,9 @@ export function ScreenshotTourSidePanel({
     }));
   }, [CORE_THEMES, gameThemes, customThemes, devThemes]);
 
+  const [activeCategory, setActiveCategory] =
+    useState<TourConfigCategory>("screens");
+  const [activeHubFilter, setActiveHubFilter] = useState<HubKey | "ALL">("ALL");
   const [selectedThemeIds, setSelectedThemeIds] = useState<string[]>(() => [
     activeThemeId || "architect",
   ]);
@@ -1173,7 +1194,7 @@ export function ScreenshotTourSidePanel({
   );
   const [selectedSubTabIds, setSelectedSubTabIds] = useState<string[]>([]);
   const [selectedPanelIds, setSelectedPanelIds] = useState<string[]>([]);
-  const [settleDelayMs, setSettleDelayMs] = useState<number>(750);
+  const [settleDelayMs, setSettleDelayMs] = useState<number>(1000);
   const [outputDir, setOutputDir] = useState<string>("");
   const [isCapturing, setIsCapturing] = useState(false);
   const [lastSavedCount, setLastSavedCount] = useState<number>(0);
@@ -1211,6 +1232,10 @@ export function ScreenshotTourSidePanel({
   }, [selectedStepIds, selectedSubTabIds, selectedPanelIds]);
 
   const totalPlannedShots = selectedThemeIds.length * activeSteps.length;
+  const scrubbedOutputDir = useMemo(
+    () => obfuscateUserPath(outputDir),
+    [outputDir]
+  );
 
   const toggleTheme = (id: string) => {
     setSelectedThemeIds((prev) =>
@@ -1282,7 +1307,7 @@ export function ScreenshotTourSidePanel({
       setLastSavedCount((c) => c + 1);
       notifyOS(
         t("screenshot_tour_title", "Screenshot Tour"),
-        `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${savedPath}`,
+        `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${obfuscateUserPath(savedPath)}`,
         "SYSTEM"
       ).catch(() => {});
     } catch (err) {
@@ -1325,7 +1350,7 @@ export function ScreenshotTourSidePanel({
       setLastSavedCount((c) => c + 1);
       notifyOS(
         t("screenshot_tour_title", "Screenshot Tour"),
-        `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${savedPath}`,
+        `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${obfuscateUserPath(savedPath)}`,
         "SYSTEM"
       ).catch(() => {});
     } catch (err) {
@@ -1497,7 +1522,7 @@ export function ScreenshotTourSidePanel({
     try {
       // Wait for SidePanel to unmount completely before starting captures
       await waitForNextPaint();
-      await sleep(350);
+      await sleep(380);
 
       for (const themeId of selectedThemeIds) {
         if (abortRef.current) break;
@@ -1506,7 +1531,7 @@ export function ScreenshotTourSidePanel({
 
         setActiveThemeId(themeId);
         await waitForNextPaint();
-        await sleep(Math.max(450, settleDelayMs));
+        await sleep(Math.max(550, settleDelayMs));
 
         for (const step of activeSteps) {
           if (abortRef.current) break;
@@ -1518,15 +1543,20 @@ export function ScreenshotTourSidePanel({
 
           if (step.panelId) {
             await waitForNextPaint();
-            await sleep(220);
+            await sleep(320);
             setPanelState(step.panelId, true);
           }
 
+          const effectiveSettleMs =
+            step.panelId || step.isSubTab
+              ? Math.max(settleDelayMs, 1100)
+              : settleDelayMs;
+
           await waitForNextPaint();
-          await sleep(settleDelayMs);
+          await sleep(effectiveSettleMs);
           window.dispatchEvent(new Event("resize"));
           await waitForNextPaint();
-          await sleep(180);
+          await sleep(220);
 
           try {
             await invoke<string>("capture_window_screenshot", {
@@ -1541,7 +1571,7 @@ export function ScreenshotTourSidePanel({
           if (step.panelId) {
             setPanelState(step.panelId, false);
             await waitForNextPaint();
-            await sleep(120);
+            await sleep(160);
           }
         }
       }
@@ -1581,6 +1611,11 @@ export function ScreenshotTourSidePanel({
   if (isCapturing) {
     return null;
   }
+
+  const visibleHubGroups =
+    activeHubFilter === "ALL"
+      ? HUB_GROUPS
+      : HUB_GROUPS.filter((h) => h.key === activeHubFilter);
 
   return (
     <SidePanel
@@ -1624,16 +1659,19 @@ export function ScreenshotTourSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_photo_camera", "photo_camera")}
-          overline={t("screenshot_tour_subtitle", "Automated Multi-Theme & Full-OS Capture")}
+          overline={t(
+            "screenshot_tour_subtitle",
+            "Automated Multi-Theme & Full-OS Capture"
+          )}
           title={t("screenshot_tour_title", "Screenshot Tour")}
           description={t(
             "screenshot_tour_desc",
             "Automatically step through selected themes and screens across Sanctuary OS and export lossless native PNG captures into organized folders."
           )}
-          badge={`${totalPlannedShots}`}
+          badge={`${totalPlannedShots}${lastSavedCount > 0 ? ` • ${lastSavedCount}` : ""}`}
           variant="accent"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
             <ActionButton
               variant="glass"
               icon={t("icon_add_a_photo", "add_a_photo")}
@@ -1656,398 +1694,472 @@ export function ScreenshotTourSidePanel({
               onClick={handleRunTour}
               className="w-full justify-center"
             />
-            <ActionButton
-              variant="glass"
-              icon={t("icon_folder_open", "folder_open")}
-              label={t("screenshot_tour_open_folder", "Open Folder")}
-              onClick={handleOpenFolder}
-              className="w-full justify-center"
-            />
           </div>
         </SidePanelHeroCard>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
-          <StatBox
-            label={t("screenshot_tour_themes", "Themes to Capture")}
-            value={`${selectedThemeIds.length} / ${allThemes.length}`}
-            icon={t("icon_palette", "palette")}
-          />
-          <StatBox
-            label={t("screenshot_tour_screens", "Screens & Views")}
-            value={`${selectedStepIds.length + selectedSubTabIds.length}`}
-            icon={t("icon_desktop_windows", "desktop_windows")}
-          />
-          <StatBox
-            label={t("screenshot_tour_panels", "Panels & Drawers")}
-            value={`${selectedPanelIds.length}`}
-            icon={t("icon_side_navigation", "side_navigation")}
-          />
-          <StatBox
-            label={t("screenshot_tour_total_shots", "Total Captures")}
-            value={`${totalPlannedShots}${lastSavedCount > 0 ? ` (${lastSavedCount})` : ""}`}
-            icon={t("icon_photo_library", "photo_library")}
-          />
-        </div>
-
-        <div className="glass-surface rounded-2xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-wrap items-center justify-between gap-3">
-          {outputDir ? (
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80">
-                {t("screenshot_tour_output_dir", "Output Directory")}
-              </span>
-              <span className="text-xs font-mono font-bold text-[var(--text)] truncate mt-0.5">
-                {outputDir}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
-              {t("screenshot_tour_settle_delay", "Render Settle Delay")}
-            </span>
-          )}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 glass-surface rounded-xl px-2.5 py-1 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-              <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] mr-1">
-                {t("screenshot_tour_settle_delay", "Render Settle Delay")}
-              </span>
-              {[500, 750, 1100].map((ms) => (
-                <button
-                  key={ms}
-                  type="button"
-                  onClick={() => setSettleDelayMs(ms)}
-                  className={`px-2 py-0.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
-                    settleDelayMs === ms
-                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                      : "bg-transparent border-transparent text-[var(--subtext)] hover:text-[var(--text)]"
-                  }`}
-                >
-                  {`${ms}ms`}
-                </button>
-              ))}
-            </div>
-            {outputDir && (
+        {/* OUTPUT DIRECTORY (SCRUBBED) & RENDER SETTLE DELAY */}
+        <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+          {scrubbedOutputDir && (
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80">
+                  {t("screenshot_tour_output_dir", "Output Directory")}
+                </span>
+                <span className="text-xs font-mono font-bold text-[var(--text)] truncate mt-0.5">
+                  {scrubbedOutputDir}
+                </span>
+              </div>
               <ActionButton
                 variant="glass"
                 icon={t("icon_folder_open", "folder_open")}
                 label={t("screenshot_tour_open_folder", "Open Folder")}
                 onClick={handleOpenFolder}
               />
-            )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                {t("icon_schedule", "schedule")}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                {t("screenshot_tour_settle_delay", "Render Settle Delay")}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SETTLE_DELAY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.ms}
+                  type="button"
+                  onClick={() => setSettleDelayMs(opt.ms)}
+                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
+                    settleDelayMs === opt.ms
+                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                      : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* THEMES SELECTION */}
-        <UniversalGroup
-          title={t("screenshot_tour_themes", "Themes to Capture")}
-          icon={t("icon_palette", "palette")}
-          count={`${selectedThemeIds.length}`}
-          actions={
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedThemeIds([activeThemeId])}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("screenshot_tour_current_only", "Current Only")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedThemeIds(allThemes.map((th) => th.id))}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("all", "All")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedThemeIds([])}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("clear", "Clear")}
-              </button>
-            </div>
-          }
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {allThemes.map((th) => {
-              const isSelected = selectedThemeIds.includes(th.id);
-              return (
+        {/* 2x2 INTERACTIVE CATEGORY FILTER TILES (ZERO TRUNCATION) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+          <DashboardStatTile
+            variant="filter"
+            icon={t("icon_palette", "palette")}
+            label={t("screenshot_tour_themes", "Themes to Capture")}
+            value={`${selectedThemeIds.length} / ${allThemes.length}`}
+            active={activeCategory === "themes"}
+            onClick={() => setActiveCategory("themes")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            icon={t("icon_desktop_windows", "desktop_windows")}
+            label={t("screenshot_tour_screens", "Screens & Views")}
+            value={`${selectedStepIds.length} / ${CORE_TOUR_STEPS.length}`}
+            active={activeCategory === "screens"}
+            onClick={() => setActiveCategory("screens")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            icon={t("icon_account_tree", "account_tree")}
+            label={t(
+              "screenshot_tour_hub_subsections",
+              "Elevated Hub Subsections"
+            )}
+            value={`${selectedSubTabIds.length} / ${HUB_SUBTAB_STEPS.length}`}
+            active={activeCategory === "hubs"}
+            onClick={() => setActiveCategory("hubs")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            icon={t("icon_side_navigation", "side_navigation")}
+            label={t("screenshot_tour_panels", "Panels & Drawers")}
+            value={`${selectedPanelIds.length} / ${PANEL_TOUR_STEPS.length}`}
+            active={activeCategory === "panels"}
+            onClick={() => setActiveCategory("panels")}
+          />
+        </div>
+
+        {/* 1. THEMES SELECTION */}
+        {activeCategory === "themes" && (
+          <UniversalGroup
+            title={t("screenshot_tour_themes", "Themes to Capture")}
+            icon={t("icon_palette", "palette")}
+            count={`${selectedThemeIds.length} / ${allThemes.length}`}
+            actions={
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={th.id}
                   type="button"
-                  onClick={() => toggleTheme(th.id)}
-                  className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    isSelected
-                      ? "border-[var(--accent)] text-[var(--text)]"
-                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                  }`}
+                  onClick={() => setSelectedThemeIds([activeThemeId])}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
                 >
-                  <span
-                    className="w-4 h-4 rounded-md border border-white/25 shrink-0"
-                    style={{
-                      background: `linear-gradient(135deg, ${th.bg} 45%, ${th.accent} 100%)`,
-                    }}
-                  />
-                  <span className="text-xs font-black tracking-tight truncate flex-1">
-                    {th.name}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                      isSelected ? "text-[var(--accent)]" : "opacity-30"
-                    }`}
-                  >
-                    {isSelected
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_radio_button_unchecked", "radio_button_unchecked")}
-                  </span>
+                  {t("screenshot_tour_current_only", "Current Only")}
                 </button>
-              );
-            })}
-          </div>
-        </UniversalGroup>
-
-        {/* SCREENS & VIEWS SELECTION */}
-        <UniversalGroup
-          title={t("screenshot_tour_screens", "Screens & Views")}
-          icon={t("icon_desktop_windows", "desktop_windows")}
-          count={`${selectedStepIds.length}`}
-          actions={
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedStepIds(CORE_TOUR_STEPS.map((s) => s.id))
-                }
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("all", "All")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedStepIds([])}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("clear", "Clear")}
-              </button>
-            </div>
-          }
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {CORE_TOUR_STEPS.map((step) => {
-              const isSelected = selectedStepIds.includes(step.id);
-              return (
                 <button
-                  key={step.id}
                   type="button"
-                  onClick={() => toggleStep(step.id)}
-                  className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    isSelected
-                      ? "border-[var(--accent)] text-[var(--text)]"
-                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                  }`}
+                  onClick={() =>
+                    setSelectedThemeIds(allThemes.map((th) => th.id))
+                  }
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
                 >
-                  <span
-                    className={`material-symbols-outlined !text-[17px] shrink-0 ${
-                      isSelected ? "text-[var(--accent)]" : "text-[var(--subtext)]"
-                    }`}
-                  >
-                    {t(step.iconKey, step.iconFallback)}
-                  </span>
-                  <span className="text-xs font-black tracking-tight truncate flex-1">
-                    {t(step.labelKey, step.labelFallback)}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                      isSelected ? "text-[var(--accent)]" : "opacity-30"
-                    }`}
-                  >
-                    {isSelected
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_radio_button_unchecked", "radio_button_unchecked")}
-                  </span>
+                  {t("all", "All")}
                 </button>
-              );
-            })}
-          </div>
-        </UniversalGroup>
-
-        {/* ELEVATED HUB SUBSECTIONS (ALL 43 SUB-TABS ACROSS 5 HUBS) */}
-        <UniversalGroup
-          title={t("screenshot_tour_hub_subsections", "Elevated Hub Subsections")}
-          icon={t("icon_account_tree", "account_tree")}
-          count={`${selectedSubTabIds.length} / ${HUB_SUBTAB_STEPS.length}`}
-          actions={
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedSubTabIds(HUB_SUBTAB_STEPS.map((s) => s.id))
-                }
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("all", "All")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedSubTabIds([])}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("clear", "Clear")}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-3.5">
-            {HUB_GROUPS.map((hub) => {
-              const hubSteps = HUB_SUBTAB_STEPS.filter(
-                (s) => s.subTabKey === hub.key
-              );
-              const selectedInHub = hubSteps.filter((s) =>
-                selectedSubTabIds.includes(s.id)
-              ).length;
-              const allInHubSelected =
-                hubSteps.length > 0 && selectedInHub === hubSteps.length;
-
-              return (
-                <div
-                  key={hub.key}
-                  className="glass-surface rounded-2xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5"
+                <button
+                  type="button"
+                  onClick={() => setSelectedThemeIds([])}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                        {t(hub.iconKey, hub.iconFallback)}
-                      </span>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
-                        {t(hub.labelKey, hub.labelFallback)}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black text-[var(--subtext)]">
-                        {`${selectedInHub}/${hubSteps.length}`}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleHubSubTabs(hub.key)}
-                      className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        allInHubSelected
-                          ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                          : "glass-surface border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                  {t("clear", "Clear")}
+                </button>
+              </div>
+            }
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {allThemes.map((th) => {
+                const isSelected = selectedThemeIds.includes(th.id);
+                return (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={() => toggleTheme(th.id)}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-[var(--accent)] text-[var(--text)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <span
+                      className="w-4 h-4 rounded-md border border-white/25 shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${th.bg} 45%, ${th.accent} 100%)`,
+                      }}
+                    />
+                    <span className="text-xs font-black tracking-tight truncate flex-1">
+                      {th.name}
+                    </span>
+                    <span
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                        isSelected ? "text-[var(--accent)]" : "opacity-30"
                       }`}
                     >
-                      {allInHubSelected ? t("clear", "Clear") : t("all", "All")}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {hubSteps.map((step) => {
-                      const isSelected = selectedSubTabIds.includes(step.id);
-                      return (
-                        <button
-                          key={step.id}
-                          type="button"
-                          onClick={() => toggleSubTab(step.id)}
-                          className={`glass-surface rounded-xl px-2.5 py-2 border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                            isSelected
-                              ? "border-[var(--accent)] text-[var(--text)]"
-                              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                          }`}
-                        >
-                          <span
-                            className={`material-symbols-outlined !text-[15px] shrink-0 ${
-                              isSelected
-                                ? "text-[var(--accent)]"
-                                : "text-[var(--subtext)]"
-                            }`}
-                          >
-                            {t(step.iconKey, step.iconFallback)}
-                          </span>
-                          <span className="text-[11px] font-black tracking-tight truncate flex-1">
-                            {t(step.labelKey, step.labelFallback)}
-                          </span>
-                          <span
-                            className={`material-symbols-outlined !text-[15px] shrink-0 ${
-                              isSelected ? "text-[var(--accent)]" : "opacity-30"
-                            }`}
-                          >
-                            {isSelected
-                              ? t("icon_check_circle", "check_circle")
-                              : t(
-                                  "icon_radio_button_unchecked",
-                                  "radio_button_unchecked"
-                                )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </UniversalGroup>
-
-        {/* PANELS & DRAWERS SELECTION */}
-        <UniversalGroup
-          title={t("screenshot_tour_panels", "Panels & Drawers")}
-          icon={t("icon_side_navigation", "side_navigation")}
-          count={`${selectedPanelIds.length} / ${PANEL_TOUR_STEPS.length}`}
-          actions={
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedPanelIds(PANEL_TOUR_STEPS.map((s) => s.id))
-                }
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("all", "All")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedPanelIds([])}
-                className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
-              >
-                {t("clear", "Clear")}
-              </button>
+                      {isSelected
+                        ? t("icon_check_circle", "check_circle")
+                        : t(
+                            "icon_radio_button_unchecked",
+                            "radio_button_unchecked"
+                          )}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          }
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {PANEL_TOUR_STEPS.map((step) => {
-              const isSelected = selectedPanelIds.includes(step.id);
-              return (
+          </UniversalGroup>
+        )}
+
+        {/* 2. SCREENS & VIEWS SELECTION */}
+        {activeCategory === "screens" && (
+          <UniversalGroup
+            title={t("screenshot_tour_screens", "Screens & Views")}
+            icon={t("icon_desktop_windows", "desktop_windows")}
+            count={`${selectedStepIds.length} / ${CORE_TOUR_STEPS.length}`}
+            actions={
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={step.id}
                   type="button"
-                  onClick={() => togglePanel(step.id)}
-                  className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                    isSelected
-                      ? "border-[var(--accent)] text-[var(--text)]"
-                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                  onClick={() =>
+                    setSelectedStepIds(CORE_TOUR_STEPS.map((s) => s.id))
+                  }
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("all", "All")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStepIds([])}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("clear", "Clear")}
+                </button>
+              </div>
+            }
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {CORE_TOUR_STEPS.map((step) => {
+                const isSelected = selectedStepIds.includes(step.id);
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => toggleStep(step.id)}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-[var(--accent)] text-[var(--text)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <span
+                      className={`material-symbols-outlined !text-[17px] shrink-0 ${
+                        isSelected
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(step.iconKey, step.iconFallback)}
+                    </span>
+                    <span className="text-xs font-black tracking-tight truncate flex-1">
+                      {t(step.labelKey, step.labelFallback)}
+                    </span>
+                    <span
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                        isSelected ? "text-[var(--accent)]" : "opacity-30"
+                      }`}
+                    >
+                      {isSelected
+                        ? t("icon_check_circle", "check_circle")
+                        : t(
+                            "icon_radio_button_unchecked",
+                            "radio_button_unchecked"
+                          )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </UniversalGroup>
+        )}
+
+        {/* 3. ELEVATED HUB SUBSECTIONS (ALL 43 SUB-TABS ACROSS 5 HUBS) */}
+        {activeCategory === "hubs" && (
+          <UniversalGroup
+            title={t(
+              "screenshot_tour_hub_subsections",
+              "Elevated Hub Subsections"
+            )}
+            icon={t("icon_account_tree", "account_tree")}
+            count={`${selectedSubTabIds.length} / ${HUB_SUBTAB_STEPS.length}`}
+            actions={
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedSubTabIds(HUB_SUBTAB_STEPS.map((s) => s.id))
+                  }
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("all", "All")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubTabIds([])}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("clear", "Clear")}
+                </button>
+              </div>
+            }
+          >
+            <div className="flex flex-col gap-3.5">
+              {/* Hub Filter Pill Row */}
+              <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveHubFilter("ALL")}
+                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    activeHubFilter === "ALL"
+                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                      : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                   }`}
                 >
-                  <span
-                    className={`material-symbols-outlined !text-[17px] shrink-0 ${
-                      isSelected ? "text-[var(--accent)]" : "text-[var(--subtext)]"
-                    }`}
-                  >
-                    {t(step.iconKey, step.iconFallback)}
-                  </span>
-                  <span className="text-xs font-black tracking-tight truncate flex-1">
-                    {t(step.labelKey, step.labelFallback)}
-                  </span>
-                  <span
-                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                      isSelected ? "text-[var(--accent)]" : "opacity-30"
-                    }`}
-                  >
-                    {isSelected
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_radio_button_unchecked", "radio_button_unchecked")}
-                  </span>
+                  {t("all", "All")}
                 </button>
-              );
-            })}
-          </div>
-        </UniversalGroup>
+                {HUB_GROUPS.map((hub) => (
+                  <button
+                    key={hub.key}
+                    type="button"
+                    onClick={() => setActiveHubFilter(hub.key)}
+                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                      activeHubFilter === hub.key
+                        ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                        : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t(hub.iconKey, hub.iconFallback)}
+                    </span>
+                    <span>{t(hub.labelKey, hub.labelFallback)}</span>
+                  </button>
+                ))}
+              </div>
+
+              {visibleHubGroups.map((hub) => {
+                const hubSteps = HUB_SUBTAB_STEPS.filter(
+                  (s) => s.subTabKey === hub.key
+                );
+                const selectedInHub = hubSteps.filter((s) =>
+                  selectedSubTabIds.includes(s.id)
+                ).length;
+                const allInHubSelected =
+                  hubSteps.length > 0 && selectedInHub === hubSteps.length;
+
+                return (
+                  <div
+                    key={hub.key}
+                    className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {t(hub.iconKey, hub.iconFallback)}
+                        </span>
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
+                          {t(hub.labelKey, hub.labelFallback)}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black text-[var(--subtext)]">
+                          {`${selectedInHub} / ${hubSteps.length}`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleHubSubTabs(hub.key)}
+                        className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                          allInHubSelected
+                            ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                            : "glass-surface border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                        }`}
+                      >
+                        {allInHubSelected
+                          ? t("clear", "Clear")
+                          : t("all", "All")}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {hubSteps.map((step) => {
+                        const isSelected = selectedSubTabIds.includes(step.id);
+                        return (
+                          <button
+                            key={step.id}
+                            type="button"
+                            onClick={() => toggleSubTab(step.id)}
+                            className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                              isSelected
+                                ? "border-[var(--accent)] text-[var(--text)]"
+                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            <span
+                              className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                isSelected
+                                  ? "text-[var(--accent)]"
+                                  : "text-[var(--subtext)]"
+                              }`}
+                            >
+                              {t(step.iconKey, step.iconFallback)}
+                            </span>
+                            <span className="text-xs font-black tracking-tight truncate flex-1">
+                              {t(step.labelKey, step.labelFallback)}
+                            </span>
+                            <span
+                              className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                isSelected
+                                  ? "text-[var(--accent)]"
+                                  : "opacity-30"
+                              }`}
+                            >
+                              {isSelected
+                                ? t("icon_check_circle", "check_circle")
+                                : t(
+                                    "icon_radio_button_unchecked",
+                                    "radio_button_unchecked"
+                                  )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </UniversalGroup>
+        )}
+
+        {/* 4. PANELS & DRAWERS SELECTION */}
+        {activeCategory === "panels" && (
+          <UniversalGroup
+            title={t("screenshot_tour_panels", "Panels & Drawers")}
+            icon={t("icon_side_navigation", "side_navigation")}
+            count={`${selectedPanelIds.length} / ${PANEL_TOUR_STEPS.length}`}
+            actions={
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedPanelIds(PANEL_TOUR_STEPS.map((s) => s.id))
+                  }
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("all", "All")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPanelIds([])}
+                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] transition-all cursor-pointer"
+                >
+                  {t("clear", "Clear")}
+                </button>
+              </div>
+            }
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {PANEL_TOUR_STEPS.map((step) => {
+                const isSelected = selectedPanelIds.includes(step.id);
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => togglePanel(step.id)}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-[var(--accent)] text-[var(--text)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <span
+                      className={`material-symbols-outlined !text-[17px] shrink-0 ${
+                        isSelected
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {t(step.iconKey, step.iconFallback)}
+                    </span>
+                    <span className="text-xs font-black tracking-tight truncate flex-1">
+                      {t(step.labelKey, step.labelFallback)}
+                    </span>
+                    <span
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                        isSelected ? "text-[var(--accent)]" : "opacity-30"
+                      }`}
+                    >
+                      {isSelected
+                        ? t("icon_check_circle", "check_circle")
+                        : t(
+                            "icon_radio_button_unchecked",
+                            "radio_button_unchecked"
+                          )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </UniversalGroup>
+        )}
       </div>
     </SidePanel>
   );

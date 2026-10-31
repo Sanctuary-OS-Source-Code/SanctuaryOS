@@ -116,7 +116,17 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   useEffect(() => {
     let unlisten: any;
     tauriBridge.listenToDnaMatch((payload: any) => {
-      if (payload.hash && ignoredHashesRef.current.has(payload.hash)) return;
+      if (payload.hash && ignoredHashesRef.current.has(payload.hash)) {
+        if (payload.path) {
+          invoke("resolve_dna_match", {
+            path: payload.path,
+            existingName: payload.existing_name || "",
+            action: "ignore",
+            moveOriginal: false,
+          }).catch(() => {});
+        }
+        return;
+      }
       setDnaMatchQueue((prev: any[]) => {
         if (prev.some(m => (m.hash && m.hash === payload.hash) || m.path === payload.path)) return prev;
         return [...prev, payload];

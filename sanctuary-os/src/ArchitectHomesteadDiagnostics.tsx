@@ -125,7 +125,7 @@ export function HomesteadDiagnostics({
         logsData.forEach((log: any) => {
           let mod = log.mods;
           if (Array.isArray(mod)) mod = mod[0];
-          if (!mod) return;
+          if (!mod || Number(mod?.compliance_tier || 0) > 0) return;
 
           const effectiveStatus =
             log.status === "pending" && mod.status !== "verified" && mod.status !== "broken"
@@ -162,10 +162,12 @@ export function HomesteadDiagnostics({
       const { data: mData } = await fetchAllPaginated(() =>
         supabase
           .from("mods")
-          .select("id, name, master_author, latest_version, url, file_extension")
+          .select("id, name, master_author, latest_version, url, file_extension, compliance_tier")
           .order("name")
       );
-      if (mData) setAllMods(mData);
+      if (mData) {
+        setAllMods(mData.filter((m: any) => Number(m?.compliance_tier || 0) === 0));
+      }
     };
     fetchData();
     return () => {

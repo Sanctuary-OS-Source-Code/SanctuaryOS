@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
 import { isVersionMatch, getExtensionRegex, parseStringArray } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useModalStore } from "../store/modalStore";
 import { notifyOS } from "../utils/notificationHelper";
 import { precomputeBlueprintConflicts } from "./usePlaySetLogic";
@@ -283,7 +283,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         }
       })();
 
-      const [, rawLocalMods, sandboxMods] = await Promise.all([
+      const [, rawLocalMods, sandboxMods, archivedVersions] = await Promise.all([
         fetchVault(),
         invoke<any[]>("scan_bunker", {
           vaultPath: config.vault_path,
@@ -293,6 +293,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           console.error("Failed to scan sandbox:", e);
           return [];
         }),
+        invoke<any[]>("get_archived_mod_versions", { vaultPath: config.vault_path }).catch(() => []),
         backgroundMaintenancePromise,
       ]);
 
@@ -381,7 +382,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         return initialList;
       });
       await yieldToMain();
-      const hashes = [...new Set(localMods.map((m) => m.hash).filter((h) => !!h))];
+      const hashes = [
+        ...new Set(
+          [
+            ...localMods.map((m) => m.hash),
+            ...(archivedVersions || []).map((a: any) => a?.dna_hash),
+          ].filter((h) => !!h)
+        ),
+      ];
       let allCloudData: any[] = [];
       let flavorData: any[] = [],
         flavorGroupNames: Record<string, string> = {};
@@ -614,100 +622,6 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
          depsMap.get(cid).push(d);
       });
 
-      const dirMap = new Map();
-      const bossVersionMap = new Map();
-      
-      localMods.forEach(m => {
-        const rawCm = cloudMap.get(String(m.hash));
-        const rawDbM = getDbMod(rawCm);
-        const isRestricted = isCloudMetadataRestricted(rawDbM);
-        const cm = isRestricted ? null : rawCm;
-        const dbM = isRestricted ? null : rawDbM;
-        const f = isRestricted ? undefined : flavorMap.get(String(m.hash));
-        
-        const dbId = dbM?.id ? String(dbM.id) : null;
-        const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
-        const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
-        
-        const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
-        const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
-        const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
-        
-        let bId = dbId || (f ? String(f.group_id) : null);
-        if (addonRel) {
-            bId = String(addonRel.parent_id);
-        } else if (twinRel) {
-            bId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
-        } else if (childTwinRel) {
-            bId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
-        }
-
-        let isTracingBoss1 = true;
-        let safetyTraceCount1 = 0;
-        
-        while (isTracingBoss1 && bId && safetyTraceCount1 < 5) {
-            const nextLevelRels = parentRelMap.get(bId) || [];
-            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
-            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
-            
-            let upperBossId = null;
-            if (nextAddonRel) {
-                upperBossId = String(nextAddonRel.parent_id);
-            } else if (nextTwinRel) {
-                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
-            }
-
-            if (upperBossId && upperBossId !== bId) {
-                bId = upperBossId; 
-                safetyTraceCount1++;
-            } else {
-                isTracingBoss1 = false; 
-            }
-        }
-
-        if (bId && cm && cm.version_label && !cm.version_label.includes(',')) {
-           const existing = bossVersionMap.get(bId);
-           if (!existing || cm.version_label.localeCompare(existing, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
-               bossVersionMap.set(bId, cm.version_label);
-           }
-        }
-
-        const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
-        if (dir && dir.length > 0) {
-            const existing = dirMap.get(dir);
-            const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
-            
-            const effectiveBossId = bId || `local_dir_${dir}`;
-            
-            if (!existing || effectiveBossId === dbId || bId === dbId) {
-                let shouldSet = true;
-                let nextBossId: string | null = effectiveBossId;
-                if (existing && existing.bossId === effectiveBossId) {
-                    if (!existing.isTwinGroup && isTwinGroup) {
-                        existing.isTwinGroup = true; 
-                    }
-                    if (existing.cloudMatch?.version_label && !cm?.version_label) {
-                        shouldSet = false;
-                    } 
-                    else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
-                        shouldSet = false; 
-                    }
-                } else if (existing && existing.bossId !== effectiveBossId) {
-                    if (existing.bossId?.startsWith('local_dir_') && !effectiveBossId.startsWith('local_dir_')) {
-                        nextBossId = effectiveBossId;
-                    } else if (!existing.bossId?.startsWith('local_dir_')) {
-                        nextBossId = existing.bossId;
-                    }
-                } else if (existing && existing.isTwinGroup && !isTwinGroup) {
-                    shouldSet = false; 
-                }
-                if (shouldSet) {
-                    dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm || existing?.cloudMatch, dbMod: dbM || existing?.dbMod, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
-                }
-            }
-        }
-      });
-
       // Hydrate static Edge Network manifests from local SQLite + localStorage
       const edgeLogic: Record<string, any> = (() => {
         try {
@@ -843,6 +757,197 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       } catch (e) {
         console.warn("SQLite edge manifest hydration error:", e);
       }
+
+      // Archive & automatically link matching mod binary versions from <Vault>/Backups/Mods for the active game version
+      try {
+        if (config?.vault_path) {
+          const resolveCompVersions = (hashStr: string, fallbackArr?: string[]): string[] => {
+            if (!hashStr) return fallbackArr || [];
+            const ovr = earlyLocalOvr[hashStr];
+            if (Array.isArray(ovr?.compatible_versions) && ovr.compatible_versions.length > 0) {
+              return ovr.compatible_versions.map((v: any) => String(v).trim()).filter(Boolean);
+            }
+            const rawCm = cloudMap.get(String(hashStr));
+            const rawDbM = getDbMod(rawCm);
+            const isRestricted = isCloudMetadataRestricted(rawDbM);
+            const cm = isRestricted ? null : rawCm;
+            const dbM = isRestricted ? null : rawDbM;
+            const edge = edgeLogic[hashStr];
+            const raw =
+              cm?.game_version ||
+              dbM?.compatible_versions ||
+              (edge?.game_version ? [edge.game_version] : fallbackArr || []);
+            if (Array.isArray(raw)) {
+              return raw.map((v: any) => String(v).trim()).filter(Boolean);
+            }
+            if (typeof raw === "string") {
+              return raw
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+            }
+            return [];
+          };
+
+          const resolveVersionLabel = (hashStr: string, fallbackLabel?: string): string | null => {
+            if (!hashStr) return fallbackLabel || null;
+            const ovr = earlyLocalOvr[hashStr];
+            const rawCm = cloudMap.get(String(hashStr));
+            const rawDbM = getDbMod(rawCm);
+            const cm = isCloudMetadataRestricted(rawDbM) ? null : rawCm;
+            const edge = edgeLogic[hashStr];
+            return ovr?.version || cm?.version_label || edge?.version || fallbackLabel || null;
+          };
+
+          const versionMetadata: any[] = [];
+          for (const m of localMods) {
+            if (!m || m.is_sandbox || !m.hash || !m.name) continue;
+            versionMetadata.push({
+              rel_path: String(m.name),
+              dna_hash: String(m.hash),
+              version_label: resolveVersionLabel(String(m.hash)),
+              compatible_versions: resolveCompVersions(String(m.hash)),
+            });
+          }
+          for (const a of archivedVersions || []) {
+            if (!a || !a.dna_hash || !a.rel_path) continue;
+            versionMetadata.push({
+              rel_path: String(a.rel_path),
+              dna_hash: String(a.dna_hash),
+              version_label: resolveVersionLabel(String(a.dna_hash), a.version_label),
+              compatible_versions: resolveCompVersions(
+                String(a.dna_hash),
+                Array.isArray(a.compatible_versions) ? a.compatible_versions : []
+              ),
+            });
+          }
+
+          const targetGameVersion = String(
+            selectedVersion || useStore.getState().selectedVersion || ""
+          ).trim();
+          const swappedMods = await invoke<any[]>("sync_mod_versions_to_game", {
+            vaultPath: config.vault_path,
+            targetGameVersion,
+            versionMetadata,
+          }).catch(() => []);
+
+          if (Array.isArray(swappedMods) && swappedMods.length > 0) {
+            for (const swapped of swappedMods) {
+              const targetRel = String(swapped?.rel_path || "")
+                .replace(/\\/g, "/")
+                .toLowerCase();
+              const nextHash = String(swapped?.dna_hash || "");
+              if (!targetRel || !nextHash) continue;
+              for (const lm of localMods) {
+                if (
+                  !lm?.is_sandbox &&
+                  String(lm?.name || "")
+                    .replace(/\\/g, "/")
+                    .toLowerCase() === targetRel
+                ) {
+                  lm.hash = nextHash;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Mod version pool sync error:", e);
+      }
+
+      const dirMap = new Map();
+      const bossVersionMap = new Map();
+      
+      localMods.forEach(m => {
+        const rawCm = cloudMap.get(String(m.hash));
+        const rawDbM = getDbMod(rawCm);
+        const isRestricted = isCloudMetadataRestricted(rawDbM);
+        const cm = isRestricted ? null : rawCm;
+        const dbM = isRestricted ? null : rawDbM;
+        const f = isRestricted ? undefined : flavorMap.get(String(m.hash));
+        
+        const dbId = dbM?.id ? String(dbM.id) : null;
+        const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
+        const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
+        
+        const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
+        const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
+        const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
+        
+        let bId = dbId || (f ? String(f.group_id) : null);
+        if (addonRel) {
+            bId = String(addonRel.parent_id);
+        } else if (twinRel) {
+            bId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
+        } else if (childTwinRel) {
+            bId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+        }
+
+        let isTracingBoss1 = true;
+        let safetyTraceCount1 = 0;
+        
+        while (isTracingBoss1 && bId && safetyTraceCount1 < 5) {
+            const nextLevelRels = parentRelMap.get(bId) || [];
+            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
+            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
+            
+            let upperBossId = null;
+            if (nextAddonRel) {
+                upperBossId = String(nextAddonRel.parent_id);
+            } else if (nextTwinRel) {
+                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
+            }
+
+            if (upperBossId && upperBossId !== bId) {
+                bId = upperBossId; 
+                safetyTraceCount1++;
+            } else {
+                isTracingBoss1 = false; 
+            }
+        }
+
+        if (bId && cm && cm.version_label && !cm.version_label.includes(',')) {
+           const existing = bossVersionMap.get(bId);
+           if (!existing || cm.version_label.localeCompare(existing, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
+               bossVersionMap.set(bId, cm.version_label);
+           }
+        }
+
+        const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
+        if (dir && dir.length > 0) {
+            const existing = dirMap.get(dir);
+            const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
+            
+            const effectiveBossId = bId || `local_dir_${dir}`;
+            
+            if (!existing || effectiveBossId === dbId || bId === dbId) {
+                let shouldSet = true;
+                let nextBossId: string | null = effectiveBossId;
+                if (existing && existing.bossId === effectiveBossId) {
+                    if (!existing.isTwinGroup && isTwinGroup) {
+                        existing.isTwinGroup = true; 
+                    }
+                    if (existing.cloudMatch?.version_label && !cm?.version_label) {
+                        shouldSet = false;
+                    } 
+                    else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
+                        shouldSet = false; 
+                    }
+                } else if (existing && existing.bossId !== effectiveBossId) {
+                    if (existing.bossId?.startsWith('local_dir_') && !effectiveBossId.startsWith('local_dir_')) {
+                        nextBossId = effectiveBossId;
+                    } else if (!existing.bossId?.startsWith('local_dir_')) {
+                        nextBossId = existing.bossId;
+                    }
+                } else if (existing && existing.isTwinGroup && !isTwinGroup) {
+                    shouldSet = false; 
+                }
+                if (shouldSet) {
+                    dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm || existing?.cloudMatch, dbMod: dbM || existing?.dbMod, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
+                }
+            }
+        }
+      });
 
       // Push Edge Network conflicts into globalConflicts (works both online & offline)
       try {
@@ -1822,6 +1927,31 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       useModalStore.getState().setIsSilentScanning(false);
     }
   }
+
+  const prevSelectedVersionRef = useRef<string>("");
+  useEffect(() => {
+    if (!isDesktop()) return;
+    const cleanVer = String(selectedVersion || "").trim();
+    if (!cleanVer) return;
+    if (prevSelectedVersionRef.current && prevSelectedVersionRef.current !== cleanVer) {
+      (async () => {
+        try {
+          const cfg: any = await invoke("get_saved_coordinates");
+          if (cfg?.vault_path) {
+            const swapped = await invoke<any[]>("sync_mod_versions_to_game", {
+              vaultPath: cfg.vault_path,
+              targetGameVersion: cleanVer,
+              versionMetadata: [],
+            }).catch(() => []);
+            if (Array.isArray(swapped) && swapped.length > 0) {
+              runRadarSweep(true, true);
+            }
+          }
+        } catch {}
+      })();
+    }
+    prevSelectedVersionRef.current = cleanVer;
+  }, [selectedVersion]);
 
   return { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert };
 }

@@ -969,6 +969,12 @@ pub async fn deploy_playset_bulk(
         let config_exts = crate::game_logic::get_config_extensions(&game_schema);
         crate::utils::deduplicate_vault_root_configs(&vault_mods_lane, &config_exts);
         let saved_coords = get_saved_coordinates();
+        if let Ok(live_ver) = crate::commands::game_info::rip_game_version_with_schema(
+            &saved_coords.live_path,
+            &game_schema,
+        ) {
+            let _ = crate::utils::sync_vault_mod_versions_for_game(&vault_path, &live_ver, &[]);
+        }
         let live_root =
             crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, &game_schema);
         let docs_root = crate::game_logic::resolve_user_data_root(&mods_path, &game_schema);
