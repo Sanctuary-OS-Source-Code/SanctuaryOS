@@ -748,7 +748,7 @@ export default function VersionTimeline({
             <DashboardStatTile
               variant="filter"
               icon={t('icon_history', 'history')}
-              title={t('cw_all_snapshots_filter', 'All Snapshots')}
+              label={t('cw_all_snapshots_filter', 'All Snapshots')}
               value={history.length}
               isActive={timelineFilter === 'all'}
               onClick={() => setTimelineFilter('all')}
@@ -757,7 +757,7 @@ export default function VersionTimeline({
             <DashboardStatTile
               variant="filter"
               icon={t('icon_sports_esports', 'sports_esports')}
-              title={t('cw_in_game_edits_filter', 'In-Game Edits')}
+              label={t('cw_in_game_edits_filter', 'In-Game Edits')}
               value={inGameSnapshotCount}
               isActive={timelineFilter === 'ingame'}
               onClick={() => setTimelineFilter(timelineFilter === 'ingame' ? 'all' : 'ingame')}
@@ -766,7 +766,7 @@ export default function VersionTimeline({
             <DashboardStatTile
               variant="filter"
               icon={t('icon_push_pin', 'push_pin')}
-              title={t('cw_pinned_snapshots_filter', 'Pinned')}
+              label={t('cw_pinned_snapshots_filter', 'Pinned')}
               value={pinnedSnapshotCount}
               isActive={timelineFilter === 'pinned'}
               onClick={() => setTimelineFilter(timelineFilter === 'pinned' ? 'all' : 'pinned')}
@@ -836,8 +836,8 @@ export default function VersionTimeline({
                               : t('icon_check_circle', 'check_circle')}
                           </span>
                         </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[13px] font-black tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-[13px] font-black tracking-normal text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate pr-1">
                             {t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')}
                           </span>
                           <span className="text-[10.5px] text-[var(--subtext)] opacity-75 line-clamp-1">
@@ -979,14 +979,14 @@ export default function VersionTimeline({
                                 />
                               ) : (
                                 <span
-                                  className="text-[13px] font-black tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors flex items-center gap-1.5 min-w-0"
+                                  className="text-[13px] font-black tracking-normal text-[var(--text)] group-hover:text-[var(--accent)] transition-colors flex items-center gap-1.5 min-w-0 flex-1"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingTimestamp(entry.timestamp);
                                     setEditNameValue(entry.name || '');
                                   }}
                                 >
-                                  <span className="truncate block">{displayTitle}</span>
+                                  <span className="truncate block pr-1">{displayTitle}</span>
                                   <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)] opacity-0 group-hover:opacity-65 transition-opacity shrink-0">
                                     {t('icon_edit', 'edit')}
                                   </span>
@@ -1282,7 +1282,7 @@ export default function VersionTimeline({
               <DashboardStatTile
                 variant="filter"
                 icon={t('icon_track_changes', 'track_changes')}
-                title={t('diff_changed_only', 'Changed Only')}
+                label={t('diff_changed_only', 'Changed Only')}
                 value={changedItemsCount}
                 isActive={diffOnlyChanged}
                 onClick={() => setDiffOnlyChanged(true)}
@@ -1291,7 +1291,7 @@ export default function VersionTimeline({
               <DashboardStatTile
                 variant="filter"
                 icon={t('icon_grid_view', 'grid_view')}
-                title={t('cat_all', 'All Settings')}
+                label={t('cat_all', 'All Settings')}
                 value={visualDiffItems.length}
                 isActive={!diffOnlyChanged}
                 onClick={() => setDiffOnlyChanged(false)}
