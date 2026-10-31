@@ -234,6 +234,7 @@ export function GlobalCommandPalette({
 
   const activeBlueprintModsSet = useMemo(() => {
     const set = new Set<string>();
+    if (!isOpen) return set;
     const currentSet = (playSets || []).find(
       (ps: any) => String(ps?.name || "").toLowerCase() === String(activeSetName || "").toLowerCase()
     );
@@ -245,7 +246,7 @@ export function GlobalCommandPalette({
       }
     }
     return set;
-  }, [playSets, activeSetName]);
+  }, [isOpen, playSets, activeSetName]);
 
   const navigateToLandingTab = useCallback(
     (tabId: string) => {
@@ -279,6 +280,7 @@ export function GlobalCommandPalette({
   );
 
   const allItems = useMemo<CommandItem[]>(() => {
+    if (!isOpen) return [];
     const items: CommandItem[] = [];
     const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
     const isWebRootOnly = !isDesktop() && isRootDomain() && !isConfigured;
@@ -1133,6 +1135,7 @@ export function GlobalCommandPalette({
 
     return items;
   }, [
+    isOpen,
     t,
     view,
     modList,

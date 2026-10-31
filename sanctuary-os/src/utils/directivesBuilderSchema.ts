@@ -1,11 +1,14 @@
 import { DirectiveSlug } from "./directivesSync";
 
+export type RoadmapMilestoneStatus = "in_progress" | "in_testing" | "completed";
+
 export interface DirectiveBuilderSubCard {
   id: string;
   icon: string;
   title: string;
   desc: string;
   pending?: boolean;
+  roadmapStatus?: RoadmapMilestoneStatus;
 }
 
 export interface DirectiveBuilderCard {
@@ -18,8 +21,80 @@ export interface DirectiveBuilderCard {
   desc: string;
   tip?: string;
   codeSnippet?: string;
-  status?: "active" | "completed" | "passkey" | "citizen" | "warning" | "danger" | "info";
+  status?:
+    | "active"
+    | "in_testing"
+    | "completed"
+    | "passkey"
+    | "citizen"
+    | "warning"
+    | "danger"
+    | "info";
   subCards: DirectiveBuilderSubCard[];
+}
+
+export function resolveRoadmapSubCardStatus(sub?: {
+  pending?: boolean;
+  roadmapStatus?: RoadmapMilestoneStatus;
+  title?: string;
+  desc?: string;
+} | null): RoadmapMilestoneStatus {
+  if (!sub) return "completed";
+  if (
+    sub.roadmapStatus === "in_progress" ||
+    sub.roadmapStatus === "in_testing" ||
+    sub.roadmapStatus === "completed"
+  ) {
+    return sub.roadmapStatus;
+  }
+  const combined = `${sub.title || ""} ${sub.desc || ""}`;
+  if (
+    /in\s+testing|in\s+dev\s+build/i.test(combined) ||
+    combined.includes("🧪")
+  ) {
+    return "in_testing";
+  }
+  if (
+    sub.pending === true ||
+    /in\s+progress/i.test(combined) ||
+    combined.includes("⏳")
+  ) {
+    return "in_progress";
+  }
+  return "completed";
+}
+
+export function getRoadmapStatusMeta(
+  status: RoadmapMilestoneStatus | "active",
+  t: (key: string, fallback?: string) => string = (_k, fb) => fb || _k
+): {
+  status: RoadmapMilestoneStatus;
+  label: string;
+  icon: string;
+  colorClass: string;
+} {
+  if (status === "in_testing") {
+    return {
+      status: "in_testing",
+      label: t("dir_roadmap_status_testing", "In Testing [In Dev Build]"),
+      icon: t("icon_science", "science"),
+      colorClass: "text-[var(--warning)]",
+    };
+  }
+  if (status === "in_progress" || status === "active") {
+    return {
+      status: "in_progress",
+      label: t("dir_roadmap_status_wip", "In Progress"),
+      icon: t("icon_rocket_launch", "rocket_launch"),
+      colorClass: "text-[var(--accent)]",
+    };
+  }
+  return {
+    status: "completed",
+    label: t("dir_roadmap_status_complete_stable", "Complete (In Stable Build)"),
+    icon: t("icon_check_circle", "check_circle"),
+    colorClass: "text-[var(--success)]",
+  };
 }
 
 export interface DirectiveBuilderTab {
@@ -40,7 +115,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 78;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 81;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -92,7 +167,12 @@ function extractMarkdownSubCards(
   t: (key: string, fallback?: string) => string
 ): DirectiveBuilderSubCard[] {
   const lines = sectionBody.replace(/\r\n/g, "\n").split("\n");
-  const rawItems: { title: string; inlineDesc: string; subLines: string[]; isPending: boolean }[] = [];
+  const rawItems: {
+    title: string;
+    inlineDesc: string;
+    subLines: string[];
+    explicitStatus?: RoadmapMilestoneStatus;
+  }[] = [];
 
   for (const rawLine of lines) {
     const indentMatch = rawLine.match(/^([ \t]*)(.*)$/);
@@ -105,23 +185,48 @@ function extractMarkdownSubCards(
       if (topMatch) {
         const rawHeading = topMatch[1].trim();
         const rawRest = topMatch[2].trim();
-        const isPending =
-          /\(In Progress\)/i.test(rawHeading) ||
-          /\(In Progress\)/i.test(rawRest) ||
-          rawHeading.includes("⏳") ||
-          rawRest.includes("⏳");
+        const combinedMeta = `${rawHeading} ${rawRest}`;
+        let explicitStatus: RoadmapMilestoneStatus | undefined = undefined;
+        if (
+          /in\s+testing|in\s+dev\s+build/i.test(combinedMeta) ||
+          combinedMeta.includes("🧪")
+        ) {
+          explicitStatus = "in_testing";
+        } else if (
+          /\b(?:in\s+progress)\b/i.test(combinedMeta) ||
+          combinedMeta.includes("⏳")
+        ) {
+          explicitStatus = "in_progress";
+        } else if (
+          /\b(?:completed|complete\s*\(in\s+stable\s+build\)|in\s+stable\s+build)\b/i.test(
+            combinedMeta
+          ) ||
+          combinedMeta.includes("✅")
+        ) {
+          explicitStatus = "completed";
+        }
         const cleanTitle = rawHeading
-          .replace(/\s*\((?:Completed|In Progress)[^)]*\)/gi, "")
+          .replace(
+            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete\s*\(In Stable Build\)|Completed)[^\]]*\]\s*/i,
+            ""
+          )
+          .replace(
+            /\s*(?:\((?:Completed|Complete\s*\(In Stable Build\)|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])/gi,
+            ""
+          )
           .replace(/:\s*$/, "")
           .trim();
         const cleanInline = rawRest
-          .replace(/^\((?:Completed|In Progress)[^)]*\):?\s*/i, "")
+          .replace(
+            /^(?:\((?:Completed|Complete\s*\(In Stable Build\)|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
+            ""
+          )
           .trim();
         rawItems.push({
           title: cleanTitle,
           inlineDesc: cleanInline,
           subLines: [],
-          isPending,
+          explicitStatus,
         });
         continue;
       }
@@ -187,7 +292,11 @@ function extractMarkdownSubCards(
       usedFallbackIds.add(matchedFb.id);
     }
 
-    const isPending = item.isPending || matchedFb?.pending || false;
+    const resolvedStatus: RoadmapMilestoneStatus =
+      item.explicitStatus ||
+      matchedFb?.roadmapStatus ||
+      (matchedFb?.pending ? "in_progress" : "completed");
+    const isPending = resolvedStatus === "in_progress";
     const preferCuratedFallback = Boolean(
       matchedFb && (item.subLines.length > 0 || combinedDesc.length > 280)
     );
@@ -196,9 +305,11 @@ function extractMarkdownSubCards(
       id: matchedFb?.id || `${idPrefix}_${subIdx + 1}`,
       icon:
         matchedFb?.icon ||
-        (isPending
-          ? t("icon_rocket_launch", "rocket_launch")
-          : t("icon_check_circle", "check_circle")),
+        (resolvedStatus === "in_testing"
+          ? t("icon_science", "science")
+          : isPending
+            ? t("icon_rocket_launch", "rocket_launch")
+            : t("icon_check_circle", "check_circle")),
       title: preferCuratedFallback
         ? matchedFb!.title
         : t("", cleanItemTitle),
@@ -206,6 +317,7 @@ function extractMarkdownSubCards(
         ? matchedFb!.desc
         : t("", combinedDesc),
       pending: isPending,
+      roadmapStatus: resolvedStatus,
     });
   }
 
@@ -462,7 +574,20 @@ export function parseMarkdownToDirectiveSchema(
           focusText = fallback?.footerMeta || t("", focusMatch[1].trim());
         }
 
-        const isActiveStatus = idx === 0;
+        const statusLineMatch = sectionBody.match(
+          /\*\*Status:\*\*\s*`?([^`\n|]+)`?/i
+        );
+        const rawStatusText = (statusLineMatch?.[1] || "").trim();
+        let resolvedCardStatus: "active" | "in_testing" | "completed" =
+          idx === 0 ? "active" : "completed";
+        if (/in\s+testing|in\s+dev\s+build/i.test(rawStatusText)) {
+          resolvedCardStatus = "in_testing";
+        } else if (/active|in\s+progress/i.test(rawStatusText)) {
+          resolvedCardStatus = "active";
+        } else if (/complete/i.test(rawStatusText)) {
+          resolvedCardStatus = "completed";
+        }
+        const isActiveStatus = resolvedCardStatus !== "completed";
 
         const dateMatch = sectionBody.match(
           /\*\*(?:Date Range|Start Date|Target Launch):\*\*\s*([^\n|]+)/i
@@ -488,19 +613,28 @@ export function parseMarkdownToDirectiveSchema(
               ? extractedSubs
               : fallback?.subCards || [];
 
+        const resolvedBadge =
+          resolvedCardStatus === "in_testing"
+            ? "In Testing [In Dev Build]"
+            : resolvedCardStatus === "active"
+              ? "In Progress"
+              : "Complete (In Stable Build)";
+
         return {
           id: fallback?.id || `phase_${phaseNum}`,
           icon:
             fallback?.icon ||
-            (isActiveStatus
-              ? t("icon_auto_awesome", "auto_awesome")
-              : t("icon_rocket_launch", "rocket_launch")),
+            (resolvedCardStatus === "in_testing"
+              ? t("icon_science", "science")
+              : isActiveStatus
+                ? t("icon_auto_awesome", "auto_awesome")
+                : t("icon_rocket_launch", "rocket_launch")),
           overline: computedOverline,
-          badge: isActiveStatus ? "Active Phase" : "Completed",
+          badge: resolvedBadge,
           title,
           footerMeta: focusText || fallback?.footerMeta || "",
           desc: fallback?.desc || focusText || title,
-          status: isActiveStatus ? "active" : "completed",
+          status: resolvedCardStatus,
           subCards: resolvedSubCards,
         };
       });
@@ -873,7 +1007,18 @@ export function compileDirectiveSchemaToMarkdown(
       if (card.subCards && card.subCards.length > 0) {
         lines.push("");
         for (const sub of card.subCards) {
-          lines.push(`- **${sub.title}:** ${sub.desc}`);
+          if (schema.slug === "phase_roadmap") {
+            const subStatus = resolveRoadmapSubCardStatus(sub);
+            const statusSuffix =
+              subStatus === "in_testing"
+                ? " (In Testing [In Dev Build])"
+                : subStatus === "in_progress"
+                  ? " (In Progress)"
+                  : " (Complete (In Stable Build))";
+            lines.push(`- **${sub.title}${statusSuffix}:** ${sub.desc}`);
+          } else {
+            lines.push(`- **${sub.title}:** ${sub.desc}`);
+          }
         }
       }
       if (card.tip) {
@@ -1284,29 +1429,29 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_radar", "radar"),
               overline: "STAGE 5 OF 10",
               badge: t("dir_walk_s5_short", "5. Radar & Lab"),
-              title: t("dir_walk_s5_title", "Conflict Radar & Homestead Lab"),
-              footerMeta: t("dir_walk_s5_sub", "Pick-a-Winner Load Order & 100% Nuke Proving Grounds"),
+              title: t("dir_walk_s5_title", "Conflict Radar 2.0 & Homestead Lab"),
+              footerMeta: t("dir_walk_s5_sub", "5-Tier Severity Matrix, Load Order Engine & 100% Nuke Sandbox"),
               desc: t(
                 "dir_walk_s5_desc",
-                "Resolve tuning overlaps before launching the game, or isolate suspect {mods} in a sterile crash-monitored sandbox."
+                "Resolve mod collisions across a 5-Tier Severity Matrix, set load order winners in one click across game-agnostic Priority Tiers, or isolate suspect {mods} in a crash-monitored sandbox."
               ),
               subCards: [
                 {
                   id: "walk_5_c1",
                   icon: t("icon_emoji_events", "emoji_events"),
-                  title: t("dir_walk_s5_c1_name", "Casual Mode (Pick a Winner)"),
+                  title: t("dir_walk_s5_c1_name", "5-Tier Radar & 1-Click Winner Resolution"),
                   desc: t(
                     "dir_walk_s5_c1_desc",
-                    "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning {mod} into a higher priority tier and dynamic Resource.cfg."
+                    "Classifies collisions across Severity 1–5 and lets you click 'Set Winner' in one click to promote your chosen {mod} into an elevated Priority Tier."
                   ),
                 },
                 {
                   id: "walk_5_c2",
                   icon: t("icon_rule", "rule"),
-                  title: t("dir_walk_s5_c2_name", "Advanced Load Order & Break Loop"),
+                  title: t("dir_walk_s5_c2_name", "Strategy-Aware Priority Tiers & Load Rules"),
                   desc: t(
                     "dir_walk_s5_c2_desc",
-                    "Build directional Must Load After / Before rules with topological sorting and 1-click circular dependency loop breaking."
+                    "Assign game-agnostic Priority Tiers (Standard Load to Final Override), build Must Load After/Before rules with 1-click Break Loop, and adapt automatically between folder-tier and sequential load order engines."
                   ),
                 },
                 {
@@ -1777,46 +1922,46 @@ export function getDefaultDirectiveBuilderSchema(
               id: "mod_6",
               icon: t("icon_radar", "radar"),
               overline: "MODULE 6 OF 12",
-              badge: g("6. Conflict Radar"),
-              title: g("Conflict Radar & Schema Load Order Engine"),
-              footerMeta: g("TOPOLOGICAL COMPILER • SEVERITY 1–4"),
+              badge: g("6. Conflict Radar 2.0"),
+              title: g("Conflict Radar 2.0 & Game-Agnostic Load Order Engine"),
+              footerMeta: g("5-TIER SEVERITY MATRIX • STRATEGY-AWARE LOAD ORDER"),
               desc: g(
-                "Sanctuary combines global Architect Directives, creator Static Edge rules, and a topological Load Order compiler to resolve tuning overlaps and prevent crashes before launch."
+                "Sanctuary combines global Architect Directives, creator Static Edge rules, and a strategy-aware topological Load Order compiler to resolve overlaps and prevent crashes before launch."
               ),
               tip: g(
-                "Switch between Casual Mode and Advanced Mode anytime using the toggle inside Conflict Radar."
+                "Click 'Inspect & Resolve' on any conflict card to select which {mod} wins in-game and assign it to an elevated Priority Tier."
               ),
               subCards: [
                 {
                   id: "mod_6_c1",
                   icon: t("icon_emoji_events", "emoji_events"),
-                  title: g("Casual Mode: 1-Click 'Pick a Winner'"),
+                  title: g("1-Click 'Set Winner' & Priority Override Tiers"),
                   desc: g(
-                    "For Severity 3 Tuning Overlaps, simply click the {mod} you want to win. Sanctuary automatically compiles the priority rules and routes the winner into the top override tier."
+                    "Click 'Set Winner' on any conflict or assign {mods} across 4 game-agnostic Priority Tiers (Standard Load, Late Load Tier 1, High Priority Tier 2, Final Override Tier 3)."
                   ),
                 },
                 {
                   id: "mod_6_c2",
                   icon: t("icon_rule", "rule"),
-                  title: g("Advanced Mode: Directional Rules & Cycle Breaker"),
+                  title: g("Directional Load Order Rules & Loop Breaker"),
                   desc: g(
-                    "Author custom 'Must Load After / Before' rules, assign explicit Priority Tiers (Base to Sanctuary3), and resolve circular dependency loops with 1-click Break Loop."
+                    "Lock Must Load After (Wins) or Must Load Before (Yields) dependencies between any two {mods}, with automatic DFS circular-loop detection and 1-click Break Loop resolution."
                   ),
                 },
                 {
                   id: "mod_6_c3",
                   icon: t("icon_warning", "warning"),
-                  title: g("Severity 4 (Fatal) vs. Severity 3 (Tuning)"),
+                  title: g("5-Tier Severity Matrix (Severity 1–5)"),
                   desc: g(
-                    "Severity 4 indicates a hard binary/script clash where only one {mod} can remain enabled. Severity 3 indicates a tuning overlap solvable via Load Order priority."
+                    "Classifies overlaps across Severity 5 (Circular Loop), Severity 4 (Fatal Core/Script Clash), Severity 3 (Gameplay Tuning Overlap), Severity 2 (Duplicate Clone), and Severity 1 (Visual/Texture Override)."
                   ),
                 },
                 {
                   id: "mod_6_c4",
                   icon: t("icon_layers", "layers"),
-                  title: g("Schema-Driven Deployment Strategies"),
+                  title: g("Searchable Scan Scope & 4 Load Order Engines"),
                   desc: g(
-                    "Adapts per game schema: dynamic Resource.cfg multi-tier folders (Sims 4), ordered manifest lists (loadorder.txt / plugins.txt), numeric prefixes (001_), or timestamps."
+                    "Switch Scan Scope across 100+ {Blueprints} via a searchable selector and compile load order via Priority Override Tiers (Resource.cfg), Manifest List (loadorder.txt), Numeric Prefix (001_), or Timestamp Order."
                   ),
                 },
               ],
@@ -2205,12 +2350,13 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m8",
-            icon: t("icon_check_circle", "check_circle"),
+            icon: t("icon_science", "science"),
             title: g("SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity)"),
             desc: g(
               "Parses Steam libraryfolders.vdf & appmanifest_*.acf across native, Flatpak, Snap, and Steam Deck SD card libraries, mapping ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix alongside native Linux .AppImage/.deb builds and Proton WINEPREFIX tool execution."
             ),
             pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m9",
@@ -2220,6 +2366,7 @@ export function getDefaultDirectiveBuilderSchema(
               "Optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} on Mobile PWA or Web immediately see which of their installed {mods} broke in a game patch and can queue updates remotely."
             ),
             pending: true,
+            roadmapStatus: "in_progress",
           },
           {
             id: "phase_14_m10",
@@ -2229,24 +2376,27 @@ export function getDefaultDirectiveBuilderSchema(
               "Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each {Mason}'s download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
             ),
             pending: true,
+            roadmapStatus: "in_progress",
           },
           {
             id: "phase_14_m11",
-            icon: t("icon_check_circle", "check_circle"),
+            icon: t("icon_science", "science"),
             title: g("Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms)"),
             desc: g(
               "Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {mods} in the active {Blueprint}, activating {Blueprints}, navigating all 18 OS views, switching Chameleon themes & {Lexicon} packs, and triggering quick actions."
             ),
             pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m12",
-            icon: t("icon_compare", "compare"),
-            title: g("Conflict Radar 2.0 — Resource-Level Overlap & Diff Inspector"),
+            icon: t("icon_science", "science"),
+            title: g("Conflict Radar 2.0 & Game-Agnostic Load Order Engine"),
             desc: g(
-              "Breaks down conflicting files inside ConflictResolutionSidebar.tsx into Visual/Texture Overrides (DDS/Mesh) vs. Gameplay Tuning/Script Collisions (XML/SimData) with side-by-side Monaco XML diffing."
+              "5-Tier Severity Matrix (S1–S5), strategy-aware Load Order & Priority Tier inspector with searchable {Blueprint} Scan Scope, 1-click 'Set Winner' resolution, and directional Must Load After/Before rules."
             ),
-            pending: true,
+            pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m13",
@@ -3407,9 +3557,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "arch_p3_c2",
                   icon: t("icon_layers", "layers"),
-                  title: g("Topological Load Order Compiler (compileLoadOrder)"),
+                  title: g("Conflict Radar 2.0 & Topological Load Order Compiler"),
                   desc: g(
-                    "Schema-Driven Load Order Compiler (folder_priority + dynamic Resource.cfg, manifest_list, numeric_prefix, timestamp) with topological cycle breaking."
+                    "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, and Schema-Driven Load Order compilation (folder_priority, manifest_list, numeric_prefix, timestamp) with topological cycle breaking."
                   ),
                 },
                 {
@@ -3785,15 +3935,15 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_layers", "layers"),
                 title: g("Schema-Driven Load Order Engine (compileLoadOrder)"),
                 desc: g(
-                  "Compiles deployment priority using folder_priority, manifest_list, numeric_prefix, or timestamp, complete with topological sorting and DFS circular-loop breaking."
+                  "Compiles deployment priority using folder_priority (Standard Load to Final Override + Resource.cfg), manifest_list, numeric_prefix, or timestamp, with strategy-aware priority tier and queue controls, searchable {Blueprint} Scan Scope, and DFS circular-loop breaking."
                 ),
               },
               {
                 id: "proto_d3_r2",
                 icon: t("icon_radar", "radar"),
-                title: g("Conflict Radar Casual vs. Advanced Mode"),
+                title: g("Conflict Radar 2.0 & 5-Tier Severity Matrix"),
                 desc: g(
-                  "Casual Mode provides 1-click 'Pick a Winner' resolution for Severity 3 Tuning Overlaps; Advanced Mode unlocks directional Must Load After/Before rules."
+                  "Classifies collisions across a 100% game-agnostic 5-Tier Severity Matrix (Severity 1–5), pairing 1-click 'Set Winner' resolution and Priority Override Tiers with directional Must Load After/Before rules."
                 ),
               },
               {

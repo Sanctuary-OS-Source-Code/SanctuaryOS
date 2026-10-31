@@ -75,10 +75,20 @@ export async function fetchAllTableRows(
   onFirstBatch?: (rows: any[], totalCount: number) => void
 ): Promise<any[]> {
   const PAGE_SIZE = 1000;
-  let firstQuery = supabaseClient.from(table).select(selectCols, { count: "exact" });
-  if (orderBy) {
-    firstQuery = firstQuery.order(orderBy, { ascending: true });
-  }
+  const applyOrdering = (q: any) => {
+    let ordered = q;
+    if (orderBy) {
+      ordered = ordered.order(orderBy, { ascending: true });
+    }
+    if (orderBy !== "id") {
+      ordered = ordered.order("id", { ascending: true });
+    }
+    return ordered;
+  };
+
+  const firstQuery = applyOrdering(
+    supabaseClient.from(table).select(selectCols, { count: "exact" })
+  );
   const { data: firstBatch, error: firstError, count } = await firstQuery.range(0, PAGE_SIZE - 1);
   if (firstError || !Array.isArray(firstBatch) || firstBatch.length === 0) {
     return [];
@@ -99,10 +109,7 @@ export async function fetchAllTableRows(
       const to = from + PAGE_SIZE - 1;
       remainingPromises.push(
         (async () => {
-          let q = supabaseClient.from(table).select(selectCols);
-          if (orderBy) {
-            q = q.order(orderBy, { ascending: true });
-          }
+          const q = applyOrdering(supabaseClient.from(table).select(selectCols));
           const { data } = await q.range(from, to);
           return Array.isArray(data) ? data : [];
         })()
@@ -115,10 +122,7 @@ export async function fetchAllTableRows(
   let all: any[] = [...firstBatch];
   let from = PAGE_SIZE;
   while (true) {
-    let query = supabaseClient.from(table).select(selectCols);
-    if (orderBy) {
-      query = query.order(orderBy, { ascending: true });
-    }
+    const query = applyOrdering(supabaseClient.from(table).select(selectCols));
     const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
     if (error || !Array.isArray(data) || data.length === 0) break;
     all = all.concat(data);

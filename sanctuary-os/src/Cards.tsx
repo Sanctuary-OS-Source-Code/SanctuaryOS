@@ -151,7 +151,7 @@ export function ArtifactCard({
         first?.content ||
         first?.steps ||
         "";
-      if (text) return text;
+      if (text) return String(text).replace(/\s+\?\s+/g, " — ");
     }
     if (rawStatus === "corrupted" || rawStatus === "broken") {
       return t(
@@ -337,11 +337,7 @@ export function ArtifactCard({
           </span>
         )}
         <button
-          className={`text-[10px] font-black ${
-            isModFlagged
-              ? "text-[var(--danger)]"
-              : "text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)]"
-          } uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0`}
+          className="text-[10px] font-black text-[var(--text)] opacity-85 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0"
         >
           {overrideActionLabel ||
             (isModFlagged
@@ -382,11 +378,19 @@ export function ArtifactCard({
       footer={footer}
     >
       {layout === "vertical" && isModFlagged && flagSummary ? (
-        <div className="rounded-xl px-2.5 py-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2">
-          <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
-            {t("icon_report_problem", "report_problem")}
-          </span>
-          <span className="text-[11px] font-bold text-[var(--text)] leading-snug line-clamp-2">
+        <div className="rounded-xl px-3 py-2 glass-surface border border-[color-mix(in_srgb,var(--danger)_26%,transparent)] flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0">
+            <span
+              className={`material-symbols-outlined !text-[13px] ${
+                rawStatus === "unstable" || rawStatus === "under review" || rawStatus === "under_review"
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--danger)]"
+              }`}
+            >
+              {t("icon_flag", "flag")}
+            </span>
+          </div>
+          <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2">
             {flagSummary}
           </span>
         </div>

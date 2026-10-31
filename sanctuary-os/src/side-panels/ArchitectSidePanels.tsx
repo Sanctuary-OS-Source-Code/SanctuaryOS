@@ -79,7 +79,18 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
           timestamp: Date.now()
         }, ...prev]);
 
-        await logArchitectAction(`DNA Verification Scan: ${hash}`, 'mod_versions', fetchedMod?.name || selected.split(/[/\\]/).pop() || 'Unknown File');
+        await logArchitectAction(
+          `DNA Verification Scan: ${hash}`,
+          'mod_versions',
+          fetchedMod?.name || selected.split(/[/\\]/).pop() || 'Unknown File',
+          undefined,
+          undefined,
+          false,
+          {
+            file_hash: { to: hash },
+            matched_mod: { to: fetchedMod?.name || 'Unmatched' },
+          }
+        );
       }
     } catch (e) {
       console.error(e);
@@ -94,7 +105,19 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
 
     const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
 
-    await logArchitectAction(`Flagged Artifact: ${fileName}`, 'sanctuary_tickets', fileName, `User provided reason: ${flagReason}`);
+    await logArchitectAction(
+      `Flagged Artifact: ${fileName}`,
+      'sanctuary_tickets',
+      fileName,
+      `User provided reason: ${flagReason}`,
+      undefined,
+      false,
+      {
+        file_name: { to: fileName },
+        file_hash: { to: fileHash },
+        flag_reason: { to: flagReason },
+      }
+    );
     
     setIsSubmitting(false);
     setSuccessMsg(t("verify_panel_flag_success", "Artifact flagged for review."));

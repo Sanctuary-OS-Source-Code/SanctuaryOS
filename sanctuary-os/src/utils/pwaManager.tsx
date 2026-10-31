@@ -86,11 +86,11 @@ export function initPwaManager() {
   initialized = true;
 
   window.addEventListener("beforeinstallprompt", (e: Event) => {
-    e.preventDefault();
     pwaStore.state = {
       ...pwaStore.state,
       deferredPrompt: e as BeforeInstallPromptEvent,
     };
+    notifyPwaListeners();
   });
 
   window.addEventListener("appinstalled", () => {

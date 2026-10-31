@@ -543,14 +543,36 @@ export function resolveThemeDominantBarColors(themeObj: any): { topHex: string; 
   };
 }
 
+let cachedEdgeToEdgeSupport: { topEdgeToEdge: boolean; bottomEdgeToEdge: boolean } | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'resize',
+    () => {
+      cachedEdgeToEdgeSupport = null;
+    },
+    { passive: true }
+  );
+}
+
 function measureMobileEdgeToEdgeSupport(): { topEdgeToEdge: boolean; bottomEdgeToEdge: boolean } {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || isDesktop()) {
     return { topEdgeToEdge: false, bottomEdgeToEdge: false };
+  }
+  if (cachedEdgeToEdgeSupport) {
+    return cachedEdgeToEdgeSupport;
   }
   const ua = navigator.userAgent || '';
   const isIos =
     /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMobileViewport =
+    isIos ||
+    /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+    window.innerWidth < 768;
+  if (!isMobileViewport) {
+    cachedEdgeToEdgeSupport = { topEdgeToEdge: false, bottomEdgeToEdge: false };
+    return cachedEdgeToEdgeSupport;
+  }
   const isIosStandalone =
     isIos &&
     Boolean(
@@ -574,10 +596,11 @@ function measureMobileEdgeToEdgeSupport(): { topEdgeToEdge: boolean; bottomEdgeT
     safeBottom = parseFloat(cs.paddingBottom || '0') || 0;
   }
 
-  return {
+  cachedEdgeToEdgeSupport = {
     topEdgeToEdge: isIosStandalone || safeTop > 2,
     bottomEdgeToEdge: isIosStandalone || safeBottom > 2,
   };
+  return cachedEdgeToEdgeSupport;
 }
 
 export function applyDominantSystemBarColors(
@@ -587,11 +610,10 @@ export function applyDominantSystemBarColors(
   desktopFallbackBg?: string
 ): void {
   if (typeof document === 'undefined') return;
+  const { topEdgeToEdge, bottomEdgeToEdge } = measureMobileEdgeToEdgeSupport();
   const root = document.documentElement;
   root.style.setProperty('--sa-top-bar-blend', topHex);
   root.style.setProperty('--sa-bottom-bar-blend', bottomHex);
-
-  const { topEdgeToEdge, bottomEdgeToEdge } = measureMobileEdgeToEdgeSupport();
   root.setAttribute('data-sa-top-e2e', topEdgeToEdge ? 'true' : 'false');
   root.setAttribute('data-sa-bottom-e2e', bottomEdgeToEdge ? 'true' : 'false');
 
@@ -791,10 +813,13 @@ export const ThemeProvider = ({ children }: any) => {
   };
 
   useEffect(() => {
-    setCustomThemes(readSharedThemeMap(wsId, 'custom_themes'));
-    setDevThemes(readSharedThemeMap(wsId, 'dev_themes'));
+    const nextCustoms = readSharedThemeMap(wsId, 'custom_themes');
+    const nextDevs = readSharedThemeMap(wsId, 'dev_themes');
+    setCustomThemes((prev) => (JSON.stringify(prev) === JSON.stringify(nextCustoms) ? prev : nextCustoms));
+    setDevThemes((prev) => (JSON.stringify(prev) === JSON.stringify(nextDevs) ? prev : nextDevs));
     if (!useGlobalThemeState) {
-      setActiveThemeIdState(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+      const nextId = localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect";
+      setActiveThemeIdState((prev) => (prev === nextId ? prev : nextId));
     }
   }, [wsId, useGlobalThemeState]);
 

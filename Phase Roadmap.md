@@ -1,238 +1,164 @@
-# Sanctuary OS — Master Phase Roadmap
+# Master Phase Roadmap
 
-Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Live Adapters, Save-Airgapped External Creator Tool Bridge, Guided Package & Crash Diagnostics, Cross-Platform Vault Companion & Protocol Regression Suite) and Phase 13 (V5.8) down to Phase 1 (Genesis & Cartographer).
-
----
-
-## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Manager & Collection Migration, Guided Diagnostics & Cross-Platform Vault Companion (November 2026 — Active Era)
-**Status:** `ACTIVE PHASE` | **Date Range:** `November 2026 — Present` | **Focus:** `External Creator & World-Building Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV) with Lab Save Airgap, Multi-Engine Compilers & GTA V .rpf Isolation, Guided FOMOD/Flavor Installer, External Mod Manager Migration (MO2 / Vortex / BG3MM / S4MM), Cross-Platform Modlist & Collection Translator, Save Doctor, Crash & Exception Decoder, SteamOS/Proton Prefix Resolver, Mobile/Web Patch Radar, Guided Side Browser Queue, Global Command Palette (Ctrl+K), Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and Automated Protocol Regression Suite`
-
-- **External Creator & World-Building Tool Bridge + Lab Save-Airgapped Sessions (`World Architect`, `CakeView`, `Sims 4 Studio`, `OpenIV`): (In Progress)**
-  - First-class `external_tools` schema and **Homestead Lab** integration allowing Citizens and Masons to register and launch essential third-party modding and world-building tools (`World Architect`, `CakeView`, `Sims 4 Studio`, `OpenIV`, `xEdit`, `WolvenKit`) directly inside a **Hardware-Airgapped Lab Creator Session**.
-  - Built specifically for high-risk development workflows like **World Architect** (where creators must never test with legacy saves and are advised to remove saves from the game completely while building worlds): Sanctuary physically airgaps real/legacy saves out of the live game folder into the protected Vault before launching the external tool or test session, mounts an isolated throwaway Lab Test Save + symlinked development files, and automatically restores real saves only when the creator exits the Lab session.
-- **Multi-Engine Manifest Compilers & GTA V `.rpf` Copy-on-Write / Hardlink `mods/` Isolation ("Beyond Sims 4"): (In Progress)**
-  - Engine-specific deployment compilers for **Baldur's Gate 3** (`modsettings.lsx` XML generator + `.pak` header UUID parser), **Creation Engine (`Skyrim SE` / `Fallout 4` / `Starfield`)** (`plugins.txt` + `loadorder.txt` compiler with ESL/ESP/ESM flag inspection), **Cyberpunk 2077** (`REDmod` manifest compiler + `archive/pc/mod` routing), and **Stardew Valley (`SMAPI`)** (`manifest.json` UniqueID dependency graph parser).
-  - **GTA V `.rpf` Archive & `mods/` Folder Isolation Strategy:** Solves multi-gigabyte `.rpf` archive modding without duplicating 80+ GB of vanilla files or risking base-game corruption—combining zero-duplication OS hardlink / Copy-on-Write `.rpf` staging into `mods/` with **OpenIV (`OpenIV.asi`)** and **Lenny's Mod Loader (`LML` VFS)** streaming package support so vanilla Rockstar `.rpf` archives remain 100% untouched.
-- **Guided Multi-Option Package Installer (`FOMOD` & Mason Flavor Selector on Drop): (In Progress)**
-  - Intercepts multi-variant archives on Dropzone or Side Browser ingestion with a Liquid Glass **Guided Package Installer `<SidePanel>`** that parses both native `fomod/ModuleConfig.xml` definitions and Mason Dossier Flavor matrices—rendering option descriptions, preview cards, and **auto-checked compatibility patches** based on DNA hashes already present in the Citizen's Vault.
-- **External Mod Manager Migration & Out-of-Tree Setup Importer (`MO2`, `Vortex`, `BG3MM`, `Sims 4 Mod Manager`): (In Progress)**
-  - **Zero-Reinstall Out-of-Tree Migration (`Cartographer` & `Vault`):** Solves one of the top community complaints from other mod-manager transitions by allowing Citizens whose mods live in external staging directories outside the game's live `Mods` folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file.
-  - **Automatic Profile, Load Order & Metadata Translation:** Reads **Mod Organizer 2** instances (`mods/<ModName>/meta.ini`, `profiles/<Profile>/modlist.txt`, `plugins.txt`, `loadorder.txt`), **Vortex** staging folders (safely unlinking legacy `.vortex_deployment` hardlinks/symlinks from the game folder), **BG3 Mod Manager** (`modsettings.lsx`), and **Sims 4 Mod Manager** profiles—preserving existing mod versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary **Blueprint**, and supporting **Zero-Duplication Hardlink**, **Move**, or **Copy** ingestion into the Vault.
-- **Cross-Platform Curated Modlist & Collection Translator (External Modlists → Native Blueprints): (In Progress)**
-  - **Universal Modlist Format Parser (`Blueprints.tsx` / `Dropzone`):** Alongside native Sanctuary `SNC-XXXXXX` cloud codes and `.json` Blueprints, Citizens can import curated modlist manifests authored for other platforms—including **Nexus Collections** (`collection.json`), **Wabbajack** manifests, **MO2** profile/modlist exports, **CurseForge / Modrinth** `manifest.json` packs, and **BG3** `modsettings.lsx` lists—and automatically compile them into a native Sanctuary **Blueprint** with preserved load-order rules and FOMOD selections.
-  - **DNA Cross-Matching & Guided Side Browser Acquisition:** Automatically binds any mods already present in the Citizen's local Vault via SHA-256 / MD5 DNA matching, and routes missing items directly into the **Signature Queue & Guided Side Browser Batch Updater**—stepping through each creator's official page for 1-click sovereign acquisition with zero lock-in (plus two-way export back to standard `modlist.txt` / `loadorder.txt` formats).
-- **Save-Game Blueprint Lock & Pre-Launch "Save Doctor" (`TimeCapsule.tsx` / `Blueprints.tsx`): (In Progress)**
-  - Stamps a lightweight local `.sanctuary-save-manifest.json` snapshot pairing the active save state with the deployed Blueprint DNA manifest whenever a play session ends.
-  - Before launching the game after switching Blueprints, performs a **Save Compatibility Pre-Flight Check**—warning the Citizen if the active Blueprint is missing mods that were baked into their latest save, with 1-click **"Switch to Matching Blueprint"** or **"Re-Enable Missing Mods"** actions.
-- **Citizen-Facing "Homestead Crash & Exception Decoder" (`Desktop` + `Web` + `PWA`): (In Progress)**
-  - Automatically monitors schema-defined `log_files` (`lastException.txt`, `lastCrash.txt`, `Papyrus.0.log`, `SMAPI-latest.log`, `redscript.log`) on game exit, cross-referencing stack-trace filenames and tuning IDs against the Citizen's installed Vault mods and the Spoke's `KnownExceptionRules`.
-  - Surfaces an instant plain-English **Crash Diagnosis Card** (*"Caused by outdated Mod X — v2.1 available"* or *"Known Vanilla Game Bug — Safe to Ignore"*) with 1-click actions to disable the culprit, open the Mason's update page in the Side Browser, or attach the scrubbed trace to a Support Ticket—plus a drag-and-drop **Web/PWA Log Decoder Card**.
-- **SteamOS / Linux Proton Prefix Auto-Resolver (`Steam Deck` & Linux Parity): (Completed: October 2026)**
-  - Parses Steam's `libraryfolders.vdf` and `appmanifest_<AppID>.acf` across native Linux (`~/.steam/steam`, `~/.local/share/Steam`), Flatpak Steam (`com.valvesoftware.Steam`), Snap Steam, and Steam Deck SD card mounts (`/run/media/mmcblk0p1`, `/run/media/deck/*`) in the Rust backend—automatically mapping `%USERPROFILE%`, `%LOCALAPPDATA%`, `%APPDATA%`, and `~/Documents` Master Schema tokens into each game's Proton `compatdata/<AppID>/pfx/drive_c/users/steamuser` prefix so symlinks, config watching, PE `.exe` version extraction, and Lab Save Airgapping work out-of-the-box on Steam Deck and Linux desktops.
-  - Added full `ubuntu-22.04` (`x86_64-unknown-linux-gnu`) `.AppImage` and `.deb` CI/CD release pipelines, in-place `$APPIMAGE` auto-updating, `steam -applaunch <AppID>` game launching, Proton `WINEPREFIX` execution for Windows `.exe` modding tools on Linux, and `steam_app_id` / `default_mod_dir_linux` / `user_data_dir_linux` / `auto_scan_paths_linux` fields across the Master Schema Studio and all 8 Game Architecture Presets.
-- **Mobile PWA / Web "My Vault Patch Radar" (Zero-PII Encrypted Cloud Companion): (In Progress)**
-  - Optional 1-click encrypted sync of the Citizen's active Blueprint DNA hash list to their profile so they can inspect their Vault health from the **Mobile PWA** or **Web OS** while away from their PC—immediately alerting them when a game patch or Architect Mass Update marks any of their installed mods as Broken or Updated, with 1-click remote queuing.
-- **Realtime "Queue to Desktop" Handshake & Side Browser Guided Batch Updater (`SidePanelBrowser.tsx`): (In Progress)**
-  - Adds a **"Launch Guided Update Queue (1 of N)"** stepper bar inside `SidePanelBrowser.tsx` for batch-updating outdated Vault mods or processing remotely queued Mobile PWA / Web items—sequentially opening each creator's official page, highlighting the expected file/version target, and **automatically advancing to the next mod** the instant the Rust download interceptor catches and verifies the archive.
-- **Global `Ctrl+K` / `Cmd+K` Command Palette (`Desktop` + `Web` + `Mobile PWA`): (Completed: October 2026)**
-  - Unified Liquid Glass **`Ctrl+K` / `Cmd+K` Command Palette** (`GlobalCommandPalette.tsx` + floating `TitleBar` trigger pill and `MobileBottomNav` integration) providing instant fuzzy-search across installed Vault mods (1-click jump to Dossier or toggle in active Blueprint), Blueprints (1-click activate), all 18 OS views and Landing Hub sections, Chameleon themes, Lexicon vocabulary packs, and quick system actions (`Quick Launch`, `Radar Sweep`, `Dropzone`, `Time Capsule Snapshots`).
-- **Conflict Radar 2.0 — Resource-Level Overlap & Diff Inspector (`ConflictResolutionSidebar.tsx`): (In Progress)**
-  - Upgrades Conflict Radar with a human-readable **Resource Overlap Breakdown** inside `ConflictResolutionSidebar.tsx` that classifies collisions into **Visual / Texture Overrides** (`DDS` / `Mesh` — safe load-order preference) vs. **Gameplay Tuning / Script Collisions** (`XML` / `SimData` / `REDscript` — hard conflict), complete with side-by-side Monaco diffing for text/XML tuning resources.
-- **In-Game Config Watcher → Citizen's Workbench Interactive Diff Timeline & Mason Workshop 2.0: (In Progress)**
-  - **Live In-Game Config Edit Timeline (`initialize_airgap_watch` → `Workbench`):** Automatically captures live `.cfg`, `.ini`, `.json`, and `.toml` modifications written by the game engine or in-game mod menus during a play session and records them as timestamped **`[In-Game Engine Edit]`** entries inside the **Citizen's Workbench 2-Column Interactive Timeline & Diff Workspace**, allowing Citizens to visually diff what changed during gameplay and roll back with one click.
-  - **Mason Workshop 2.0:** Live Remote `catalog.json` Inspector & 1-Click Entry Editor + Auto-Diff Release Changelog Generator.
-- **Automated Protocol Regression & Stability Suite (`Vitest` + `Cargo Test`): (In Progress)**
-  - Automated frontend (`Vitest`) and Rust (`cargo test`) regression suites verifying `compileLoadOrder` (topological sort, Highlander flavor eviction, Twin bonds, DFS cycle breaker), `check_heuristic_malware_detailed` (21 Core + 17 Spoke rules, Zlib/Zstd DBPF stream decompression, Base64/Hex deobfuscation), `interpolateGlossaryTokens` (21 dynamic glossary tokens, casing, indefinite articles), and `parseMarkdownToDirectiveSchema`.
+> Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Live Adapters, Save-Airgapped External Creator Tool Bridge, Guided Package & Crash Diagnostics, Cross-Platform Vault Companion & Protocol Regression Suite) and Phase 13 (V5.8) down to Phase 1 (Genesis & Cartographer).
 
 ---
 
-## Phase 13 (V5.8): Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync (October 2026)
-**Status:** `COMPLETED` | **Date Range:** `October 2026` | **Focus:** `Master Schema & Lexicon Visual Studios, Guided Icon Override Builder, Universal 21+17 Heuristic Scanner, Static Edge 6-Provider Auto-Push, Partner Covenants & Bilateral Codebase ↔ Cloud Sync`
+## Phase 14 (V0.6.0) • November 2026 — Active Era: Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Manager & Collection Migration, Guided Diagnostics & Cross-Platform Vault Companion
+**Status:** `In Progress` | **Focus:** `External Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV), GTA V .rpf Isolation, FOMOD/Flavor Installer, MO2/Vortex Setup Importer, Cross-Platform Modlist/Collection Translator, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0`
 
-- **Master Schema Visual Studio & Cross-Platform Windows/macOS Parity (Completed: October 2026):**
-  - Built the 4-Tab **Master Schema Visual Studio** (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) with **7 Game Architecture Presets** (`The Sims 4`, `Cyberpunk 2077`, `Skyrim SE / Fallout 4`, `GTA V`, `Baldur's Gate 3`, `Stardew Valley`, `Universal`).
-  - Added full macOS `.app` bundle and `~/Documents` / `~/Library/Application Support` pathing, `install_routes` secondary deployment routing, game-agnostic `mod_categories`, and the **Dynamic Config Watcher** (`config_extensions`) with automatic root-stray deduplication.
-- **Lexicon Terminology Studio, Guided Icon Override Builder & Interactive Codex Guides (Completed: October 2026):**
-  - Upgraded the **Lexicon Visual Studio** with a **Guided OS Icon Override Builder** featuring searchable target icon and replacement Material Symbol dropdowns with live `Default → New` glyph previews.
-  - Added interactive **Master Schema Architecture Codex** and **Lexicon & Terminology Codex** drawers (`SidePanel`) with 1-click cross-switching.
-- **Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules) & Threat Manifest Telemetry (Completed: October 2026):**
-  - Expanded the Rust Heuristic Engine with in-memory Zlib/Zstd DBPF stream decompression and Base64/Hex string deobfuscation across **21 Core Heuristics (`keeper_heuristic_signatures`) + 17 Spoke Heuristics (`heuristic_signatures`)**.
-  - Added **Move-mode source disposition tracking** and optional **Zero-PII Threat Manifest** reporting from the Quarantine Lockdown SidePanel.
-- **Decentralized Static Edge Direct Push (`manifest.json` & `catalog.json`) (Completed: October 2026):**
-  - Engineered 1-click OS Auto-Push across 6 providers (`GitHub Repo / Cloudflare Pages`, `GitHub Gist`, `GitLab / Codeberg`, `Neocities`, `Personal WebDAV`, and `Local Synced Folder`) with automatic `previous_hashes` lineage rollover and single-URL multi-mod `catalog.json` support.
-- **Readiness-Gated Partner Onboarding, Covenants, Supporter Pipeline & Bilateral Cloud Sync (Completed: October 2026):**
-  - Integrated mandatory **Sanctuary Partners Agreement** and **Compliance Protocol** overlay inspection into both the Landing Page **Apply to be a Partner** pipeline and **Wayfinder Hub → Spoke Setup & Maintenance**.
-  - Launched the **$5 = +30 Days Daily Dev Build Supporter Pipeline** (Windows `.msi`/`.exe` & macOS `.dmg`/`.app.tar.gz`) and **Bilateral Offline Codebase ↔ Live Cloud Hub Synchronization** for all Directives, Legal Covenants, Schemas, and Lexicons.
+First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside Homestead, live Multi-Engine Manifest Compilers & GTA V .rpf Copy-on-Write / LML isolation, Guided FOMOD & Flavor Package Installer, External Mod Manager Migration (MO2, Vortex, BG3MM, Sims 4 Mod Manager) without reinstalling, Cross-Platform Curated Modlist & Collection Translator into native Blueprints, Save-Game Blueprint Lock (Save Doctor), Homestead Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web Vault Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite.
 
----
+- **External Creator & World-Building Tool Bridge + Homestead Save Airgap (In Progress):** Launch World Architect, CakeView, Sims 4 Studio, OpenIV, and xEdit inside a Save-Airgapped Homestead session—physically isolating legacy saves while developing worlds or testing artifacts and restoring saves automatically on exit.
+- **Multi-Engine Manifest Compilers & GTA V .rpf / mods/ Isolation (In Progress):** Native compilers for BG3 (modsettings.lsx), Creation Engine (plugins.txt), Cyberpunk 2077 (REDmod), SMAPI (manifest.json), plus GTA V .rpf Copy-on-Write hardlink staging and OpenIV / LML VFS integration.
+- **Guided Multi-Option Package Installer (FOMOD & Mason Flavor Wizard) (In Progress):** Intercepts multi-variant archives on drop/download with a Guided Package Installer SidePanel that parses fomod/ModuleConfig.xml and Mason Dossier Flavors with auto-checked compatibility patches.
+- **External Mod Manager Migration & Out-of-Tree Setup Importer (MO2, Vortex, BG3MM, Sims 4 Mod Manager) (In Progress):** Zero-Reinstall Out-of-Tree Migration (Cartographer & Vault): Solves one of the top community complaints from other mod-manager transitions by allowing Citizens whose artifacts live in external staging directories outside the game's live Artifacts folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file. Automatic Profile, Load Order & Metadata Translation: Reads Mod Organizer 2 instances (mods/<ModName>/meta.ini, profiles/<Profile>/modlist.txt, plugins.txt, loadorder.txt), Vortex staging folders (safely unlinking legacy .vortex_deployment hardlinks/symlinks from the game folder), BG3 Mod Manager (modsettings.lsx), and Sims 4 Mod Manager profiles—preserving existing artifact versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary Blueprint, and supporting Zero-Duplication Hardlink, Move, or Copy ingestion into the Vault.
+- **Cross-Platform Curated Modlist & Collection Translator (External Modlists → Native Blueprints) (In Progress):** Universal Modlist Format Parser (Blueprints.tsx / Dropzone): Alongside native Sanctuary SNC-XXXXXX cloud codes and .json Blueprints, Citizens can import curated modlist manifests authored for other platforms—including Nexus Collections (collection.json), Wabbajack manifests, MO2 profile/modlist exports, CurseForge / Modrinth manifest.json packs, and BG3 modsettings.lsx lists—and automatically compile them into a native Sanctuary Blueprint with preserved load-order rules and FOMOD selections. DNA Cross-Matching & Guided Side Browser Acquisition: Automatically binds any artifacts already present in the Citizen's local Vault via SHA-256 / MD5 DNA matching, and routes missing items directly into the Signature Queue & Guided Side Browser Batch Updater—stepping through each Mason's official page for 1-click sovereign acquisition with zero lock-in (plus two-way export back to standard modlist.txt / loadorder.txt formats).
+- **Save-Game Blueprint Lock & Pre-Launch Save Doctor (In Progress):** Pairs save states with the deployed Blueprint DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching Blueprints removed artifacts required by the latest save.
+- **Citizen-Facing Homestead Crash & Exception Decoder (Desktop + Web) (In Progress):** Watches schema log_files (lastException.txt, Papyrus, SMAPI, redscript) and cross-references stack traces against installed Vault artifacts and KnownExceptionRules to surface plain-English Crash Diagnosis Cards.
+- **SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity) (In Testing [In Dev Build]):** Parses Steam libraryfolders.vdf & appmanifest_*.acf across native, Flatpak, Snap, and Steam Deck SD card libraries, mapping ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix alongside native Linux .AppImage/.deb builds and Proton WINEPREFIX tool execution.
+- **Mobile PWA / Web 'My Vault Patch Radar' (Zero-PII Cloud Companion) (In Progress):** Optional encrypted sync of active Blueprint DNA hashes so Citizens on Mobile PWA or Web immediately see which of their installed artifacts broke in a game patch and can queue updates remotely.
+- **Realtime Queue Handshake & Side Browser Guided Batch Updater (In Progress):** Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each Mason's download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive.
+- **Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms) (In Testing [In Dev Build]):** Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed Vault artifacts, toggling artifacts in the active Blueprint, activating Blueprints, navigating all 18 OS views, switching Chameleon themes & Lexicon packs, and triggering quick actions.
+- **Conflict Radar 2.0 & Game-Agnostic Load Order Engine (In Testing [In Dev Build]):** 5-Tier Severity Matrix (S1–S5), strategy-aware Load Order & Priority Tier inspector with searchable Blueprint Scan Scope, 1-click 'Set Winner' resolution, and directional Must Load After/Before rules.
+- **In-Game Config Watcher → Workbench Interactive Diff Timeline (In Progress):** Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the Citizen's Workbench Diff Timeline.
+- **Automated Protocol Regression & Stability Suite (Vitest + Cargo Test) (In Progress):** Automated test coverage for compileLoadOrder, check_heuristic_malware_detailed (21+17 rules & Zlib/Zstd DBPF streams), interpolateGlossaryTokens, and parseMarkdownToDirectiveSchema.
 
-## Phase 12: Agnostic Future (July 15 – October 2026 — Completed)
-**Status:** `COMPLETED` | **Date Range:** `July 15 – October 2026` | **Focus:** `Citizens Workbench / Mason IDE, Lexicon Revamp, Multi-Workspace & Sanctuary Partners, Sanctuary V6 Liquid Glass Overhaul, Website V2 / PWA`
+## Phase 13 (V5.8) • October 2026: Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync
+**Status:** `Completed` | **Focus:** `Master Schema & Lexicon Studios, Guided Icon Builder, Universal AV, Static Edge Auto-Push & Partner Covenants`
 
-### Citizens Workbench / Mason IDE (Completed: July 17, 2026)
-- **Version Timeline:** Added support for named versions alongside semantic version numbers across the Version Timeline.
-- **Dual Vision Editor:** Visual and Raw Monaco Editor modes now display simultaneously in a synchronized split-screen layout for `.cfg`, `.ini`, `.json`, and `.xml` artifacts.
-- **Author Mode — Blank Mapping Strings:** Enabled blank mapping strings in Author Mode for rapid template scaffolding.
-- **Author Mode — Target File Selector:** Added a dedicated Target File selector in Author Mode to bind schemas directly to specific configuration payloads.
-- **Author Mode — Auto-Populate Template Code:** Automatically populates base template code when initializing a new file in Author Mode.
-- **Nexus Uploads — Version Auto-Match & 1-Click Publish:** Automatically matches version numbers from the active Workbench build and adds a 1-click "Publish Current Upload" action with localized Language Dropdowns.
-- **Mason IDE — "Create Lexicon" Template:** Added a dedicated "Create Lexicon" template in the Mason IDE with a side-by-side reference dictionary view for translators and community scribes.
+Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Universal Heuristic Scanner (21 Core + 17 Spoke rules with Zlib/Zstd DBPF & Base64/Hex deobfuscation), added 6-provider Static Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync.
 
-### Lexicon Revamp & Simplification (Completed: August 10, 2026)
-- **String Deduplication & Consolidation:** Audited and removed duplicate localization strings across all dictionaries (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`).
-- **Cloud Database Lexicon Schemas:** Migrated default Lexicon JSON payloads into the cloud database alongside Master Schemas for instant over-the-air terminology updates.
-- **Sanctuary & Community Badges:** Added official `Sanctuary` and Partner `Community` badges to identify verified core vs. community-authored lexicons.
-- **Cartographer & Preferences Integration:** Integrated Lexicon selection directly into the first-boot Cartographer onboarding wizard and System Preferences.
+- **Master Schema Studio, macOS Pathing & Dynamic Config Watcher:** 7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, game-agnostic mod_categories, and live config_extensions syncing.
+- **Lexicon Visual Studio, Guided Icon Override Builder & Codex Guides:** Searchable Material Symbol override builder with Default → New glyph previews, themed checkboxes, parity validation bar, and interactive Schema & Lexicon Codex drawers.
+- **Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules):** In-memory Zlib/Zstd DBPF stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting.
+- **Decentralized Static Edge Direct Push & Multi-Mod catalog.json:** 1-click OS Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic previous_hashes lineage rollover.
+- **Readiness-Gated Partner Onboarding, Covenants & Supporter Pipeline:** Mandatory Partners Agreement & Compliance Protocol review before Partner Spoke application, 0%-cut community donations, $5 = +30 Days Dev Builds, and Bilateral Codebase ↔ Cloud Sync.
 
-### Multi-Workspace Support & Sanctuary Partners (Completed — October 20, 2026)
-- **Multiple Workspaces (Master Schemas):** Full multi-instance workspace isolation allowing Citizens to mount and switch between any supported game ecosystem on the fly.
-- **Sanctuary Partners Agreement:**
-  - Every Partner Community shares the unified Sanctuary OS Core App while maintaining sovereign control over their own ecosystem.
-  - Each Partner Community provisions its own game-specific file parsers, Lexicons, and Chameleon themes.
-  - Shared global User Identity Matrix with granular per-game clearance roles (`Citizen`, `Scout`, `Mason`, `Architect`, `Senior Architect`, `Wayfinder`).
-  - **100% Data Sovereignty ("Cut the Cord"):** All community data resides in the Partner's own database and connects to the Sanctuary Hub via Foreign Data Wrapper (FDW) or direct Spoke federation—if a community ever chooses to leave, they retain 100% of their data with a single click.
-  - **Zero-Cut Partner Donations:** Integrated in-app Partner Donation links where Sanctuary Foundry takes **0%** of community donations.
-  - **Cross-Community Supporter Dev Builds:** Citizens who donate to *any* Partner Community automatically unlock access to the monthly Sanctuary OS Supporter Development Builds.
-  - **1-File Standalone Fork:** Any community can fork the open-source codebase into a completely independent terminal by editing a single configuration file (`src/supabase.ts`).
+## Phase 12 • July 15 – October 2026: Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA
+**Status:** `Completed` | **Focus:** `Citizens Workbench / Mason IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2`
 
-### Sanctuary V6 — Liquid Glass & 18-Section OS Revamp (Completed — October 20, 2026)
-- **3D Refractive Liquid Glass Theme Engine:**
-  - Eliminated hardcoded colors and layouts across all 18 OS sections in favor of the unified 4-layer CSS optical glass pipeline (`--glass-base-fill`, `--glass-sheen`, `--glass-refracted-wallpaper`, and 3-sided specular bevels).
-  - Revamped all Default Core Themes (`Sanctuary Dark`, `Sanctuary Light`, `Midnight Aurora`, `Cyberpunk Neon`, `Vampire Nocturne`, `Tactical Stealth`, `True Glass`) and debuted **The Sims 4 ("Plumbob Crystal")** as the first official Partner Community Theme.
-  - **Chameleon Theme Forge 2.0:** Rebuilt the Chameleon Theme Forge with 1-Click Optical Material Presets, Curated Color Harmony Palettes, unlocked Semantic Status Chromatics, a Built-in Wallpaper Gallery + Custom Upload, Multi-Stop Atmospheric Gradient Forge, and live refractive OS previewing.
-  - **Dynamic Theme Preview Cards:** Added live procedural Theme Preview Cards across System Preferences, Mason Workshop, and The Nexus that dynamically render each theme's wallpaper, glass optics, border radius, and color hierarchy directly from its JSON payload (or custom preview banner).
-  - **Floating 2-Pill Title Bar & Hover Dock:** Replaced the legacy full-width top bar with two floating Liquid Glass pills (Workspace Switcher + Window Controls) and an auto-collapsing Hover Dock.
-- **Dynamic Alert Stat Tiles:**
-  - **Permissions Alert Tile:** Dynamically surfaces on the Command Center when OS filesystem or symlink elevation is required.
-  - **Global Alert Tile:** Real-time broadcast tile for network-wide DEFCON or patch events.
-  - **Critical Failures Tile:** Instant telemetry counter and drawer trigger for broken or incompatible vault artifacts.
-  - **System Alerts Tile:** Tracks unstable or conflicted packages requiring Citizen attention.
-  - **Artifact Updates Tile:** Live counter of installed mods with newer versions available on The Nexus.
-- **Full 18-Section OS Revamp:** Unified typography, `.glass-panel` / `.glass-surface` hierarchy, single-row `SidePanel` headers, and responsive mobile drawers across Command Center, Vault, Nexus, Blueprints, Comm-Link, Conflict Radar, Homestead Lab, Workbench, Time Capsule, Preferences, Help Desk, Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, Keepers Core, Side Browser, and Cartographer.
+Dual-Vision Mason IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA.
 
-### Website V2 & Progressive Web App (Completed — October 20, 2026)
-- **Unified Single-Codebase Web OS & PWA:** Deployed the full Sanctuary OS experience to the web (`sanctuaryos.net` and workspace routes like `sanctuaryos.net/sims4`) with installable Mobile & Desktop PWA support.
-- **Hardware-Boundary Guardrails:** Automatically disables local filesystem/symlink features (`Vault`, `Conflict Radar`, `Homestead Lab`, `Workbench`, `Time Capsule`) on Web while keeping `Comm-Link`, `The Nexus`, `Support Desk`, and all `Command Hubs` 100% live and interactive.
-- **Sanctuary Foundry Main Hub:** Public landing hub featuring System Directives, Interactive Citizen Guide, Phase Chronology, Forking Matrix, Legal/EULA Codex, Partner Community Portals, and Desktop Installer Downloads.
-- **Remote Blueprint & Download Queuing:** Allows Citizens browsing The Nexus on Web or Mobile to queue mods and Blueprints (`SNC-XXXXX`) for automatic deployment the next time their Desktop App boots.
+- **Citizens Workbench & Mason IDE 2.0:** Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder.
+- **Lexicon Revamp & Cloud Schemas:** Deduplicated all localization dictionaries, moved default Lexicon JSONs to the cloud database, and added official Sanctuary & Community badges.
+- **Multi-Workspace & Sanctuary Partners:** Shared Core App and SSO with per-game Master Schemas, 100% Partner DB ownership ('Cut the Cord'), 0%-cut Partner Donations, and 1-File Standalone Forking.
+- **Sanctuary V6 & Liquid Glass Engine:** 4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner Chameleon, and Chameleon Theme Forge 2.0.
+- **Dynamic Alert Tiles & 18-Section Revamp:** Floating 2-Pill Title Bar, Hover Dock, 5 Dynamic Alert Stat Tiles (Permissions, Global, Critical, System, Updates), and a full 18-section UI overhaul.
+- **Website V2, Mobile PWA & Remote Queuing:** Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC Blueprint queuing.
+- **Schema-Driven Load Order Compiler:** Declarative Master Game Schemas powering multi-strategy topological compilation across folder priority, manifest lists, numeric prefixes, and timestamps.
+- **FIDO2 Passkey Vault & Quarantine Lockdown:** Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine SidePanel Lockdown, Silent Updater, and Bilateral Directives Sync.
 
----
+## Phase 11 • May 17 – July 13, 2026: Technical Debt Repayment, Citizens Workbench & The Agnostic Sprint
+**Status:** `Completed` | **Focus:** `Native Intake & Support Desk, Citizens Workbench 1.0 & Game-Agnostic Kernel`
 
-## Phase 11: Technical Debt Repayment & Agnostic Sprint (May 17 – July 13, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 17 – July 13, 2026` | **Focus:** `Native Intake & Support Systems, Citizens Workbench, Lexicon Sweep & Game-Agnostic Kernel`
+Integrated Mason & Architect intake forms, native Bug Reports & Support Ticket Dossiers, Citizens Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI sweep, and the Agnostic Sprint.
 
-- **Native Intake Forms (June 5, 2026):** Integrated Mason UUID registration and Architect clearance intake forms directly into the Sanctuary OS application, discontinuing external website forms.
-- **Integrated Bug Reports, Support Tickets & Side Browser (June 5, 2026):** Replaced external Discord support bots with the native encrypted Support Desk Ticket Dossier system, embedded multi-tab Side Browser with automatic download interception, and Mason Linker.
-- **Citizens Workbench 1.0 (June 26, 2026):**
-  - Automatic detection of `.cfg`, `.ini`, and `.json` configuration files inside the active Vault.
-  - Embedded Monaco IDE for syntax-highlighted local configuration editing.
-  - Introduced **Sanctuary Templates** (Schema Mapping) so raw text configs automatically render as user-friendly visual sliders, toggles, and dropdowns.
-- **Comprehensive Maintenance & Lexicon Sweep (June 27, 2026):** Replaced legacy prototype code, migrated all static UI text and icons into the thematic Lexicon dictionaries, re-themed legacy views, and completed a full UI/UX bug sweep across all 11 core sections.
-- **The Agnostic Sprint (July 13, 2026):** Extracted every hardcoded Sims 4 check (`.package`, `.ts4script`, folder depth rules, and executable paths) across 17 frontend modules and the Rust backend into dynamic **Master JSON Schemas**, transforming Sanctuary OS into a truly game-agnostic engine.
+- **Native Intake Forms & Support Desk:** Integrated Mason UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App.
+- **Citizens Workbench 1.0 & Sanctuary Templates:** Automatic .cfg, .ini, and .json detection in the Vault with an embedded Monaco IDE and visual slider/toggle Schema Mapping.
+- **The Agnostic Sprint & Master Schemas:** Extracted all hardcoded Sims 4 (.package / .ts4script) checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas.
+- **Integrated Side Browser & Vault Intercept:** Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the Vault.
+- **Full-Stack Security & Forensic Audit:** Hardened Rust path-traversal guards (is_safe_user_file_path), Supabase Row-Level Security (RLS) policies, and immutable append-only audit logs.
+- **Oversight Mason Linker & Lexicon Sweep:** Deployed the Oversight Mason Linker, automatic Unregistered Vault syncing on Nexus verification, and a full 11-section Lexicon/UI sweep.
 
----
+## Phase 10 • May 10 – May 16, 2026: Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update
+**Status:** `Completed` | **Focus:** `Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage`
 
-## Phase 10: Post-Alpha Revamp, Protocols & Mass Tooling (May 10 – May 16, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 10 – May 16, 2026` | **Focus:** `Dev Sandbox, Visual Protocol Manager, Folder Structure Enforcer & Senior Architect Mass Update`
+Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus registry, and Chameleon Theme Forge.
 
-- **Developmental / Local Mods Sandbox (May 11, 2026):** Created an isolated `Dev` Sandbox directory for creators to test work-in-progress packages without triggering constant SHA-256 hash churn in the primary Vault.
-- **Mason Dev Mode & "Sync to Network" (May 11, 2026):** Added a streamlined release pipeline in the Mason Workshop allowing creators to promote a tested local Dev mod directly into a published Nexus release.
-- **Enhanced Mod Telemetry (May 11, 2026):** Added "Last Updated" timestamps, interactive status-reason hover tooltips, and a multi-select Compatible Game Versions matrix to every mod dossier.
-- **Visual Protocol Schema Manager (May 12, 2026):** Built an interactive, database-schema-style Protocol Manager across the Mason and Architect Hubs supporting **Core & Addons**, **Flavors** (mutually exclusive sub-options), **Flavor Groups** (invisible rival rules across separate files), **Dependencies**, **Lineage**, and **DLC Folder Requirements**.
-- **Mason Mod Structure Builder (May 12, 2026):** Added a visual folder-tree builder for Masons that integrates directly with Conflict Radar's "Sanitize Vault" engine and Symlink deployment to guarantee exact subfolder placement.
-- **Advanced Vault & Nexus Filters (May 12, 2026):** Added "Game Version", "Currently Eligible" (hiding mods with missing dependencies), and "Exclude Unowned DLC" ghost-filtering across the Vault and Nexus.
-- **Monaco IDE & Senior Architect Mass Update (May 13 – May 16, 2026):** Integrated the Monaco IDE into Mason/Architect Hubs, built the Senior Architect Mass Update console (bulk-updating Status, Game Version, Safety Rating, Category, and Conflicts after major game patches), added Backup Retention Policies, and added Lexicon selection to first-boot setup.
+- **Isolated Dev Sandbox & Sync to Network:** Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP artifacts, paired with 1-click 'Sync to Network' release promotion.
+- **Visual Protocol & Folder Structure Builder:** Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize Vault.
+- **Senior Architect Mass Update & Filters:** Bulk post-patch triage console for Senior Architects alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters.
+- **The Nexus Discovery Registry:** Global metadata catalog for Artifacts, Blueprints, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering.
+- **Chameleon Theme Forge & Holo Sandbox:** Interactive Theme Forge suite featuring a multi-stop atmospheric Background Builder, Dark/Light adaptation, and live Holo Sandbox previewing.
+- **Hot-Swappable Lexicon Protocol:** Word-as-a-Service localization engine routing 100% of UI labels and icons through hot-swappable JSON dictionaries.
 
----
+## Phase 9 • May 8 – May 9, 2026: Infrastructure Finalization, Laboratory Diagnostics & Command Hubs
+**Status:** `Completed` | **Focus:** `Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs`
 
-## Phase 9: Infrastructure Finalization & Laboratory Diagnostics (May 8 – May 9, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 8 – May 9, 2026` | **Focus:** `Proving Grounds Simulation, Senior Architect Hub, macOS Universal Pipeline & Wayfinder Comms`
+Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Senior Architect & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Florida Compliance Tiers 1–4.
 
-- **Homestead Proving Grounds Simulation (May 9, 2026):** Transitioned the Homestead Lab from a conceptual UI into a live simulation laboratory with real-time `LastException` / crash log monitoring and 1-click conflict rule pushing to the global database.
-- **Senior Architect Command Hub (May 9, 2026):** Deployed the high-clearance Senior Architect console featuring Global DEFCON metrics, the Identity Matrix (live user role management), and Nuclear Protocol Tracking.
-- **macOS Universal Build Pipeline (May 9, 2026):** Engineered automated GitHub Actions workflows to compile and sign native `.dmg` installers for both Apple Silicon (`aarch64`) and Intel (`x86_64`) Macs.
-- **Wayfinder Comms & Florida Compliance (May 8, 2026):** Established high-clearance Wayfinder transmission channels with dynamic SQL alerting, Row-Level Security (RLS) hardening, and automated Florida Compliance Tiers 1–4.
+- **Live Proving Grounds & macOS Pipeline:** Real-time crash log monitoring with 1-click conflict rule pushing in the Homestead Lab, plus signed macOS Universal (.dmg) GitHub Actions builds.
+- **Five Elevated Command Hubs:** Dedicated ElevatedHubLayout command centers for Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core.
+- **Claimable Support Desk Ticket Dossiers:** Interactive ticket dossiers equipped with PII-scrubbed crash logs, response macros, and cross-tier escalation between Architects and Oversight.
+- **Florida Compliance Tiers 1–4:** Automated public feed scrubbing and Cloud Blueprint hash purge triggers protecting public discovery while preserving local Vault freedom.
 
----
+## Phase 8 • May 7 – May 8, 2026: Standardized Lexicons, Dynamic Engine Recognition & DEFCON Shield
+**Status:** `Completed` | **Focus:** `Rust Rip Protocol, Auto-Sanitization Launch & DEFCON 1 Shield`
 
-## Phase 8: Standardized Lexicons & Dynamic Engine Recognition (May 7 – May 8, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 7 – May 8, 2026` | **Focus:** `Rust Binary Version Ripper, Auto-Sanitization Launch, Global Lexicon Extraction & Blueprint Architect`
+Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the Blueprint Architect Load Order UI, and the real-time DEFCON 1 patch shield.
 
-- **Dynamic Engine Recognition ("Rip Protocol") (May 7, 2026):** Replaced brittle `GameVersion.txt` parsing with a native Rust binary inspection engine that extracts exact engine version signatures directly from `Default.ini` and PE executable headers.
-- **Auto-Sanitization Launch Sequence (May 7, 2026):** Engineered the Quick Launch sequence to automatically purge stale `LastException` logs and `localthumbcache.package` files across both the user Documents directory and the Airgap container prior to engine ignition.
-- **Global Lexicon Extraction (May 7, 2026):** Executed the first mass migration of hardcoded UI labels and system alerts into `en-sanctuary.json` for centralized thematic routing.
-- **Blueprint Architect Load Order UI (May 7, 2026):** Built the full-width Load Order Manager allowing Citizens to visually prioritize folder tiers (`!_Core` through `Z_Overrides`) and listen for real-time DEFCON 1 patch shields.
+- **Rust 'Rip Protocol' & Auto-Sanitization:** Dynamic engine version recognition parsing Default.ini and PE headers in Rust, plus pre-launch purging of stale LastException and cache files.
+- **Global Comm-Link Broadcast Feed:** Real-time community feed supporting WYSIWYG/Markdown dispatches, multi-level threaded replies, and dedicated Discover & Following tabs.
+- **DEFCON 1 Pre-Patch Network Shield:** Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup.
+- **Tier 5 Malware Scanner & Secure Shred:** Byte-level heuristic malware scanner, Citizen-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override.
 
----
+## Phase 7 • May 6, 2026: Core Architecture, Time Capsule Compression & Windows MSI Pipeline
+**Status:** `Completed` | **Focus:** `Nested Vault Taxonomy, 78 GB → 24 GB Engine Compression & Automated MSI Builds`
 
-## Phase 7: Core Architecture & Time Capsule Restoration (May 6, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 6, 2026` | **Focus:** `Nested Vault Taxonomy, High-Speed Time Capsule Compression, Windows MSI Pipeline & Scout Dossiers`
+Deployed the nested Vault directory hierarchy, optimized Time Capsule Engine Core compression (78 GB → 24 GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar.
 
-- **Nested Vault Hierarchy Deployment (May 6, 2026):** Restructured the local Sanctuary Vault into a strict, self-healing directory taxonomy (`Backups/World`, `Backups/Engine`, `Data/cache`, `Quarantine`, and `Profiles`).
-- **Time Capsule Compression Rework (May 6, 2026):** Optimized the Rust archive engine to compress full 78 GB Engine Cores down to 24 GB, complete World Save snapshots in ~60 seconds, and execute full state rollbacks in under 50 seconds.
-- **Automated Windows `.msi` Release Pipeline (May 6, 2026):** Configured GitHub Actions for automated, reproducible Windows `.msi` installer compilation and release signing.
-- **Scout Dossier Radar Integration (May 6, 2026):** Integrated "Unidentified Artifact" Scout Dossier submissions directly into the Conflict Radar sweep workflow.
+- **Nested Vault Taxonomy & 24 GB Compression:** Self-healing Vault hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks.
+- **Schema-Driven Visual Config Workbench:** Visual configuration studio rendering raw artifact settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor.
+- **Mason Workshop & Collections Orchestrator:** Creator suite featuring an isolated Dev Sandbox, Collections Builder, and relational Protocol Orchestrator for Twins, Flavors, and Dependencies.
+- **In-Process Rust PE Executable Parser:** Native Rust pelite binary parser extracting genuine patch versions directly from .exe headers with zero antivirus false positives.
 
----
+## Phase 6 • May 3 – May 5, 2026: Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds
+**Status:** `Completed` | **Focus:** `Creator Following Feed, App.tsx Modularization & Nuke Sandbox`
 
-## Phase 6: Modularization & The Comm-Link (May 3 – May 5, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 3 – May 5, 2026` | **Focus:** `Creator Following Feed, Comm-Link Ledger, App.tsx Modularization & Yeet Cascade Isolation`
+Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized App.tsx into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds.
 
-- **Creator Following System (May 5, 2026):** Added a dedicated "Following" filter to the Comm-Link Feed so Citizens can subscribe to dispatches from their favorite Masons.
-- **Comm-Link Real-Time Ledger (May 5, 2026):** Overhauled the Comm-Link into a real-time broadcast feed with inline dispatch pop-up viewers and 1-click Mason Dossier profile routing.
-- **Core Codebase Modularization (May 4, 2026):** Deconstructed the monolithic `App.tsx` into dedicated, lazy-loadable domain modules (`CommandCenter.tsx`, `Lab.tsx`, `Collection.tsx`, and `Marketplace.tsx`).
-- **Yeet Cascade & Nuke Isolation (May 4, 2026):** Extracted recursive dependency casualty tracking into `YeetConfirmAlert.tsx` and enforced 100% Nuke Isolation inside the Proving Grounds.
+- **Creator Following & Domain Modularization:** Added the Creator Following feed to Comm-Link, modularized App.tsx into dedicated domain views, and extracted Yeet Cascade casualty tracking.
+- **100% Nuke Injection Sandbox:** Temporarily strips active Vault symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies.
+- **1v1 Conflict Stability Arena:** Pits two suspected colliding artifacts head-to-head in an airgapped test environment while monitoring real-time engine stability.
+- **Automated Crash Log Harvester & Scrubber:** Captures lastException.txt crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing.
 
----
+## Phase 5 • May 1 – May 3, 2026: Defensive Protocols, Symlink Airgap 2.1 & Mason Protocol Manager
+**Status:** `Completed` | **Focus:** `Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule`
 
-## Phase 5: Defensive Protocols & Symlink Airgap 2.1 (May 1 – May 3, 2026)
-**Status:** `COMPLETED` | **Date Range:** `May 1 – May 3, 2026` | **Focus:** `Real-Time Airgap File Watcher, DNA Duplicate Intercept, Mason Protocol UI & Smart Search Fallback`
+Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, Mason Protocol Manager 1.0, intelligent Google Search fallback, and hardlink Time Capsule snapshots.
 
-- **Symlink Airgap 2.1 (`initialize_airgap_watch`) (May 3, 2026):** Implemented a non-blocking Rust `notify` filesystem watcher thread that intercepts in-game `.cfg` and `.ini` modifications in real time and mirrors them safely back to the Vault.
-- **DNA Radar Duplicate Intercept (May 3, 2026):** Added real-time SHA-256 signature interception during artifact ingestion, immediately halting duplicate files and prompting the Citizen to "Replace" or "Ignore".
-- **Mason Protocol Manager 1.0 (May 2, 2026):** Introduced the first relational UI for Masons to declare Addon, Twin, Rival, and Beta mod relationships.
-- **Intelligent Search Fallback (May 2, 2026):** Added dynamic search fallback by Display Name for local mods lacking an explicit Nexus URL.
+- **Real-Time Airgap Watcher & DNA Intercept:** Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop.
+- **Dual-State Time Capsule Architecture:** Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or artifact tests.
+- **Zero-Bloat OS Hardlink Snapshot Engine:** Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space.
+- **Differential Rollback Comparator:** High-speed diff_backup engine that restores only modified bytes and purges rogue files without re-copying the entire installation.
 
----
+## Phase 4 • April 28 – May 1, 2026: The Global Network, Radiant Light Mode & Cloud Blueprints
+**Status:** `Completed` | **Focus:** `Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar`
 
-## Phase 4: The Global Network & Radiant Pivot (April 28 – May 1, 2026)
-**Status:** `COMPLETED` | **Date Range:** `April 28 – May 1, 2026` | **Focus:** `Radiant Light Mode & ThemeProvider, Cloud Blueprint Codes, Architect Signature Gate & Read/Write Airgap`
+Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud Blueprint transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4.
 
-- **Radiant Mode & Real-Time `ThemeProvider` (May 1, 2026):** Expanded Sanctuary OS beyond its original dark "Bunker" aesthetic by introducing **Radiant** (Light Mode) and the real-time `ThemeProvider` engine supporting instant profile switching (`Architect`, `Radiant`, `Dracula`, `Synthwave`).
-- **Cloud Blueprint Transmissions (`SNC-XXXXX`) (May 1, 2026):** Launched cloud-based 6-character alphanumeric Blueprint share codes for instant load-order transmission between Citizens.
-- **Architect Signature Protocol (May 1, 2026):** Added a high-stakes confirmation gate before destructive operations, allowing Citizens to Overwrite, Backup to Time Capsule, or Abort.
-- **Auto-Deployment Intercept & Airgap Lock (April 30, 2026):** Added recursive dependency halt gates during Blueprint deployment and strict Read/Write permission toggles on core engine data files.
+- **Radiant Mode, ThemeProvider & Signature Gate:** Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud Blueprint codes, and the Architect Signature gate.
+- **Severity 1–4 Collision Matrix:** Proactive conflict classifier distinguishing minor overlaps from Severity 3 Tuning Overlaps and Severity 4 Fatal Clashes.
+- **Priority Tier Folders & Dynamic Resource.cfg:** Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated Resource.cfg priority depth compilation.
+- **Architect Console & Crowd-Sourced Scout Queue:** Dedicated moderation console for verifying community Scout Dossier submissions behind Copilot confirmation gates.
 
----
+## Phase 3 • April 15 – April 28, 2026: System Rip, Deep Yeet 2.0 & Logic Intelligence
+**Status:** `Completed` | **Focus:** `Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot`
 
-## Phase 3: System Rip & Logic Intelligence (April 15 – April 28, 2026)
-**Status:** `COMPLETED` | **Date Range:** `April 15 – April 28, 2026` | **Focus:** `Deep Yeet 2.0 Cascade Scanner, UTF-16 Version Ripper, Twin Bond Protocol & Copilot Philosophy`
+Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual Citizen signature.
 
-- **Deep Yeet 2.0 (April 28, 2026):** Engineered deep-recursive dependency scanning that automatically identifies and queues orphaned downstream addons when a master core package is removed.
-- **UTF-16 System Version Ripper (April 28, 2026):** Built a native Rust byte-filter that strips UTF-16 encoding artifacts from game binaries to extract clean version strings.
-- **Twin Bond Protocol (April 25, 2026):** Created synchronized deployment links between paired `.package` and `.ts4script` files so neither half can be deployed or disabled without its twin.
-- **The Copilot Philosophy (April 25, 2026):** Established Sanctuary OS's foundational safety doctrine: the system autonomously detects cascades, conflicts, and broken dependencies, then halts and presents clear options for the Citizen's manual signature.
+- **Deep Yeet 2.0 & UTF-16 Version Ripper:** Recursive dependency cascade scanner queuing orphaned addons on master removal, paired with the Rust UTF-16 binary version ripper.
+- **Atomic Logic Triumvirate:** Relational artifact rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies.
+- **Orphaned Addon Cascade Protection:** Intercepts master library removal and halts for the Citizen's manual signature before cleanly unequipping or removing dependent child add-ons.
+- **SNCXXX Cloud Blueprints & Ghosted States:** 6-character alphanumeric Cloud Blueprint share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics.
 
----
+## Phase 2 • April 10 – April 15, 2026: Visual Uplink, Glassmorphism 1.0 & The Quarantine Zone
+**Status:** `Completed` | **Focus:** `Glassmorphism 1.0, Quarantine Bio-Hazard Sector & Symlink Airgap`
 
-## Phase 2: Visual Uplink & The Quarantine Zone (April 10 – April 15, 2026)
-**Status:** `COMPLETED` | **Date Range:** `April 10 – April 15, 2026` | **Focus:** `Glassmorphism 1.0, Bio-Hazard Quarantine Sector, Layered OS Immersion & Symlink Airgap`
+Introduced the Glassmorphism 1.0 backdrop-blur engine, constructed the dedicated bio-hazard Quarantine Zone for isolating malicious files, and unified the app into a layered desktop OS experience backed by Symlink Airgap and SQLite caching.
 
-- **Glassmorphism Engine 1.0 (April 15, 2026):** Introduced the first generation of backdrop-blur containers, dynamic translucent borders, and deep elevation shadow layers.
-- **The Quarantine Zone (April 15, 2026):** Constructed a dedicated bio-hazard isolation sector that strips execution permissions from suspicious or corrupted artifacts and prepares them for 3-pass Secure Shredding.
-- **Layered Desktop OS Immersion (April 15, 2026):** Refactored standalone utility screens into a cohesive, single-window desktop operating system experience backed by the local SQLite cache and Symlink Airgap.
+- **Glassmorphism 1.0 & Bio-Hazard Quarantine:** Translucent backdrop-blur glass containers with deep elevation shadows and a dedicated Quarantine Zone for isolating and shredding threats.
+- **Symlink Airgap 2.5 Projection Engine:** Projects active artifacts from the isolated Vault into the live game directory via zero-copy OS symlinks in milliseconds.
+- **Sub-Second SQLite Delta Scanner:** Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ artifact Vaults in sub-second sweeps.
+- **Self-Healing Vault Sanitizer & Profiles:** Automatically maintains the isolated Vault directory structure and powers instant local Blueprint loadout switching.
 
----
+## Phase 1 • April 1 – April 10, 2026: Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing
+**Status:** `Completed` | **Focus:** `First-Boot Cartographer Recon & Millisecond Delta Caching`
 
-## Phase 1: Bunker Initialization & DNA Pathing (April 1 – April 10, 2026)
-**Status:** `COMPLETED` | **Date Range:** `April 1 – April 10, 2026` | **Focus:** `The Cartographer Protocol, SHA-256 DNA & Delta Caching, and Primary Bunker Pathing`
+Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Artifacts directories, and engineered SHA-256 DNA delta caching.
 
-- **The Cartographer Protocol (April 10, 2026):** Engineered automated first-boot reconnaissance that scans drives to locate Game Binary installations and user Mods directories without manual path entry.
-- **SHA-256 DNA & Delta Caching (April 10, 2026):** Implemented cryptographic SHA-256 artifact hashing paired with `mtime`-first delta scanning, dropping Vault boot and scan times on multi-thousand-mod libraries from minutes to milliseconds.
-- **Core Bunker Pathing & Integrity Checks (April 10, 2026):** Established primary "Bunker" Vault deployment pathing and local registry change tracking to eliminate CPU bottlenecks on massive mod collections.
-## Phase 1: Bunker Initialization & DNA Pathing (April 1 – April 10, 2026)
-**Status:** `COMPLETED` | **Date Range:** `April 1 – April 10, 2026` | **Focus:** `The Cartographer Protocol, SHA-256 DNA & Delta Caching, and Primary Bunker Pathing`
-
-- **The Cartographer Protocol (April 10, 2026):** Engineered automated first-boot reconnaissance that scans drives to locate Game Binary installations and user Mods directories without manual path entry.
-- **SHA-256 DNA & Delta Caching (April 10, 2026):** Implemented cryptographic SHA-256 artifact hashing paired with `mtime`-first delta scanning, dropping Vault boot and scan times on multi-thousand-mod libraries from minutes to milliseconds.
-- **Core Bunker Pathing & Integrity Checks (April 10, 2026):** Established primary "Bunker" Vault deployment pathing and local registry change tracking to eliminate CPU bottlenecks on massive mod collections.
+- **Cartographer Recon & Millisecond Delta Cache:** Automated first-boot drive reconnaissance locating Game Bin & Artifacts folders, paired with SHA-256 delta caching for instant startup.
+- **Tauri v2 + Rust + React 18 Kernel:** Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand.
+- **Automated Coordinate Discovery Wizard:** Guided first-launch Cartographer setup linking Game Binaries, live Artifacts folders, and airgapped Bunker Vault coordinates.
+- **Streaming SHA-256 DNA & Archive Inspector:** Multi-threaded Rust cryptographic hashing and in-memory DBPF/ZIP header inspection without extracting archives to disk.

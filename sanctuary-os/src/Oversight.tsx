@@ -16,7 +16,8 @@ import { DefconSidePanel } from "./hub-components/SADefcon";
 import { MassUpdateOversight } from "./hub-components/SAMassUpdateOversight";
 import { GameManagementOversight } from "./hub-components/SAGameManagementOversight";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfile }: any) {
+import { NexusReportsViewer } from "./side-panels/NexusReportsViewer";
+export default function Oversight({ userRole: _userRole, activeGameSchema: _activeGameSchema, onOpenMasonProfile }: any) {
     const { t } = useLexicon();
     const activeTab = useStore((state) => state.oversightActiveTab);
     const setActiveTab = useStore((state) => state.setOversightActiveTab);
@@ -84,6 +85,7 @@ export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfi
                     <VerticalTabButton id="compliance" icon={t("icon_policy", "policy")} label={t("tab_compliance", "Compliance")} activeTab={activeTab} setTab={setActiveTab} />
 
                     <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus", "coronavirus")} label={t("rating_malware", "Malware")} activeTab={activeTab === "oversight_reports" ? "malware_oversight" : activeTab} setTab={(id: string) => { setComplianceFilter('overview'); setActiveTab(id); }} />
+                    <VerticalTabButton id="reports" icon={t("icon_flag", "flag")} label={t("stat_bugs", "Reports")} activeTab={activeTab} setTab={setActiveTab} />
                     <VerticalTabButton id="sanctuary_tickets" icon={t("icon_local_activity", "local_activity")} label={t("wf_tab_tickets", "Support")} activeTab={activeTab === "support_settings" ? "sanctuary_tickets" : activeTab} setTab={setActiveTab} />
                     <VerticalTabButton id="mass_update" icon={t("icon_dynamic_feed", "dynamic_feed")} label={t("tab_mass_update", "Mass Update")} activeTab={activeTab} setTab={setActiveTab} />
                     <VerticalTabButton id="game_versions" icon={t("icon_settings", "settings")} label={t("tab_game_versions", "Management")} activeTab={activeTab} setTab={setActiveTab} />
@@ -106,6 +108,7 @@ export default function Oversight({ userRole, activeGameSchema, onOpenMasonProfi
                     setShowManualFlagModal(true);
                 }} />}
                 {activeTab === "mass_update" && <MassUpdateOversight />}
+                {activeTab === "reports" && <NexusReportsViewer />}
                 {activeTab === "game_versions" && <GameManagementOversight />}
                 {activeTab === "oversight_comms" && <WayfinderPostsEditor authorId="system" authorProfileId="system" isOversight={true} />}
                 {activeTab === "audit_logs" && <AuditLogViewer />}

@@ -5,6 +5,7 @@ import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
+import { logArchitectAction, computeAuditDiff } from "./lib/audit";
 import {
   SidePanel,
   CustomDropdown,
@@ -553,29 +554,40 @@ export function MasonSandbox({
     if (!activeMod || !isUuid(activeMod.id)) return;
     setIsCommitting(true);
     try {
+      const beforeMod = existingMods.find((m) => m.id === activeMod.id) || null;
+      const updatedPayload = {
+        name: activeMod.name,
+        description: activeMod.description,
+        image_url: activeMod.image_url,
+        url: activeMod.url,
+        allow_write: activeMod.allow_write,
+        category_override: activeMod.category_override,
+        sub_type: activeMod.sub_type,
+        file_extension: activeMod.file_extension,
+        status: activeMod.status,
+        created_at: activeMod.created_at,
+        updated_at: new Date().toISOString(),
+        compliance_tier: activeMod.compliance_tier,
+        is_paid: activeMod.is_paid || false,
+        is_early_access: activeMod.is_early_access || false,
+        latest_version: activeMod.latest_version,
+        compatible_versions: activeMod.compatible_versions,
+        folder_structure: activeMod.folder_structure || [],
+      };
       const { error } = await supabase
         .from("mods")
-        .update({
-          name: activeMod.name,
-          description: activeMod.description,
-          image_url: activeMod.image_url,
-          url: activeMod.url,
-          allow_write: activeMod.allow_write,
-          category_override: activeMod.category_override,
-          sub_type: activeMod.sub_type,
-          file_extension: activeMod.file_extension,
-          status: activeMod.status,
-          created_at: activeMod.created_at,
-          updated_at: new Date().toISOString(),
-          compliance_tier: activeMod.compliance_tier,
-          is_paid: activeMod.is_paid || false,
-          is_early_access: activeMod.is_early_access || false,
-          latest_version: activeMod.latest_version,
-          compatible_versions: activeMod.compatible_versions,
-          folder_structure: activeMod.folder_structure || [],
-        })
+        .update(updatedPayload)
         .eq("id", activeMod.id);
       if (error) throw error;
+      await logArchitectAction(
+        "Updated Mod Metadata",
+        "mods",
+        activeMod.name || activeMod.id,
+        undefined,
+        "Mason Workshop",
+        false,
+        computeAuditDiff(beforeMod, updatedPayload)
+      );
       await fetchExistingMods();
       useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
     } catch (err: any) {
@@ -613,56 +625,75 @@ export function MasonSandbox({
       let targetModId = isUuid(activeMod.id) ? activeMod.id : null;
 
       if (targetModId) {
+        const beforeMod = existingMods.find((m) => m.id === targetModId) || null;
+        const updatePayload = {
+          name: activeMod.name,
+          description: activeMod.description || "",
+          image_url: activeMod.image_url || null,
+          url: activeMod.url || null,
+          category_override: activeMod.category_override || activeMod.type || null,
+          sub_type: activeMod.sub_type || null,
+          file_extension: activeMod.file_extension || null,
+          updated_at: new Date().toISOString(),
+          compatible_versions: activeMod.compatible_versions || [],
+          folder_structure: activeMod.folder_structure || [],
+          is_paid: activeMod.is_paid || false,
+          is_early_access: activeMod.is_early_access || false,
+          latest_version: activeMod.latest_version || "1.0.0",
+        };
         // Update existing mod record (when creator chose "Link to Existing Mod -> New Version")
         const { error: updateErr } = await supabase
           .from("mods")
-          .update({
-            name: activeMod.name,
-            description: activeMod.description || "",
-            image_url: activeMod.image_url || null,
-            url: activeMod.url || null,
-            category_override: activeMod.category_override || activeMod.type || null,
-            sub_type: activeMod.sub_type || null,
-            file_extension: activeMod.file_extension || null,
-            updated_at: new Date().toISOString(),
-            compatible_versions: activeMod.compatible_versions || [],
-            folder_structure: activeMod.folder_structure || [],
-            is_paid: activeMod.is_paid || false,
-            is_early_access: activeMod.is_early_access || false,
-            latest_version: activeMod.latest_version || "1.0.0",
-          })
+          .update(updatePayload)
           .eq("id", targetModId);
         if (updateErr) throw updateErr;
+        await logArchitectAction(
+          "Updated Mod Metadata",
+          "mods",
+          activeMod.name || targetModId,
+          undefined,
+          "Mason Workshop",
+          false,
+          computeAuditDiff(beforeMod, updatePayload)
+        );
       } else {
+        const insertPayload = {
+          name: activeMod.name || "Unknown Sandbox Mod",
+          mason_id: masonId,
+          description: activeMod.description || "",
+          image_url: activeMod.image_url || null,
+          url: activeMod.url || null,
+          allow_write: activeMod.allow_write || false,
+          category_override: activeMod.category_override || activeMod.type || null,
+          sub_type: activeMod.sub_type || null,
+          file_extension: activeMod.file_extension || null,
+          status: activeMod.status || "unverified",
+          created_at: activeMod.created_at || new Date().toISOString(),
+          updated_at: activeMod.updated_at || new Date().toISOString(),
+          compatible_versions: activeMod.compatible_versions || [],
+          folder_structure: activeMod.folder_structure || [],
+          is_paid: activeMod.is_paid || false,
+          is_early_access: activeMod.is_early_access || false,
+          latest_version: activeMod.latest_version || "v1.0",
+        };
         // Insert brand-new mod record
         const { data: newMod, error: insertError } = await supabase
           .from("mods")
-          .insert([
-            {
-              name: activeMod.name || "Unknown Sandbox Mod",
-              mason_id: masonId,
-              description: activeMod.description || "",
-              image_url: activeMod.image_url || null,
-              url: activeMod.url || null,
-              allow_write: activeMod.allow_write || false,
-              category_override: activeMod.category_override || activeMod.type || null,
-              sub_type: activeMod.sub_type || null,
-              file_extension: activeMod.file_extension || null,
-              status: activeMod.status || "unverified",
-              created_at: activeMod.created_at || new Date().toISOString(),
-              updated_at: activeMod.updated_at || new Date().toISOString(),
-              compatible_versions: activeMod.compatible_versions || [],
-              folder_structure: activeMod.folder_structure || [],
-              is_paid: activeMod.is_paid || false,
-              is_early_access: activeMod.is_early_access || false,
-              latest_version: activeMod.latest_version || "v1.0",
-            },
-          ])
+          .insert([insertPayload])
           .select()
           .single();
 
         if (insertError) throw insertError;
         targetModId = newMod.id;
+        await logArchitectAction(
+          "Published Mod to Registry",
+          "mods",
+          insertPayload.name,
+          undefined,
+          "Mason Workshop",
+          false,
+          computeAuditDiff(null, insertPayload)
+        );
       }
 
       const { error: versionError } = await supabase.from("mod_versions").upsert(

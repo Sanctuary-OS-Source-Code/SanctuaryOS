@@ -48,7 +48,7 @@ import {
   useStableReleaseMeta,
 } from "../components/ReleaseNotesShowcase";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
-import { isCoreOnlyAuditRow } from "../lib/audit";
+import { isCoreOnlyAuditRow, logArchitectAction } from "../lib/audit";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "../side-panels/WayfinderSupportSidePanel";
@@ -469,6 +469,18 @@ export default function WayfinderMasterSchemas({
         donationUrl,
         paymentProcessor: processor,
       });
+      await logArchitectAction(
+        "Updated Spoke Donation Settings",
+        "sanctuary_schemas",
+        activeWs?.name || activeWs?.schema_id || activeWorkspaceId,
+        "Automated from Spoke Control",
+        "Wayfinder Operations",
+        false,
+        {
+          donation_url: { to: donationUrl || "None" },
+          payment_processor: { to: processor || "None" },
+        }
+      );
       const { syncGameDatabases } = await import("../store");
       await syncGameDatabases();
       pushStatus(
@@ -522,6 +534,19 @@ export default function WayfinderMasterSchemas({
           .getState()
           .setActiveGameSchema(getSafeSchema(parsed, parsed.id || "default_schema"));
       }
+
+      await logArchitectAction(
+        "Updated Master Schema",
+        "sanctuary_schemas",
+        payload.name,
+        "Automated from Spoke Control",
+        "Wayfinder Operations",
+        false,
+        {
+          name: { to: payload.name },
+          version: { from: Math.max(0, (payload.version || 1) - 1), to: payload.version },
+        }
+      );
 
       const newFiles = [...openFiles];
       newFiles[activeFileIndex].content = updatedContent;

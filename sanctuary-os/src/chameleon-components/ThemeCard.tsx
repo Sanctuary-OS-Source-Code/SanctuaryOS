@@ -598,13 +598,41 @@ export function DynamicBlueprintPreviewBanner({
   children?: React.ReactNode;
 }) {
   const { t } = useLexicon();
-  const rawArtifacts: any[] =
+  const rawArtifactsList: any[] =
     data?.artifacts ||
     data?.originalBlueprint?.artifacts ||
     data?.json_data?.artifacts ||
     data?.mods ||
     [];
-  const modCount = Array.isArray(rawArtifacts) ? rawArtifacts.length : 0;
+  const rawArtifacts = React.useMemo(() => {
+    if (!Array.isArray(rawArtifactsList)) return [];
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (let i = 0; i < rawArtifactsList.length; i++) {
+      const item = rawArtifactsList[i];
+      const rawName =
+        typeof item === 'string'
+          ? item
+          : String(item?.name || item?.filename || item?.path || item?.displayName || '');
+      if (
+        !rawName ||
+        rawName.startsWith('FOLDER_') ||
+        rawName.startsWith('SET_') ||
+        rawName.startsWith('LOCAL_SET_')
+      ) {
+        continue;
+      }
+      const lastSlash = Math.max(rawName.lastIndexOf('/'), rawName.lastIndexOf('\\'));
+      const cleanLower = (
+        lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName
+      ).toLowerCase();
+      if (!cleanLower || seen.has(cleanLower)) continue;
+      seen.add(cleanLower);
+      out.push(item);
+    }
+    return out;
+  }, [rawArtifactsList]);
+  const modCount = rawArtifacts.length;
   const gameVer =
     data?.game_version ||
     data?.originalBlueprint?.game_version ||
@@ -1316,12 +1344,14 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
       }
     >
       {isFlagged && flagReason ? (
-        <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2 mt-1">
-          <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
-            {t("icon_report", "report")}
-          </span>
-          <p className="text-[11px] font-semibold text-[var(--text)] leading-snug line-clamp-2">
-            {flagReason}
+        <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_26%,transparent)] flex items-center gap-2.5 mt-1">
+          <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
+              {t("icon_flag", "flag")}
+            </span>
+          </div>
+          <p className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2">
+            {String(flagReason).replace(/\s+\?\s+/g, " — ")}
           </p>
         </div>
       ) : undefined}

@@ -4,7 +4,7 @@ import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
-import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel } from './side-panels/NexusSidePanels';
+import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel, auditBlueprintsTier0Compliance } from './side-panels/NexusSidePanels';
 import { useTheme } from "./ThemeContext";
 import { readDir, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
@@ -234,8 +234,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             { data: recentBps },
             { data: recentAssets }
           ] = await Promise.all([
-            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'unstable', 'corrupted', 'pending']),
-            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('compliance_tier', 0),
+            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
+            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('is_market_listed', true).eq('compliance_tier', 0),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
             supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null'),
@@ -243,10 +243,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               .from('mods')
               .select(selectFields)
               .eq('compliance_tier', 0)
-              .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+              .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
               .order('created_at', { ascending: false })
               .limit(100),
-            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
+            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('is_market_listed', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
             supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
           ]);
 
@@ -545,15 +545,24 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         if (assetError) throw assetError;
 
         let premiumMap: Record<string, any> = {};
+        let verifiedCompliantBlueprints = blueprints || [];
         if (blueprints && blueprints.length > 0) {
-          premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, blueprints);
+          const [pMap, auditMap] = await Promise.all([
+            enrichBlueprintsWithPremiumStatus(supabase, blueprints),
+            auditBlueprintsTier0Compliance(supabase, blueprints, { autoFlagInDb: true })
+          ]);
+          premiumMap = pMap;
+          verifiedCompliantBlueprints = blueprints.filter((b: any) => {
+            const audit = auditMap.get(b.id);
+            return !audit || audit.isCompliant;
+          });
         }
 
         if (masonData) {
           setMasonMap(masonData.reduce((acc: any, m: any) => { if (m.is_verified && m.name) acc[m.name.toLowerCase()] = m.id; return acc; }, {}));
         }
 
-        const processedBlueprints = blueprints?.map(b => {
+        const processedBlueprints = verifiedCompliantBlueprints.map(b => {
           const premiumInfo = premiumMap[b.id];
           const isPaid = premiumInfo?.is_paid || b.is_paid;
           const isEarlyAccess = premiumInfo?.is_early_access || b.is_early_access;
@@ -587,6 +596,20 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         window.__sanctuaryCache!.nexus!.assetResultsMap = newMap;
         window.__sanctuaryCache!.nexus!.lastAssetFetch = performance.now();
+
+        setStats((prev: any) => {
+          const updated = {
+            ...prev,
+            blueprints: processedBlueprints.length,
+            lexicons: lexicons.length,
+            chameleons: chameleons.length,
+            templates: templates.length,
+          };
+          if (window.__sanctuaryCache?.nexus) {
+            window.__sanctuaryCache.nexus.homeStats = updated;
+          }
+          return updated;
+        });
 
         if (!isSilent || marketTab !== 'HOME' && marketTab !== 'MODS') {
           if (Object.keys(assetResultsMap).length === 0 || forceRefresh) {
@@ -896,7 +919,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             .from("mods")
             .select(modSelectCols, { count: "exact" })
             .eq('compliance_tier', 0)
-            .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+            .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
             .range(0, BATCH_SIZE - 1),
           supabase.from('masons').select('name, is_verified'),
           supabase.from("flavor_groups").select("*"),
@@ -920,7 +943,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 .from("mods")
                 .select(modSelectCols)
                 .eq('compliance_tier', 0)
-                .in('status', ['stable', 'unstable', 'corrupted', 'pending'])
+                .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
                 .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1)
             );
           }

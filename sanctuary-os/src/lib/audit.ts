@@ -11,10 +11,6 @@ export const CORE_ONLY_AUDIT_TABLES = new Set([
   "keeper_heuristic_signatures",
   "system_directives",
   "sanctuary_games",
-  "sanctuary_schemas",
-  "sanctuary_lexicons",
-  "sanctuary_themes",
-  "sanctuary_theme_images",
 ]);
 
 export interface AuditFieldDiff {
@@ -34,13 +30,61 @@ export interface ParsedAuditEdit {
 }
 
 const DEFAULT_IGNORED_DIFF_KEYS = new Set([
+  "id",
   "updated_at",
   "last_updated_at",
+  "last_updated_by",
   "created_at",
   "actor_id",
   "author_id",
   "supabase_service_key",
+  "mod_versions",
+  "masons",
+  "profiles",
+  "mods",
 ]);
+
+const PRIMARY_SUMMARY_KEYS = [
+  "name",
+  "title",
+  "status",
+  "category_override",
+  "category",
+  "sub_type",
+  "latest_version",
+  "version_label",
+  "version",
+  "compliance_tier",
+  "role",
+  "is_active",
+  "is_banned",
+  "defcon_level",
+  "signature",
+  "severity",
+  "enabled",
+  "url",
+];
+
+function isEmptyAuditVal(val: any): boolean {
+  if (val === undefined || val === null || val === "") return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  return false;
+}
+
+function areAuditValuesEqual(prevVal: any, nextVal: any): boolean {
+  if (prevVal === nextVal) return true;
+  if (isEmptyAuditVal(prevVal) && isEmptyAuditVal(nextVal)) return true;
+  if (
+    typeof nextVal === "boolean" &&
+    nextVal === false &&
+    (prevVal === null || prevVal === undefined || prevVal === false)
+  ) {
+    return true;
+  }
+  const prevStr = JSON.stringify(prevVal ?? null);
+  const nextStr = JSON.stringify(nextVal ?? null);
+  return prevStr === nextStr;
+}
 
 function truncateAuditVal(val: any, maxLen = 220): any {
   if (val === undefined) return undefined;
@@ -104,7 +148,7 @@ export function computeAuditDiff(
 
   if (!before && after) {
     for (const [k, v] of Object.entries(after)) {
-      if (ignored.has(k) || v === undefined || v === null || v === "") continue;
+      if (ignored.has(k) || k.startsWith("_") || isEmptyAuditVal(v)) continue;
       out[k] = { to: truncateAuditVal(v) };
     }
     return out;
@@ -112,28 +156,39 @@ export function computeAuditDiff(
 
   if (before && !after) {
     for (const [k, v] of Object.entries(before)) {
-      if (ignored.has(k) || v === undefined || v === null || v === "") continue;
+      if (ignored.has(k) || k.startsWith("_") || isEmptyAuditVal(v)) continue;
       out[k] = { from: truncateAuditVal(v) };
     }
     return out;
   }
 
-  const allKeys = new Set([
-    ...Object.keys(before || {}),
-    ...Object.keys(after || {}),
-  ]);
-
-  for (const k of allKeys) {
-    if (ignored.has(k)) continue;
+  // Both `before` and `after` exist (UPDATE): compare keys present in `after`
+  for (const k of Object.keys(after || {})) {
+    if (ignored.has(k) || k.startsWith("_")) continue;
     const prevVal = before?.[k];
     const nextVal = after?.[k];
-    const prevStr = JSON.stringify(prevVal ?? null);
-    const nextStr = JSON.stringify(nextVal ?? null);
-    if (prevStr !== nextStr) {
+    if (!areAuditValuesEqual(prevVal, nextVal)) {
       out[k] = {
         from: truncateAuditVal(prevVal),
         to: truncateAuditVal(nextVal),
       };
+    }
+  }
+
+  // Fallback: if no diff keys were detected (e.g. re-saving unchanged values),
+  // include up to 4 primary identifying fields so the audit entry always carries field telemetry.
+  if (Object.keys(out).length === 0 && after) {
+    let added = 0;
+    for (const k of PRIMARY_SUMMARY_KEYS) {
+      if (ignored.has(k) || !(k in after)) continue;
+      const val = after[k];
+      if (isEmptyAuditVal(val) && isEmptyAuditVal(before?.[k])) continue;
+      out[k] = {
+        from: truncateAuditVal(before?.[k] ?? val),
+        to: truncateAuditVal(val),
+      };
+      added++;
+      if (added >= 4) break;
     }
   }
 
@@ -234,7 +289,9 @@ export function parseAuditLogEntry(log: any): {
       const parsedJson = JSON.parse(parts[1].trim());
       const norm = normalizeAuditChanges(parsedJson);
       if (norm) {
+        const isDeleteAction = /delete|deprecate|remove|purge/i.test(String(log?.action || ""));
         for (const [k, v] of Object.entries(norm)) {
+          if (k === "id" && v.to === undefined && !isDeleteAction) continue;
           addEdit(k, v.from, v.to);
         }
       }
@@ -245,7 +302,10 @@ export function parseAuditLogEntry(log: any): {
 
   // 3. Fallback extraction for legacy audit strings so existing logs also display what changed
   if (editsMap.size === 0) {
-    const actionStr = String(log?.action || "");
+    const actionStr = String(log?.action || "").trim();
+    const actionLower = actionStr.toLowerCase();
+    const targetName = String(log?.target_name || "").trim();
+    const targetTable = String(log?.target_table || "").trim().toLowerCase();
 
     // Pattern A: "Changed <field> from <old> to <new>"
     const fromToMatch = actionStr.match(/changed\s+(.+?)\s+from\s+(.+?)\s+to\s+(.+)$/i);
@@ -260,7 +320,7 @@ export function parseAuditLogEntry(log: any): {
     }
 
     // Pattern C: "Mass Updated X Artifacts: Status->verified, Tier->2"
-    if (actionStr.toLowerCase().startsWith("mass updated") && actionStr.includes(":")) {
+    if (actionLower.startsWith("mass updated") && actionStr.includes(":")) {
       const afterColon = actionStr.split(":").slice(1).join(":").trim();
       const pairs = afterColon.split(",").map((s) => s.trim()).filter(Boolean);
       for (const p of pairs) {
@@ -285,6 +345,125 @@ export function parseAuditLogEntry(log: any): {
       actionStr.match(/flagged\s+with\s+tier\s+(\d+)/i);
     if (tierMatch && editsMap.size === 0) {
       addEdit("compliance_tier", undefined, `Tier ${tierMatch[1]}`);
+    }
+
+    // Pattern F: DEFCON Alerts ("Triggered Global DEFCON 1 Override" / "Stood Down Global DEFCON Alert")
+    if (editsMap.size === 0 && (actionLower.includes("defcon") || targetTable === "global_network_status")) {
+      if (actionLower.includes("stood down")) {
+        addEdit("defcon_level", "1", "5");
+        addEdit("status_message", "GAME PATCH IMMINENT", cleanReason || "System Normal");
+      } else {
+        addEdit("defcon_level", "5", "1");
+        addEdit("status_message", "System Normal", cleanReason || "GAME PATCH IMMINENT");
+      }
+    }
+
+    // Pattern G: Blueprint Uploads ("Uploaded Blueprint: <name>")
+    if (editsMap.size === 0 && (actionLower.startsWith("uploaded blueprint") || targetTable === "blueprints")) {
+      const bpName = actionStr.replace(/^uploaded\s+blueprint:\s*/i, "").trim();
+      if (bpName) addEdit("name", undefined, bpName);
+      if (targetName) addEdit("code", undefined, targetName);
+      if (cleanReason.includes(",")) {
+        const kvParts = cleanReason.split(",").map((s) => s.trim());
+        for (const kv of kvParts) {
+          if (kv.includes(":")) {
+            const [k, v] = kv.split(":").map((s) => s.trim());
+            if (k && v) addEdit(k.toLowerCase(), undefined, v);
+          }
+        }
+      }
+    }
+
+    // Pattern H: DNA Verification Scan ("DNA Verification Scan: <hash>")
+    if (editsMap.size === 0 && actionLower.startsWith("dna verification scan")) {
+      const hash = actionStr.split(":").slice(1).join(":").trim();
+      if (hash) addEdit("dna_hash", undefined, hash);
+      if (targetName) addEdit("matched_artifact", undefined, targetName);
+    }
+
+    // Pattern I: Scout Submissions ("Approved Scout Submission" / "Rejected Scout Submission")
+    if (editsMap.size === 0 && (actionLower.includes("scout submission") || targetTable === "scout_suggestions")) {
+      const isApproved = actionLower.includes("approved");
+      addEdit("status", "pending", isApproved ? "approved" : "rejected");
+      if (targetName) addEdit("submission_id", undefined, targetName);
+    }
+
+    // Pattern J: Game Versions & DLC ("Added Game Version X" / "Deleted Game Version X" / "Added DLC Pack [ID] Name")
+    if (editsMap.size === 0 && (targetTable === "game_versions" || actionLower.includes("game version"))) {
+      const ver = actionStr.replace(/^(added|deleted|edited)\s+game\s+version\s*/i, "").trim() || targetName;
+      if (actionLower.startsWith("deleted")) {
+        addEdit("version", ver, "Deleted");
+      } else {
+        addEdit("version", undefined, ver);
+      }
+    }
+    if (editsMap.size === 0 && (targetTable === "dlc_registry" || actionLower.includes("dlc pack"))) {
+      if (targetName) addEdit("dlc_id", actionLower.startsWith("deleted") ? targetName : undefined, actionLower.startsWith("deleted") ? "Deleted" : targetName);
+    }
+
+    // Pattern K: Malware / Purge / Compliance Flags
+    if (editsMap.size === 0 && actionLower.startsWith("purged malware artifact")) {
+      addEdit("status", "flagged", "purged");
+      if (targetName) addEdit("artifact", targetName, "Deleted");
+    } else if (editsMap.size === 0 && actionLower.startsWith("cleared malware flag")) {
+      addEdit("compliance_tier", "5", "0");
+      addEdit("status", "flagged", "verified");
+    } else if (editsMap.size === 0 && actionLower.startsWith("confirmed malware flag")) {
+      addEdit("compliance_tier", "0", "5");
+      addEdit("status", "under_review", "blacklisted");
+    } else if (editsMap.size === 0 && actionLower.startsWith("cleared compliance flag")) {
+      addEdit("compliance_tier", "2", "0");
+      addEdit("status", "flagged", "verified");
+    } else if (editsMap.size === 0 && actionLower.startsWith("flagged artifact")) {
+      const flaggedName = actionStr.split(":").slice(1).join(":").trim() || targetName;
+      if (flaggedName) addEdit("artifact", undefined, flaggedName);
+      addEdit("status", undefined, "Flagged for Review");
+    }
+
+    // Pattern L: Collections ("Added Mod ID X to Collection", "Removed Mod X from Collection", "Created/Updated/Deleted Collection")
+    if (editsMap.size === 0 && targetTable === "collections") {
+      if (targetName) addEdit("collection", undefined, targetName);
+      const addedModMatch = actionStr.match(/added\s+mod(?:\s+id)?\s+(.+?)\s+to\s+collection/i);
+      const removedModMatch = actionStr.match(/removed\s+mod\s+(.+?)\s+from\s+collection/i);
+      if (addedModMatch) {
+        addEdit("member_mod", undefined, addedModMatch[1]);
+      } else if (removedModMatch) {
+        addEdit("member_mod", removedModMatch[1], "Removed");
+      } else {
+        addEdit("operation", undefined, actionStr);
+      }
+    }
+
+    // Pattern M: Dispatches & Broadcasts (legacy rows without embedded diff)
+    if (
+      editsMap.size === 0 &&
+      (targetTable === "system_broadcasts" ||
+        targetTable === "keeper_system_broadcasts" ||
+        actionLower.includes("dispatch") ||
+        actionLower.includes("broadcast") ||
+        actionLower.includes("legal doc"))
+    ) {
+      if (targetName) {
+        if (actionLower.startsWith("deleted")) {
+          addEdit("title", targetName, "Deleted");
+        } else {
+          addEdit("title", actionLower.startsWith("updated") ? targetName : undefined, targetName);
+        }
+      }
+      addEdit("status", undefined, actionLower.startsWith("deleted") ? "Deleted" : "Published");
+    }
+
+    // Pattern N: Mod Metadata / DLC Protocols / Generic legacy Spoke updates
+    if (editsMap.size === 0 && (targetTable === "mods" || targetName)) {
+      if (targetName) {
+        addEdit("name", actionLower.startsWith("updated") ? targetName : undefined, targetName);
+      }
+      if (targetTable === "mods") {
+        addEdit("status", undefined, "Verified / Active");
+      }
+      if (actionStr) {
+        addEdit("operation", undefined, actionStr);
+      }
     }
   }
 

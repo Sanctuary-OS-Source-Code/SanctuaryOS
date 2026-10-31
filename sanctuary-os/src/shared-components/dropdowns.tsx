@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import { SidePanelContext } from "./layout";
+import { HoverTooltip } from "./alerts";
 export function CustomDropdown({
   value,
   selectedValues: selectedValuesProp,
@@ -20,6 +21,9 @@ export function CustomDropdown({
   buttonClassName,
   flat,
   variant = "default",
+  iconOnlyTrigger = false,
+  tooltipPrefix,
+  menuMinWidth,
 }: any) {
   const { t } = useLexicon();
   const multiSelect = multiSelectProp ?? allowMultiSelect;
@@ -68,8 +72,13 @@ export function CustomDropdown({
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
-        const menuWidth = Math.min(Math.max(rect.width, 160), window.innerWidth - 24);
-        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
+        const minW = menuMinWidth || (iconOnlyTrigger ? 250 : 160);
+        const menuWidth = Math.min(Math.max(rect.width, minW), window.innerWidth - 24);
+        const preferredLeft =
+          iconOnlyTrigger && rect.right - menuWidth >= 12
+            ? rect.right - menuWidth
+            : rect.left;
+        const clampedLeft = Math.max(12, Math.min(preferredLeft, window.innerWidth - menuWidth - 12));
         setCoords({
           top: shouldDropUp ? rect.top - 6 : rect.bottom + 6,
           left: clampedLeft,
@@ -86,7 +95,7 @@ export function CustomDropdown({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen]);
+  }, [isOpen, iconOnlyTrigger, menuMinWidth]);
 
   const getSelectedLabel = () => {
     if (multiSelect) {
@@ -293,9 +302,10 @@ export function CustomDropdown({
                       {opt.icon && (
                         <span
                           className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                            isSelected
+                            opt.iconColorClass ||
+                            (isSelected
                               ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--text)]"
+                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--text)]")
                           }`}
                         >
                           {opt.icon}
@@ -364,7 +374,13 @@ export function CustomDropdown({
 
   return (
     <div
-      className={`relative ${className?.includes("w-") ? "" : "w-full"} ${className || ""}`}
+      className={`relative ${
+        iconOnlyTrigger
+          ? "w-auto shrink-0"
+          : className?.includes("w-")
+            ? ""
+            : "w-full"
+      } ${className || ""}`}
     >
       <button
         type="button"
@@ -374,55 +390,121 @@ export function CustomDropdown({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-between items-center gap-2 focus:outline-none relative z-[10] transition-all cursor-pointer ${
-          flat
-            ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100"
-            : isPill
-              ? `h-10 px-4 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                  isOpen || isActive
-                    ? "glass-surface sa-glass-pill-active text-[var(--text)]"
-                    : "glass-surface sa-glass-pill-hover text-[var(--text)]"
-                }`
-              : `${
-                  className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
-                } rounded-xl text-xs font-bold ${
-                  isOpen || isActive
-                    ? "glass-surface sa-glass-pill-active text-[var(--text)]"
-                    : "glass-surface sa-glass-pill-hover text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                }`
+        className={`${
+          iconOnlyTrigger
+            ? `h-10 px-3 rounded-xl flex items-center justify-center gap-1.5 w-auto shrink-0 focus:outline-none relative z-[10] transition-all cursor-pointer ${
+                isOpen || isActive
+                  ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                  : "glass-surface sa-glass-pill-hover text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+              }`
+            : `w-full flex justify-between items-center gap-2 focus:outline-none relative z-[10] transition-all cursor-pointer ${
+                flat
+                  ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100"
+                  : isPill
+                    ? `h-10 px-4 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        isOpen || isActive
+                          ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                          : "glass-surface sa-glass-pill-hover text-[var(--text)]"
+                      }`
+                    : `${
+                        className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
+                      } rounded-xl text-xs font-bold ${
+                        isOpen || isActive
+                          ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                          : "glass-surface sa-glass-pill-hover text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                      }`
+              }`
         } ${buttonClassName || ""}`}
       >
-        <span
-          className={`flex-1 text-left truncate min-w-0 ${
-            !hasSelection ? "text-[var(--subtext)] opacity-60 font-medium" : ""
-          }`}
-        >
-          {getSelectedLabel()}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {multiSelect && selectedValues.length > 1 && (
-            <span className="px-1.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black leading-none">
-              {selectedValues.length}
-            </span>
-          )}
-          <span
-            className={`transition-colors shrink-0 flex items-center justify-center ${
-              isOpen || isActive
-                ? "text-[var(--accent)]"
-                : "text-[var(--subtext)] opacity-60"
-            }`}
-          >
-            <span
-              className={`material-symbols-outlined ${
-                flat ? "!text-[16px]" : "!text-[18px]"
-              }`}
-            >
+        {iconOnlyTrigger ? (
+          <>
+            {(() => {
+              const selOpt = (options || []).find(
+                (o: any) =>
+                  o.id === effectiveValue ||
+                  String(o.id) === String(effectiveValue)
+              );
+              const iconName = selOpt?.icon || t("icon_flag", "flag");
+              return (
+                <span
+                  className={`material-symbols-outlined !text-[18px] shrink-0 ${
+                    selOpt?.iconColorClass || "text-[var(--accent)]"
+                  }`}
+                >
+                  {iconName}
+                </span>
+              );
+            })()}
+            <span className="material-symbols-outlined !text-[14px] opacity-70 shrink-0">
               {isOpen
                 ? t("icon_expand_less", "expand_less")
                 : t("icon_expand_more", "expand_more")}
             </span>
-          </span>
-        </div>
+            {!isOpen && (
+              <HoverTooltip
+                title={
+                  tooltipPrefix
+                    ? `${tooltipPrefix}: ${getSelectedLabel()}`
+                    : getSelectedLabel()
+                }
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <span
+              className={`flex-1 text-left truncate min-w-0 flex items-center gap-2 ${
+                !hasSelection
+                  ? "text-[var(--subtext)] opacity-60 font-medium"
+                  : ""
+              }`}
+            >
+              {!multiSelect &&
+                (() => {
+                  const selOpt = (options || []).find(
+                    (o: any) =>
+                      o.id === effectiveValue ||
+                      String(o.id) === String(effectiveValue)
+                  );
+                  if (!selOpt?.icon) return null;
+                  return (
+                    <span
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                        selOpt.iconColorClass || "text-[var(--accent)]"
+                      }`}
+                    >
+                      {selOpt.icon}
+                    </span>
+                  );
+                })()}
+              <span className="truncate">{getSelectedLabel()}</span>
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {multiSelect && selectedValues.length > 1 && (
+                <span className="px-1.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black leading-none">
+                  {selectedValues.length}
+                </span>
+              )}
+              <span
+                className={`transition-colors shrink-0 flex items-center justify-center ${
+                  isOpen || isActive
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--subtext)] opacity-60"
+                }`}
+              >
+                <span
+                  className={`material-symbols-outlined ${
+                    flat ? "!text-[16px]" : "!text-[18px]"
+                  }`}
+                >
+                  {isOpen
+                    ? t("icon_expand_less", "expand_less")
+                    : t("icon_expand_more", "expand_more")}
+                </span>
+              </span>
+            </div>
+          </>
+        )}
       </button>
       {dropdownMenu}
     </div>

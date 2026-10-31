@@ -4,6 +4,7 @@ import { readDir, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { logArchitectAction } from "../lib/audit";
 import { StructureNode } from "../ModStructureBuilder";
 import { useWorkbenchFiles } from "../workbench/hooks/useWorkbenchFiles";
 import { useWorkbenchEditor } from "../workbench/hooks/useWorkbenchEditor";
@@ -1079,6 +1080,17 @@ export function ArtifactWorkspace({
         p_target: "mods",
         p_payload: { id: mod.id, name: mod.name, requiredDLC: nextDlc },
       });
+      await logArchitectAction(
+        "Updated DLC Protocols",
+        "mods",
+        mod.name || mod.id,
+        undefined,
+        mode === "registry" ? "Architect Console" : "Mason Workshop",
+        false,
+        {
+          requiredDLC: { from: activeDlcIds, to: nextDlc },
+        }
+      );
     } else {
       persistLocalSandboxConfig({ requiredDLC: nextDlc });
     }
@@ -1214,6 +1226,19 @@ export function ArtifactWorkspace({
         });
         if (error) throw error;
       }
+      await logArchitectAction(
+        "Updated Mod Folder Structure",
+        "mods",
+        mod.name || mod.id,
+        undefined,
+        mode === "registry" ? "Architect Console" : "Mason Workshop",
+        false,
+        {
+          folder_structure: {
+            to: flattenStructureNodesToPaths(structureNodes),
+          },
+        }
+      );
       useStore.getState().pushStatus(t("btn_saved", "Saved"), "success");
     } catch (e: any) {
       useStore.getState().pushStatus(e.message, "error");
@@ -1383,6 +1408,18 @@ export function ArtifactWorkspace({
         });
         onUpdateMod({ ...mod, latest_version: label });
       }
+      await logArchitectAction(
+        "Added Mod Version",
+        "mod_versions",
+        mod.name || mod.id,
+        undefined,
+        mode === "registry" ? "Architect Console" : "Mason Workshop",
+        false,
+        {
+          version_label: { from: mod.latest_version, to: label },
+          dna_hash: { to: targetHash },
+        }
+      );
       setSelectedSandboxVersionHash("");
       setManualVersionHash("");
       setNewVersionLabel("");
@@ -1437,6 +1474,18 @@ export function ArtifactWorkspace({
         useStore.getState().pushStatus(error.message, "error");
         return;
       }
+      await logArchitectAction(
+        "Updated Mod Version Label",
+        "mod_versions",
+        mod.name || mod.id,
+        undefined,
+        mode === "registry" ? "Architect Console" : "Mason Workshop",
+        false,
+        {
+          version_label: { from: ver.version_label, to: newLabel },
+          dna_hash: { to: ver.dna_hash },
+        }
+      );
       useStore.getState().pushStatus(t("btn_saved", "Saved"), "success");
       await loadModLinks();
       if (onRefreshParentList) onRefreshParentList();
@@ -1475,6 +1524,18 @@ export function ArtifactWorkspace({
         useStore.getState().pushStatus(error.message, "error");
         return;
       }
+      await logArchitectAction(
+        "Updated Mod Version Compatibility",
+        "mod_versions",
+        mod.name || mod.id,
+        undefined,
+        mode === "registry" ? "Architect Console" : "Mason Workshop",
+        false,
+        {
+          game_version: { from: ver.game_version, to: joined },
+          version_label: { to: ver.version_label || mod.latest_version || "1.0.0" },
+        }
+      );
       await loadModLinks();
     } else {
       const next = versions.map((v) => (v.dna_hash === ver.dna_hash ? { ...v, game_version: joined } : v));
@@ -1504,6 +1565,18 @@ export function ArtifactWorkspace({
           useStore.getState().pushStatus(error.message, "error");
           return;
         }
+        await logArchitectAction(
+          "Deleted Mod Version",
+          "mod_versions",
+          mod.name || mod.id,
+          undefined,
+          mode === "registry" ? "Architect Console" : "Mason Workshop",
+          false,
+          {
+            version_label: { from: ver.version_label, to: null },
+            dna_hash: { from: ver.dna_hash, to: null },
+          }
+        );
       }
       useStore.getState().pushStatus(t("btn_saved", "Saved"), "success");
       await loadModLinks();
@@ -1527,9 +1600,83 @@ export function ArtifactWorkspace({
 
   const isModFlagged =
     mod?.status === "corrupted" ||
+    mod?.status === "broken" ||
+    mod?.status === "rejected" ||
     mod?.status === "unstable" ||
     mod?.status === "under_review" ||
+    mod?.status === "under review" ||
     modTickets.length > 0;
+
+  const handleResolveSingleTicket = async (ticketId: string) => {
+    try {
+      await supabase
+        .from("sanctuary_tickets")
+        .update({ status: "RESOLVED" })
+        .eq("id", ticketId);
+      setModTickets((prev) => prev.filter((tk) => tk.id !== ticketId));
+      useStore
+        .getState()
+        .pushStatus(t("flag_res_ticket_resolved_toast", "Bug report marked as resolved."), "success");
+      if (onRefreshParentList) onRefreshParentList();
+    } catch (e: any) {
+      useStore.getState().pushStatus(e.message || "Error", "error");
+    }
+  };
+
+  const handleResolveAndResubmitMod = async () => {
+    try {
+      if (modTickets.length > 0) {
+        const ticketIds = modTickets.map((tk) => tk.id).filter(Boolean);
+        if (ticketIds.length > 0) {
+          await supabase
+            .from("sanctuary_tickets")
+            .update({ status: "RESOLVED" })
+            .in("id", ticketIds);
+        }
+        setModTickets([]);
+      }
+      const nextMod = { ...mod, status: "stable", _openTickets: [] };
+      onUpdateMod(nextMod);
+
+      if (isCloudMod && isUuid(mod.id)) {
+        const { error } = await supabase.rpc("secure_upsert_cloud_file", {
+          p_token: getAuthToken(),
+          p_target: "mods",
+          p_payload: {
+            id: mod.id,
+            name: mod.name,
+            category_override: mod.category_override || "Script",
+            sub_type: mod.sub_type || null,
+            description: mod.description || null,
+            image_url: mod.image_url || null,
+            url: mod.url || null,
+            latest_version: mod.latest_version || "1.0.0",
+            status: "stable",
+            compliance_tier: mod.compliance_tier || 0,
+            is_paid: Boolean(mod.is_paid),
+            is_early_access: Boolean(mod.is_early_access),
+            requiredDLC: mod.requiredDLC || [],
+            compatible_versions: mod.compatible_versions || [],
+          },
+        });
+        if (error) throw error;
+      } else if (onSyncToNetwork) {
+        await Promise.resolve(onSyncToNetwork());
+      } else if (onSaveCloudChanges) {
+        await Promise.resolve(onSaveCloudChanges());
+      }
+
+      if (onRefreshParentList) onRefreshParentList();
+      useStore
+        .getState()
+        .pushStatus(
+          t("flag_res_toast_success", "Updated and resubmitted! Active flag cleared."),
+          "success"
+        );
+    } catch (e: any) {
+      useStore.getState().pushStatus(e.message || "Error", "error");
+    }
+  };
 
   if (showEntryChoice && mode === "sandbox") {
     return (
@@ -1608,35 +1755,210 @@ export function ArtifactWorkspace({
       {normalizedTab === "overview" && (
         <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-6 pb-8">
           {isModFlagged && (
-            <div className="p-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-[var(--danger)]">
-                  <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
-                  <h4 className="text-xs font-black uppercase tracking-wider">
-                    {t("studio_flagged_banner_title", "Flagged — Needs Attention")}
-                  </h4>
+            <div className="p-4 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex flex-col gap-4">
+              <div className="flex items-start gap-3 pb-3.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                  <span className="material-symbols-outlined !text-[20px]">
+                    {t("icon_report_problem", "report_problem")}
+                  </span>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-lg bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--danger)] text-[10px] font-black uppercase tracking-widest">
-                  {t("studio_flagged_status_reason", "Status:")} {String(mod?.status || "flagged").toUpperCase()}
-                </span>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                      {t("flag_res_dossier_title", "Flag & Resolution Dossier")}
+                    </h4>
+                    <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t("icon_flag", "flag")}
+                      </span>
+                      {t("studio_flagged_status_reason", "Status:")}{" "}
+                      {String(mod?.status || "flagged").toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                    {mod?.status === "corrupted" || mod?.status === "broken"
+                      ? t(
+                          "flag_res_mod_why_corrupted",
+                          "This {Mod} was flagged as Corrupted due to critical game errors, broken script tuning, or patch incompatibility."
+                        )
+                      : mod?.status === "unstable"
+                        ? t(
+                            "flag_res_mod_why_unstable",
+                            "This {Mod} was marked Unstable after compatibility warnings or minor gameplay glitches were reported."
+                          )
+                        : mod?.status === "under_review" || mod?.status === "under review"
+                          ? t(
+                              "flag_res_mod_why_review",
+                              "This {Mod} is currently Under Review by Sanctuary moderation or automated compatibility checks."
+                            )
+                          : t(
+                              "flag_res_mod_why_tickets",
+                              "This {Mod} has open {Citizen} bug or compatibility reports awaiting {Mason} review."
+                            )}
+                  </p>
+                </div>
               </div>
-              {modTickets.length > 0 && (
-                <div className="flex flex-col gap-1.5 mt-1">
-                  {modTickets.slice(0, 3).map((tk: any) => (
-                    <div
-                      key={tk.id}
-                      className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-semibold text-[var(--text)] flex items-center justify-between gap-2"
-                    >
-                      <span className="truncate">
-                        {tk.title || tk.subject || tk.content || tk.description || "Ticket"}
+
+              {/* DIAGNOSTIC & REPORTS */}
+              <div className="flex flex-col gap-2">
+                {(mod?.status === "corrupted" ||
+                  mod?.status === "broken" ||
+                  mod?.status === "unstable" ||
+                  mod?.status === "under_review" ||
+                  mod?.status === "under review" ||
+                  mod?.status === "rejected") && (
+                  <div className="rounded-xl p-3 glass-surface border border-[color-mix(in_srgb,var(--danger)_24%,transparent)] flex flex-col gap-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[13px]">
+                        {t("icon_bug_report", "bug_report")}
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[var(--danger)] shrink-0">
-                        {tk.status}
-                      </span>
-                    </div>
-                  ))}
+                      {t("flag_res_mod_status_diag_label", "System Status Diagnostic")}
+                    </span>
+                    <p className="text-xs font-semibold text-[var(--text)] leading-relaxed">
+                      {mod?.status === "corrupted" || mod?.status === "broken"
+                        ? t(
+                            "flag_res_mod_corrupted_detail",
+                            "The current release hash is flagged as Corrupted. {Citizens} with this {Mod} installed receive a critical alert in their {Vault} until a patched version hash is published and status is restored to Stable."
+                          )
+                        : mod?.status === "unstable"
+                          ? t(
+                              "flag_res_mod_unstable_detail",
+                              "The current release is marked Unstable. {Citizens} see a caution badge in their {Vault}. Verify compatibility with the latest game patch or attach a hotfix version below."
+                            )
+                          : t(
+                              "flag_res_mod_review_detail",
+                              "This {Mod} is awaiting verification of its metadata, safety tier, or release hash. Review the fields below and resubmit to restore Stable status."
+                            )}
+                    </p>
+                  </div>
+                )}
+
+                {modTickets.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {modTickets.map((tk: any, idx: number) => {
+                      const titleText =
+                        tk.title ||
+                        tk.subject ||
+                        t("flag_res_ticket_default_title", "{Citizen} Issue Report");
+                      const descText =
+                        tk.description ||
+                        tk.content ||
+                        tk.steps ||
+                        tk.reason ||
+                        t("flag_res_legacy_reason", "No additional details were attached to this report.");
+                      const reporterName =
+                        tk.reporter_name ||
+                        tk.author_name ||
+                        tk.user_email ||
+                        t("term_citizen", "{Citizen}");
+                      const dateStr = tk.created_at
+                        ? new Date(tk.created_at).toLocaleDateString()
+                        : "";
+                      return (
+                        <div
+                          key={tk.id || idx}
+                          className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--danger)]">
+                                {tk.status || t("flagged", "Flagged")}
+                              </span>
+                              <span className="text-xs font-black text-[var(--text)]">
+                                {titleText}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-[var(--subtext)]">
+                                {`${t("by_prefix", "By")} ${reporterName}${
+                                  dateStr ? ` • ${dateStr}` : ""
+                                }`}
+                              </span>
+                              {tk.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResolveSingleTicket(tk.id)}
+                                  className="px-2.5 py-1 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--success)_16%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[12px]">
+                                    {t("icon_check_circle", "check_circle")}
+                                  </span>
+                                  {t("flag_res_ticket_resolve_btn", "Resolve Ticket")}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {descText && descText !== titleText && (
+                            <p className="text-xs text-[var(--subtext)] leading-relaxed whitespace-pre-wrap">
+                              {descText}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* RESOLUTION STEPS */}
+              <div className="pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
+                    {t("icon_task_alt", "task_alt")}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                    {t("flag_res_sec_how", "3. How to Resolve & Resubmit")}
+                  </span>
                 </div>
-              )}
+                <ol className="flex flex-col gap-2 text-xs font-semibold text-[var(--subtext)] leading-relaxed list-none">
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <span>
+                      {t(
+                        "flag_res_mod_step_1",
+                        "Review the diagnostic or {Citizen} bug report(s) above and test your updated {Mod} files in your {Lab}."
+                      )}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <span>
+                      {t(
+                        "flag_res_mod_step_2",
+                        "Bump the {Mason} Version, verify compatible Game Versions, and link your patched file hash under Version History below."
+                      )}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <span>
+                      {t(
+                        "flag_res_mod_step_3",
+                        "Click Resolve & Resubmit {Mod} below to close open tickets, set status back to Stable, and publish your fix."
+                      )}
+                    </span>
+                  </li>
+                </ol>
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleResolveAndResubmitMod}
+                    disabled={isCommitting}
+                    className="w-full justify-center px-4 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_28%,transparent)] border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-xs font-black uppercase tracking-wider text-[var(--text)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                      {t("icon_published_with_changes", "published_with_changes")}
+                    </span>
+                    {t("flag_res_mod_btn_resolve", "Resolve & Resubmit {Mod}")}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

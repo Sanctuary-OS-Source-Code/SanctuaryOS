@@ -255,7 +255,18 @@ export default function ArchitectSupportTickets({
     useStore.getState().pushStatus(t("auto_ticket_status_updated_39", "Ticket status updated."), "success");
 
     if (userRole === "architect") {
-      logArchitectAction(`Support Ticket ${actionType}: ${reason}`, 'sanctuary_tickets', selectedTicket.id);
+      logArchitectAction(
+        `Support Ticket ${actionType}: ${reason}`,
+        'sanctuary_tickets',
+        selectedTicket.id,
+        reason,
+        undefined,
+        false,
+        {
+          status: { from: selectedTicket.status, to: newStatus },
+          resolution_action: { to: actionType },
+        }
+      );
     }
     setSelectedTicket(null);
     fetchTickets();
@@ -446,7 +457,11 @@ export default function ArchitectSupportTickets({
           iconColorClass="text-[var(--danger)]"
           isEmpty={newTickets.length === 0}
           emptyIcon={t("icon_support_agent", "support_agent")}
-          emptyTitle={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") || "No New Tickets"}
+          emptyTitle={
+            userRole === "mason"
+              ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")
+              : t("no_tickets", "No Support Tickets")
+          }
         >
           {newTickets.slice(0, 6).map(renderTicketCard)}
         </HubOverviewSection>
@@ -615,8 +630,20 @@ export default function ArchitectSupportTickets({
       ) : (
         <HubListGrid
           isEmpty={filteredTickets.length === 0}
-          emptyIcon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")}
-          emptyTitle={searchQuery ? t("no_matches", "No matches found") : (activeFilter === 'new' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))}
+          emptyIcon={
+            searchQuery
+              ? t("icon_search_off", "search_off")
+              : userRole === "mason"
+                ? t("icon_celebration", "celebration")
+                : t("icon_support_agent", "support_agent")
+          }
+          emptyTitle={
+            searchQuery
+              ? t("no_matches", "No matches found")
+              : userRole === "mason" && activeFilter === "new"
+                ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")
+                : t("no_tickets", "No Support Tickets")
+          }
         >
           {filteredTickets.map(renderTicketCard)}
         </HubListGrid>

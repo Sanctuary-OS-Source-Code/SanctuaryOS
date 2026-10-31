@@ -62,14 +62,42 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
       }
     };
     const fetchRecentItems = async () => {
-        const [scoutRes, masonRes, reportRes] = await Promise.all([
+        const [scoutRes, masonRes, nexusRepRes, bpRepRes, commRepRes] = await Promise.all([
             supabase.from('scout_suggestions').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
             supabase.from('mods').select('id, name, created_at, description').eq('status', 'under_review').order('created_at', { ascending: false }).limit(6),
-            supabase.from('nexus_reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6)
+            supabase.from('nexus_reports').select('*, nexus_assets(name, asset_type, author)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
+            supabase.from('blueprint_reports').select('*, blueprints(name, code)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
+            supabase.from('content_flags').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
         ]);
         if (scoutRes.data) setRecentScout(scoutRes.data);
         if (masonRes.data) setRecentMason(masonRes.data);
-        if (reportRes.data) setRecentReports(reportRes.data);
+        const mergedReports: any[] = [];
+        (nexusRepRes.data || []).forEach((r: any) => {
+            mergedReports.push({
+                ...r,
+                source_type: r.nexus_assets?.asset_type || "nexus",
+                asset_title: r.nexus_assets?.name || t("unknown_asset", "Unknown Asset"),
+                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
+            });
+        });
+        (bpRepRes.data || []).forEach((r: any) => {
+            mergedReports.push({
+                ...r,
+                source_type: "blueprint",
+                asset_title: r.blueprints?.name || t("unknown_blueprint", "Unknown {Blueprint}"),
+                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
+            });
+        });
+        (commRepRes.data || []).forEach((r: any) => {
+            mergedReports.push({
+                ...r,
+                source_type: "comm-link",
+                asset_title: `COMM-LINK: ${(r.content_type || "").toUpperCase()}`,
+                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
+            });
+        });
+        mergedReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setRecentReports(mergedReports.slice(0, 6));
     };
     fetchBroadcasts();
     fetchRecentItems();
@@ -77,9 +105,20 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { count: scoutQueueCount } = await supabase.from('scout_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-      const { count: masonQueueCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'under_review');
-      const { count: nexusReportsCount } = await supabase.from('nexus_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+      const [
+        { count: scoutQueueCount },
+        { count: masonQueueCount },
+        { count: nexusRepCount },
+        { count: bpRepCount },
+        { count: commRepCount },
+      ] = await Promise.all([
+        supabase.from('scout_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'under_review'),
+        supabase.from('nexus_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('blueprint_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('content_flags').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      const nexusReportsCount = (nexusRepCount || 0) + (bpRepCount || 0) + (commRepCount || 0);
 
       const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
         .select('created_at, ticket_type, status, metadata')
@@ -311,7 +350,8 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                       <UniversalCard 
                           key={`rep-${report.id}`} 
                           layout="vertical" 
-                          title={report.report_reason || t("title_reports", "Reports Queue")} 
+                          title={report.asset_title || report.report_reason || t("title_reports", "Reports Queue")} 
+                          subtitle={`${t("reporter", "Reporter")}: ${report.reporter_name || t("anonymous", "Anonymous")}`}
                           icon={t("icon_flag", "flag")} 
                           onClick={() => onNavigate("nexus_reports")}
                           className="w-full"
@@ -325,20 +365,35 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                           }
                           badges={
                               <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_flag", "flag")}</span>
-                                  <span>{t("title_reports", "Reports Queue")}</span>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                      {report.source_type === "blueprint"
+                                          ? t("icon_architecture", "architecture")
+                                          : report.source_type === "lexicon"
+                                            ? t("icon_translate", "translate")
+                                            : t("icon_flag", "flag")}
+                                  </span>
+                                  <span>
+                                      {report.source_type === "blueprint"
+                                          ? t("playsets_title", "{Blueprints}")
+                                          : report.source_type === "lexicon"
+                                            ? t("tab_lexicons", "{Lexicons}")
+                                            : t("title_reports", "Reports Queue")}
+                                  </span>
                               </div>
                           }
                           footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
+                              <div className="flex items-center justify-between w-full mt-2 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                  <span className="flex items-center gap-2 opacity-60">
                                       <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(report.created_at).toLocaleDateString()}
+                                  </span>
+                                  <span className="text-[var(--text)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1">
+                                      {t("btn_inspect", "Inspect")} &rarr;
                                   </span>
                               </div>
                           }
                       >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {report.details || t("status_pending", "Pending")}
+                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-85 line-clamp-2 mt-1">
+                              {report.clean_reason || report.reason || report.details || t("status_pending", "Pending")}
                           </p>
                       </UniversalCard>
                   ))}

@@ -2,9 +2,27 @@ import React from 'react';
 import { HoverTabDrawer, VerticalTabButton, DashboardStatTile, isVersionMatch } from "../../shared";
 import { StatTileCarousel } from "../SharedCommandScreenLayout";
 
-export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEquipFilter, equippedDisplayMods, displayModList, selectedVersion }: any) {
-  const { allCount, devCount, archiveCount } = React.useMemo(() => {
+export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEquipFilter, vaultTabCounts, equippedDisplayMods, displayModList, selectedVersion }: any) {
+  const { totalCount, allCount, equippedCount, unequippedCount, devCount, archiveCount } = React.useMemo(() => {
+    if (vaultTabCounts) {
+      return {
+        totalCount: vaultTabCounts.total ?? 0,
+        allCount: vaultTabCounts.all ?? 0,
+        equippedCount: vaultTabCounts.equipped ?? 0,
+        unequippedCount: vaultTabCounts.unequipped ?? 0,
+        devCount: vaultTabCounts.dev ?? 0,
+        archiveCount: vaultTabCounts.archives ?? 0,
+      };
+    }
+
     const list = displayModList || [];
+    const virtualFolderIds = new Set<string>();
+    list.forEach((v: any) => {
+      if (v?.isVirtual && v.dbId) {
+        virtualFolderIds.add(String(v.dbId));
+      }
+    });
+
     let baseCount = 0;
     let dev = 0;
     let archive = 0;
@@ -15,16 +33,17 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
       if (baseModName === "FILTERS") continue;
-      baseCount++;
 
-      const isDev =
-        mod.hash?.startsWith('dev_vault_') ||
-        (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) ||
-        (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
-      if (isDev) {
-        dev++;
+      if (!mod.isVirtual) {
+        const folderExists =
+          (mod.familyId && virtualFolderIds.has(String(mod.familyId))) ||
+          (mod.setId && virtualFolderIds.has(String(mod.setId)));
+        if (folderExists) continue;
       }
 
+      baseCount++;
+
+      let isCompatible = true;
       if (selectedVersion && selectedVersion !== "") {
         if (!(mod.isVirtual && mod.isLocalOverride && (!mod.flavors || mod.flavors.length === 0))) {
           let modGameVersions: string[] = [];
@@ -44,21 +63,34 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
             }
           }
           if (!isVersionMatch(modGameVersions, selectedVersion)) {
+            isCompatible = false;
             archive++;
           }
         }
       }
+
+      if (!isCompatible) continue;
+
+      const isDev =
+        mod.hash?.startsWith('dev_vault_') ||
+        (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) ||
+        (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
+      if (isDev) {
+        dev++;
+      }
     }
 
+    const all = Math.max(0, baseCount - dev - archive);
+    const eq = Math.min(all, equippedDisplayMods?.length || 0);
     return {
-      allCount: Math.max(0, baseCount - dev - archive),
+      totalCount: baseCount,
+      allCount: all,
+      equippedCount: eq,
+      unequippedCount: Math.max(0, all - eq),
       devCount: dev,
       archiveCount: archive,
     };
-  }, [displayModList, selectedVersion]);
-
-  const equippedCount = equippedDisplayMods?.length || 0;
-  const unequippedCount = Math.max(0, allCount - equippedCount);
+  }, [vaultTabCounts, displayModList, selectedVersion, equippedDisplayMods]);
 
   return (
     <>
@@ -75,7 +107,7 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
 
       <div className="flex flex-col w-full gap-3 mb-8 md:mb-10">
         <StatTileCarousel>
-          <DashboardStatTile variant="tab" icon={t("icon_space_dashboard", "space_dashboard")} label={t("tab_overview", "Overview")} number="" onClick={() => setEquipFilter("OVERVIEW")} isActive={equipFilter === "OVERVIEW"} />
+          <DashboardStatTile variant="tab" icon={t("icon_space_dashboard", "space_dashboard")} label={t("tab_overview", "Overview")} number={totalCount} onClick={() => setEquipFilter("OVERVIEW")} isActive={equipFilter === "OVERVIEW"} />
           <DashboardStatTile variant="tab" icon={t("icon_inventory_2", "inventory_2")} label={t("filter_all_vault", "Main")} number={allCount} onClick={() => setEquipFilter("ALL")} isActive={equipFilter === "ALL"} />
           <DashboardStatTile variant="tab" icon={t("icon_check_circle", "check_circle")} label={t("filter_equipped", "In {Blueprint}")} number={equippedCount} onClick={() => setEquipFilter("EQUIPPED")} isActive={equipFilter === "EQUIPPED"} />
           <DashboardStatTile variant="tab" icon={t("icon_cancel", "cancel")} label={t("filter_unequipped", "Not Equipped")} number={unequippedCount} onClick={() => setEquipFilter("UNEQUIPPED")} isActive={equipFilter === "UNEQUIPPED"} />

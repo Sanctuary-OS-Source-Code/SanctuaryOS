@@ -3510,7 +3510,7 @@ function App() {
     activeSubType, setActiveSubType,
     expandedFolder, setExpandedFolder,
     filteredMods
-  } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t);
+  } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t, view === "vault");
   const visibleMods = filteredMods;
   const isGlobalConfigLoaded = useStore((state) => state.isGlobalConfigLoaded);
 

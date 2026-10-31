@@ -340,8 +340,10 @@ pub async fn scan_bunker(
 
                     if is_malware {
                         let reports_dir = vault_dir.join("Quarantine");
-                        let malware_dir = vault_dir.join("Quarantine");
+                        let malware_dir = vault_dir.join(".sanctuary_quarantine");
                         let _ = fs::create_dir_all(&reports_dir);
+                        let _ = fs::create_dir_all(&malware_dir);
+                        crate::utils::mark_path_hidden(&malware_dir);
                         let file_size_bytes = fs::metadata(&path).map(|m| m.len()).ok();
                         let file_extension = path
                             .extension()
@@ -847,9 +849,11 @@ pub async fn ingest_dropped_file(
             }
 
             if is_malware {
-                let q_dir = Path::new(&config.vault_path).join("Quarantine");
+                let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
                 let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                 let _ = std::fs::create_dir_all(&q_dir);
+                let _ = std::fs::create_dir_all(&reports_dir);
+                crate::utils::mark_path_hidden(&q_dir);
                 let file_size_bytes = fs::metadata(source).map(|m| m.len()).ok();
                 let file_extension = if !ext.is_empty() {
                     Some(format!(".{}", ext))
@@ -1071,9 +1075,11 @@ pub async fn ingest_dropped_file(
                     }
                 }
                 if is_malware {
-                    let q_dir = Path::new(&config.vault_path).join("Quarantine");
+                    let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
                     let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                     let _ = std::fs::create_dir_all(&q_dir);
+                    let _ = std::fs::create_dir_all(&reports_dir);
+                    crate::utils::mark_path_hidden(&q_dir);
                     let file_size_bytes = fs::metadata(sp).map(|m| m.len()).ok();
                     let q_target = q_dir.join(&sp_name);
                     let mut source_was_moved = false;
@@ -1434,10 +1440,12 @@ pub async fn ingest_dropped_file(
 
                                     if is_malware {
                                         let q_dir = Path::new(&config.vault_path)
-                                            .join("Quarantine");
+                                            .join(".sanctuary_quarantine");
                                         let reports_dir =
                                             Path::new(&config.vault_path).join("Quarantine");
                                         let _ = std::fs::create_dir_all(&q_dir);
+                                        let _ = std::fs::create_dir_all(&reports_dir);
+                                        crate::utils::mark_path_hidden(&q_dir);
                                         let file_size_bytes = fs::metadata(&extract_target).map(|m| m.len()).ok();
                                         let q_target = q_dir.join(&zf_file_name);
                                         let _ = std::fs::copy(&extract_target, &q_target);
@@ -1722,9 +1730,11 @@ pub async fn ingest_dropped_file(
                             }
                         }
                         if p_is_malware {
-                            let q_dir = Path::new(&config.vault_path).join("Quarantine");
+                            let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
                             let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                             let _ = std::fs::create_dir_all(&q_dir);
+                            let _ = std::fs::create_dir_all(&reports_dir);
+                            crate::utils::mark_path_hidden(&q_dir);
                             let p_fname = p.file_name().unwrap_or_default().to_string_lossy().to_string();
                             let file_size_bytes = fs::metadata(p).map(|m| m.len()).ok();
                             let q_target = q_dir.join(&p_fname);
@@ -1876,10 +1886,12 @@ pub async fn ingest_dropped_file(
 
                                 if is_malware {
                                     let q_dir =
-                                        Path::new(&config.vault_path).join("Quarantine");
+                                        Path::new(&config.vault_path).join(".sanctuary_quarantine");
                                     let reports_dir =
                                         Path::new(&config.vault_path).join("Quarantine");
                                     let _ = std::fs::create_dir_all(&q_dir);
+                                    let _ = std::fs::create_dir_all(&reports_dir);
+                                    crate::utils::mark_path_hidden(&q_dir);
                                     let file_size_bytes = fs::metadata(&extract_target).map(|m| m.len()).ok();
                                     let q_target = q_dir.join(&zf_file_name);
                                     let _ = std::fs::copy(&extract_target, &q_target);
@@ -2060,9 +2072,11 @@ pub async fn ingest_dropped_file(
             }
 
             if is_malware {
-                let q_dir = Path::new(&config.vault_path).join("Quarantine");
+                let q_dir = Path::new(&config.vault_path).join(".sanctuary_quarantine");
                 let reports_dir = Path::new(&config.vault_path).join("Quarantine");
                 let _ = std::fs::create_dir_all(&q_dir);
+                let _ = std::fs::create_dir_all(&reports_dir);
+                crate::utils::mark_path_hidden(&q_dir);
                 let file_size_bytes = fs::metadata(source).map(|m| m.len()).ok();
                 let q_target = q_dir.join(&file_name);
                 let mut source_was_moved = false;

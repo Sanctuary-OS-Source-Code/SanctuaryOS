@@ -30,7 +30,12 @@ import {
   HubOverviewSection,
   SidePanelTitleInput,
 } from "./components/layouts/ElevatedHubLayout";
-import { NexusFlagResolutionCard } from "./side-panels/NexusSidePanels";
+import {
+  NexusFlagResolutionCard,
+  auditBlueprintsTier0Compliance,
+  BlueprintComplianceAuditResult,
+  BlueprintComplianceViolation,
+} from "./side-panels/NexusSidePanels";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
@@ -57,6 +62,9 @@ export function MasonNexus({
   const [blueprints, setBlueprints] = useState<any[]>([]);
   const [flags, setFlags] = useState<any[]>([]);
   const [bpFlags, setBpFlags] = useState<any[]>([]);
+  const [blueprintAuditMap, setBlueprintAuditMap] = useState<
+    Map<any, BlueprintComplianceAuditResult>
+  >(() => new Map());
   const [latestGameVersion, setLatestGameVersion] = useState<string>("");
 
   const invalidateNexusCache = () => {
@@ -136,21 +144,54 @@ export function MasonNexus({
         flagsData.filter(
           (f: any) =>
             myAssetIds.includes(f.asset_id) &&
+            f.status !== "resolved" &&
             f.status !== "dismissed" &&
             f.status !== "creator_resolved"
         )
       );
     }
-    if (bpFlagsData) {
-      const myBpIds = bpData?.map((b) => b.id) || [];
-      setBpFlags(
-        bpFlagsData.filter(
-          (f: any) =>
-            myBpIds.includes(f.blueprint_id) &&
-            f.status !== "dismissed" &&
-            f.status !== "creator_resolved"
-        )
-      );
+    const myBpIds = bpData?.map((b) => b.id) || [];
+    const activeBpFlags = (bpFlagsData || []).filter(
+      (f: any) =>
+        myBpIds.includes(f.blueprint_id) &&
+        f.status !== "resolved" &&
+        f.status !== "dismissed" &&
+        f.status !== "creator_resolved"
+    );
+    setBpFlags(activeBpFlags);
+
+    if (bpData && bpData.length > 0) {
+      const existingPendingBpIds = new Set(activeBpFlags.map((f: any) => f.blueprint_id));
+      const auditMap = await auditBlueprintsTier0Compliance(supabase, bpData, {
+        autoFlagInDb: true,
+        existingPendingReportBpIds: existingPendingBpIds,
+      });
+      setBlueprintAuditMap(auditMap);
+
+      let newlyFlagged = false;
+      auditMap.forEach((res, bpId) => {
+        if (!res.isCompliant && !existingPendingBpIds.has(bpId)) {
+          newlyFlagged = true;
+        }
+      });
+
+      if (newlyFlagged) {
+        const { data: refreshedBpFlags } = await supabase
+          .from("blueprint_reports")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (refreshedBpFlags) {
+          setBpFlags(
+            refreshedBpFlags.filter(
+              (f: any) =>
+                myBpIds.includes(f.blueprint_id) &&
+                f.status !== "resolved" &&
+                f.status !== "dismissed" &&
+                f.status !== "creator_resolved"
+            )
+          );
+        }
+      }
     }
     if (gvData && gvData.length > 0) {
       let highestVer = "";
@@ -229,7 +270,14 @@ export function MasonNexus({
   const submitUpload = async () => {
     try {
       if (uploadState.assetType === "blueprint") {
-        const bpPayload: any = { name: uploadState.name, compliance_tier: 0 };
+        const audit = uploadState.editId ? blueprintAuditMap.get(uploadState.editId) : undefined;
+        const bpPayload: any = {
+          name: uploadState.name,
+          compliance_tier: 0,
+          is_market_listed: true,
+          is_public: true,
+          ...(audit ? { artifacts: audit.compliantArtifacts } : {}),
+        };
         if (uploadState.editId) {
           const { error } = await supabase
             .from("blueprints")
@@ -238,7 +286,7 @@ export function MasonNexus({
           if (error) throw error;
           await supabase
             .from("blueprint_reports")
-            .update({ status: "dismissed" })
+            .update({ status: "resolved" })
             .eq("blueprint_id", uploadState.editId);
           await supabase
             .from("nexus_reports")
@@ -249,7 +297,10 @@ export function MasonNexus({
           useStore
             .getState()
             .pushStatus(
-              t("flag_res_toast_success", "Updated and resubmitted! Active flag cleared."),
+              t(
+                "status_blueprint_compliant_reuploaded",
+                "{Blueprint} sanitized, re-uploaded, and {Nexus} flag resolved!"
+              ),
               "success"
             );
         }
@@ -396,10 +447,12 @@ export function MasonNexus({
   const isAssetFlagged = (asset: any, isBp: boolean = false) => {
     if (!asset) return false;
     if (isBp) {
+      const audit = blueprintAuditMap.get(asset.id);
       return (
         bpFlags.some((f) => f.blueprint_id === asset.id) ||
         flags.some((f) => f.asset_id === asset.id) ||
-        (typeof asset.compliance_tier === "number" && asset.compliance_tier > 0)
+        (typeof asset.compliance_tier === "number" && asset.compliance_tier > 0) ||
+        Boolean(audit && !audit.isCompliant)
       );
     }
     return flags.some((f) => f.asset_id === asset.id);
@@ -473,13 +526,35 @@ export function MasonNexus({
           ...flags.filter((f) => f.asset_id === asset.id),
         ]
       : flags.filter((f) => f.asset_id === asset.id);
-    const flagReason =
+    const bpAudit = isBp ? blueprintAuditMap.get(asset.id) : undefined;
+    const rawFlagReason =
       assetFlags[0]?.reason ||
       assetFlags[0]?.details ||
       assetFlags[0]?.description ||
-      (isBp && typeof asset.compliance_tier === "number" && asset.compliance_tier > 0
-        ? t("flag_res_bp_compliance", "Flagged by compliance review for {Blueprint} verification.")
-        : "");
+      "";
+    const flagReason = (() => {
+      if (isBp && bpAudit && !bpAudit.isCompliant && bpAudit.violations.length > 0) {
+        return t(
+          "flag_res_bp_card_summary",
+          "{0} non-Tier-0 or unverified {mods} flagged."
+        ).replace("{0}", String(bpAudit.violations.length));
+      }
+      if (isBp && /^Nexus Compliance Audit:/i.test(rawFlagReason)) {
+        const countMatch = rawFlagReason.match(/contains\s+(\d+)\s+/i);
+        if (countMatch?.[1]) {
+          return t(
+            "flag_res_bp_card_summary",
+            "{0} non-Tier-0 or unverified {mods} flagged."
+          ).replace("{0}", countMatch[1]);
+        }
+        return t("flag_res_bp_compliance", "Flagged by compliance review for {Blueprint} verification.");
+      }
+      if (rawFlagReason) return String(rawFlagReason).replace(/\s+\?\s+/g, " — ");
+      if (isBp && typeof asset.compliance_tier === "number" && asset.compliance_tier > 0) {
+        return t("flag_res_bp_compliance", "Flagged by compliance review for {Blueprint} verification.");
+      }
+      return "";
+    })();
 
     const statusIcon = isFlagged
       ? t("icon_flag", "flag")
@@ -612,13 +687,7 @@ export function MasonNexus({
               </span>
               <span>{asset.downloads || 0}</span>
             </span>
-            <span
-              className={`text-[10px] font-black ${
-                isFlagged
-                  ? "text-[var(--danger)]"
-                  : "text-[var(--text)] group-hover:text-[var(--accent)]"
-              } uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0`}
-            >
+            <span className="text-[10px] font-black text-[var(--text)] opacity-85 group-hover:opacity-100 group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 shrink-0">
               {isFlagged
                 ? t("flag_res_card_action", "Resolve & Resubmit")
                 : t("edit", "Edit")}{" "}
@@ -628,17 +697,21 @@ export function MasonNexus({
         }
       >
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
-            {!isBp
-              ? asset.description || t("no_desc", "No description provided.")
-              : t("blueprint", "{Blueprint}")}
-          </p>
+          {!isFlagged && (
+            <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+              {!isBp
+                ? asset.description || t("no_desc", "No description provided.")
+                : t("blueprint", "{Blueprint}")}
+            </p>
+          )}
           {isFlagged && (
-            <div className="rounded-xl px-2.5 py-2 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2">
-              <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
-                {t("icon_report_problem", "report_problem")}
-              </span>
-              <span className="text-[11px] font-bold text-[var(--text)] leading-snug line-clamp-2">
+            <div className="rounded-xl px-3 py-2 glass-surface border border-[color-mix(in_srgb,var(--danger)_26%,transparent)] flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
+                  {t("icon_flag", "flag")}
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2">
                 {flagReason ||
                   t("flag_res_card_flagged_desc", "Click to view report reason & resolve.")}
               </span>
@@ -871,11 +944,7 @@ export function MasonNexus({
 
           {uploadState.editId && (
             <NexusFlagResolutionCard
-              assetId={uploadState.editId}
-              assetType={uploadState.assetType}
-              assetName={uploadState.name}
-              fileContent={uploadState.fileContent}
-              flags={
+              activeFlags={
                 uploadState.assetType === "blueprint"
                   ? [
                       ...bpFlags.filter((f) => f.blueprint_id === uploadState.editId),
@@ -883,7 +952,39 @@ export function MasonNexus({
                     ]
                   : flags.filter((f) => f.asset_id === uploadState.editId)
               }
-              onResolveAndResubmit={submitUpload}
+              isHidden={uploadState.isHidden}
+              assetType={uploadState.assetType}
+              fileContent={uploadState.fileContent}
+              complianceViolations={
+                uploadState.assetType === "blueprint"
+                  ? blueprintAuditMap.get(uploadState.editId)?.violations || []
+                  : undefined
+              }
+              onRemoveViolationArtifact={
+                uploadState.assetType === "blueprint"
+                  ? (v: BlueprintComplianceViolation) => {
+                      setBlueprintAuditMap((prev) => {
+                        const next = new Map(prev);
+                        const curr = next.get(uploadState.editId);
+                        if (curr) {
+                          const nextViolations = curr.violations.filter(
+                            (item) => item.name !== v.name
+                          );
+                          next.set(uploadState.editId, {
+                            ...curr,
+                            violations: nextViolations,
+                          });
+                        }
+                        return next;
+                      });
+                    }
+                  : undefined
+              }
+              onResubmit={submitUpload}
+              disabled={
+                !uploadState.name ||
+                (uploadState.language === "add_new" && !uploadState.newLanguage)
+              }
             />
           )}
 

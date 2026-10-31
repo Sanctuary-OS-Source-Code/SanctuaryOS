@@ -13,7 +13,7 @@ import {
 } from "./shared";
 import { ArtifactCard } from "./Cards";
 import { CustomMasonDropdown } from "./ArchitectHub";
-import { logArchitectAction } from "./lib/audit";
+import { logArchitectAction, computeAuditDiff } from "./lib/audit";
 import {
   LabVerificationGate,
   checkDnaHashVerification,
@@ -121,13 +121,22 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     }
     setIsProcessing(true);
 
-    const { error } = await supabase.from('mods').update({
+    const updatedPayload = {
       ...editForm,
       status: 'verified'
-    }).eq('id', activeMod.id);
+    };
+    const { error } = await supabase.from('mods').update(updatedPayload).eq('id', activeMod.id);
 
     if (!error) {
-      logArchitectAction('Updated Mod Metadata', 'mods', activeMod.name);
+      await logArchitectAction(
+        'Updated Mod Metadata',
+        'mods',
+        activeMod.name,
+        undefined,
+        'Architect Console',
+        false,
+        computeAuditDiff(activeMod, updatedPayload)
+      );
       setActiveMod(null);
       fetchData();
     } else {
@@ -142,13 +151,22 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     if (reason === null) return;
     setIsProcessing(true);
 
-    const { error } = await supabase.from('mods').update({
+    const rejectPayload = {
       status: 'unverified',
       description: (editForm.description + '\n\nREJECTION REASON: ' + reason).trim()
-    }).eq('id', activeMod.id);
+    };
+    const { error } = await supabase.from('mods').update(rejectPayload).eq('id', activeMod.id);
 
     if (!error) {
-      logArchitectAction('Updated Mod Metadata', 'mods', activeMod.name);
+      await logArchitectAction(
+        'Updated Mod Metadata',
+        'mods',
+        activeMod.name,
+        reason,
+        'Architect Console',
+        false,
+        computeAuditDiff(activeMod, rejectPayload)
+      );
       setActiveMod(null);
       fetchData();
     } else {

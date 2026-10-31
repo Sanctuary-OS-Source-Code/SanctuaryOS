@@ -185,11 +185,23 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       let currentOwnedDLC = ownedDLC;
       let currentMaskedDLC = maskedDLC;
 
-      // Immediately prime Rust security definitions from localStorage cache (0ms network wait) before scanning disk
+      // Refresh security definitions from cloud (or localStorage when offline) BEFORE scanning disk so removed Tier 5 flags never quarantine files
       try {
         const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
-        const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
-        await invoke("sync_security_definitions", { malware: cachedMalware, tier2: cachedVerified }).catch(() => {});
+        if (!isOfflineMode) {
+          const { data: malwareData } = await supabase
+            .from("mod_versions")
+            .select("dna_hash, mods!inner(compliance_tier)")
+            .eq("mods.compliance_tier", 5);
+          if (malwareData) {
+            const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
+            localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
+            await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified }).catch(() => {});
+          }
+        } else {
+          const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
+          await invoke("sync_security_definitions", { malware: cachedMalware, tier2: cachedVerified }).catch(() => {});
+        }
       } catch {}
 
       try {
@@ -1239,7 +1251,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           compliance_tier: detectedComplianceTier,
           mason_id: dbMod?.mason_id || null,
           status: dbMod
-            ? dbMod.status === "stable"
+            ? dbMod.status === "stable" || dbMod.status === "verified"
               ? t("status_stable", "STABLE")
               : dbMod.status === "unverified"
                 ? t("unverified", "Unverified")
@@ -1500,7 +1512,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const localVirtualCards: any[] = [];
       const modToPlaysetMap = new Map<string, any>();
       localSts.forEach((set: any) => {
-        const setItemHashes = new Set<string>(Array.isArray(set.items) ? set.items : []);
+        if (!set || !set.id || !Array.isArray(set.items) || Array.isArray(set.mods)) return;
+        const setIdStr = String(set.id);
+        if (!setIdStr.startsWith("f_") && !setIdStr.startsWith("local_")) return;
+        const setItemHashes = new Set<string>(set.items);
         setItemHashes.forEach((h) => modToPlaysetMap.set(h, set.id));
         const setMembers = overriddenMods.filter((m: any) =>
           setItemHashes.has(m.hash),
@@ -1677,6 +1692,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             });
           }
         }
+      } else {
+        setMalwareAlert([]);
       }
 
       const prevList = useStore.getState().modList;
@@ -1772,24 +1789,28 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         setTimeout(() => setScanProgress({ current: 0, total: 100, message: "" }), 2000);
         setStatus(t("status_radar_done", "SCANNER: Loadout Reorganized."));
       }
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
           if (config && config.vault_path) {
+            const serialized = JSON.stringify(finalMasterList);
+            await yieldToMain();
             invoke("save_master_cache", {
               vaultPath: config.vault_path,
-              content: JSON.stringify(finalMasterList),
-            });
+              content: serialized,
+            }).catch(() => {});
           }
         } catch (cacheErr) {
           console.warn("Cache save failed:", cacheErr);
         }
+        await yieldToMain();
         checkNetworkUpdates(finalMasterList);
+        await yieldToMain();
         const stateSnap = useStore.getState();
         const activeBpName = stateSnap.activeSetName || stateSnap.playSets?.[stateSnap.activePlaySetIndex]?.name || stateSnap.playSets?.[0]?.name;
         if (activeBpName) {
           precomputeBlueprintConflicts(activeBpName, undefined, config?.vault_path).catch(() => {});
         }
-      }, 50);
+      }, 150);
     } catch (err) {
       console.error("RADAR CRASH:", err);
       useStore.setState({ isGlobalConfigLoaded: true });

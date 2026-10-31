@@ -42,6 +42,7 @@ pub async fn sanitize_vault(
         let templates_dir = vault_root.join("Templates");
         let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
         let quarantine_dir = vault_root.join("Quarantine");
+        let hidden_quarantine_dir = vault_root.join(".sanctuary_quarantine");
         let master_vault_root = crate::utils::get_master_vault_root(&vault_path);
         let master_data_dir = master_vault_root.join("Data");
         let theme_chameleon = master_data_dir.join("Themes");
@@ -54,6 +55,8 @@ pub async fn sanitize_vault(
         let _ = std::fs::create_dir_all(&templates_dir);
         let _ = std::fs::create_dir_all(&mods_lane);
         let _ = std::fs::create_dir_all(&quarantine_dir);
+        let _ = std::fs::create_dir_all(&hidden_quarantine_dir);
+        crate::utils::mark_path_hidden(&hidden_quarantine_dir);
         let _ = std::fs::create_dir_all(&theme_chameleon);
         let _ = std::fs::create_dir_all(&theme_lexicon);
 

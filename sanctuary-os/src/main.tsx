@@ -1,4 +1,3 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import "material-symbols/outlined.css";
 import "./index.css";
@@ -53,19 +52,17 @@ if (typeof document !== "undefined" && !document.getElementById("sa-portals")) {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <LexiconProvider>
-      <ThemeProvider>
-        {isLabOverlay ? (
-          <LabInGameOverlay />
-        ) : (
-          <AuthWrapper>
-            <App />
-          </AuthWrapper>
-        )}
-      </ThemeProvider>
-    </LexiconProvider>
-  </React.StrictMode>
+  <LexiconProvider>
+    <ThemeProvider>
+      {isLabOverlay ? (
+        <LabInGameOverlay />
+      ) : (
+        <AuthWrapper>
+          <App />
+        </AuthWrapper>
+      )}
+    </ThemeProvider>
+  </LexiconProvider>
 );
 
 if (typeof window !== "undefined") {

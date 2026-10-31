@@ -112,6 +112,36 @@ pub fn get_vault_mods_lane(vault_path: &str) -> PathBuf {
     }
 }
 
+pub fn mark_path_hidden(path: &Path) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows::core::PCWSTR;
+        use windows::Win32::Storage::FileSystem::{
+            GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_HIDDEN,
+            FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
+        };
+        let wide: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        unsafe {
+            let current = GetFileAttributesW(PCWSTR(wide.as_ptr()));
+            if current != INVALID_FILE_ATTRIBUTES && (current & FILE_ATTRIBUTE_HIDDEN.0) == 0 {
+                let _ = SetFileAttributesW(
+                    PCWSTR(wide.as_ptr()),
+                    FILE_FLAGS_AND_ATTRIBUTES(current | FILE_ATTRIBUTE_HIDDEN.0),
+                );
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+    }
+}
+
 pub fn get_cache_path(vault_path: &str) -> PathBuf {
     Path::new(vault_path).join(".sanctuary_cache.db")
 }
@@ -131,10 +161,13 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
         INITIALIZED_DB_PATHS.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
     let needs_init = initialized
         .lock()
-        .map(|mut set| set.insert(path))
+        .map(|mut set| set.insert(path.clone()))
         .unwrap_or(true);
 
     if needs_init {
+        mark_path_hidden(&path);
+        mark_path_hidden(&PathBuf::from(format!("{}-wal", path.to_string_lossy())));
+        mark_path_hidden(&PathBuf::from(format!("{}-shm", path.to_string_lossy())));
         let _ = conn.execute(
             "CREATE TABLE IF NOT EXISTS cache (
                 path TEXT PRIMARY KEY,
@@ -309,21 +342,29 @@ pub fn get_db_conn(vault_path: &str) -> Connection {
                 }
             }
 
-            // 6. Merge legacy .sanctuary_quarantine into Quarantine
-            let legacy_q = v_root.join(".sanctuary_quarantine");
-            if legacy_q.is_dir() {
-                let unified_q = v_root.join("Quarantine");
-                let _ = fs::create_dir_all(&unified_q);
-                if let Ok(entries) = fs::read_dir(&legacy_q) {
+            // 6. Keep actual quarantined binaries isolated inside hidden .sanctuary_quarantine, while Quarantine holds only .manifest.json reports
+            let hidden_q = v_root.join(".sanctuary_quarantine");
+            let reports_q = v_root.join("Quarantine");
+            if hidden_q.is_dir() {
+                mark_path_hidden(&hidden_q);
+            }
+            if reports_q.is_dir() {
+                if let Ok(entries) = fs::read_dir(&reports_q) {
                     for entry in entries.flatten() {
                         let src = entry.path();
-                        let dst = unified_q.join(entry.file_name());
-                        let _ = fs::rename(&src, &dst).or_else(|_| {
-                            fs::copy(&src, &dst).and_then(|_| fs::remove_file(&src))
-                        });
+                        if src.is_file() {
+                            let fname = entry.file_name().to_string_lossy().to_lowercase();
+                            if !fname.ends_with(".json") {
+                                let _ = fs::create_dir_all(&hidden_q);
+                                mark_path_hidden(&hidden_q);
+                                let dst = hidden_q.join(entry.file_name());
+                                let _ = fs::rename(&src, &dst).or_else(|_| {
+                                    fs::copy(&src, &dst).and_then(|_| fs::remove_file(&src))
+                                });
+                            }
+                        }
                     }
                 }
-                let _ = fs::remove_dir(&legacy_q);
             }
         }
     }

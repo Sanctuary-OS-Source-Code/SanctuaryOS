@@ -1,7 +1,7 @@
 # Sanctuary OS — Master Protocol List & 6-Tier Clearance Matrix
 
-**Document Version:** v0.5.8-Dev.5  
-**Last Updated:** October 28, 2026  
+**Document Version:** v0.6.0-Dev.1  
+**Last Updated:** October 30, 2026  
 
 ---
 
@@ -60,8 +60,8 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
 
 ## 4. Stability, Load Order & Atomic Logic Protocols
 
-* **Schema-Driven Load Order Engine (`compileLoadOrder`):** Compiles deployment priority using `folder_priority` (dynamic `Resource.cfg` + `Sanctuary1`–`Sanctuary3` override folders), `manifest_list` (`loadorder.txt`/`plugins.txt`), `numeric_prefix`, or `timestamp`, complete with topological sorting and DFS circular-loop breaking.
-* **Conflict Radar Casual vs. Advanced Mode:** Casual Mode provides 1-click "Pick a Winner" resolution for Severity 3 Tuning Overlaps; Advanced Mode unlocks directional `Must Load After`/`Before` rules and Priority Tier pills.
+* **Schema-Driven Load Order Engine (`compileLoadOrder`):** Compiles deployment priority using `folder_priority` (dynamic `Resource.cfg` + 4 game-agnostic Priority Override Tiers from `Standard Load` to `Final Override`), `manifest_list` (`loadorder.txt`/`plugins.txt`), `numeric_prefix` (`001_`), or `timestamp`, complete with topological sorting, strategy-aware priority tier and queue controls, searchable Blueprint Scan Scope selection, and DFS circular-loop breaking.
+* **Conflict Radar 2.0 & 5-Tier Severity Matrix (`radar.rs` & `ConflictResolutionSidebar.tsx`):** Classifies collisions across a 100% game-agnostic 5-Tier Severity Matrix (`S1 Visual`, `S2 Clone`, `S3 Tuning`, `S4 Core/Script`, `S5 Circular Loop`), pairing 1-click **"Set Winner"** resolution and game-agnostic Priority Override Tiers with a directional `Must Load After`/`Before` rule builder.
 * **The Highlander Rule:** Automatically evicts rival Flavor files when equipping a chosen Flavor.
 * **Nuclear Family Cohesion (Twins):** Bidirectionally links companion `.package` and `.ts4script` files so they equip and unequip together.
 * **Recursive Dependencies (Chain-Link) & Deep Yeet 2.0 (Cascade Removal):** Automatically equips required master mods when enabling an add-on, and intercepts master mod deletion to queue all dependent child mods.

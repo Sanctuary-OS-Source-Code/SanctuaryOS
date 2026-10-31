@@ -366,7 +366,7 @@ export default function Lab({
       try {
         const { data: logs } = await supabase
           .from("homestead_lab_logs")
-          .select("id, mod_id, version_id, mod_version_id, log_snippet, log_text, tester_note, created_at, mods(id, name, status, file_extension), mod_versions(dna_hash, version_label)")
+          .select("id, mod_id, version_id, mod_version_id, status, severity, log_snippet, log_text, tester_note, created_at, mods(id, name, status, file_extension), mod_versions(dna_hash, version_label)")
           .order("created_at", { ascending: false })
           .limit(30);
         if (cancelled || !logs || logs.length === 0) return;
@@ -403,29 +403,49 @@ export default function Lab({
           if (log.tester_note) {
             try {
               const parsed = JSON.parse(log.tester_note);
+              const extractEntryName = (val: any) =>
+                typeof val === "string"
+                  ? val
+                  : String(val?.displayName || val?.name || val?.title || "");
               if (parsed.conflictTarget) {
-                parsedConflictTarget = matchPhysicalModByName(parsed.conflictTarget) || {
-                  name: parsed.conflictTarget,
-                  displayName: parsed.conflictTarget,
+                const ctName = extractEntryName(parsed.conflictTarget);
+                parsedConflictTarget = matchPhysicalModByName(ctName) || {
+                  ...(typeof parsed.conflictTarget === "object" && parsed.conflictTarget
+                    ? parsed.conflictTarget
+                    : {}),
+                  name: ctName,
+                  displayName: ctName,
                 };
               }
               if (Array.isArray(parsed.dependencies)) {
-                parsedStagedExtras = parsed.dependencies.map(
-                  (depName: string) =>
-                    matchPhysicalModByName(depName) || {
-                      name: depName,
-                      displayName: depName,
-                    }
-                );
+                parsedStagedExtras = parsed.dependencies
+                  .map((depItem: any) => {
+                    const depName = extractEntryName(depItem);
+                    if (!depName) return null;
+                    return (
+                      matchPhysicalModByName(depName) || {
+                        ...(typeof depItem === "object" && depItem ? depItem : {}),
+                        name: depName,
+                        displayName: depName,
+                      }
+                    );
+                  })
+                  .filter(Boolean);
               }
               if (Array.isArray(parsed.conflictExtras)) {
-                parsedConflictExtras = parsed.conflictExtras.map(
-                  (cName: string) =>
-                    matchPhysicalModByName(cName) || {
-                      name: cName,
-                      displayName: cName,
-                    }
-                );
+                parsedConflictExtras = parsed.conflictExtras
+                  .map((cItem: any) => {
+                    const cName = extractEntryName(cItem);
+                    if (!cName) return null;
+                    return (
+                      matchPhysicalModByName(cName) || {
+                        ...(typeof cItem === "object" && cItem ? cItem : {}),
+                        name: cName,
+                        displayName: cName,
+                      }
+                    );
+                  })
+                  .filter(Boolean);
               }
             } catch {}
           }
@@ -487,12 +507,16 @@ export default function Lab({
             activeGameSchema,
           });
 
+          const isVerifiedPass =
+            String(log.status || "").toLowerCase() === "verified" ||
+            String(log.severity || "").toLowerCase() === "pass";
+
           recordRealTestEntry({
             id: `cloud_${log.id}`,
             sessionKey: `cloud_${log.id}`,
             mod: modObj,
-            errorFound: true,
-            verified: false,
+            errorFound: !isVerifiedPass,
+            verified: isVerifiedPass,
             time: log.created_at || new Date().toISOString(),
             logSnippet: snippet,
             conflictTarget: extractedLoadout.conflictTarget,
@@ -779,54 +803,92 @@ export default function Lab({
     let missing: any[] = [];
 
     const extRegex = getExtensionRegex(activeGameSchema);
-    const cleanName = (name: string) =>
-      name
+    const extractDepString = (raw: any): string => {
+      if (!raw) return "";
+      if (typeof raw === "string") return raw.trim();
+      if (typeof raw === "object") {
+        return String(raw.displayName || raw.name || raw.title || raw.mod_name || "").trim();
+      }
+      return String(raw).trim();
+    };
+    const cleanName = (raw: any) => {
+      const name = extractDepString(raw);
+      return name
         ? name
-          .replace(/['"]/g, "")
-          .replace(/_/g, " ")
-          .replace(extRegex, "")
-          .trim()
-          .toUpperCase()
+            .replace(/['"]/g, "")
+            .replace(/_/g, " ")
+            .replace(extRegex, "")
+            .trim()
+            .toUpperCase()
         : "";
+    };
 
     if (activeLabMod && activeLabMod.dependencies) {
-      let rawDeps: string[] = [];
+      let rawDeps: any[] = [];
       if (typeof activeLabMod.dependencies === "string") {
         rawDeps = activeLabMod.dependencies
           .split(",")
           .map((s: string) => s.trim())
           .filter(Boolean);
       } else if (Array.isArray(activeLabMod.dependencies)) {
-        rawDeps = [...activeLabMod.dependencies]
-          .map((s) => (typeof s === "string" ? s.trim() : s))
-          .filter(Boolean);
+        rawDeps = [...activeLabMod.dependencies].filter((s) =>
+          Boolean(extractDepString(s)),
+        );
       }
 
       const foundDeps = rawDeps
-        .map((depName) => {
+        .map((rawDep) => {
+          const depName = extractDepString(rawDep);
+          if (!depName) return null;
+          const depId =
+            typeof rawDep === "object" && rawDep ? rawDep.id : undefined;
+          const depHash =
+            typeof rawDep === "object" && rawDep ? rawDep.hash : undefined;
+          const depExt =
+            typeof rawDep === "object" && rawDep
+              ? String(rawDep.file_extension || "")
+              : "";
           const targetDepClean = cleanName(depName);
-          const isDBScript = depName.toLowerCase().includes("script");
+          const isDBScript =
+            depName.toLowerCase().includes("script") ||
+            depExt.toLowerCase().includes("script");
           const found = modList.find((m: any) => {
-            if (m.isVirtual) return false;
+            if (!m || m.isVirtual) return false;
             if (m === activeLabMod) return false;
             if (m.hash && activeLabMod.hash && m.hash === activeLabMod.hash)
               return false;
             if (m.name && activeLabMod.name && m.name === activeLabMod.name)
               return false;
 
-            if (!m.name) return false;
+            if (depHash && m.hash === depHash) return true;
+            if (depId && (m.id === depId || m.dbId === depId)) return true;
 
-            const isLocalScript = m.name.toLowerCase().includes("script");
+            const mNameStr = extractDepString(m.name);
+            if (!mNameStr) return false;
+
+            const isLocalScript = mNameStr.toLowerCase().includes("script");
             if (isDBScript !== isLocalScript) return false;
 
             return (
-              cleanName(m.name) === targetDepClean ||
+              cleanName(mNameStr) === targetDepClean ||
               cleanName(m.displayName) === targetDepClean ||
-              (m.path && m.path.includes(depName) && depName.length > 3)
+              (typeof m.path === "string" &&
+                m.path.includes(depName) &&
+                depName.length > 3)
             );
           });
 
-          if (!found) missing.push({ name: depName, displayName: depName });
+          if (!found) {
+            missing.push(
+              typeof rawDep === "object" && rawDep
+                ? {
+                    ...rawDep,
+                    name: depName,
+                    displayName: rawDep.displayName || depName,
+                  }
+                : { name: depName, displayName: depName },
+            );
+          }
           return found;
         })
         .filter(Boolean);
@@ -835,48 +897,60 @@ export default function Lab({
     }
 
     if (activeLabMod && associatedMods && associatedMods.length > 0) {
-      const assocCleanName = (name: string) =>
-        name
+      const assocCleanName = (raw: any) => {
+        const name = extractDepString(raw);
+        return name
           ? name
-            .replace(/_/g, " ")
-            .replace(
-              /(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi,
-              "",
-            )
-            .trim()
-            .toUpperCase()
+              .replace(/_/g, " ")
+              .replace(
+                /(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi,
+                "",
+              )
+              .trim()
+              .toUpperCase()
           : "";
+      };
 
       const extraDeps = associatedMods
         .map((am: any) => {
-          const targetAmClean = assocCleanName(am.name);
+          const amName = extractDepString(am);
+          const targetAmClean = assocCleanName(amName);
           const isDBScript =
-            Boolean(am.file_extension && am.file_extension.toLowerCase().includes("script")) ||
-            Boolean(am.name && am.name.toLowerCase().includes("script"));
+            Boolean(
+              typeof am?.file_extension === "string" &&
+                am.file_extension.toLowerCase().includes("script"),
+            ) || Boolean(amName && amName.toLowerCase().includes("script"));
 
           const found = modList.find((m: any) => {
-            if (m.isVirtual) return false;
+            if (!m || m.isVirtual) return false;
             if (m === activeLabMod) return false;
             if (m.hash && activeLabMod.hash && m.hash === activeLabMod.hash)
               return false;
             if (m.name && activeLabMod.name && m.name === activeLabMod.name)
               return false;
 
-            if (am.hash && m.hash === am.hash) return true;
-            if (am.id && m.id === am.id) return true;
+            if (am?.hash && m.hash === am.hash) return true;
+            if (am?.id && (m.id === am.id || m.dbId === am.id)) return true;
 
-            if (!am.name || !m.name) return false;
+            const mNameStr = extractDepString(m.name);
+            if (!amName || !mNameStr) return false;
 
-            const isLocalScript = Boolean(m.name && m.name.toLowerCase().includes("script"));
+            const isLocalScript = mNameStr.toLowerCase().includes("script");
             if (isDBScript !== isLocalScript) return false;
 
-            if (assocCleanName(m.displayName || m.name) === targetAmClean)
+            if (assocCleanName(m.displayName || mNameStr) === targetAmClean)
               return true;
 
             return false;
           });
 
-          if (!found) missing.push(am);
+          if (!found) {
+            missing.push(
+              typeof am === "object" && am
+                ? { ...am, name: amName, displayName: am.displayName || amName }
+                : { name: amName, displayName: amName },
+            );
+          }
           return found;
         })
         .filter(Boolean);

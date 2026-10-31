@@ -17,7 +17,7 @@ import {
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
-import { logArchitectAction } from "../lib/audit";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,
@@ -81,21 +81,29 @@ export function MasonCollectionBuilder({
   const handleCreateSet = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newSetName.trim()) return;
+    const payload = {
+      name: newSetName.trim(),
+      creator_name: masonName,
+      mason_id: masonId,
+      is_official: true,
+      compliance_tier: setTier,
+    };
     const { data, error } = await supabase
       .from("collections")
-      .insert([
-        {
-          name: newSetName.trim(),
-          creator_name: masonName,
-          mason_id: masonId,
-          is_official: true,
-          compliance_tier: setTier,
-        },
-      ])
+      .insert([payload])
       .select()
       .single();
 
     if (!error && data) {
+      logArchitectAction(
+        "Created Collection",
+        "collections",
+        payload.name,
+        undefined,
+        "Mason Workshop",
+        false,
+        computeAuditDiff(null, payload)
+      );
       setSets((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       setNewSetName("");
       setSetTier(0);
@@ -106,16 +114,29 @@ export function MasonCollectionBuilder({
   const handleSaveSetMeta = async () => {
     if (!activeSet) return;
     setIsSaving(true);
+    const prevSet = sets.find((s) => s.id === activeSet.id) || activeSet;
+    const updatedPayload = {
+      name: activeSet.name,
+      image_url: activeSet.image_url,
+      url: activeSet.url,
+      status: activeSet.status,
+      compliance_tier: activeSet.compliance_tier,
+    };
     const { error } = await supabase
       .from("collections")
-      .update({
-        name: activeSet.name,
-        image_url: activeSet.image_url,
-        url: activeSet.url,
-        status: activeSet.status,
-        compliance_tier: activeSet.compliance_tier,
-      })
+      .update(updatedPayload)
       .eq("id", activeSet.id);
+    if (!error) {
+      logArchitectAction(
+        "Updated Collection Metadata",
+        "collections",
+        activeSet.name,
+        undefined,
+        "Mason Workshop",
+        false,
+        computeAuditDiff(prevSet, updatedPayload)
+      );
+    }
     fetchSets();
     setIsSaving(false);
     if (!error) {
@@ -132,11 +153,37 @@ export function MasonCollectionBuilder({
     await supabase
       .from("collection_members")
       .upsert({ set_id: activeSet.id, mod_id: modId });
+    logArchitectAction(
+      `Added Mod ID ${modId} to Collection`,
+      "collections",
+      activeSet.name,
+      undefined,
+      "Mason Workshop",
+      false,
+      {
+        collection: { to: activeSet.name },
+        added_mod_id: { to: modId },
+      }
+    );
     fetchMembers(activeSet.id);
   };
 
   const handleRemoveMod = async (memberId: string) => {
     await supabase.from("collection_members").delete().eq("id", memberId);
+    if (activeSet) {
+      logArchitectAction(
+        `Removed Mod from Collection`,
+        "collections",
+        activeSet.name,
+        undefined,
+        "Mason Workshop",
+        false,
+        {
+          collection: { from: activeSet.name, to: activeSet.name },
+          removed_member_id: { from: memberId, to: "Removed" },
+        }
+      );
+    }
     fetchMembers(activeSet.id);
   };
 
@@ -151,6 +198,20 @@ export function MasonCollectionBuilder({
       .from("collections")
       .delete()
       .eq("id", activeSet.id);
+    if (!err1 && !err2) {
+      logArchitectAction(
+        "Deleted Collection",
+        "collections",
+        activeSet.name,
+        undefined,
+        "Mason Workshop",
+        false,
+        {
+          name: { from: activeSet.name, to: "Deleted" },
+          status: { from: activeSet.status || "active", to: "deleted" },
+        }
+      );
+    }
     setActiveSet(null);
     setMembers([]);
     fetchSets();
@@ -725,7 +786,15 @@ export function CollectionForge({ setStatus }: any) {
       .select()
       .single();
     if (!error && data) {
-      logArchitectAction("Created Collection", "collections", setName);
+      logArchitectAction(
+        "Created Collection",
+        "collections",
+        setName,
+        undefined,
+        undefined,
+        false,
+        computeAuditDiff(null, payload)
+      );
       setSets([...sets, data].sort((a, b) => a.name.localeCompare(b.name)));
       setSetName("");
       setSetMasonId("");
@@ -738,20 +807,30 @@ export function CollectionForge({ setStatus }: any) {
   const saveSetMeta = async () => {
     if (!activeSet) return;
     setIsSaving(true);
+    const prevSet = sets.find((s) => s.id === activeSet.id) || activeSet;
+    const updatedPayload = {
+      name: activeSet.name,
+      image_url: activeSet.image_url,
+      url: activeSet.url,
+      mason_id: activeSet.mason_id,
+      status: activeSet.status,
+      compliance_tier: activeSet.compliance_tier,
+    };
     const { error } = await supabase
       .from("collections")
-      .update({
-        name: activeSet.name,
-        image_url: activeSet.image_url,
-        url: activeSet.url,
-        mason_id: activeSet.mason_id,
-        status: activeSet.status,
-        compliance_tier: activeSet.compliance_tier,
-      })
+      .update(updatedPayload)
       .eq("id", activeSet.id);
 
     if (!error) {
-      logArchitectAction("Updated Collection Metadata", "collections", activeSet.name);
+      logArchitectAction(
+        "Updated Collection Metadata",
+        "collections",
+        activeSet.name,
+        undefined,
+        undefined,
+        false,
+        computeAuditDiff(prevSet, updatedPayload)
+      );
       await fetchSets();
       if (setStatus)
         setStatus(
@@ -776,7 +855,18 @@ export function CollectionForge({ setStatus }: any) {
     await supabase
       .from("collection_members")
       .upsert({ set_id: activeSet.id, mod_id: modId });
-    logArchitectAction(`Added Mod ID ${modId} to Collection`, "collections", activeSet.name);
+    logArchitectAction(
+      `Added Mod ID ${modId} to Collection`,
+      "collections",
+      activeSet.name,
+      undefined,
+      undefined,
+      false,
+      {
+        collection: { to: activeSet.name },
+        added_mod_id: { to: modId },
+      }
+    );
     fetchManifest(activeSet.id);
   };
 
@@ -786,7 +876,14 @@ export function CollectionForge({ setStatus }: any) {
       logArchitectAction(
         `Removed Mod ${modName} from Collection`,
         "collections",
-        activeSet.name
+        activeSet.name,
+        undefined,
+        undefined,
+        false,
+        {
+          collection: { from: activeSet.name, to: activeSet.name },
+          removed_mod: { from: modName, to: "Removed" },
+        }
       );
       fetchManifest(activeSet.id);
     }
@@ -797,7 +894,18 @@ export function CollectionForge({ setStatus }: any) {
     setIsSaving(true);
     await supabase.from("collection_members").delete().eq("set_id", activeSet.id);
     await supabase.from("collections").delete().eq("id", activeSet.id);
-    logArchitectAction(`Deleted Collection`, "collections", activeSet.name);
+    logArchitectAction(
+      `Deleted Collection`,
+      "collections",
+      activeSet.name,
+      undefined,
+      undefined,
+      false,
+      {
+        name: { from: activeSet.name, to: "Deleted" },
+        status: { from: activeSet.status || "active", to: "deleted" },
+      }
+    );
     setActiveSet(null);
     setManifestMembers([]);
     fetchSets();

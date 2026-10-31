@@ -723,13 +723,14 @@ export function StatBox({
     return "";
   };
   const rawText = extractNodeText(value).trim();
+  const hasSpaces = /\s/.test(rawText);
   const valueSizeClass =
-    rawText.length > 26
+    rawText.length > 22
       ? "text-xs sm:text-[13px]"
-      : rawText.length > 16
-        ? "text-xs sm:text-sm md:text-[15px]"
+      : rawText.length > 14
+        ? "text-xs sm:text-sm md:text-[14px]"
         : rawText.length > 9
-          ? "text-[13px] sm:text-base md:text-lg"
+          ? "text-xs sm:text-sm md:text-[15px]"
           : "text-sm sm:text-base md:text-lg";
 
   return (
@@ -752,7 +753,7 @@ export function StatBox({
         <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 mb-0.5 truncate">
           {normalizeAllCapsForThemeCase(label)}
         </span>
-        <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] break-words line-clamp-2`}>
+        <div className={`${valueSizeClass} font-black tracking-tight leading-snug text-[var(--text)] ${hasSpaces ? "break-words line-clamp-2" : "truncate"}`}>
           {typeof value === "string" ? normalizeAllCapsForThemeCase(value) : value}
         </div>
       </div>

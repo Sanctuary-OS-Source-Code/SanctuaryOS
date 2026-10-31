@@ -244,41 +244,51 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
       .eq("dna_hash", dnaHash)
       .maybeSingle();
 
+    let logs: any[] | null = null;
     if (verData?.id) {
-      const { data: logs } = await supabase
+      const { data } = await supabase
         .from("homestead_lab_logs")
         .select("log_snippet, tester_note, created_at")
         .eq("version_id", verData.id)
         .order("created_at", { ascending: false })
         .limit(5);
+      logs = data;
+    } else {
+      const { data } = await supabase
+        .from("homestead_lab_logs")
+        .select("log_snippet, tester_note, created_at")
+        .ilike("tester_note", `%${dnaHash}%`)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      logs = data;
+    }
 
-      if (logs && logs.length > 0) {
-        for (const l of logs) {
-          if (l.log_snippet === "Clean" || (l.tester_note && l.tester_note.includes("PASS_VERIFIED"))) {
-            let parsed: any = {};
-            try {
-              parsed = JSON.parse(l.tester_note || "{}");
-            } catch (e) {}
-            const cert: LabVerificationCertificate = {
-              dna_hash: dnaHash,
-              mod_name: parsed.mod_name || dnaHash,
-              verified_at: parsed.verified_at || Math.floor(new Date(l.created_at || Date.now()).getTime() / 1000),
-              active_seconds: parsed.active_seconds || 120,
-              baseline_ram_mb: parsed.baseline_ram_mb || 0,
-              peak_ram_mb: parsed.peak_ram_mb || 0,
-              disk_read_mb: parsed.disk_read_mb || 0,
-              save_file_verified: parsed.save_file_verified || "Cloud_Verified.save",
-            };
-            localMap[dnaHash] = cert;
-            localStorage.setItem(LOCAL_CERT_STORAGE_KEY, JSON.stringify(localMap));
-            return { verified: true, failed: false, cert };
-          }
+    if (logs && logs.length > 0) {
+      for (const l of logs) {
+        if (l.log_snippet === "Clean" || (l.tester_note && l.tester_note.includes("PASS_VERIFIED"))) {
+          let parsed: any = {};
+          try {
+            parsed = JSON.parse(l.tester_note || "{}");
+          } catch (e) {}
+          const cert: LabVerificationCertificate = {
+            dna_hash: dnaHash,
+            mod_name: parsed.mod_name || dnaHash,
+            verified_at: parsed.verified_at || Math.floor(new Date(l.created_at || Date.now()).getTime() / 1000),
+            active_seconds: parsed.active_seconds || 120,
+            baseline_ram_mb: parsed.baseline_ram_mb || 0,
+            peak_ram_mb: parsed.peak_ram_mb || 0,
+            disk_read_mb: parsed.disk_read_mb || 0,
+            save_file_verified: parsed.save_file_verified || "Cloud_Verified.save",
+          };
+          localMap[dnaHash] = cert;
+          localStorage.setItem(LOCAL_CERT_STORAGE_KEY, JSON.stringify(localMap));
+          return { verified: true, failed: false, cert };
         }
-        // If latest log had an exception and no clean log exists
-        const latest = logs[0];
-        if (latest.log_snippet && latest.log_snippet !== "Clean") {
-          return { verified: false, failed: true, errorLog: scrubLogUserData(latest.log_snippet) };
-        }
+      }
+      // If latest log had an exception and no clean log exists
+      const latest = logs[0];
+      if (latest.log_snippet && latest.log_snippet !== "Clean") {
+        return { verified: false, failed: true, errorLog: scrubLogUserData(latest.log_snippet) };
       }
     }
   } catch (e) {}

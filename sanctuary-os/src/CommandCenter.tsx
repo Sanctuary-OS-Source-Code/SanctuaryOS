@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown } from "./shared";
+import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown, isSupportedExtension } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
@@ -44,8 +44,61 @@ export default function CommandCenter({
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
   const [dismissedBroadcastId, setDismissedBroadcastId] = useState(localStorage.getItem('sanctuary_dismissed_alert_id'));
-  const [nexusCount, setNexusCount] = useState<number | "-">("-");
+  const [nexusCount, setNexusCount] = useState<number | "-">(() => {
+    const hs = (window as any).__sanctuaryCache?.nexus?.homeStats;
+    if (hs && typeof hs.artifacts === "number") {
+      return (hs.artifacts || 0) + (hs.blueprints || 0) + (hs.lexicons || 0) + (hs.chameleons || 0) + (hs.templates || 0);
+    }
+    return "-";
+  });
   const [ticketCount, setTicketCount] = useState<number | "-">("-");
+
+  const vaultItemCount = React.useMemo(() => {
+    if (!Array.isArray(modList) || modList.length === 0) return 0;
+    const virtualFolderIds = new Set<string>();
+    modList.forEach((v: any) => {
+      if (!v?.isVirtual || !v.dbId) return;
+      const dbIdStr = String(v.dbId);
+      if (dbIdStr === "undefined" || dbIdStr === "null") return;
+      if (
+        (v.hash?.startsWith("local_set_") || v.name?.startsWith("LOCAL_SET_")) &&
+        !dbIdStr.startsWith("f_") &&
+        !dbIdStr.startsWith("local_")
+      ) {
+        return;
+      }
+      virtualFolderIds.add(dbIdStr);
+    });
+    let count = 0;
+    for (let i = 0; i < modList.length; i++) {
+      const mod = modList[i];
+      if (!mod) continue;
+      if (mod.isVirtual && (mod.hash?.startsWith("local_set_") || mod.name?.startsWith("LOCAL_SET_"))) {
+        const dbIdStr = String(mod.dbId || "");
+        if (!dbIdStr.startsWith("f_") && !dbIdStr.startsWith("local_")) continue;
+      }
+      if (!mod.isVirtual && mod.name) {
+        if (!isSupportedExtension(mod.name, activeGameSchema)) continue;
+        if (activeGameSchema?.extensions?.vault_visible) {
+          const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
+            mod.name.toLowerCase().endsWith(ext.toLowerCase())
+          );
+          if (!isVaultVisible) continue;
+        }
+      }
+      const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
+      const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
+      if (baseModName === "FILTERS") continue;
+      if (!mod.isVirtual) {
+        const folderExists =
+          (mod.familyId && virtualFolderIds.has(String(mod.familyId))) ||
+          (mod.setId && virtualFolderIds.has(String(mod.setId)));
+        if (folderExists) continue;
+      }
+      count++;
+    }
+    return count;
+  }, [modList, activeGameSchema]);
 
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
@@ -87,9 +140,22 @@ export default function CommandCenter({
 
       try {
         const [assetsRes, modsRes, bpRes] = await Promise.all([
-          supabase.from('nexus_assets').select('id', { count: 'exact', head: true }),
-          supabase.from('mods').select('id', { count: 'exact', head: true }),
-          supabase.from('blueprints').select('id', { count: 'exact', head: true })
+          supabase
+            .from('nexus_assets')
+            .select('id', { count: 'exact', head: true })
+            .in('asset_type', ['lexicon', 'chameleon', 'workbench_template'])
+            .or('is_public.eq.true,is_public.is.null'),
+          supabase
+            .from('mods')
+            .select('id', { count: 'exact', head: true })
+            .eq('compliance_tier', 0)
+            .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
+          supabase
+            .from('blueprints')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_public', true)
+            .eq('is_market_listed', true)
+            .eq('compliance_tier', 0)
         ]);
 
 
@@ -135,22 +201,34 @@ export default function CommandCenter({
     if (!activePlaySet) return [];
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
     const safeList = Array.isArray(modList) ? modList : [];
+    const extRegex = getExtensionRegex(activeGameSchema);
 
     const exactMatchMap = new Map();
     const baseMatchMap = new Map();
 
     // Build O(1) lookup maps once (including virtual folder flavors)
-    const flatMods = safeList.flatMap((m: any) => (Array.isArray(m?.flavors) ? [...m.flavors, m] : [m]));
-    for (const m of flatMods) {
-      if (!m?.name) continue;
+    for (let i = 0; i < safeList.length; i++) {
+      const m = safeList[i];
+      if (!m) continue;
+      if (Array.isArray(m.flavors)) {
+        for (let j = 0; j < m.flavors.length; j++) {
+          const fl = m.flavors[j];
+          if (!fl?.name) continue;
+          const exactKey = fl.name.toLowerCase().replace(/\\/g, '/');
+          exactMatchMap.set(exactKey, fl);
+          const baseKey = fl.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+          if (baseKey && !baseMatchMap.has(baseKey)) {
+            baseMatchMap.set(baseKey, fl);
+          }
+        }
+      }
+      if (!m.name) continue;
       const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
       exactMatchMap.set(exactKey, m);
 
-      const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
-      if (baseKey) {
-        if (!baseMatchMap.has(baseKey)) {
-          baseMatchMap.set(baseKey, m);
-        }
+      const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      if (baseKey && !baseMatchMap.has(baseKey)) {
+        baseMatchMap.set(baseKey, m);
       }
     }
 
@@ -158,9 +236,31 @@ export default function CommandCenter({
     const netBroken = Array.isArray(networkUpdates?.broken) ? networkUpdates.broken : [];
     const netObsolete = Array.isArray(networkUpdates?.obsolete) ? networkUpdates.obsolete : [];
 
+    const updByHash = new Map<string, any>();
+    const updByName = new Map<string, any>();
+    for (let i = 0; i < netUpdated.length; i++) {
+      const u = netUpdated[i];
+      if (u?.hash) updByHash.set(u.hash, u);
+      if (u?.name) updByName.set(u.name, u);
+    }
+    const brokenHashes = new Set<string>();
+    const brokenNames = new Set<string>();
+    for (let i = 0; i < netBroken.length; i++) {
+      const b = netBroken[i];
+      if (b?.hash) brokenHashes.add(b.hash);
+      if (b?.name) brokenNames.add(b.name);
+    }
+    const obsoleteHashes = new Set<string>();
+    const obsoleteNames = new Set<string>();
+    for (let i = 0; i < netObsolete.length; i++) {
+      const b = netObsolete[i];
+      if (b?.hash) obsoleteHashes.add(b.hash);
+      if (b?.name) obsoleteNames.add(b.name);
+    }
+
     const enrichWithNetState = (matched: any) => {
       let res = matched;
-      const upd = netUpdated.find((u: any) => (u.hash && u.hash === res.hash) || (u.name && u.name === res.name));
+      const upd = (res.hash && updByHash.get(res.hash)) || (res.name && updByName.get(res.name));
       if (upd && !res.hasUpdate) {
         res = {
           ...res,
@@ -170,9 +270,9 @@ export default function CommandCenter({
           download_url: upd.download_url || res.download_url,
         };
       }
-      if (netBroken.some((b: any) => (b.hash && b.hash === res.hash) || (b.name && b.name === res.name)) && res.status !== 'broken') {
+      if (((res.hash && brokenHashes.has(res.hash)) || (res.name && brokenNames.has(res.name))) && res.status !== 'broken') {
         res = { ...res, status: 'broken' };
-      } else if (netObsolete.some((b: any) => (b.hash && b.hash === res.hash) || (b.name && b.name === res.name)) && res.status !== 'obsolete') {
+      } else if (((res.hash && obsoleteHashes.has(res.hash)) || (res.name && obsoleteNames.has(res.name))) && res.status !== 'obsolete') {
         res = { ...res, status: 'obsolete' };
       }
       return res;
@@ -186,7 +286,7 @@ export default function CommandCenter({
       const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...enrichWithNetState(exactMatch), _originalSetName: modName };
 
-      const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
 
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
       if (baseMatch) return { ...enrichWithNetState(baseMatch), _originalSetName: modName };
@@ -515,7 +615,7 @@ export default function CommandCenter({
             <DashboardStatTile
               key="vault"
               icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
-              number={activeGameSchema?.features?.has_cc === false ? "-" : (modList?.length || 0)}
+              number={activeGameSchema?.features?.has_cc === false ? "-" : vaultItemCount}
               label={t("vault_title", "Your {Vault}")}
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
@@ -534,7 +634,7 @@ export default function CommandCenter({
               key="blueprints"
               icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
-              label={t("stat_blueprints", "Active {Blueprint}")}
+              label={t("playsets_title", "{Blueprints}")}
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
             />

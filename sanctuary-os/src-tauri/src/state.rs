@@ -100,7 +100,7 @@ pub struct SecurityState {
     pub volatile_original_paths: std::sync::Mutex<HashMap<String, String>>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conflict {
     pub mod_pair: String,
     pub shared_assets: usize,

@@ -62,11 +62,13 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel, isLogExpanded, setIsLogExpanded, isSystemStatusOpen, setIsSystemStatusOpen } = useModalStore();
 
   const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
+  const needsBlueprintMods = Boolean(showUpdatesModal || showIncompatiblePanel || showConflictsPanel);
 
   const activeBlueprintMods = React.useMemo(() => {
-    if (!activePlaySet) return [];
+    if (!needsBlueprintMods || !activePlaySet) return [];
     const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
     const safeList = Array.isArray(modList) ? modList : [];
+    const extRegex = getExtensionRegex(activeGameSchema);
 
     const exactMatchMap = new Map();
     const baseMatchMap = new Map();
@@ -76,7 +78,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
         const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
         exactMatchMap.set(exactKey, m);
         
-        const baseKey = m.name.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+        const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
         if (baseKey) {
             if (!baseMatchMap.has(baseKey)) {
                 baseMatchMap.set(baseKey, m);
@@ -92,14 +94,14 @@ export const AppModals = React.memo(function AppModals(props: any) {
       const exactMatch = exactMatchMap.get(modNameLow);
       if (exactMatch) return { ...exactMatch, _originalSetName: modName };
 
-      const mBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').toLowerCase();
+      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
       
       const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
       if (baseMatch) return { ...baseMatch, _originalSetName: modName };
 
       return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
     });
-  }, [activePlaySet, modList, activeGameSchema]);
+  }, [needsBlueprintMods, activePlaySet, modList, activeGameSchema]);
 
   const activeUpdates = React.useMemo(() => {
     const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({

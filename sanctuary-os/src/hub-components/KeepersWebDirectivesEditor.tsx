@@ -41,7 +41,7 @@ import {
   PostAttachmentsManager,
   PostEditorModeTiles,
 } from "../components/universal/UnifiedPostEditor";
-import { logArchitectAction } from "../lib/audit";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import {
   extractDispatchMetadata,
   DispatchPollData,
@@ -55,6 +55,7 @@ import {
   syncDirectivesBidirectional,
   syncLegalAndCovenantsBidirectional,
   saveDirectiveBothWays,
+  publishDirectiveToUsers,
   saveLegalDocBothWays,
   pushCodebaseDirectivesToKeepersCore,
   pullKeepersCoreDirectivesToCodebase,
@@ -65,6 +66,9 @@ import {
   DirectiveBuilderSchema,
   DirectiveBuilderCard,
   DirectiveBuilderSubCard,
+  RoadmapMilestoneStatus,
+  resolveRoadmapSubCardStatus,
+  getRoadmapStatusMeta,
   extractDirectiveBuilderSchema,
   parseMarkdownToDirectiveSchema,
   stripDirectiveBuilderComment,
@@ -422,6 +426,9 @@ export default function KeepersWebDirectivesEditor({
           description: extracted?.summary || rec.summary,
           content: rec.content,
           message: rec.content,
+          published_content: rec.published_content || rec.content,
+          published_at: rec.published_at || rec.updated_at,
+          has_unpublished_changes: Boolean(rec.has_unpublished_changes),
           category: rec.category,
           target_audience: "Public",
           action_required: "No Action Required",
@@ -1124,12 +1131,16 @@ export default function KeepersWebDirectivesEditor({
     setIsDirty(true);
     const currentCount =
       builderSchema?.tabs?.[tabIdx]?.cards?.[cardIdx]?.subCards?.length || 0;
+    const isRoadmap = activeCanonicalSlug === "phase_roadmap";
     const newSub: DirectiveBuilderSubCard = {
       id: `sub_${Date.now()}`,
-      icon: t("icon_check_circle", "check_circle"),
+      icon: isRoadmap
+        ? t("icon_rocket_launch", "rocket_launch")
+        : t("icon_check_circle", "check_circle"),
       title: t("dir_builder_subcard_title_ph", "Info block title..."),
       desc: t("dir_builder_subcard_desc_ph", "Concise description..."),
-      pending: false,
+      pending: isRoadmap ? true : false,
+      roadmapStatus: isRoadmap ? "in_progress" : undefined,
     };
     setBuilderSchema((prev) => {
       if (!prev) return prev;
@@ -1223,7 +1234,60 @@ export default function KeepersWebDirectivesEditor({
     setEditingSubCardIdx(null);
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handlePublishDirectiveCard = async (
+    post: any,
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    const slug = (post.slug ||
+      CATEGORY_TO_SLUG[post.category] ||
+      "phase_roadmap") as DirectiveSlug;
+    setIsSubmitting(true);
+    try {
+      const pubRes = await publishDirectiveToUsers(
+        slug,
+        currentUserId || "Keepers Core"
+      );
+      if (!pubRes.error) {
+        const meta = CANONICAL_DIRECTIVES[slug];
+        await logArchitectAction(
+          "Published System Directive Live (User Side)",
+          "system_directives",
+          `${post.title} (${meta?.file_path || slug})`,
+          undefined,
+          "Keepers Core",
+          true,
+          {
+            slug: { to: slug },
+            title: { to: post.title },
+            published_live: { to: true },
+          }
+        );
+        window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+        await fetchPostsAndAssets(true);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "dir_toast_published_live",
+              "Published live to {Citizens} and synced with local .md file!"
+            ),
+            "success"
+          );
+      } else {
+        useStore
+          .getState()
+          .pushStatus(
+            `Failed to publish: ${pubRes.error?.message || "Unknown error"}`,
+            "error"
+          );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent, publishLive = false) => {
     if (e) e.preventDefault();
 
     let finalMarkdownBody = stripDirectiveBuilderComment(content);
@@ -1334,10 +1398,13 @@ export default function KeepersWebDirectivesEditor({
         category: category,
         content: payloadContent,
         updated_by: currentUserId || "Keepers Core",
+        publishLive,
       });
 
       await logArchitectAction(
-        "Synced System Directive (Visual Builder + .md)",
+        publishLive
+          ? "Published System Directive Live (User Side + .md + DB)"
+          : "Synced System Directive (Visual Builder + .md)",
         "system_directives",
         `${syncedSchema.title} (${meta?.file_path || canonicalSlug})`,
         undefined,
@@ -1348,6 +1415,7 @@ export default function KeepersWebDirectivesEditor({
           title: { to: syncedSchema.title },
           tabs_count: { to: syncedSchema.tabs?.length || 0 },
           is_live: { to: isActive },
+          published_live: { to: publishLive },
         }
       );
 
@@ -1364,10 +1432,15 @@ export default function KeepersWebDirectivesEditor({
         .getState()
         .pushStatus(
           !saveRes.error
-            ? t(
-                "dir_sync_toast_saved",
-                "Saved to Keepers Core & local .md file!"
-              )
+            ? publishLive
+              ? t(
+                  "dir_toast_published_live",
+                  "Published live to {Citizens} and synced with local .md file!"
+                )
+              : t(
+                  "dir_sync_toast_saved",
+                  "Saved to Keepers Core & local .md file!"
+                )
             : t("update_transmission", "Update {Dispatch}"),
           "success"
         );
@@ -1439,11 +1512,7 @@ export default function KeepersWebDirectivesEditor({
         undefined,
         "Keepers Core",
         true,
-        {
-          title: { from: editingPost?.title, to: payload.title },
-          category: { from: editingPost?.category, to: payload.category },
-          is_active: { from: editingPost?.is_active, to: payload.is_active },
-        }
+        computeAuditDiff(editingPostId ? editingPost : null, payload)
       );
       useStore.getState().setWayfinderDrafts((prev) => {
         const next = { ...prev };
@@ -1553,6 +1622,7 @@ export default function KeepersWebDirectivesEditor({
     const hasUnsavedEdits = Boolean(
       (wayfinderDrafts[post.id] as any)?.isDirty
     );
+    const hasUnpublishedSync = Boolean(post.has_unpublished_changes);
     const isLive =
       effectiveSchema.isActive !== undefined
         ? effectiveSchema.isActive !== false
@@ -1575,6 +1645,15 @@ export default function KeepersWebDirectivesEditor({
                   {t("icon_edit", "edit")}
                 </span>
                 <span>{t("action_unsaved_draft", "Draft")}</span>
+              </span>
+            ) : hasUnpublishedSync ? (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_pending_actions", "pending_actions")}
+                </span>
+                <span>
+                  {t("dir_status_staged_sync", "Synced • Unpushed")}
+                </span>
               </span>
             ) : (
               <span className={VAULT_CHIP_CLASS}>
@@ -1622,6 +1701,16 @@ export default function KeepersWebDirectivesEditor({
                   : t("status_not_live", "Not Live")}
               </span>
             </span>
+            {hasUnpublishedSync && (
+              <span className={`${VAULT_CHIP_CLASS} !border-[var(--warning)]/40 !text-[var(--warning)]`}>
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_pending_actions", "pending_actions")}
+                </span>
+                <span>
+                  {t("dir_status_staged_sync", "Synced • Unpushed")}
+                </span>
+              </span>
+            )}
           </>
         }
         footer={
@@ -1629,12 +1718,27 @@ export default function KeepersWebDirectivesEditor({
             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-wider truncate">
               {`${totalTabs} ${t("dir_builder_tabs_lbl", "Tabs")} • ${totalCards} ${t("dir_builder_cards_lbl", "Cards")}`}
             </span>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 shrink-0">
-              {t("edit", "Edit")}
-              <span className="material-symbols-outlined !text-[12px]">
-                {t("icon_arrow_forward", "arrow_forward")}
+            <div className="flex items-center gap-2 shrink-0">
+              {hasUnpublishedSync && (
+                <button
+                  type="button"
+                  onClick={(e) => handlePublishDirectiveCard(post, e)}
+                  disabled={isSubmitting || isSyncing}
+                  className="px-2 py-0.5 rounded-md border border-[var(--warning)]/40 bg-transparent text-[9px] font-black uppercase tracking-wider text-[var(--warning)] hover:border-[var(--warning)] transition-colors flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined !text-[11px]">
+                    {t("icon_publish", "publish")}
+                  </span>
+                  <span>{t("btn_publish", "Publish")}</span>
+                </button>
+              )}
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 shrink-0">
+                {t("edit", "Edit")}
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_arrow_forward", "arrow_forward")}
+                </span>
               </span>
-            </span>
+            </div>
           </div>
         }
       >
@@ -2176,22 +2280,69 @@ export default function KeepersWebDirectivesEditor({
                   setIsDirty(true);
                 }}
               />
-              <PanelHeaderButton
-                onClick={() => handleSubmit()}
-                disabled={isSubmitting || isSyncing || !title}
-                tooltip={
-                  isSubmitting
-                    ? t("btn_saving", "Saving...")
-                    : t("save", "Save Changes")
-                }
-                icon={
-                  isSubmitting
-                    ? t("icon_sync", "sync")
-                    : t("icon_send", "send")
-                }
-                variant={isDirty ? "warning" : "accent"}
-                className={isSubmitting ? "animate-pulse" : ""}
-              />
+              {activeCanonicalMeta ? (
+                <>
+                  <PanelHeaderButton
+                    onClick={() => handleSubmit(undefined, false)}
+                    disabled={isSubmitting || isSyncing || !title}
+                    tooltip={
+                      isSubmitting
+                        ? t("btn_saving", "Saving...")
+                        : t(
+                            "dir_btn_save_sync_staged",
+                            "Save & Sync (.md + DB)"
+                          )
+                    }
+                    icon={
+                      isSubmitting
+                        ? t("icon_sync", "sync")
+                        : t("icon_save", "save")
+                    }
+                    variant={isDirty ? "warning" : "default"}
+                    className={isSubmitting ? "animate-pulse" : ""}
+                  />
+                  <PanelHeaderButton
+                    onClick={() => handleSubmit(undefined, true)}
+                    disabled={isSubmitting || isSyncing || !title}
+                    tooltip={
+                      isSubmitting
+                        ? t("btn_saving", "Saving...")
+                        : t(
+                            "dir_btn_publish_live",
+                            "Update / Publish to {Citizens}"
+                          )
+                    }
+                    icon={
+                      isSubmitting
+                        ? t("icon_sync", "sync")
+                        : t("icon_publish", "publish")
+                    }
+                    variant={
+                      isDirty || Boolean(editingPost?.has_unpublished_changes)
+                        ? "warning"
+                        : "accent"
+                    }
+                    className={isSubmitting ? "animate-pulse" : ""}
+                  />
+                </>
+              ) : (
+                <PanelHeaderButton
+                  onClick={() => handleSubmit(undefined, false)}
+                  disabled={isSubmitting || isSyncing || !title}
+                  tooltip={
+                    isSubmitting
+                      ? t("btn_saving", "Saving...")
+                      : t("save", "Save Changes")
+                  }
+                  icon={
+                    isSubmitting
+                      ? t("icon_sync", "sync")
+                      : t("icon_send", "send")
+                  }
+                  variant={isDirty ? "warning" : "accent"}
+                  className={isSubmitting ? "animate-pulse" : ""}
+                />
+              )}
             </PanelHeaderGroup>
           }
         >
@@ -2302,7 +2453,24 @@ export default function KeepersWebDirectivesEditor({
                               onClick={(e) => e.stopPropagation()}
                             >
                               {card.badge && (
-                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1">
+                                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1">
+                                  {activeCanonicalSlug === "phase_roadmap" && (
+                                    <span
+                                      className={`material-symbols-outlined !text-[12px] ${
+                                        card.status === "completed"
+                                          ? "text-[var(--success)]"
+                                          : card.status === "in_testing"
+                                            ? "text-[var(--warning)]"
+                                            : "text-[var(--accent)]"
+                                      }`}
+                                    >
+                                      {card.status === "completed"
+                                        ? t("icon_check_circle", "check_circle")
+                                        : card.status === "in_testing"
+                                          ? t("icon_science", "science")
+                                          : t("icon_rocket_launch", "rocket_launch")}
+                                    </span>
+                                  )}
                                   {card.badge}
                                 </span>
                               )}
@@ -2523,17 +2691,68 @@ export default function KeepersWebDirectivesEditor({
                                   "Top-Right Status Badge"
                                 )}
                               </label>
-                              <input
-                                value={card.badge}
-                                onChange={(e) =>
-                                  updateBuilderCard(
-                                    activeBuilderTabIdx,
-                                    cardIdx,
-                                    { badge: e.target.value }
-                                  )
-                                }
-                                className="w-full glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
-                              />
+                              {activeCanonicalSlug === "phase_roadmap" ? (
+                                <CustomDropdown
+                                  disableTint={true}
+                                  className="h-9"
+                                  value={
+                                    card.status === "completed"
+                                      ? "completed"
+                                      : card.status === "in_testing"
+                                        ? "in_testing"
+                                        : "in_progress"
+                                  }
+                                  options={(
+                                    [
+                                      "in_progress",
+                                      "in_testing",
+                                      "completed",
+                                    ] as RoadmapMilestoneStatus[]
+                                  ).map((st) => {
+                                    const meta = getRoadmapStatusMeta(st, t);
+                                    return {
+                                      id: st,
+                                      label: meta.label,
+                                      icon: meta.icon,
+                                      iconColorClass: meta.colorClass,
+                                    };
+                                  })}
+                                  onChange={(vals: string[]) => {
+                                    const picked = (vals[0] ||
+                                      "in_progress") as RoadmapMilestoneStatus;
+                                    const meta = getRoadmapStatusMeta(
+                                      picked,
+                                      t
+                                    );
+                                    const cardStatusKey =
+                                      picked === "in_progress"
+                                        ? "active"
+                                        : picked === "in_testing"
+                                          ? "in_testing"
+                                          : "completed";
+                                    updateBuilderCard(
+                                      activeBuilderTabIdx,
+                                      cardIdx,
+                                      {
+                                        status: cardStatusKey,
+                                        badge: meta.label,
+                                      }
+                                    );
+                                  }}
+                                />
+                              ) : (
+                                <input
+                                  value={card.badge}
+                                  onChange={(e) =>
+                                    updateBuilderCard(
+                                      activeBuilderTabIdx,
+                                      cardIdx,
+                                      { badge: e.target.value }
+                                    )
+                                  }
+                                  className="w-full glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                                />
+                              )}
                             </div>
                           </div>
 
@@ -2618,12 +2837,32 @@ export default function KeepersWebDirectivesEditor({
                                         className="glass-surface rounded-xl px-4 py-3 flex items-center justify-between gap-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] opacity-65 hover:opacity-100 cursor-pointer transition-all w-full"
                                       >
                                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                                            {sub.icon ||
-                                              t(
-                                                "icon_check_circle",
-                                                "check_circle"
-                                              )}
+                                          <span
+                                            className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                              activeCanonicalSlug ===
+                                              "phase_roadmap"
+                                                ? getRoadmapStatusMeta(
+                                                    resolveRoadmapSubCardStatus(
+                                                      sub
+                                                    ),
+                                                    t
+                                                  ).colorClass
+                                                : "text-[var(--accent)]"
+                                            }`}
+                                          >
+                                            {activeCanonicalSlug ===
+                                            "phase_roadmap"
+                                              ? getRoadmapStatusMeta(
+                                                  resolveRoadmapSubCardStatus(
+                                                    sub
+                                                  ),
+                                                  t
+                                                ).icon
+                                              : sub.icon ||
+                                                t(
+                                                  "icon_check_circle",
+                                                  "check_circle"
+                                                )}
                                           </span>
                                           <div className="flex flex-col min-w-0 flex-1">
                                             <span className="text-xs font-bold text-[var(--text)] truncate">
@@ -2640,30 +2879,56 @@ export default function KeepersWebDirectivesEditor({
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           {activeCanonicalSlug ===
-                                            "phase_roadmap" && (
-                                            <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1 flex items-center gap-1.5">
-                                              <span
-                                                className={`material-symbols-outlined !text-[12px] ${
-                                                  sub.pending
-                                                    ? "text-[var(--accent)]"
-                                                    : "text-[var(--success)]"
-                                                }`}
-                                              >
-                                                {sub.pending
-                                                  ? t("icon_rocket_launch", "rocket_launch")
-                                                  : t("icon_check_circle", "check_circle")}
-                                              </span>
-                                              {sub.pending
-                                                ? t(
-                                                    "dir_builder_status_wip",
-                                                    "In Progress"
-                                                  )
-                                                : t(
-                                                    "status_completed",
-                                                    "Completed"
-                                                  )}
-                                            </span>
-                                          )}
+                                            "phase_roadmap" &&
+                                            (() => {
+                                              const curStatus =
+                                                resolveRoadmapSubCardStatus(
+                                                  sub
+                                                );
+                                              const meta = getRoadmapStatusMeta(
+                                                curStatus,
+                                                t
+                                              );
+                                              const nextStatus: RoadmapMilestoneStatus =
+                                                curStatus === "in_progress"
+                                                  ? "in_testing"
+                                                  : curStatus === "in_testing"
+                                                    ? "completed"
+                                                    : "in_progress";
+                                              const nextMeta =
+                                                getRoadmapStatusMeta(
+                                                  nextStatus,
+                                                  t
+                                                );
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    updateSubCard(
+                                                      activeBuilderTabIdx,
+                                                      cardIdx,
+                                                      subIdx,
+                                                      {
+                                                        roadmapStatus:
+                                                          nextStatus,
+                                                        pending:
+                                                          nextStatus ===
+                                                          "in_progress",
+                                                        icon: nextMeta.icon,
+                                                      }
+                                                    )
+                                                  }
+                                                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1 flex items-center gap-1.5 transition-all cursor-pointer"
+                                                >
+                                                  <span
+                                                    className={`material-symbols-outlined !text-[12px] ${meta.colorClass}`}
+                                                  >
+                                                    {meta.icon}
+                                                  </span>
+                                                  <span>{meta.label}</span>
+                                                </button>
+                                              );
+                                            })()}
                                           <ActionButton
                                             variant="glass"
                                             icon={t(
@@ -2835,7 +3100,7 @@ export default function KeepersWebDirectivesEditor({
                                                     }
                                               )
                                             }
-                                            className="h-10 w-10 sm:w-auto sm:px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                                            className="h-10 px-3 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                                           >
                                             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
                                               {sub.icon ||
@@ -2844,10 +3109,7 @@ export default function KeepersWebDirectivesEditor({
                                                   "check_circle"
                                                 )}
                                             </span>
-                                            <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">
-                                              {t("visual_editor_icon_btn", "Icon")}
-                                            </span>
-                                            <span className="hidden sm:inline material-symbols-outlined !text-[14px] opacity-70">
+                                            <span className="material-symbols-outlined !text-[14px] opacity-70">
                                               {t("icon_expand_more", "expand_more")}
                                             </span>
                                             <HoverTooltip title={t("visual_editor_pick_icon", "Pick Icon")} />
@@ -2900,47 +3162,61 @@ export default function KeepersWebDirectivesEditor({
                                               "dir_builder_subcard_title_ph",
                                               "Info block title..."
                                             )}
-                                            className="w-full glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                                            className="w-full h-10 glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                                           />
                                         </div>
 
                                         {activeCanonicalSlug ===
                                           "phase_roadmap" && (
-                                          <ActionButton
-                                            variant={
-                                              sub.pending ? "accent" : "success"
-                                            }
-                                            icon={
-                                              sub.pending
-                                                ? t(
-                                                    "icon_rocket_launch",
-                                                    "rocket_launch"
-                                                  )
-                                                : t(
-                                                    "icon_check_circle",
-                                                    "check_circle"
-                                                  )
-                                            }
-                                            onClick={() =>
+                                          <CustomDropdown
+                                            disableTint={true}
+                                            iconOnlyTrigger={true}
+                                            tooltipPrefix={t(
+                                              "status",
+                                              "Status"
+                                            )}
+                                            menuMinWidth={260}
+                                            value={resolveRoadmapSubCardStatus(
+                                              sub
+                                            )}
+                                            options={(
+                                              [
+                                                "in_progress",
+                                                "in_testing",
+                                                "completed",
+                                              ] as RoadmapMilestoneStatus[]
+                                            ).map((st) => {
+                                              const meta =
+                                                getRoadmapStatusMeta(st, t);
+                                              return {
+                                                id: st,
+                                                label: meta.label,
+                                                icon: meta.icon,
+                                                iconColorClass:
+                                                  meta.colorClass,
+                                              };
+                                            })}
+                                            onChange={(vals: string[]) => {
+                                              const picked = (vals[0] ||
+                                                "in_progress") as RoadmapMilestoneStatus;
+                                              const meta =
+                                                getRoadmapStatusMeta(
+                                                  picked,
+                                                  t
+                                                );
                                               updateSubCard(
                                                 activeBuilderTabIdx,
                                                 cardIdx,
                                                 subIdx,
-                                                { pending: !sub.pending }
-                                              )
-                                            }
-                                            className="!px-3 !py-2 !text-[10px] !rounded-xl shrink-0"
-                                          >
-                                            {sub.pending
-                                              ? t(
-                                                  "dir_builder_status_wip",
-                                                  "In Progress"
-                                                )
-                                              : t(
-                                                  "status_completed",
-                                                  "Completed"
-                                                )}
-                                          </ActionButton>
+                                                {
+                                                  roadmapStatus: picked,
+                                                  pending:
+                                                    picked === "in_progress",
+                                                  icon: meta.icon,
+                                                }
+                                              );
+                                            }}
+                                          />
                                         )}
                                       </div>
 

@@ -81,7 +81,7 @@ export function FilterPopover({
   const instanceId = React.useId();
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [coords, setCoords] = useState({ top: 0, left: 0, maxH: 560 });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,22 +105,35 @@ export function FilterPopover({
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         let leftPos = rect.left;
+        let topPos = rect.bottom + 8;
+        const maxViewportHeight = Math.max(240, window.innerHeight - 28);
 
         if (popoverRef.current) {
           const popWidth = popoverRef.current.offsetWidth;
+          const innerScroll = popoverRef.current.firstElementChild as HTMLElement | null;
+          const naturalHeight =
+            (innerScroll ? innerScroll.scrollHeight : 0) ||
+            popoverRef.current.offsetHeight ||
+            320;
+          const popHeight = Math.min(naturalHeight + 8, maxViewportHeight);
+
           leftPos =
             rect.left >= window.innerWidth / 2
               ? rect.right - popWidth
               : rect.left;
           leftPos = Math.max(
-            8,
-            Math.min(leftPos, window.innerWidth - popWidth - 8),
+            12,
+            Math.min(leftPos, window.innerWidth - popWidth - 12),
           );
+
+          if (topPos + popHeight > window.innerHeight - 14) {
+            topPos = Math.max(14, window.innerHeight - popHeight - 14);
+          }
         } else {
           // Fallback before render
           leftPos =
             rect.left >= window.innerWidth / 2 ? rect.right - 200 : rect.left;
-          leftPos = Math.max(8, Math.min(leftPos, window.innerWidth - 200 - 8));
+          leftPos = Math.max(12, Math.min(leftPos, window.innerWidth - 200 - 12));
 
           // Re-trigger layout effect after popup paints
           requestAnimationFrame(() => {
@@ -128,9 +141,14 @@ export function FilterPopover({
           });
         }
 
+        const availableMaxH = Math.max(
+          200,
+          Math.min(maxViewportHeight, window.innerHeight - topPos - 14),
+        );
         setCoords({
-          top: rect.bottom + 8,
+          top: topPos,
           left: leftPos,
+          maxH: availableMaxH,
         });
       }
     };
@@ -220,11 +238,12 @@ export function FilterPopover({
               <div
                 ref={popoverRef}
                 onClick={(e) => e.stopPropagation()}
-                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col min-w-[210px] !rounded-2xl w-max max-w-[calc(100vw-32px)] max-h-[80vh] overflow-hidden text-[var(--text)]"
+                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col min-w-[210px] !rounded-2xl w-max max-w-[calc(100vw-32px)] overflow-hidden text-[var(--text)]"
                 style={{
                   zIndex: 200001,
                   top: coords.top,
                   left: coords.left,
+                  maxHeight: `${coords.maxH}px`,
                   margin: 0,
                   bottom: "auto",
                   transition: "none",
@@ -232,7 +251,10 @@ export function FilterPopover({
                   "--glass-y": `${Math.round(coords.top)}px`,
                 } as React.CSSProperties}
               >
-                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1 w-full max-h-[80vh]">
+                <div
+                  className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1 w-full"
+                  style={{ maxHeight: `${coords.maxH}px` }}
+                >
                   {children
                     ? children
                     : options?.map((opt: any) => {

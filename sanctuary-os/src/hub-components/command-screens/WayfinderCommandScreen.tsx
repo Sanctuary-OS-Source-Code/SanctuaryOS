@@ -146,10 +146,16 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
         .eq('status', 'pending')
         .gte('created_at', isoDate);
 
-      const { count: reportQueueCount } = await supabase.from('nexus_reports')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .gte('created_at', isoDate);
+      const [
+        { count: nexusRepCount },
+        { count: bpRepCount },
+        { count: commRepCount },
+      ] = await Promise.all([
+        supabase.from('nexus_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('blueprint_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('content_flags').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      const reportQueueCount = (nexusRepCount || 0) + (bpRepCount || 0) + (commRepCount || 0);
 
       const { count: citizensCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'citizen');
       const { count: masonsCount } = await supabase.from('masons').select('*', { count: 'exact', head: true });
@@ -391,6 +397,8 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
             />
           )}
           <CommandScreenQuickLink onClick={() => setTab("oversight_reports")} icon={t("icon_threat_intelligence", "threat_intelligence")} title={t("stat_malware_logs", "Malware Manifests")} subtitle={t("ql_sys_reports", "View Shared Manifests")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-red-500" hoverTextColorClass="group-hover:text-red-500" dotColorClass="bg-red-500 shadow-md" />
+
+          <CommandScreenQuickLink onClick={() => setTab("reports")} icon={t("icon_flag", "flag")} title={t("stat_bugs", "Nexus Reports")} subtitle={t("nexus_reports_desc", "Review flags and reports")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-md" />
 
           <CommandScreenQuickLink onClick={() => setTab("sanctuary_tickets")} icon={t("icon_local_activity", "local_activity")} title={t("ql_support", "Support Queue")} subtitle={t("wf_link_tickets_sub", "View Tickets")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-purple-400" hoverTextColorClass="group-hover:text-purple-300" dotColorClass="bg-purple-400 shadow-md" />
 

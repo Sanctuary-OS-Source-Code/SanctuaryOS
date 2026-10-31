@@ -321,24 +321,28 @@ pub async fn move_to_lab(
 #[tauri::command]
 pub fn get_quarantine_list() -> Vec<String> {
     let config = get_saved_coordinates();
-    let q_path = PathBuf::from(&config.vault_path).join("Quarantine");
-    if !q_path.exists() {
-        return vec![];
+    let hidden_q = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
+    let reports_q = PathBuf::from(&config.vault_path).join("Quarantine");
+    let mut set = std::collections::BTreeSet::new();
+
+    for dir in [&hidden_q, &reports_q] {
+        if dir.exists() {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for e in entries.flatten() {
+                    let name = e.file_name().to_string_lossy().into_owned();
+                    if name.starts_with(".shredding_") {
+                        continue;
+                    }
+                    if name.ends_with(".manifest.json") {
+                        set.insert(name.trim_end_matches(".manifest.json").to_string());
+                    } else if !name.ends_with(".json") {
+                        set.insert(name);
+                    }
+                }
+            }
+        }
     }
-    fs::read_dir(q_path)
-        .ok()
-        .map(|entries| {
-            entries
-                .flatten()
-                .map(|e| e.file_name().to_string_lossy().into_owned())
-                .filter(|name| {
-                    !name.starts_with(".shredding_")
-                        && !name.ends_with(".manifest.json")
-                        && !name.ends_with(".json")
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    set.into_iter().collect()
 }
 
 #[tauri::command]
@@ -346,10 +350,9 @@ pub async fn restore_quarantined_file(filename: String) -> String {
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
         let q_dir = PathBuf::from(&config.vault_path).join("Quarantine");
-        let sq_path = q_dir.join(&filename);
-        let legacy_sq_path = PathBuf::from(&config.vault_path)
-            .join(".sanctuary_quarantine")
-            .join(&filename);
+        let sq_dir = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
+        let sq_path = sq_dir.join(&filename);
+        let legacy_q_path = q_dir.join(&filename);
         let manifest_path = q_dir.join(format!("{}.manifest.json", filename));
         let q_path = q_dir.join(format!("{}.json", filename));
         let m_path = crate::utils::get_vault_mods_lane(&config.vault_path).join(&filename);
@@ -358,13 +361,13 @@ pub async fn restore_quarantined_file(filename: String) -> String {
 
         let conn = get_db_conn(&config.vault_path);
         remove_cache_entry(&conn, &sq_path.to_string_lossy());
-        remove_cache_entry(&conn, &legacy_sq_path.to_string_lossy());
+        remove_cache_entry(&conn, &legacy_q_path.to_string_lossy());
 
         if sq_path.exists() {
             let _ = fs::rename(&sq_path, &m_path);
             moved = true;
-        } else if legacy_sq_path.exists() {
-            let _ = fs::rename(&legacy_sq_path, &m_path);
+        } else if legacy_q_path.exists() {
+            let _ = fs::rename(&legacy_q_path, &m_path);
             moved = true;
         }
 

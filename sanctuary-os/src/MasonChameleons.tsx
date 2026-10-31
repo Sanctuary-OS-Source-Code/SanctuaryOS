@@ -987,12 +987,14 @@ export function MasonChameleons({
                   </div>
                 }
               >
-                <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex items-start gap-2 mt-1">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0 mt-0.5">
-                    {t("icon_report", "report")}
-                  </span>
-                  <p className="text-[11px] font-semibold text-[var(--text)] leading-snug line-clamp-2">
-                    {flagReason}
+                <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_26%,transparent)] flex items-center gap-2.5 mt-1">
+                  <div className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
+                      {t("icon_flag", "flag")}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-[var(--text)] opacity-90 leading-snug line-clamp-2">
+                    {String(flagReason).replace(/\s+\?\s+/g, " — ")}
                   </p>
                 </div>
               </UniversalCard>

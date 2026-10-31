@@ -58,6 +58,7 @@ export default function CommandAlertsPanel({
 
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
+    if (!isOpen) return [];
     const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
     const safeList = Array.isArray(modList) ? modList : [];
 
@@ -90,9 +91,10 @@ export default function CommandAlertsPanel({
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [playSet?.mods, modList, extRegex]);
+  }, [isOpen, playSet?.mods, modList, extRegex]);
 
   const activeConflicts = useMemo(() => {
+    if (!isOpen) return [];
     const allResolved = resolveBlueprintConflicts(
       playSet?.name,
       activeMods,
@@ -104,9 +106,10 @@ export default function CommandAlertsPanel({
         ? Number(c.conflict?.severity_rank) === 4
         : Number(c.conflict?.severity_rank) !== 4
     );
-  }, [playSet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
+  }, [isOpen, playSet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
 
   const brokenMods = useMemo(() => {
+    if (!isOpen) return [];
     return activeMods
       .map((mod: any) =>
         evaluateModIssues(mod, {
@@ -127,7 +130,7 @@ export default function CommandAlertsPanel({
       .filter((m: any) =>
         mode === "critical" ? m._alert_type === "red" : m._alert_type === "amber"
       );
-  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t, mode, activeGameSchema]);
+  }, [isOpen, activeMods, selectedVersion, ownedDLC, maskedDLC, t, mode, activeGameSchema]);
 
   useEffect(() => {
     if (isOpen) {

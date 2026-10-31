@@ -105,10 +105,18 @@ export function compileLoadOrder(
   for (let idx = 0; idx < rawMods.length; idx++) {
     const m = rawMods[idx];
     const rawStr = typeof m === "string" ? m : String(m?.name || m?.path || "");
-    if (!rawStr) continue;
+    if (
+      !rawStr ||
+      rawStr.startsWith("FOLDER_") ||
+      rawStr.startsWith("SET_") ||
+      rawStr.startsWith("LOCAL_SET_")
+    ) {
+      continue;
+    }
     const lastSlash = Math.max(rawStr.lastIndexOf("/"), rawStr.lastIndexOf("\\"));
     const cleanName = lastSlash >= 0 ? rawStr.slice(lastSlash + 1) || rawStr : rawStr;
     const key = cleanName.toLowerCase();
+    if (!key) continue;
 
     let detectedFolder = "";
     if (modTiers[cleanName] !== undefined) {

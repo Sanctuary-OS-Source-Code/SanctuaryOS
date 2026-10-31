@@ -8,8 +8,8 @@
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay"],
   "scope_extensions": [
-    { "origin": "https://sanctuaryos.net" },
-    { "origin": "https://www.sanctuaryos.net" }
+    { "type": "origin", "origin": "https://sanctuaryos.net" },
+    { "type": "origin", "origin": "https://www.sanctuaryos.net" }
   ],
   "orientation": "any",
   "background_color": "#0e2244",

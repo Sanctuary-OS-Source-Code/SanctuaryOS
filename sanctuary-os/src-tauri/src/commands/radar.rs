@@ -1,7 +1,5 @@
 use crate::state::*;
 use crate::utils::*;
-use rayon::prelude::*;
-use std::collections::HashMap;
 use std::path::Path;
 
 #[tauri::command]
@@ -10,17 +8,51 @@ pub async fn run_conflict_radar(
     target_files: Option<Vec<String>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+
     tauri::async_runtime::spawn_blocking(move || {
         let mods_dir = Path::new(&mods_path);
         let mut packages = Vec::new();
         walk_packages(&game_schema, mods_dir, &mut packages);
 
+        let tier_folders: Vec<String> = game_schema
+            .as_ref()
+            .and_then(|s| s.load_order.as_ref())
+            .map(|lo| {
+                lo.priority_tiers
+                    .as_deref()
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|pt| !pt.folder.trim().is_empty())
+                    .map(|pt| pt.folder.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_else(|| {
+                vec![
+                    "Sanctuary".to_string(),
+                    "Sanctuary1".to_string(),
+                    "Sanctuary2".to_string(),
+                    "Sanctuary3".to_string(),
+                ]
+            });
+
         if let Some(targets) = target_files {
             packages.retain(|p| {
                 if let Ok(rel) = p.strip_prefix(mods_dir) {
                     let name = rel.to_string_lossy().replace("\\", "/");
-                    targets.contains(&name) || targets.contains(&format!("Sanctuary/{}", name))
+                    if targets.contains(&name) {
+                        return true;
+                    }
+                    for tf in &tier_folders {
+                        if targets.contains(&format!("{}/{}", tf, name)) {
+                            return true;
+                        }
+                    }
+                    false
                 } else {
                     false
                 }
@@ -37,58 +69,12 @@ pub async fn run_conflict_radar(
             })
             .collect();
 
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        let merge_thread = std::thread::spawn(move || {
-            let mut resource_map: HashMap<(u32, u32, u64), String> = HashMap::new();
-            let mut conflicts: HashMap<String, Conflict> = HashMap::new();
-
-            while let Ok((file_name, resources)) = rx.recv() {
-                let file_name: String = file_name;
-                let resources: Vec<(u32, u32, u64)> = resources;
-                for key in resources {
-                    if let Some(clash) = resource_map.get(&key) {
-                        if clash != &file_name {
-                            let mut pair = vec![clash.clone(), file_name.clone()];
-                            pair.sort();
-                            let pair_key = format!("{}  ⚔️  {}", pair[0], pair[1]);
-
-                            let entry = conflicts.entry(pair_key.clone()).or_insert(Conflict {
-                                mod_pair: pair_key,
-                                shared_assets: 0,
-                                severity_rank: 0,
-                            });
-                            entry.shared_assets += 1;
-
-                            if 4 > entry.severity_rank {
-                                entry.severity_rank = 4;
-                            }
-                        }
-                    } else {
-                        resource_map.insert(key, file_name.clone());
-                    }
-                }
-            }
-            conflicts
-        });
-
-        packages.into_par_iter().for_each_with(tx, |s, path| {
-            let file_name = path
-                .strip_prefix(mods_dir)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace("\\", "/");
-
-            let resources = Vec::<(u32, u32, u64)>::new();
-            let _ = s.send((file_name, resources));
-        });
-
-        let conflicts = merge_thread.join().unwrap();
+        let conflicts: Vec<Conflict> = Vec::new();
 
         Ok(serde_json::json!({
             "total_packages": installed_files.len(),
             "installed_mods": installed_files,
-            "conflicts": conflicts.into_values().collect::<Vec<Conflict>>()
+            "conflicts": conflicts
         }))
     })
     .await

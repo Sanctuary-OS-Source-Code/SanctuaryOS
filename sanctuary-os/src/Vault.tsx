@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, getExtensionRegex, getModIcon } from "./shared";
+import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, getExtensionRegex, getModIcon, isSupportedExtension } from "./shared";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
@@ -31,7 +31,15 @@ const Vault = React.memo(function Vault(props: any) {
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const localFolderCount = React.useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]").filter((s: any) => !s.isCollection).length;
+      return JSON.parse(localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]").filter(
+        (s: any) =>
+          s &&
+          s.id &&
+          (String(s.id).startsWith("f_") || String(s.id).startsWith("local_")) &&
+          Array.isArray(s.items) &&
+          !Array.isArray(s.mods) &&
+          !s.isCollection
+      ).length;
     } catch {
       return 0;
     }
@@ -97,41 +105,20 @@ const Vault = React.memo(function Vault(props: any) {
   const virtualFolderIds = React.useMemo(() => {
     const ids = new Set<string>();
     displayModList.forEach((v: any) => {
-      if (v.isVirtual && v.dbId) {
-        ids.add(String(v.dbId));
+      if (!v?.isVirtual || !v.dbId) return;
+      const dbIdStr = String(v.dbId);
+      if (dbIdStr === "undefined" || dbIdStr === "null") return;
+      if (
+        (v.hash?.startsWith("local_set_") || v.name?.startsWith("LOCAL_SET_")) &&
+        !dbIdStr.startsWith("f_") &&
+        !dbIdStr.startsWith("local_")
+      ) {
+        return;
       }
+      ids.add(dbIdStr);
     });
     return ids;
   }, [displayModList]);
-
-  const archivedVirtualFolderIds = React.useMemo(() => {
-    const ids = new Set<string>();
-    if (!selectedVersion || selectedVersion === "") return ids;
-    displayModList.forEach((v: any) => {
-      if (v.isVirtual && v.dbId) {
-        if (v.isLocalOverride && (!v.flavors || v.flavors.length === 0)) return;
-        const vGameVersions = Array.from(
-          new Set(
-            (v.flavors || []).flatMap((f: any) => {
-              const ver = f.compatible_versions;
-              if (!ver) return [];
-              if (typeof ver === "string") {
-                return ver
-                  .split(",")
-                  .map((s: string) => s.trim())
-                  .filter(Boolean);
-              }
-              return Array.isArray(ver) ? ver : [];
-            }),
-          ),
-        ).filter(Boolean) as string[];
-        if (!isVersionMatch(vGameVersions, selectedVersion)) {
-          ids.add(String(v.dbId));
-        }
-      }
-    });
-    return ids;
-  }, [displayModList, selectedVersion]);
 
   const localConflictsMemo = React.useMemo(() => {
     try {
@@ -205,13 +192,13 @@ const Vault = React.memo(function Vault(props: any) {
   }, [modList]);
 
 
-  const finalVisibleMods = React.useMemo(() => {
+  const activeSetEquipContext = React.useMemo(() => {
     const activeSetMods = playSets[activePlaySetIndex]?.mods || [];
     const extRegex = getExtensionRegex(activeGameSchema);
 
-    const parsedActiveSetModIds = new Set();
-    const parsedActiveSetModNames = new Set();
-    const parsedActiveSetModNamespaces = new Set();
+    const parsedActiveSetModIds = new Set<string>();
+    const parsedActiveSetModNames = new Set<string>();
+    const parsedActiveSetModNamespaces = new Set<string>();
 
     activeSetMods.forEach((n: string) => {
       const cleanNLookup = n.replace(/^(sanctuary[/\\])+/i, '');
@@ -226,9 +213,9 @@ const Vault = React.memo(function Vault(props: any) {
       parsedActiveSetModNamespaces.add(cleanNLookup);
     });
 
-    const equippedDisplayModFamilies = new Set();
-    const equippedDisplayModDbIds = new Set();
-    const equippedDisplayModSetIds = new Set();
+    const equippedDisplayModFamilies = new Set<string>();
+    const equippedDisplayModDbIds = new Set<string>();
+    const equippedDisplayModSetIds = new Set<string>();
     equippedDisplayMods.forEach((m: any) => {
       if (!m.isVirtual && m.name) {
         if (m.familyId) equippedDisplayModFamilies.add(String(m.familyId));
@@ -237,23 +224,94 @@ const Vault = React.memo(function Vault(props: any) {
       }
     });
 
-    return visibleMods.filter((mod: any) => {
+    const isModCardEquipped = (mod: any): boolean => {
+      if (mod.isParent || mod.isVirtual) {
+        if (
+          Array.isArray(mod.flavors) &&
+          mod.flavors.some((f: any) => f?.name && parsedActiveSetModNamespaces.has(f.name))
+        ) {
+          return true;
+        }
+        if (!mod.isFlavorFolder) {
+          const anchor = mod.dbId || mod.familyId || mod.setId;
+          if (anchor) {
+            const sAnchor = String(anchor);
+            if (
+              equippedDisplayModFamilies.has(sAnchor) ||
+              equippedDisplayModDbIds.has(sAnchor) ||
+              equippedDisplayModSetIds.has(sAnchor)
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      return Boolean(mod.name && parsedActiveSetModNamespaces.has(mod.name));
+    };
+
+    return {
+      parsedActiveSetModIds,
+      parsedActiveSetModNames,
+      parsedActiveSetModNamespaces,
+      isModCardEquipped,
+    };
+  }, [playSets, activePlaySetIndex, activeGameSchema, modListIndex, equippedDisplayMods]);
+
+  const classifyVaultMod = React.useCallback(
+    (mod: any): "EQUIPPED" | "UNEQUIPPED" | "DEV" | "ARCHIVES" | "ARCHIVES_FILTERED_OUT" | null => {
+      if (!mod) return null;
+      if (mod.isVirtual && (mod.hash?.startsWith("local_set_") || mod.name?.startsWith("LOCAL_SET_"))) {
+        const dbIdStr = String(mod.dbId || "");
+        if (!dbIdStr.startsWith("f_") && !dbIdStr.startsWith("local_")) return null;
+      }
+
+      const isFileVaultVisible = (m: any) => {
+        if (!m?.isVirtual && m?.name) {
+          if (!isSupportedExtension(m.name, activeGameSchema)) return false;
+          if (activeGameSchema?.extensions?.vault_visible) {
+            const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
+              m.name.toLowerCase().endsWith(ext.toLowerCase())
+            );
+            if (!isVaultVisible) return false;
+          }
+        }
+        return true;
+      };
+
+      if (!mod.isVirtual && !isFileVaultVisible(mod)) return null;
+
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
-      if (baseModName === "FILTERS") return false;
+      if (baseModName === "FILTERS") return null;
+
+      if (!mod.isVirtual) {
+        const folderExists =
+          (mod.familyId && virtualFolderIds.has(String(mod.familyId))) ||
+          (mod.setId && virtualFolderIds.has(String(mod.setId)));
+        if (folderExists) return null;
+      }
+
+      const { parsedActiveSetModIds, parsedActiveSetModNames, isModCardEquipped } = activeSetEquipContext;
 
       let modGameVersions: string[] = [];
       if (mod.isVirtual) {
-        modGameVersions = Array.from(new Set((mod.flavors || []).flatMap((f: any) => {
-          const v = f.compatible_versions;
-          if (!v) return [];
-          if (typeof v === 'string') return v.split(',').map((s: string) => s.trim()).filter(Boolean);
-          return Array.isArray(v) ? v : [];
-        }))).filter(Boolean) as string[];
+        const visibleFlavors = (mod.flavors || []).filter(isFileVaultVisible);
+        const sourceFlavors = visibleFlavors.length > 0 ? visibleFlavors : (mod.flavors || []);
+        modGameVersions = Array.from(
+          new Set(
+            sourceFlavors.flatMap((f: any) => {
+              const v = f.compatible_versions;
+              if (!v) return [];
+              if (typeof v === "string") return v.split(",").map((s: string) => s.trim()).filter(Boolean);
+              return Array.isArray(v) ? v : [];
+            })
+          )
+        ).filter(Boolean) as string[];
       } else {
         const v = mod.compatible_versions;
-        if (typeof v === 'string') {
-          modGameVersions = v.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (typeof v === "string") {
+          modGameVersions = v.split(",").map((s: string) => s.trim()).filter(Boolean);
         } else {
           modGameVersions = Array.isArray(v) ? v : [];
         }
@@ -269,15 +327,21 @@ const Vault = React.memo(function Vault(props: any) {
       }
 
       if (hideGhostCards) {
-        if (equipFilter !== "ARCHIVES" && !isCompatibleWithOS) return false;
-        if (mod.isGhosted) return false;
-        if (mod.missingReqs && mod.missingReqs.length > 0) return false;
+        if (mod.isGhosted) return null;
+        if (mod.missingReqs && mod.missingReqs.length > 0) return null;
 
         let isBroken = false;
         const checkBroken = (mObj: any) => {
-          let broken = typeof mObj.status === 'string' && mObj.status.toLowerCase() === 'broken';
+          let broken = typeof mObj.status === "string" && mObj.status.toLowerCase() === "broken";
           if (broken && mObj.compatible_versions && mObj.compatible_versions.length > 0 && selectedVersion) {
-            if (selectedVersion !== getHighestVersion(typeof mObj.compatible_versions === 'string' ? mObj.compatible_versions.split(',').map((s: string) => s.trim()) : mObj.compatible_versions)) {
+            if (
+              selectedVersion !==
+              getHighestVersion(
+                typeof mObj.compatible_versions === "string"
+                  ? mObj.compatible_versions.split(",").map((s: string) => s.trim())
+                  : mObj.compatible_versions
+              )
+            ) {
               broken = false;
             }
           }
@@ -290,10 +354,9 @@ const Vault = React.memo(function Vault(props: any) {
           isBroken = checkBroken(mod);
         }
 
-        if (isBroken) return false;
+        if (isBroken) return null;
 
         let hasTier4Conflict = false;
-
         const checkConflictsFilter = (mObj: any) => {
           if (mObj.conflicts && mObj.conflicts.length > 0) {
             const hasConflict = mObj.conflicts.some((c: any) => {
@@ -314,50 +377,61 @@ const Vault = React.memo(function Vault(props: any) {
           mod.flavors.forEach(checkConflictsFilter);
         }
 
-        if (hasTier4Conflict) return false;
+        if (hasTier4Conflict) return null;
 
-        let rawDLC: string[] = [];
+        const rawDLC: string[] = [];
         if (mod.requiredDLC) {
-          if (typeof mod.requiredDLC === 'string') {
-            try { rawDLC.push(...JSON.parse(mod.requiredDLC)); }
-            catch { rawDLC.push(...mod.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
+          if (typeof mod.requiredDLC === "string") {
+            try {
+              rawDLC.push(...JSON.parse(mod.requiredDLC));
+            } catch {
+              rawDLC.push(
+                ...mod.requiredDLC
+                  .replace(/[\{\}\[\]]/g, "")
+                  .split(",")
+                  .map((s: string) => s.replace(/^"/, "").replace(/"$/, "").trim())
+              );
+            }
+          } else if (Array.isArray(mod.requiredDLC)) {
+            rawDLC.push(...mod.requiredDLC);
           }
-          else if (Array.isArray(mod.requiredDLC)) rawDLC.push(...mod.requiredDLC);
         }
         if (mod.flavors) {
           mod.flavors.forEach((f: any) => {
             if (f.requiredDLC) {
               let fDLC = f.requiredDLC;
-              if (typeof f.requiredDLC === 'string') {
-                try { fDLC = JSON.parse(f.requiredDLC); }
-                catch { fDLC = f.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim()); }
+              if (typeof f.requiredDLC === "string") {
+                try {
+                  fDLC = JSON.parse(f.requiredDLC);
+                } catch {
+                  fDLC = f.requiredDLC
+                    .replace(/[\{\}\[\]]/g, "")
+                    .split(",")
+                    .map((s: string) => s.replace(/^"/, "").replace(/"$/, "").trim());
+                }
               }
-              if (Array.isArray(fDLC)) fDLC.forEach((d: string) => { if (!rawDLC.includes(d)) rawDLC.push(d); });
+              if (Array.isArray(fDLC)) {
+                fDLC.forEach((d: string) => {
+                  if (!rawDLC.includes(d)) rawDLC.push(d);
+                });
+              }
             }
           });
         }
         const missingPacks = rawDLC.filter((p: string) => {
-          const baseCode = p.split(' ')[0].toUpperCase();
+          const baseCode = p.split(" ")[0].toUpperCase();
           return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
         });
-        if (missingPacks.length > 0) return false;
+        if (missingPacks.length > 0) return null;
       }
 
-      const isSandboxMod = mod.hash?.startsWith('dev_vault_') || (typeof mod.status === 'string' && mod.status.toUpperCase().includes('SANDBOX')) || (mod.physical_path && (mod.physical_path.toLowerCase().includes('/dev/') || mod.physical_path.toLowerCase().includes('\\dev\\')));
-      if (equipFilter === "DEV") {
-        if (!isSandboxMod) return false;
-      } else if (equipFilter !== "EQUIPPED" && isSandboxMod) {
-        return false;
-      }
-
-      if (equipFilter === "ARCHIVES") {
-        if (isCompatibleWithOS) return false;
+      if (!isCompatibleWithOS) {
         if (archiveVersionFilter && archiveVersionFilter !== "") {
           let highestArchiveVer = "0.0.0";
           if (mod.isVirtual) {
             const highestPerFlavor = (mod.flavors || []).map((f: any) => {
               const v = f.compatible_versions;
-              const arr = typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
+              const arr = typeof v === "string" ? v.split(",").map((s: string) => s.trim()) : v || [];
               return getHighestVersion(arr);
             });
             highestArchiveVer = getLowestVersion(highestPerFlavor);
@@ -366,44 +440,80 @@ const Vault = React.memo(function Vault(props: any) {
           }
 
           const isCompatibleWithArchive = isVersionMatch([highestArchiveVer], archiveVersionFilter);
-          if (!isCompatibleWithArchive) return false;
+          if (!isCompatibleWithArchive) return "ARCHIVES_FILTERED_OUT";
         }
-      } else {
-        if (!isCompatibleWithOS) return false;
+        return "ARCHIVES";
       }
 
-      if (equipFilter === "EQUIPPED" || equipFilter === "UNEQUIPPED") {
-        const isEquipped = mod.isParent
-          ? (() => {
-            const anchor = mod.dbId || mod.familyId;
-            if (mod.isFlavorFolder) {
-              return (mod.flavors || []).some((f: any) => parsedActiveSetModNamespaces.has(f.name));
-            }
-            if (anchor) {
-              const sAnchor = String(anchor);
-              return equippedDisplayModFamilies.has(sAnchor) || equippedDisplayModDbIds.has(sAnchor) || equippedDisplayModSetIds.has(sAnchor);
-            }
-            return (mod.flavors || []).some((f: any) => parsedActiveSetModNamespaces.has(f.name));
-          })()
-          : parsedActiveSetModNamespaces.has(mod.name);
+      const isSandboxMod =
+        mod.hash?.startsWith("dev_vault_") ||
+        (typeof mod.status === "string" && mod.status.toUpperCase().includes("SANDBOX")) ||
+        (mod.physical_path &&
+          (mod.physical_path.toLowerCase().includes("/dev/") || mod.physical_path.toLowerCase().includes("\\dev\\")));
 
-        if (equipFilter === "EQUIPPED" && !isEquipped) return false;
-        if (equipFilter === "UNEQUIPPED") {
-          if (mod.isParent) {
-            const allEquipped = mod.flavors?.every((f: any) => parsedActiveSetModNamespaces.has(f.name));
-            if (allEquipped) return false;
-          } else {
-            if (isEquipped) return false;
-          }
-        }
+      if (isSandboxMod) {
+        return "DEV";
       }
 
-      if (mod.isVirtual) return true;
-      const activeFolderSet = equipFilter === "ARCHIVES" ? archivedVirtualFolderIds : virtualFolderIds;
-      const folderExists = (mod.familyId && activeFolderSet.has(String(mod.familyId))) || (mod.setId && activeFolderSet.has(String(mod.setId)));
-      return !folderExists;
+      return isModCardEquipped(mod) ? "EQUIPPED" : "UNEQUIPPED";
+    },
+    [
+      activeGameSchema,
+      virtualFolderIds,
+      activeSetEquipContext,
+      selectedVersion,
+      hideGhostCards,
+      ownedDLC,
+      maskedDLC,
+      archiveVersionFilter,
+    ]
+  );
+
+  const vaultTabCounts = React.useMemo(() => {
+    const list = (equipFilter === "OVERVIEW" ? displayModList : visibleMods) || [];
+    let all = 0;
+    let equipped = 0;
+    let unequipped = 0;
+    let dev = 0;
+    let archives = 0;
+
+    for (let i = 0; i < list.length; i++) {
+      const bucket = classifyVaultMod(list[i]);
+      if (!bucket || bucket === "ARCHIVES_FILTERED_OUT") continue;
+      if (bucket === "ARCHIVES") {
+        archives++;
+      } else if (bucket === "DEV") {
+        dev++;
+      } else if (bucket === "EQUIPPED") {
+        all++;
+        equipped++;
+      } else if (bucket === "UNEQUIPPED") {
+        all++;
+        unequipped++;
+      }
+    }
+
+    return {
+      total: all + dev + archives,
+      all,
+      equipped,
+      unequipped,
+      dev,
+      archives,
+    };
+  }, [equipFilter, displayModList, visibleMods, classifyVaultMod]);
+
+  const finalVisibleMods = React.useMemo(() => {
+    return visibleMods.filter((mod: any) => {
+      const bucket = classifyVaultMod(mod);
+      if (!bucket || bucket === "ARCHIVES_FILTERED_OUT") return false;
+      if (equipFilter === "ARCHIVES") return bucket === "ARCHIVES";
+      if (equipFilter === "DEV") return bucket === "DEV";
+      if (equipFilter === "EQUIPPED") return bucket === "EQUIPPED";
+      if (equipFilter === "UNEQUIPPED") return bucket === "UNEQUIPPED";
+      return bucket === "EQUIPPED" || bucket === "UNEQUIPPED";
     });
-  }, [visibleMods, selectedVersion, hideGhostCards, playSets, activePlaySetIndex, activeGameSchema, equipFilter, archiveVersionFilter, ownedDLC, maskedDLC, virtualFolderIds, archivedVirtualFolderIds, equippedDisplayMods, modListIndex]);
+  }, [visibleMods, equipFilter, classifyVaultMod]);
   const dependencyGraph = React.useMemo(() => {
     const graph = new Map<string, any[]>();
 
@@ -480,6 +590,20 @@ const Vault = React.memo(function Vault(props: any) {
   const recentOverviewMods = React.useMemo(() => {
     if (equipFilter !== "OVERVIEW") return [];
     return displayModList.filter((mod: any) => {
+      if (!mod) return false;
+      if (mod.isVirtual && (mod.hash?.startsWith("local_set_") || mod.name?.startsWith("LOCAL_SET_"))) {
+        const dbIdStr = String(mod.dbId || "");
+        if (!dbIdStr.startsWith("f_") && !dbIdStr.startsWith("local_")) return false;
+      }
+      if (!mod.isVirtual && mod.name) {
+        if (!isSupportedExtension(mod.name, activeGameSchema)) return false;
+        if (activeGameSchema?.extensions?.vault_visible) {
+          const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
+            mod.name.toLowerCase().endsWith(ext.toLowerCase())
+          );
+          if (!isVaultVisible) return false;
+        }
+      }
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
       if (baseModName === "FILTERS") return false;
@@ -495,7 +619,7 @@ const Vault = React.memo(function Vault(props: any) {
       const folderExists = (mod.familyId && virtualFolderIds.has(String(mod.familyId))) || (mod.setId && virtualFolderIds.has(String(mod.setId)));
       return !folderExists;
     }).slice(0, 20);
-  }, [equipFilter, displayModList, virtualFolderIds]);
+  }, [equipFilter, displayModList, virtualFolderIds, activeGameSchema]);
 
   const handleCreateLocalFolder = React.useCallback(() => {
     const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
@@ -553,7 +677,7 @@ const Vault = React.memo(function Vault(props: any) {
         )}
       </ViewHeader>
 
-      <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} finalVisibleMods={finalVisibleMods} equippedDisplayMods={equippedDisplayMods} visibleMods={visibleMods} displayModList={displayModList} selectedVersion={selectedVersion} />
+      <VaultTabs t={t} equipFilter={equipFilter} setEquipFilter={setEquipFilter} vaultTabCounts={vaultTabCounts} finalVisibleMods={finalVisibleMods} equippedDisplayMods={equippedDisplayMods} visibleMods={visibleMods} displayModList={displayModList} selectedVersion={selectedVersion} />
 
       {equipFilter === "OVERVIEW" ? (
         <div>

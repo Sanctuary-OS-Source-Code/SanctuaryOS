@@ -107,6 +107,11 @@ export interface SystemDirectiveRecord {
   category: string;
   file_path: string;
   content: string;
+  published_content?: string;
+  published_title?: string;
+  published_summary?: string;
+  published_at?: string;
+  has_unpublished_changes?: boolean;
   version: string;
   updated_at: string;
   updated_by?: string;
@@ -385,6 +390,7 @@ export async function syncDirectivesBidirectional(options?: {
     );
 
     if (!dbRow) {
+      const nowIso = new Date().toISOString();
       const record: SystemDirectiveRecord = {
         slug,
         title: localMeta.title,
@@ -392,8 +398,13 @@ export async function syncDirectivesBidirectional(options?: {
         category: canonical.category,
         file_path: canonical.file_path,
         content: localContent,
+        published_content: localContent,
+        published_title: localMeta.title,
+        published_summary: localMeta.summary,
+        published_at: nowIso,
+        has_unpublished_changes: false,
         version: "v0.6.0",
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
         updated_by: "Sanctuary Foundry",
         sync_state: "local_fallback",
       };
@@ -408,6 +419,10 @@ export async function syncDirectivesBidirectional(options?: {
             category: record.category,
             file_path: record.file_path,
             content: record.content,
+            published_content: record.published_content,
+            published_title: record.published_title,
+            published_summary: record.published_summary,
+            published_at: record.published_at,
             version: record.version,
             updated_at: record.updated_at,
             updated_by: record.updated_by,
@@ -425,6 +440,12 @@ export async function syncDirectivesBidirectional(options?: {
     }
 
     const dbContent = dbRow.content || "";
+    const publishedContent = dbRow.published_content || dbContent || localContent;
+    const publishedTitle = dbRow.published_title || dbRow.title || localMeta.title;
+    const publishedSummary =
+      dbRow.published_summary || dbRow.summary || localMeta.summary;
+    const publishedAt =
+      dbRow.published_at || dbRow.updated_at || new Date().toISOString();
     const isSameContent =
       normalizeMarkdown(dbContent) === normalizeMarkdown(localContent);
 
@@ -440,6 +461,10 @@ export async function syncDirectivesBidirectional(options?: {
           category: dbRow.category || canonical.category,
           file_path: canonical.file_path,
           content: localContent,
+          published_content: publishedContent,
+          published_title: publishedTitle,
+          published_summary: publishedSummary,
+          published_at: publishedAt,
           version: dbRow.version || "v0.6.0",
           updated_at: dbRow.updated_at || new Date().toISOString(),
           updated_by: dbRow.updated_by || "Codebase Auto-Sync",
@@ -453,6 +478,12 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
+        published_content: publishedContent,
+        published_title: publishedTitle,
+        published_summary: publishedSummary,
+        published_at: publishedAt,
+        has_unpublished_changes:
+          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
         version: dbRow.version || "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: dbRow.updated_by || "Sanctuary Foundry",
@@ -479,6 +510,8 @@ export async function syncDirectivesBidirectional(options?: {
       dbHasBrokenTabs;
 
     // 1. If local file is newer or contains newer codebase milestones/schema than DB:
+    // Sync the file & database working `content` column WITHOUT overwriting `published_content`
+    // so the User side stays on the published snapshot until "Update / Publish" is clicked.
     if (localIsNewer) {
       const nowIso = new Date(
         Math.max(localEpochMs, dbEpochMs + 1000, Date.now())
@@ -491,6 +524,10 @@ export async function syncDirectivesBidirectional(options?: {
           category: dbRow.category || canonical.category,
           file_path: canonical.file_path,
           content: localContent,
+          published_content: publishedContent,
+          published_title: publishedTitle,
+          published_summary: publishedSummary,
+          published_at: publishedAt,
           version: "v0.6.0",
           updated_at: nowIso,
           updated_by: "Codebase Auto-Sync",
@@ -504,13 +541,19 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
+        published_content: publishedContent,
+        published_title: publishedTitle,
+        published_summary: publishedSummary,
+        published_at: publishedAt,
+        has_unpublished_changes:
+          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
         version: "v0.6.0",
         updated_at: nowIso,
         updated_by: "Codebase Auto-Sync",
         sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
       });
     } else if (dbContent.trim().length > 200) {
-      // 2. Cloud-First Update Model: Desktop & Web pull live updates from Hub DB (`system_directives`)
+      // 2. Cloud-First Update Model: Desktop & Web pull working updates from Hub DB (`system_directives.content`)
       // and update local `.md` backup file when running in Desktop / Dev mode.
       await writeLocalDirectiveFile(slug, dbContent);
       const dbMeta = extractDirectiveMetaFromMarkdown(
@@ -526,6 +569,12 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: dbContent,
+        published_content: publishedContent,
+        published_title: publishedTitle,
+        published_summary: publishedSummary,
+        published_at: publishedAt,
+        has_unpublished_changes:
+          normalizeMarkdown(dbContent) !== normalizeMarkdown(publishedContent),
         version: dbRow.version || "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: dbRow.updated_by || "Keepers Core",
@@ -539,6 +588,12 @@ export async function syncDirectivesBidirectional(options?: {
         category: canonical.category,
         file_path: canonical.file_path,
         content: localContent,
+        published_content: publishedContent,
+        published_title: publishedTitle,
+        published_summary: publishedSummary,
+        published_at: publishedAt,
+        has_unpublished_changes:
+          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
         version: "v0.6.0",
         updated_at: dbRow.updated_at || new Date().toISOString(),
         updated_by: "Sanctuary Foundry",
@@ -779,6 +834,7 @@ export async function saveDirectiveBothWays(payload: {
   category: string;
   content: string;
   updated_by?: string;
+  publishLive?: boolean;
 }): Promise<{ error: any; wroteLocal: boolean }> {
   const canonical = CANONICAL_DIRECTIVES[payload.slug];
   const nowIso = new Date().toISOString();
@@ -787,23 +843,82 @@ export async function saveDirectiveBothWays(payload: {
   const wroteLocal = await writeLocalDirectiveFile(payload.slug, payload.content);
 
   // 2. Upsert to `public.system_directives` in Keepers Core
-  const { error } = await supabaseAuth.from("system_directives").upsert({
+  // Only overwrite `published_content` when `publishLive === true` so the User side stays on the published snapshot until published.
+  const resolvedTitle = payload.title.trim() || canonical.title;
+  const resolvedSummary = payload.summary.trim() || canonical.summary;
+  const upsertRow: Record<string, any> = {
     slug: payload.slug,
-    title: payload.title.trim() || canonical.title,
-    summary: payload.summary.trim() || canonical.summary,
+    title: resolvedTitle,
+    summary: resolvedSummary,
     category: payload.category || canonical.category,
     file_path: canonical.file_path,
     content: payload.content,
     version: "v0.6.0",
     updated_at: nowIso,
     updated_by: payload.updated_by || "Keepers Core",
-  });
+  };
+  if (payload.publishLive) {
+    upsertRow.published_content = payload.content;
+    upsertRow.published_title = resolvedTitle;
+    upsertRow.published_summary = resolvedSummary;
+    upsertRow.published_at = nowIso;
+  }
+
+  const { error } = await supabaseAuth
+    .from("system_directives")
+    .upsert(upsertRow);
 
   return { error, wroteLocal };
 }
 
-export async function pushCodebaseDirectivesToKeepersCore(
+export async function publishDirectiveToUsers(
+  slug: DirectiveSlug,
   updatedBy = "Keepers Core"
+): Promise<{ error: any }> {
+  const canonical = CANONICAL_DIRECTIVES[slug];
+  const localMap = await readAllLocalDocSnapshots();
+  const localSnap = localMap[slug];
+  const nowIso = new Date().toISOString();
+
+  const { data: existing } = await supabaseAuth
+    .from("system_directives")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  const workingContent =
+    localSnap?.content || existing?.content || canonical.bundledContent;
+  await writeLocalDirectiveFile(slug, workingContent);
+
+  const meta = extractDirectiveMetaFromMarkdown(
+    workingContent,
+    existing?.title || canonical.title,
+    existing?.summary || canonical.summary,
+    slug
+  );
+
+  const { error } = await supabaseAuth.from("system_directives").upsert({
+    slug,
+    title: meta.title,
+    summary: meta.summary,
+    category: existing?.category || canonical.category,
+    file_path: canonical.file_path,
+    content: workingContent,
+    published_content: workingContent,
+    published_title: meta.title,
+    published_summary: meta.summary,
+    published_at: nowIso,
+    version: "v0.6.0",
+    updated_at: nowIso,
+    updated_by: updatedBy,
+  });
+
+  return { error };
+}
+
+export async function pushCodebaseDirectivesToKeepersCore(
+  updatedBy = "Keepers Core",
+  publishLive = false
 ): Promise<{ count: number; error: any }> {
   const localMap = await readAllLocalDocSnapshots();
   const nowIso = new Date().toISOString();
@@ -818,7 +933,7 @@ export async function pushCodebaseDirectivesToKeepersCore(
       canonical.summary,
       slug
     );
-    return {
+    const row: Record<string, any> = {
       slug,
       title: meta.title,
       summary: meta.summary,
@@ -829,6 +944,13 @@ export async function pushCodebaseDirectivesToKeepersCore(
       updated_at: nowIso,
       updated_by: updatedBy,
     };
+    if (publishLive) {
+      row.published_content = content;
+      row.published_title = meta.title;
+      row.published_summary = meta.summary;
+      row.published_at = nowIso;
+    }
+    return row;
   });
 
   const { error } = await supabaseAuth.from("system_directives").upsert(rows);

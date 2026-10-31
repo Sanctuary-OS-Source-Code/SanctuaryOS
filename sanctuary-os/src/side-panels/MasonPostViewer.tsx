@@ -118,6 +118,8 @@ export default function MasonPostViewer({
   userId,
   initialFocusCommentId,
   hideActions,
+  backdropZ = "z-[50000]",
+  panelZ = "z-[50001]",
 }: {
   post: any;
   onClose: () => void;
@@ -126,6 +128,8 @@ export default function MasonPostViewer({
   userId: string | null;
   initialFocusCommentId?: string | null;
   hideActions?: boolean;
+  backdropZ?: string;
+  panelZ?: string;
 }) {
   const { t, td } = useLexicon();
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
@@ -732,8 +736,8 @@ export default function MasonPostViewer({
         icon={isAlert ? t("icon_priority_high", "priority_high") : t("icon_forum", "forum")}
         iconColorClass={isAlert ? "text-[var(--danger)]" : "text-[var(--accent)]"}
         widthClass="w-[90vw] md:w-[760px]"
-        panelZ="z-[50001]"
-        backdropZ="z-[50000]"
+        panelZ={panelZ}
+        backdropZ={backdropZ}
         panelClass={isAlert ? "danger-accent-override" : ""}
         subtitle={
           isAlert

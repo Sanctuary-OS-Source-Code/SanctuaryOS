@@ -366,7 +366,18 @@ export default function KeepersSupportTickets({
     useStore.getState().pushStatus(t("auto_ticket_status_updated_39", "Ticket status updated."), "success");
 
     if (userRole === "keeper" || userRole === "keepers") {
-      logArchitectAction(`Keeper Ticket ${actionType}: ${reason}`, 'keeper_tickets', selectedTicket.id, undefined, 'Keeper Hub', true);
+      logArchitectAction(
+        `Keeper Ticket ${actionType}: ${reason}`,
+        'keeper_tickets',
+        selectedTicket.id,
+        reason,
+        'Keeper Hub',
+        true,
+        {
+          status: { from: selectedTicket.status, to: newStatus },
+          resolution_action: { to: actionType },
+        }
+      );
     }
     setSelectedTicket(null);
     fetchTickets();
@@ -517,8 +528,8 @@ export default function KeepersSupportTickets({
           isEmpty={bugTickets.length === 0}
           emptyState={
             <EmptyState
-              icon={t("icon_bug_report", "bug_report")}
-              title={t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")}
+              icon={t("icon_support_agent", "support_agent")}
+              title={t("no_tickets", "No Support Tickets")}
               className="py-8"
             />
           }
@@ -845,7 +856,11 @@ export default function KeepersSupportTickets({
             });
 
             if (filteredTickets.length === 0) return (
-              <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (resolvedTab === 'bugs' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
+              <EmptyState
+                icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_support_agent", "support_agent")}
+                title={searchQuery ? t("no_matches", "No matches found") : t("no_tickets", "No Support Tickets")}
+                className="col-span-full py-16"
+              />
             );
 
             return (

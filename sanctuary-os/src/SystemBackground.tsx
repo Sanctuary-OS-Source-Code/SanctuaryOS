@@ -568,10 +568,13 @@ export function SystemBackground() {
       return meta;
     };
 
+    let staleCanvasesToRemove: HTMLCanvasElement[] = [];
+
     const scanGlassElements = () => {
       needsElementScan = false;
+      staleCanvasesToRemove = [];
 
-      // Clean up any stale overlay canvases inside floating popovers, tooltips, or portal pills
+      // Collect any stale overlay canvases inside floating popovers, tooltips, or portal pills (removed after DOM reads)
       const staleCanvases = document.querySelectorAll<HTMLCanvasElement>('canvas.sa-webgl-overlay-canvas');
       for (let i = 0; i < staleCanvases.length; i++) {
         const c = staleCanvases[i];
@@ -580,7 +583,7 @@ export function SystemBackground() {
           !c.parentElement?.classList.contains('sa-mobile-glass-overlay') &&
           !c.parentElement?.classList.contains('sa-floating-glass-pill')
         ) {
-          c.remove();
+          staleCanvasesToRemove.push(c);
         }
       }
 
@@ -708,12 +711,7 @@ export function SystemBackground() {
       const targetW = Math.round(vw * dpr);
       const targetH = Math.round(vh * dpr);
 
-      if (canvas!.width !== targetW || canvas!.height !== targetH) {
-        canvas!.width = targetW;
-        canvas!.height = targetH;
-      }
-
-      // Collect visible glass rects using parent-first viewport culling
+      // Collect visible glass rects using parent-first viewport culling BEFORE any DOM/canvas writes
       const t = (window as any).__sanctuaryPreviewTheme || themeRef.current || {};
       const canPassthrough =
         isDesktop() ||
@@ -917,6 +915,26 @@ export function SystemBackground() {
         gl!.bindVertexArray(null);
       };
 
+      // Pre-read mobile dock underlay geometry before any DOM/canvas writes to prevent forced synchronous reflow
+      const underlayCanvas =
+        vw < 768
+          ? (document.querySelector('canvas.sa-mobile-dock-underlay-canvas') as HTMLCanvasElement | null)
+          : null;
+      const underlayRect = underlayCanvas ? underlayCanvas.getBoundingClientRect() : null;
+
+      // All DOM/layout reads are complete — now perform DOM/canvas writes safely without forced reflow
+      if (staleCanvasesToRemove.length > 0) {
+        for (let i = 0; i < staleCanvasesToRemove.length; i++) {
+          staleCanvasesToRemove[i].remove();
+        }
+        staleCanvasesToRemove = [];
+      }
+
+      if (canvas!.width !== targetW || canvas!.height !== targetH) {
+        canvas!.width = targetW;
+        canvas!.height = targetH;
+      }
+
       // Check if any floating overlay (SidePanel, TitleBar, SystemStatusBar) needs its occlusion canvas updated
       const dirtyOverlays: Array<{
         ovCanvas: HTMLCanvasElement;
@@ -934,6 +952,7 @@ export function SystemBackground() {
       const themeKey = `${t.bgImage || ''}:${t.bg || ''}:${Boolean(t.transparentWindow)}:${t.panelTint || ''}:${t.radius || ''}:${isLight}`;
       for (let i = 0; i < activeOverlays.length; i++) {
         const { el, rect, childSig, startIdx, instCount } = activeOverlays[i];
+        const elRadius = getElementMeta(el).radiusPx;
         const ovCanvas = ensureOverlayCanvas(el);
         const ow = Math.max(1, Math.round(rect.width * dpr));
         const oh = Math.max(1, Math.round(rect.height * dpr));
@@ -941,7 +960,6 @@ export function SystemBackground() {
         const sy = Math.max(0, Math.round(rect.top * dpr));
         const sw = Math.min(targetW - sx, ow);
         const sh = Math.min(targetH - sy, oh);
-        const elRadius = getElementMeta(el).radiusPx;
         const blitKey = `${themeKey}:${texGeneration}:${targetW}x${targetH}:${rawOpacity}:${specScale}:${refractScale}:${bezelScale}:${shadowScale}:${elRadius}:${sx},${sy},${sw},${sh},${ow},${oh}:${childSig}`;
 
         if (ovCanvas.width !== ow || ovCanvas.height !== oh || (ovCanvas as any).__lastBlitKey !== blitKey) {
@@ -975,30 +993,24 @@ export function SystemBackground() {
 
       // Blit the bottom sharp-wallpaper strip into the Mobile Bottom Dock underlay mask canvas
       // so scrolling HTML card text/borders fade out behind the dock while keeping the wallpaper crisp above the gesture pill
-      if (vw < 768) {
-        const underlayCanvas = document.querySelector('canvas.sa-mobile-dock-underlay-canvas') as HTMLCanvasElement | null;
-        if (underlayCanvas) {
-          const uRect = underlayCanvas.getBoundingClientRect();
-          if (uRect.width > 4 && uRect.height > 4) {
-            const uw = Math.max(1, Math.round(uRect.width * dpr));
-            const uh = Math.max(1, Math.round(uRect.height * dpr));
-            const sx = Math.max(0, Math.round((uRect.left - canvasOffsetX) * dpr));
-            const sy = Math.max(0, Math.round((uRect.top - canvasOffsetY) * dpr));
-            const sw = Math.min(targetW - sx, uw);
-            const sh = Math.min(targetH - sy, uh);
-            const uBlitKey = `${themeKey}:${texGeneration}:${targetW}x${targetH}:${sx},${sy},${sw},${sh},${uw},${uh}`;
-            if (underlayCanvas.width !== uw || underlayCanvas.height !== uh || (underlayCanvas as any).__lastBlitKey !== uBlitKey) {
-              if (underlayCanvas.width !== uw || underlayCanvas.height !== uh) {
-                underlayCanvas.width = uw;
-                underlayCanvas.height = uh;
-              }
-              const uCtx = underlayCanvas.getContext('2d');
-              if (uCtx && sw > 0 && sh > 0) {
-                uCtx.clearRect(0, 0, uw, uh);
-                uCtx.drawImage(canvas!, sx, sy, sw, sh, 0, 0, uw, uh);
-                (underlayCanvas as any).__lastBlitKey = uBlitKey;
-              }
-            }
+      if (underlayCanvas && underlayRect && underlayRect.width > 4 && underlayRect.height > 4) {
+        const uw = Math.max(1, Math.round(underlayRect.width * dpr));
+        const uh = Math.max(1, Math.round(underlayRect.height * dpr));
+        const sx = Math.max(0, Math.round((underlayRect.left - canvasOffsetX) * dpr));
+        const sy = Math.max(0, Math.round((underlayRect.top - canvasOffsetY) * dpr));
+        const sw = Math.min(targetW - sx, uw);
+        const sh = Math.min(targetH - sy, uh);
+        const uBlitKey = `${themeKey}:${texGeneration}:${targetW}x${targetH}:${sx},${sy},${sw},${sh},${uw},${uh}`;
+        if (underlayCanvas.width !== uw || underlayCanvas.height !== uh || (underlayCanvas as any).__lastBlitKey !== uBlitKey) {
+          if (underlayCanvas.width !== uw || underlayCanvas.height !== uh) {
+            underlayCanvas.width = uw;
+            underlayCanvas.height = uh;
+          }
+          const uCtx = underlayCanvas.getContext('2d');
+          if (uCtx && sw > 0 && sh > 0) {
+            uCtx.clearRect(0, 0, uw, uh);
+            uCtx.drawImage(canvas!, sx, sy, sw, sh, 0, 0, uw, uh);
+            (underlayCanvas as any).__lastBlitKey = uBlitKey;
           }
         }
       }
@@ -1013,6 +1025,8 @@ export function SystemBackground() {
         scheduleRender();
       }
     }
+
+    let lastWallpaperBuildKey = '';
 
     // Upload wallpaper textures (sharpTex + blurTex) when theme or viewport aspect changes
     const buildWallpaperTextures = () => {
@@ -1032,20 +1046,30 @@ export function SystemBackground() {
         ? Math.max(80, Math.min(130, Math.round(104 * (parsedSat / 185))))
         : Math.max(85, Math.min(165, Math.round(115 * (parsedSat / 185))));
 
+      const orbsKey = Array.isArray(t.volumetricOrbs)
+        ? t.volumetricOrbs.map((o: any) => `${o.color}:${o.left}:${o.top}:${o.opacity}`).join(',')
+        : '';
+      const buildKey = `${t.bgImage || ''}|${t.bg || ''}|${Boolean(t.transparentWindow)}|${rawBlur}|${satPct}|${isLightTheme ? 1 : 0}|${Math.round(targetAspect * 100)}|${orbsKey}`;
+      if (texturesReady && buildKey === lastWallpaperBuildKey) {
+        scheduleRender();
+        return;
+      }
+      lastWallpaperBuildKey = buildKey;
+
       const uploadFromSourceCanvas = (srcCanvas: HTMLCanvasElement) => {
         if (disposed) return;
         gl.bindTexture(gl.TEXTURE_2D, sharpTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
 
         // Generate clamped-border lightly-frosted texture so background shapes stay recognizable & visibly refract
-        const bw = Math.min(1440, Math.max(540, Math.round(vw * 1.15)));
-        const bh = Math.max(320, Math.round(bw / targetAspect));
+        const bw = Math.min(960, Math.max(480, Math.round(vw * 0.85)));
+        const bh = Math.max(270, Math.round(bw / targetAspect));
         const blurPx = rawBlur <= 0
           ? 0
           : isLightTheme
-            ? Math.max(3, Math.min(14, Math.round(rawBlur * 0.25)))
-            : Math.max(3, Math.min(16, Math.round(rawBlur * 0.28)));
-        const pad = Math.max(48, blurPx * 3);
+            ? Math.max(3, Math.min(12, Math.round(rawBlur * 0.22)))
+            : Math.max(3, Math.min(14, Math.round(rawBlur * 0.24)));
+        const pad = Math.max(36, blurPx * 3);
 
         const padCanvas = document.createElement('canvas');
         padCanvas.width = bw + pad * 2;
@@ -1139,7 +1163,6 @@ export function SystemBackground() {
         texGeneration++;
         texturesReady = true;
         needsElementScan = true;
-        renderFrame();
         triggerAnimWindow(500);
         if (!(window as any).__sanctuaryBootRevealed) {
           window.requestAnimationFrame(() => {
@@ -1169,8 +1192,8 @@ export function SystemBackground() {
           }
 
           const sharpCanvas = document.createElement('canvas');
-          sharpCanvas.width = Math.min(2560, Math.max(1600, Math.round(vw * Math.min(2, window.devicePixelRatio || 1))));
-          sharpCanvas.height = Math.max(400, Math.round(sharpCanvas.width / targetAspect));
+          sharpCanvas.width = Math.min(1920, Math.max(1280, Math.round(vw * Math.min(1.5, window.devicePixelRatio || 1))));
+          sharpCanvas.height = Math.max(360, Math.round(sharpCanvas.width / targetAspect));
           const sCtx = sharpCanvas.getContext('2d');
           if (sCtx) {
             sCtx.imageSmoothingEnabled = true;

@@ -259,6 +259,10 @@ export function AuditLogViewer({
           const m = l.target_name.match(uuidRegex);
           if (m) m.forEach((id: string) => candidateIds.add(id));
         }
+        if (l.reason && typeof l.reason === "string") {
+          const m = l.reason.match(uuidRegex);
+          if (m) m.forEach((id: string) => candidateIds.add(id));
+        }
       });
 
       const uncachedActorIds = Array.from(candidateIds).filter(
@@ -350,14 +354,19 @@ export function AuditLogViewer({
           l.target_name || l.target_id || ""
         );
         const resolvedReason = replaceUuidsWithUsernames(parsed.cleanReason);
+        const resolvedChanges = parsed.changes.map((c) => ({
+          ...c,
+          from: c.from !== undefined ? replaceUuidsWithUsernames(c.from) : undefined,
+          to: c.to !== undefined ? replaceUuidsWithUsernames(c.to) : undefined,
+        }));
         return {
           ...l,
           target_name: resolvedTargetName || l.target_name,
           profiles: prof,
           actor: prof,
           _cleanReason: resolvedReason,
-          _changes: parsed.changes,
-          _hasChanges: parsed.hasChanges,
+          _changes: resolvedChanges,
+          _hasChanges: resolvedChanges.length > 0,
         };
       });
 

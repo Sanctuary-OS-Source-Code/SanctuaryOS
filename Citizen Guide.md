@@ -49,13 +49,15 @@ Inside **Your Vault**, every mod lives safely inside your isolated Vault archive
 - **Drafting & Hot-Swapping:** Create separate Blueprints for different saves or playstyles (e.g., *Realism Save*, *Occult Challenge*, *Vanilla Patch Test*) and hot-swap between them from the Vault header or the bottom Morphing Dock.
 - **Offline JSON Export & Cloud Uplink Codes (`SNCXXX`):** Export any Blueprint to a portable `.json` file (which carries your custom local `modMeta` URLs and workspace identity offline) or generate a 6-character Cloud Uplink code (`SNCXXX`) to share with friends or publish to The Nexus.
 
-## Stage 5: Conflict Radar, Load Order Engine & Homestead Lab
+## Stage 5: Conflict Radar 2.0, Game-Agnostic Load Order Engine & Homestead Lab
 
-When two mods edit the same game tuning or scripts, Sanctuary catches the collision before you launch the game:
+When two mods edit the same game tuning, textures, or scripts, Sanctuary catches the collision before you launch the game and gives you 1-click resolution:
 
-- **Conflict Radar (Casual vs. Advanced Mode):**
-  - **Casual Mode:** Displays Severity 3 Tuning Overlaps side-by-side so you can click **"Pick a Winner"** in one click. Sanctuary automatically routes the winning mod into a higher priority tier (`Sanctuary1`–`Sanctuary3` and dynamic `Resource.cfg`).
-  - **Advanced Mode:** Unlocks the full **Load Order** tab with the interactive **Quick Rule Builder** (`Must Load After` / `Must Load Before`), topological sort verification, and 1-click **Break Loop** circular dependency resolution.
+- **Conflict Radar 2.0 & 5-Tier Severity Matrix (`ConflictCard.tsx` & `ConflictResolutionSidebar.tsx`):**
+  - **5 Severity Tiers:** Categorizes overlaps into **Severity 5 (`Circular Loop`)**, **Severity 4 (`Fatal Core / Script Clash`)**, **Severity 3 (`Gameplay Tuning Overlap`)**, **Severity 2 (`Duplicate / Clone`)**, and **Severity 1 (`Visual / Texture Override`)**—displaying elevated Priority Tier badges and `Loads Later • Wins Override` telemetry once a winner is assigned.
+  - **1-Click "Set Winner" & Priority Tiers:** Click **Inspect & Resolve** on any conflict card to select which mod wins in-game and assign it to a game-agnostic **Priority Tier** (`Standard Load` → `Late Load (Tier 1)` → `High Priority (Tier 2)` → `Final Override (Tier 3)`).
+- **Game-Agnostic Load Order Engine (`DbpfScout.tsx`):**
+  - **Strategy-Aware Load Order & Directional Rules:** Adapts automatically to the active game engine's Master Schema strategy—focusing on **Load Order Rules** (`Must Load After (Wins)` / `Must Load Before (Yields)`) and **Elevated Priority Tiers** for folder-tier engines (`Priority Override Tiers / Resource.cfg`), while unlocking sequential `#001` queue controls (`First`, `Earlier`, `Later`, `Last`) for manifest/prefix/timestamp engines (`Manifest List / loadorder.txt`, `Numeric Prefix / 001_`, or `Timestamp Order`). Open **Radar & Load Order Engine** (`tune` button) to switch **Scan Scope** across 100+ Blueprints via a searchable dropdown.
 - **Homestead Lab (Proving Grounds & Save Airgap):**
   - **100% Nuke Isolation Test:** Snapshots your `save_airgap_targets` (`saves`, `Tray`), temporarily unlinks your main loadout, and injects *only* the suspect mod (or pits two conflicting mods against each other in a **1v1 Stability Test**), monitoring live game crash logs automatically and restoring your saves upon completion.
 
@@ -109,7 +111,7 @@ Connect directly with Sanctuary Foundry or launch your own Sovereign Community S
 3. **Your Vault:** Airgapped symlink projection, multi-file Parent Suite grouping, `Deep Yeet 2.0` cascade protection, and SHA-256 duplicate / Static Edge intercept.
 4. **Blueprints:** Zero-copy loadout hot-swapping, portable offline `.json` exports, and 6-character `SNCXXX` cloud share codes.
 5. **The Nexus & Integrated Side Browser:** Version-filtered discovery for Mods, Blueprints, Lexicons, Chameleons, and Workbench Templates, paired with a built-in download-intercepting Side Browser.
-6. **Conflict Radar & Load Order Engine:** Casual `"Pick a Winner"` resolution for Severity 3 tuning overlaps and Advanced topological `Must Load After/Before` compilation (`folder_priority`, `manifest_list`, `numeric_prefix`, `timestamp`).
+6. **Conflict Radar 2.0 & Game-Agnostic Load Order Engine:** 5-Tier Severity Matrix (`S1 Visual` to `S5 Loop`), decompressed DBPF/XML Side-by-Side Resource Diff Inspector (Zlib / EA RefPack / Zstd), 1-click `"Set Winner"` resolution, 4-tier Priority Override folders (`Standard Load` to `Final Override`), directional `Must Load After/Before` rules, and searchable Blueprint Scan Scope switching (`folder_priority`, `manifest_list`, `numeric_prefix`, `timestamp`).
 7. **Homestead Lab:** 100% Nuke sandbox isolation and 1v1 conflict arena with `save_airgap_targets` backup/restore and real-time exception log capture.
 8. **Time Capsule & Citizen's Workbench:** Incremental OS hardlink snapshots (`World State` & `Engine Core`), differential rollback, 60 FPS 2-column visual config editing, Dynamic Config Watcher, and Timeline Diff.
 9. **Chameleons, Lexicons & Universal Malware Defense:** 6-slider Liquid Glass V3 Theme Forge, 4-dictionary Lexicon hot-swapping, Universal 21+17 Heuristic Scanner, FIDO2 Passkey Vault, and Full-OS Quarantine Lockdown.

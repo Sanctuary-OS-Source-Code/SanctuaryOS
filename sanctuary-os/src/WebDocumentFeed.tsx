@@ -36,6 +36,9 @@ import {
   extractDirectiveBuilderSchema,
   stripDirectiveBuilderComment,
   getDefaultDirectiveBuilderSchema,
+  resolveRoadmapSubCardStatus,
+  getRoadmapStatusMeta,
+  RoadmapMilestoneStatus,
 } from "./utils/directivesBuilderSchema";
 
 type DirectiveModuleId =
@@ -1266,43 +1269,69 @@ export default function WebDocumentFeed({
     </div>
   );
 
-  // Resolve matching raw reference document synced two-way between Keepers Core (`system_directives`) and Codebase `.md` files
+  // Resolve matching raw reference document (renders published_content snapshot so User side only updates on explicit Publish)
   const activeReferenceMarkdown = useMemo(() => {
     if (!activeModule) return "";
     let raw = "";
     if (activeModule === "guide") {
-      raw = directivesMap.citizen_guide?.content || bundledCitizenGuide;
+      raw =
+        directivesMap.citizen_guide?.published_content ||
+        directivesMap.citizen_guide?.content ||
+        bundledCitizenGuide;
     } else if (activeModule === "roadmap") {
-      raw = directivesMap.phase_roadmap?.content || bundledRoadmapDoc;
+      raw =
+        directivesMap.phase_roadmap?.published_content ||
+        directivesMap.phase_roadmap?.content ||
+        bundledRoadmapDoc;
     } else if (activeModule === "forking") {
-      raw = directivesMap.forking_guide?.content || bundledForkingGuide;
+      raw =
+        directivesMap.forking_guide?.published_content ||
+        directivesMap.forking_guide?.content ||
+        bundledForkingGuide;
     } else if (activeModule === "architecture") {
       raw =
-        directivesMap.master_architecture?.content || bundledArchitectureDoc;
+        directivesMap.master_architecture?.published_content ||
+        directivesMap.master_architecture?.content ||
+        bundledArchitectureDoc;
     } else if (activeModule === "protocols") {
-      raw = directivesMap.master_protocols?.content || bundledProtocolList;
+      raw =
+        directivesMap.master_protocols?.published_content ||
+        directivesMap.master_protocols?.content ||
+        bundledProtocolList;
     }
     return stripDirectiveBuilderComment(raw);
   }, [activeModule, directivesMap]);
 
-  // Extract any Keepers Core Visual Builder / Live Markdown schemas synced via `system_directives` / `.md`
+  // Extract published Keepers Core Visual Builder / Live Markdown schemas for the User side
   const customGuideSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
-        directivesMap.citizen_guide?.content || bundledCitizenGuide,
+        directivesMap.citizen_guide?.published_content ||
+          directivesMap.citizen_guide?.content ||
+          bundledCitizenGuide,
         "citizen_guide",
         t
       ) || getDefaultDirectiveBuilderSchema("citizen_guide", t),
-    [directivesMap.citizen_guide?.content, t]
+    [
+      directivesMap.citizen_guide?.published_content,
+      directivesMap.citizen_guide?.content,
+      t,
+    ]
   );
   const customRoadmapSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
-        directivesMap.phase_roadmap?.content || bundledRoadmapDoc,
+        directivesMap.phase_roadmap?.published_content ||
+          directivesMap.phase_roadmap?.content ||
+          bundledRoadmapDoc,
         "phase_roadmap",
         t
       ) || getDefaultDirectiveBuilderSchema("phase_roadmap", t),
-    [directivesMap.phase_roadmap?.content, t]
+    [
+      directivesMap.phase_roadmap?.published_content,
+      directivesMap.phase_roadmap?.content,
+      t,
+    ]
   );
 
   const topRoadmapPhaseNum = useMemo(() => {
@@ -1333,29 +1362,47 @@ export default function WebDocumentFeed({
   const customForkSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
-        directivesMap.forking_guide?.content || bundledForkingGuide,
+        directivesMap.forking_guide?.published_content ||
+          directivesMap.forking_guide?.content ||
+          bundledForkingGuide,
         "forking_guide",
         t
       ) || getDefaultDirectiveBuilderSchema("forking_guide", t),
-    [directivesMap.forking_guide?.content, t]
+    [
+      directivesMap.forking_guide?.published_content,
+      directivesMap.forking_guide?.content,
+      t,
+    ]
   );
   const customArchSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
-        directivesMap.master_architecture?.content || bundledArchitectureDoc,
+        directivesMap.master_architecture?.published_content ||
+          directivesMap.master_architecture?.content ||
+          bundledArchitectureDoc,
         "master_architecture",
         t
       ) || getDefaultDirectiveBuilderSchema("master_architecture", t),
-    [directivesMap.master_architecture?.content, t]
+    [
+      directivesMap.master_architecture?.published_content,
+      directivesMap.master_architecture?.content,
+      t,
+    ]
   );
   const customProtoSchema = useMemo(
     () =>
       extractDirectiveBuilderSchema(
-        directivesMap.master_protocols?.content || bundledProtocolList,
+        directivesMap.master_protocols?.published_content ||
+          directivesMap.master_protocols?.content ||
+          bundledProtocolList,
         "master_protocols",
         t
       ) || getDefaultDirectiveBuilderSchema("master_protocols", t),
-    [directivesMap.master_protocols?.content, t]
+    [
+      directivesMap.master_protocols?.published_content,
+      directivesMap.master_protocols?.content,
+      t,
+    ]
   );
 
   const activePanelMeta = useMemo(() => {
@@ -2154,6 +2201,13 @@ export default function WebDocumentFeed({
               : phaseMatch
                 ? parseInt(phaseMatch[1], 10)
                 : Math.max(1, totalCustomPhases - idx);
+            const resolvedCardStatus: "active" | "in_testing" | "completed" =
+              c.status === "in_testing" ||
+              /in\s+testing|in\s+dev\s+build/i.test(c.badge || "")
+                ? "in_testing"
+                : c.status === "active" || idx === 0
+                  ? "active"
+                  : "completed";
             return {
               num: parsedNum,
               code: t(
@@ -2162,19 +2216,33 @@ export default function WebDocumentFeed({
               ),
               title: t("", c.title || ""),
               sub: t("", c.footerMeta || ""),
-              status: (idx === 0 ? "active" : "completed") as
-                | "active"
-                | "completed",
+              status: resolvedCardStatus,
               icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
               desc: t("", c.desc || ""),
-              milestones: (c.subCards || []).map((sc) => ({
-                title: t("", sc.title || ""),
-                desc: t("", sc.desc || ""),
-                pending: Boolean(sc.pending),
-              })),
+              milestones: (c.subCards || []).map((sc) => {
+                const mStatus = resolveRoadmapSubCardStatus(sc);
+                return {
+                  title: t("", sc.title || ""),
+                  desc: t("", sc.desc || ""),
+                  icon: sc.icon || "",
+                  pending: mStatus === "in_progress",
+                  roadmapStatus: mStatus,
+                };
+              }),
             };
           })
-        : roadmapPhases;
+        : roadmapPhases.map((rp) => ({
+            ...rp,
+            status: rp.status as "active" | "in_testing" | "completed",
+            milestones: rp.milestones.map((m) => ({
+              ...m,
+              icon: "",
+              pending: Boolean((m as any).pending),
+              roadmapStatus: ((m as any).pending
+                ? "in_progress"
+                : "completed") as RoadmapMilestoneStatus,
+            })),
+          }));
 
     const seenPhaseNums = new Set<number>();
     const effectivePhases = rawPhases.filter((p) => {
@@ -2191,7 +2259,7 @@ export default function WebDocumentFeed({
       completedPhases[0]?.num ?? Math.max(1, topPhaseNum - 1);
 
     const filteredPhases = effectivePhases.filter((p) => {
-      if (roadmapFilter === "active") return p.status === "active";
+      if (roadmapFilter === "active") return p.status !== "completed";
       if (roadmapFilter === "completed") return p.status === "completed";
       return true;
     });
@@ -2249,10 +2317,34 @@ export default function WebDocumentFeed({
           />
         </StatTileCarousel>
 
+        {/* 3-State Roadmap Status Legend Strip */}
+        <div className="glass-panel rounded-2xl px-4 py-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              ["in_progress", "in_testing", "completed"] as RoadmapMilestoneStatus[]
+            ).map((stKey) => {
+              const meta = getRoadmapStatusMeta(stKey, t);
+              return (
+                <span
+                  key={stKey}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap"
+                >
+                  <span
+                    className={`material-symbols-outlined !text-[13px] ${meta.colorClass}`}
+                  >
+                    {meta.icon}
+                  </span>
+                  <span>{meta.label}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
           {filteredPhases.map((phase, idx) => {
-            const isActivePhase = phase.status === "active";
+            const phaseMeta = getRoadmapStatusMeta(phase.status, t);
             const isExpanded = resolvedSelectedPhaseNum === phase.num;
 
             return (
@@ -2310,21 +2402,11 @@ export default function WebDocumentFeed({
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
                         <span
-                          className={`material-symbols-outlined !text-[12px] ${
-                            isActivePhase
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--success)]"
-                          }`}
+                          className={`material-symbols-outlined !text-[12px] ${phaseMeta.colorClass}`}
                         >
-                          {isActivePhase
-                            ? t("icon_rocket_launch", "rocket_launch")
-                            : t("icon_check_circle", "check_circle")}
+                          {phaseMeta.icon}
                         </span>
-                        <span>
-                          {isActivePhase
-                            ? t("sd_roadmap_status_active", "Active Phase")
-                            : t("status_completed", "Completed")}
-                        </span>
+                        <span>{phaseMeta.label}</span>
                       </span>
                       <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
                         <span className="material-symbols-outlined !text-[16px]">
@@ -2350,11 +2432,7 @@ export default function WebDocumentFeed({
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3.5 min-w-0">
                           <div
-                            className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                              isActivePhase
-                                ? "text-[var(--accent)]"
-                                : "text-[var(--success)]"
-                            }`}
+                            className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${phaseMeta.colorClass}`}
                           >
                             <span className="material-symbols-outlined !text-[22px]">
                               {phase.icon}
@@ -2362,11 +2440,7 @@ export default function WebDocumentFeed({
                           </div>
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <span
-                              className={`text-[10px] font-black uppercase tracking-[0.18em] ${
-                                isActivePhase
-                                  ? "text-[var(--accent)]"
-                                  : "text-[var(--success)]"
-                              }`}
+                              className={`text-[10px] font-black uppercase tracking-[0.18em] ${phaseMeta.colorClass}`}
                             >
                               {phase.code}
                             </span>
@@ -2379,21 +2453,11 @@ export default function WebDocumentFeed({
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
                             <span
-                              className={`material-symbols-outlined !text-[12px] ${
-                                isActivePhase
-                                  ? "text-[var(--accent)]"
-                                  : "text-[var(--success)]"
-                              }`}
+                              className={`material-symbols-outlined !text-[12px] ${phaseMeta.colorClass}`}
                             >
-                              {isActivePhase
-                                ? t("icon_rocket_launch", "rocket_launch")
-                                : t("icon_check_circle", "check_circle")}
+                              {phaseMeta.icon}
                             </span>
-                            <span>
-                              {isActivePhase
-                                ? t("sd_roadmap_status_active", "Active Phase")
-                                : t("status_completed", "Completed")}
-                            </span>
+                            <span>{phaseMeta.label}</span>
                           </span>
                           <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)]">
                             <span className="material-symbols-outlined !text-[16px]">
@@ -2411,31 +2475,34 @@ export default function WebDocumentFeed({
                     <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         {phase.milestones.map((m, mIdx) => {
-                          const isPendingItem = Boolean(
-                            (m as { pending?: boolean }).pending
-                          );
+                          const mStatus = resolveRoadmapSubCardStatus(m);
+                          const mMeta = getRoadmapStatusMeta(mStatus, t);
                           return (
                             <div
                               key={mIdx}
-                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                             >
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                                    isPendingItem
-                                      ? "text-[var(--accent)]"
-                                      : "text-[var(--success)]"
-                                  }`}
-                                >
-                                  {isPendingItem
-                                    ? t("icon_rocket_launch", "rocket_launch")
-                                    : t("icon_check_circle", "check_circle")}
+                              <div className="flex items-start justify-between gap-2.5">
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
+                                  <span
+                                    className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${mMeta.colorClass}`}
+                                  >
+                                    {mMeta.icon}
+                                  </span>
+                                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                    {renderCleanInlineText(
+                                      m.title.replace(/^(✅|⏳|🧪)\s*/, "")
+                                    )}
+                                  </h4>
+                                </div>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[8px] font-black uppercase tracking-wider shrink-0 whitespace-nowrap">
+                                  <span
+                                    className={`material-symbols-outlined !text-[11px] ${mMeta.colorClass}`}
+                                  >
+                                    {mMeta.icon}
+                                  </span>
+                                  <span>{mMeta.label}</span>
                                 </span>
-                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {renderCleanInlineText(
-                                    m.title.replace(/^(✅|⏳)\s*/, "")
-                                  )}
-                                </h4>
                               </div>
                               <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
                                 {renderCleanInlineText(m.desc)}
@@ -4785,6 +4852,7 @@ export default function WebDocumentFeed({
           icon={t("icon_school", "school")}
           title={
             customGuideSchema?.title ||
+            directivesMap.citizen_guide?.published_title ||
             directivesMap.citizen_guide?.title ||
             t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")
           }
@@ -4824,6 +4892,7 @@ export default function WebDocumentFeed({
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
             {customGuideSchema?.summary ||
+              directivesMap.citizen_guide?.published_summary ||
               directivesMap.citizen_guide?.summary ||
               t(
                 "sd_card_guide_desc",
@@ -4840,6 +4909,7 @@ export default function WebDocumentFeed({
           icon={t("icon_timeline", "timeline")}
           title={
             customRoadmapSchema?.title ||
+            directivesMap.phase_roadmap?.published_title ||
             directivesMap.phase_roadmap?.title ||
             t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
           }
@@ -4879,6 +4949,7 @@ export default function WebDocumentFeed({
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
             {customRoadmapSchema?.summary ||
+              directivesMap.phase_roadmap?.published_summary ||
               directivesMap.phase_roadmap?.summary ||
               t(
                 "sd_card_roadmap_desc",
@@ -4900,6 +4971,7 @@ export default function WebDocumentFeed({
           icon={t("icon_call_split", "call_split")}
           title={
             customForkSchema?.title ||
+            directivesMap.forking_guide?.published_title ||
             directivesMap.forking_guide?.title ||
             t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")
           }
@@ -4942,6 +5014,7 @@ export default function WebDocumentFeed({
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
             {customForkSchema?.summary ||
+              directivesMap.forking_guide?.published_summary ||
               directivesMap.forking_guide?.summary ||
               t(
                 "sd_card_fork_desc",
@@ -4958,6 +5031,7 @@ export default function WebDocumentFeed({
           icon={t("icon_architecture", "architecture")}
           title={
             customArchSchema?.title ||
+            directivesMap.master_architecture?.published_title ||
             directivesMap.master_architecture?.title ||
             t("sd_card_arch_title", "Master Architecture & Engine Systems")
           }
@@ -5000,6 +5074,7 @@ export default function WebDocumentFeed({
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
             {customArchSchema?.summary ||
+              directivesMap.master_architecture?.published_summary ||
               directivesMap.master_architecture?.summary ||
               t(
                 "sd_card_arch_desc",
@@ -5016,6 +5091,7 @@ export default function WebDocumentFeed({
           icon={t("icon_policy", "policy")}
           title={
             customProtoSchema?.title ||
+            directivesMap.master_protocols?.published_title ||
             directivesMap.master_protocols?.title ||
             t("sd_card_proto_title", "Master Protocol & Clearance Matrix")
           }
@@ -5058,6 +5134,7 @@ export default function WebDocumentFeed({
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
             {customProtoSchema?.summary ||
+              directivesMap.master_protocols?.published_summary ||
               directivesMap.master_protocols?.summary ||
               t(
                 "sd_card_proto_desc",

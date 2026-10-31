@@ -34,6 +34,7 @@ export function SharedMetadataEditorSidePanel({
 }) {
   const { t } = useLexicon();
   const [modForm, setModForm] = useState<any>(null);
+  const [originalMod, setOriginalMod] = useState<any>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [localMasonsList, setLocalMasonsList] = useState<any[]>(
     masonsList || []
@@ -41,7 +42,9 @@ export function SharedMetadataEditorSidePanel({
 
   useEffect(() => {
     if (activeMod) {
-      setModForm({ ...activeMod });
+      const cloned = JSON.parse(JSON.stringify(activeMod));
+      setOriginalMod(cloned);
+      setModForm({ ...cloned });
     } else if (initialModId && isOpen) {
       const fetchMod = async () => {
         let modId = initialModId;
@@ -65,7 +68,9 @@ export function SharedMetadataEditorSidePanel({
           .eq("id", modId)
           .single();
         if (data) {
-          setModForm(data);
+          const cloned = JSON.parse(JSON.stringify(data));
+          setOriginalMod(cloned);
+          setModForm({ ...cloned });
         } else {
           setModForm({ _error: true, id: initialModId });
         }
@@ -73,6 +78,7 @@ export function SharedMetadataEditorSidePanel({
       fetchMod();
     } else if (!isOpen) {
       setModForm(null);
+      setOriginalMod(null);
     }
   }, [activeMod, initialModId, isOpen]);
 
@@ -93,27 +99,28 @@ export function SharedMetadataEditorSidePanel({
     if (!modForm) return;
     setIsCommitting(true);
     try {
+      const updatedPayload = {
+        name: modForm.name,
+        category_override: modForm.category_override,
+        sub_type: modForm.sub_type,
+        file_extension: modForm.file_extension,
+        status: modForm.status,
+        url: modForm.url,
+        image_url: modForm.image_url,
+        latest_version: modForm.latest_version,
+        description: modForm.description,
+        compatible_versions: modForm.compatible_versions,
+        family_slug: modForm.family_slug,
+        mason_id: modForm.mason_id,
+        compliance_tier: modForm.compliance_tier,
+        folder_structure: modForm.folder_structure || [],
+        is_paid: modForm.is_paid || false,
+        is_early_access: modForm.is_early_access || false,
+        updated_at: new Date().toISOString(),
+      };
       await supabase
         .from("mods")
-        .update({
-          name: modForm.name,
-          category_override: modForm.category_override,
-          sub_type: modForm.sub_type,
-          file_extension: modForm.file_extension,
-          status: modForm.status,
-          url: modForm.url,
-          image_url: modForm.image_url,
-          latest_version: modForm.latest_version,
-          description: modForm.description,
-          compatible_versions: modForm.compatible_versions,
-          family_slug: modForm.family_slug,
-          mason_id: modForm.mason_id,
-          compliance_tier: modForm.compliance_tier,
-          folder_structure: modForm.folder_structure || [],
-          is_paid: modForm.is_paid || false,
-          is_early_access: modForm.is_early_access || false,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatedPayload)
         .eq("id", modForm.id);
       await logArchitectAction(
         "Updated Mod Metadata",
@@ -122,7 +129,7 @@ export function SharedMetadataEditorSidePanel({
         undefined,
         "Architect Console",
         false,
-        computeAuditDiff(activeMod, modForm)
+        computeAuditDiff(originalMod || activeMod, updatedPayload)
       );
       if (onModUpdated) onModUpdated();
     } catch (err) {

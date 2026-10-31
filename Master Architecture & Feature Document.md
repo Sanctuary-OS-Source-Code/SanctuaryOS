@@ -1,7 +1,7 @@
 # Sanctuary OS — Master Architecture & Feature Document
 
-**Document Version:** v0.5.8-Dev.5  
-**Last Updated:** October 28, 2026  
+**Document Version:** v0.6.0-Dev.1  
+**Last Updated:** October 30, 2026  
 
 Sanctuary OS is a cross-platform (Windows & macOS), local-first mod operations layer, desktop middleware, and decentralized Hub-and-Spoke ecosystem built on a strict **"no asset hosting / metadata-only / offline-first / 0% platform tax"** architecture.
 
@@ -63,8 +63,9 @@ Sanctuary OS is 100% engine-agnostic across both its React frontend and Rust bac
 - **Symlink Airgap 2.5 & Automatic Root Config Deduplication (`deduplicate_vault_root_configs`):**
   - Projects active mods from `Vault/Mods/` into the live game folder via OS symlinks while isolating vanilla saves and configs.
   - **Dynamic Config Watcher Deduplication:** When a mod's config file (`.cfg`, `.ini`, `.json`, `.toml`, `.yaml`) already exists inside a mod's subfolder (e.g., `Mods/MCCC/mc_settings.cfg`) and the game engine writes a duplicate copy to the live `Mods/` root, the Config Watcher syncs the newer data into the subfolder copy, deletes the root duplicate, and suppresses FSEvents/ReadDirectoryChangesW bounce loops so deleted duplicates never reappear.
-- **Schema-Driven Load Order Compiler (`compileLoadOrder`) & Atomic Logic Engine:**
-  - Compiles load order via topological sorting and DFS cycle detection with **Casual Mode** (1-click "Pick a Winner") and **Advanced Mode** (directional `Must Load After`/`Before` rules and 1-click **Break Loop**).
+- **Conflict Radar 2.0 & Schema-Driven Load Order Compiler (`compileLoadOrder`):**
+  - **5-Tier Severity Matrix (`radar.rs` & `ConflictResolutionSidebar.tsx`):** Categorizes collisions across **Severity 1 (`Visual/Texture`)**, **Severity 2 (`Clone/Duplicate`)**, **Severity 3 (`Gameplay Tuning`)**, **Severity 4 (`Fatal Core/Script`)**, and **Severity 5 (`Circular Dependency Loop`)**, pairing 1-click **"Set Winner"** resolution with game-agnostic **Priority Override Tiers** (`Standard Load`, `Late Load (Tier 1)`, `High Priority (Tier 2)`, `Final Override`).
+  - **Game-Agnostic Load Order Engine (`DbpfScout.tsx`):** Compiles deployment load order via topological sorting and DFS cycle detection across `folder_priority` (`Standard Load` through `Final Override` + dynamic `Resource.cfg`), `manifest_list` (`loadorder.txt` / `plugins.txt`), `numeric_prefix` (`001_`), and `timestamp`, adapting the UI to the active engine strategy with directional `Must Load After (Wins)` / `Must Load Before (Yields)` rules, elevated priority tiers, sequential queue controls (for manifest/prefix/timestamp engines), and a searchable **Scan Scope** Blueprint selector.
   - Enforces **The Highlander Rule** (Flavor eviction), **Nuclear Family Cohesion** (Twins), **Recursive Chain-Link Dependencies**, **Deep Yeet 2.0 Delete Cascades**, and **DLC/Version Ghosting**.
 - **Citizen's Workbench, Homestead Lab & Time Capsule:**
   - **Citizen's Workbench:** 60 FPS 2-column Visual Config Editor, Category Pill Bar, dual `Min`/`Max` range steppers, No-Code Visual Template Builder, and **2-Column Interactive Timeline & Diff Workspace**.

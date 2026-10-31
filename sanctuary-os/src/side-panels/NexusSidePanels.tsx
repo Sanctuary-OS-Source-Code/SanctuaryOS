@@ -5,7 +5,6 @@ import {
   CustomDropdown,
   SidePanel,
   SidePanelHeroCard,
-  SidePanelTitleInput,
   UniversalGroup,
   StatBox,
   DashboardStatTile,
@@ -22,6 +21,7 @@ import {
   getModIcon,
   handleOpenUrl,
   EmptyState,
+  openModDossier,
 } from "../shared";
 import {
   formatCleanModTitle,
@@ -46,245 +46,708 @@ export function NexusFlagResolutionCard({
   isOutdated = false,
   assetType = "lexicon",
   fileContent = null,
+  complianceViolations = [],
+  onRemoveViolationArtifact,
   onResubmit,
   disabled = false,
+  isModerationView = false,
 }: {
   activeFlags?: any[];
   isHidden?: boolean;
   isOutdated?: boolean;
   assetType?: string;
   fileContent?: any;
+  complianceViolations?: BlueprintComplianceViolation[];
+  onRemoveViolationArtifact?: (v: BlueprintComplianceViolation) => void;
   onResubmit?: () => void;
   disabled?: boolean;
+  isModerationView?: boolean;
 }) {
   const { t } = useLexicon();
+  const [isViolationsPanelOpen, setIsViolationsPanelOpen] = useState(false);
+  const [violationSearch, setViolationSearch] = useState("");
+  const [violationReasonFilter, setViolationReasonFilter] = useState<string>("ALL");
+  const [visibleViolationCount, setVisibleViolationCount] = useState(60);
+  const [showAllLexiconKeys, setShowAllLexiconKeys] = useState(false);
 
   const lexiconParity = useMemo(() => {
     if (assetType !== "lexicon" || !fileContent || typeof fileContent !== "object") return null;
     try {
-      return deepCompare(enDefault, fileContent, true);
+      const counts = deepCompare(enDefault, fileContent, true);
+      const missingKeys: string[] = [];
+      const deprecatedKeys: string[] = [];
+      for (const k of Object.keys(enDefault as Record<string, any>)) {
+        if (k.startsWith("_meta") || k === "schema_version") continue;
+        const val = (fileContent as Record<string, any>)[k];
+        if (typeof val !== "string" || val.trim() === "") {
+          missingKeys.push(k);
+        }
+      }
+      for (const k of Object.keys(fileContent as Record<string, any>)) {
+        if (k.startsWith("_meta") || k === "schema_version" || k.startsWith("icon_")) continue;
+        if (!(k in (enDefault as Record<string, any>))) {
+          deprecatedKeys.push(k);
+        }
+      }
+      return { ...counts, missingKeys, deprecatedKeys };
     } catch {
       return null;
     }
   }, [assetType, fileContent]);
 
   const hasFlags = activeFlags.length > 0;
-  if (!hasFlags && !isHidden && !isOutdated) return null;
+  const hasViolations = Array.isArray(complianceViolations) && complianceViolations.length > 0;
+
+  const filteredViolations = useMemo(() => {
+    if (!hasViolations) return [];
+    let list = complianceViolations;
+    if (violationReasonFilter !== "ALL") {
+      list = list.filter((v) => {
+        if (violationReasonFilter === "TIER") return /^Tier\s+[1-5]/i.test(v.reason);
+        return v.reason.toLowerCase() === violationReasonFilter.toLowerCase();
+      });
+    }
+    if (violationSearch.trim()) {
+      const q = violationSearch.trim().toLowerCase();
+      list = list.filter(
+        (v) =>
+          v.cleanName.toLowerCase().includes(q) ||
+          v.name.toLowerCase().includes(q) ||
+          (v.author && v.author.toLowerCase().includes(q)) ||
+          v.reason.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [hasViolations, complianceViolations, violationReasonFilter, violationSearch]);
+
+  if (!hasFlags && !hasViolations && !isHidden && !isOutdated) return null;
+
+  const handleOpenViolationDossier = (v: BlueprintComplianceViolation) => {
+    const state = useStore.getState();
+    const allVaultMods = Array.isArray(state.modList) ? state.modList : [];
+    const activeSchema = state.activeGameSchema;
+    const normTarget = getNormalizedArtifactName(v.cleanName || v.name);
+    const matchedLocal = allVaultMods.find((m: any) => {
+      if (!m || m.isVirtual) return false;
+      if (v.hash && m.hash && String(m.hash) === String(v.hash)) return true;
+      if (v.modId && m.dbId && String(m.dbId) === String(v.modId)) return true;
+      const mFile = String(m.name || "").split(/[\\/]/).pop() || "";
+      if (mFile && mFile.toLowerCase() === v.cleanName.toLowerCase()) return true;
+      if (normTarget && getNormalizedArtifactName(mFile) === normTarget) return true;
+      return false;
+    });
+
+    const cleanTitle =
+      formatCleanModTitle(
+        formatDisplayName(v.cleanName || v.name, undefined, activeSchema)
+      ) || v.cleanName;
+
+    openModDossier({
+      ...(matchedLocal || {}),
+      id: v.modId || matchedLocal?.dbId || matchedLocal?.id || v.hash || v.name,
+      dbId: v.modId || matchedLocal?.dbId,
+      hash: v.hash || matchedLocal?.hash,
+      name: matchedLocal?.name || v.name,
+      displayName: matchedLocal?.displayName || cleanTitle,
+      author: v.author || matchedLocal?.author,
+      status: v.status || matchedLocal?.status || "unknown",
+      compliance_tier:
+        typeof v.tier === "number" && v.tier >= 0
+          ? v.tier
+          : typeof matchedLocal?.compliance_tier === "number"
+            ? matchedLocal.compliance_tier
+            : 0,
+      isNexusView: !matchedLocal,
+    });
+  };
+
+  const renderViolationCard = (v: BlueprintComplianceViolation, vIdx: number) => {
+    const activeSchema = useStore.getState().activeGameSchema;
+    const isScript = /\.ts4script$/i.test(v.cleanName || v.name);
+    const typeLabel = isScript
+      ? t("type_script", "Script")
+      : t("type_package", "Package");
+    const displayTitle =
+      formatCleanModTitle(formatDisplayName(v.cleanName, undefined, activeSchema)) || v.cleanName;
+    const isDangerReason =
+      v.reason === "Corrupted" || /^Tier\s+[2-5]/i.test(v.reason);
+    const hasAuthor =
+      v.author &&
+      String(v.author).trim() !== "" &&
+      String(v.author).toLowerCase() !== t("unknown", "Unknown").toLowerCase() &&
+      String(v.author).toLowerCase() !== "unknown";
+
+    return (
+      <div
+        key={`${v.hash || v.name}_${vIdx}`}
+        onClick={() => handleOpenViolationDossier(v)}
+        className="flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all group/item cursor-pointer"
+      >
+        {/* Top Row: Icon Well + Title/Subtitle Identity */}
+        <div className="flex items-center gap-3 min-w-0 w-full">
+          <div
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+              isDangerReason ? "text-[var(--danger)]" : "text-[var(--warning)]"
+            }`}
+          >
+            <span className="material-symbols-outlined !text-[20px]">
+              {isDangerReason
+                ? t("icon_gpp_bad", "gpp_bad")
+                : t("icon_warning_amber", "warning_amber")}
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="relative group/blktitle flex items-center min-w-0 w-fit max-w-full">
+              <span className="text-sm font-black text-[var(--text)] group-hover/item:text-[var(--accent)] transition-colors tracking-tight leading-snug truncate">
+                {displayTitle}
+              </span>
+              <HoverTooltip
+                className="z-[200]"
+                title={displayTitle}
+                icon={t("icon_gpp_bad", "gpp_bad")}
+                variant="danger"
+              />
+            </div>
+            <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-85 truncate">
+              {hasAuthor ? `${v.author} • ${typeLabel}` : typeLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Bottom Footer Row: Compliance Badge on Left | Open Dossier + Remove Buttons on Right */}
+        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+          <span className={VAULT_CHIP_CLASS}>
+            <span
+              className={`material-symbols-outlined !text-[12px] ${
+                isDangerReason ? "text-[var(--danger)]" : "text-[var(--warning)]"
+              }`}
+            >
+              {isDangerReason
+                ? t("icon_gpp_bad", "gpp_bad")
+                : t("icon_shield", "shield")}
+            </span>
+            <span>{v.reason}</span>
+          </span>
+
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover/item:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--subtext)] group-hover/item:text-[var(--accent)] flex items-center justify-center transition-all">
+              <span className="material-symbols-outlined !text-[14px]">
+                {t("icon_open_in_new", "open_in_new")}
+              </span>
+            </div>
+
+            {onRemoveViolationArtifact && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveViolationArtifact(v);
+                }}
+                className="relative group/rmbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_delete", "delete")}
+                </span>
+                <HoverTooltip
+                  className="z-[200] !right-0 !translate-x-0 !left-auto"
+                  title={t("remove", "Remove")}
+                  icon={t("icon_delete", "delete")}
+                  variant="danger"
+                />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const whyText =
-    isHidden && hasFlags
+    assetType === "blueprint" && (hasViolations || hasFlags)
       ? t(
-          "flag_res_why_hidden_report",
-          "Flagged by Community / Architect Review and temporarily hidden from public {Nexus} listings until an updated revision is submitted."
+          "nexus_flag_tier0_desc",
+          "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–5 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
         )
-      : hasFlags
+      : isHidden && hasFlags
         ? t(
-            "flag_res_why_citizen_report",
-            "Flagged by a {Citizen} report in {Nexus}. Review the reported issue below, apply the needed fixes, and resubmit to clear the flag."
+            "flag_res_why_hidden_report",
+            "Flagged by Community / Architect Review and temporarily hidden from public {Nexus} listings until an updated revision is submitted."
           )
-        : isOutdated
+        : hasFlags
           ? t(
-              "flag_res_why_outdated",
-              "Flagged because the target game or OS version is behind the current release baseline."
+              "flag_res_why_citizen_report",
+              "Flagged by a {Citizen} report in {Nexus}. Review the reported issue below, apply the needed fixes, and resubmit to clear the flag."
             )
-          : t("flag_res_why_hidden_only", "Currently hidden from public {Nexus} listings.");
+          : isOutdated
+            ? t(
+                "flag_res_why_outdated",
+                "Flagged because the target game or OS version is behind the current release baseline."
+              )
+            : t("flag_res_why_hidden_only", "Currently hidden from public {Nexus} listings.");
+
+  const inlinePreviewViolations = hasViolations ? complianceViolations.slice(0, 4) : [];
 
   return (
-    <UniversalGroup
-      title={t("flag_res_dossier_title", "Flag & Resolution Dossier")}
-      icon={t("icon_flag", "flag")}
-    >
-      <div className="flex flex-col gap-3.5">
-        {/* Telemetry Chip Row */}
-        <div className="flex flex-wrap items-center gap-2">
-          {hasFlags && (
-            <div className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                {t("icon_flag", "flag")}
-              </span>
-              <span>
-                {activeFlags.length} {t("flag_res_reports_count", "Active Report(s)")}
-              </span>
-            </div>
-          )}
-          {isHidden && (
-            <div className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                {t("icon_visibility_off", "visibility_off")}
-              </span>
-              <span>{t("reply_hidden", "Hidden")}</span>
-            </div>
-          )}
-          {isOutdated && (
-            <div className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                {t("icon_update", "update")}
-              </span>
-              <span>{t("status_outdated", "Outdated")}</span>
-            </div>
-          )}
-          {activeFlags[0]?.created_at && (
-            <div className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                {t("icon_calendar_today", "calendar_today")}
-              </span>
-              <span>{new Date(activeFlags[0].created_at).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-
-        {/* 1. Why It Was Flagged */}
-        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">
-              {t("icon_help", "help")}
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-              {t("flag_res_why_title", "Why This Item Was Flagged")}
-            </span>
-          </div>
-          <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
-            {whyText}
-          </p>
-        </div>
-
-        {/* 2. What The Issue Was */}
-        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] flex flex-col gap-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined !text-[16px] text-[var(--danger)]">
-                {t("icon_report_problem", "report_problem")}
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                {t("flag_res_issue_title", "What the Issue Was")}
-              </span>
-            </div>
-          </div>
-
-          {hasFlags ? (
-            <div className="flex flex-col gap-2">
-              {activeFlags.map((flag: any, idx: number) => (
-                <div
-                  key={flag.id || idx}
-                  className="p-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5"
-                >
-                  <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                    <span className="flex items-center gap-1.5 truncate">
-                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                        {t("icon_person", "person")}
-                      </span>
-                      <span>
-                        {t("by_prefix", "By")}{" "}
-                        {flag.reporter_name || t("anonymous", "Anonymous")}
-                      </span>
-                    </span>
-                    {flag.created_at && (
-                      <span className="opacity-75 shrink-0">
-                        {new Date(flag.created_at).toLocaleDateString()}
-                      </span>
+    <>
+      <UniversalGroup
+        title={t("flag_res_dossier_title", "Flag & Resolution Dossier")}
+        icon={t("icon_flag", "flag")}
+        headerColorClass="text-[var(--danger)]"
+      >
+        <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-4">
+          {/* Header Callout + Telemetry Chips */}
+          <div className="flex flex-col gap-3 pb-3.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                <span className="material-symbols-outlined !text-[20px]">
+                  {t("icon_report_problem", "report_problem")}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                    {assetType === "blueprint" && hasViolations
+                      ? t("nexus_flag_title", "{Nexus} Compliance Flag")
+                      : t("flag_res_why_title", "Why This Item Was Flagged")}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {hasViolations && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                          {t("icon_gpp_bad", "gpp_bad")}
+                        </span>
+                        <span>
+                          {complianceViolations.length.toLocaleString()} {t("flagged", "Flagged")}
+                        </span>
+                      </div>
+                    )}
+                    {hasFlags && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                          {t("icon_flag", "flag")}
+                        </span>
+                        <span>
+                          {activeFlags.length} {t("flag_res_reports_count", "Active Report(s)")}
+                        </span>
+                      </div>
+                    )}
+                    {isHidden && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                          {t("icon_visibility_off", "visibility_off")}
+                        </span>
+                        <span>{t("reply_hidden", "Hidden")}</span>
+                      </div>
+                    )}
+                    {isOutdated && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                          {t("icon_update", "update")}
+                        </span>
+                        <span>{t("status_outdated", "Outdated")}</span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs font-bold text-[var(--text)] leading-relaxed">
-                    {flag.reason ||
-                      flag.description ||
-                      t(
-                        "flag_res_default_issue_desc",
-                        "Reported for missing keys, broken formatting, or version incompatibility."
-                      )}
-                  </p>
                 </div>
-              ))}
+                <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+                  {whyText}
+                </p>
+              </div>
             </div>
-          ) : (
-            <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
-              {isOutdated
-                ? t(
-                    "flag_res_outdated_issue_desc",
-                    "This asset's recorded game or OS version is older than the current active release."
-                  )
-                : t(
-                    "flag_res_default_issue_desc",
-                    "Reported for missing keys, broken formatting, or version incompatibility."
+          </div>
+
+          {/* Reported Issue / Diagnostic Summary */}
+          {hasFlags && (
+            <div className="flex flex-col gap-2">
+              {activeFlags.map((flag: any, idx: number) => {
+                const rawReason = String(flag.reason || flag.description || "");
+                const isAutoAuditReport = /^Nexus Compliance Audit:/i.test(rawReason);
+                const cleanReasonText =
+                  isAutoAuditReport && hasViolations
+                    ? t(
+                        "flag_res_bp_audit_summary",
+                        "Automated Tier 0 Compliance Audit — Only verified Tier 0 {mods} with Stable status are permitted in {Nexus} {Blueprints}."
+                      )
+                    : rawReason
+                      ? rawReason.replace(/\s+\?\s+/g, " — ")
+                      : t(
+                          "flag_res_default_issue_desc",
+                          "Reported for missing keys, broken formatting, or version incompatibility."
+                        );
+
+                return (
+                  <div
+                    key={flag.id || idx}
+                    className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                          {isAutoAuditReport
+                            ? t("icon_shield", "shield")
+                            : t("icon_person", "person")}
+                        </span>
+                        <span>
+                          {t("by_prefix", "By")}{" "}
+                          {flag.reporter_name || t("anonymous", "Anonymous")}
+                        </span>
+                      </span>
+                      {flag.created_at && (
+                        <span className="opacity-75 shrink-0">
+                          {new Date(flag.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-[var(--text)] leading-relaxed">
+                      {cleanReasonText}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Flagged Artifacts Preview (First 4 + SidePanel Button for Rest) */}
+          {hasViolations && (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                    {t("nexus_flag_title", "{Nexus} Compliance Flag")} (
+                    {complianceViolations.length.toLocaleString()})
+                  </span>
+                  {complianceViolations.length > 4 && (
+                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75">
+                      •{" "}
+                      {t("flag_res_showing_preview_count", "Showing {0} of {1}")
+                        .replace("{0}", String(inlinePreviewViolations.length))
+                        .replace("{1}", complianceViolations.length.toLocaleString())}
+                    </span>
                   )}
-            </p>
+                </div>
+                <span className="text-[10px] font-bold text-[var(--accent)] flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[13px]">
+                    {t("icon_touch_app", "touch_app")}
+                  </span>
+                  {t("flag_res_inspect_dossier_hint", "Click any {mod} to open its Dossier")}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                {inlinePreviewViolations.map((v, vIdx) => renderViolationCard(v, vIdx))}
+              </div>
+
+              {complianceViolations.length > 4 && (
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_list_alt", "list_alt")}
+                  label={`${t("flag_res_view_all_flagged", "View All Flagged {Mods}")} (${complianceViolations.length.toLocaleString()})`}
+                  onClick={() => {
+                    setVisibleViolationCount(36);
+                    setIsViolationsPanelOpen(true);
+                  }}
+                  className="w-full justify-center"
+                />
+              )}
+            </div>
           )}
 
           {lexiconParity && (lexiconParity.missing > 0 || lexiconParity.deprecated > 0) && (
-            <div className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] flex items-center gap-2 text-[11px] font-bold text-[var(--text)]">
-              <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
-                {t("icon_fact_check", "fact_check")}
-              </span>
-              <span>
-                {t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")}{" "}
-                {lexiconParity.missing} {t("flag_res_missing_keys", "missing keys")} •{" "}
-                {lexiconParity.deprecated} {t("flag_res_deprecated_keys", "deprecated keys")}
-              </span>
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 text-xs font-bold text-[var(--text)]">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
+                    {t("icon_fact_check", "fact_check")}
+                  </span>
+                  <span>
+                    {t("flag_res_lexicon_parity_prefix", "Automated {Lexicon} Check:")}{" "}
+                    {lexiconParity.missing} {t("flag_res_missing_keys", "missing keys")} •{" "}
+                    {lexiconParity.deprecated} {t("flag_res_deprecated_keys", "deprecated keys")}
+                  </span>
+                </div>
+                {(lexiconParity.missingKeys.length > 0 || lexiconParity.deprecatedKeys.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllLexiconKeys((prev) => !prev)}
+                    className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                  >
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                      {showAllLexiconKeys
+                        ? t("icon_expand_less", "expand_less")
+                        : t("icon_expand_more", "expand_more")}
+                    </span>
+                    <span>
+                      {showAllLexiconKeys ? t("close", "Close") : t("btn_inspect", "Inspect")}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {showAllLexiconKeys && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  {lexiconParity.missingKeys.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--warning)]">
+                        {t("flag_res_missing_keys", "Missing Keys")} ({lexiconParity.missingKeys.length})
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                        {lexiconParity.missingKeys.slice(0, 120).map((k) => (
+                          <code
+                            key={`miss_${k}`}
+                            className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono font-bold text-[var(--text)]"
+                          >
+                            {k}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {lexiconParity.deprecatedKeys.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("flag_res_deprecated_keys", "Deprecated Keys")} ({lexiconParity.deprecatedKeys.length})
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                        {lexiconParity.deprecatedKeys.slice(0, 80).map((k) => (
+                          <code
+                            key={`dep_${k}`}
+                            className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono font-bold text-[var(--subtext)]"
+                          >
+                            {k}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Resolution Steps & Action (shown to creators or when onResubmit is provided) */}
+          {!isModerationView && (
+            <div className="pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
+                  {t("icon_task_alt", "task_alt")}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                  {t("flag_res_how_title", "How to Resolve & Resubmit")}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 text-xs font-semibold text-[var(--subtext)]">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                    1
+                  </span>
+                  <span className="leading-relaxed">
+                    {assetType === "blueprint" && hasViolations
+                      ? t(
+                          "flag_res_bp_step_1",
+                          "Click any flagged {mod} below to open its Dossier and inspect its current verification status or safety tier."
+                        )
+                      : t(
+                          "flag_res_step1_nexus",
+                          "Fix the reported issue in your local editor or use Replace below to attach your updated file."
+                        )}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                    2
+                  </span>
+                  <span className="leading-relaxed">
+                    {assetType === "blueprint" && hasViolations
+                      ? t(
+                          "flag_res_bp_step_2",
+                          "Verify those {mods} in your {Vault} / {Lab}, or let Sanctuary automatically strip non-compliant {mods} from this {Blueprint}."
+                        )
+                      : t(
+                          "flag_res_step2_nexus",
+                          "Increment the Revision number (e.g. 1.0.1 → 1.0.2) and describe your fix in What's New."
+                        )}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
+                    3
+                  </span>
+                  <span className="leading-relaxed">
+                    {assetType === "blueprint" && hasViolations
+                      ? t(
+                          "flag_res_bp_step_3",
+                          "Click Remove Non-Compliant & Re-Upload below to publish the sanitized {Blueprint} and clear the {Nexus} flag."
+                        )
+                      : t(
+                          "flag_res_step3_nexus",
+                          "Click Resolve & Resubmit below to publish the updated build, restore public visibility, and clear the active flag."
+                        )}
+                  </span>
+                </div>
+              </div>
+
+              {onResubmit && (
+                <div className="pt-1">
+                  <ActionButton
+                    variant="primary"
+                    icon={t("icon_published_with_changes", "published_with_changes")}
+                    label={
+                      assetType === "blueprint" && hasViolations
+                        ? t("btn_sanitize_reupload", "Remove Non-Compliant & Re-Upload")
+                        : t("flag_res_btn_resubmit", "Resolve & Resubmit Fix")
+                    }
+                    onClick={onResubmit}
+                    disabled={disabled}
+                    className="w-full justify-center"
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
+      </UniversalGroup>
 
-        {/* 3. How To Resolve & Resubmit */}
-        <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--success)_28%,transparent)] flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
-              {t("icon_task_alt", "task_alt")}
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-              {t("flag_res_how_title", "How to Resolve & Resubmit")}
-            </span>
-          </div>
+      {/* Stacked SidePanel for Inspecting All Flagged Artifacts */}
+      {hasViolations && (
+        <SidePanel
+          isOpen={isViolationsPanelOpen}
+          onClose={() => setIsViolationsPanelOpen(false)}
+          title={t("flag_res_flagged_panel_title", "Flagged {Mods} Inspector")}
+          subtitle={t(
+            "flag_res_flagged_panel_sub",
+            "Non-Tier-0 or Unverified {Mods} Detected in {Blueprint}"
+          )}
+          icon={t("icon_gpp_bad", "gpp_bad")}
+          iconColorClass="text-[var(--danger)]"
+          widthClass="w-[92vw] md:w-[680px]"
+          backdropZ="z-[70000]"
+          panelZ="z-[70001]"
+        >
+          <div className="flex flex-col gap-4 mt-2 pb-10">
+            <SidePanelHeroCard
+              icon={t("icon_gpp_bad", "gpp_bad")}
+              overline={t("nexus_flag_title", "{Nexus} Compliance Flag")}
+              title={`${complianceViolations.length.toLocaleString()} ${t("flagged", "Flagged")} ${t("mods", "{Mods}")}`}
+              description={t(
+                "nexus_flag_tier0_desc",
+                "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–5 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
+              )}
+              variant="danger"
+            >
+              {onResubmit && (
+                <div className="flex items-center justify-end pt-1">
+                  <ActionButton
+                    variant="primary"
+                    icon={t("icon_published_with_changes", "published_with_changes")}
+                    label={t("btn_sanitize_reupload", "Remove Non-Compliant & Re-Upload")}
+                    onClick={() => {
+                      setIsViolationsPanelOpen(false);
+                      onResubmit();
+                    }}
+                    disabled={disabled}
+                  />
+                </div>
+              )}
+            </SidePanelHeroCard>
 
-          <div className="flex flex-col gap-2 text-xs font-semibold text-[var(--subtext)]">
-            <div className="flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
-                1
+            <ActionPill
+              searchQuery={violationSearch}
+              setSearchQuery={(val: string) => {
+                setViolationSearch(val);
+                setVisibleViolationCount(36);
+              }}
+              searchPlaceholder={t("search_ph", "Search {mods}...")}
+              primaryPopover={{
+                icon: t("icon_tune", "tune"),
+                label:
+                  violationReasonFilter !== "ALL"
+                    ? `${t("filters", "Filters")} (1)`
+                    : t("filters", "Filters"),
+                content: (
+                  <div className="flex flex-col w-[320px] p-3.5 max-w-[calc(100vw-40px)] gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1 px-1 flex items-center gap-2">
+                      {t("filter_status", "Filter Status")}
+                      <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { id: "ALL", label: t("all", "All") },
+                        { id: "Unknown", label: t("unknown", "Unknown") },
+                        { id: "Unverified", label: t("unverified", "Unverified") },
+                        { id: "Corrupted", label: t("status_corrupted", "Corrupted") },
+                        { id: "Unstable", label: t("status_unstable", "Unstable") },
+                        { id: "Under Review", label: t("status_under_review", "Under Review") },
+                        { id: "TIER", label: `${t("stat_tier", "Tier")} 1–5` },
+                      ].map((opt) => {
+                        const active = violationReasonFilter === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setViolationReasonFilter(opt.id);
+                              setVisibleViolationCount(36);
+                            }}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ),
+              }}
+            />
+
+            <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+              <span>
+                {filteredViolations.length.toLocaleString()} {t("mods", "{Mods}")}
               </span>
-              <span className="leading-relaxed">
-                {t(
-                  "flag_res_step1_nexus",
-                  "Fix the reported issue in your local editor or use Replace below to attach your updated file."
-                )}
+              <span className="text-[var(--accent)] flex items-center gap-1">
+                <span className="material-symbols-outlined !text-[13px]">
+                  {t("icon_touch_app", "touch_app")}
+                </span>
+                {t("flag_res_inspect_dossier_hint", "Click any {mod} to open its Dossier")}
               </span>
             </div>
-            <div className="flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
-                2
-              </span>
-              <span className="leading-relaxed">
-                {t(
-                  "flag_res_step2_nexus",
-                  "Increment the Revision number (e.g. 1.0.1 → 1.0.2) and describe your fix in What's New."
-                )}
-              </span>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <span className="w-5 h-5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
-                3
-              </span>
-              <span className="leading-relaxed">
-                {t(
-                  "flag_res_step3_nexus",
-                  "Click Resolve & Resubmit below to publish the updated build, restore public visibility, and clear the active flag."
-                )}
-              </span>
-            </div>
-          </div>
 
-          {onResubmit && (
-            <div className="pt-1">
+            {filteredViolations.length === 0 ? (
+              <EmptyState
+                icon={t("icon_search_off", "search_off")}
+                title={t("empty_title", "No matching {mods} found")}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                {filteredViolations
+                  .slice(0, visibleViolationCount)
+                  .map((v, vIdx) => renderViolationCard(v, vIdx))}
+              </div>
+            )}
+
+            {filteredViolations.length > visibleViolationCount && (
               <ActionButton
-                variant="primary"
-                icon={t("icon_published_with_changes", "published_with_changes")}
-                label={t("flag_res_btn_resubmit", "Resolve & Resubmit Fix")}
-                onClick={onResubmit}
-                disabled={disabled}
+                variant="glass"
+                icon={t("icon_expand_more", "expand_more")}
+                label={`${t("load_more_artifacts", "Load More Artifacts")} (${(
+                  filteredViolations.length - visibleViolationCount
+                ).toLocaleString()})`}
+                onClick={() => setVisibleViolationCount((prev) => prev + 60)}
                 className="w-full justify-center"
               />
-            </div>
-          )}
-        </div>
-      </div>
-    </UniversalGroup>
+            )}
+          </div>
+        </SidePanel>
+      )}
+    </>
   );
 }
 
@@ -909,22 +1372,23 @@ function extractSpecificSubfolder(rawPath: string, activeGameSchema?: any): stri
   return null;
 }
 
-export function groupBlueprintArtifactsByFamily(
-  rawArtifacts: any[],
-  options: {
-    modList?: any[];
-    activeGameSchema?: any;
-    localVaultHashes?: Set<string>;
-    cloudEnrichmentMap?: Map<string, any>;
-  } = {}
-): any[] {
-  if (!Array.isArray(rawArtifacts) || rawArtifacts.length === 0) return [];
+interface VaultLookupCacheEntry {
+  localByHash: Map<string, any>;
+  localByExact: Map<string, any>;
+  localByFile: Map<string, any>;
+  localByBase: Map<string, any>;
+  virtualByFamilyId: Map<string, any>;
+  parentByDbId: Map<string, any>;
+}
 
-  const allVaultMods = Array.isArray(options.modList) ? options.modList : [];
-  const activeGameSchema = options.activeGameSchema;
-  const extRegex = getExtensionRegex(activeGameSchema);
-  const localVaultHashes = options.localVaultHashes || new Set<string>();
-  const cloudEnrichmentMap = options.cloudEnrichmentMap;
+const vaultLookupWeakCache = new WeakMap<any[], VaultLookupCacheEntry>();
+let cachedNexusItemsRef: any[] | null = null;
+let cachedNexusParentByHash = new Map<string, any>();
+let cachedNexusParentByNorm = new Map<string, any>();
+
+function getOrBuildVaultLookup(allVaultMods: any[], extRegex: RegExp): VaultLookupCacheEntry {
+  const existing = vaultLookupWeakCache.get(allVaultMods);
+  if (existing) return existing;
 
   const localByHash = new Map<string, any>();
   const localByExact = new Map<string, any>();
@@ -968,11 +1432,29 @@ export function groupBlueprintArtifactsByFamily(
     }
   }
 
-  // Also index in-memory Nexus items (already grouped by family/collection on The Nexus)
-  const nexusParentByHash = new Map<string, any>();
-  const nexusParentByNorm = new Map<string, any>();
+  const built: VaultLookupCacheEntry = {
+    localByHash,
+    localByExact,
+    localByFile,
+    localByBase,
+    virtualByFamilyId,
+    parentByDbId,
+  };
+  vaultLookupWeakCache.set(allVaultMods, built);
+  return built;
+}
+
+function getOrBuildNexusParentLookup() {
   try {
     const nexusItems: any[] = (window as any).__sanctuaryCache?.nexus?.nexusItems || [];
+    if (nexusItems === cachedNexusItemsRef) {
+      return {
+        nexusParentByHash: cachedNexusParentByHash,
+        nexusParentByNorm: cachedNexusParentByNorm,
+      };
+    }
+    const nexusParentByHash = new Map<string, any>();
+    const nexusParentByNorm = new Map<string, any>();
     for (const ni of nexusItems) {
       if (!ni) continue;
       if ((ni.isParent || ni.isVirtual || ni.isCollection) && Array.isArray(ni.flavors)) {
@@ -996,9 +1478,247 @@ export function groupBlueprintArtifactsByFamily(
         }
       }
     }
+    cachedNexusItemsRef = nexusItems;
+    cachedNexusParentByHash = nexusParentByHash;
+    cachedNexusParentByNorm = nexusParentByNorm;
+    return { nexusParentByHash, nexusParentByNorm };
   } catch {
-    // ignore cache access errors
+    return {
+      nexusParentByHash: cachedNexusParentByHash,
+      nexusParentByNorm: cachedNexusParentByNorm,
+    };
   }
+}
+
+export interface BlueprintComplianceViolation {
+  name: string;
+  cleanName: string;
+  hash: string;
+  reason: string;
+  tier: number | null;
+  modId?: string;
+  author?: string;
+  status?: string;
+}
+
+export interface BlueprintComplianceAuditResult {
+  blueprintId: any;
+  isCompliant: boolean;
+  violations: BlueprintComplianceViolation[];
+  compliantArtifacts: any[];
+}
+
+export async function auditBlueprintsTier0Compliance(
+  supabaseClient: any,
+  blueprints: any[],
+  options: { autoFlagInDb?: boolean; existingPendingReportBpIds?: Set<any> } = {}
+): Promise<Map<any, BlueprintComplianceAuditResult>> {
+  const results = new Map<any, BlueprintComplianceAuditResult>();
+  if (!Array.isArray(blueprints) || blueprints.length === 0) return results;
+
+  const allHashesSet = new Set<string>();
+  for (const bp of blueprints) {
+    const rawArts =
+      bp?.artifacts || bp?.json_data?.artifacts || bp?.originalBlueprint?.artifacts || [];
+    if (!Array.isArray(rawArts)) continue;
+    for (const art of rawArts) {
+      const h = typeof art === "object" && art?.hash ? String(art.hash).trim() : "";
+      if (h) allHashesSet.add(h);
+    }
+  }
+
+  const verifiedHashMap = new Map<
+    string,
+    { id: string; name: string; author: string; complianceTier: number; status: string }
+  >();
+  const allHashes = Array.from(allHashesSet);
+  const chunkSize = 200;
+
+  if (allHashes.length > 0) {
+    const promises = [];
+    for (let i = 0; i < allHashes.length; i += chunkSize) {
+      const chunk = allHashes.slice(i, i + chunkSize);
+      promises.push(
+        supabaseClient
+          .from("mod_versions")
+          .select("dna_hash, mods(id, name, master_author, compliance_tier, status)")
+          .in("dna_hash", chunk)
+      );
+    }
+    const responses = await Promise.all(promises);
+    for (const res of responses) {
+      if (!res?.error && Array.isArray(res?.data)) {
+        for (const row of res.data) {
+          const dbMod = Array.isArray(row.mods) ? row.mods[0] : row.mods;
+          if (row.dna_hash && dbMod?.id) {
+            verifiedHashMap.set(String(row.dna_hash), {
+              id: String(dbMod.id),
+              name: String(dbMod.name || ""),
+              author: String(dbMod.master_author || ""),
+              complianceTier:
+                typeof dbMod.compliance_tier === "number" ? dbMod.compliance_tier : -1,
+              status: String(dbMod.status || ""),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const bp of blueprints) {
+    if (!bp) continue;
+    const rawArts =
+      bp.artifacts || bp.json_data?.artifacts || bp.originalBlueprint?.artifacts || [];
+    const violations: BlueprintComplianceViolation[] = [];
+    const compliantArtifacts: any[] = [];
+
+    if (Array.isArray(rawArts)) {
+      for (const art of rawArts) {
+        const rawName =
+          typeof art === "string" ? art : String(art?.name || art?.path || "");
+        if (
+          !rawName ||
+          rawName.startsWith("FOLDER_") ||
+          rawName.startsWith("SET_") ||
+          rawName.startsWith("LOCAL_SET_")
+        ) {
+          continue;
+        }
+        const cleanName = rawName.split(/[\\/]/).pop() || rawName;
+        const hash = typeof art === "object" && art?.hash ? String(art.hash).trim() : "";
+        const artAuthor =
+          typeof art === "object" && art?.author && String(art.author).toLowerCase() !== "unknown"
+            ? String(art.author)
+            : "";
+        const verified = hash ? verifiedHashMap.get(hash) : undefined;
+        const rawStatus = verified ? verified.status.toLowerCase().trim() : "";
+        const isVerifiedStable =
+          rawStatus === "stable" || rawStatus === "verified" || rawStatus === "approved";
+
+        if (!hash || !verified) {
+          violations.push({
+            name: rawName,
+            cleanName,
+            hash,
+            reason: "Unknown",
+            tier: null,
+            author: artAuthor || undefined,
+          });
+        } else if (verified.complianceTier !== 0) {
+          violations.push({
+            name: rawName,
+            cleanName: verified.name || cleanName,
+            hash,
+            modId: verified.id,
+            author: verified.author || artAuthor || undefined,
+            status: verified.status,
+            reason: `Tier ${verified.complianceTier}`,
+            tier: verified.complianceTier,
+          });
+        } else if (!isVerifiedStable) {
+          const reasonLabel =
+            rawStatus === "unknown" || rawStatus === ""
+              ? "Unknown"
+              : rawStatus === "unverified"
+                ? "Unverified"
+                : rawStatus === "broken" || rawStatus === "corrupted"
+                  ? "Corrupted"
+                  : rawStatus === "unstable"
+                    ? "Unstable"
+                    : rawStatus === "under_review" || rawStatus === "under review"
+                      ? "Under Review"
+                      : "Unverified";
+          violations.push({
+            name: rawName,
+            cleanName: verified.name || cleanName,
+            hash,
+            modId: verified.id,
+            author: verified.author || artAuthor || undefined,
+            status: verified.status,
+            reason: reasonLabel,
+            tier: verified.complianceTier,
+          });
+        } else {
+          compliantArtifacts.push(art);
+        }
+      }
+    }
+
+    const isCompliant = violations.length === 0;
+    results.set(bp.id, {
+      blueprintId: bp.id,
+      isCompliant,
+      violations,
+      compliantArtifacts,
+    });
+
+    if (options.autoFlagInDb && !isCompliant && bp.id) {
+      const alreadyFlagged = options.existingPendingReportBpIds?.has(bp.id);
+      if (!alreadyFlagged) {
+        try {
+          const { data: existingRows } = await supabaseClient
+            .from("blueprint_reports")
+            .select("id")
+            .eq("blueprint_id", bp.id)
+            .eq("status", "pending")
+            .limit(1);
+
+          if (!existingRows || existingRows.length === 0) {
+            const reasonText = `Nexus Compliance Audit: Blueprint contains ${violations.length.toLocaleString()} non-Tier-0 or unverified artifact(s). Only verified Tier 0 artifacts with Stable status are permitted in Nexus Blueprints. Review and re-upload when compliant.`;
+
+            await supabaseClient.from("blueprint_reports").insert([
+              {
+                blueprint_id: bp.id,
+                reporter_name: "Sanctuary OS Automated Compliance",
+                reason: reasonText,
+                status: "pending",
+              },
+            ]);
+          }
+
+          if (bp.compliance_tier === 0 || bp.is_market_listed === true) {
+            await supabaseClient
+              .from("blueprints")
+              .update({ compliance_tier: 1, is_market_listed: false })
+              .eq("id", bp.id);
+          }
+        } catch (err) {
+          console.warn("Automated blueprint compliance flag error:", err);
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+export function groupBlueprintArtifactsByFamily(
+  rawArtifacts: any[],
+  options: {
+    modList?: any[];
+    activeGameSchema?: any;
+    localVaultHashes?: Set<string>;
+    cloudEnrichmentMap?: Map<string, any>;
+  } = {}
+): any[] {
+  if (!Array.isArray(rawArtifacts) || rawArtifacts.length === 0) return [];
+
+  const allVaultMods = Array.isArray(options.modList) ? options.modList : [];
+  const activeGameSchema = options.activeGameSchema;
+  const extRegex = getExtensionRegex(activeGameSchema);
+  const localVaultHashes = options.localVaultHashes || new Set<string>();
+  const cloudEnrichmentMap = options.cloudEnrichmentMap;
+
+  const {
+    localByHash,
+    localByExact,
+    localByFile,
+    localByBase,
+    virtualByFamilyId,
+    parentByDbId,
+  } = getOrBuildVaultLookup(allVaultMods, extRegex);
+
+  const { nexusParentByHash, nexusParentByNorm } = getOrBuildNexusParentLookup();
 
   // Pre-scan counts for multi-module suites and shared folders
   let mcCount = 0;
@@ -1247,26 +1967,34 @@ export function groupBlueprintArtifactsByFamily(
     }
   }
 
-  // Second pass: merge prefix-based Addons/Modules into their parent mod card if present
+  // Second pass: merge prefix-based Addons/Modules into their parent mod card in O(N log N)
   const entries = Array.from(grouped.values());
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const tStr = String(e._groupedTitle || "").trim();
+    e._cleanTitle = tStr;
+    e._lowerTitle = tStr.toLowerCase();
+  }
+  entries.sort((a, b) => (a._lowerTitle < b._lowerTitle ? -1 : a._lowerTitle > b._lowerTitle ? 1 : 0));
+
   const mergedOut = new Set<number>();
 
   for (let i = 0; i < entries.length; i++) {
     if (mergedOut.has(i)) continue;
     const parent = entries[i];
-    const pTitle = String(parent._groupedTitle || "").trim();
+    const pTitle: string = parent._cleanTitle;
     if (pTitle.length < 4) continue;
-    const pLower = pTitle.toLowerCase();
+    const pLower: string = parent._lowerTitle;
 
-    for (let j = 0; j < entries.length; j++) {
-      if (i === j || mergedOut.has(j)) continue;
+    for (let j = i + 1; j < entries.length; j++) {
+      if (mergedOut.has(j)) continue;
       const candidate = entries[j];
-      const cTitle = String(candidate._groupedTitle || "").trim();
-      const cLower = cTitle.toLowerCase();
+      const cLower: string = candidate._lowerTitle;
+      if (!cLower.startsWith(pLower)) break;
 
+      const cTitle: string = candidate._cleanTitle;
       const isPrefixAddon =
         cLower.length > pLower.length &&
-        cLower.startsWith(pLower) &&
         /^(\s*[-:–_(\[]|\s+(addon|add-on|module|modules|pack|part|pt|script|scripts|tuning|strings|override|overrides)\b)/i.test(
           cTitle.slice(pTitle.length)
         );
@@ -1715,6 +2443,8 @@ export function MarketBlueprintPanel({
   onOpenDossier,
   syncBlueprintByCode,
   onDownloadSuccess,
+  backdropZ = "z-[15000]",
+  panelZ = "z-[15001]",
 }: any) {
   const { t } = useLexicon();
 
@@ -1722,8 +2452,14 @@ export function MarketBlueprintPanel({
   const [cloudEnrichmentMap, setCloudEnrichmentMap] = useState<Map<string, any>>(
     () => new Map()
   );
-  const [visibleCount, setVisibleCount] = useState(100);
-  const [filterTab, setFilterTab] = useState<"ALL" | "MISSING">("ALL");
+  const [visibleCount, setVisibleCount] = useState(40);
+  const [filterTab, setFilterTab] = useState<"ALL" | "MISSING" | "IN_VAULT">("ALL");
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "PACKAGE" | "SCRIPT" | "SUITE">("ALL");
+  const [accessFilter, setAccessFilter] = useState<"ALL" | "FREE" | "EARLY_ACCESS" | "PAID">("ALL");
+  const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
+  const [sortBy, setSortBy] = useState<
+    "default" | "name_asc" | "creator_asc" | "modules_desc" | "load_order"
+  >("default");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const modList = useStore((state) => state.modList);
@@ -1770,11 +2506,78 @@ export function MarketBlueprintPanel({
     [allGroupedFamilies]
   );
 
+  const availableCreators = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const f of allGroupedFamilies) {
+      const c = extractValidCreator(f, ...(Array.isArray(f._groupedMods) ? f._groupedMods : []));
+      if (c) {
+        const clean = formatCleanModTitle(c) || c;
+        counts.set(clean, (counts.get(clean) || 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ id: name, label: `${name} (${count})` }));
+  }, [allGroupedFamilies]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterTab !== "ALL") count++;
+    if (typeFilter !== "ALL") count++;
+    if (accessFilter !== "ALL") count++;
+    if (creatorFilter !== "ALL") count++;
+    if (sortBy !== "default") count++;
+    return count;
+  }, [filterTab, typeFilter, accessFilter, creatorFilter, sortBy]);
+
+  const resetAllFilters = () => {
+    setFilterTab("ALL");
+    setTypeFilter("ALL");
+    setAccessFilter("ALL");
+    setCreatorFilter("ALL");
+    setSortBy("default");
+    setVisibleCount(40);
+  };
+
   const displayArtifacts = useMemo(() => {
     let filtered = allGroupedFamilies;
     if (filterTab === "MISSING") {
       filtered = filtered.filter((f: any) => !f._allOwned);
+    } else if (filterTab === "IN_VAULT") {
+      filtered = filtered.filter((f: any) => Boolean(f._allOwned));
     }
+
+    if (typeFilter !== "ALL") {
+      filtered = filtered.filter((f: any) => {
+        const gMods = Array.isArray(f._groupedMods) && f._groupedMods.length > 0 ? f._groupedMods : [f];
+        const hasScript = gMods.some((gm: any) =>
+          /\.ts4script$/i.test(String(gm?._cleanFilePart || gm?.name || ""))
+        );
+        const isSuite = Boolean(f.isCollection || gMods.length > 1);
+        if (typeFilter === "SUITE") return isSuite;
+        if (typeFilter === "SCRIPT") return hasScript;
+        if (typeFilter === "PACKAGE") return !hasScript && !isSuite;
+        return true;
+      });
+    }
+
+    if (accessFilter !== "ALL") {
+      filtered = filtered.filter((f: any) => {
+        if (accessFilter === "PAID") return Boolean(f.is_paid);
+        if (accessFilter === "EARLY_ACCESS") return Boolean(f.is_early_access);
+        if (accessFilter === "FREE") return !f.is_paid && !f.is_early_access;
+        return true;
+      });
+    }
+
+    if (creatorFilter !== "ALL") {
+      filtered = filtered.filter((f: any) => {
+        const c = extractValidCreator(f, ...(Array.isArray(f._groupedMods) ? f._groupedMods : []));
+        const clean = c ? formatCleanModTitle(c) || c : "";
+        return clean.toLowerCase() === creatorFilter.toLowerCase();
+      });
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       filtered = filtered.filter((f: any) => {
@@ -1795,8 +2598,54 @@ export function MarketBlueprintPanel({
         return false;
       });
     }
+
+    if (sortBy !== "default") {
+      filtered = [...filtered].sort((a: any, b: any) => {
+        if (sortBy === "name_asc") {
+          return String(a._groupedTitle || a.name || "").localeCompare(
+            String(b._groupedTitle || b.name || "")
+          );
+        }
+        if (sortBy === "creator_asc") {
+          const ca =
+            extractValidCreator(a, ...(Array.isArray(a._groupedMods) ? a._groupedMods : [])) ||
+            "zzzz";
+          const cb =
+            extractValidCreator(b, ...(Array.isArray(b._groupedMods) ? b._groupedMods : [])) ||
+            "zzzz";
+          const cmp = ca.localeCompare(cb);
+          if (cmp !== 0) return cmp;
+          return String(a._groupedTitle || a.name || "").localeCompare(
+            String(b._groupedTitle || b.name || "")
+          );
+        }
+        if (sortBy === "modules_desc") {
+          const ma = Number(a._moduleCount || a._groupedMods?.length || 1);
+          const mb = Number(b._moduleCount || b._groupedMods?.length || 1);
+          if (mb !== ma) return mb - ma;
+          return String(a._groupedTitle || a.name || "").localeCompare(
+            String(b._groupedTitle || b.name || "")
+          );
+        }
+        if (sortBy === "load_order") {
+          const la = typeof a.load_order_index === "number" ? a.load_order_index : 999999;
+          const lb = typeof b.load_order_index === "number" ? b.load_order_index : 999999;
+          return la - lb;
+        }
+        return 0;
+      });
+    }
+
     return filtered;
-  }, [allGroupedFamilies, filterTab, searchQuery]);
+  }, [
+    allGroupedFamilies,
+    filterTab,
+    typeFilter,
+    accessFilter,
+    creatorFilter,
+    searchQuery,
+    sortBy,
+  ]);
 
   const visibleArtifacts = useMemo(
     () => displayArtifacts.slice(0, visibleCount),
@@ -1819,6 +2668,7 @@ export function MarketBlueprintPanel({
     }
 
     let cancelled = false;
+    let enrichTimer: ReturnType<typeof setTimeout> | null = null;
 
     const processBlueprint = (bp: any) => {
       let parsedJson = bp.json_data;
@@ -1845,7 +2695,7 @@ export function MarketBlueprintPanel({
           author: selectedBlueprint.author || bp.author,
           json_data: parsedJson,
         });
-        setVisibleCount(100);
+        setVisibleCount(40);
       }
 
       const fetchCloudMetadataAndFamilies = async () => {
@@ -2003,7 +2853,10 @@ export function MarketBlueprintPanel({
         }
       };
 
-      fetchCloudMetadataAndFamilies();
+      if (enrichTimer) clearTimeout(enrichTimer);
+      enrichTimer = setTimeout(() => {
+        if (!cancelled) fetchCloudMetadataAndFamilies();
+      }, 60);
     };
 
     if (
@@ -2042,6 +2895,7 @@ export function MarketBlueprintPanel({
 
     return () => {
       cancelled = true;
+      if (enrichTimer) clearTimeout(enrichTimer);
     };
   }, [selectedBlueprint]);
 
@@ -2053,8 +2907,8 @@ export function MarketBlueprintPanel({
         isOpen={true}
         onClose={() => setSelectedBlueprint(null)}
         widthClass="w-[90vw] md:w-[760px]"
-        backdropZ="z-[15000]"
-        panelZ="z-[15001]"
+        backdropZ={backdropZ}
+        panelZ={panelZ}
         icon={t("icon_map", "map")}
         iconColorClass="text-[var(--accent)]"
         title={t("blueprint_inspector", "Blueprint Inspector")}
@@ -2208,7 +3062,10 @@ export function MarketBlueprintPanel({
               label={t("filter_all", "Global")}
               value={allGroupedFamilies.length}
               isActive={filterTab === "ALL"}
-              onClick={() => setFilterTab("ALL")}
+              onClick={() => {
+                setFilterTab("ALL");
+                setVisibleCount(40);
+              }}
             />
             <DashboardStatTile
               variant="filter"
@@ -2217,15 +3074,298 @@ export function MarketBlueprintPanel({
               label={t("filter_missing", "Missing Only")}
               value={missingFamiliesCount}
               isActive={filterTab === "MISSING"}
-              onClick={() => setFilterTab("MISSING")}
+              onClick={() => {
+                setFilterTab("MISSING");
+                setVisibleCount(40);
+              }}
             />
           </div>
 
           <ActionPill
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            setSearchQuery={(val: string) => {
+              setSearchQuery(val);
+              setVisibleCount(40);
+            }}
             searchPlaceholder={t("search_ph", "Search {mods}...")}
+            primaryPopover={{
+              icon: t("icon_tune", "tune"),
+              label:
+                activeFiltersCount > 0
+                  ? `${t("filters", "Filters")} (${activeFiltersCount})`
+                  : t("filters", "Filters"),
+              content: (
+                <div className="flex flex-col w-[450px] p-3.5 max-w-[calc(100vw-40px)] gap-3">
+                  {/* Sort By */}
+                  <div className="flex flex-col w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                      {t("sort_by", "Sort By")}
+                      <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { id: "default", label: t("sort_default", "Default") },
+                        { id: "name_asc", label: t("sort_name", "Name (A-Z)") },
+                        { id: "creator_asc", label: t("sort_author", "{Mason} (A-Z)") },
+                        { id: "modules_desc", label: t("sort_modules_desc", "Most Modules") },
+                        { id: "load_order", label: t("sort_load_order", "Load Order") },
+                      ].map((opt) => {
+                        const active = sortBy === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setSortBy(opt.id as any);
+                              setVisibleCount(40);
+                            }}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Vault Status */}
+                  <div className="flex flex-col w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                      {t("filter_status", "Filter Status")}
+                      <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {[
+                        { id: "ALL", label: t("filter_all", "Global") },
+                        { id: "MISSING", label: t("filter_missing", "Missing Only") },
+                        { id: "IN_VAULT", label: t("status_in_vault", "In {Vault}") },
+                      ].map((opt) => {
+                        const active = filterTab === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setFilterTab(opt.id as any);
+                              setVisibleCount(40);
+                            }}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Module Type */}
+                  <div className="flex flex-col w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                      {t("filter_type", "Type")}
+                      <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { id: "ALL", label: t("filter_all_types", "All Types") },
+                        { id: "PACKAGE", label: t("type_package", "Package") },
+                        { id: "SCRIPT", label: t("type_script", "Script") },
+                        { id: "SUITE", label: t("suite_label", "Suite") },
+                      ].map((opt) => {
+                        const active = typeFilter === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setTypeFilter(opt.id as any);
+                              setVisibleCount(40);
+                            }}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Access Tier */}
+                  <div className="flex flex-col w-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                      {t("filter_access_tier", "Access Tier")}
+                      <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { id: "ALL", label: t("filter_all", "All") },
+                        { id: "FREE", label: t("standard_artifacts", "Standard {Mods}") },
+                        { id: "EARLY_ACCESS", label: t("badge_early_access", "Early Access") },
+                        { id: "PAID", label: t("badge_paid", "Paid") },
+                      ].map((opt) => {
+                        const active = accessFilter === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setAccessFilter(opt.id as any);
+                              setVisibleCount(40);
+                            }}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Creator Dropdown */}
+                  {availableCreators.length > 0 && (
+                    <div className="flex flex-col w-full">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+                        {t("role_creator", "Creator")}
+                        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                      </div>
+                      <div className="h-10 w-full relative z-[60]">
+                        <CustomDropdown
+                          disableTint={true}
+                          flat={true}
+                          variant="pill"
+                          value={creatorFilter}
+                          onChange={(val: string[]) => {
+                            setCreatorFilter(val[0] || "ALL");
+                            setVisibleCount(40);
+                          }}
+                          options={[
+                            { id: "ALL", label: t("filter_all_creators", "All {Masons}") },
+                            ...availableCreators,
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeFiltersCount > 0 && (
+                    <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-end">
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_restart_alt", "restart_alt")}
+                        label={t("clear", "Clear")}
+                        onClick={resetAllFilters}
+                      />
+                    </div>
+                  )}
+                </div>
+              ),
+            }}
           />
+
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {filterTab !== "ALL" && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_filter_alt", "filter_alt")}
+                    </span>
+                    <span>
+                      {filterTab === "MISSING"
+                        ? t("filter_missing", "Missing Only")
+                        : t("status_in_vault", "In {Vault}")}
+                    </span>
+                  </span>
+                )}
+                {typeFilter !== "ALL" && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_category", "category")}
+                    </span>
+                    <span>
+                      {typeFilter === "PACKAGE"
+                        ? t("type_package", "Package")
+                        : typeFilter === "SCRIPT"
+                          ? t("type_script", "Script")
+                          : t("suite_label", "Suite")}
+                    </span>
+                  </span>
+                )}
+                {accessFilter !== "ALL" && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_workspace_premium", "workspace_premium")}
+                    </span>
+                    <span>
+                      {accessFilter === "PAID"
+                        ? t("badge_paid", "Paid")
+                        : accessFilter === "EARLY_ACCESS"
+                          ? t("badge_early_access", "Early Access")
+                          : t("standard_artifacts", "Standard {Mods}")}
+                    </span>
+                  </span>
+                )}
+                {creatorFilter !== "ALL" && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_person", "person")}
+                    </span>
+                    <span>{creatorFilter}</span>
+                  </span>
+                )}
+                {sortBy !== "default" && (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_sort", "sort")}
+                    </span>
+                    <span>
+                      {sortBy === "name_asc"
+                        ? t("sort_name", "Name (A-Z)")
+                        : sortBy === "creator_asc"
+                          ? t("sort_author", "{Mason} (A-Z)")
+                          : sortBy === "modules_desc"
+                            ? t("sort_modules_desc", "Most Modules")
+                            : t("sort_load_order", "Load Order")}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] hover:underline cursor-pointer"
+              >
+                {t("clear", "Clear")}
+              </button>
+            </div>
+          )}
 
           {premiumMods.length > 0 && (
             <UniversalGroup
@@ -2241,6 +3381,7 @@ export function MarketBlueprintPanel({
                     onOpenDossier={onOpenDossier}
                     activeGameSchema={activeGameSchema}
                     t={t}
+                    showLoadOrderChip={sortBy === "load_order"}
                   />
                 ))}
               </div>
@@ -2260,6 +3401,7 @@ export function MarketBlueprintPanel({
                     onOpenDossier={onOpenDossier}
                     activeGameSchema={activeGameSchema}
                     t={t}
+                    showLoadOrderChip={sortBy === "load_order"}
                   />
                 ))}
               </div>
@@ -2282,7 +3424,7 @@ export function MarketBlueprintPanel({
               variant="glass"
               icon={t("icon_expand_more", "expand_more")}
               label={`${t("load_more_artifacts", "Load More Artifacts")} (${displayArtifacts.length - visibleCount})`}
-              onClick={() => setVisibleCount((prev: number) => prev + 100)}
+              onClick={() => setVisibleCount((prev: number) => prev + 80)}
               className="w-full"
             />
           )}

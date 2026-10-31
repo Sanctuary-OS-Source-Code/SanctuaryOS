@@ -15,7 +15,7 @@ import {
 } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
-import { logArchitectAction } from "../lib/audit";
+import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,
@@ -31,22 +31,44 @@ let registryCache: {
   modRelationships: any[] | null;
   masonsList: any[] | null;
   lastFetch: number;
+  isComplete: boolean;
 } = {
   cloudMods: null,
   modRelationships: null,
   masonsList: null,
   lastFetch: 0,
+  isComplete: false,
 };
 let registryFetchPromise: Promise<void> | null = null;
+const registryListeners = new Set<() => void>();
+
+const notifyRegistryListeners = () => {
+  registryListeners.forEach((listener) => listener());
+};
+
+const isStableModStatus = (status?: string | null) =>
+  status === "stable" || status === "verified";
+const isUnderReviewModStatus = (status?: string | null) =>
+  status === "under_review";
+const isPendingModStatus = (status?: string | null) =>
+  status === "pending";
+const isUnknownModStatus = (status?: string | null) =>
+  !status || status === "unknown" || status === "unverified";
+const isAnomalyModStatus = (status?: string | null) =>
+  !isStableModStatus(status) &&
+  !isUnderReviewModStatus(status) &&
+  !isPendingModStatus(status) &&
+  !isUnknownModStatus(status);
 
 export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
   const isFresh =
     !forceRefresh &&
+    registryCache.isComplete &&
     registryCache.cloudMods &&
     registryCache.cloudMods.length > 0 &&
     performance.now() - registryCache.lastFetch < REGISTRY_CACHE_TTL;
   if (isFresh) return Promise.resolve();
-  if (registryFetchPromise) return registryFetchPromise;
+  if (registryFetchPromise && !forceRefresh) return registryFetchPromise;
 
   registryFetchPromise = (async () => {
     try {
@@ -59,6 +81,8 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
           (firstBatch) => {
             if (!registryCache.cloudMods || registryCache.cloudMods.length === 0) {
               registryCache.cloudMods = firstBatch;
+              registryCache.isComplete = false;
+              notifyRegistryListeners();
             }
           }
         ),
@@ -69,10 +93,14 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
         ),
         supabase.from("masons").select("id, name").order("name"),
       ]);
-      if (modsData) registryCache.cloudMods = modsData;
+      if (modsData) {
+        registryCache.cloudMods = modsData;
+        registryCache.isComplete = true;
+      }
       if (relsData) registryCache.modRelationships = relsData;
       if (masonsRes?.data) registryCache.masonsList = masonsRes.data;
       registryCache.lastFetch = performance.now();
+      notifyRegistryListeners();
     } catch (err) {
       console.error("ArchitectRegistry prefetch error:", err);
     } finally {
@@ -101,6 +129,7 @@ export function ArchitectRegistry({
   const [, setTotalCount] = useState<number>(() => registryCache.cloudMods?.length || 0);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [activeMod, setActiveMod] = useState<any | null>(null);
+  const [originalMod, setOriginalMod] = useState<any | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [masonsList, setMasonsList] = useState<any[]>(() => registryCache.masonsList || []);
 
@@ -130,7 +159,9 @@ export function ArchitectRegistry({
   useEffect(() => {
     if (initialActiveMod) {
       setStudioTab("overview");
-      setActiveMod(initialActiveMod);
+      const full = cloudMods.find((cm) => cm.id === initialActiveMod?.id) || initialActiveMod;
+      setOriginalMod(JSON.parse(JSON.stringify(full)));
+      setActiveMod(JSON.parse(JSON.stringify(full)));
       if (onClearActiveMod) onClearActiveMod();
     }
   }, [initialActiveMod]);
@@ -150,10 +181,6 @@ export function ArchitectRegistry({
   const fetchData = async (forceRefresh = false) => {
     const hasWarmCache =
       Array.isArray(registryCache.cloudMods) && registryCache.cloudMods.length > 0;
-    const isFresh =
-      !forceRefresh &&
-      hasWarmCache &&
-      performance.now() - registryCache.lastFetch < REGISTRY_CACHE_TTL;
 
     if (hasWarmCache) {
       setCloudMods(registryCache.cloudMods!);
@@ -161,54 +188,42 @@ export function ArchitectRegistry({
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
       setIsLoading(false);
+    } else {
+      setIsLoading(true);
     }
 
-    if (isFresh) return;
-
-    if (registryFetchPromise && !forceRefresh) {
-      if (!hasWarmCache) setIsLoading(true);
-      await registryFetchPromise;
+    try {
+      await prefetchArchitectRegistry(forceRefresh);
       if (registryCache.cloudMods) {
         setCloudMods(registryCache.cloudMods);
         setTotalCount(registryCache.cloudMods.length);
       }
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!hasWarmCache) setIsLoading(true);
-    try {
-      const data = await fetchAllTableRows(
-        supabase,
-        "mods",
-        "*, mod_versions(id, dna_hash, version_label, game_version)",
-        "name",
-        (firstBatch, totalCount) => {
-          if (!hasWarmCache) {
-            setCloudMods(firstBatch);
-            setTotalCount(totalCount);
-            setIsLoading(false);
-          }
-        }
-      );
-      if (data) {
-        registryCache.cloudMods = data;
-        registryCache.lastFetch = performance.now();
-        setCloudMods(data);
-        setTotalCount(data.length);
-      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    const syncFromCache = () => {
+      if (registryCache.cloudMods) {
+        setCloudMods(registryCache.cloudMods);
+        setTotalCount(registryCache.cloudMods.length);
+        setIsLoading(false);
+      }
+      if (registryCache.modRelationships) {
+        setModRelationships(registryCache.modRelationships);
+      }
+      if (registryCache.masonsList) {
+        setMasonsList(registryCache.masonsList);
+      }
+    };
+    registryListeners.add(syncFromCache);
     fetchData(false);
-    if (!registryCache.modRelationships) {
-      fetchRelationships();
-    }
+    return () => {
+      registryListeners.delete(syncFromCache);
+    };
   }, []);
 
   useEffect(() => {
@@ -277,10 +292,16 @@ export function ArchitectRegistry({
       }
 
       if (activeTab !== "overview") {
-        if (activeTab === "unknown") {
-          if (mod.status && mod.status !== "unknown" && mod.status !== "unverified") return false;
+        if (activeTab === "stable") {
+          if (!isStableModStatus(mod.status)) return false;
+        } else if (activeTab === "under_review") {
+          if (!isUnderReviewModStatus(mod.status)) return false;
+        } else if (activeTab === "pending") {
+          if (!isPendingModStatus(mod.status)) return false;
+        } else if (activeTab === "unknown") {
+          if (!isUnknownModStatus(mod.status)) return false;
         } else if (activeTab === "unstable_corrupted") {
-          if (mod.status !== "unstable" && mod.status !== "corrupted") return false;
+          if (!isAnomalyModStatus(mod.status)) return false;
         } else if (mod.status !== activeTab) {
           return false;
         }
@@ -289,6 +310,8 @@ export function ArchitectRegistry({
           if (!mod.is_paid) return false;
         } else if (statusFilter === "early_access") {
           if (!mod.is_early_access) return false;
+        } else if (statusFilter === "stable") {
+          if (!isStableModStatus(mod.status)) return false;
         } else if (mod.status !== statusFilter) {
           return false;
         }
@@ -348,6 +371,15 @@ export function ArchitectRegistry({
       p_payload: { id: newId, name: newMasonName },
     });
     if (!error) {
+      await logArchitectAction(
+        "Created Mason Entity",
+        "masons",
+        newMasonName.trim(),
+        undefined,
+        "Architect Console",
+        false,
+        { name: { to: newMasonName.trim() } }
+      );
       const { data: mData } = await supabase.from("masons").select("id, name").order("name");
       if (mData) setMasonsList(mData);
       setActiveMod({ ...activeMod, mason_id: newId });
@@ -361,34 +393,49 @@ export function ArchitectRegistry({
     if (!activeMod) return;
     setIsCommitting(true);
     try {
+      const beforeMod =
+        originalMod && originalMod.id === activeMod.id
+          ? originalMod
+          : cloudMods.find((m) => m.id === activeMod.id) || null;
+      const updatedPayload = {
+        id: activeMod.id,
+        name: activeMod.name,
+        category_override: activeMod.category_override,
+        sub_type: activeMod.sub_type,
+        file_extension: activeMod.file_extension,
+        status: activeMod.status,
+        url: activeMod.url,
+        image_url: activeMod.image_url,
+        latest_version: activeMod.latest_version,
+        description: activeMod.description,
+        compatible_versions: activeMod.compatible_versions,
+        family_slug: activeMod.family_slug,
+        mason_id: activeMod.mason_id,
+        compliance_tier: activeMod.compliance_tier,
+        is_paid: activeMod.is_paid || false,
+        is_early_access: activeMod.is_early_access || false,
+        requiredDLC: activeMod.requiredDLC || [],
+        folder_structure: activeMod.folder_structure || [],
+        updated_at: new Date().toISOString(),
+      };
       const { error } = await supabase.rpc("secure_upsert_cloud_file", {
         p_token: useStore.getState().session?.access_token || "",
         p_target: "mods",
-        p_payload: {
-          id: activeMod.id,
-          name: activeMod.name,
-          category_override: activeMod.category_override,
-          sub_type: activeMod.sub_type,
-          file_extension: activeMod.file_extension,
-          status: activeMod.status,
-          url: activeMod.url,
-          image_url: activeMod.image_url,
-          latest_version: activeMod.latest_version,
-          description: activeMod.description,
-          compatible_versions: activeMod.compatible_versions,
-          family_slug: activeMod.family_slug,
-          mason_id: activeMod.mason_id,
-          compliance_tier: activeMod.compliance_tier,
-          is_paid: activeMod.is_paid || false,
-          is_early_access: activeMod.is_early_access || false,
-          requiredDLC: activeMod.requiredDLC || [],
-          folder_structure: activeMod.folder_structure || [],
-          updated_at: new Date().toISOString(),
-        },
+        p_payload: updatedPayload,
       });
 
       if (!error) {
-        logArchitectAction(`Updated Mod Metadata`, `mods`, activeMod.name);
+        const diff = computeAuditDiff(beforeMod, updatedPayload);
+        await logArchitectAction(
+          `Updated Mod Metadata`,
+          `mods`,
+          activeMod.name || activeMod.id,
+          undefined,
+          "Architect Console",
+          false,
+          diff
+        );
+        setOriginalMod(JSON.parse(JSON.stringify(updatedPayload)));
         if (setStatus) setStatus(`${t("icon_check_circle", "check_circle")} [${activeMod.name}] ${t("alert_saved", "Saved successfully!")}`);
         useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
         setPage(0);
@@ -407,12 +454,14 @@ export function ArchitectRegistry({
 
   const openArchitectMod = (mod: any) => {
     setStudioTab("overview");
-    setActiveMod(mod);
+    const full = cloudMods.find((cm) => cm.id === mod?.id) || mod;
+    setOriginalMod(JSON.parse(JSON.stringify(full)));
+    setActiveMod(JSON.parse(JSON.stringify(full)));
   };
 
   const renderLanding = () => {
     const issuesList = displayCloudMods.filter(
-      (m) => m.status === "unstable" || m.status === "corrupted" || m.status === "under_review"
+      (m) => isAnomalyModStatus(m.status) || isUnderReviewModStatus(m.status)
     );
     return (
       <HubOverviewLanding>
@@ -524,35 +573,31 @@ export function ArchitectRegistry({
             id: "stable",
             label: t("status_stable", "STABLE"),
             icon: t("icon_verified", "verified"),
-            number: baseGroupedMods.filter((m) => m.status === "stable").length.toString(),
+            number: baseGroupedMods.filter((m) => isStableModStatus(m.status)).length.toString(),
           },
           {
             id: "under_review",
             label: t("status_dd_review", "Under Review"),
             icon: t("icon_policy", "policy"),
-            number: baseGroupedMods.filter((m) => m.status === "under_review").length.toString(),
+            number: baseGroupedMods.filter((m) => isUnderReviewModStatus(m.status)).length.toString(),
           },
           {
             id: "pending",
             label: t("pending", "Pending"),
             icon: t("icon_schedule", "schedule"),
-            number: baseGroupedMods.filter((m) => m.status === "pending").length.toString(),
+            number: baseGroupedMods.filter((m) => isPendingModStatus(m.status)).length.toString(),
           },
           {
             id: "unknown",
             label: t("unknown", "Unknown"),
             icon: t("icon_help", "help"),
-            number: baseGroupedMods
-              .filter((m) => m.status === "unknown" || !m.status || m.status === "unverified")
-              .length.toString(),
+            number: baseGroupedMods.filter((m) => isUnknownModStatus(m.status)).length.toString(),
           },
           {
             id: "unstable_corrupted",
             label: t("label_unstable", "Unstable"),
             icon: t("icon_warning", "warning"),
-            number: baseGroupedMods
-              .filter((m) => m.status === "unstable" || m.status === "corrupted")
-              .length.toString(),
+            number: baseGroupedMods.filter((m) => isAnomalyModStatus(m.status)).length.toString(),
           },
         ]}
         activeTab={activeTab}
@@ -681,7 +726,10 @@ export function ArchitectRegistry({
 
       <SidePanel
         isOpen={!!activeMod}
-        onClose={() => setActiveMod(null)}
+        onClose={() => {
+          setActiveMod(null);
+          setOriginalMod(null);
+        }}
         widthClass="w-[94vw] max-w-[1280px]"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
@@ -714,7 +762,8 @@ export function ArchitectRegistry({
             allMyMods={cloudMods}
             onSwitchMod={(m) => {
               const full = cloudMods.find((cm) => cm.id === m?.id) || m;
-              setActiveMod(full);
+              setOriginalMod(JSON.parse(JSON.stringify(full)));
+              setActiveMod(JSON.parse(JSON.stringify(full)));
             }}
             onRefreshParentList={() => {
               fetchData(true);

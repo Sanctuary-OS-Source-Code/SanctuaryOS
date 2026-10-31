@@ -95,25 +95,69 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
         const cleanName = lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName;
         const mod = byExact.get(modName) || byCleanLower.get(cleanName.toLowerCase());
+        const resolvedHash = String(mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "").trim();
+        const resolvedTier = typeof mod?.compliance_tier === "number" ? mod.compliance_tier : -1;
+        const rawStatus = String(mod?.status || "").toLowerCase().trim();
+        const isVerifiedStable =
+          rawStatus === "stable" || rawStatus === "verified" || rawStatus === "approved";
         return {
           name: modName,
-          hash: mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "",
+          hash: resolvedHash,
           url: mod?.url || targetSet.modMeta?.[modName]?.url || "",
           author: mod?.author || targetSet.modMeta?.[modName]?.author || "Unknown",
-          compliance_tier: Number(mod?.compliance_tier || 0),
-          isSynced: Boolean(mod?.isSynced && mod?.dbId && String(mod?.status || "").toLowerCase() !== "unverified"),
+          compliance_tier: resolvedTier,
+          isSynced: Boolean(resolvedHash && mod?.isSynced && mod?.dbId && isVerifiedStable),
           isVirtual: mod?.isVirtual,
         };
       }).filter((m: any) => {
         if (m.isVirtual || m.name.startsWith("FOLDER_") || m.name.startsWith("SET_") || m.name.startsWith("LOCAL_SET_")) return false;
-        if (!m.isSynced || (m.compliance_tier >= 1 && m.compliance_tier <= 5)) return false;
+        if (!m.isSynced || m.compliance_tier !== 0) return false;
         const lower = m.name.toLowerCase();
-        if (lower.includes("customchallenge_")) return true;
         return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix");
       }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
     })();
 
-    const modsToUpload = packagedLO.enrichAndSortArtifacts(rawModsToUpload);
+    // Verify candidate hashes against cloud mod_versions to enforce strict Tier 0-only compliance
+    const candidateHashes = Array.from(
+      new Set(rawModsToUpload.map((m: any) => String(m?.hash || "").trim()).filter(Boolean))
+    );
+    const verifiedTier0Hashes = new Set<string>();
+    if (candidateHashes.length > 0) {
+      const chunkSize = 200;
+      const verPromises = [];
+      for (let i = 0; i < candidateHashes.length; i += chunkSize) {
+        const chunk = candidateHashes.slice(i, i + chunkSize);
+        verPromises.push(
+          supabase
+            .from("mod_versions")
+            .select("dna_hash, mods(id, compliance_tier, status)")
+            .in("dna_hash", chunk)
+        );
+      }
+      const verResults = await Promise.all(verPromises);
+      for (const res of verResults) {
+        if (!res.error && Array.isArray(res.data)) {
+          for (const row of res.data) {
+            const dbMod: any = Array.isArray(row.mods) ? row.mods[0] : row.mods;
+            const dbStatus = String(dbMod?.status || "").toLowerCase().trim();
+            if (
+              row.dna_hash &&
+              dbMod?.id &&
+              Number(dbMod.compliance_tier ?? -1) === 0 &&
+              (dbStatus === "stable" || dbStatus === "verified" || dbStatus === "approved")
+            ) {
+              verifiedTier0Hashes.add(String(row.dna_hash));
+            }
+          }
+        }
+      }
+    }
+
+    const strictTier0Mods = rawModsToUpload.filter(
+      (m: any) => m?.hash && verifiedTier0Hashes.has(String(m.hash).trim())
+    );
+
+    const modsToUpload = packagedLO.enrichAndSortArtifacts(strictTier0Mods);
 
     const blueprintData = {
       name: targetSet.name,
@@ -129,18 +173,28 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     }
 
     try {
-      const { error } = await supabase.from('blueprints').upsert([{
+      const { data: upsertedRows, error } = await supabase.from('blueprints').upsert([{
         code: code,
         name: targetSet.name,
         artifacts: blueprintData.mods,
         mason_id: actualMasonId,
+        compliance_tier: 0,
         is_public: isPublic,
         is_locked: isLocked,
         is_market_listed: isMarketListed,
         game_version: selectedVersion
-      }], { onConflict: 'code' });
+      }], { onConflict: 'code' }).select('id');
       
       if (error) throw error;
+
+      const upsertedId = Array.isArray(upsertedRows) && upsertedRows[0]?.id ? upsertedRows[0].id : null;
+      if (upsertedId) {
+        await supabase
+          .from('blueprint_reports')
+          .update({ status: 'resolved' })
+          .eq('blueprint_id', upsertedId)
+          .eq('status', 'pending');
+      }
       
       setPlaySets((prev: any[]) => {
         const updatedSets = prev.map(ps => ps.name === targetSet.name ? { ...ps, code, is_public: isPublic, is_locked: isLocked, is_market_listed: isMarketListed } : ps);
@@ -148,7 +202,21 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         return updatedSets;
       });
 
-      await logUserAction(`Uploaded Blueprint: ${targetSet.name}`, 'blueprints', code, `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${isMarketListed ? 'Listed' : 'Unlisted'}`);
+      await logUserAction(
+        `Uploaded Blueprint: ${targetSet.name}`,
+        'blueprints',
+        code,
+        `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${isMarketListed ? 'Listed' : 'Unlisted'}`,
+        undefined,
+        {
+          name: { to: targetSet.name },
+          code: { to: code },
+          is_public: { to: isPublic },
+          is_locked: { to: isLocked },
+          is_market_listed: { to: isMarketListed },
+          game_version: { to: selectedVersion },
+        }
+      );
 
       setStatus(`${t("status_blueprint_uplinked", "{Blueprint} Synced! Code:")} ${code}`);
       setSyncCode(code);

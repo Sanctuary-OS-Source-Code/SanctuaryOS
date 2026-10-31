@@ -784,40 +784,32 @@ export function ChameleonSandboxPreview({
                 <div
                   data-sandbox-glass="panel"
                   style={panelBorderStyle}
-                  className="h-9 px-2.5 flex items-center gap-2 shrink-0"
+                  className="h-9 px-2.5 flex items-center gap-1.5 shrink-0"
                 >
-                  <div className="flex items-center gap-1.5 pr-2 border-r border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                  <div className="flex items-center gap-1 pr-1.5 border-r border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                       {t('icon_sports_esports', 'sports_esports')}
                     </span>
-                    <div className="flex flex-col leading-none">
-                      <span className="text-[6px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        {t('tab_workspace', 'Workspace')}
-                      </span>
-                      <span className="text-[9px] font-black text-[var(--text)] whitespace-nowrap">
-                        {t('theme_name_sims4', 'The Sims 4')}
-                      </span>
-                    </div>
+                    <span className="text-[8.5px] font-black text-[var(--text)] whitespace-nowrap">
+                      {t('theme_name_sims4', 'The Sims 4')}
+                    </span>
                   </div>
                   <span
-                    className="flex items-center gap-0.5 text-[9px] font-black"
+                    className="flex items-center gap-0.5 text-[8.5px] font-black"
                     style={{ color: currentTheme.success || '#10b981' }}
                   >
-                    <span className="material-symbols-outlined !text-[12px]">
+                    <span className="material-symbols-outlined !text-[11px]">
                       {t('icon_layers', 'layers')}
                     </span>
                     <span>2</span>
                   </span>
-                  <span className="flex items-center gap-0.5 text-[9px] font-black text-[var(--accent)]">
-                    <span className="material-symbols-outlined !text-[12px]">
+                  <span className="flex items-center gap-0.5 text-[8.5px] font-black text-[var(--accent)]">
+                    <span className="material-symbols-outlined !text-[11px]">
                       {t('icon_notifications', 'notifications')}
                     </span>
                     <span>2</span>
                   </span>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-75">
-                    {t('icon_terminal', 'terminal')}
-                  </span>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--text)] opacity-75">
+                  <span className="material-symbols-outlined !text-[11px] text-[var(--text)] opacity-75">
                     {t('icon_settings', 'settings')}
                   </span>
                 </div>

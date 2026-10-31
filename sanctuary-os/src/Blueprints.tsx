@@ -300,15 +300,28 @@ export default function Blueprints({
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     const isDeployed = activeSetName === set.name;
-    const linkedModsCount = (set.mods || [])
-      .map((m: any) => (typeof m === "string" ? m : m?.name || ""))
-      .filter(
-        (modName: string) =>
-          modName &&
-          !modName.startsWith("FOLDER_") &&
-          !modName.startsWith("SET_") &&
-          !modName.startsWith("LOCAL_SET_")
-      ).length;
+    const linkedModsCount = (() => {
+      const seen = new Set<string>();
+      const rawArr = Array.isArray(set.mods) ? set.mods : [];
+      for (let i = 0; i < rawArr.length; i++) {
+        const m = rawArr[i];
+        const modName = typeof m === "string" ? m : String(m?.name || m?.path || "");
+        if (
+          !modName ||
+          modName.startsWith("FOLDER_") ||
+          modName.startsWith("SET_") ||
+          modName.startsWith("LOCAL_SET_")
+        ) {
+          continue;
+        }
+        const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
+        const cleanLower = (
+          lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName
+        ).toLowerCase();
+        if (cleanLower) seen.add(cleanLower);
+      }
+      return seen.size;
+    })();
 
     const titleNode =
       editingSetName === set.name ? (
@@ -1314,6 +1327,7 @@ export default function Blueprints({
       )}
 
       {(() => {
+        if (!selectedUplinkBlueprint) return null;
         const localVaultHashes = new Set<string>();
         (modList || []).forEach((m: any) => {
           if (m?.hash) localVaultHashes.add(m.hash);
