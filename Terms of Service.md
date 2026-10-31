@@ -43,7 +43,7 @@ All network submissions must adhere to the [Global Compliance Protocol](./Compli
 ## 5. Non-Custodial Donations, Supporter Perks & 0% Platform Cut
 1. **0% Platform Tax:** Sanctuary OS takes **0%** of Creator (`Mason`) supporter revenue and **0%** of Partner Community (`Spoke`) donations.
 2. **Non-Custodial Third-Party Processors:** When you contribute to a Mason or a Partner Community Spoke (via `Stripe`, `Ko-fi`, `Patreon`, `PayPal`, `Fourthwall`, or `OpenCollective`), your payment is processed directly by that recipient's third-party payment processor. Sanctuary Foundry never collects, holds, or custodies those funds and is not responsible for refunds, chargebacks, or tax receipts on third-party donations.
-3. **Supporter Time Stacking (`+30 Days per $5`):** Verified contributions of `$5 USD` (or equivalent) to either Sanctuary Foundry or a participating Partner Community Spoke grant `+30 days` of **Global Daily Dev Build** access and Supporter Badge recognition. Supporter perks are digital goodwill recognitions, have no cash surrender value, and are non-transferable.
+3. **Supporter Time Stacking (`+30 Days per $5`):** Verified contributions of `$5 USD` (or equivalent) to either Sanctuary Foundry or a participating Partner Community Spoke grant `+30 days` of **Global Dev Build** access and Supporter Badge recognition. Supporter perks are digital goodwill recognitions, have no cash surrender value, and are non-transferable.
 
 ---
 

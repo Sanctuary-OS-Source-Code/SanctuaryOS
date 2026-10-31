@@ -1638,7 +1638,7 @@ export function getDefaultDirectiveBuilderSchema(
               footerMeta: t("dir_walk_s10_sub", "$5 = +30 Days Dev Builds • 0% Partner Cut • Sovereign Covenants"),
               desc: t(
                 "dir_walk_s10_desc",
-                "Submit Core OS feedback or bug reports from the Landing Page, unlock Daily Dev Builds via the Supporter Pipeline, or apply to launch a Sovereign Partner Spoke."
+                "Submit Core OS feedback or bug reports from the Landing Page, unlock Dev Builds via the Supporter Pipeline, or apply to launch a Sovereign Partner Spoke."
               ),
               subCards: [
                 {
@@ -1647,7 +1647,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s10_c1_name", "Supporter Pipeline ($5 = +30 Days Dev Builds)"),
                   desc: t(
                     "dir_walk_s10_c1_desc",
-                    "Every $5 contribution adds +30 days of automated Daily Dev Build access (Windows .msi & macOS .dmg) verified via Stripe Receipt / Order ID."
+                    "Every $5 contribution adds +30 days of automated Dev Build access (Windows .msi & macOS .dmg) verified via Stripe Receipt / Order ID."
                   ),
                 },
                 {
@@ -2247,7 +2247,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_12_c4",
                   icon: t("icon_system_update_alt", "system_update_alt"),
-                  title: g("Daily Dev Builds & Cross-Platform Auto-Updater"),
+                  title: g("Dev Builds & Cross-Platform Auto-Updater"),
                   desc: g(
                     "Supporters ($5 = +30 Days) and Partner team members receive automated Windows (.msi/.exe) and macOS (.dmg/.app.tar.gz) Dev Build updates."
                   ),
@@ -3521,7 +3521,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_favorite", "favorite"),
                   title: g("0%-Cut Partner Covenants & $5 = +30 Days Supporter Pipeline"),
                   desc: g(
-                    "Readiness-gated Partner Spoke onboarding with mandatory Partners Agreement & Compliance Protocol review, 0%-cut community donations, and Stripe-verified Daily Dev Builds."
+                    "Readiness-gated Partner Spoke onboarding with mandatory Partners Agreement & Compliance Protocol review, 0%-cut community donations, and Stripe-verified Dev Builds."
                   ),
                 },
               ],
@@ -4015,7 +4015,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_volunteer_activism", "volunteer_activism"),
                 title: g("Non-Custodial Supporter Bridge & Community Donations"),
                 desc: g(
-                  "Connects Partner Spoke communities and Verified {Masons} directly to their own payment processors with a 0% Sanctuary cut, crediting +30 days of Daily Dev Builds per $5 donated."
+                  "Connects Partner Spoke communities and Verified {Masons} directly to their own payment processors with a 0% Sanctuary cut, crediting +30 days of Dev Builds per $5 donated."
                 ),
               },
               {

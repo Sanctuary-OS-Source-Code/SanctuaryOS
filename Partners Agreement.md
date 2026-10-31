@@ -70,6 +70,6 @@ While Communities enjoy broad autonomy over their Spoke's taxonomy, Master Schem
    - Partner Communities may configure their own direct payment processor link (`Stripe`, `Ko-fi`, `Patreon`, `PayPal`, `Fourthwall`, `OpenCollective`, or custom URL).
    - 100% of Citizen contributions flow directly to the Partner Community's own merchant account. Sanctuary Foundry never touches, holds, or custodies Partner funds, and the Partner Community remains solely responsible for its own payment processor fees, taxes, refunds, and chargebacks.
 3. **Mutual Supporter Perk Recognition (`+30 Days per $5`):**
-   - As a goodwill ecosystem benefit, every `$5` a Citizen donates to a verified Partner Community Spoke (verified via `partner-donation-webhook` or receipt verification) automatically grants that Citizen **+30 days of Global Daily Dev Build access** and Supporter Badge recognition across Sanctuary OS.
+   - As a goodwill ecosystem benefit, every `$5` a Citizen donates to a verified Partner Community Spoke (verified via `partner-donation-webhook` or receipt verification) automatically grants that Citizen **+30 days of Global Dev Build access** and Supporter Badge recognition across Sanctuary OS.
 4. **Direct Creator Attribution:**
    - Every mod, collection, blueprint, and Chameleon theme links directly to the Mason's verified external channels (`patreon_url`, `website_url`, `discord_url`, `donations_url`).

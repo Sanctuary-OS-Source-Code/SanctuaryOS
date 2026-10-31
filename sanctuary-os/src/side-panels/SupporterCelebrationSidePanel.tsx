@@ -126,7 +126,7 @@ export function SupporterCelebrationSidePanel() {
       title={t("supporter_celebration_title", "Supporter Access Extended!")}
       subtitle={t(
         "supporter_spoke_panel_subtitle",
-        "0% Platform Fee • Every $5 adds +30 days of Global Daily Dev Builds",
+        "0% Platform Fee • Every $5 adds +30 days of Global Dev Builds",
       )}
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
@@ -142,7 +142,7 @@ export function SupporterCelebrationSidePanel() {
           title={t("supporter_celebration_title", "Supporter Access Extended!")}
           description={t(
             "supporter_celebration_desc",
-            "Thank you for supporting the Sanctuary OS ecosystem! Your Global Daily Dev Build timer has been automatically stacked and synced to your account.",
+            "Thank you for supporting the Sanctuary OS ecosystem! Your Global Dev Build timer has been automatically stacked and synced to your account.",
           )}
           badge={`+${daysAdded} ${daysUnit}`}
           badgeIcon={t("icon_bolt", "bolt")}
@@ -182,7 +182,7 @@ export function SupporterCelebrationSidePanel() {
         <UniversalGroup
           title={t(
             "supporter_dev_builds_channel_toggle",
-            "Daily Dev Build Channel",
+            "Dev Build Channel",
           )}
           icon={t("icon_bolt", "bolt")}
         >
@@ -227,7 +227,7 @@ export function SupporterCelebrationSidePanel() {
             }}
             label={t(
               "supporter_dev_builds_channel_toggle",
-              "Daily Dev Build Channel",
+              "Dev Build Channel",
             )}
             icon={t("icon_bolt", "bolt")}
             variant="accent"

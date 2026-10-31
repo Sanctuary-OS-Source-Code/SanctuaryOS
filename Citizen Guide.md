@@ -99,7 +99,7 @@ Configure any game engine and customize every word and icon in the operating sys
 Connect directly with Sanctuary Foundry or launch your own Sovereign Community Spoke:
 
 - **Official Core Feedback, Bug Reports & Direct Human Contact:** Submit Core OS bug reports, feature requests, or direct human inquiries straight from the Landing Page (`app_feedback` pipeline).
-- **Global Supporter Pipeline (`$5 = +30 Days` Daily Dev Builds):** Every `$5` contribution adds `+30 days` of automated Daily Dev Build access (Windows `.msi`/`.exe` & macOS `.dmg`/`.app.tar.gz`), verified via Stripe Receipt / Order ID.
+- **Global Supporter Pipeline (`$5 = +30 Days` Dev Builds):** Every `$5` contribution adds `+30 days` of automated Dev Build access (Windows `.msi`/`.exe` & macOS `.dmg`/`.app.tar.gz`), verified via Stripe Receipt / Order ID.
 - **Readiness-Gated Partner Spoke Application & Covenants:** Review and accept the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer, verify your `schema.sql` Spoke database readiness, retain **100% of community donations (`0%` Sanctuary cut)**, and exercise unilateral **Cut the Cord** severance at any time.
 
 ---
@@ -117,7 +117,7 @@ Connect directly with Sanctuary Foundry or launch your own Sovereign Community S
 9. **Chameleons, Lexicons & Universal Malware Defense:** 6-slider Liquid Glass V3 Theme Forge, 4-dictionary Lexicon hot-swapping, Universal 21+17 Heuristic Scanner, FIDO2 Passkey Vault, and Full-OS Quarantine Lockdown.
 10. **Decentralized Static Edge Release & Catalog Engine:** Zero-server `manifest.json` and `catalog.json` packaging, 6-provider 1-click Auto-Push, and automatic `previous_hashes` lineage rollover.
 11. **Master Schema Studio & Lexicon Terminology Studio:** 7 multi-game architecture presets, secondary `install_routes`, `mod_categories`, 21 `{Glossary}` tokens, Guided Icon Override Builder, and interactive Codex Guides.
-12. **Wayfinder Spoke Control, Covenants & Supporter Bridge:** Spoke Setup & Maintenance, Partners Agreement & Compliance Protocol inspection, Unilateral `Cut the Cord` severance, 0%-cut non-custodial community donations, and `$5 = +30 Days` Daily Dev Builds.
+12. **Wayfinder Spoke Control, Covenants & Supporter Bridge:** Spoke Setup & Maintenance, Partners Agreement & Compliance Protocol inspection, Unilateral `Cut the Cord` severance, 0%-cut non-custodial community donations, and `$5 = +30 Days` Dev Builds.
 
 ---
 
@@ -266,8 +266,8 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through the **Lex
 1. **Offline Codebase Baseline + Live Cloud Sync:**
    - Bundled `.md` Directives, Legal Covenants, Master Schemas (`sims4.json`), and Lexicons (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`) serve as the zero-latency first-launch and 100% offline backup.
    - When connected to the network, Sanctuary OS automatically pulls live updates from the Hub database (`public.system_directives`, `public.keeper_system_broadcasts`, `public.sanctuary_schemas`) without requiring a desktop app reinstall.
-2. **Global Supporter Pipeline (`$5 = +30 Days` Daily Dev Builds):**
-   - Every `$5` contribution adds `+30 days` of automated Daily Dev Build access (`Windows .msi/.exe` and `macOS .dmg/.app.tar.gz`), redeemable via Stripe Receipt / Order ID on both the Web OS and Desktop OS.
+2. **Global Supporter Pipeline (`$5 = +30 Days` Dev Builds):**
+   - Every `$5` contribution adds `+30 days` of automated Dev Build access (`Windows .msi/.exe` and `macOS .dmg/.app.tar.gz`), redeemable via Stripe Receipt / Order ID on both the Web OS and Desktop OS.
 3. **Readiness-Gated Partner Spoke Onboarding & Sovereign Covenants:**
    - Community leaders applying via **Apply to be a Partner** on the Landing Page can inspect both the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer before testing their `schema.sql` Spoke handshake.
    - Once active, Wayfinders can review both covenants at any time inside **Wayfinder Operations → Spoke Control → Spoke Setup & Maintenance**, configure **0%-cut non-custodial community donations**, or execute unilateral **Cut the Cord** severance.

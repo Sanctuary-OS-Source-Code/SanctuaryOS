@@ -382,7 +382,7 @@ export function UpdateSidePanel() {
     t("release_notes_meta_platform_default", "Windows / Mac (Planned)");
 
   const activeChannelBadge = isDevUpdate
-    ? t("release_notes_dev_channel_badge", "Daily Dev Build")
+    ? t("release_notes_dev_channel_badge", "Dev Build")
     : t("release_notes_stable_channel_badge", "Stable Release");
 
   const activeGitHubUrl = isDevUpdate
@@ -398,7 +398,7 @@ export function UpdateSidePanel() {
     const placeholderStr = "See the assets to download this version and install.";
     const simStr = "This is a simulated update payload for UI testing.";
     const defaultDevNote =
-      "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
+      "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
     if (
       trimmed === placeholderStr ||
       trimmed === simStr ||

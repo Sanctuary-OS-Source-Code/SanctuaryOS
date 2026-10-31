@@ -1,8 +1,8 @@
-# Sanctuary OS — Daily Dev Build v0.6.0-Dev.1
+# Sanctuary OS — Dev Build v0.6.0-Dev.1
 ### Conflict Radar 2.0, Live In-Game Config Diffs, Global Ctrl+K Search, Linux & Steam Deck Support & Instant Modpack Loading
 **Release Date:** October 31, 2026 | **Version:** 0.6.0-Dev.1
 
-Welcome to **Sanctuary OS v0.6.0-Dev.1**! This Daily Dev Build brings a complete redesign of **Conflict Radar & Load Order**, an automatic **In-Game Config Watcher & Diff Timeline** in the **Citizen's Workbench**, a fast **Ctrl+K Command Palette** to jump anywhere in the app, full **Linux & Steam Deck** support alongside **Windows** and **Mac**, and 100% matching mod counts across every screen. Here is everything new in plain English.
+Welcome to **Sanctuary OS v0.6.0-Dev.1**! This Dev Build brings a complete redesign of **Conflict Radar & Load Order**, an automatic **In-Game Config Watcher & Diff Timeline** in the **Citizen's Workbench**, a fast **Ctrl+K Command Palette** to jump anywhere in the app, full **Linux & Steam Deck** support alongside **Windows** and **Mac**, and 100% matching mod counts across every screen. Here is everything new in plain English.
 
 ---
 

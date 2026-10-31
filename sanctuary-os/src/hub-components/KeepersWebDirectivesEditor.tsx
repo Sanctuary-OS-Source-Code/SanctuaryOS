@@ -2047,7 +2047,7 @@ export default function KeepersWebDirectivesEditor({
     >
       {activeViewTab === "overview" && (
         <HubOverviewLanding>
-          {/* Full-Width Top Section: Update Post System (Public Stable Release & Daily Dev Build) */}
+          {/* Full-Width Top Section: Update Post System (Public Stable Release & Dev Build) */}
           <HubOverviewSection
             className="xl:col-span-2"
             icon={t("icon_new_releases", "new_releases")}

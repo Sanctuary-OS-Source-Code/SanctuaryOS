@@ -487,7 +487,7 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
       title={t("wf_donation_panel_title", "Partner Community Donation Setup")}
       subtitle={t(
         "wf_donation_panel_subtitle",
-        "100% Non-Custodial • 0% Sanctuary Cut • Unlocks Global Daily Dev Builds for Citizens",
+        "100% Non-Custodial • 0% Sanctuary Cut • Unlocks Global Dev Builds for Citizens",
       )}
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
@@ -510,7 +510,7 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
           title={t("wf_donation_panel_title", "Non-Custodial Community Donations")}
           description={t(
             "wf_donation_notice_desc",
-            "Your community receives 100% of all citizen donations directly via your own payment processor. Sanctuary OS takes a 0% cut, never touches your funds, and does not cover chargebacks. Every $5 a citizen donates to your community automatically grants them +30 days of Global Daily Dev Build access.",
+            "Your community receives 100% of all citizen donations directly via your own payment processor. Sanctuary OS takes a 0% cut, never touches your funds, and does not cover chargebacks. Every $5 a citizen donates to your community automatically grants them +30 days of Global Dev Build access.",
           )}
           badge={processor}
           variant="accent"
@@ -702,7 +702,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
       title={t("keepers_pipeline_panel_title", "Dev Build Pipeline & Keepers Donations")}
       subtitle={t(
         "keepers_pipeline_panel_subtitle",
-        "Publish Daily Dev Builds for Supporters & Configure Keepers Core Donations",
+        "Publish Dev Builds for Supporters & Configure Keepers Core Donations",
       )}
       icon={t("icon_rocket_launch", "rocket_launch")}
       iconColorClass="text-[var(--accent)]"
@@ -724,7 +724,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
           title={t("keepers_pipeline_panel_title", "Release Pipeline & Supporter Channels")}
           description={t(
             "keepers_github_auto_subtitle",
-            "Stable and Daily Dev Build versions, installers, and patch notes are pulled automatically from GitHub Releases.",
+            "Stable and Dev Build versions, installers, and patch notes are pulled automatically from GitHub Releases.",
           )}
           badge={`v${liveStableVer.replace(/^v/i, "")}`}
           variant="accent"
@@ -738,7 +738,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
               colorClass="text-[var(--accent)]"
             />
             <StatBox
-              label={t("keepers_github_live_dev_label", "Live Daily Dev Build")}
+              label={t("keepers_github_live_dev_label", "Live Dev Build")}
               value={hasLiveDev ? `v${liveDevVer.replace(/^v/i, "")}` : "--"}
               icon={t("icon_bolt", "bolt")}
               iconColorClass="text-[var(--success)]"
@@ -836,7 +836,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
         >
           <div className="flex flex-col gap-4 w-full">
             <div className="grid grid-cols-1 gap-3">
-              {/* LIVE DAILY DEV BUILD */}
+              {/* LIVE DEV BUILD */}
               <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -846,7 +846,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                       </span>
                     </div>
                     <span className="text-xs font-black text-[var(--text)] truncate">
-                      {t("keepers_github_live_dev_label", "Live Daily Dev Build (GitHub)")}
+                      {t("keepers_github_live_dev_label", "Live Dev Build (GitHub)")}
                     </span>
                   </div>
                   <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
@@ -921,7 +921,7 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
             <p className="text-xs font-medium text-[var(--subtext)] opacity-90 leading-relaxed">
               {t(
                 "keepers_pipeline_how_it_works",
-                "Pushing a v*-dev* tag (e.g. v0.5.9-dev.1) publishes only to the Supporter Daily Dev Build channel (dev-latest) without changing the public Website download links. Pushing a clean v* tag (e.g. v0.5.9) publishes to the Stable channel for all users and updates the Website.",
+                "Pushing a v*-dev* tag (e.g. v0.5.9-dev.1) publishes only to the Supporter Dev Build channel (dev-latest) without changing the public Website download links. Pushing a clean v* tag (e.g. v0.5.9) publishes to the Stable channel for all users and updates the Website.",
               )}
             </p>
           </div>

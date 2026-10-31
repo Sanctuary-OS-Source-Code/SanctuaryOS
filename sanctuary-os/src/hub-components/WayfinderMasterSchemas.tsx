@@ -2981,7 +2981,7 @@ export default function WayfinderMasterSchemas({
             title={t("wf_donation_panel_title", "Non-Custodial Community Donations")}
             description={t(
               "wf_donation_notice_desc",
-              "Your community receives 100% of all citizen donations directly via your own payment processor. Sanctuary OS takes a 0% cut, never touches your funds, and does not cover chargebacks. Every $5 a citizen donates to your community automatically grants them +30 days of Global Daily Dev Build access."
+              "Your community receives 100% of all citizen donations directly via your own payment processor. Sanctuary OS takes a 0% cut, never touches your funds, and does not cover chargebacks. Every $5 a citizen donates to your community automatically grants them +30 days of Global Dev Build access."
             )}
             badge={processor}
             variant="accent"

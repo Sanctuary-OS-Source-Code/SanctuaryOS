@@ -83,7 +83,7 @@ export function DevBuildClearanceGate() {
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[var(--accent)]">
-                    {t("dev_gate_badge", "DAILY DEV BUILD • SUPPORTER STREAM")}
+                    {t("dev_gate_badge", "DEV BUILD • SUPPORTER STREAM")}
                   </span>
                   {clearance.appVersion && (
                     <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold glass-surface border border-[rgba(var(--text-rgb),0.12)] text-[var(--subtext)]">
@@ -104,7 +104,7 @@ export function DevBuildClearanceGate() {
           <p className="text-xs md:text-sm text-[var(--subtext)] leading-relaxed">
             {t(
               "dev_gate_desc",
-              "You are running a Daily Dev Build from the supporter preview channel. To unlock this build, sign in with an account that has active Global Daily Dev Build time ($5 = +30 days via any Partner Community or Keepers Core), or download the free Public Stable release.",
+              "You are running a Dev Build from the supporter preview channel. To unlock this build, sign in with an account that has active Global Dev Build time ($5 = +30 days via any Partner Community or Keepers Core), or download the free Public Stable release.",
             )}
           </p>
 
@@ -167,7 +167,7 @@ export function DevBuildClearanceGate() {
                 icon={t("icon_volunteer_activism", "volunteer_activism")}
                 label={t(
                   "dev_gate_btn_unlock",
-                  "Unlock Daily Dev Builds ($5 = +30 Days)",
+                  "Unlock Dev Builds ($5 = +30 Days)",
                 )}
                 onClick={() => setIsSupportOpen(true)}
                 className="w-full justify-center py-3.5"

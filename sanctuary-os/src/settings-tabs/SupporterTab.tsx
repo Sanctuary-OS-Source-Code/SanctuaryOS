@@ -254,7 +254,7 @@ export default function SupporterTab() {
         .pushStatus(
           t(
             "supporter_web_stream_locked_toast",
-            "Unlock Global Daily Dev Builds ($5 = +30 days) or sign in with Staff clearance to switch to the Beta / Dev Build Stream.",
+            "Unlock Global Dev Builds ($5 = +30 days) or sign in with Staff clearance to switch to the Beta / Dev Build Stream.",
           ),
           "warning",
         );
@@ -373,7 +373,7 @@ export default function SupporterTab() {
           .pushStatus(
             t(
               "supporter_sandbox_toast",
-              "Sandbox checkout completed! Verified receipt and added Global Daily Dev Build time.",
+              "Sandbox checkout completed! Verified receipt and added Global Dev Build time.",
             ),
             "success",
           );
@@ -424,7 +424,7 @@ export default function SupporterTab() {
             .pushStatus(
               t(
                 "supporter_status_stacked",
-                "Global Daily Dev Build access updated! +30 days per $5 stacked to your account.",
+                "Global Dev Build access updated! +30 days per $5 stacked to your account.",
               ),
               "success",
             );
@@ -443,7 +443,7 @@ export default function SupporterTab() {
         .pushStatus(
           t(
             "supporter_auth_required_for_dev_builds",
-            "Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Daily Dev Builds per $5.",
+            "Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Dev Builds per $5.",
           ),
           "warning",
         );
@@ -484,7 +484,7 @@ export default function SupporterTab() {
         .pushStatus(
           t(
             "supporter_status_stacked",
-            "Global Daily Dev Build access updated! +30 days per $5 stacked to your account.",
+            "Global Dev Build access updated! +30 days per $5 stacked to your account.",
           ),
           "success",
         );
@@ -604,9 +604,9 @@ export default function SupporterTab() {
   return (
     <>
       <div className="flex flex-col gap-16 w-full pb-48">
-        {/* SECTION 1: GLOBAL DAILY DEV BUILDS (ALERT CARD + COUNTER CARD) */}
+        {/* SECTION 1: GLOBAL DEV BUILDS (ALERT CARD + COUNTER CARD) */}
         <TabContainer
-          title={t("supporter_dev_builds_title", "Global Daily Dev Builds")}
+          title={t("supporter_dev_builds_title", "Global Dev Builds")}
           icon={t("icon_bolt", "bolt")}
         >
           <SettingsGrid>
@@ -621,11 +621,11 @@ export default function SupporterTab() {
               )}
               title={t(
                 "supporter_dev_perk_alert_title",
-                "Global Daily Dev Build Perk",
+                "Global Dev Build Perk",
               )}
               description={t(
                 "supporter_dev_perk_alert_desc",
-                "Every $5 donated to Sanctuary Foundry or any Partner Community stacks +30 days of Global Daily Dev Build access across Desktop, Web, and Mobile PWA. Partial credit rolls over and never expires.",
+                "Every $5 donated to Sanctuary Foundry or any Partner Community stacks +30 days of Global Dev Build access across Desktop, Web, and Mobile PWA. Partial credit rolls over and never expires.",
               )}
               footerLeft={t(
                 "supporter_zero_fee_badge",
@@ -1367,7 +1367,7 @@ export default function SupporterTab() {
             title={t("supporter_keepers_title", "Sanctuary Foundry")}
             description={t(
               "supporter_web_pending_desc",
-              "Every $5 contribution adds +30 days of Global Daily Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.",
+              "Every $5 contribution adds +30 days of Global Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.",
             )}
             variant={isDevBuildUnlocked ? "success" : "accent"}
           />

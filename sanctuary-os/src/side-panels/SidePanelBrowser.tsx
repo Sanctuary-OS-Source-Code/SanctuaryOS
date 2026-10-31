@@ -382,7 +382,7 @@ export default function SidePanelBrowser() {
                                   .pushStatus(
                                     t(
                                       'supporter_status_stacked',
-                                      'Global Daily Dev Build access updated! +30 days per $5 stacked to your account.'
+                                      'Global Dev Build access updated! +30 days per $5 stacked to your account.'
                                     ),
                                     'success'
                                   );

@@ -1630,7 +1630,7 @@ export function ReleaseNotesShowcase({
     () => ({
       title:
         seedDevBlog.mainTitle ||
-        `${t("release_notes_dev_card_title", "Sanctuary OS — Daily Dev Build")}`,
+        `${t("release_notes_dev_card_title", "Sanctuary OS — Dev Build")}`,
       summary:
         seedDevBlog.summary ||
         (seedChangelog.heading
@@ -2034,7 +2034,7 @@ export function ReleaseNotesShowcase({
     if (!trimmed) return false;
     const placeholderStr = "See the assets to download this version and install.";
     const defaultDevNote =
-      "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
+      "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
     if (trimmed === placeholderStr || trimmed === defaultDevNote) {
       return false;
     }
@@ -2100,7 +2100,7 @@ export function ReleaseNotesShowcase({
   const activeDateStr = isDevActive ? devDateDisplay : stableDateDisplay;
   const activePlatformStr = isDevActive ? devPlatformDisplay : stablePlatformDisplay;
   const activeChannelBadge = isDevActive
-    ? t("release_notes_dev_channel_badge", "Daily Dev Build")
+    ? t("release_notes_dev_channel_badge", "Dev Build")
     : t("release_notes_stable_channel_badge", "Stable Release");
 
   const activeTitle =
@@ -2171,7 +2171,7 @@ export function ReleaseNotesShowcase({
           }
           tooltipSubtitle={
             isDevChan
-              ? t("release_notes_dev_channel_badge", "Daily Dev Build")
+              ? t("release_notes_dev_channel_badge", "Dev Build")
               : t("release_notes_stable_channel_badge", "Stable Release")
           }
         />
@@ -2239,7 +2239,7 @@ export function ReleaseNotesShowcase({
             </div>
           </div>
 
-          {/* Card 2: Daily Dev Build */}
+          {/* Card 2: Dev Build */}
           <div
             onClick={() => openReleasePanel("dev")}
             className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group"
@@ -2260,7 +2260,7 @@ export function ReleaseNotesShowcase({
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--success)]">
-                  {t("release_notes_dev_channel_badge", "Daily Dev Build")}
+                  {t("release_notes_dev_channel_badge", "Dev Build")}
                 </span>
                 <h4 className="text-sm font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors duration-300 tracking-tight leading-snug line-clamp-1">
                   {devPost.title}
@@ -2337,17 +2337,17 @@ export function ReleaseNotesShowcase({
             </p>
           </UniversalCard>
 
-          {/* Card 2: Daily Dev Build (Supporters & Authenticated Staff Only) */}
+          {/* Card 2: Dev Build (Supporters & Authenticated Staff Only) */}
           {canSeeDevBuildCard && (
             <UniversalCard
               layout="vertical"
               icon={t("icon_bolt", "bolt")}
               title={devPost.title}
               subtitle={buildCommSubtitle(
-                t("release_notes_dev_channel_badge", "Daily Dev Build"),
+                t("release_notes_dev_channel_badge", "Dev Build"),
                 devVersion
               )}
-              bannerTopLabel={`${t("release_notes_dev_channel_badge", "Daily Dev Build")} • v${devVersion}`}
+              bannerTopLabel={`${t("release_notes_dev_channel_badge", "Dev Build")} • v${devVersion}`}
               bannerBottomLabel={`${t("author_sanctuary_team", "Sanctuary Foundry")} • ${devPlatformDisplay}`}
               onClick={() => openReleasePanel("dev")}
               className="w-full h-full"

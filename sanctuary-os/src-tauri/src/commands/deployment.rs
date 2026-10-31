@@ -1833,6 +1833,7 @@ fn close_lab_overlay(app: &tauri::AppHandle) {
 }
 
 fn notify_player_over_game(app: &tauri::AppHandle, title: &str, body: &str, is_error: bool) {
+    let _ = is_error;
     #[cfg(target_os = "windows")]
     unsafe {
         #[link(name = "user32")]

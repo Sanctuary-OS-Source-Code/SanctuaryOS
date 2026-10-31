@@ -181,7 +181,7 @@ export async function getSupporterState(
     return state;
   }
 
-  // Sync cumulative Global Daily Dev Build status from Hub profile if authenticated & online
+  // Sync cumulative Global Dev Build status from Hub profile if authenticated & online
   const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
   if (!localOnly && navigator.onLine && isAuthenticatedUser) {
     try {
@@ -883,7 +883,7 @@ export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
   dev_build_linux_url:
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_notes:
-    "Daily Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
+    "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
   updated_at: new Date().toISOString(),
 };
 
@@ -978,7 +978,7 @@ export async function fetchLiveGitHubReleases(
       }
     }
 
-    // 2. Latest Daily Dev Build Release (tag_name === 'dev-latest', prerelease, or tag contains 'dev')
+    // 2. Latest Dev Build Release (tag_name === 'dev-latest', prerelease, or tag contains 'dev')
     const devReleases = releases.filter(
       (r: any) =>
         r &&

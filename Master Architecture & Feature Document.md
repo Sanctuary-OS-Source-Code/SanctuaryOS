@@ -39,7 +39,7 @@ Sanctuary OS eliminates centralized lock-in by separating global identity from c
   - In **Standalone Fork Mode**, editing only `SANCTUARY_CONFIG` in `src/supabase.ts` routes all `secure_*` RPCs directly against a single `schema.sql` database with zero Edge Functions or Hub dependencies.
 - **Non-Custodial Supporter Bridge & Community Donations (`0% Sanctuary Cut`):**
   - Partner communities configure their own direct checkout links (`Stripe`, `Ko-fi`, `Patreon`, `PayPal`, `Fourthwall`, `OpenCollective`) in **Wayfinder Operations -> Spoke Control -> Non-Custodial Community Donations**.
-  - Sanctuary OS takes a **0% platform cut** and never custodies funds. Every `$5` a Citizen donates to either Sanctuary Foundry or any Partner Community Spoke automatically grants `+30 days` of Global Daily Dev Build access (`partner-donation-webhook`).
+  - Sanctuary OS takes a **0% platform cut** and never custodies funds. Every `$5` a Citizen donates to either Sanctuary Foundry or any Partner Community Spoke automatically grants `+30 days` of Global Dev Build access (`partner-donation-webhook`).
 - **Decentralized Static Edge Polling (`manifest.json` & `override.json`):**
   - Creators can export self-contained releases (`export_edge_release`) containing `<mod>_v<version>.zip`, `manifest.json` (version, changelog, SHA-256 hash lineage, `atomic_logic`), and `override.json`. Sanctuary polls creator HTTP endpoints directly during Radar Sweeps—delivering update alerts and conflict/dependency rules with zero database dependency.
 

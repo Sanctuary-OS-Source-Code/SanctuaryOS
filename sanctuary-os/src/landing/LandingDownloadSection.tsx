@@ -11,7 +11,7 @@ interface LandingDownloadSectionProps {
   isStandalone: boolean;
   triggerInstall: () => void;
   webDevChannelEnabled: boolean;
-  onToggleWebDevStream: (nextVal: boolean) => void;
+  onToggleWebDevStream?: (nextVal: boolean) => void;
   keepersConfig: KeepersPipelineConfig;
   stableVersion: string;
   isDevUnlocked: boolean;
@@ -24,7 +24,6 @@ export function LandingDownloadSection({
   isStandalone,
   triggerInstall,
   webDevChannelEnabled,
-  onToggleWebDevStream,
   keepersConfig,
   stableVersion,
   isDevUnlocked,
@@ -120,86 +119,6 @@ export function LandingDownloadSection({
                     {t(
                       'pwa_install_desc',
                       'Install Sanctuary OS directly to your home screen or app drawer for a full-screen standalone experience with instant workspace access.'
-                    )}
-                  </p>
-                </UniversalCard>
-              </div>
-
-              {/* Website & Mobile PWA Public vs. Beta / Dev Build Stream Switcher Card */}
-              <div className="flex flex-col group cursor-pointer">
-                <UniversalCard
-                  layout="vertical"
-                  onClick={() => onToggleWebDevStream(!webDevChannelEnabled)}
-                  icon={
-                    webDevChannelEnabled
-                      ? t('icon_science', 'science')
-                      : t('icon_public', 'public')
-                  }
-                  statusColor={webDevChannelEnabled ? 'emerald' : undefined}
-                  bannerTopLabel={t(
-                    'landing_web_stream_banner_top',
-                    'Website & Mobile PWA • Build Stream'
-                  )}
-                  bannerBottomLabel={
-                    webDevChannelEnabled
-                      ? `${t('landing_fb_stream_beta', 'Beta Build Feedback')} • v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                      : `${t('landing_fb_stream_public', 'Public Build Feedback')} • v${stableVersion}`
-                  }
-                  title={
-                    webDevChannelEnabled
-                      ? t(
-                          'landing_web_stream_beta_title',
-                          'Web & PWA: Beta / Dev Build Active'
-                        )
-                      : t(
-                          'landing_web_stream_public_title',
-                          'Web & PWA: Public Build Active'
-                        )
-                  }
-                  subtitle={
-                    <span className="text-[10px] font-mono tracking-widest">
-                      {isDevUnlocked
-                        ? t(
-                            'landing_web_stream_sub_unlocked',
-                            'Click to Toggle Between Public & Daily Dev Build Stream'
-                          )
-                        : t(
-                            'landing_web_stream_sub_locked',
-                            'Supporter Stream ($5 = +30 Days Global Daily Dev Builds)'
-                          )}
-                    </span>
-                  }
-                  className="h-full"
-                  footer={
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5">
-                        {webDevChannelEnabled
-                          ? `v${keepersConfig.dev_build_version || `${stableVersion}-dev`}`
-                          : `v${stableVersion}`}
-                      </span>
-                      <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                        <span>
-                          {webDevChannelEnabled
-                            ? t(
-                                'landing_web_stream_btn_switch_public',
-                                'Switch to Public Stream'
-                              )
-                            : t(
-                                'landing_web_stream_btn_switch_beta',
-                                'Switch to Beta / Dev Stream'
-                              )}
-                        </span>
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t('icon_arrow_forward', 'arrow_forward')}
-                        </span>
-                      </span>
-                    </div>
-                  }
-                >
-                  <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-                    {t(
-                      'landing_web_stream_desc',
-                      'Switch your live Website and Mobile PWA session between the verified Public Build and the Supporter Daily Dev Build channel.'
                     )}
                   </p>
                 </UniversalCard>
@@ -389,7 +308,7 @@ export function LandingDownloadSection({
                       bannerBottomLabel={`${t('landing_banner_dev_win_bottom', 'Early Preview (.exe)')} • v${keepersConfig.dev_build_version || 'dev-latest'}`}
                       title={t(
                         'landing_download_dev_title',
-                        'Daily Dev Build (Supporter)'
+                        'Dev Build (Supporter)'
                       )}
                       subtitle={
                         <span className="text-[10px] font-mono tracking-widest">
@@ -422,7 +341,7 @@ export function LandingDownloadSection({
                       <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
                         {t(
                           'landing_download_dev_desc',
-                          'Nightly preview build unlocked by your active Global Daily Dev Build supporter time.'
+                          'Nightly preview build unlocked by your active Global Dev Build supporter time.'
                         )}
                       </p>
                     </UniversalCard>

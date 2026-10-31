@@ -481,7 +481,7 @@ export default function NotificationsTab() {
       title: t('notify_patch_update_logs', 'Patch Update Logs'),
       subtitle: t(
         'notify_patch_update_logs_desc',
-        'Sanctuary OS Public and Daily Dev Build release notes and patch logs.'
+        'Sanctuary OS Public and Dev Build release notes and patch logs.'
       ),
       icon: t('icon_new_releases', 'new_releases'),
       isGlobalOnly: true,

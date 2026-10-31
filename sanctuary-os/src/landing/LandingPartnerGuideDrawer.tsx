@@ -75,7 +75,7 @@ export function LandingPartnerGuideDrawer({
           ),
           desc: t(
             'landing_partners_what_p2',
-            'Sanctuary Foundry takes 0% of {Mason} or Partner Community revenue. Partner Spokes link their own non-custodial Stripe, Ko-fi, or Patreon checkout directly in Wayfinder Operations, and every $5 a {Citizen} contributes to a verified Partner Spoke automatically grants them +30 days of Global Daily Dev Build access across Sanctuary OS.'
+            'Sanctuary Foundry takes 0% of {Mason} or Partner Community revenue. Partner Spokes link their own non-custodial Stripe, Ko-fi, or Patreon checkout directly in Wayfinder Operations, and every $5 a {Citizen} contributes to a verified Partner Spoke automatically grants them +30 days of Global Dev Build access across Sanctuary OS.'
           ),
         },
         {

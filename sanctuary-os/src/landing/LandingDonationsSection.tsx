@@ -51,7 +51,7 @@ export function LandingDonationsSection({
   const showCoreOsCard =
     (donationFilter === 'ALL' || donationFilter === 'core') &&
     (!q ||
-      'sanctuary os keepers core global daily dev builds 30 days supporter'.includes(
+      'sanctuary os keepers core global dev builds 30 days supporter'.includes(
         q
       ));
   const filteredPartnerGames =
@@ -158,11 +158,11 @@ export function LandingDonationsSection({
               {hasUserSession
                 ? t(
                     'supporter_web_pending_desc',
-                    'Every $5 contribution adds +30 days of Global Daily Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.'
+                    'Every $5 contribution adds +30 days of Global Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.'
                   )
                 : t(
                     'supporter_auth_required_for_dev_builds',
-                    'Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Daily Dev Builds per $5.'
+                    'Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Dev Builds per $5.'
                   )}
             </p>
 
@@ -300,7 +300,7 @@ export function LandingDonationsSection({
             <span className="text-[10px] font-mono tracking-widest">
               {t(
                 'supporter_keepers_subtitle',
-                'Core OS Infrastructure • 0% Platform Fee • Stacks Global Daily Dev Builds'
+                'Core OS Infrastructure • 0% Platform Fee • Stacks Global Dev Builds'
               )}
             </span>
           }
@@ -326,7 +326,7 @@ export function LandingDonationsSection({
           <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
             {t(
               'supporter_keepers_desc',
-              'Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Daily Dev Build access onto your account.'
+              'Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Dev Build access onto your account.'
             )}
           </p>
         </UniversalCard>
@@ -466,7 +466,7 @@ export function LandingVerifyDonationDrawer({
           }
           description={t(
             'supporter_web_pending_desc',
-            'Every $5 contribution adds +30 days of Global Daily Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.'
+            'Every $5 contribution adds +30 days of Global Dev Build access. Once completed, your account syncs automatically via webhook or you can verify your Stripe checkout receipt below.'
           )}
           variant={isDevUnlocked ? 'success' : 'accent'}
         />

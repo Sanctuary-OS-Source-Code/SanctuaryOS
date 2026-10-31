@@ -15,6 +15,10 @@ import partnersAgreementRaw from "../../../Partners Agreement.md?raw";
 import eulaRaw from "../../../EULA.md?raw";
 import privacyPolicyRaw from "../../../Privacy Policy.md?raw";
 import termsOfServiceRaw from "../../../Terms of Service.md?raw";
+import releaseNotesPublicRaw from "../../../Release Notes (Community Blog).md?raw";
+import releaseNotesDevRaw from "../../../Release Notes (Dev).md?raw";
+import changelogRunningRaw from "../../../changelog (running).md?raw";
+import changelogDevRaw from "../../../changelog.md?raw";
 import spokeSchemaRaw from "../../../schema.sql?raw";
 import hubSchemaRaw from "../../../schema_os.sql?raw";
 
@@ -36,7 +40,11 @@ export type LocalDocSlug =
   | "partners_agreement"
   | "eula"
   | "privacy"
-  | "terms";
+  | "terms"
+  | "release_notes_public"
+  | "release_notes_dev"
+  | "changelog_running"
+  | "changelog_dev";
 
 export const CANONICAL_LEGAL_DOCS: Record<
   LegalDocCategory,

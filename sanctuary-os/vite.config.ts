@@ -18,6 +18,10 @@ const DIRECTIVE_FILE_MAP: Record<string, string> = {
   eula: "EULA.md",
   privacy: "Privacy Policy.md",
   terms: "Terms of Service.md",
+  release_notes_public: "Release Notes (Community Blog).md",
+  release_notes_dev: "Release Notes (Dev).md",
+  changelog_running: "changelog (running).md",
+  changelog_dev: "changelog.md",
 };
 
 function devLexiconSyncPlugin() {

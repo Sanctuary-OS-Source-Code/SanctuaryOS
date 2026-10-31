@@ -266,7 +266,7 @@ export function CommunitySupportSidePanel({
           .pushStatus(
             t(
               "supporter_sandbox_toast",
-              "Sandbox checkout completed! Verified receipt and added Global Daily Dev Build time."
+              "Sandbox checkout completed! Verified receipt and added Global Dev Build time."
             ),
             "success"
           );
@@ -314,7 +314,7 @@ export function CommunitySupportSidePanel({
             .pushStatus(
               t(
                 "supporter_status_stacked",
-                "Global Daily Dev Build access updated! +30 days per $5 stacked to your account."
+                "Global Dev Build access updated! +30 days per $5 stacked to your account."
               ),
               "success"
             );
@@ -351,7 +351,7 @@ export function CommunitySupportSidePanel({
       title={t("supporter_spoke_panel_title", "Support Community & Perks")}
       subtitle={t(
         "supporter_spoke_panel_subtitle",
-        "0% Platform Fee • Every $5 adds +30 days of Global Daily Dev Builds"
+        "0% Platform Fee • Every $5 adds +30 days of Global Dev Builds"
       )}
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
@@ -472,11 +472,11 @@ export function CommunitySupportSidePanel({
           ))}
         </div>
 
-        {/* YOUR GLOBAL DAILY DEV BUILD STATUS */}
+        {/* YOUR GLOBAL DEV BUILD STATUS */}
         <UniversalGroup
           title={t(
             "supporter_dev_builds_channel_toggle",
-            "Daily Dev Build Channel"
+            "Dev Build Channel"
           )}
           icon={t("icon_rocket_launch", "rocket_launch")}
         >

@@ -556,7 +556,7 @@ export async function fetchUnifiedSanctuaryNotifications(opts: {
         const cleanTitle = !rawTitle.startsWith('[KEEPERS_') && rawTitle
           ? rawTitle
           : isDev
-            ? `Daily Dev Build${versionStr ? ` v${versionStr}` : ''}`
+            ? `Dev Build${versionStr ? ` v${versionStr}` : ''}`
             : `Public Release${versionStr ? ` v${versionStr}` : ''}`;
 
         const notifId = `hub-release-${row.id}-${versionStr || row.created_at}`;

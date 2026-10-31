@@ -1,5 +1,6 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
+#[cfg(target_os = "windows")]
 fn b64url_encode(data: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity((data.len() * 4 + 2) / 3);
@@ -26,6 +27,7 @@ fn b64url_encode(data: &[u8]) -> String {
     out
 }
 
+#[cfg(target_os = "windows")]
 fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
     let clean = input.trim().trim_end_matches('=');
     let mut out = Vec::with_capacity(clean.len() * 3 / 4);
@@ -54,6 +56,7 @@ fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
 #[allow(non_snake_case)]
 mod win_webauthn {
     use super::*;
+    use serde_json::json;
     use std::ffi::c_void;
     use std::ptr;
     use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
