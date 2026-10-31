@@ -4,7 +4,7 @@ import { useMemo, useCallback } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getExtensionRegex, formatDisplayName } from "../shared";
+import { getExtensionRegex, formatDisplayName, deduplicateBlueprintArtifacts, stripPriorityTierPrefix } from "../shared";
 
 export interface LoadOrderRule {
   id: string;
@@ -446,8 +446,9 @@ export function packageBlueprintLoadOrder(
   const ignored_conflicts = Array.from(ignoredPairsSet);
 
   const enrichAndSortArtifacts = (rawModObjects: any[]) => {
+    const dedupedModObjects = deduplicateBlueprintArtifacts(rawModObjects, schema);
     const presentKeys = new Set<string>();
-    rawModObjects.forEach((m: any) => {
+    dedupedModObjects.forEach((m: any) => {
       const rawName = typeof m === "string" ? m : String(m?.name || m?.path || "");
       const lastSlash = Math.max(rawName.lastIndexOf("/"), rawName.lastIndexOf("\\"));
       const cleanName = (lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName).toLowerCase();
@@ -457,7 +458,7 @@ export function packageBlueprintLoadOrder(
       }
     });
 
-    const enriched = rawModObjects.map((m: any, idx: number) => {
+    const enriched = dedupedModObjects.map((m: any, idx: number) => {
       const rawName = typeof m === "string" ? m : String(m?.name || m?.path || "");
       const lastSlash = Math.max(rawName.lastIndexOf("/"), rawName.lastIndexOf("\\"));
       const cleanName = lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName;
@@ -1396,9 +1397,10 @@ export function usePlaySetLogic() {
       }
       const updatedSets = [...prevSets];
       
+      const dedupedNewMods = deduplicateBlueprintArtifacts(Array.from(newMods), activeGameSchema);
       const nextModHashes: Record<string, string> = {};
-      Array.from(newMods as Set<string>).forEach((mName: string) => {
-         const mData = modMap.get(mName);
+      dedupedNewMods.forEach((mName: string) => {
+         const mData = modMap.get(mName) || modMap.get(stripPriorityTierPrefix(mName, activeGameSchema));
          if (mData && mData.hash) {
              nextModHashes[mName] = mData.hash;
          } else if (currentSet.modHashes && currentSet.modHashes[mName]) {
@@ -1408,7 +1410,7 @@ export function usePlaySetLogic() {
 
       updatedSets[activePlaySetIndex] = {
         ...currentSet,
-        mods: Array.from(newMods),
+        mods: dedupedNewMods,
         modHashes: nextModHashes,
         modMeta: currentSet.modMeta
       };
@@ -1561,7 +1563,10 @@ export function usePlaySetLogic() {
         nameRemap,
         activeGameSchema
       );
-      const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+      const availableMods = deduplicateBlueprintArtifacts(
+        rawAvailableMods.map((mName) => formatModWithTier(mName)),
+        activeGameSchema
+      );
 
       if (ignoredConflicts.length > 0) {
         setIgnoredGlobal((prevIgnored: string[]) => {
@@ -1886,7 +1891,8 @@ export function usePlaySetLogic() {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
       if (!modName) continue;
 
-      if (modMap.has(modName)) {
+      const strippedModName = stripPriorityTierPrefix(modName, activeGameSchema);
+      if (modMap.has(modName) || modMap.has(strippedModName)) {
         nextMods.push(modName);
       } else {
         let healed = false;
@@ -2080,7 +2086,7 @@ export function usePlaySetLogic() {
               ? [...prevIgnoredSet, modPair]
               : prevIgnoredSet;
 
-          currentSet.mods = newMods;
+          currentSet.mods = deduplicateBlueprintArtifacts(newMods, activeGameSchema);
           currentSet.modTiers = nextModTiers;
           currentSet.loadRules = nextLoadRules;
           currentSet.ignoredConflicts = nextIgnoredSet;
@@ -2153,7 +2159,7 @@ export function usePlaySetLogic() {
           delete nextModTiers[canonicalFile.toLowerCase()];
         }
 
-        currentSet.mods = nextMods;
+        currentSet.mods = deduplicateBlueprintArtifacts(nextMods, activeGameSchema);
         currentSet.modTiers = nextModTiers;
         updatedSets[idx] = currentSet;
         return updatedSets;

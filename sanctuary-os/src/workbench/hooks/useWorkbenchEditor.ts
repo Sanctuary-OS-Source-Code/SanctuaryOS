@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../../store';
 import { useLexicon } from '../../LexiconContext';
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
+import { listen } from '@tauri-apps/api/event';
 
 export function parseIniConfig(content: string) {
    const obj: any = {};
@@ -157,6 +158,56 @@ export function useWorkbenchEditor() {
          loadFile();
       }
    }, [selectedFile, pushStatus, t]);
+
+   useEffect(() => {
+      if (!selectedFile) return;
+      let unlisten: (() => void) | undefined;
+      listen<{ path: string; file_name: string; timestamp: number; source: string }>(
+         "workbench_config_intercepted",
+         async (event) => {
+            const payload = event.payload;
+            if (!payload) return;
+            const normSelected = selectedFile.path.replace(/\\/g, '/').toLowerCase();
+            const normPayload = (payload.path || '').replace(/\\/g, '/').toLowerCase();
+            const matchesFile =
+               normSelected === normPayload ||
+               selectedFile.name.toLowerCase() === (payload.file_name || '').toLowerCase();
+            if (!matchesFile) return;
+
+            try {
+               const diskContent = await readTextFile(selectedFile.path);
+               savedRawTextRef.current = diskContent;
+               setSavedRawText(diskContent);
+               const diskParsed = parseConfigContent(diskContent, selectedFile.name);
+               savedParsedDataRef.current = diskParsed;
+               setSavedParsedData(diskParsed);
+
+               const unsaved = useStore.getState().cwUnsavedEdits;
+               if (unsaved[selectedFile.path] === undefined) {
+                  setRawText(diskContent);
+                  setParsedData(diskParsed);
+                  if (editorRef && editorRef.getModel()) {
+                     const model = editorRef.getModel();
+                     if (diskContent !== model.getValue()) {
+                        editorRef.executeEdits("in-game-intercept", [{
+                           range: model.getFullModelRange(),
+                           text: diskContent,
+                           forceMoveMarkers: true
+                        }]);
+                     }
+                  }
+               }
+            } catch {
+               // Ignore transient read errors while game flushes
+            }
+         }
+      ).then((fn) => {
+         unlisten = fn;
+      }).catch(() => {});
+      return () => {
+         if (unlisten) unlisten();
+      };
+   }, [selectedFile, editorRef]);
 
    const validateContent = useCallback((text: string, monaco: any, model: any) => {
       let problems: any[] = [];

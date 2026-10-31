@@ -139,6 +139,7 @@ export const VaultFilters = React.memo(function VaultFilters({
           options={[
             { id: "ALL", label: t("filter_all", "All") },
             { id: "stable", label: t("status_stable", "STABLE") },
+            { id: "UNVERIFIED", label: t("unverified", "Unverified") },
             { id: "unstable", label: t("label_unstable", "Unstable") },
             { id: "corrupted", label: t("status_corrupted", "Corrupted") },
             { id: "under_review", label: t("status_dd_review", "Under Review") },

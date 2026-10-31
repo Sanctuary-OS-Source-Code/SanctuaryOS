@@ -195,11 +195,27 @@ pub fn initialize_airgap_watch(
                                     continue;
                                 }
                             }
-                            if let Some(ext) = path.extension() {
-                                if ext == "cfg" || ext == "ini" || ext == "json" {
+                            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                let ext_lower = ext.to_lowercase();
+                                if matches!(
+                                    ext_lower.as_str(),
+                                    "cfg" | "ini" | "json" | "toml" | "txt" | "xml"
+                                ) {
                                     if let Some(filename) = path.file_name() {
+                                        let fname_str = filename.to_string_lossy().to_string();
+                                        if fname_str.starts_with('.')
+                                            || fname_str.eq_ignore_ascii_case("Resource.cfg")
+                                            || fname_str.eq_ignore_ascii_case("Default.ini")
+                                            || fname_str.eq_ignore_ascii_case("desktop.ini")
+                                        {
+                                            continue;
+                                        }
                                         let backup_dest = v_path.join(filename);
                                         let vault_file = vault_mods_lane.join(filename);
+
+                                        let prior_content = std::fs::read_to_string(&vault_file)
+                                            .ok()
+                                            .or_else(|| std::fs::read_to_string(&backup_dest).ok());
 
                                         if vault_file.exists() {
                                             if !backup_dest.exists() {
@@ -210,10 +226,27 @@ pub fn initialize_airgap_watch(
 
                                         let _ = std::fs::copy(&path, &backup_dest);
 
-                                        let _ = app_handle.emit(
-                                            "airgap_secured",
-                                            filename.to_string_lossy().to_string(),
-                                        );
+                                        if !crate::commands::game_info::was_recently_saved_by_workbench(
+                                            &path.to_string_lossy(),
+                                            3500,
+                                        ) {
+                                            if let Ok(new_content) = std::fs::read_to_string(&path)
+                                            {
+                                                let target_history_path = if vault_file.exists() {
+                                                    vault_file.to_string_lossy().to_string()
+                                                } else {
+                                                    backup_dest.to_string_lossy().to_string()
+                                                };
+                                                let _ = crate::commands::game_info::record_in_game_config_snapshot(
+                                                    &app_handle,
+                                                    &target_history_path,
+                                                    prior_content.as_deref(),
+                                                    &new_content,
+                                                );
+                                            }
+                                        }
+
+                                        let _ = app_handle.emit("airgap_secured", fname_str);
                                     }
                                 }
                             }
@@ -230,6 +263,7 @@ pub fn initialize_airgap_watch(
 
 #[tauri::command]
 pub fn initialize_settings_watch(
+    app_handle: tauri::AppHandle,
     mods_path: String,
     vault_path: String,
     app_state: tauri::State<'_, AppState>,
@@ -248,13 +282,62 @@ pub fn initialize_settings_watch(
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         use notify::Watcher;
+
+        let is_watched_config_file = |p: &std::path::Path| -> bool {
+            let Some(ext) = p.extension().and_then(|e| e.to_str()) else {
+                return false;
+            };
+            let ext_lower = ext.to_lowercase();
+            if !matches!(
+                ext_lower.as_str(),
+                "cfg" | "ini" | "json" | "toml" | "txt" | "xml"
+            ) {
+                return false;
+            }
+            let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
+                return false;
+            };
+            if file_name.starts_with('.')
+                || file_name.starts_with("._")
+                || file_name.eq_ignore_ascii_case("Default.ini")
+                || file_name.eq_ignore_ascii_case("Resource.cfg")
+                || file_name.eq_ignore_ascii_case("desktop.ini")
+                || file_name.eq_ignore_ascii_case(".DS_Store")
+                || file_name.eq_ignore_ascii_case("override.json")
+                || file_name.eq_ignore_ascii_case("manifest.json")
+                || file_name.eq_ignore_ascii_case(".sanctuary_deployed_links.json")
+                || file_name.eq_ignore_ascii_case(".sanctuary_cache.json")
+            {
+                return false;
+            }
+            true
+        };
+
+        // Seed in-memory baseline contents for existing Vault config files so symlink-routed in-game edits have a pre-edit baseline
+        let mut known_contents: HashMap<PathBuf, String> = HashMap::new();
+        for entry in walkdir::WalkDir::new(&vault_mods_path)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let ep = entry.path();
+            if ep.is_file() && is_watched_config_file(ep) {
+                if let Ok(content) = std::fs::read_to_string(ep) {
+                    known_contents.insert(ep.to_path_buf(), content);
+                }
+            }
+        }
+
         let Ok(mut watcher) = notify::RecommendedWatcher::new(tx, notify::Config::default()) else {
             return;
         };
         if watcher
-            .watch(&path_to_watch, notify::RecursiveMode::NonRecursive)
+            .watch(&path_to_watch, notify::RecursiveMode::Recursive)
             .is_ok()
         {
+            if vault_mods_path != path_to_watch && vault_mods_path.exists() {
+                let _ = watcher.watch(&vault_mods_path, notify::RecursiveMode::Recursive);
+            }
             let _keep_alive = watcher;
             loop {
                 if shutdown_rx.try_recv().is_ok() {
@@ -283,66 +366,129 @@ pub fn initialize_settings_watch(
                             continue;
                         }
 
+                        // Allow the game engine to finish flushing its config write before reading
+                        std::thread::sleep(std::time::Duration::from_millis(120));
+
                         for path in event.paths {
                             if crate::utils::is_macos_or_os_metadata_path(&path) {
                                 continue;
                             }
+                            if !is_watched_config_file(&path) {
+                                continue;
+                            }
+                            if crate::commands::game_info::was_recently_saved_by_workbench(
+                                &path.to_string_lossy(),
+                                3500,
+                            ) {
+                                if let Ok(c) = std::fs::read_to_string(&path) {
+                                    known_contents.insert(path.clone(), c);
+                                }
+                                continue;
+                            }
+
                             let Ok(symlink_meta) = std::fs::symlink_metadata(&path) else {
                                 continue;
                             };
-                            if symlink_meta.file_type().is_symlink()
-                                || std::fs::read_link(&path).is_ok()
-                            {
-                                // Never copy a symlink back into Vault/Mods root — it already points to the Vault file
+                            let is_symlink = symlink_meta.file_type().is_symlink()
+                                || std::fs::read_link(&path).is_ok();
+
+                            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                                continue;
+                            };
+
+                            // Case 1: Direct write inside Vault Mods (or through a symlink pointing into Vault Mods)
+                            if path.starts_with(&vault_mods_path) {
+                                if !path.is_file() {
+                                    continue;
+                                }
+                                let Ok(new_content) = std::fs::read_to_string(&path) else {
+                                    continue;
+                                };
+                                if new_content.trim().is_empty() {
+                                    continue;
+                                }
+                                let prior_content = known_contents.get(&path).cloned();
+                                if prior_content.as_deref() == Some(new_content.as_str()) {
+                                    continue;
+                                }
+                                known_contents.insert(path.clone(), new_content.clone());
+                                let _ = crate::commands::game_info::record_in_game_config_snapshot(
+                                    &app_handle,
+                                    &path.to_string_lossy(),
+                                    prior_content.as_deref(),
+                                    &new_content,
+                                );
                                 continue;
                             }
-                            if !symlink_meta.is_file() {
-                                continue;
-                            }
-                            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                                let ext_lower = ext.to_lowercase();
-                                if ext_lower == "cfg"
-                                    || ext_lower == "ini"
-                                    || ext_lower == "json"
-                                    || ext_lower == "txt"
-                                    || ext_lower == "xml"
-                                {
-                                    let Some(file_name) = path.file_name().and_then(|n| n.to_str())
-                                    else {
-                                        continue;
-                                    };
-                                    if file_name.starts_with('.')
-                                        || file_name.starts_with("._")
-                                        || file_name.eq_ignore_ascii_case("Default.ini")
-                                        || file_name.eq_ignore_ascii_case("Resource.cfg")
-                                        || file_name.eq_ignore_ascii_case("desktop.ini")
-                                        || file_name.eq_ignore_ascii_case(".DS_Store")
-                                        || file_name
-                                            .eq_ignore_ascii_case(".sanctuary_deployed_links.json")
-                                    {
+
+                            // Case 2: Write inside live Mods folder (either physical file or symlink to Vault)
+                            if let Ok(relative_path) = path.strip_prefix(&path_to_watch) {
+                                let backup_dest = if is_symlink {
+                                    std::fs::read_link(&path).unwrap_or_else(|_| {
+                                        crate::utils::resolve_vault_config_destination(
+                                            &vault_mods_path,
+                                            relative_path,
+                                            file_name,
+                                        )
+                                    })
+                                } else {
+                                    crate::utils::resolve_vault_config_destination(
+                                        &vault_mods_path,
+                                        relative_path,
+                                        file_name,
+                                    )
+                                };
+
+                                if crate::commands::game_info::was_recently_saved_by_workbench(
+                                    &backup_dest.to_string_lossy(),
+                                    3500,
+                                ) {
+                                    continue;
+                                }
+
+                                let prior_content = if !is_symlink && backup_dest.is_file() {
+                                    std::fs::read_to_string(&backup_dest)
+                                        .ok()
+                                        .or_else(|| known_contents.get(&backup_dest).cloned())
+                                } else {
+                                    known_contents.get(&backup_dest).cloned()
+                                };
+
+                                if !is_symlink {
+                                    if !symlink_meta.is_file() {
                                         continue;
                                     }
-                                    if let Ok(relative_path) = path.strip_prefix(&path_to_watch) {
-                                        let backup_dest =
-                                            crate::utils::resolve_vault_config_destination(
-                                                &vault_mods_path,
-                                                relative_path,
-                                                file_name,
-                                            );
-                                        if backup_dest.is_file() {
-                                            if let (Ok(src_bytes), Ok(dst_bytes)) =
-                                                (std::fs::read(&path), std::fs::read(&backup_dest))
-                                            {
-                                                if src_bytes == dst_bytes {
-                                                    continue;
-                                                }
+                                    if backup_dest.is_file() {
+                                        if let (Ok(src_bytes), Ok(dst_bytes)) =
+                                            (std::fs::read(&path), std::fs::read(&backup_dest))
+                                        {
+                                            if src_bytes == dst_bytes {
+                                                continue;
                                             }
                                         }
-                                        if let Some(parent) = backup_dest.parent() {
-                                            let _ = std::fs::create_dir_all(parent);
-                                        }
-                                        let _ = std::fs::copy(&path, &backup_dest);
                                     }
+                                    if let Some(parent) = backup_dest.parent() {
+                                        let _ = std::fs::create_dir_all(parent);
+                                    }
+                                    let _ = std::fs::copy(&path, &backup_dest);
+                                }
+
+                                if let Ok(new_content) = std::fs::read_to_string(&backup_dest) {
+                                    if new_content.trim().is_empty() {
+                                        continue;
+                                    }
+                                    if prior_content.as_deref() == Some(new_content.as_str()) {
+                                        continue;
+                                    }
+                                    known_contents
+                                        .insert(backup_dest.clone(), new_content.clone());
+                                    let _ =
+                                        crate::commands::game_info::record_in_game_config_snapshot(
+                                            &app_handle,
+                                            &backup_dest.to_string_lossy(),
+                                            prior_content.as_deref(),
+                                            &new_content,
+                                        );
                                 }
                             }
                         }

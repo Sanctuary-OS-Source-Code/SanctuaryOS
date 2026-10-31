@@ -361,6 +361,48 @@ pub fn save_heuristic_signatures(
     Err("Failed to save heuristic signatures".into())
 }
 
+static LAST_WORKBENCH_SAVE_MS: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, u64>>,
+> = std::sync::OnceLock::new();
+
+fn normalize_history_path_key(path: &str) -> String {
+    path.trim().replace('\\', "/").to_lowercase()
+}
+
+pub fn mark_workbench_save(path: &str) {
+    let now_ms = crate::utils::current_epoch_ms();
+    let map_mutex =
+        LAST_WORKBENCH_SAVE_MS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(mut map) = map_mutex.lock() {
+        map.insert(normalize_history_path_key(path), now_ms);
+        if let Some(fname) = std::path::Path::new(path).file_name().and_then(|n| n.to_str()) {
+            map.insert(fname.to_lowercase(), now_ms);
+        }
+    }
+}
+
+pub fn was_recently_saved_by_workbench(path: &str, window_ms: u64) -> bool {
+    let now_ms = crate::utils::current_epoch_ms();
+    let map_mutex =
+        LAST_WORKBENCH_SAVE_MS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Ok(map) = map_mutex.lock() {
+        let key = normalize_history_path_key(path);
+        if let Some(&saved_ms) = map.get(&key) {
+            if now_ms.saturating_sub(saved_ms) < window_ms {
+                return true;
+            }
+        }
+        if let Some(fname) = std::path::Path::new(path).file_name().and_then(|n| n.to_str()) {
+            if let Some(&saved_ms) = map.get(&fname.to_lowercase()) {
+                if now_ms.saturating_sub(saved_ms) < window_ms {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 fn get_file_history_dir(app: &tauri::AppHandle, path: &str) -> Option<PathBuf> {
     use tauri::Manager;
     let app_dir = app.path().app_data_dir().ok()?;
@@ -368,17 +410,175 @@ fn get_file_history_dir(app: &tauri::AppHandle, path: &str) -> Option<PathBuf> {
     Some(app_dir.join("file_history").join(path_hash))
 }
 
+fn get_candidate_history_dirs(app: &tauri::AppHandle, path: &str) -> Vec<PathBuf> {
+    use tauri::Manager;
+    let Ok(app_dir) = app.path().app_data_dir() else {
+        return Vec::new();
+    };
+    let base = app_dir.join("file_history");
+    let mut dirs = Vec::new();
+    let mut push_unique = |hash_input: &str| {
+        let h = format!("{:x}", md5::compute(hash_input));
+        let p = base.join(h);
+        if !dirs.contains(&p) {
+            dirs.push(p);
+        }
+    };
+    push_unique(path);
+    push_unique(&path.replace('/', "\\"));
+    push_unique(&path.replace('\\', "/"));
+    push_unique(&normalize_history_path_key(path));
+    dirs
+}
+
+fn enforce_file_history_retention(
+    file_history_dir: &std::path::Path,
+    max_copies: usize,
+    max_size_bytes: u64,
+) {
+    use std::time::SystemTime;
+    if let Ok(entries) = std::fs::read_dir(file_history_dir) {
+        let mut all_files = Vec::new();
+        for p in entries
+            .flatten()
+            .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
+        {
+            let path = p.path();
+            let is_pinned = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|content| serde_json::from_str::<HistoryEntry>(&content).ok())
+                .map(|h| h.pinned.unwrap_or(false))
+                .unwrap_or(false);
+
+            let size = path.metadata().map(|m| m.len()).unwrap_or(0);
+            let modified = path
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            all_files.push((path, is_pinned, size, modified));
+        }
+
+        all_files.sort_by_key(|f| f.3);
+
+        let mut unpinned_count = all_files.iter().filter(|f| !f.1).count();
+        let mut unpinned_size: u64 = all_files.iter().filter(|f| !f.1).map(|f| f.2).sum();
+
+        for (path, is_pinned, size, _) in all_files {
+            if unpinned_count <= max_copies && unpinned_size <= max_size_bytes {
+                break;
+            }
+            if !is_pinned && std::fs::remove_file(&path).is_ok() {
+                unpinned_count = unpinned_count.saturating_sub(1);
+                unpinned_size = unpinned_size.saturating_sub(size);
+            }
+        }
+    }
+}
+
+pub fn record_in_game_config_snapshot(
+    app: &tauri::AppHandle,
+    path: &str,
+    prior_content: Option<&str>,
+    new_content: &str,
+) -> Option<u64> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tauri::Emitter;
+
+    if new_content.trim().is_empty() {
+        return None;
+    }
+
+    let config = get_saved_coordinates();
+    let max_copies = config.timeline_retention_copies.unwrap_or(50) as usize;
+    let max_size_bytes = config.timeline_retention_size_mb.unwrap_or(100) as u64 * 1024 * 1024;
+    if max_copies == 0 {
+        return None;
+    }
+
+    let existing_history = get_file_history(app.clone(), path.to_string()).unwrap_or_default();
+    if let Some(latest) = existing_history.iter().max_by_key(|h| h.timestamp) {
+        if latest.content == new_content {
+            return None;
+        }
+    }
+
+    let file_history_dir = get_file_history_dir(app, path)?;
+    std::fs::create_dir_all(&file_history_dir).unwrap_or_default();
+
+    let mut timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    if let Some(max_existing_ts) = existing_history.iter().map(|h| h.timestamp).max() {
+        if timestamp <= max_existing_ts {
+            timestamp = max_existing_ts + 1;
+        }
+    }
+
+    // If no snapshots exist yet and we have the pre-game baseline content, record it first so the user can diff against it
+    if existing_history.is_empty() {
+        if let Some(prior) = prior_content {
+            if !prior.trim().is_empty() && prior != new_content {
+                let baseline_ts = timestamp.saturating_sub(1);
+                let baseline_file = file_history_dir.join(format!("{}.json", baseline_ts));
+                let baseline_entry = HistoryEntry {
+                    timestamp: baseline_ts,
+                    content: prior.to_string(),
+                    pinned: Some(false),
+                    name: Some("[Pre-Game Baseline]".to_string()),
+                };
+                if let Ok(json) = serde_json::to_string(&baseline_entry) {
+                    let _ = std::fs::write(&baseline_file, json);
+                }
+            }
+        }
+    }
+
+    let history_file = file_history_dir.join(format!("{}.json", timestamp));
+    let entry = HistoryEntry {
+        timestamp,
+        content: new_content.to_string(),
+        pinned: Some(false),
+        name: Some("[In-Game Engine Edit]".to_string()),
+    };
+
+    if let Ok(json) = serde_json::to_string(&entry) {
+        let _ = std::fs::write(&history_file, json);
+    }
+
+    enforce_file_history_retention(&file_history_dir, max_copies, max_size_bytes);
+
+    let file_name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .to_string();
+
+    let _ = app.emit(
+        "workbench_config_intercepted",
+        serde_json::json!({
+            "path": path,
+            "file_name": file_name,
+            "timestamp": timestamp,
+            "source": "in_game",
+        }),
+    );
+
+    Some(timestamp)
+}
+
 fn update_history_entry<F>(
     app: &tauri::AppHandle,
     path: &str,
     timestamp: u64,
-    mutate: F,
+    mut mutate: F,
     err_msg: &str,
 ) -> Result<(), String>
 where
-    F: FnOnce(&mut HistoryEntry),
+    F: FnMut(&mut HistoryEntry),
 {
-    if let Some(file_history_dir) = get_file_history_dir(app, path) {
+    for file_history_dir in get_candidate_history_dirs(app, path) {
         let history_file = file_history_dir.join(format!("{}.json", timestamp));
         if let Ok(content) = std::fs::read_to_string(&history_file) {
             if let Ok(mut h) = serde_json::from_str::<HistoryEntry>(&content) {
@@ -402,6 +602,8 @@ pub fn save_file_with_history(
 ) -> Result<String, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    let prior_disk_content = std::fs::read_to_string(&path).ok();
+    mark_workbench_save(&path);
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
 
     if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
@@ -413,12 +615,38 @@ pub fn save_file_with_history(
             return Ok("Saved without history".into());
         }
 
+        let existing_history = get_file_history(app.clone(), path.clone()).unwrap_or_default();
         std::fs::create_dir_all(&file_history_dir).unwrap_or_default();
 
-        let timestamp = SystemTime::now()
+        let mut timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
+
+        if let Some(max_existing_ts) = existing_history.iter().map(|h| h.timestamp).max() {
+            if timestamp <= max_existing_ts {
+                timestamp = max_existing_ts + 1;
+            }
+        }
+
+        if existing_history.is_empty() {
+            if let Some(prior) = prior_disk_content.as_deref() {
+                if !prior.trim().is_empty() && prior != content {
+                    let baseline_ts = timestamp.saturating_sub(1);
+                    let baseline_file = file_history_dir.join(format!("{}.json", baseline_ts));
+                    let baseline_entry = HistoryEntry {
+                        timestamp: baseline_ts,
+                        content: prior.to_string(),
+                        pinned: Some(false),
+                        name: Some("[Pre-Game Baseline]".to_string()),
+                    };
+                    if let Ok(json) = serde_json::to_string(&baseline_entry) {
+                        let _ = std::fs::write(&baseline_file, json);
+                    }
+                }
+            }
+        }
+
         let history_file = file_history_dir.join(format!("{}.json", timestamp));
         let entry = HistoryEntry {
             timestamp,
@@ -431,42 +659,7 @@ pub fn save_file_with_history(
             let _ = std::fs::write(&history_file, json);
         }
 
-        if let Ok(entries) = std::fs::read_dir(&file_history_dir) {
-            let mut all_files = Vec::new();
-            for p in entries
-                .flatten()
-                .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("json"))
-            {
-                let path = p.path();
-                let is_pinned = std::fs::read_to_string(&path)
-                    .ok()
-                    .and_then(|content| serde_json::from_str::<HistoryEntry>(&content).ok())
-                    .map(|h| h.pinned.unwrap_or(false))
-                    .unwrap_or(false);
-
-                let size = path.metadata().map(|m| m.len()).unwrap_or(0);
-                let modified = path
-                    .metadata()
-                    .and_then(|m| m.modified())
-                    .unwrap_or(SystemTime::UNIX_EPOCH);
-                all_files.push((path, is_pinned, size, modified));
-            }
-
-            all_files.sort_by_key(|f| f.3);
-
-            let mut unpinned_count = all_files.iter().filter(|f| !f.1).count();
-            let mut unpinned_size: u64 = all_files.iter().filter(|f| !f.1).map(|f| f.2).sum();
-
-            for (path, is_pinned, size, _) in all_files {
-                if unpinned_count <= max_copies && unpinned_size <= max_size_bytes {
-                    break;
-                }
-                if !is_pinned && std::fs::remove_file(&path).is_ok() {
-                    unpinned_count = unpinned_count.saturating_sub(1);
-                    unpinned_size = unpinned_size.saturating_sub(size);
-                }
-            }
-        }
+        enforce_file_history_retention(&file_history_dir, max_copies, max_size_bytes);
     }
 
     Ok("Saved successfully".into())
@@ -474,6 +667,7 @@ pub fn save_file_with_history(
 
 #[tauri::command]
 pub fn save_file_silently(path: String, content: String) -> Result<String, String> {
+    mark_workbench_save(&path);
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
     Ok("Saved successfully".into())
 }
@@ -481,14 +675,17 @@ pub fn save_file_silently(path: String, content: String) -> Result<String, Strin
 #[tauri::command]
 pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
     let mut history = Vec::new();
+    let mut seen_timestamps = std::collections::HashSet::new();
 
-    if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
+    for file_history_dir in get_candidate_history_dirs(&app, &path) {
         if file_history_dir.exists() {
             if let Ok(entries) = std::fs::read_dir(file_history_dir) {
                 for entry in entries.flatten() {
                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
                         if let Ok(h) = serde_json::from_str::<HistoryEntry>(&content) {
-                            history.push(h);
+                            if seen_timestamps.insert(h.timestamp) {
+                                history.push(h);
+                            }
                         }
                     }
                 }
@@ -526,14 +723,20 @@ pub fn toggle_pin_version(
 
 #[tauri::command]
 pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Result<(), String> {
-    if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
+    let mut deleted = false;
+    for file_history_dir in get_candidate_history_dirs(&app, &path) {
         let history_file = file_history_dir.join(format!("{}.json", timestamp));
         if history_file.exists() {
-            let _ = std::fs::remove_file(history_file);
-            return Ok(());
+            if std::fs::remove_file(history_file).is_ok() {
+                deleted = true;
+            }
         }
     }
-    Err("Failed to delete version".into())
+    if deleted {
+        Ok(())
+    } else {
+        Err("Failed to delete version".into())
+    }
 }
 
 #[tauri::command]
@@ -547,7 +750,7 @@ pub fn rename_version(
         &app,
         &path,
         timestamp,
-        |h| h.name = Some(name),
+        |h| h.name = Some(name.clone()),
         "Failed to rename version",
     )
 }

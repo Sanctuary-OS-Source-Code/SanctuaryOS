@@ -2405,7 +2405,8 @@ export function getDefaultDirectiveBuilderSchema(
             desc: g(
               "Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the {Citizen}'s Workbench Diff Timeline."
             ),
-            pending: true,
+            pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m14",

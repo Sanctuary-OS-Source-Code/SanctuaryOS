@@ -7,6 +7,7 @@ import {
   ModData,
   getModIcon,
   HoverTooltip,
+  countBlueprintArtifacts,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
@@ -824,7 +825,11 @@ export function GlobalCommandPalette({
       seenBlueprintNames.add(lowerSet);
 
       const isCurrent = lowerSet === String(activeSetName || "").toLowerCase();
-      const modCount = Array.isArray(ps?.mods) ? ps.mods.length : Array.isArray(ps?.items) ? ps.items.length : 0;
+      const modCount = Array.isArray(ps?.mods)
+        ? countBlueprintArtifacts(ps.mods, activeGameSchema)
+        : Array.isArray(ps?.items)
+          ? countBlueprintArtifacts(ps.items, activeGameSchema)
+          : 0;
       items.push({
         id: `blueprint_${setName}`,
         category: "vault",

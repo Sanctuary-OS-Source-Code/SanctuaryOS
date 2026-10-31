@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown, ActionPill, EmptyState } from '../shared';
+import { CustomDropdown, ActionPill, EmptyState, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
 import IconPicker from '../IconPicker';
 import { humanizeConfigLabel } from './WorkbenchVisualEditor';
 
@@ -170,7 +170,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
 
    const typeOptions = [
       { id: "boolean", label: t("workbench_add_boolean", "Boolean"), icon: t("icon_toggle_on", "toggle_on") },
-      { id: "number", label: t("workbench_add_number", "Number"), icon: t("icon_numbers", "123") },
+      { id: "number", label: t("workbench_add_number", "Number"), icon: t("icon_pin", "pin") },
       { id: "tuple", label: t("workbench_add_tuple", "Range"), icon: t("icon_swap_horiz", "swap_horiz") },
       { id: "string", label: t("workbench_add_string", "Text"), icon: t("icon_title", "title") },
       { id: "dropdown", label: t("support_type_dropdown", "Dropdown"), icon: t("icon_dropdown", "arrow_drop_down_circle") },
@@ -188,13 +188,24 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
 
    const getIconForType = (type: string) => {
       if (type === "boolean") return t("icon_toggle_on", "toggle_on");
-      if (type === "number") return t("icon_numbers", "123");
+      if (type === "number") return t("icon_pin", "pin");
       if (type === "tuple") return t("icon_swap_horiz", "swap_horiz");
       if (type === "string") return t("icon_title", "title");
       if (type === "dropdown") return t("icon_dropdown", "arrow_drop_down_circle");
       if (type === "keybinding") return t("icon_keyboard", "keyboard");
       if (type === "group") return t("icon_account_tree", "account_tree");
       return t("icon_tune", "tune");
+   };
+
+   const getLabelForType = (type: string) => {
+      if (type === "boolean") return t("workbench_add_boolean", "Boolean");
+      if (type === "number") return t("workbench_add_number", "Number");
+      if (type === "tuple") return t("workbench_add_tuple", "Range");
+      if (type === "string") return t("workbench_add_string", "Text");
+      if (type === "dropdown") return t("support_type_dropdown", "Dropdown");
+      if (type === "keybinding") return t("workbench_add_keybinding", "Keybind");
+      if (type === "group") return t("workbench_add_group", "Group");
+      return type;
    };
 
    const handleAddSetting = (type: string, parentIdx: number | null = null) => {
@@ -332,6 +343,20 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
       const displayLabel = humanizeConfigLabel(rawDisplayLabel);
       const catObj = categories.find((c: any) => c.id === setting.category);
       const catLabel = catObj ? resolveText(catObj.name_key, catObj.id) : setting.category;
+      const typeLabel = getLabelForType(setting.type);
+      const groupChildCount = setting.type === "group" && Array.isArray(setting.settings) ? setting.settings.length : 0;
+      const defaultSummary =
+         setting.type === "group"
+            ? `${groupChildCount} ${t("cw_settings_count_suffix", "Settings")}`
+            : setting.default !== undefined && setting.default !== ""
+               ? `${t("cw_default_prefix", "Default:")} ${
+                    typeof setting.default === "boolean"
+                       ? setting.default
+                          ? t("enabled", "Enabled")
+                          : t("disabled", "Disabled")
+                       : String(setting.default)
+                 }`
+               : t("cw_not_set_default", "Default (Empty)");
 
       return (
          <div
@@ -340,81 +365,101 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
             className={`group rounded-2xl border transition-colors duration-200 overflow-hidden ${
                isChild
                   ? 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)]'
-                  : 'glass-panel border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_16%,transparent)]'
-            } ${isExpanded ? '!border-[color-mix(in_srgb,var(--accent)_35%,transparent)]' : ''}`}
+                  : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)]'
+            } ${isExpanded ? '!border-[color-mix(in_srgb,var(--accent)_40%,transparent)]' : ''}`}
          >
             {/* Compact Card Header */}
             <div
                onClick={() => setExpandedPaths((prev) => ({ ...prev, [cardId]: !prev[cardId] }))}
-               className="px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors select-none"
+               className="px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors select-none"
             >
-               <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <span className={`material-symbols-outlined !text-[17px] shrink-0 ${
-                     setting.type === "group" ? 'text-[var(--accent)]' : 'text-[var(--subtext)]'
-                  }`}>
-                     {getIconForType(setting.type)}
-                  </span>
-                  <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                     <span className="text-[12px] font-black text-[var(--text)] tracking-wide truncate">
+               <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                     className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                        setting.type === "group" ? 'text-[var(--accent)]' : 'text-[var(--text)] opacity-85'
+                     }`}
+                  >
+                     <span className="material-symbols-outlined !text-[18px]">
+                        {getIconForType(setting.type)}
+                     </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                     <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors tracking-wide truncate">
                         {displayLabel || setting.key}
                      </span>
-                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">{getIconForType(setting.type)}</span>
-                        <span>{setting.type}</span>
-                     </span>
-                     {!isChild && catLabel && categories.length > 1 && (
-                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[8px] font-bold text-[var(--text)] flex items-center gap-1">
-                           <span className="material-symbols-outlined !text-[10px] text-[var(--subtext)]">{t("icon_folder", "folder")}</span>
-                           <span>{catLabel}</span>
-                        </span>
-                     )}
-                     {setting.type === "group" && Array.isArray(setting.settings) && (
-                        <span className="text-[9px] font-bold text-[var(--subtext)] opacity-60 tabular-nums">
-                           ({setting.settings.length})
-                        </span>
-                     )}
+                     <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--subtext)] opacity-70 truncate">
+                        {!isChild && catLabel && categories.length > 1 && (
+                           <>
+                              <span className="truncate">{catLabel}</span>
+                              <span className="opacity-50">&bull;</span>
+                           </>
+                        )}
+                        <span className="truncate tabular-nums">{defaultSummary}</span>
+                     </div>
                   </div>
                </div>
 
-               <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <div className={`flex items-center gap-1 transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                     <button
-                        type="button"
-                        disabled={idx === 0}
-                        onClick={(e) => moveSetting(-1, e)}
-                        className="w-6.5 h-6.5 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] disabled:opacity-25 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
-                     >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_upward", "arrow_upward")}</span>
-                     </button>
-                     <button
-                        type="button"
-                        disabled={idx >= totalSiblings - 1}
-                        onClick={(e) => moveSetting(1, e)}
-                        className="w-6.5 h-6.5 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] disabled:opacity-25 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
-                     >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_downward", "arrow_downward")}</span>
-                     </button>
-                     <button
-                        type="button"
-                        onClick={duplicateSetting}
-                        className="w-6.5 h-6.5 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
-                     >
-                        <span className="material-symbols-outlined !text-[13px]">{t("icon_content_copy", "content_copy")}</span>
-                     </button>
-                     <button
-                        type="button"
-                        onClick={deleteSetting}
-                        className="w-6.5 h-6.5 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center text-[var(--danger)] transition-all cursor-pointer"
-                     >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_delete", "delete")}</span>
-                     </button>
+               <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <span className={VAULT_CHIP_CLASS}>
+                     <span className="material-symbols-rounded !text-[12px] text-[var(--accent)] shrink-0">
+                        {getIconForType(setting.type)}
+                     </span>
+                     <span>
+                        {setting.type === "group" ? `${typeLabel} • ${groupChildCount}` : typeLabel}
+                     </span>
+                  </span>
+
+                  <div className="hidden sm:flex items-center gap-1">
+                     <div className="relative flex">
+                        <button
+                           type="button"
+                           disabled={idx === 0}
+                           onClick={(e) => moveSetting(-1, e)}
+                           className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] disabled:opacity-25 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                        >
+                           <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_upward", "arrow_upward")}</span>
+                        </button>
+                        <HoverTooltip title={t("move_up", "Move Up")} />
+                     </div>
+                     <div className="relative flex">
+                        <button
+                           type="button"
+                           disabled={idx >= totalSiblings - 1}
+                           onClick={(e) => moveSetting(1, e)}
+                           className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] disabled:opacity-25 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                        >
+                           <span className="material-symbols-outlined !text-[14px]">{t("icon_arrow_downward", "arrow_downward")}</span>
+                        </button>
+                        <HoverTooltip title={t("move_down", "Move Down")} />
+                     </div>
+                     <div className="relative flex">
+                        <button
+                           type="button"
+                           onClick={duplicateSetting}
+                           className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                        >
+                           <span className="material-symbols-outlined !text-[13px]">{t("icon_content_copy", "content_copy")}</span>
+                        </button>
+                        <HoverTooltip title={t("duplicate", "Duplicate")} />
+                     </div>
+                     <div className="relative flex">
+                        <button
+                           type="button"
+                           onClick={deleteSetting}
+                           className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                        >
+                           <span className="material-symbols-outlined !text-[14px]">{t("icon_delete", "delete")}</span>
+                        </button>
+                        <HoverTooltip title={t("delete", "Delete")} />
+                     </div>
                   </div>
                   <button
                      type="button"
                      onClick={() => setExpandedPaths((prev) => ({ ...prev, [cardId]: !prev[cardId] }))}
-                     className="w-6.5 h-6.5 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
+                     className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-all cursor-pointer"
                   >
-                     <span className="material-symbols-outlined !text-[17px]">
+                     <span className="material-symbols-outlined !text-[16px]">
                         {isExpanded ? t("icon_expand_less", "expand_less") : t("icon_expand_more", "expand_more")}
                      </span>
                   </button>
@@ -760,16 +805,19 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               <span className="material-symbols-outlined !text-[15px]">{t("icon_account_tree", "account_tree")}</span>
                               {t("workbench_group_children", "Grouped Settings")} ({(setting.settings || []).length})
                            </span>
-                           <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 w-full">
+                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
                               {childTypeOptions.map((ct) => (
                                  <button
                                     key={ct.id}
                                     type="button"
                                     onClick={() => handleAddSetting(ct.id, idx)}
-                                    className="h-8 px-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-1 text-[10px] font-bold tracking-tight transition-all cursor-pointer min-w-0"
+                                    className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
                                  >
-                                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">{ct.icon}</span>
-                                    <span className="truncate">{ct.label}</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                       <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{ct.icon}</span>
+                                       <span className="truncate">{ct.label}</span>
+                                    </div>
+                                    <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
                                  </button>
                               ))}
                            </div>
@@ -1098,7 +1146,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
             )}
          </div>
 
-         {/* 2. Search & Filter ActionPill + Symmetrical 6-Button Add Row */}
+         {/* 2. Search & Filter ActionPill + Symmetrical 2x4 Insert Grid */}
          <div className="flex flex-col gap-2.5">
             <ActionPill
                className="w-full"
@@ -1106,14 +1154,14 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                setSearchQuery={setBuilderSearch}
                searchPlaceholder={t("workbench_search_builder", "Search template fields...")}
                rightContent={
-                  <div className="flex items-center gap-2 px-3 h-full py-2">
+                  <div className="flex items-center gap-2 px-2.5 h-full py-1.5">
                      <CustomDropdown
-                        flat={true}
-                        variant="pill"
                         disableTint={true}
+                        className="h-9"
+                        buttonClassName="!h-9 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-[11px] font-bold"
                         value={activeCategoryFilter}
                         options={[
-                           { id: "ALL", label: `${t("cat_all", "All")} (${settingsList.length})` },
+                           { id: "ALL", label: `${t("cat_all", "All")} (${settingsList.length})`, icon: t("icon_grid_view", "grid_view") },
                            ...categories.map((cat: any) => ({
                               id: cat.id,
                               label: `${resolveText(cat.name_key, cat.name || cat.id)} (${settingsList.filter(s => s.category === cat.id).length})`,
@@ -1126,18 +1174,44 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                }
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                {typeOptions.map((opt) => (
                   <button
                      key={opt.id}
                      type="button"
                      onClick={() => handleAddSetting(opt.id, null)}
-                     className="h-9 px-2 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-tight transition-all cursor-pointer min-w-0"
+                     className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
                   >
-                     <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">{opt.icon}</span>
-                     <span className="truncate">{opt.label}</span>
+                     <div className="flex items-center gap-2 min-w-0">
+                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{opt.icon}</span>
+                        <span className="truncate">{opt.label}</span>
+                     </div>
+                     <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
                   </button>
                ))}
+               <button
+                  type="button"
+                  onClick={() => {
+                     setShowCategoriesDrawer(true);
+                     commitTemplate((draft) => {
+                        const nextNum = draft.categories.length + 1;
+                        draft.categories.push({
+                           id: `category_${nextNum}`,
+                           name_key: `Category ${nextNum}`,
+                           icon_key: "folder"
+                        });
+                        setEditingCategoryIndex(draft.categories.length - 1);
+                        setShowCategoryIconPicker(false);
+                     });
+                  }}
+                  className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
+               >
+                  <div className="flex items-center gap-2 min-w-0">
+                     <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{t("icon_create_new_folder", "create_new_folder")}</span>
+                     <span className="truncate">{t("category", "Category")}</span>
+                  </div>
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
+               </button>
             </div>
          </div>
 

@@ -2350,6 +2350,7 @@ pub fn get_workbench_files(
                                     || ext_lower == "json"
                                     || ext_lower == "cfg"
                                     || ext_lower == "ini"
+                                    || ext_lower == "toml"
                                 {
                                     if let Some(name) =
                                         entry_path.file_name().and_then(|n| n.to_str())

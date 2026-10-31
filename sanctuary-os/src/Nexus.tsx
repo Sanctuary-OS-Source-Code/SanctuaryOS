@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -2559,12 +2559,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative">
                         <div className="flex flex-col justify-center gap-1.5 relative z-10 pointer-events-auto">
                           <div className="flex flex-col gap-1.5 items-start">
-                            {marketTab === 'BLUEPRINTS' && (asset.json_data?.artifacts?.length || 0) > 0 && (
+                            {marketTab === 'BLUEPRINTS' && countBlueprintArtifacts(asset.json_data?.artifacts) > 0 && (
                               <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
                                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                                   {t("icon_account_tree", "account_tree")}
                                 </span>
-                                +{asset.json_data.artifacts.length} {t("badge_modules_count", "Modules")}
+                                +{countBlueprintArtifacts(asset.json_data?.artifacts)} {t("badge_modules_count", "Modules")}
                               </span>
                             )}
                             {asset.created_at && (

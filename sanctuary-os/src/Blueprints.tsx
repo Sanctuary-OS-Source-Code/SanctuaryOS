@@ -15,6 +15,9 @@ import {
   HoverTooltip,
   ActionPill,
   EmptyState,
+  countBlueprintArtifacts,
+  deduplicateBlueprintArtifacts,
+  stripPriorityTierPrefix,
 } from "./shared";
 import {
   CommandScreenLayout,
@@ -152,17 +155,23 @@ export default function Blueprints({
 
   const optimizedModList = useMemo(() => {
     const map = new Map();
+    const byCleanLower = new Map();
     const fallbackArr: any[] = [];
     (modList || []).forEach((m: any) => {
+      if (!m?.name) return;
       map.set(m.name, m);
-      const mBase = m.name?.split(/[\\/]/).pop()?.replace(extRegex, "");
-      const mExt = m.name?.split(".").pop()?.toLowerCase();
+      const stripped = stripPriorityTierPrefix(m.name, activeGameSchema);
+      if (stripped && !map.has(stripped)) map.set(stripped, m);
+      const clean = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
+      if (clean && !byCleanLower.has(clean)) byCleanLower.set(clean, m);
+      const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, "");
+      const mExt = m.name.split(".").pop()?.toLowerCase();
       if (mBase && mExt) {
         fallbackArr.push({ ...m, _mBase: mBase, _mExt: mExt });
       }
     });
-    return { map, fallbackArr };
-  }, [modList, extRegex]);
+    return { map, byCleanLower, fallbackArr };
+  }, [modList, extRegex, activeGameSchema]);
 
   const [radarCacheTick, setRadarCacheTick] = useState(0);
   useEffect(() => {
@@ -176,10 +185,16 @@ export default function Blueprints({
     const res = { total: 0, tier4: 0, tier3: 0, broken: 0, unstable: 0 };
     if (!set || !set.mods || !Array.isArray(set.mods) || set.mods.length === 0) return res;
 
-    const activeMods = set.mods.map((rawMod: any) => {
+    const dedupedMods = deduplicateBlueprintArtifacts(set.mods, activeGameSchema);
+    const activeMods = dedupedMods.map((rawMod: any) => {
       const modName =
         typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-      const exactMatch = optimizedModList.map.get(modName);
+      const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
+      const cleanLower = (modName.split(/[\\/]/).pop() || modName).toLowerCase();
+      const exactMatch =
+        optimizedModList.map.get(modName) ||
+        optimizedModList.map.get(strippedName) ||
+        optimizedModList.byCleanLower.get(cleanLower);
       if (exactMatch)
         return {
           ...exactMatch,
@@ -245,11 +260,18 @@ export default function Blueprints({
       const alertStatus = getBlueprintAlertCount(set);
       let hasGhosts = false;
       if (set && set.mods) {
-        for (const rawMod of set.mods) {
+        const dedupedMods = deduplicateBlueprintArtifacts(set.mods, activeGameSchema);
+        for (const rawMod of dedupedMods) {
           const modName =
             typeof rawMod === "string" ? rawMod : rawMod.name || rawMod.path || "";
           if (!modName) continue;
-          if (!optimizedModList.map.has(modName)) {
+          const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
+          const cleanLower = (modName.split(/[\\/]/).pop() || modName).toLowerCase();
+          if (
+            !optimizedModList.map.has(modName) &&
+            !optimizedModList.map.has(strippedName) &&
+            !optimizedModList.byCleanLower.has(cleanLower)
+          ) {
             hasGhosts = true;
             break;
           }
@@ -300,28 +322,7 @@ export default function Blueprints({
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     const isDeployed = activeSetName === set.name;
-    const linkedModsCount = (() => {
-      const seen = new Set<string>();
-      const rawArr = Array.isArray(set.mods) ? set.mods : [];
-      for (let i = 0; i < rawArr.length; i++) {
-        const m = rawArr[i];
-        const modName = typeof m === "string" ? m : String(m?.name || m?.path || "");
-        if (
-          !modName ||
-          modName.startsWith("FOLDER_") ||
-          modName.startsWith("SET_") ||
-          modName.startsWith("LOCAL_SET_")
-        ) {
-          continue;
-        }
-        const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
-        const cleanLower = (
-          lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName
-        ).toLowerCase();
-        if (cleanLower) seen.add(cleanLower);
-      }
-      return seen.size;
-    })();
+    const linkedModsCount = countBlueprintArtifacts(set.mods, activeGameSchema);
 
     const titleNode =
       editingSetName === set.name ? (
@@ -1169,7 +1170,7 @@ export default function Blueprints({
                       }
                       badges={
                         <>
-                          {bp.artifacts && bp.artifacts.length > 0 && (
+                          {bp.artifacts && countBlueprintArtifacts(bp.artifacts, activeGameSchema) > 0 && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1182,7 +1183,7 @@ export default function Blueprints({
                                 {t("icon_extension", "extension")}
                               </span>
                               <span>
-                                {bp.artifacts.length} {t("artifacts_linked", "{Mods} Linked")}
+                                {countBlueprintArtifacts(bp.artifacts, activeGameSchema)} {t("artifacts_linked", "{Mods} Linked")}
                               </span>
                             </button>
                           )}

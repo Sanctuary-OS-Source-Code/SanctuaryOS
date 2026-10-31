@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox, openModDossier } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox, openModDossier, countBlueprintArtifacts } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { UniversalGroup, SidePanelHeroCard } from "./components/layouts/ElevatedHubLayout";
@@ -1489,7 +1489,7 @@ export const DbpfScout = () => {
                                         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                             {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                                                 const isTarget = scanScope === blueprint.name;
-                                                const modCount = blueprint.mods ? blueprint.mods.length : 0;
+                                                const modCount = countBlueprintArtifacts(blueprint.mods, activeGameSchema);
                                                 let bpStats: { fatal: number; tuning: number; clone: number } | null = null;
                                                 try {
                                                     const rawStats = localStorage.getItem(`radar_stats_${blueprint.name}`);
@@ -4474,15 +4474,13 @@ export const DbpfScout = () => {
                     strategyList.find((s) => s.id === compiledOrder.strategy) || strategyList[0];
                 const activeClashTotal = fatalConflicts.length + tuningConflicts.length + cloneConflicts.length;
                 const scopeOptions = (playSets || []).map((s: any) => {
-                    const mCount = Array.isArray(s.mods) ? s.mods.length : 0;
+                    const mCount = countBlueprintArtifacts(s.mods, activeGameSchema);
                     return {
                         id: s.name,
                         label: `${s.name} • ${mCount} ${t("term_mods", "{Mods}")}`,
                     };
                 });
-                const activeScopeModCount = Array.isArray(activeBlueprintObj?.mods)
-                    ? activeBlueprintObj.mods.length
-                    : 0;
+                const activeScopeModCount = countBlueprintArtifacts(activeBlueprintObj?.mods, activeGameSchema);
 
                 return (
                     <SidePanel

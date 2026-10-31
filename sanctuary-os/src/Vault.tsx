@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, getExtensionRegex, getModIcon, isSupportedExtension } from "./shared";
+import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getLowestVersion, getExtensionRegex, getModIcon, isSupportedExtension, stripPriorityTierPrefix } from "./shared";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
 
@@ -44,7 +44,6 @@ const Vault = React.memo(function Vault(props: any) {
       return 0;
     }
   }, [activeWorkspaceId, displayModList]);
-  const unverifiedCount = React.useMemo(() => displayModList.filter((m: any) => !m.isVirtual && !m.verified).length, [displayModList]);
   const selectedVersion = useStore((state) => state.selectedVersion);
   const showImages = useStore((state: any) => state.showImages);
 
@@ -95,12 +94,24 @@ const Vault = React.memo(function Vault(props: any) {
 
   const equippedDisplayMods = React.useMemo(() => {
     const normalSet = new Set(activeSetModsMemo);
-    const cleanedSet = new Set(activeSetModsMemo.map((sm: string) => sm.replace(/^(sanctuary[/\\])+/i, '')));
+    const cleanedSet = new Set<string>();
+    const cleanFileLowerSet = new Set<string>();
+    for (let i = 0; i < activeSetModsMemo.length; i++) {
+      const sm = activeSetModsMemo[i];
+      if (!sm || typeof sm !== "string") continue;
+      const stripped = stripPriorityTierPrefix(sm, activeGameSchema);
+      if (stripped) cleanedSet.add(stripped);
+      const baseFile = (sm.split(/[\\/]/).pop() || sm).toLowerCase();
+      if (baseFile) cleanFileLowerSet.add(baseFile);
+    }
 
     return displayModList.filter((m: any) => {
-      return normalSet.has(m.name) || cleanedSet.has(m.name);
+      if (!m?.name) return false;
+      if (normalSet.has(m.name) || cleanedSet.has(m.name)) return true;
+      const mFileLower = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
+      return Boolean(mFileLower && cleanFileLowerSet.has(mFileLower));
     });
-  }, [displayModList, activeSetModsMemo]);
+  }, [displayModList, activeSetModsMemo, activeGameSchema]);
 
   const virtualFolderIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -201,9 +212,18 @@ const Vault = React.memo(function Vault(props: any) {
     const parsedActiveSetModNamespaces = new Set<string>();
 
     activeSetMods.forEach((n: string) => {
-      const cleanNLookup = n.replace(/^(sanctuary[/\\])+/i, '');
-      const mData = modListIndex.byName.get(cleanNLookup) || modListIndex.namesAndDisplayNames.find((ne: any) => ne.name === cleanNLookup)?.orig;
-      const cleanN = n.split(/[\\/]/).pop()?.replace(extRegex, "").toUpperCase();
+      if (!n || typeof n !== "string") return;
+      const cleanNLookup = stripPriorityTierPrefix(n, activeGameSchema);
+      const cleanFile = n.split(/[\\/]/).pop() || n;
+      const mData =
+        modListIndex.byName.get(cleanNLookup) ||
+        modListIndex.byName.get(n) ||
+        modListIndex.namesAndDisplayNames.find(
+          (ne: any) =>
+            ne.name === cleanNLookup ||
+            (ne.name.split(/[\\/]/).pop() || ne.name).toLowerCase() === cleanFile.toLowerCase()
+        )?.orig;
+      const cleanN = cleanFile.replace(extRegex, "").toUpperCase();
 
       if (mData?.dbId) parsedActiveSetModIds.add(String(mData.dbId));
       if (cleanN) parsedActiveSetModNames.add(cleanN);
@@ -211,6 +231,7 @@ const Vault = React.memo(function Vault(props: any) {
 
       parsedActiveSetModNamespaces.add(n);
       parsedActiveSetModNamespaces.add(cleanNLookup);
+      if (mData?.name) parsedActiveSetModNamespaces.add(mData.name);
     });
 
     const equippedDisplayModFamilies = new Set<string>();
@@ -469,8 +490,38 @@ const Vault = React.memo(function Vault(props: any) {
     ]
   );
 
+  const unverifiedCount = React.useMemo(() => {
+    const strUnverified = t("unverified", "Unverified").toLowerCase();
+    const strLocal = t("badge_local", "Local").toLowerCase();
+    const isUnverifiedMod = (m: any) => {
+      const rawStatus = String(m?.status || "").toLowerCase();
+      return (
+        rawStatus.includes(strUnverified) ||
+        rawStatus.includes(strLocal) ||
+        rawStatus.includes("unverified") ||
+        rawStatus.includes("local") ||
+        rawStatus.includes("unknown")
+      );
+    };
+    let count = 0;
+    for (let i = 0; i < displayModList.length; i++) {
+      const mod = displayModList[i];
+      const bucket = classifyVaultMod(mod);
+      if (bucket !== "EQUIPPED" && bucket !== "UNEQUIPPED") continue;
+      if (mod.isVirtual) {
+        const hasMatch =
+          isUnverifiedMod(mod) ||
+          (Array.isArray(mod.flavors) && mod.flavors.some((f: any) => isUnverifiedMod(f)));
+        if (hasMatch) count++;
+      } else if (isUnverifiedMod(mod)) {
+        count++;
+      }
+    }
+    return count;
+  }, [displayModList, classifyVaultMod, t]);
+
   const vaultTabCounts = React.useMemo(() => {
-    const list = (equipFilter === "OVERVIEW" ? displayModList : visibleMods) || [];
+    const list = visibleMods || displayModList || [];
     let all = 0;
     let equipped = 0;
     let unequipped = 0;

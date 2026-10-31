@@ -11,13 +11,44 @@ import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
 import { useTheme } from '../ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
 
+const resolveCategoryIcon = (
+   cat: any,
+   resolveText: (k?: string, fallback?: string) => string,
+   t: (k: string, fallback: string) => string
+): string => {
+   const rawIcon = resolveText(cat?.icon_key, cat?.icon || "");
+   if (rawIcon && rawIcon !== "tag" && rawIcon !== "folder" && rawIcon !== "#") {
+      return rawIcon;
+   }
+   const key = `${cat?.id || ""} ${cat?.name || ""}`.toLowerCase();
+   if (key.includes("general") || key.includes("core") || key.includes("main")) return t("icon_tune", "tune");
+   if (key.includes("appear") || key.includes("cas") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
+   if (key.includes("autosave") || key.includes("save") || key.includes("backup")) return t("icon_save", "save");
+   if (key.includes("bb") || key.includes("build") || key.includes("buy") || key.includes("lot")) return t("icon_home_work", "home_work");
+   if (key.includes("bill") || key.includes("money") || key.includes("finance") || key.includes("pay")) return t("icon_receipt_long", "receipt_long");
+   if (key.includes("career") || key.includes("work") || key.includes("job") || key.includes("school")) return t("icon_work", "work");
+   if (key.includes("clean")) return t("icon_cleaning_services", "cleaning_services");
+   if (key.includes("club") || key.includes("group") || key.includes("social")) return t("icon_groups", "groups");
+   if (key.includes("dress") || key.includes("outfit") || key.includes("cloth")) return t("icon_checkroom", "checkroom");
+   if (key.includes("marri") || key.includes("romance") || key.includes("love")) return t("icon_favorite", "favorite");
+   if (key.includes("occult") || key.includes("magic") || key.includes("alien") || key.includes("vampire")) return t("icon_auto_fix_high", "auto_fix_high");
+   if (key.includes("populat") || key.includes("world") || key.includes("neighborhood")) return t("icon_public", "public");
+   if (key.includes("pregnan") || key.includes("baby") || key.includes("child") || key.includes("offspring")) return t("icon_child_care", "child_care");
+   if (key.includes("relation") || key.includes("friend")) return t("icon_handshake", "handshake");
+   if (key.includes("notif") || key.includes("show") || key.includes("alert") || key.includes("ui")) return t("icon_notifications", "notifications");
+   if (key.includes("tuner") || key.includes("autonom") || key.includes("interac")) return t("icon_build", "build");
+   if (key.includes("woohoo") || key.includes("intima")) return t("icon_volunteer_activism", "volunteer_activism");
+   return t("icon_category", "category");
+};
+
 const WorkbenchCategoryBar = ({
    categories,
    settings,
    selectedCategory,
    onSelectCategory,
    resolveText,
-   t
+   t,
+   compact = false
 }: {
    categories: any[];
    settings: any[];
@@ -25,8 +56,9 @@ const WorkbenchCategoryBar = ({
    onSelectCategory: (id: string) => void;
    resolveText: (k?: string, fallback?: string) => string;
    t: (k: string, fallback: string) => string;
+   compact?: boolean;
 }) => {
-   const [isExpanded, setIsExpanded] = useState(true);
+   const [isExpanded, setIsExpanded] = useState(false);
    const counts = React.useMemo(() => countSettingsByCategory(settings), [settings]);
 
    if (!Array.isArray(categories) || categories.length === 0) return null;
@@ -41,77 +73,90 @@ const WorkbenchCategoryBar = ({
       ...categories.map((cat: any) => ({
          id: cat.id,
          label: resolveText(cat.name_key, cat.name || cat.id),
-         icon: resolveText(cat.icon_key, cat.icon || "folder"),
+         icon: resolveCategoryIcon(cat, resolveText, t),
          count: counts[cat.id] || 0
       }))
    ];
 
+   const COLLAPSED_LIMIT = compact ? 5 : 7;
+   const canCollapse = pillItems.length > (compact ? 6 : 8);
+   const visibleItems = React.useMemo(() => {
+      if (!canCollapse || isExpanded) return pillItems;
+      const baseSlice = pillItems.slice(0, COLLAPSED_LIMIT);
+      if (baseSlice.some((item) => item.id === selectedCategory)) {
+         return baseSlice;
+      }
+      const activeItem = pillItems.find((item) => item.id === selectedCategory);
+      if (activeItem) {
+         return [...pillItems.slice(0, COLLAPSED_LIMIT - 1), activeItem];
+      }
+      return baseSlice;
+   }, [pillItems, canCollapse, isExpanded, selectedCategory, COLLAPSED_LIMIT]);
+
+   const hiddenCount = Math.max(0, pillItems.length - visibleItems.length);
+
    return (
-      <div
-         className="flex items-start justify-between gap-2 p-2 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] w-full"
-         style={{ "--glass-surface-outer-shadow": "0 0 #0000" } as React.CSSProperties}
-      >
-         <div
-            className={`flex items-center gap-1.5 flex-1 min-w-0 ${
-               isExpanded ? 'flex-wrap' : 'overflow-x-auto custom-scrollbar pb-0.5'
-            }`}
-         >
-            {pillItems.map((item) => {
-               const isActive = selectedCategory === item.id;
-               return (
-                  <button
-                     key={item.id}
-                     type="button"
-                     onClick={() => onSelectCategory(item.id)}
-                     className={`h-8 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
-                        isActive
-                           ? 'bg-[color-mix(in_srgb,var(--accent)_10%,rgba(255,255,255,0.04))] border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.20))] text-[var(--text)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18)]'
-                           : 'bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]'
-                     }`}
-                  >
+      <div className={`grid gap-2 w-full ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}`}>
+         {visibleItems.map((item) => {
+            const isActive = selectedCategory === item.id;
+            return (
+               <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelectCategory(item.id)}
+                  className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-between gap-2 min-w-0 cursor-pointer border ${
+                     isActive
+                        ? 'sa-glass-pill-active text-[var(--text)]'
+                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
+                  }`}
+               >
+                  <div className="flex items-center gap-2 min-w-0">
                      <span
-                        className={`material-symbols-outlined !text-[15px] ${
+                        className={`material-symbols-outlined !text-[15px] shrink-0 ${
                            isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-75'
                         }`}
                      >
                         {item.icon}
                      </span>
-                     <span className="whitespace-nowrap">{item.label}</span>
-                     <span
-                        className={`text-[10px] font-extrabold tabular-nums ml-0.5 ${
-                           isActive
-                              ? 'text-[var(--accent)]'
-                              : 'text-[var(--subtext)] opacity-55'
-                        }`}
-                     >
-                        {item.count}
-                     </span>
-                  </button>
-               );
-            })}
-         </div>
+                     <span className="truncate">{item.label}</span>
+                  </div>
+                  <span
+                     className={`text-[10px] font-extrabold tabular-nums shrink-0 ${
+                        isActive
+                           ? 'text-[var(--accent)]'
+                           : 'text-[var(--subtext)] opacity-55'
+                     }`}
+                  >
+                     {item.count}
+                  </span>
+               </button>
+            );
+         })}
 
-         {categories.length > 5 && (
-            <div className="relative flex shrink-0">
-               <button
-                  type="button"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="w-8 h-8 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex items-center justify-center transition-all cursor-pointer"
-               >
-                  <span className="material-symbols-outlined !text-[16px]">
+         {canCollapse && (
+            <button
+               type="button"
+               onClick={() => setIsExpanded(!isExpanded)}
+               className="h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-between gap-2 min-w-0 cursor-pointer glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+            >
+               <div className="flex items-center gap-2 min-w-0">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
                      {isExpanded
                         ? t("icon_unfold_less", "unfold_less")
                         : t("icon_unfold_more", "unfold_more")}
                   </span>
-               </button>
-               <HoverTooltip
-                  title={
-                     isExpanded
+                  <span className="truncate">
+                     {isExpanded
                         ? t("workbench_categories_compact", "Compact Row")
-                        : t("workbench_categories_show_all", "Show All Categories")
-                  }
-               />
-            </div>
+                        : t("workbench_categories_show_all", "Show All Categories")}
+                  </span>
+               </div>
+               {!isExpanded && hiddenCount > 0 && (
+                  <span className="text-[10px] font-extrabold tabular-nums text-[var(--accent)] shrink-0">
+                     +{hiddenCount}
+                  </span>
+               )}
+            </button>
          )}
       </div>
    );
@@ -243,8 +288,8 @@ export function WorkbenchSidePanel({
       <SidePanel
          isOpen={!!selectedFile}
          onClose={() => setSelectedFile(null)}
-         title={isTemplateMode ? t("author_mode", "Author Mode") : t("editor_mode", "Editor Mode")}
-         subtitle={selectedFile ? selectedFile.name : t("workbench_subtitle", "Community-powered configuration editor")}
+         title={selectedFile ? selectedFile.name : (isTemplateMode ? t("author_mode", "Author Mode") : t("editor_mode", "Editor Mode"))}
+         subtitle={isTemplateMode ? t("cw_template_builder_subtitle", "Interactive Template Schema Builder") : t("cw_config_editor_subtitle", "Visual & Raw Configuration IDE")}
          icon={isTemplateMode ? t("icon_data_object", "data_object") : t("icon_tune", "tune")}
          iconColorClass="theme-text-accent"
          isResizable={!layoutState.isFullscreen}
@@ -252,24 +297,56 @@ export function WorkbenchSidePanel({
          panelClass={layoutState.isFullscreen ? "!w-full !max-w-[100vw] !border-r-0 !rounded-none" : ""}
          headerActions={
             <>
-               <PanelHeaderGroup>
-                  {isTemplateMode && (
+               {/* 1. Primary View Mode Switcher (Visual | Split View | Raw) */}
+               {!isTemplateMode ? (
+                  <PanelHeaderGroup>
                      <PanelHeaderButton
-                        icon={t("icon_cloud_upload", "cloud_upload")}
-                        tooltip={
-                           (!session || localStorage.getItem("sanctuary_blacklisted") === "true")
-                              ? (localStorage.getItem("sanctuary_blacklisted") === "true"
-                                 ? t("alert_comm_banned", "Community access restricted")
-                                 : t("alert_guest_mode", "Sign in required"))
-                              : (editorState.problemsList.length > 0
-                                 ? t("err_publish_blocks", "Fix syntax errors before publishing")
-                                 : t("btn_publish", "Publish"))
-                        }
-                        variant="accent"
-                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"}
-                        onClick={() => setIsPushModalOpen(true)}
+                        icon={t("icon_tune", "tune")}
+                        tooltip={t("tab_visual", "Visual")}
+                        isActive={activeTab === 'visual'}
+                        onClick={() => setActiveTab('visual')}
                      />
-                  )}
+                     <PanelHeaderButton
+                        icon={t("icon_vertical_split", "vertical_split")}
+                        tooltip={t("tab_dual_vision", "Split View")}
+                        isActive={activeTab === 'dual'}
+                        className="hidden lg:inline-flex"
+                        onClick={() => setActiveTab('dual')}
+                     />
+                     <PanelHeaderButton
+                        icon={t("icon_code", "code")}
+                        tooltip={t("tab_raw", "Raw")}
+                        isActive={activeTab === 'raw'}
+                        onClick={() => setActiveTab('raw')}
+                     />
+                  </PanelHeaderGroup>
+               ) : (
+                  <PanelHeaderGroup>
+                     <PanelHeaderButton
+                        icon={t("icon_tune", "tune")}
+                        tooltip={t("workbench_builder_tab", "Visual Builder")}
+                        isActive={authorTab === 'builder'}
+                        onClick={() => setAuthorTab('builder')}
+                     />
+                     <PanelHeaderButton
+                        icon={t("icon_code", "code")}
+                        tooltip={t("workbench_json_tab", "Raw JSON")}
+                        isActive={authorTab === 'raw'}
+                        onClick={() => setAuthorTab('raw')}
+                     />
+                  </PanelHeaderGroup>
+               )}
+
+               {/* 2. Primary Actions (Timeline | Save | Publish | Overflow Menu) */}
+               <PanelHeaderGroup>
+                  <PanelHeaderButton
+                     icon={t("icon_history", "history")}
+                     tooltip={t("btn_timeline", "Version Timeline")}
+                     onClick={() => {
+                        if (setTimelineInitialSelection) setTimelineInitialSelection('latest');
+                        setShowTimeline(true);
+                     }}
+                  />
 
                   {editorState.problemsList.length > 0 && hasUnsavedChanges ? (
                      layoutState.confirmSaveWithErrors ? (
@@ -302,106 +379,90 @@ export function WorkbenchSidePanel({
                      )
                   ) : (
                      <PanelHeaderButton
-                        icon={t("icon_save", "save")}
+                        icon={fileState.isSaving ? t("icon_hourglass_empty", "hourglass_empty") : t("icon_save", "save")}
                         tooltip={fileState.isSaving ? t("btn_saving", "Saving...") : t("save", "Save")}
                         variant={hasUnsavedChanges ? "success" : "default"}
                         disabled={!hasUnsavedChanges || fileState.isSaving}
                         onClick={() => fileState.saveConfig(editorState.rawText, (savedRaw: string) => editorState.syncSavedBaseline(savedRaw))}
                      />
                   )}
-               </PanelHeaderGroup>
 
-               {!isTemplateMode ? (
-                  <PanelHeaderGroup className="ml-2">
-                     <PanelHeaderButton
-                        icon={t("icon_tune", "tune")}
-                        tooltip={t("tab_visual", "Visual")}
-                        isActive={activeTab === 'visual'}
-                        onClick={() => setActiveTab('visual')}
-                     />
-                     <PanelHeaderButton
-                        icon={t("icon_code", "code")}
-                        tooltip={t("tab_raw", "Raw")}
-                        isActive={activeTab === 'raw'}
-                        onClick={() => setActiveTab('raw')}
-                     />
-                     <PanelHeaderButton
-                        icon={t("icon_splitscreen", "splitscreen")}
-                        tooltip={t("tab_dual_vision", "Split View")}
-                        isActive={activeTab === 'dual'}
-                        onClick={() => setActiveTab('dual')}
-                     />
-                  </PanelHeaderGroup>
-               ) : (
-                  <>
-                     <PanelHeaderGroup className="ml-2">
-                        <PanelHeaderButton
-                           icon={t("icon_tune", "tune")}
-                           tooltip={t("workbench_builder_tab", "Visual Builder")}
-                           isActive={authorTab === 'builder'}
-                           onClick={() => setAuthorTab('builder')}
-                        />
-                        <PanelHeaderButton
-                           icon={t("icon_code", "code")}
-                           tooltip={t("workbench_json_tab", "Raw JSON")}
-                           isActive={authorTab === 'raw'}
-                           onClick={() => setAuthorTab('raw')}
-                        />
-                     </PanelHeaderGroup>
-                     <PanelHeaderGroup className="ml-2">
-                        <PanelHeaderButton
-                           icon={t("icon_visibility", "visibility")}
-                           tooltip={t("preview", "Preview")}
-                           isActive={previewMode === 'preview'}
-                           onClick={() => setPreviewMode('preview')}
-                        />
-                        <PanelHeaderButton
-                           icon={t("icon_description", "description")}
-                           tooltip={t("tab_file", "Target File")}
-                           isActive={previewMode === 'file'}
-                           onClick={() => setPreviewMode('file')}
-                        />
-                        <PanelHeaderButton
-                           icon={t("icon_visibility_off", "visibility_off")}
-                           tooltip={t("tab_off", "Hide Preview")}
-                           isActive={previewMode === 'off'}
-                           onClick={() => setPreviewMode('off')}
-                        />
-                     </PanelHeaderGroup>
-                  </>
-               )}
-
-               <PanelHeaderGroup className="ml-2">
                   {isTemplateMode && (
                      <PanelHeaderButton
-                        icon={t("icon_help", "help")}
-                        tooltip={t("btn_info", "Template Guide")}
-                        onClick={() => layoutState.setIsTemplateGuideOpen(true)}
+                        icon={t("icon_cloud_upload", "cloud_upload")}
+                        tooltip={
+                           (!session || localStorage.getItem("sanctuary_blacklisted") === "true")
+                              ? (localStorage.getItem("sanctuary_blacklisted") === "true"
+                                 ? t("alert_comm_banned", "Community access restricted")
+                                 : t("alert_guest_mode", "Sign in required"))
+                              : (editorState.problemsList.length > 0
+                                 ? t("err_publish_blocks", "Fix syntax errors before publishing")
+                                 : t("btn_publish", "Publish"))
+                        }
+                        variant="accent"
+                        disabled={editorState.problemsList.length > 0 || !session || localStorage.getItem("sanctuary_blacklisted") === "true"}
+                        onClick={() => setIsPushModalOpen(true)}
                      />
                   )}
-                  <PanelHeaderButton
-                     icon={t("icon_history", "history")}
-                     tooltip={t("btn_timeline", "Version Timeline")}
-                     onClick={() => {
-                        if (setTimelineInitialSelection) setTimelineInitialSelection(hasUnsavedChanges ? 'unsaved' : 'latest');
-                        setShowTimeline(true);
-                     }}
-                  />
-                  {((!isTemplateMode && activeTab === 'dual') || (isTemplateMode && authorTab === 'raw' && (previewMode === 'preview' || previewMode === 'file'))) && (
+
+                  <PanelHeaderGroup overflow>
                      <PanelHeaderButton
-                        icon={layoutState.isScrollLocked ? t("icon_lock", "lock") : t("icon_lock_open", "lock_open")}
-                        tooltip={t("sync_scroll", "Sync Scroll")}
-                        isActive={layoutState.isScrollLocked}
-                        onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)}
+                        icon={t("icon_undo", "undo")}
+                        tooltip={t("workbench_undo_all_unsaved", "Revert Edits")}
+                        variant={hasUnsavedChanges ? "warning" : "default"}
+                        disabled={!hasUnsavedChanges}
+                        onClick={() => editorState.handleUndoAllUnsaved()}
                      />
-                  )}
-               </PanelHeaderGroup>
-               <PanelHeaderGroup className="ml-2">
-                  <PanelHeaderButton
-                     icon={layoutState.isFullscreen ? t("icon_fullscreen_exit", "fullscreen_exit") : t("icon_fullscreen", "fullscreen")}
-                     tooltip={layoutState.isFullscreen ? t("btn_exit_fullscreen", "Exit Fullscreen") : t("btn_fullscreen", "Fullscreen")}
-                     onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
-                  />
+                     {!isTemplateMode && (
+                        <PanelHeaderButton
+                           icon={t("icon_restart_alt", "restart_alt")}
+                           tooltip={t("workbench_reset_all_modified", "Reset Modified")}
+                           disabled={modifiedCount === 0}
+                           onClick={handleResetAllModified}
+                        />
+                     )}
+                     {isTemplateMode && (
+                        <>
+                           <PanelHeaderButton
+                              icon={t("icon_visibility", "visibility")}
+                              tooltip={t("preview", "Preview")}
+                              isActive={previewMode === 'preview'}
+                              onClick={() => setPreviewMode('preview')}
+                           />
+                           <PanelHeaderButton
+                              icon={t("icon_description", "description")}
+                              tooltip={t("tab_file", "Target File")}
+                              isActive={previewMode === 'file'}
+                              onClick={() => setPreviewMode('file')}
+                           />
+                           <PanelHeaderButton
+                              icon={t("icon_visibility_off", "visibility_off")}
+                              tooltip={t("tab_off", "Hide Preview")}
+                              isActive={previewMode === 'off'}
+                              onClick={() => setPreviewMode('off')}
+                           />
+                           <PanelHeaderButton
+                              icon={t("icon_help", "help")}
+                              tooltip={t("btn_info", "Template Guide")}
+                              onClick={() => layoutState.setIsTemplateGuideOpen(true)}
+                           />
+                        </>
+                     )}
+                     {((!isTemplateMode && activeTab === 'dual') || (isTemplateMode && authorTab === 'raw' && (previewMode === 'preview' || previewMode === 'file'))) && (
+                        <PanelHeaderButton
+                           icon={layoutState.isScrollLocked ? t("icon_lock", "lock") : t("icon_lock_open", "lock_open")}
+                           tooltip={t("sync_scroll", "Sync Scroll")}
+                           isActive={layoutState.isScrollLocked}
+                           onClick={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)}
+                        />
+                     )}
+                     <PanelHeaderButton
+                        icon={layoutState.isFullscreen ? t("icon_fullscreen_exit", "fullscreen_exit") : t("icon_fullscreen", "fullscreen")}
+                        tooltip={layoutState.isFullscreen ? t("btn_exit_fullscreen", "Exit Fullscreen") : t("btn_fullscreen", "Fullscreen")}
+                        isActive={layoutState.isFullscreen}
+                        onClick={() => layoutState.setIsFullscreen(!layoutState.isFullscreen)}
+                     />
+                  </PanelHeaderGroup>
                </PanelHeaderGroup>
             </>
          }
@@ -484,118 +545,6 @@ export function WorkbenchSidePanel({
                {!isTemplateMode && (
                   <div className={`flex-1 flex gap-4 min-w-0 min-h-0 ${activeTab === 'dual' ? 'flex-row' : 'flex-col'}`}>
                      <div className={`flex flex-col gap-4 flex-1 relative min-w-0 min-h-0 ${activeTab !== 'visual' && activeTab !== 'dual' ? 'hidden' : ''}`}>
-                        <div className="flex flex-col gap-2 shrink-0">
-                           <div className="flex flex-row items-center gap-2 w-full">
-                              <ActionPill
-                                 className="w-full"
-                                 searchQuery={searchQuery}
-                                 setSearchQuery={setSearchQuery}
-                                 searchPlaceholder={t("diff_search_settings", "Search settings...")}
-                                 rightContent={
-                                    <div className="flex items-center gap-2 px-3 h-full py-2">
-                                       {(unsavedEditCount > 0 || onlyUnsaved || hasUnsavedChanges) && (
-                                          <>
-                                             <div className="relative flex">
-                                                <button
-                                                   type="button"
-                                                   onClick={() => setOnlyUnsaved(!onlyUnsaved)}
-                                                   className={`h-8 px-2.5 rounded-full text-[10px] font-black tracking-wider glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                                      onlyUnsaved
-                                                         ? 'sa-glass-pill-active text-[var(--text)]'
-                                                         : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]'
-                                                   }`}
-                                                >
-                                                   <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
-                                                   <span className="tabular-nums">{unsavedEditCount}</span>
-                                                </button>
-                                                <HoverTooltip title={t("workbench_filter_unsaved_only", "Unsaved Edits Only")} />
-                                             </div>
-                                             <div className="relative flex">
-                                                <button
-                                                   type="button"
-                                                   onClick={() => editorState.handleUndoAllUnsaved()}
-                                                   className="w-8 h-8 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
-                                                >
-                                                   <span className="material-symbols-outlined !text-[15px]">{t("icon_undo", "undo")}</span>
-                                                </button>
-                                                <HoverTooltip title={t("workbench_undo_all_unsaved", "Revert Edits")} />
-                                             </div>
-                                          </>
-                                       )}
-
-                                       {(modifiedCount > 0 || onlyModified) && (
-                                          <>
-                                             <div className="relative flex">
-                                                <button
-                                                   type="button"
-                                                   onClick={() => setOnlyModified(!onlyModified)}
-                                                   className={`h-8 px-2.5 rounded-full text-[10px] font-black tracking-wider glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                                      onlyModified
-                                                         ? 'sa-glass-pill-active text-[var(--text)]'
-                                                         : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]'
-                                                   }`}
-                                                >
-                                                   <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
-                                                   <span className="tabular-nums">{modifiedCount}</span>
-                                                </button>
-                                                <HoverTooltip title={t("workbench_filter_modified_only", "Modified Only")} />
-                                             </div>
-                                             <div className="relative flex">
-                                                <button
-                                                   type="button"
-                                                   onClick={handleResetAllModified}
-                                                   className="w-8 h-8 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                                                >
-                                                   <span className="material-symbols-outlined !text-[15px]">{t("icon_restart_alt", "restart_alt")}</span>
-                                                </button>
-                                                <HoverTooltip title={t("workbench_reset_all_modified", "Reset Modified")} />
-                                             </div>
-                                          </>
-                                       )}
-
-                                       {!isTemplateMode && availableTemplates.length > 0 && (
-                                          <CustomDropdown
-                                             flat={true}
-                                             variant="pill"
-                                             disableTint={true}
-                                             value={selectedTemplatePath}
-                                             options={availableTemplates}
-                                             onChange={(val: string[]) => {
-                                                const newPath = val[0];
-                                                setSelectedTemplatePath(newPath);
-                                                const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
-                                                if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                                   setActiveTemplate(tmpl.data);
-                                                   setCustomAppliedTemplate(null);
-                                                } else if (tmpl) {
-                                                   setCustomAppliedTemplate(tmpl.data);
-                                                   setActiveTemplate(null);
-                                                }
-                                             }}
-                                          />
-                                       )}
-                                    </div>
-                                 }
-                              />
-                           </div>
-
-                           {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
-                              <WorkbenchCategoryBar
-                                 categories={currentVisualTemplate.categories}
-                                 settings={currentVisualTemplate.settings || []}
-                                 selectedCategory={selectedCategory}
-                                 onSelectCategory={(catId) => {
-                                    setSelectedCategory(catId);
-                                    if (layoutState.visualScrollRef?.current) {
-                                       layoutState.visualScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                                    }
-                                 }}
-                                 resolveText={resolveText}
-                                 t={t}
-                              />
-                           )}
-                        </div>
-
                         <div className="flex-1 relative min-h-0 min-w-0">
                            {editorState.problemsList.length > 0 ? (
                               <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 opacity-60">
@@ -606,9 +555,123 @@ export function WorkbenchSidePanel({
                            ) : (
                               <div ref={layoutState.visualScrollRef} className="absolute inset-0 rounded-[inherit] overflow-y-scroll overflow-x-hidden custom-scrollbar pr-2 z-10 pb-20">
                                  <div className="flex flex-col gap-3 min-h-[300px] px-1 pt-1">
+                                    <div className="flex flex-col gap-2.5">
+                                       <div className="flex flex-row items-center gap-2 w-full">
+                                          <ActionPill
+                                             className="w-full"
+                                             searchQuery={searchQuery}
+                                             setSearchQuery={setSearchQuery}
+                                             searchPlaceholder={t("diff_search_settings", "Search settings...")}
+                                             rightContent={
+                                                <div className="flex items-center gap-1.5 px-2.5 h-full py-1.5">
+                                                   {(unsavedEditCount > 0 || onlyUnsaved || hasUnsavedChanges) && (
+                                                      <>
+                                                         <div className="relative flex">
+                                                            <button
+                                                               type="button"
+                                                               onClick={() => setOnlyUnsaved(!onlyUnsaved)}
+                                                               className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                                  onlyUnsaved
+                                                                     ? 'sa-glass-pill-active text-[var(--text)]'
+                                                                     : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                                                               }`}
+                                                            >
+                                                               <span className="material-symbols-outlined !text-[15px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                                                               <span className="hidden sm:inline">{t("unsaved", "Unsaved")}</span>
+                                                               <span className="text-[10px] font-extrabold tabular-nums text-[var(--warning)]">{unsavedEditCount}</span>
+                                                            </button>
+                                                            <HoverTooltip title={t("workbench_filter_unsaved_only", "Unsaved Edits Only")} />
+                                                         </div>
+                                                         <div className="relative flex">
+                                                            <button
+                                                               type="button"
+                                                               onClick={() => editorState.handleUndoAllUnsaved()}
+                                                               className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
+                                                            >
+                                                               <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">{t("icon_undo", "undo")}</span>
+                                                            </button>
+                                                            <HoverTooltip title={t("workbench_undo_all_unsaved", "Revert Edits")} />
+                                                         </div>
+                                                      </>
+                                                   )}
+
+                                                   {(modifiedCount > 0 || onlyModified) && (
+                                                      <>
+                                                         <div className="relative flex">
+                                                            <button
+                                                               type="button"
+                                                               onClick={() => setOnlyModified(!onlyModified)}
+                                                               className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                                  onlyModified
+                                                                     ? 'sa-glass-pill-active text-[var(--text)]'
+                                                                     : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                                                               }`}
+                                                            >
+                                                               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                                                               <span className="hidden sm:inline">{t("badge_modified", "Modified")}</span>
+                                                               <span className="text-[10px] font-extrabold tabular-nums text-[var(--accent)]">{modifiedCount}</span>
+                                                            </button>
+                                                            <HoverTooltip title={t("workbench_filter_modified_only", "Modified Only")} />
+                                                         </div>
+                                                         <div className="relative flex">
+                                                            <button
+                                                               type="button"
+                                                               onClick={handleResetAllModified}
+                                                               className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                                                            >
+                                                               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_restart_alt", "restart_alt")}</span>
+                                                            </button>
+                                                            <HoverTooltip title={t("workbench_reset_all_modified", "Reset Modified")} />
+                                                         </div>
+                                                      </>
+                                                   )}
+
+                                                   {!isTemplateMode && availableTemplates.length > 0 && (
+                                                      <CustomDropdown
+                                                         disableTint={true}
+                                                         className="h-9"
+                                                         buttonClassName="!h-9 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-[11px] font-bold"
+                                                         value={selectedTemplatePath}
+                                                         options={availableTemplates.map((tmpl: any) => ({
+                                                            ...tmpl,
+                                                            icon: tmpl.icon || t("icon_data_object", "data_object")
+                                                         }))}
+                                                         onChange={(val: string[]) => {
+                                                            const newPath = val[0];
+                                                            setSelectedTemplatePath(newPath);
+                                                            const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
+                                                            if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                               setActiveTemplate(tmpl.data);
+                                                               setCustomAppliedTemplate(null);
+                                                            } else if (tmpl) {
+                                                               setCustomAppliedTemplate(tmpl.data);
+                                                               setActiveTemplate(null);
+                                                            }
+                                                         }}
+                                                      />
+                                                   )}
+                                                </div>
+                                             }
+                                          />
+                                       </div>
+
+                                       {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
+                                          <WorkbenchCategoryBar
+                                             categories={currentVisualTemplate.categories}
+                                             settings={currentVisualTemplate.settings || []}
+                                             selectedCategory={selectedCategory}
+                                             onSelectCategory={(catId) => setSelectedCategory(catId)}
+                                             resolveText={resolveText}
+                                             t={t}
+                                             compact={activeTab === 'dual'}
+                                          />
+                                       )}
+                                    </div>
+
                                     {currentVisualTemplate?.settings ? (
                                        <WorkbenchVisualEditor
                                           settings={currentVisualTemplate.settings}
+                                          categories={currentVisualTemplate.categories || []}
                                           dataSource={editorState.parsedData}
                                           savedDataSource={editorState.savedParsedData}
                                           isPreview={false}
@@ -658,6 +721,10 @@ export function WorkbenchSidePanel({
                            problemsList={editorState.problemsList}
                            setProblemsList={editorState.setProblemsList}
                            isResizingPreview={layoutState.isResizingPreview}
+                           fileName={selectedFile?.name}
+                           showSyncScroll={activeTab === 'dual'}
+                           isScrollLocked={layoutState.isScrollLocked}
+                           onToggleScrollLock={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)}
                            onEditorMount={(editor) => {
                               editorState.setEditorRef(editor);
 
@@ -754,6 +821,10 @@ export function WorkbenchSidePanel({
                                     problemsList={editorState.problemsList}
                                     setProblemsList={editorState.setProblemsList}
                                     isResizingPreview={layoutState.isResizingPreview}
+                                    fileName={selectedFile?.name}
+                                    showSyncScroll={previewMode === 'preview' || previewMode === 'file'}
+                                    isScrollLocked={layoutState.isScrollLocked}
+                                    onToggleScrollLock={() => layoutState.setIsScrollLocked(!layoutState.isScrollLocked)}
                                     onEditorMount={(editor, monaco) => {
                                        editorState.setEditorRef(editor);
                                        (window as any).monaco = monaco;
@@ -791,32 +862,8 @@ export function WorkbenchSidePanel({
                               className={`shrink-0 flex flex-col relative border-l border-[color-mix(in_srgb,var(--text)_10%,transparent)] pl-3 min-h-0 ${layoutState.isResizingPreview ? 'pointer-events-none select-none' : ''}`}
                               style={{ width: layoutState.previewWidth }}
                            >
-                              <div className="pb-3 shrink-0 w-full flex flex-col gap-2">
-                                 {previewMode === 'preview' ? (
-                                    <>
-                                       <ActionPill
-                                          className="w-full"
-                                          searchQuery={previewSearchQuery}
-                                          setSearchQuery={setPreviewSearchQuery}
-                                          searchPlaceholder={t("diff_search_settings", "Search settings...")}
-                                       />
-                                       {templatePreviewObject?.categories && templatePreviewObject.categories.length > 0 && (
-                                          <WorkbenchCategoryBar
-                                             categories={templatePreviewObject.categories}
-                                             settings={templatePreviewObject.settings || []}
-                                             selectedCategory={previewCategory}
-                                             onSelectCategory={(catId) => {
-                                                setPreviewCategory(catId);
-                                                if (layoutState.visualScrollRef?.current) {
-                                                   layoutState.visualScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                                                }
-                                             }}
-                                             resolveText={resolveText}
-                                             t={t}
-                                          />
-                                       )}
-                                    </>
-                                 ) : (
+                              {previewMode !== 'preview' && (
+                                 <div className="pb-3 shrink-0 w-full flex flex-col gap-2">
                                     <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl p-2 flex items-center gap-2.5 w-fit">
                                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                           <span className="material-symbols-outlined !text-[18px]">
@@ -827,8 +874,8 @@ export function WorkbenchSidePanel({
                                           {templatePreviewObject?.target_file || t("tab_file", "Target File")}
                                        </span>
                                     </div>
-                                 )}
-                              </div>
+                                 </div>
+                              )}
 
                               <div ref={layoutState.visualScrollRef} className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                                  {previewMode === 'preview' ? (
@@ -840,8 +887,28 @@ export function WorkbenchSidePanel({
                                        </div>
                                     ) : (
                                        <div className="flex flex-col gap-3 px-1 pt-0.5 pb-10">
+                                          <div className="flex flex-col gap-2.5">
+                                             <ActionPill
+                                                className="w-full"
+                                                searchQuery={previewSearchQuery}
+                                                setSearchQuery={setPreviewSearchQuery}
+                                                searchPlaceholder={t("diff_search_settings", "Search settings...")}
+                                             />
+                                             {templatePreviewObject?.categories && templatePreviewObject.categories.length > 0 && (
+                                                <WorkbenchCategoryBar
+                                                   categories={templatePreviewObject.categories}
+                                                   settings={templatePreviewObject.settings || []}
+                                                   selectedCategory={previewCategory}
+                                                   onSelectCategory={(catId) => setPreviewCategory(catId)}
+                                                   resolveText={resolveText}
+                                                   t={t}
+                                                   compact={true}
+                                                />
+                                             )}
+                                          </div>
                                           <WorkbenchVisualEditor
                                              settings={templatePreviewObject?.settings || []}
+                                             categories={templatePreviewObject?.categories || []}
                                              dataSource={previewSandboxData}
                                              isPreview={false}
                                              selectedCategory={previewCategory}

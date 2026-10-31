@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { DiffEditor } from '@monaco-editor/react';
 import { useLexicon } from './LexiconContext';
-import { SidePanel, SidePanelHeroCard, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
+import { SidePanel, SidePanelHeroCard, DashboardStatTile, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
 import { useTheme } from './ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from './utils/monacoTheme';
 import { parseConfigContent } from './workbench/hooks/useWorkbenchEditor';
@@ -76,6 +77,8 @@ export default function VersionTimeline({
     initialSelection === 'unsaved' || (hasUnsavedChanges && savedContent !== undefined) ? 'unsaved' : 'snapshot'
   );
   const [selectedEntry, setSelectedEntry] = useState<{ timestamp: number; content: string; pinned?: boolean; name?: string } | null>(null);
+  const [isDiffPanelOpen, setIsDiffPanelOpen] = useState<boolean>(false);
+  const [timelineFilter, setTimelineFilter] = useState<'all' | 'ingame' | 'pinned'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmRestore, setConfirmRestore] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
@@ -93,6 +96,28 @@ export default function VersionTimeline({
   const diffEditorRef = useRef<any>(null);
   const [rawDiffCount, setRawDiffCount] = useState(0);
   const [rawDiffIndex, setRawDiffIndex] = useState(0);
+
+  const isInGameSnapshot = useCallback((entry?: { name?: string } | null) => {
+    return Boolean(entry?.name && entry.name.includes('In-Game Engine Edit'));
+  }, []);
+
+  const isBaselineSnapshot = useCallback((entry?: { name?: string } | null) => {
+    return Boolean(
+      entry?.name &&
+        (entry.name.includes('Pre-Game Baseline') || entry.name.includes('Initial Baseline'))
+    );
+  }, []);
+
+  const getSnapshotDisplayTitle = useCallback(
+    (entry?: { name?: string } | null) => {
+      if (!entry) return t('cw_workbench_save', 'Workbench Save');
+      if (isInGameSnapshot(entry)) return t('cw_in_game_engine_edit', 'In-Game Engine Edit');
+      if (isBaselineSnapshot(entry)) return t('cw_pre_game_baseline', 'Pre-Game Baseline');
+      if (entry.name && entry.name.trim()) return entry.name.trim();
+      return t('cw_workbench_save', 'Workbench Save');
+    },
+    [isInGameSnapshot, isBaselineSnapshot, t]
+  );
 
   const resolveText = (k?: string, fallback?: string) => {
     if (!k) return fallback || '';
@@ -146,28 +171,54 @@ export default function VersionTimeline({
     }
   }
 
-  useEffect(() => {
-    async function fetchHistory() {
-      setLoading(true);
+  const fetchHistory = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
       try {
         const res: any = await invoke('get_file_history', { path: filePath });
         const list = res || [];
         setHistory(list);
-        if (list.length > 0) {
-          setSelectedEntry(list[0]);
-          if (initialSelection !== 'unsaved' && !hasUnsavedChanges) {
-            setSelectedMode('snapshot');
+        if (!silent) {
+          if (list.length > 0) {
+            setSelectedEntry(list[0]);
+            if (initialSelection !== 'unsaved' && !hasUnsavedChanges) {
+              setSelectedMode('snapshot');
+            }
+          } else if (savedContent !== undefined) {
+            setSelectedMode('unsaved');
           }
-        } else if (savedContent !== undefined) {
-          setSelectedMode('unsaved');
+        } else if (list.length > 0 && !selectedEntry) {
+          setSelectedEntry(list[0]);
         }
       } catch (err) {
         console.error('Failed to load history:', err);
       }
-      setLoading(false);
-    }
-    fetchHistory();
+      if (!silent) setLoading(false);
+    },
+    [filePath, initialSelection, hasUnsavedChanges, savedContent, selectedEntry]
+  );
+
+  useEffect(() => {
+    fetchHistory(false);
   }, [filePath]);
+
+  useEffect(() => {
+    let unlistenFn: (() => void) | null = null;
+    listen<any>('workbench_config_intercepted', (event) => {
+      const payload = event.payload;
+      if (!payload) return;
+      const targetName = (filePath.split(/[\\/]/).pop() || '').toLowerCase();
+      const interceptedName = String(payload.file_name || payload.path?.split(/[\\/]/).pop() || '').toLowerCase();
+      if (!targetName || !interceptedName || targetName === interceptedName) {
+        fetchHistory(true);
+      }
+    }).then((fn) => {
+      unlistenFn = fn;
+    });
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }, [filePath, fetchHistory]);
 
   useEffect(() => {
     if (initialSelection === 'unsaved' && savedContent !== undefined) {
@@ -185,6 +236,7 @@ export default function VersionTimeline({
       return 'json';
     }
     if (lower.endsWith('.xml')) return 'xml';
+    if (lower.endsWith('.toml')) return 'ini';
     return 'ini';
   }, [filePath, currentContent]);
 
@@ -558,141 +610,182 @@ export default function VersionTimeline({
   const latestTimestamp = history.length > 0 ? Math.max(...history.map((h) => h.timestamp)) : 0;
   const currentActiveTs = activeVersionTimestamp || latestTimestamp;
 
+  const inGameSnapshotCount = useMemo(
+    () => history.filter((h) => isInGameSnapshot(h)).length,
+    [history, isInGameSnapshot]
+  );
+
+  const pinnedSnapshotCount = useMemo(
+    () => history.filter((h) => Boolean(h.pinned)).length,
+    [history]
+  );
+
+  const countQuickDiffChanges = useCallback(
+    (otherContent: string) => {
+      if ((otherContent || '') === (currentContent || '')) return 0;
+      const aParsed = parseConfigContent(otherContent || '', filePath);
+      const bParsed = parseConfigContent(currentContent || '', filePath);
+      if (aParsed && bParsed && typeof aParsed === 'object' && typeof bParsed === 'object') {
+        const flatten = (obj: any, prefix = '', out: Record<string, string> = {}) => {
+          if (!obj || typeof obj !== 'object') return out;
+          for (const k of Object.keys(obj)) {
+            const p = prefix ? `${prefix}.${k}` : k;
+            const v = obj[k];
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              flatten(v, p, out);
+            } else {
+              out[p] = JSON.stringify(v);
+            }
+          }
+          return out;
+        };
+        const flatA = flatten(aParsed);
+        const flatB = flatten(bParsed);
+        const keys = new Set([...Object.keys(flatA), ...Object.keys(flatB)]);
+        let diff = 0;
+        for (const k of keys) {
+          if (flatA[k] !== flatB[k]) diff++;
+        }
+        return Math.max(1, diff);
+      }
+      const linesA = (otherContent || '').split(/\r?\n/);
+      const linesB = (currentContent || '').split(/\r?\n/);
+      const maxLen = Math.max(linesA.length, linesB.length);
+      let lineDiffs = 0;
+      for (let i = 0; i < maxLen; i++) {
+        if (linesA[i] !== linesB[i]) lineDiffs++;
+      }
+      return Math.max(1, lineDiffs);
+    },
+    [currentContent, filePath]
+  );
+
+  const unsavedChangeCount = useMemo(() => {
+    if (!hasUnsavedChanges || savedContent === undefined) return 0;
+    return countQuickDiffChanges(savedContent);
+  }, [hasUnsavedChanges, savedContent, countQuickDiffChanges]);
+
+  const snapshotChangeCounts = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const entry of history) {
+      map.set(entry.timestamp, countQuickDiffChanges(entry.content));
+    }
+    return map;
+  }, [history, countQuickDiffChanges]);
+
   const filteredHistory = useMemo(() => {
     return history.filter((entry) => {
+      if (timelineFilter === 'ingame' && !isInGameSnapshot(entry)) return false;
+      if (timelineFilter === 'pinned' && !entry.pinned) return false;
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       const d = new Date(entry.timestamp * 1000);
       const nameStr = (entry.name || '').toLowerCase();
+      const displayTitle = getSnapshotDisplayTitle(entry).toLowerCase();
       return (
         nameStr.includes(q) ||
+        displayTitle.includes(q) ||
         d.toLocaleDateString().toLowerCase().includes(q) ||
         d.toLocaleTimeString().toLowerCase().includes(q)
       );
     });
-  }, [history, searchQuery]);
+  }, [history, timelineFilter, searchQuery, isInGameSnapshot, getSnapshotDisplayTitle]);
 
   const isRawIdentical = (baseContent || '') === (currentContent || '');
+  const shortFileName = filePath.split(/[\\/]/).pop() || filePath;
+
+  const openUnsavedDiff = () => {
+    setSelectedMode('unsaved');
+    setIsDiffPanelOpen(true);
+  };
+
+  const openSnapshotDiff = (entry: { timestamp: number; content: string; pinned?: boolean; name?: string }) => {
+    setSelectedEntry(entry);
+    setSelectedMode('snapshot');
+    setIsDiffPanelOpen(true);
+  };
 
   return (
-    <SidePanel
-      isOpen={true}
-      title={t('btn_timeline', 'Version Timeline')}
-      subtitle={filePath.split(/[\\/]/).pop() || filePath}
-      onClose={onClose}
-      icon={t('icon_history', 'history')}
-      iconColorClass="theme-text-accent"
-      isResizable={true}
-      defaultWidth={1180}
-      noBackdropDim={true}
-      headerActions={
-        <PanelHeaderGroup>
-          <PanelHeaderButton
-            icon={t('icon_tune', 'tune')}
-            tooltip={t('diff_mode_visual', 'Visual Diff')}
-            isActive={diffViewMode === 'visual'}
-            onClick={() => setDiffViewMode('visual')}
-          />
-          <PanelHeaderButton
-            icon={t('icon_code', 'code')}
-            tooltip={t('diff_mode_raw', 'Raw Code Diff')}
-            isActive={diffViewMode === 'raw'}
-            onClick={() => setDiffViewMode('raw')}
-          />
-        </PanelHeaderGroup>
-      }
-    >
-      <div
-        className="flex flex-col gap-4 w-full h-full min-h-0 relative z-10 p-2"
-        style={
-          {
-            color: currentTheme.text,
-            '--glass-outer-shadow': '0 0 #0000',
-            '--glass-nested-shadow': '0 0 #0000',
-            '--glass-surface-outer-shadow': '0 0 #0000',
-          } as React.CSSProperties
-        }
+    <>
+      <SidePanel
+        isOpen={true}
+        title={t('btn_timeline', 'Version Timeline')}
+        subtitle={shortFileName}
+        onClose={onClose}
+        icon={t('icon_history', 'history')}
+        iconColorClass="theme-text-accent"
+        isResizable={true}
+        defaultWidth={880}
+        noBackdropDim={true}
+        backdropZ="z-[70000]"
+        panelZ="z-[70001]"
       >
-        <SidePanelHeroCard
-          icon={t('icon_history', 'history')}
-          overline={t('btn_timeline', 'Version Timeline')}
-          title={filePath.split(/[\\/]/).pop() || filePath}
-          description={
-            selectedMode === 'unsaved'
-              ? t('timeline_unsaved_desc', 'Comparing live unsaved buffer against saved disk baseline.')
-              : t('timeline_snapshot_desc', 'Inspecting historical snapshot differences and restore points.')
+        <div
+          className="flex flex-col gap-4 w-full h-full min-h-0 relative z-10 p-2 overflow-y-auto custom-scrollbar pr-2 pb-8"
+          style={
+            {
+              color: currentTheme.text,
+              '--glass-outer-shadow': '0 0 #0000',
+              '--glass-nested-shadow': '0 0 #0000',
+              '--glass-surface-outer-shadow': '0 0 #0000',
+            } as React.CSSProperties
           }
-          badge={`${history.length} ${t('tc_snapshots', 'Snapshots')}`}
-          badgeIcon={t('icon_history', 'history')}
-          variant={hasUnsavedChanges ? 'warning' : 'accent'}
-        />
-        <div className="flex flex-col lg:flex-row gap-4 w-full flex-1 min-h-0">
-        {/* LEFT COLUMN: Working State & Snapshot Selector */}
-        <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-3 min-h-0 h-full">
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={t('timeline_search', 'Search snapshots...')}
+        >
+          <SidePanelHeroCard
+            icon={t('icon_history', 'history')}
+            overline={t('btn_timeline', 'Version Timeline')}
+            title={shortFileName}
+            description={t(
+              'cw_timeline_card_desc',
+              'Select any snapshot card to inspect differences or restore configuration state.'
+            )}
+            badge={`${history.length} ${t('tc_snapshots', 'Snapshots')}`}
+            badgeIcon={t('icon_history', 'history')}
+            variant={hasUnsavedChanges ? 'warning' : 'accent'}
           />
 
-          <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto custom-scrollbar pr-1 pb-6 min-h-0">
-            {/* Live Working State vs. Saved File Card */}
-            {savedContent !== undefined && (
-              <div
-                onClick={() => setSelectedMode('unsaved')}
-                className={`relative overflow-hidden shrink-0 p-4 rounded-2xl border flex flex-col gap-1.5 transition-all cursor-pointer ${
-                  selectedMode === 'unsaved'
-                    ? 'glass-panel !border-[color-mix(in_srgb,var(--accent)_60%,transparent)]'
-                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-65 hover:opacity-100 hover:!border-[color-mix(in_srgb,var(--text)_22%,transparent)]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
-                        selectedMode === 'unsaved'
-                          ? 'text-[var(--accent)]'
-                          : hasUnsavedChanges
-                            ? 'text-[var(--warning)]'
-                            : 'text-[var(--subtext)]'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[18px]">
-                        {t('icon_edit_note', 'edit_note')}
-                      </span>
-                    </div>
-                    <span
-                      className={`text-xs font-black tracking-wide truncate ${
-                        selectedMode === 'unsaved' ? 'text-[var(--accent)]' : 'text-[var(--text)]'
-                      }`}
-                    >
-                      {t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')}
-                    </span>
-                  </div>
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span
-                      className={`material-symbols-rounded !text-[12px] shrink-0 ${
-                        hasUnsavedChanges ? 'text-[var(--warning)]' : 'text-[var(--success)]'
-                      }`}
-                    >
-                      {hasUnsavedChanges
-                        ? t('icon_edit_note', 'edit_note')
-                        : t('icon_check_circle', 'check_circle')}
-                    </span>
-                    {hasUnsavedChanges
-                      ? t('unsaved', 'Unsaved')
-                      : t('diff_in_sync', 'In Sync')}
-                  </span>
-                </div>
-                <span className="text-[10px] text-[var(--subtext)] opacity-75 leading-relaxed">
-                  {t('diff_unsaved_vs_saved_sub', 'Compare current unsaved edits against the last saved file')}
-                </span>
-              </div>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
+            <DashboardStatTile
+              variant="filter"
+              icon={t('icon_history', 'history')}
+              title={t('cw_all_snapshots_filter', 'All Snapshots')}
+              value={history.length}
+              isActive={timelineFilter === 'all'}
+              onClick={() => setTimelineFilter('all')}
+              colorClass="text-[var(--accent)]"
+            />
+            <DashboardStatTile
+              variant="filter"
+              icon={t('icon_sports_esports', 'sports_esports')}
+              title={t('cw_in_game_edits_filter', 'In-Game Edits')}
+              value={inGameSnapshotCount}
+              isActive={timelineFilter === 'ingame'}
+              onClick={() => setTimelineFilter(timelineFilter === 'ingame' ? 'all' : 'ingame')}
+              colorClass="text-[var(--warning)]"
+            />
+            <DashboardStatTile
+              variant="filter"
+              icon={t('icon_push_pin', 'push_pin')}
+              title={t('cw_pinned_snapshots_filter', 'Pinned')}
+              value={pinnedSnapshotCount}
+              isActive={timelineFilter === 'pinned'}
+              onClick={() => setTimelineFilter(timelineFilter === 'pinned' ? 'all' : 'pinned')}
+              colorClass="text-[var(--accent)]"
+            />
+          </div>
 
-            {/* Historical Snapshots List */}
+          <div className="shrink-0">
+            <ActionPill
+              className="w-full"
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchPlaceholder={t('timeline_search', 'Search snapshots...')}
+            />
+          </div>
+
+          <div className="flex flex-col min-h-0">
             {loading && (
-              <div className="shrink-0 flex flex-col items-center justify-center h-36 opacity-50 gap-3">
+              <div className="flex flex-col items-center justify-center h-48 opacity-50 gap-3">
                 <span className="material-symbols-outlined animate-spin">{t('icon_sync', 'sync')}</span>
                 <div className="text-[10px] capitalize font-black tracking-widest">
                   {t('timeline_loading', 'Loading history...')}
@@ -700,143 +793,300 @@ export default function VersionTimeline({
               </div>
             )}
 
-            {!loading && history.length === 0 && (
+            {!loading && history.length === 0 && savedContent === undefined && (
               <EmptyState
                 icon={t('icon_history_toggle_off', 'history_toggle_off')}
                 title={t('timeline_empty', 'No saved snapshots yet')}
-                minHeightClass="min-h-[160px]"
-                className="py-6"
+                minHeightClass="min-h-[220px]"
+                className="py-8"
               />
             )}
 
-            {!loading && history.length > 0 && filteredHistory.length === 0 && (
+            {!loading && history.length > 0 && filteredHistory.length === 0 && timelineFilter !== 'all' && (
               <EmptyState
                 icon={t('icon_search_off', 'search_off')}
                 title={t('search_empty', 'No matching snapshots')}
-                minHeightClass="min-h-[160px]"
-                className="py-6"
+                minHeightClass="min-h-[220px]"
+                className="py-8"
               />
             )}
 
-            {!loading &&
-              filteredHistory.map((entry) => {
-                const isSelected = selectedMode === 'snapshot' && selectedEntry?.timestamp === entry.timestamp;
-                return (
+            {!loading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch">
+                {/* Card 0: Live Working State vs. Saved File Card */}
+                {savedContent !== undefined && timelineFilter === 'all' && (
                   <div
-                    key={entry.timestamp}
-                    onClick={() => {
-                      setSelectedEntry(entry);
-                      setSelectedMode('snapshot');
-                    }}
-                    className={`relative overflow-hidden shrink-0 p-4 rounded-2xl border flex flex-col gap-2 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'glass-panel !border-[color-mix(in_srgb,var(--accent)_60%,transparent)]'
-                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] opacity-65 hover:opacity-100 hover:!border-[color-mix(in_srgb,var(--text)_22%,transparent)]'
+                    onClick={openUnsavedDiff}
+                    className={`group relative overflow-hidden p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all cursor-pointer ${
+                      isDiffPanelOpen && selectedMode === 'unsaved'
+                        ? 'glass-panel !border-[color-mix(in_srgb,var(--accent)_55%,transparent)]'
+                        : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                     }`}
                   >
-                    <div className="flex justify-between items-center w-full gap-2">
-                      <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {entry.pinned && (
-                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
-                              {t('icon_push_pin', 'push_pin')}
-                            </span>
-                          )}
-                          {editingTimestamp === entry.timestamp ? (
-                            <input
-                              autoFocus
-                              value={editNameValue}
-                              onChange={(e) => setEditNameValue(e.target.value)}
-                              onBlur={() => saveName(entry.timestamp)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') saveName(entry.timestamp);
-                                else if (e.key === 'Escape') setEditingTimestamp(null);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="bg-transparent border-b border-[var(--accent)] text-xs font-black tracking-wider outline-none text-[var(--text)] w-full placeholder:opacity-30"
-                              placeholder={t('rename_snapshot', 'Rename snapshot...')}
-                            />
-                          ) : (
-                            <span
-                              className={`text-xs font-black tracking-wide cursor-text hover:opacity-100 flex items-center gap-1.5 group min-w-0 ${
-                                isSelected ? 'text-[var(--accent)]' : 'text-[var(--text)]'
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingTimestamp(entry.timestamp);
-                                setEditNameValue(entry.name || '');
-                              }}
-                            >
-                              <span className="truncate block">
-                                {entry.name || t('unnamed_snapshot', 'Unnamed Snapshot')}
-                              </span>
-                              <span className="material-symbols-outlined !text-[13px] opacity-0 group-hover:opacity-60 transition-opacity">
-                                {t('icon_edit', 'edit')}
-                              </span>
-                            </span>
-                          )}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                            hasUnsavedChanges ? 'text-[var(--warning)]' : 'text-[var(--success)]'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {hasUnsavedChanges
+                              ? t('icon_edit_note', 'edit_note')
+                              : t('icon_check_circle', 'check_circle')}
+                          </span>
                         </div>
-                        <span className="text-[10px] font-bold font-mono tracking-wider text-[var(--subtext)] opacity-65 flex items-center gap-2">
-                          <span>{new Date(entry.timestamp * 1000).toLocaleDateString()}</span>
-                          <span>{new Date(entry.timestamp * 1000).toLocaleTimeString()}</span>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[13px] font-black tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors truncate">
+                            {t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')}
+                          </span>
+                          <span className="text-[10.5px] text-[var(--subtext)] opacity-75 line-clamp-1">
+                            {t(
+                              'diff_unsaved_vs_saved_sub',
+                              'Compare current unsaved edits against the last saved file'
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span
+                            className={`material-symbols-rounded !text-[12px] shrink-0 ${
+                              hasUnsavedChanges ? 'text-[var(--warning)]' : 'text-[var(--success)]'
+                            }`}
+                          >
+                            {hasUnsavedChanges
+                              ? t('icon_edit_note', 'edit_note')
+                              : t('icon_check_circle', 'check_circle')}
+                          </span>
+                          <span>
+                            {hasUnsavedChanges ? t('unsaved', 'Unsaved') : t('diff_in_sync', 'In Sync')}
+                          </span>
                         </span>
+                        {unsavedChangeCount > 0 && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                              {t('icon_track_changes', 'track_changes')}
+                            </span>
+                            <span className="tabular-nums">
+                              {unsavedChangeCount} {t('diff_status_modified', 'Changed')}
+                            </span>
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {entry.timestamp === currentActiveTs && !searchQuery && (
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                              {t('icon_schedule', 'schedule')}
-                            </span>
-                            {t('active', 'Latest')}
-                          </span>
+                        {hasUnsavedChanges && onUndoAllUnsaved && (
+                          <div className="relative flex">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUndoAllUnsaved();
+                              }}
+                              className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">{t('icon_undo', 'undo')}</span>
+                            </button>
+                            <HoverTooltip title={t('workbench_undo_all_unsaved', 'Revert Edits')} />
+                          </div>
                         )}
-                        <div className="flex items-center glass-surface !rounded-full p-0.5 gap-0.5">
-                          {!entry.pinned &&
-                            (confirmDelete === entry.timestamp ? (
-                              <>
-                                <button
-                                  type="button"
+                        <div className="relative flex">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openUnsavedDiff();
+                            }}
+                            className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] group-hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined !text-[14px]">
+                              {t('icon_difference', 'difference')}
+                            </span>
+                          </button>
+                          <HoverTooltip title={t('cw_inspect_diff', 'Inspect Diff')} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Historical Snapshot Cards */}
+                {filteredHistory.map((entry) => {
+                  const isSelected =
+                    isDiffPanelOpen && selectedMode === 'snapshot' && selectedEntry?.timestamp === entry.timestamp;
+                  const isInGame = isInGameSnapshot(entry);
+                  const isBaseline = isBaselineSnapshot(entry);
+                  const displayTitle = getSnapshotDisplayTitle(entry);
+                  const changeCount = snapshotChangeCounts.get(entry.timestamp) || 0;
+                  const isEntryIdentical = (entry.content || '') === (currentContent || '');
+                  const dateObj = new Date(entry.timestamp * 1000);
+
+                  return (
+                    <div
+                      key={entry.timestamp}
+                      onClick={() => openSnapshotDiff(entry)}
+                      className={`group relative overflow-hidden p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'glass-panel !border-[color-mix(in_srgb,var(--accent)_60%,transparent)]'
+                          : 'glass-panel border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                      }`}
+                    >
+                      {/* Top Row: Icon Well + Title/Timestamp */}
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                              isInGame
+                                ? 'text-[var(--warning)]'
+                                : isBaseline
+                                  ? 'text-[var(--info)]'
+                                  : 'text-[var(--accent)]'
+                            }`}
+                          >
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {isInGame
+                                ? t('icon_sports_esports', 'sports_esports')
+                                : isBaseline
+                                  ? t('icon_shield', 'shield')
+                                  : t('icon_history', 'history')}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {entry.pinned && (
+                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                                  {t('icon_push_pin', 'push_pin')}
+                                </span>
+                              )}
+                              {editingTimestamp === entry.timestamp ? (
+                                <input
+                                  autoFocus
+                                  value={editNameValue}
+                                  onChange={(e) => setEditNameValue(e.target.value)}
+                                  onBlur={() => saveName(entry.timestamp)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveName(entry.timestamp);
+                                    else if (e.key === 'Escape') setEditingTimestamp(null);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="bg-transparent border-b border-[var(--accent)] text-[13px] font-black tracking-tight outline-none text-[var(--text)] w-full placeholder:opacity-30"
+                                  placeholder={t('rename_snapshot', 'Rename snapshot...')}
+                                />
+                              ) : (
+                                <span
+                                  className="text-[13px] font-black tracking-tight text-[var(--text)] group-hover:text-[var(--accent)] transition-colors flex items-center gap-1.5 min-w-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setConfirmDelete(null);
+                                    setEditingTimestamp(entry.timestamp);
+                                    setEditNameValue(entry.name || '');
                                   }}
-                                  className="w-6.5 h-6.5 rounded-full flex items-center justify-center text-[var(--text)] opacity-75 hover:opacity-100 cursor-pointer"
                                 >
-                                  <span className="material-symbols-outlined !text-[13px]">
+                                  <span className="truncate block">{displayTitle}</span>
+                                  <span className="material-symbols-outlined !text-[13px] text-[var(--subtext)] opacity-0 group-hover:opacity-65 transition-opacity shrink-0">
+                                    {t('icon_edit', 'edit')}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+
+                            <span className="text-[10.5px] font-mono font-bold tracking-wider text-[var(--subtext)] opacity-70 flex items-center gap-1.5">
+                              <span>{dateObj.toLocaleDateString()}</span>
+                              <span>&bull;</span>
+                              <span>{dateObj.toLocaleTimeString()}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Concise Status Badge + Compact Icon Actions */}
+                      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span
+                              className={`material-symbols-rounded !text-[12px] shrink-0 ${
+                                changeCount > 0 ? 'text-[var(--warning)]' : 'text-[var(--success)]'
+                              }`}
+                            >
+                              {changeCount > 0
+                                ? t('icon_track_changes', 'track_changes')
+                                : t('icon_check_circle', 'check_circle')}
+                            </span>
+                            <span className="tabular-nums">
+                              {changeCount > 0
+                                ? `${changeCount} ${t('diff_status_modified', 'Changed')}`
+                                : t('diff_in_sync', 'In Sync')}
+                            </span>
+                          </span>
+
+                          {isInGame && (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                                {t('icon_sports_esports', 'sports_esports')}
+                              </span>
+                              <span>{t('cw_in_game_badge', 'In-Game Edit')}</span>
+                            </span>
+                          )}
+
+                          {entry.timestamp === currentActiveTs && (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                                {t('icon_schedule', 'schedule')}
+                              </span>
+                              <span>{t('latest_version_badge', 'Latest')}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {!isEntryIdentical &&
+                            (confirmRestore === entry.timestamp ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmRestore(null)}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
                                     {t('icon_close', 'close')}
                                   </span>
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteVersion(entry.timestamp);
+                                  onClick={() => {
+                                    onRestore(entry.content, entry.timestamp);
+                                    setConfirmRestore(null);
+                                    onClose();
                                   }}
-                                  className="w-6.5 h-6.5 rounded-full flex items-center justify-center text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] cursor-pointer"
+                                  className="w-7 h-7 rounded-lg glass-surface border !border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] flex items-center justify-center cursor-pointer"
                                 >
-                                  <span className="material-symbols-outlined !text-[13px]">
-                                    {t('icon_delete', 'delete')}
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t('icon_check', 'check')}
                                   </span>
                                 </button>
-                              </>
+                              </div>
                             ) : (
                               <div className="relative flex">
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setConfirmDelete(entry.timestamp);
+                                    setConfirmRestore(entry.timestamp);
                                   }}
-                                  className="w-6.5 h-6.5 rounded-full flex items-center justify-center text-[var(--text)] opacity-70 hover:opacity-100 hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all cursor-pointer"
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
-                                    {t('icon_delete', 'delete')}
+                                    {t('icon_restore', 'restore')}
                                   </span>
                                 </button>
-                                <HoverTooltip title={t('delete', 'Delete')} />
+                                <HoverTooltip title={t('restore_btn', 'Restore Snapshot')} />
                               </div>
                             ))}
+
                           <div className="relative flex">
                             <button
                               type="button"
@@ -844,10 +1094,10 @@ export default function VersionTimeline({
                                 e.stopPropagation();
                                 togglePin(entry.timestamp, !entry.pinned);
                               }}
-                              className={`w-6.5 h-6.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${
                                 entry.pinned
-                                  ? 'text-[var(--accent)] opacity-100'
-                                  : 'text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]'
+                                  ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]'
+                                  : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                               }`}
                             >
                               <span className="material-symbols-outlined !text-[14px]">
@@ -856,17 +1106,200 @@ export default function VersionTimeline({
                             </button>
                             <HoverTooltip title={t('pin', 'Pin Snapshot')} />
                           </div>
+
+                          {!entry.pinned &&
+                            (confirmDelete === entry.timestamp ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDelete(null)}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t('icon_close', 'close')}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteVersion(entry.timestamp)}
+                                  className="w-7 h-7 rounded-lg glass-surface border !border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex items-center justify-center text-[var(--danger)] cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t('icon_delete', 'delete')}
+                                  </span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="relative flex">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDelete(entry.timestamp);
+                                  }}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t('icon_delete', 'delete')}
+                                  </span>
+                                </button>
+                                <HoverTooltip title={t('delete', 'Delete')} />
+                              </div>
+                            ))}
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
+      </SidePanel>
 
-        {/* RIGHT COLUMN: Unified ActionPill Filter Bar + Diff View */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0 h-full overflow-hidden">
+      {/* Stacked Snapshot Diff Inspector SidePanel */}
+      <SidePanel
+        isOpen={isDiffPanelOpen}
+        title={
+          selectedMode === 'unsaved'
+            ? t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')
+            : getSnapshotDisplayTitle(selectedEntry)
+        }
+        subtitle={`${shortFileName}${
+          selectedMode === 'snapshot' && selectedEntry
+            ? ` • ${new Date(selectedEntry.timestamp * 1000).toLocaleString()}`
+            : ''
+        }`}
+        onClose={() => setIsDiffPanelOpen(false)}
+        icon={
+          selectedMode === 'unsaved'
+            ? t('icon_edit_note', 'edit_note')
+            : isInGameSnapshot(selectedEntry)
+              ? t('icon_sports_esports', 'sports_esports')
+              : t('icon_difference', 'difference')
+        }
+        iconColorClass="theme-text-accent"
+        isResizable={true}
+        defaultWidth={980}
+        noBackdropDim={true}
+        backdropZ="z-[70002]"
+        panelZ="z-[70003]"
+        headerActions={
+          <div className="flex items-center gap-2">
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_tune', 'tune')}
+                tooltip={t('diff_mode_visual', 'Visual Diff')}
+                isActive={diffViewMode === 'visual'}
+                onClick={() => setDiffViewMode('visual')}
+              />
+              <PanelHeaderButton
+                icon={t('icon_code', 'code')}
+                tooltip={t('diff_mode_raw', 'Raw Code Diff')}
+                isActive={diffViewMode === 'raw'}
+                onClick={() => setDiffViewMode('raw')}
+              />
+            </PanelHeaderGroup>
+
+            {selectedMode === 'unsaved' && hasUnsavedChanges && onUndoAllUnsaved && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={t('icon_undo', 'undo')}
+                  tooltip={t('workbench_undo_all_unsaved', 'Revert Edits')}
+                  onClick={() => onUndoAllUnsaved()}
+                />
+              </PanelHeaderGroup>
+            )}
+
+            {selectedMode === 'snapshot' && selectedEntry && !isRawIdentical && (
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={t('icon_restore', 'restore')}
+                  tooltip={t('restore_btn', 'Restore Snapshot')}
+                  isActive={confirmRestore === selectedEntry.timestamp}
+                  onClick={() => {
+                    if (confirmRestore === selectedEntry.timestamp) {
+                      onRestore(selectedEntry.content, selectedEntry.timestamp);
+                      setConfirmRestore(null);
+                      setIsDiffPanelOpen(false);
+                      onClose();
+                    } else {
+                      setConfirmRestore(selectedEntry.timestamp);
+                    }
+                  }}
+                />
+              </PanelHeaderGroup>
+            )}
+          </div>
+        }
+      >
+        <div
+          className="flex flex-col gap-4 w-full h-full min-h-0 relative z-10 p-2"
+          style={
+            {
+              color: currentTheme.text,
+              '--glass-outer-shadow': '0 0 #0000',
+              '--glass-nested-shadow': '0 0 #0000',
+              '--glass-surface-outer-shadow': '0 0 #0000',
+            } as React.CSSProperties
+          }
+        >
+          <SidePanelHeroCard
+            icon={
+              selectedMode === 'unsaved'
+                ? t('icon_edit_note', 'edit_note')
+                : isInGameSnapshot(selectedEntry)
+                  ? t('icon_sports_esports', 'sports_esports')
+                  : t('icon_difference', 'difference')
+            }
+            overline={t('cw_diff_inspector_title', 'Snapshot Diff Inspector')}
+            title={
+              selectedMode === 'unsaved'
+                ? t('diff_unsaved_vs_saved_title', 'Current Edits vs. Saved')
+                : getSnapshotDisplayTitle(selectedEntry)
+            }
+            description={
+              selectedMode === 'unsaved'
+                ? t('timeline_unsaved_desc', 'Comparing live unsaved buffer against saved disk baseline.')
+                : t(
+                    'cw_diff_inspector_sub',
+                    'Comparing selected snapshot against current active workbench buffer'
+                  )
+            }
+            badge={`${changedItemsCount} ${t('diff_status_modified', 'Changed')}`}
+            badgeIcon={t('icon_track_changes', 'track_changes')}
+            variant={
+              selectedMode === 'snapshot' && isInGameSnapshot(selectedEntry)
+                ? 'warning'
+                : changedItemsCount > 0
+                  ? 'accent'
+                  : 'success'
+            }
+          />
+
+          {diffViewMode === 'visual' && (
+            <div className="grid grid-cols-2 gap-2.5 shrink-0">
+              <DashboardStatTile
+                variant="filter"
+                icon={t('icon_track_changes', 'track_changes')}
+                title={t('diff_changed_only', 'Changed Only')}
+                value={changedItemsCount}
+                isActive={diffOnlyChanged}
+                onClick={() => setDiffOnlyChanged(true)}
+                colorClass="text-[var(--warning)]"
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t('icon_grid_view', 'grid_view')}
+                title={t('cat_all', 'All Settings')}
+                value={visualDiffItems.length}
+                isActive={!diffOnlyChanged}
+                onClick={() => setDiffOnlyChanged(false)}
+                colorClass="text-[var(--accent)]"
+              />
+            </div>
+          )}
+
           <div className="shrink-0">
             <ActionPill
               className="w-full"
@@ -874,121 +1307,40 @@ export default function VersionTimeline({
               setSearchQuery={setDiffSearchQuery}
               searchPlaceholder={t('diff_search_settings', 'Search settings...')}
               rightContent={
-                <div className="flex items-center gap-2 px-3 h-full py-2">
-                  {diffViewMode === 'visual' ? (
+                diffViewMode === 'raw' && !isRawIdentical ? (
+                  <div className="flex items-center gap-1.5 px-3 h-full py-2">
+                    {rawDiffCount > 0 && (
+                      <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                          {t('icon_difference', 'difference')}
+                        </span>
+                        {rawDiffIndex + 1}/{rawDiffCount}
+                      </span>
+                    )}
                     <div className="relative flex">
                       <button
                         type="button"
-                        onClick={() => setDiffOnlyChanged(!diffOnlyChanged)}
-                        className={`h-8 px-3 rounded-full text-[10px] font-bold tracking-wider glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
-                          diffOnlyChanged
-                            ? '!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]'
-                            : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-                        }`}
+                        onClick={() => jumpToRawDiff('prev')}
+                        className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                       >
-                        <span className="material-symbols-outlined !text-[14px]">
-                          {t('icon_track_changes', 'track_changes')}
-                        </span>
-                        <span>
-                          {diffOnlyChanged
-                            ? `${changedItemsCount} ${t('diff_status_modified', 'Changed')}`
-                            : t('cat_all', 'All Settings')}
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t('icon_keyboard_arrow_up', 'keyboard_arrow_up')}
                         </span>
                       </button>
-                      <HoverTooltip
-                        title={
-                          diffOnlyChanged
-                            ? t('cat_all', 'All Settings')
-                            : t('diff_changed_only', 'Changed Only')
-                        }
-                      />
+                      <HoverTooltip title={t('diff_prev_change', 'Previous Change')} />
                     </div>
-                  ) : (
-                    !isRawIdentical && (
-                      <div className="flex items-center gap-1.5">
-                        {rawDiffCount > 0 && (
-                          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                              {t('icon_difference', 'difference')}
-                            </span>
-                            {rawDiffIndex + 1}/{rawDiffCount}
-                          </span>
-                        )}
-                        <div className="relative flex">
-                          <button
-                            type="button"
-                            onClick={() => jumpToRawDiff('prev')}
-                            className="w-8 h-8 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[16px]">
-                              {t('icon_keyboard_arrow_up', 'keyboard_arrow_up')}
-                            </span>
-                          </button>
-                          <HoverTooltip title={t('diff_prev_change', 'Previous Change')} />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => jumpToRawDiff('next')}
-                          className="h-8 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[10px] font-bold text-[var(--accent)] flex items-center gap-1 transition-all cursor-pointer"
-                        >
-                          <span>{t('diff_next_change', 'Next Change')}</span>
-                          <span className="material-symbols-outlined !text-[15px]">
-                            {t('icon_keyboard_arrow_down', 'keyboard_arrow_down')}
-                          </span>
-                        </button>
-                      </div>
-                    )
-                  )}
-
-                  {/* Clean Liquid Glass Revert / Restore Action */}
-                  {selectedMode === 'unsaved' && hasUnsavedChanges && onUndoAllUnsaved && (
-                    <div className="relative flex">
-                      <button
-                        type="button"
-                        onClick={() => onUndoAllUnsaved()}
-                        className="h-8 px-3 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[10px] font-bold text-[var(--warning)] flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t('icon_undo', 'undo')}</span>
-                        <span>{t('workbench_undo_all_unsaved', 'Revert Edits')}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedMode === 'snapshot' && selectedEntry && !isRawIdentical && (
-                    confirmRestore === selectedEntry.timestamp ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmRestore(null)}
-                          className="h-8 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
-                        >
-                          {t('cancel', 'Cancel')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onRestore(selectedEntry.content, selectedEntry.timestamp);
-                            setConfirmRestore(null);
-                            onClose();
-                          }}
-                          className="h-8 px-3.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)] text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">{t('icon_check', 'check')}</span>
-                          <span>{t('confirm_restore', 'Confirm Restore')}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRestore(selectedEntry.timestamp)}
-                        className="h-8 px-3.5 rounded-full glass-surface border !border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)] text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t('icon_restore', 'restore')}</span>
-                        <span>{t('restore_btn', 'Restore Snapshot')}</span>
-                      </button>
-                    )
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => jumpToRawDiff('next')}
+                      className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <span>{t('diff_next_change', 'Next Change')}</span>
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                        {t('icon_keyboard_arrow_down', 'keyboard_arrow_down')}
+                      </span>
+                    </button>
+                  </div>
+                ) : undefined
               }
             />
           </div>
@@ -1000,7 +1352,10 @@ export default function VersionTimeline({
                 <EmptyState
                   icon={t('icon_check_circle', 'check_circle')}
                   title={t('diff_no_changes_title', 'No Differences Detected')}
-                  subtitle={t('diff_no_changes_desc', 'The selected version is identical to your current editor content.')}
+                  subtitle={t(
+                    'diff_no_changes_desc',
+                    'The selected version is identical to your current editor content.'
+                  )}
                 />
               ) : (
                 <>
@@ -1099,7 +1454,7 @@ export default function VersionTimeline({
                                 <button
                                   type="button"
                                   onClick={() => onApplySettingValue!(item.dataPath, item.baseVal)}
-                                  className={`w-8 h-8 rounded-full glass-surface border flex items-center justify-center transition-all cursor-pointer ${
+                                  className={`w-8 h-8 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${
                                     selectedMode === 'unsaved'
                                       ? '!border-[color-mix(in_srgb,var(--warning)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--warning)_65%,transparent)] text-[var(--warning)]'
                                       : '!border-[color-mix(in_srgb,var(--accent)_42%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]'
@@ -1197,8 +1552,7 @@ export default function VersionTimeline({
             </div>
           )}
         </div>
-        </div>
-      </div>
-    </SidePanel>
+      </SidePanel>
+    </>
   );
 }

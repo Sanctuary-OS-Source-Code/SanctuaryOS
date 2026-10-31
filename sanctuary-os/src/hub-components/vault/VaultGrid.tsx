@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer } from '../../shared';
+import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer, stripPriorityTierPrefix } from '../../shared';
 import { ModCard } from '../../ModCard';
 
 export function VaultGrid(props: any) {
@@ -41,11 +41,15 @@ export function VaultGrid(props: any) {
   const cleanedActiveSet = React.useMemo(() => {
     const s = new Set<string>();
     activeSetMods.forEach((m: string) => {
+      if (!m || typeof m !== "string") return;
       s.add(m);
-      s.add(m.replace(/^(sanctuary[/\\])+/i, ''));
+      const stripped = stripPriorityTierPrefix(m, activeGameSchema);
+      if (stripped) s.add(stripped);
+      const cleanFile = m.split(/[\\/]/).pop() || m;
+      if (cleanFile) s.add(cleanFile);
     });
     return s;
-  }, [activeSetMods]);
+  }, [activeSetMods, activeGameSchema]);
 
   const checkConflicts = React.useCallback((mObj: any, targetCasualties: any[], targetTier3: any[]) => {
     const mObjCleanN = (mObj.name || "").split(/[\\/]/).pop()?.replace(/\.[^/.]+$/i, "").toUpperCase() || "";

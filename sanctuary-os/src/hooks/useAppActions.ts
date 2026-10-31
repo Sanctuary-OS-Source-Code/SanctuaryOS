@@ -3,6 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
+import { deduplicateBlueprintArtifacts } from "../shared";
 import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
 
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
@@ -38,10 +39,11 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     const setName = bulkName.trim();
     if (!setName) { setBulkModal(false); return; }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists", "A {Blueprint} with that name already exists!")); return; }
-    const updatedSets =[...playSets, { name: setName, mods: selectedMods }];
+    const dedupedMods = deduplicateBlueprintArtifacts(selectedMods, useStore.getState().activeGameSchema);
+    const updatedSets = [...playSets, { name: setName, mods: dedupedMods }];
     setPlaySets(updatedSets);
     setActivePlaySetIndex(updatedSets.length - 1); 
-    setStatus(`${t("status_blueprint_created_prefix", "{Blueprint}[")}${setName}${t("status_blueprint_created_mid", "] created with")}${selectedMods.length}${t("backend_deployed_suffix", "{mods}.")}`);
+    setStatus(`${t("status_blueprint_created_prefix", "{Blueprint}[")}${setName}${t("status_blueprint_created_mid", "] created with")}${dedupedMods.length}${t("backend_deployed_suffix", "{mods}.")}`);
     setIsBulkMode(false); setSelectedMods([]); setBulkModal(false); setBulkName("");
   }
 
@@ -50,7 +52,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     if (!setName) { setSnapshotModal(false); return; }
     if (playSets.some((s) => s.name.toLowerCase() === setName.toLowerCase())) { setStatus(t("status_blueprint_exists", "A {Blueprint} with that name already exists!")); return; }
     const activeSet = playSets[activePlaySetIndex];
-    const currentMods = activeSet && activeSet.mods ? [...activeSet.mods] : [];
+    const currentMods = activeSet && activeSet.mods ? deduplicateBlueprintArtifacts([...activeSet.mods], useStore.getState().activeGameSchema) : [];
     const newSet = {
       name: setName,
       mods: currentMods,

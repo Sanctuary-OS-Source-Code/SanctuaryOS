@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown, isSupportedExtension } from "./shared";
+import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown, isSupportedExtension, deduplicateBlueprintArtifacts, stripPriorityTierPrefix } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
@@ -199,7 +199,7 @@ export default function CommandCenter({
   const cachedStoreBrokenCounts = useStore((state) => state.activeBrokenCounts);
   const activeBlueprintMods = React.useMemo(() => {
     if (!activePlaySet) return [];
-    const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
+    const safeMods = deduplicateBlueprintArtifacts(activePlaySet.mods, activeGameSchema);
     const safeList = Array.isArray(modList) ? modList : [];
     const extRegex = getExtensionRegex(activeGameSchema);
 
@@ -280,7 +280,7 @@ export default function CommandCenter({
 
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
+      const cleanModName = stripPriorityTierPrefix(modName, activeGameSchema);
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
 
       const exactMatch = exactMatchMap.get(modNameLow);

@@ -17,6 +17,7 @@ import {
   SidePanel, CustomDropdown, EmptyState,
   PanelHeaderGroup, PanelHeaderButton, ActionButton, StatBox,
   VAULT_CHIP_CLASS,
+  countBlueprintArtifacts,
 } from "../shared";
 import { UniversalGroup, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { logArchitectAction } from "../lib/audit";
@@ -205,11 +206,15 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
             parsedJson = {};
           }
         }
-        const rawModCount = Array.isArray(parsedJson?.mods)
-          ? parsedJson.mods.length
-          : Array.isArray(parsedJson?.manifest)
-            ? parsedJson.manifest.length
-            : 0;
+        const rawModCount = Array.isArray(bp?.artifacts)
+          ? countBlueprintArtifacts(bp.artifacts)
+          : Array.isArray(parsedJson?.artifacts)
+            ? countBlueprintArtifacts(parsedJson.artifacts)
+            : Array.isArray(parsedJson?.mods)
+              ? countBlueprintArtifacts(parsedJson.mods)
+              : Array.isArray(parsedJson?.manifest)
+                ? countBlueprintArtifacts(parsedJson.manifest)
+                : 0;
 
         const audit = bp.id ? bpAuditMap[String(bp.id)] : undefined;
         const violations = audit?.violations || [];

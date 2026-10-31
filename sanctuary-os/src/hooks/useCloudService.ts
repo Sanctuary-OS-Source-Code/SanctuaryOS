@@ -1,4 +1,4 @@
-import { getExtensionRegex } from "../shared";
+import { getExtensionRegex, deduplicateBlueprintArtifacts } from "../shared";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -302,7 +302,10 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         nameRemap,
         activeGameSchema
       );
-      const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
+      const availableMods = deduplicateBlueprintArtifacts(
+        rawAvailableMods.map((mName) => formatModWithTier(mName)),
+        activeGameSchema
+      );
 
       if (ignoredConflicts.length > 0) {
         const prevIgnored = useStore.getState().ignoredGlobal || [];

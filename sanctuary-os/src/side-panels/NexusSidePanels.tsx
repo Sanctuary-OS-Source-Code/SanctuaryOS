@@ -22,13 +22,13 @@ import {
   handleOpenUrl,
   EmptyState,
   openModDossier,
+  deduplicateBlueprintArtifacts,
+  stripPriorityTierPrefix,
 } from "../shared";
 import {
   formatCleanModTitle,
   formatAddonModuleName,
-  normalizeModGroupTitle,
   extractValidCreator,
-  isKnownCreatorName,
 } from "./CommandIncompatiblePanel";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -1248,54 +1248,6 @@ export function MarketReportPanel({
   );
 }
 
-const GENERIC_BLUEPRINT_DIRS = new Set([
-  "mods",
-  "packages",
-  "package",
-  "scripts",
-  "script",
-  "overrides",
-  "override",
-  "cas",
-  "buildbuy",
-  "build_buy",
-  "build-buy",
-  "gameplay",
-  "tuning",
-  "clothing",
-  "hair",
-  "furniture",
-  "sanctuary",
-  "sanctuary2",
-  "sanctuary3",
-  "!_core",
-  "z_overrides",
-]);
-
-function extractSpecificSubfolder(rawPath: string, activeGameSchema?: any): string | null {
-  if (!rawPath || (!rawPath.includes("/") && !rawPath.includes("\\"))) return null;
-  const schemaTiers = Array.isArray(activeGameSchema?.load_order?.priority_tiers)
-    ? activeGameSchema.load_order.priority_tiers
-    : [];
-  const tierFolders = new Set<string>(
-    schemaTiers.map((pt: any) => String(pt?.folder || "").toLowerCase()).filter(Boolean)
-  );
-  const segs = rawPath
-    .replace(/\\/g, "/")
-    .split("/")
-    .slice(0, -1)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (let i = segs.length - 1; i >= 0; i--) {
-    const seg = segs[i];
-    const low = seg.toLowerCase();
-    if (low.startsWith("!")) continue;
-    if (GENERIC_BLUEPRINT_DIRS.has(low) || tierFolders.has(low)) continue;
-    return seg;
-  }
-  return null;
-}
-
 interface VaultLookupCacheEntry {
   localByHash: Map<string, any>;
   localByExact: Map<string, any>;
@@ -1499,8 +1451,9 @@ export async function auditBlueprintsTier0Compliance(
 
   for (const bp of blueprints) {
     if (!bp) continue;
-    const rawArts =
-      bp.artifacts || bp.json_data?.artifacts || bp.originalBlueprint?.artifacts || [];
+    const rawArts = deduplicateBlueprintArtifacts(
+      bp.artifacts || bp.json_data?.artifacts || bp.originalBlueprint?.artifacts || []
+    );
     const violations: BlueprintComplianceViolation[] = [];
     const compliantArtifacts: any[] = [];
 
@@ -1657,38 +1610,16 @@ export function groupBlueprintArtifactsByFamily(
 
   const { nexusParentByHash, nexusParentByNorm } = getOrBuildNexusParentLookup();
 
-  // Pre-scan counts for multi-module suites and shared folders
-  let mcCount = 0;
-  const subfolderCounts = new Map<string, number>();
+  const dedupedArtifacts = deduplicateBlueprintArtifacts(rawArtifacts, activeGameSchema);
+  const finalResult: any[] = [];
 
-  for (const item of rawArtifacts) {
-    const rawStr = typeof item === "string" ? item : String(item?.name || item?.path || item?.id || "");
-    if (!rawStr) continue;
-    const filePart = rawStr.split(/[\\/]/).pop() || rawStr;
-    const label = formatDisplayName(filePart, undefined, activeGameSchema).trim();
-    if (
-      /^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
-        label
-      ) ||
-      /\bmc\s*(cmd|command)\s*center\b/i.test(label)
-    ) {
-      mcCount++;
-    }
-    const sub = extractSpecificSubfolder(rawStr, activeGameSchema);
-    if (sub) {
-      const subKey = sub.toLowerCase();
-      subfolderCounts.set(subKey, (subfolderCounts.get(subKey) || 0) + 1);
-    }
-  }
-
-  const grouped = new Map<string, any>();
-
-  for (let idx = 0; idx < rawArtifacts.length; idx++) {
-    const rawItem = rawArtifacts[idx];
+  for (let idx = 0; idx < dedupedArtifacts.length; idx++) {
+    const rawItem = dedupedArtifacts[idx];
     const rawObj = typeof rawItem === "string" ? { name: rawItem } : rawItem || {};
     const rawPath = String(rawObj.name || rawObj.path || rawObj.id || "").trim();
     if (!rawPath) continue;
 
+    const strippedPath = stripPriorityTierPrefix(rawPath, activeGameSchema);
     const filePart = rawPath.split(/[\\/]/).pop() || rawPath;
     const fileLower = filePart.toLowerCase();
     const baseLower = fileLower.replace(extRegex, "");
@@ -1697,6 +1628,7 @@ export function groupBlueprintArtifactsByFamily(
     const matchedLocal =
       (rawObj.hash && localByHash.get(rawObj.hash)) ||
       localByExact.get(rawPath.toLowerCase()) ||
+      (strippedPath ? localByExact.get(strippedPath.toLowerCase()) : undefined) ||
       localByFile.get(fileLower) ||
       (baseLower ? localByBase.get(baseLower) : undefined);
 
@@ -1747,8 +1679,19 @@ export function groupBlueprintArtifactsByFamily(
       (rawObj.hash && localVaultHashes.has(rawObj.hash)) || matchedLocal
     );
 
-    const cleanFileDisplay = formatDisplayName(filePart, undefined, activeGameSchema).trim();
+    const cleanFileDisplay = formatDisplayName(
+      matchedLocal?.displayName || filePart,
+      undefined,
+      activeGameSchema
+    ).trim();
     const cleanModuleTitle = formatCleanModTitle(cleanFileDisplay) || cleanFileDisplay;
+
+    const isMc =
+      /^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
+        cleanFileDisplay
+      ) || /\bmc\s*(cmd|command)\s*center\b/i.test(cleanFileDisplay);
+
+    const finalAuthor = resolvedAuthor || (isMc ? "Deaderpool" : undefined);
 
     const modEntry: any = {
       ...(familyParent && !familyParent.isVirtual ? familyParent : {}),
@@ -1758,13 +1701,18 @@ export function groupBlueprintArtifactsByFamily(
       id: rawObj.id || cloudInfo?.dbMod?.id || matchedLocal?.dbId || rawObj.hash || `${filePart}_${idx}`,
       dbId: cloudInfo?.dbMod?.id || matchedLocal?.dbId || rawObj.dbId,
       hash: rawObj.hash || matchedLocal?.hash,
-      name: rawPath,
+      name: cleanModuleTitle,
       displayName: cleanModuleTitle,
+      _groupedTitle: cleanModuleTitle,
+      _rawFirstPath: rawPath,
       _cleanFilePart: filePart,
       _cleanModuleTitle: cleanModuleTitle,
       _isOwned: isOwned,
-      author: resolvedAuthor || undefined,
-      master_author: resolvedAuthor || undefined,
+      _moduleCount: 1,
+      _ownedCount: isOwned ? 1 : 0,
+      _allOwned: isOwned,
+      author: finalAuthor,
+      master_author: finalAuthor,
       url:
         rawObj.url ||
         cloudInfo?.downloadUrl ||
@@ -1803,239 +1751,14 @@ export function groupBlueprintArtifactsByFamily(
         typeof rawObj.load_order_index === "number" ? rawObj.load_order_index : idx,
       priority_tier: rawObj.priority_tier,
       load_rules: rawObj.load_rules,
+      isCollection: Boolean(rawObj.isCollection || matchedLocal?.isCollection),
+      isParent: false,
+      _groupKey: `${fileLower}_${idx}`,
     };
+    modEntry._groupedMods = [modEntry];
 
-    const isMc =
-      mcCount >= 1 &&
-      (/^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
-        cleanFileDisplay
-      ) ||
-        /\bmc\s*(cmd|command)\s*center\b/i.test(cleanFileDisplay));
-
-    const twinNormalized =
-      formatCleanModTitle(normalizeModGroupTitle(cleanFileDisplay)) || cleanModuleTitle;
-    const subFolder = extractSpecificSubfolder(rawPath, activeGameSchema);
-    const hasSharedSubfolder = Boolean(
-      subFolder && (subfolderCounts.get(subFolder.toLowerCase()) || 0) > 1
-    );
-
-    let groupKey: string;
-    let displayTitle = twinNormalized;
-    let isCollectionGroup = false;
-
-    if (isMc) {
-      groupKey = "__suite_mc_command_center__";
-      displayTitle = "MC Command Center";
-      if (!modEntry.author) {
-        modEntry.author = "Deaderpool";
-        modEntry.master_author = "Deaderpool";
-      }
-    } else if (collectionObj && (collectionObj.id || collectionObj.name)) {
-      const colId = String(collectionObj.id || collectionObj.name).toLowerCase();
-      groupKey = `__collection_${colId}__`;
-      const rawColTitle = formatDisplayName(collectionObj.name || twinNormalized, undefined, activeGameSchema).trim();
-      displayTitle = formatCleanModTitle(rawColTitle) || rawColTitle;
-      isCollectionGroup = true;
-    } else if (hasRealFamily) {
-      groupKey = `__family_${famIdRaw}__`;
-      const canonicalParentTitle = familyParent
-        ? formatDisplayName(familyParent.displayName || familyParent.name || "", undefined, activeGameSchema).trim()
-        : "";
-      const normParent = normalizeModGroupTitle(canonicalParentTitle) || canonicalParentTitle;
-      displayTitle = formatCleanModTitle(normParent) || twinNormalized;
-    } else if (modEntry.flavorGroupId) {
-      groupKey = `__flavor_${modEntry.flavorGroupId}__`;
-      const fgTitle = formatDisplayName(modEntry.flavorGroupName || twinNormalized, undefined, activeGameSchema).trim();
-      displayTitle = formatCleanModTitle(fgTitle) || twinNormalized;
-    } else if (hasSharedSubfolder && subFolder) {
-      groupKey = `__folder_${subFolder.toLowerCase()}__`;
-      const folderClean = formatDisplayName(subFolder, undefined, activeGameSchema).trim();
-      displayTitle =
-        formatCleanModTitle(normalizeModGroupTitle(folderClean) || folderClean) ||
-        twinNormalized;
-    } else {
-      groupKey = twinNormalized.toLowerCase();
-      displayTitle = twinNormalized;
-    }
-
-    if (!grouped.has(groupKey)) {
-      grouped.set(groupKey, {
-        ...modEntry,
-        name: displayTitle,
-        displayName: displayTitle,
-        _groupedTitle: displayTitle,
-        _rawFirstPath: rawPath,
-        _moduleCount: 1,
-        _groupedMods: [modEntry],
-        _seenFileKeys: new Set<string>([`${modEntry.hash || ""}::${fileLower}`]),
-        _ownedCount: isOwned ? 1 : 0,
-        _allOwned: isOwned,
-        isCollection: isCollectionGroup || Boolean(modEntry.isCollection),
-        isParent: false,
-      });
-    } else {
-      const existing = grouped.get(groupKey);
-      const dedupFileKey = `${modEntry.hash || ""}::${fileLower}`;
-      const sameFileNameAlready = existing._groupedMods.some(
-        (gm: any) => String(gm._cleanFilePart || "").toLowerCase() === fileLower
-      );
-      if (!existing._seenFileKeys.has(dedupFileKey) && !sameFileNameAlready) {
-        existing._seenFileKeys.add(dedupFileKey);
-        existing._groupedMods.push(modEntry);
-        existing._moduleCount = existing._groupedMods.length;
-        existing.isParent = existing._groupedMods.length > 1;
-        if (isOwned) existing._ownedCount = (existing._ownedCount || 0) + 1;
-        existing._allOwned = existing._ownedCount === existing._groupedMods.length;
-      }
-
-      if (hasRealFamily && String(modEntry.dbId) === famIdRaw) {
-        existing._groupedTitle = twinNormalized;
-        existing.displayName = twinNormalized;
-      }
-      if (!isKnownCreatorName(existing.author) && isKnownCreatorName(modEntry.author)) {
-        existing.author = modEntry.author;
-        existing.master_author = modEntry.author;
-      }
-      if (!existing.url && modEntry.url) existing.url = modEntry.url;
-      if (!existing.image_url && modEntry.image_url) existing.image_url = modEntry.image_url;
-      if (!existing.version && modEntry.version) existing.version = modEntry.version;
-      if (modEntry.is_paid) existing.is_paid = true;
-      if (modEntry.is_early_access) existing.is_early_access = true;
-    }
+    finalResult.push(modEntry);
   }
-
-  // Second pass: merge prefix-based Addons/Modules into their parent mod card in O(N log N)
-  const entries = Array.from(grouped.values());
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    const tStr = String(e._groupedTitle || "").trim();
-    e._cleanTitle = tStr;
-    e._lowerTitle = tStr.toLowerCase();
-  }
-  entries.sort((a, b) => (a._lowerTitle < b._lowerTitle ? -1 : a._lowerTitle > b._lowerTitle ? 1 : 0));
-
-  const mergedOut = new Set<number>();
-
-  for (let i = 0; i < entries.length; i++) {
-    if (mergedOut.has(i)) continue;
-    const parent = entries[i];
-    const pTitle: string = parent._cleanTitle;
-    if (pTitle.length < 4) continue;
-    const pLower: string = parent._lowerTitle;
-
-    for (let j = i + 1; j < entries.length; j++) {
-      if (mergedOut.has(j)) continue;
-      const candidate = entries[j];
-      const cLower: string = candidate._lowerTitle;
-      if (!cLower.startsWith(pLower)) break;
-
-      const cTitle: string = candidate._cleanTitle;
-      const isPrefixAddon =
-        cLower.length > pLower.length &&
-        /^(\s*[-:–_(\[]|\s+(addon|add-on|module|modules|pack|part|pt|script|scripts|tuning|strings|override|overrides)\b)/i.test(
-          cTitle.slice(pTitle.length)
-        );
-
-      if (isPrefixAddon) {
-        mergedOut.add(j);
-        for (const cm of candidate._groupedMods || [candidate]) {
-          const fLow = String(cm._cleanFilePart || cm.name || "").toLowerCase();
-          const alreadyIn = parent._groupedMods.some(
-            (gm: any) => String(gm._cleanFilePart || gm.name || "").toLowerCase() === fLow
-          );
-          if (!alreadyIn) {
-            parent._groupedMods.push(cm);
-            if (cm._isOwned) parent._ownedCount = (parent._ownedCount || 0) + 1;
-          }
-        }
-        parent._moduleCount = parent._groupedMods.length;
-        parent.isParent = parent._groupedMods.length > 1;
-        parent._allOwned = parent._ownedCount === parent._groupedMods.length;
-        if (!isKnownCreatorName(parent.author) && isKnownCreatorName(candidate.author)) {
-          parent.author = candidate.author;
-          parent.master_author = candidate.author;
-        }
-        if (!parent.url && candidate.url) parent.url = candidate.url;
-        if (!parent.image_url && candidate.image_url) parent.image_url = candidate.image_url;
-        if (candidate.is_paid) parent.is_paid = true;
-        if (candidate.is_early_access) parent.is_early_access = true;
-      }
-    }
-  }
-
-  // Third pass: group ungrouped items that share an explicit pack tag suffix like "(MAX20)" or "[QICC] SetName"
-  const remaining = entries.filter((_, idx) => !mergedOut.has(idx));
-  const packTagBuckets = new Map<string, { label: string; indices: number[] }>();
-
-  remaining.forEach((entry, idx) => {
-    if ((entry._groupedMods?.length || 1) > 1) return;
-    const title = String(entry._groupedTitle || "").trim();
-    // Match trailing pack tag e.g. "Armchair Provence (MAX20)" -> "MAX20"
-    const suffixMatch = title.match(/\(([A-Za-z0-9][A-Za-z0-9\s_-]{2,22})\)$/);
-    if (suffixMatch) {
-      const tag = suffixMatch[1].trim();
-      if (!/^(v\d|ep\d|gp\d|sp\d|fp\d|base|hq|nonhq|alt|mesh|addon|script)/i.test(tag)) {
-        const key = `suffix_${tag.toLowerCase()}`;
-        if (!packTagBuckets.has(key)) {
-          packTagBuckets.set(key, { label: formatCleanModTitle(tag), indices: [] });
-        }
-        packTagBuckets.get(key)!.indices.push(idx);
-        return;
-      }
-    }
-    // Match leading bracketed creator/pack + 2 words e.g. "[QICC] Lively Living Room ..."
-    const bracketMatch = title.match(/^(\[[^\]]{2,20}\]\s+[A-Za-z0-9']+(?:\s+[A-Za-z0-9']+){1,2})\b/);
-    if (bracketMatch) {
-      const prefix = bracketMatch[1].trim();
-      const key = `bprefix_${prefix.toLowerCase()}`;
-      if (!packTagBuckets.has(key)) {
-        packTagBuckets.set(key, { label: formatCleanModTitle(prefix), indices: [] });
-      }
-      packTagBuckets.get(key)!.indices.push(idx);
-    }
-  });
-
-  const bucketMergedIndices = new Set<number>();
-  const finalResult: any[] = [];
-
-  packTagBuckets.forEach((bucket) => {
-    if (bucket.indices.length < 2) return;
-    const firstIdx = bucket.indices[0];
-    const baseEntry = { ...remaining[firstIdx] };
-    const combinedMods: any[] = [];
-    let ownedCount = 0;
-
-    bucket.indices.forEach((bIdx) => {
-      bucketMergedIndices.add(bIdx);
-      const item = remaining[bIdx];
-      for (const gm of item._groupedMods || [item]) {
-        combinedMods.push(gm);
-        if (gm._isOwned) ownedCount++;
-      }
-      if (!isKnownCreatorName(baseEntry.author) && isKnownCreatorName(item.author)) {
-        baseEntry.author = item.author;
-        baseEntry.master_author = item.author;
-      }
-      if (item.is_paid) baseEntry.is_paid = true;
-      if (item.is_early_access) baseEntry.is_early_access = true;
-    });
-
-    baseEntry._groupedTitle = bucket.label;
-    baseEntry.displayName = bucket.label;
-    baseEntry.name = bucket.label;
-    baseEntry._groupedMods = combinedMods;
-    baseEntry._moduleCount = combinedMods.length;
-    baseEntry._ownedCount = ownedCount;
-    baseEntry._allOwned = ownedCount === combinedMods.length;
-    baseEntry.isParent = true;
-    finalResult.push(baseEntry);
-  });
-
-  remaining.forEach((entry, idx) => {
-    if (!bucketMergedIndices.has(idx)) {
-      finalResult.push(entry);
-    }
-  });
 
   return finalResult;
 }

@@ -2687,8 +2687,10 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
     }
 
     let is_config_ext = |ext_lower: &str| -> bool {
-        matches!(ext_lower, "cfg" | "ini" | "json" | "xml" | "txt" | "log")
-            || config_exts.iter().any(|e| e.eq_ignore_ascii_case(ext_lower))
+        matches!(
+            ext_lower,
+            "cfg" | "ini" | "json" | "toml" | "xml" | "txt" | "log"
+        ) || config_exts.iter().any(|e| e.eq_ignore_ascii_case(ext_lower))
     };
 
     let mut root_configs: Vec<(String, PathBuf)> = Vec::new();

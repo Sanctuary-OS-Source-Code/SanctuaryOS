@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown, HoverTooltip } from '../shared';
+import { CustomDropdown, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
 
 interface WorkbenchVisualEditorProps {
    settings: any[];
+   categories?: any[];
    dataSource: any;
    savedDataSource?: any;
    isPreview?: boolean;
@@ -165,13 +166,34 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
    const isTupleControl =
       setting.type === "tuple" ||
       (setting.type === "number" && (isNumericTupleValue(effectiveVal) || isNumericTupleValue(setting.default)));
-   const isInlineControl = setting.type === "boolean" || (setting.type === "number" && !isTupleControl);
+
+   const isCompactHorizontal =
+      setting.type === "boolean" ||
+      (setting.type === "number" && !isTupleControl) ||
+      ((setting.type === "string" || setting.type === "dropdown") && !isNested);
+
+   const defaultSubtitle = React.useMemo(() => {
+      if (cleanDesc) return cleanDesc;
+      if (setting.type === "boolean") {
+         const defBool = Boolean(setting.default);
+         return `${t("cw_default_prefix", "Default:")} ${defBool ? t("enabled", "Enabled") : t("disabled", "Disabled")}`;
+      }
+      if (setting.type === "dropdown" && Array.isArray(setting.options)) {
+         const matchedOpt = setting.options.find((o: any) => String(o.value) === String(setting.default));
+         const optLabel = matchedOpt ? resolveText(matchedOpt.label_key, matchedOpt.value) : String(setting.default ?? "");
+         return optLabel ? `${t("cw_default_prefix", "Default:")} ${optLabel}` : "";
+      }
+      if (setting.default !== undefined && String(setting.default).trim() !== "") {
+         return `${t("cw_default_prefix", "Default:")} ${String(setting.default)}`;
+      }
+      return t("cw_not_set_default", "Default (Empty)");
+   }, [cleanDesc, setting.type, setting.default, setting.options, t]);
 
    return (
       <div
          data-setting-key={setting.key}
-         style={{ contentVisibility: 'auto', containIntrinsicSize: isNested ? '52px' : '60px' }}
-         className={`rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative overflow-hidden ${
+         style={{ contentVisibility: 'auto', containIntrinsicSize: isNested ? '56px' : '64px' }}
+         className={`h-full rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative overflow-hidden ${
             isHighlighted
                ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_24px_rgba(var(--accent-rgb),0.15)]'
                : isNested
@@ -179,39 +201,41 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                   : 'glass-panel border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)]'
          }`}
       >
-         <div className={`flex ${isInlineControl ? 'items-center justify-between gap-2.5' : 'flex-col gap-2'} relative z-10 w-full`}>
+         <div className={`flex ${isCompactHorizontal ? 'items-center justify-between gap-3' : 'flex-col gap-2.5'} relative z-10 w-full`}>
             <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                  <span className="text-[12px] font-black tracking-wide text-[var(--text)] leading-snug"><HoverTooltip title={label} />
+                  <span className="text-[12.5px] font-bold tracking-wide text-[var(--text)] leading-snug truncate">
+                     <HoverTooltip title={`${label} (${setting.key})`} />
                      {label}
                   </span>
                   {setting.risk === "advanced" && (
-                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
                         <span className="material-symbols-outlined !text-[11px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
                         <span>{t("advanced_badge", "Advanced")}</span>
                      </span>
                   )}
                   {isUnsavedEdit ? (
-                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
                         <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
                         <span>{t("unsaved", "Unsaved")}</span>
                      </span>
                   ) : isModified ? (
-                     <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-bold flex items-center gap-1 shrink-0">
+                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
                         <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
                         <span>{t("modified", "Modified")}</span>
                      </span>
                   ) : null}
                </div>
 
-               {cleanDesc && (
-                  <span className="text-[10px] text-[var(--subtext)] opacity-75 font-medium leading-relaxed line-clamp-2">
-                     {cleanDesc}
+               {defaultSubtitle && (
+                  <span className="text-[10.5px] text-[var(--subtext)] opacity-75 font-medium leading-snug line-clamp-1">
+                     <HoverTooltip title={cleanDesc || defaultSubtitle} />
+                     {defaultSubtitle}
                   </span>
                )}
             </div>
 
-            <div className={`shrink-0 flex items-center gap-1.5 ${isInlineControl ? 'justify-end' : 'w-full justify-between pt-0.5'}`}>
+            <div className={`shrink-0 flex items-center gap-1.5 ${isCompactHorizontal ? 'justify-end' : 'w-full justify-between pt-0.5'}`}>
                {isUnsavedEdit && (
                   <div className="relative flex shrink-0">
                      <button
@@ -388,13 +412,19 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      type="text"
                      value={effectiveVal !== undefined ? effectiveVal : ""}
                      onChange={(e) => onVisualChange(dataPath, e.target.value)}
-                     placeholder={setting.default !== undefined ? String(setting.default) : ""}
-                     className="h-9 glass-surface rounded-xl px-3.5 text-[11px] font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none transition-colors w-full"
+                     placeholder={
+                        setting.default !== undefined && String(setting.default).trim() !== ""
+                           ? String(setting.default)
+                           : t("cw_not_set_default", "Default (Empty)")
+                     }
+                     className={`h-8 glass-surface rounded-xl px-3 text-[11px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-45 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none transition-all ${
+                        isCompactHorizontal ? 'w-[145px] sm:w-[175px]' : 'w-full'
+                     }`}
                   />
                )}
 
                {setting.type === "dropdown" && (
-                  <div className="w-full flex-1">
+                  <div className={isCompactHorizontal ? 'w-[155px] sm:w-[185px]' : 'w-full flex-1'}>
                      <CustomDropdown
                         disableTint={true}
                         value={effectiveVal !== undefined ? effectiveVal : ""}
@@ -577,52 +607,53 @@ const GroupNode = ({
    return (
       <div
          style={{ contentVisibility: 'auto', containIntrinsicSize: '120px' }}
-         className="col-span-full flex flex-col w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden transition-colors duration-200"
+         className="col-span-full flex flex-col w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-hidden transition-colors duration-200 shadow-sm"
       >
          <div
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="px-4 py-2.5 flex items-center justify-between gap-4 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors select-none"
+            className="px-4 py-3 flex items-center justify-between gap-4 cursor-pointer bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors select-none"
          >
-            <div className="flex items-center gap-2.5 min-w-0">
-               <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] shrink-0">
-                  {t("icon_account_tree", "account_tree")}
-               </span>
-               <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+               <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                     {t("icon_account_tree", "account_tree")}
+                  </span>
+               </div>
+               <div className="flex flex-col min-w-0 gap-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                     <span className="text-[12px] font-black capitalize tracking-wider text-[var(--text)]">{label}</span>
+                     <span className="text-[12.5px] font-black capitalize tracking-tight text-[var(--text)]">{label}</span>
+                     <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--subtext)]">{t("icon_tune", "tune")}</span>
+                        <span className="tabular-nums">{childSettings.length} {t("workbench_settings_count", "Settings")}</span>
+                     </span>
                      {unsavedCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1">
-                           <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                        <span className={VAULT_CHIP_CLASS}>
+                           <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
                            <span className="tabular-nums">{unsavedCount} {t("unsaved", "Unsaved")}</span>
                         </span>
                      )}
                      {modifiedCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1">
-                           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                        <span className={VAULT_CHIP_CLASS}>
+                           <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
                            <span className="tabular-nums">{modifiedCount} {t("modified", "Modified")}</span>
                         </span>
                      )}
                   </div>
                   {cleanDesc && (
-                     <span className="text-[10px] text-[var(--subtext)] opacity-75 font-medium truncate">{cleanDesc}</span>
+                     <span className="text-[10.5px] text-[var(--subtext)] opacity-75 font-medium truncate">{cleanDesc}</span>
                   )}
                </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-               {isCollapsed && (
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 tabular-nums">
-                     {childSettings.length}
-                  </span>
-               )}
                {unsavedCount > 0 && (
                   <div className="relative flex">
                      <button
                         type="button"
                         onClick={handleUndoGroup}
-                        className="h-7 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
                      >
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_undo", "undo")}</span>
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--warning)]">{t("icon_undo", "undo")}</span>
                         <span className="hidden sm:inline">{t("workbench_undo_group", "Undo Group")}</span>
                      </button>
                   </div>
@@ -632,21 +663,23 @@ const GroupNode = ({
                      <button
                         type="button"
                         onClick={handleResetGroup}
-                        className="h-7 px-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
+                        className="h-7 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 text-[10px] font-bold tracking-wider transition-all cursor-pointer"
                      >
-                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{t("icon_restart_alt", "restart_alt")}</span>
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">{t("icon_restart_alt", "restart_alt")}</span>
                         <span className="hidden sm:inline">{t("workbench_reset_group", "Reset Group")}</span>
                      </button>
                   </div>
                )}
-               <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)]">
-                  {isCollapsed ? t("icon_expand_more", "expand_more") : t("icon_expand_less", "expand_less")}
-               </span>
+               <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)]">
+                  <span className="material-symbols-outlined !text-[16px]">
+                     {isCollapsed ? t("icon_expand_more", "expand_more") : t("icon_expand_less", "expand_less")}
+                  </span>
+               </div>
             </div>
          </div>
 
          {!isCollapsed && (
-            <div className="p-3 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)] grid grid-cols-1 @[440px]:grid-cols-2 @[680px]:grid-cols-3 gap-2 items-start">
+            <div className="p-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 @[440px]:grid-cols-2 @[680px]:grid-cols-3 gap-2.5 items-stretch">
                <WorkbenchVisualEditor
                   settings={childSettings}
                   dataSource={dataSource}
@@ -672,6 +705,7 @@ const VISUAL_PAGE_BATCH = 60;
 
 export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
    settings,
+   categories = [],
    dataSource,
    savedDataSource,
    isPreview = false,
@@ -755,7 +789,7 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
 
    const displayedSettings = isNested ? filteredSettings : filteredSettings.slice(0, visibleLimit);
 
-   const nodes = displayedSettings.map((setting, idx) => {
+   const renderSettingItem = (setting: any, idx: number) => {
       const localPath = setting.path || setting.key;
 
       if (!localPath) {
@@ -810,17 +844,36 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
             t={t}
          />
       );
-   });
+   };
 
    if (isNested) {
-      return <>{nodes}</>;
+      return <>{displayedSettings.map((s, idx) => renderSettingItem(s, idx))}</>;
    }
+
+   const groupItems: { setting: any; idx: number }[] = [];
+   const leafItems: { setting: any; idx: number }[] = [];
+   displayedSettings.forEach((setting, idx) => {
+      if (setting?.type === "group") {
+         groupItems.push({ setting, idx });
+      } else {
+         leafItems.push({ setting, idx });
+      }
+   });
 
    return (
       <div className="w-full @container flex flex-col gap-3">
-         <div className="grid grid-cols-1 @[620px]:grid-cols-2 gap-2.5 items-start w-full">
-            {nodes}
-         </div>
+         {groupItems.length > 0 && (
+            <div className="flex flex-col gap-2.5 w-full">
+               {groupItems.map(({ setting, idx }) => renderSettingItem(setting, idx))}
+            </div>
+         )}
+
+         {leafItems.length > 0 && (
+            <div className="grid grid-cols-1 @[620px]:grid-cols-2 gap-2.5 items-stretch w-full">
+               {leafItems.map(({ setting, idx }) => renderSettingItem(setting, idx))}
+            </div>
+         )}
+
          {visibleLimit < filteredSettings.length && (
             <div ref={loadMoreRef} className="w-full py-4 flex items-center justify-center">
                <button

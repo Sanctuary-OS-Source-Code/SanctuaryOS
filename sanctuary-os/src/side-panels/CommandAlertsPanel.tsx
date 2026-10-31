@@ -11,6 +11,8 @@ import {
   SidePanelHeroCard,
   DashboardStatTile,
   UniversalGroup,
+  deduplicateBlueprintArtifacts,
+  stripPriorityTierPrefix,
 } from "../shared";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -59,7 +61,7 @@ export default function CommandAlertsPanel({
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
     if (!isOpen) return [];
-    const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
+    const safeMods = deduplicateBlueprintArtifacts(playSet?.mods, activeGameSchema);
     const safeList = Array.isArray(modList) ? modList : [];
 
     const exactMatchMap = new Map();
@@ -78,7 +80,7 @@ export default function CommandAlertsPanel({
 
     return safeMods.map((rawMod: any) => {
       const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, "");
+      const cleanModName = stripPriorityTierPrefix(modName, activeGameSchema);
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, "/");
 
       const exactMatch = exactMatchMap.get(modNameLow);
@@ -91,7 +93,7 @@ export default function CommandAlertsPanel({
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [isOpen, playSet?.mods, modList, extRegex]);
+  }, [isOpen, playSet?.mods, modList, extRegex, activeGameSchema]);
 
   const activeConflicts = useMemo(() => {
     if (!isOpen) return [];

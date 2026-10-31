@@ -7,6 +7,9 @@ import {
   DashboardStatTile,
   StatBox,
   ActionButton,
+  ActionPill,
+  UniversalGroup,
+  HoverTooltip,
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -124,7 +127,12 @@ export function TimeCapsuleSnapshotDossier({
     new Set()
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [listLimit, setListLimit] = useState(100);
+  const [sectorFilter, setSectorFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [sortBy, setSortBy] = useState<"DEFAULT" | "NAME" | "SIZE" | "SECTOR">(
+    "DEFAULT"
+  );
+  const [listLimit, setListLimit] = useState(40);
 
   const docsPath = useMemo(() => {
     if (activeConfig?.mods_path) {
@@ -134,8 +142,11 @@ export function TimeCapsuleSnapshotDossier({
   }, [activeConfig]);
 
   useEffect(() => {
-    setListLimit(100);
+    setListLimit(40);
     setSearchQuery("");
+    setSectorFilter("ALL");
+    setStatusFilter("ALL");
+    setSortBy("DEFAULT");
     setCollapsedGroups(new Set());
     setActiveView(isPostBackupSummary ? "DELTA" : "DIFF");
     setSelectedPaths(new Set());
@@ -428,64 +439,64 @@ export function TimeCapsuleSnapshotDossier({
     if (isEngine) {
       if (isEngineBinFile(filePath)) {
         return {
+          id: "BIN",
           icon: t("icon_terminal", "terminal"),
           label: t("tc_engine_cat_bin", "Binaries"),
           colorVar: "var(--accent)",
-          colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+          colorClass: "text-[var(--accent)]",
         };
       }
       if (isEngineDeltaFile(filePath)) {
         return {
+          id: "DELTA",
           icon: t("icon_difference", "difference"),
           label: t("tc_engine_cat_delta", "Delta"),
           colorVar: "var(--warning)",
-          colorClass:
-            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
+          colorClass: "text-[var(--warning)]",
         };
       }
       if (isEngineDataFile(filePath)) {
         return {
+          id: "DATA",
           icon: t("icon_inventory_2", "inventory_2"),
           label: t("tc_engine_cat_data", "Base Game"),
           colorVar: "var(--success)",
-          colorClass:
-            "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+          colorClass: "text-[var(--success)]",
         };
       }
       return {
+        id: "PACKS",
         icon: t("icon_extension", "extension"),
         label: t("tc_engine_cat_packs", "Packs"),
         colorVar: "var(--subtext)",
-        colorClass:
-          "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+        colorClass: "text-[var(--subtext)]",
       };
     }
 
     if (isSaveFile(filePath)) {
       return {
+        id: "SAVES",
         icon: t("icon_save", "save"),
         label: t("label_saves", "Saves"),
         colorVar: "var(--accent)",
-        colorClass:
-          "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
+        colorClass: "text-[var(--accent)]",
       };
     }
     if (isTrayFile(filePath)) {
       return {
+        id: "TRAY",
         icon: t("icon_group", "Holiday_Village"),
         label: t("label_tray_files", "Tray Files"),
         colorVar: "var(--success)",
-        colorClass:
-          "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
+        colorClass: "text-[var(--success)]",
       };
     }
     return {
+      id: "CONFIGS",
       icon: t("icon_tune", "tune"),
       label: t("tc_panel_filter_configs", "Configs & Data"),
       colorVar: "var(--subtext)",
-      colorClass:
-        "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+      colorClass: "text-[var(--subtext)]",
     };
   };
 
@@ -641,7 +652,52 @@ export function TimeCapsuleSnapshotDossier({
       ? Math.min(100, Math.max(0, Math.round((savedBytes / logicalSize) * 100)))
       : 0;
 
-  // Structured Category Groups for EXTRACT view (Zero Pill Filters!)
+  const sectorOptions = useMemo(() => {
+    if (isEngine) {
+      return [
+        { id: "ALL", label: t("filter_all", "All") },
+        { id: "BIN", label: t("tc_engine_cat_bin", "Binaries") },
+        { id: "DATA", label: t("tc_engine_cat_data", "Base Game") },
+        { id: "DELTA", label: t("tc_engine_cat_delta", "Delta") },
+        { id: "PACKS", label: t("tc_engine_cat_packs", "Packs") },
+      ];
+    }
+    return [
+      { id: "ALL", label: t("filter_all", "All") },
+      { id: "SAVES", label: t("label_saves", "Saves") },
+      { id: "CONFIGS", label: t("tc_panel_filter_configs", "Configs & Data") },
+      { id: "TRAY", label: t("label_tray_files", "Tray Files") },
+    ];
+  }, [isEngine, t]);
+
+  const sortItems = (list: any[]) => {
+    if (sortBy === "DEFAULT") return list;
+    const copy = [...list];
+    copy.sort((a, b) => {
+      const fileA = (a.path || "").split("/").pop() || a.path || "";
+      const fileB = (b.path || "").split("/").pop() || b.path || "";
+      if (sortBy === "NAME") {
+        return fileA.localeCompare(fileB);
+      }
+      if (sortBy === "SIZE") {
+        const sizeA = a.size_mb ?? a.live_size_mb ?? 0;
+        const sizeB = b.size_mb ?? b.live_size_mb ?? 0;
+        if (sizeB !== sizeA) return sizeB - sizeA;
+        return fileA.localeCompare(fileB);
+      }
+      if (sortBy === "SECTOR") {
+        const catA = getFileCategoryInfo(a.path || "").label;
+        const catB = getFileCategoryInfo(b.path || "").label;
+        const cmp = catA.localeCompare(catB);
+        if (cmp !== 0) return cmp;
+        return fileA.localeCompare(fileB);
+      }
+      return 0;
+    });
+    return copy;
+  };
+
+  // Structured Category Groups for EXTRACT view
   const extractGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = (f: any) => !q || f.path.toLowerCase().includes(q);
@@ -649,18 +705,16 @@ export function TimeCapsuleSnapshotDossier({
       list.reduce((acc, f) => acc + (f.size_mb || 0), 0);
 
     if (isEngine) {
-      const bin = engineBinFiles.filter(matchesSearch);
-      const data = engineDataFiles.filter(matchesSearch);
-      const delta = engineDeltaFiles.filter(matchesSearch);
-      const packs = enginePackFiles.filter(matchesSearch);
+      const bin = sortItems(engineBinFiles.filter(matchesSearch));
+      const data = sortItems(engineDataFiles.filter(matchesSearch));
+      const delta = sortItems(engineDeltaFiles.filter(matchesSearch));
+      const packs = sortItems(enginePackFiles.filter(matchesSearch));
       return [
         {
           id: "BIN",
           label: t("tc_engine_cat_bin", "Binaries"),
           icon: t("icon_terminal", "terminal"),
           colorVar: "var(--accent)",
-          colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
           files: bin,
           sizeMb: sumMb(bin),
         },
@@ -669,8 +723,6 @@ export function TimeCapsuleSnapshotDossier({
           label: t("tc_engine_cat_data", "Base Game"),
           icon: t("icon_inventory_2", "inventory_2"),
           colorVar: "var(--success)",
-          colorClass:
-            "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
           files: data,
           sizeMb: sumMb(data),
         },
@@ -679,8 +731,6 @@ export function TimeCapsuleSnapshotDossier({
           label: t("tc_engine_cat_delta", "Delta"),
           icon: t("icon_difference", "difference"),
           colorVar: "var(--warning)",
-          colorClass:
-            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_38%,transparent)]",
           files: delta,
           sizeMb: sumMb(delta),
         },
@@ -689,19 +739,21 @@ export function TimeCapsuleSnapshotDossier({
           label: t("tc_engine_cat_packs", "Packs"),
           icon: t("icon_extension", "extension"),
           colorVar: "var(--subtext)",
-          colorClass:
-            "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
           files: packs,
           sizeMb: sumMb(packs),
         },
-      ].filter((g) => g.files.length > 0);
+      ].filter(
+        (g) =>
+          (sectorFilter === "ALL" || sectorFilter === g.id) &&
+          g.files.length > 0
+      );
     }
 
-    const savesList = (showVerRevisions ? saveFiles : primarySaveFiles).filter(
-      matchesSearch
+    const savesList = sortItems(
+      (showVerRevisions ? saveFiles : primarySaveFiles).filter(matchesSearch)
     );
-    const configsList = configFiles.filter(matchesSearch);
-    const trayList = trayFiles.filter(matchesSearch);
+    const configsList = sortItems(configFiles.filter(matchesSearch));
+    const trayList = sortItems(trayFiles.filter(matchesSearch));
 
     return [
       {
@@ -709,8 +761,6 @@ export function TimeCapsuleSnapshotDossier({
         label: t("label_saves", "Saves"),
         icon: t("icon_save", "save"),
         colorVar: "var(--accent)",
-        colorClass:
-          "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_38%,transparent)]",
         files: savesList,
         sizeMb: sumMb(savesList),
         hasVerToggle: verRevisionFiles.length > 0,
@@ -720,8 +770,6 @@ export function TimeCapsuleSnapshotDossier({
         label: t("tc_panel_filter_configs", "Configs & Data"),
         icon: t("icon_tune", "tune"),
         colorVar: "var(--subtext)",
-        colorClass:
-          "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
         files: configsList,
         sizeMb: sumMb(configsList),
       },
@@ -730,15 +778,20 @@ export function TimeCapsuleSnapshotDossier({
         label: t("label_tray_files", "Tray Files"),
         icon: t("icon_group", "Holiday_Village"),
         colorVar: "var(--success)",
-        colorClass:
-          "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_38%,transparent)]",
         files: trayList,
         sizeMb: sumMb(trayList),
       },
-    ].filter((g) => g.files.length > 0 || (g.id === "SAVES" && verRevisionFiles.length > 0 && !q));
+    ].filter(
+      (g) =>
+        (sectorFilter === "ALL" || sectorFilter === g.id) &&
+        (g.files.length > 0 ||
+          (g.id === "SAVES" && verRevisionFiles.length > 0 && !q))
+    );
   }, [
     isEngine,
     searchQuery,
+    sectorFilter,
+    sortBy,
     showVerRevisions,
     saveFiles,
     primarySaveFiles,
@@ -783,21 +836,70 @@ export function TimeCapsuleSnapshotDossier({
 
   const filteredDelta = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return allDeltaEntries.filter((item) => {
+    const base = allDeltaEntries.filter((item) => {
       if (item.delta_status === "Deduplicated") return false;
+      if (!showVerRevisions && item.path.toLowerCase().includes(".save.ver")) {
+        return false;
+      }
       if (q && !item.path.toLowerCase().includes(q)) return false;
+      if (sectorFilter !== "ALL") {
+        const cat = getFileCategoryInfo(item.path);
+        if (cat.id !== sectorFilter) return false;
+      }
+      if (statusFilter !== "ALL") {
+        if (statusFilter === "MODIFIED" && item.delta_status !== "Updated")
+          return false;
+        if (
+          statusFilter === "ADDED" &&
+          item.delta_status !== "Added" &&
+          item.delta_status !== "Baseline"
+        )
+          return false;
+        if (statusFilter === "REMOVED" && item.delta_status !== "Removed")
+          return false;
+      }
       return true;
     });
-  }, [allDeltaEntries, searchQuery]);
+    return sortItems(base);
+  }, [
+    allDeltaEntries,
+    searchQuery,
+    sectorFilter,
+    statusFilter,
+    sortBy,
+    showVerRevisions,
+  ]);
 
   const filteredDiff = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return visibleDiffEntries.filter((d) => {
+    const base = visibleDiffEntries.filter((d) => {
       if (d.status === "Identical") return false;
+      if (!showVerRevisions && d.path.toLowerCase().includes(".save.ver")) {
+        return false;
+      }
       if (q && !d.path.toLowerCase().includes(q)) return false;
+      if (sectorFilter !== "ALL") {
+        const cat = getFileCategoryInfo(d.path);
+        if (cat.id !== sectorFilter) return false;
+      }
+      if (statusFilter !== "ALL") {
+        if (statusFilter === "MODIFIED" && d.status !== "Modified") return false;
+        if (statusFilter === "MISSING" && d.status !== "Missing in Current")
+          return false;
+        if (statusFilter === "ADDED" && d.status !== "Added in Current")
+          return false;
+      }
       return true;
     });
-  }, [visibleDiffEntries, searchQuery]);
+    return sortItems(base);
+  }, [
+    visibleDiffEntries,
+    searchQuery,
+    sectorFilter,
+    statusFilter,
+    sortBy,
+    showVerRevisions,
+  ]);
 
   if (!normalizedBackup) {
     return (
@@ -809,7 +911,183 @@ export function TimeCapsuleSnapshotDossier({
 
   const showRestoreBar =
     Boolean(onRestoreBackup && !isPostBackupSummary) ||
-    changedDiffPaths.length > 0;
+    changedDiffPaths.length > 0 ||
+    selectedPaths.size > 0;
+
+  const hasActiveFilters =
+    sectorFilter !== "ALL" ||
+    statusFilter !== "ALL" ||
+    sortBy !== "DEFAULT" ||
+    showVerRevisions;
+
+  // Unified 2-Row Sanctuary Card Renderer for Snapshot Files
+  const renderCapsuleFileCard = (
+    item: {
+      path: string;
+      sizeLabel: string;
+      badgeIcon: string;
+      badgeColorVar: string;
+      badgeLabel: string;
+      canExtract: boolean;
+      refreshDiffOnExtract: boolean;
+      actionLabel: string;
+      selectable?: boolean;
+    },
+    idx: number
+  ) => {
+    const catInfo = getFileCategoryInfo(item.path);
+    const folderSub = getFileFolderSubtitle(item.path);
+    const fileName = item.path.split("/").pop() || item.path;
+    const isSelected = Boolean(item.selectable && selectedPaths.has(item.path));
+    const isDone = extractedSet.has(item.path);
+    const isBusy = extracting === item.path;
+    const isConfirmingThis = confirmExtractPath === item.path;
+
+    return (
+      <div
+        key={`${item.path}-${idx}`}
+        onClick={() => {
+          if (item.selectable) toggleSelectPath(item.path);
+        }}
+        className={`flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border transition-all group/item ${
+          item.selectable ? "cursor-pointer" : ""
+        } ${
+          isSelected
+            ? "border-[color-mix(in_srgb,var(--accent)_55%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)]"
+            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+        }`}
+      >
+        {/* Row 1: Liquid Glass Icon Well + Filename & Folder/Footprint Subtitle */}
+        <div className="flex items-center gap-3 min-w-0 w-full">
+          <div
+            className={`w-10 h-10 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors ${
+              isSelected
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]"
+            }`}
+            style={{
+              color: isSelected ? "var(--accent)" : catInfo.colorVar,
+            }}
+          >
+            <span className="material-symbols-outlined !text-[20px]">
+              {isSelected ? t("icon_check", "check") : catInfo.icon}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="relative group/tctitle flex items-center min-w-0 w-fit max-w-full">
+              <span className="text-xs font-black tracking-tight text-[var(--text)] group-hover/item:text-[var(--accent)] transition-colors truncate">
+                {fileName}
+              </span>
+              <HoverTooltip title={item.path} />
+            </div>
+            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+              {folderSub} &bull; {item.sizeLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Row 2: Bottom-Left Status/Category Badges + Bottom-Right Action Controls */}
+        <div
+          className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className="material-symbols-outlined !text-[12px] shrink-0"
+                style={{ color: item.badgeColorVar }}
+              >
+                {item.badgeIcon}
+              </span>
+              <span className="truncate">{item.badgeLabel}</span>
+            </span>
+
+            {!item.selectable && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span
+                  className="material-symbols-outlined !text-[12px] shrink-0"
+                  style={{ color: catInfo.colorVar }}
+                >
+                  {catInfo.icon}
+                </span>
+                <span className="truncate">{catInfo.label}</span>
+              </span>
+            )}
+
+            {isSelected && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] shrink-0">
+                  {t("icon_check_circle", "check_circle")}
+                </span>
+                <span>{t("selected", "Selected")}</span>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {item.canExtract &&
+              (isConfirmingThis ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isBusy || isBatchExtracting}
+                    onClick={() =>
+                      handleExtractSingle(item.path, item.refreshDiffOnExtract)
+                    }
+                    className="px-2.5 h-7 rounded-lg glass-surface sa-glass-pill-active text-[var(--text)] text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                      {t("icon_check", "check")}
+                    </span>
+                    <span>{t("confirm", "Confirm")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmExtractPath(null)}
+                    className="w-7 h-7 rounded-lg glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t("icon_close", "close")}
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmExtractPath(item.path)}
+                  disabled={isBusy || isBatchExtracting}
+                  className={`px-2.5 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
+                    isDone
+                      ? "sa-glass-pill-success text-[var(--text)]"
+                      : "sa-glass-pill-hover text-[var(--text)]"
+                  }`}
+                >
+                  <span
+                    className={`material-symbols-outlined !text-[13px] ${
+                      isDone
+                        ? "text-[var(--success)]"
+                        : "text-[var(--accent)]"
+                    } ${isBusy ? "animate-spin" : ""}`}
+                  >
+                    {isDone
+                      ? t("icon_check_circle", "check_circle")
+                      : isBusy
+                        ? t("icon_sync", "sync")
+                        : t("icon_restore", "restore")}
+                  </span>
+                  <span>
+                    {isDone
+                      ? t("tc_panel_extracted_badge", "Extracted")
+                      : item.actionLabel}
+                  </span>
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full pb-6">
@@ -855,14 +1133,14 @@ export function TimeCapsuleSnapshotDossier({
         }
         variant={isEngine ? "danger" : "accent"}
       >
-        {/* 2x2 Spacious StatBox Grid — Wide columns so labels and values are never cut off */}
+        {/* 2x2 Spacious StatBox Grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatBox
             icon={t("icon_hard_drive", "hard_drive")}
             iconColorClass="text-[var(--accent)]"
             label={t("tc_stat_actually_backed_up", "Written to Disk")}
             value={
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {formatStorageBytes(actualWrittenBytes)}
               </span>
             }
@@ -872,7 +1150,7 @@ export function TimeCapsuleSnapshotDossier({
             iconColorClass="text-[var(--success)]"
             label={t("tc_stat_deduplicated", "Storage Saved")}
             value={
-              <span className="font-mono text-[var(--success)]">
+              <span className="tabular-nums text-[var(--success)]">
                 {formatStorageBytes(savedBytes)} ({savedPct}%)
               </span>
             }
@@ -882,7 +1160,7 @@ export function TimeCapsuleSnapshotDossier({
             iconColorClass="text-[var(--accent)]"
             label={t("logical_size", "Snapshot Size")}
             value={
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {formatStorageBytes(logicalSize)}
               </span>
             }
@@ -892,7 +1170,7 @@ export function TimeCapsuleSnapshotDossier({
             iconColorClass="text-[var(--accent)]"
             label={t("tc_stat_indexed_files", "Indexed Files")}
             value={
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {visibleBackupFiles.length.toLocaleString()} (
                 {deltaStats.written.toLocaleString()}{" "}
                 {t("tc_badge_written", "Written")})
@@ -901,23 +1179,75 @@ export function TimeCapsuleSnapshotDossier({
           />
         </div>
 
-        {/* Clean Integrated Restore Bar */}
+        {/* Clean Integrated Restore & Batch Extract Bar */}
         {showRestoreBar && (
           <div className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 flex-1 min-w-[220px]">
-              {isEngine
-                ? t(
-                    "tc_restore_engine_desc",
-                    "Roll back your game installation binaries and pack data to this Engine Core snapshot."
-                  )
-                : t(
-                    "tc_restore_world_desc",
-                    "Roll back your active Saves, Tray library, and user settings to this World State snapshot."
-                  )}
+            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 flex-1 min-w-[200px]">
+              {selectedPaths.size > 0
+                ? (
+                    t(
+                      "tc_extract_selected_btn",
+                      "Extract Selected ({COUNT})"
+                    ) || "Extract Selected ({COUNT})"
+                  ).replace("{COUNT}", String(selectedPaths.size))
+                : isEngine
+                  ? t(
+                      "tc_restore_engine_desc",
+                      "Roll back your game installation binaries and pack data to this Engine Core snapshot."
+                    )
+                  : t(
+                      "tc_restore_world_desc",
+                      "Roll back your active Saves, Tray library, and user settings to this World State snapshot."
+                    )}
             </p>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              {confirmFullRestore ? (
+              {selectedPaths.size > 0 ? (
+                confirmBatchExtract ? (
+                  <>
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_close", "close")}
+                      label={t("btn_cancel", "Cancel")}
+                      onClick={() => setConfirmBatchExtract(false)}
+                      className="!px-3.5 !py-2"
+                    />
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_check", "check")}
+                      label={`${t("confirm", "Confirm")} (${selectedPaths.size})`}
+                      disabled={isBatchExtracting}
+                      onClick={() =>
+                        handleBatchExtract(Array.from(selectedPaths), true)
+                      }
+                      className="!px-4 !py-2"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_clear_all", "clear_all")}
+                      label={t("clear", "Clear")}
+                      onClick={() => setSelectedPaths(new Set())}
+                      className="!px-3 !py-2"
+                    />
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_restore", "restore")}
+                      label={(
+                        t(
+                          "tc_extract_selected_btn",
+                          "Extract Selected ({COUNT})"
+                        ) || "Extract Selected ({COUNT})"
+                      ).replace("{COUNT}", String(selectedPaths.size))}
+                      disabled={isBatchExtracting}
+                      onClick={() => setConfirmBatchExtract(true)}
+                      className="!px-4 !py-2"
+                    />
+                  </>
+                )
+              ) : confirmFullRestore ? (
                 <>
                   <ActionButton
                     variant="glass"
@@ -1021,7 +1351,8 @@ export function TimeCapsuleSnapshotDossier({
           isActive={activeView === "DELTA"}
           onClick={() => {
             setActiveView("DELTA");
-            setListLimit(100);
+            setStatusFilter("ALL");
+            setListLimit(40);
           }}
         />
         <DashboardStatTile
@@ -1036,7 +1367,8 @@ export function TimeCapsuleSnapshotDossier({
           isActive={activeView === "DIFF"}
           onClick={() => {
             setActiveView("DIFF");
-            setListLimit(100);
+            setStatusFilter("ALL");
+            setListLimit(40);
           }}
         />
         <DashboardStatTile
@@ -1051,698 +1383,607 @@ export function TimeCapsuleSnapshotDossier({
           isActive={activeView === "EXTRACT"}
           onClick={() => {
             setActiveView("EXTRACT");
-            setListLimit(100);
+            setStatusFilter("ALL");
+            setListLimit(40);
           }}
         />
       </div>
 
-      {/* 3. Structured OS File Table with Integrated Search Toolbar (No Pill Filters) */}
-      <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl overflow-hidden flex flex-col">
-        {/* Integrated Table Search & Batch Action Header */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-70 shrink-0">
-              {t("icon_search", "search")}
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setListLimit(100);
-              }}
-              placeholder={t("search_files", "Search files...")}
-              className="bg-transparent border-none outline-none text-xs font-semibold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50 w-full min-w-0"
-            />
-            {searchQuery.trim() !== "" && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer shrink-0"
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_close", "close")}
-                </span>
-              </button>
-            )}
-          </div>
-
-          {activeView === "EXTRACT" && selectedPaths.size > 0 && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {confirmBatchExtract ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={isBatchExtracting}
-                    onClick={() =>
-                      handleBatchExtract(Array.from(selectedPaths), true)
-                    }
-                    className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                      {t("icon_check", "check")}
-                    </span>
-                    {t("confirm", "Confirm")} ({selectedPaths.size})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmBatchExtract(false)}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
-                  >
-                    {t("btn_cancel", "Cancel")}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isBatchExtracting}
-                  onClick={() => setConfirmBatchExtract(true)}
-                  className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                    {t("icon_restore", "restore")}
-                  </span>
-                  {(
-                    t(
-                      "tc_extract_selected_btn",
-                      "Extract Selected ({COUNT})"
-                    ) || "Extract Selected ({COUNT})"
-                  ).replace("{COUNT}", String(selectedPaths.size))}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Table Column Header */}
-        <div className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-          <span>{t("tc_col_file", "File")}</span>
-          <span className="text-right">{t("tc_col_size", "Size")}</span>
-          <span className="text-center">{t("tc_col_status", "Status")}</span>
-          <span className="text-right">{t("action", "Action")}</span>
-        </div>
-
-        {/* Table Body */}
-        <div className="divide-y divide-[color-mix(in_srgb,var(--text)_6%,transparent)] max-h-[440px] overflow-y-auto custom-scrollbar">
-          {isLoading ? (
-            <div className="p-4">
-              <EmptyState
-                icon={t("icon_sync", "sync")}
-                title={
-                  activeView === "DIFF"
-                    ? t("calculating_diff", "Calculating differences...")
-                    : t("loading_contents", "Loading contents...")
-                }
-              />
-            </div>
-          ) : activeView === "DELTA" ? (
-            filteredDelta.length === 0 ? (
-              <div className="p-8">
-                <EmptyState
-                  icon={t("icon_link", "link")}
-                  title={
-                    deltaStats.changed === 0
-                      ? t(
-                          "tc_delta_zero_changes_title",
-                          "Zero Changed Files Since Previous Snapshot (100% Deduplicated)"
-                        )
-                      : t("no_files_found", "No editable {mods} located.")
-                  }
-                />
-              </div>
-            ) : (
-              <>
-                {filteredDelta.slice(0, listLimit).map((item, idx) => {
-                  const st = item.delta_status;
-                  const isAdded = st === "Added" || st === "Baseline";
-                  const isUpdated = st === "Updated";
-                  const isRemoved = st === "Removed";
-
-                  const badgeColorVar = isUpdated
-                    ? "var(--warning)"
-                    : isAdded
-                      ? "var(--success)"
-                      : isRemoved
-                        ? "var(--danger)"
-                        : "var(--subtext)";
-
-                  const badgeIcon = isUpdated
-                    ? t("icon_edit", "edit")
-                    : isAdded
-                      ? t("icon_add_circle", "add_circle")
-                      : isRemoved
-                        ? t("icon_remove_circle", "remove_circle")
-                        : t("icon_link", "link");
-
-                  const badgeLabel =
-                    st === "Baseline"
-                      ? t("tc_delta_badge_baseline", "Baseline")
-                      : isUpdated
-                        ? t("tc_delta_filter_updated", "Updated")
-                        : isAdded
-                          ? t("tc_delta_filter_added", "New Files")
-                          : isRemoved
-                            ? t("diff_status_removed", "Removed")
-                            : t("tc_delta_filter_dedup", "Hardlinked");
-
-                  const catInfo = getFileCategoryInfo(item.path);
-                  const folderSub = getFileFolderSubtitle(item.path);
-                  const isDone = extractedSet.has(item.path);
-                  const isBusy = extracting === item.path;
-                  const isConfirmingThis = confirmExtractPath === item.path;
-                  const fileName = item.path.split("/").pop() || item.path;
-
-                  return (
-                    <div
-                      key={`${item.path}-${idx}`}
-                      className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors"
-                    >
-                      {/* Col 1: File & Folder */}
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
-                          style={{
-                            color: catInfo.colorVar,
-                          }}
-                        >
-                          <span className="material-symbols-rounded !text-[16px]">
-                            {catInfo.icon}
-                          </span>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold tracking-tight text-[var(--text)] truncate">
-                            {fileName}
-                          </span>
-                          <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                            {folderSub} &bull; {catInfo.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Col 2: Size */}
-                      <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
-                        {formatFileSizeMb(item.size_mb)}
-                      </span>
-
-                      {/* Col 3: Status Badge */}
-                      <div className="flex justify-center">
-                        <span className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}>
-                          <span
-                            className="material-symbols-rounded !text-[12px] shrink-0"
-                            style={{ color: badgeColorVar }}
-                          >
-                            {badgeIcon}
-                          </span>
-                          <span>{badgeLabel}</span>
-                        </span>
-                      </div>
-
-                      {/* Col 4: Action */}
-                      <div className="flex items-center justify-end gap-1.5">
-                        {!isRemoved &&
-                          (isConfirmingThis ? (
-                            <>
-                              <button
-                                type="button"
-                                disabled={isBusy || isBatchExtracting}
-                                onClick={() =>
-                                  handleExtractSingle(item.path, true)
-                                }
-                                className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
-                              >
-                                {t("confirm", "Confirm")}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmExtractPath(null)}
-                                className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                              >
-                                <span className="material-symbols-outlined !text-[13px]">
-                                  {t("icon_close", "close")}
-                                </span>
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmExtractPath(item.path)}
-                              disabled={isBusy || isBatchExtracting}
-                              className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
-                                isDone
-                                  ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                  : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                              }`}
-                            >
-                              <span
-                                className={`material-symbols-outlined !text-[13px] ${
-                                  isBusy ? "animate-spin" : ""
-                                }`}
-                              >
-                                {isDone
-                                  ? t("icon_check", "check")
-                                  : isBusy
-                                    ? t("icon_sync", "sync")
-                                    : t("icon_restore", "restore")}
-                              </span>
-                              <span>
-                                {isDone
-                                  ? t("tc_panel_extracted_badge", "Extracted")
-                                  : t("tab_extract", "Extract")}
-                              </span>
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {filteredDelta.length > listLimit && (
-                  <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                    <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
-                      {t(
-                        "showing_files",
-                        "Showing first {0} files"
-                      )?.replace("{0}", listLimit.toString()) ||
-                        `Showing first ${listLimit} files`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setListLimit((l) => l + 100)}
-                      className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
-                    >
-                      {t("load_more", "Load More")}
-                    </button>
-                  </div>
-                )}
-              </>
-            )
-          ) : activeView === "EXTRACT" ? (
-            extractGroups.length === 0 ? (
-              <div className="p-8">
-                <EmptyState
-                  icon={t("icon_folder", "folder")}
-                  title={t("no_files_found", "No editable {mods} located.")}
-                />
-              </div>
-            ) : (
-              <>
-                {extractGroups.map((group: any) => {
-                  const isCollapsed = collapsedGroups.has(group.id);
-                  return (
-                    <div key={group.id} className="flex flex-col">
-                      {/* Collapsible Category Section Header inside the Table */}
-                      <div
-                        onClick={() => toggleGroupCollapse(group.id)}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-pointer select-none"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
-                            {isCollapsed
-                              ? t("icon_chevron_right", "chevron_right")
-                              : t("icon_expand_more", "expand_more")}
-                          </span>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span
-                              className="material-symbols-rounded !text-[12px] shrink-0"
-                              style={{ color: group.colorVar }}
-                            >
-                              {group.icon}
-                            </span>
-                            <span>{group.label}</span>
-                          </span>
-                          <span className="text-[11px] font-mono text-[var(--subtext)]">
-                            {group.files.length.toLocaleString()}{" "}
-                            {t("modal_files", "Files")} &bull;{" "}
-                            {formatFileSizeMb(group.sizeMb)}
-                          </span>
-                        </div>
-
-                        {group.hasVerToggle && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowVerRevisions((v) => !v);
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-transparent cursor-pointer transition-all ${
-                              showVerRevisions
-                                ? "border-[var(--accent)] text-[var(--accent)]"
-                                : "border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                            }`}
-                          >
-                            {showVerRevisions
-                              ? t("tc_hide_ver_backups", "Hide .ver Revisions")
-                              : `${t("tc_show_ver_backups", "Show .ver Revisions")} (${verRevisionFiles.length})`}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Category Files */}
-                      {!isCollapsed &&
-                        group.files.slice(0, listLimit).map((file: any) => {
-                          const catInfo = getFileCategoryInfo(file.path);
-                          const folderSub = getFileFolderSubtitle(file.path);
-                          const isSelected = selectedPaths.has(file.path);
-                          const isDone = extractedSet.has(file.path);
-                          const isBusy = extracting === file.path;
-                          const isConfirmingThis =
-                            confirmExtractPath === file.path;
-                          const fileName =
-                            file.path.split("/").pop() || file.path;
-
-                          return (
-                            <div
-                              key={file.path}
-                              onClick={() => toggleSelectPath(file.path)}
-                              className={`grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-colors cursor-pointer ${
-                                isSelected
-                                  ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                                  : "hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)]"
-                              }`}
-                            >
-                              {/* Col 1: File & Folder */}
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 transition-colors ${
-                                    isSelected
-                                      ? "border-[var(--accent)]"
-                                      : "border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]"
-                                  }`}
-                                  style={{
-                                    color: isSelected ? "var(--accent)" : catInfo.colorVar,
-                                  }}
-                                >
-                                  <span className="material-symbols-rounded !text-[16px]">
-                                    {isSelected
-                                      ? t("icon_check", "check")
-                                      : catInfo.icon}
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-xs font-bold text-[var(--text)] tracking-tight truncate">
-                                    {fileName}
-                                  </span>
-                                  <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                                    {folderSub}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Col 2: Size */}
-                              <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
-                                {formatFileSizeMb(file.size_mb)}
-                              </span>
-
-                              {/* Col 3: Category Badge */}
-                              <div className="flex justify-center">
-                                <span className={`${VAULT_CHIP_CLASS} whitespace-nowrap`}>
-                                  <span
-                                    className="material-symbols-rounded !text-[12px] shrink-0"
-                                    style={{ color: catInfo.colorVar }}
-                                  >
-                                    {catInfo.icon}
-                                  </span>
-                                  <span>{catInfo.label}</span>
-                                </span>
-                              </div>
-
-                              {/* Col 4: Action */}
-                              <div
-                                className="flex items-center justify-end gap-1.5"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {isConfirmingThis ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      disabled={isBusy || isBatchExtracting}
-                                      onClick={() =>
-                                        handleExtractSingle(file.path, false)
-                                      }
-                                      className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
-                                    >
-                                      {t("confirm", "Confirm")}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setConfirmExtractPath(null)
-                                      }
-                                      className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                                    >
-                                      <span className="material-symbols-outlined !text-[13px]">
-                                        {t("icon_close", "close")}
-                                      </span>
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={isBusy || isBatchExtracting}
-                                    onClick={() =>
-                                      setConfirmExtractPath(file.path)
-                                    }
-                                    className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
-                                      isDone
-                                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                        : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`material-symbols-outlined !text-[13px] ${
-                                        isBusy ? "animate-spin" : ""
-                                      }`}
-                                    >
-                                      {isDone
-                                        ? t("icon_check", "check")
-                                        : isBusy
-                                          ? t("icon_sync", "sync")
-                                          : t("icon_restore", "restore")}
-                                    </span>
-                                    <span>
-                                      {isDone
-                                        ? t(
-                                            "tc_panel_extracted_badge",
-                                            "Extracted"
-                                          )
-                                        : t("tab_extract", "Extract")}
-                                    </span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                      {!isCollapsed && group.files.length > listLimit && (
-                        <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)] border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-                          <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
-                            {t(
-                              "showing_files",
-                              "Showing first {0} files"
-                            )?.replace("{0}", listLimit.toString()) ||
-                              `Showing first ${listLimit} files`}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setListLimit((l) => l + 100)}
-                            className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
-                          >
-                            {t("load_more", "Load More")}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            )
-          ) : filteredDiff.length === 0 ? (
-            <div className="p-8">
-              <EmptyState
-                icon={t("icon_verified", "verified")}
-                title={t("everything_identical", "Everything is identical")}
-              />
-            </div>
-          ) : (
-            <>
-              {filteredDiff.slice(0, listLimit).map((diff, i) => {
-                const isMod = diff.status === "Modified";
-                const isMiss = diff.status === "Missing in Current";
-                const isNewActive = diff.status === "Added in Current";
-
-                const badgeColorVar = isMod
-                  ? "var(--warning)"
-                  : isMiss
-                    ? "var(--danger)"
-                    : isNewActive
-                      ? "var(--accent)"
-                      : "var(--success)";
-
-                const badgeIcon = isMod
-                  ? t("icon_edit", "edit")
-                  : isMiss
-                    ? t("icon_warning", "warning")
-                    : isNewActive
-                      ? t("icon_add_circle", "add_circle")
-                      : t("icon_check_circle", "check_circle");
-
-                const catInfo = getFileCategoryInfo(diff.path);
-                const folderSub = getFileFolderSubtitle(diff.path);
-                const isDone = extractedSet.has(diff.path);
-                const isBusy = extracting === diff.path;
-                const isConfirmingThis = confirmExtractPath === diff.path;
-                const canRestoreFromSnapshot = isMod || isMiss;
-
-                const sizeLabel =
-                  isNewActive && typeof diff.live_size_mb === "number"
-                    ? formatFileSizeMb(diff.live_size_mb)
-                    : isMod &&
-                        typeof diff.live_size_mb === "number" &&
-                        Math.abs((diff.size_mb || 0) - diff.live_size_mb) >
-                          0.001
-                      ? `${formatFileSizeMb(diff.size_mb)} → ${formatFileSizeMb(
-                          diff.live_size_mb
-                        )}`
-                      : formatFileSizeMb(diff.size_mb);
-
-                return (
-                  <div
-                    key={`${diff.path}-${i}`}
-                    className="grid grid-cols-[minmax(0,1fr)_96px_132px_104px] items-center gap-3 px-4 py-3 hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors"
-                  >
-                    {/* Col 1: File & Folder */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
-                        style={{
-                          color: catInfo.colorVar,
+      {/* 3. OS-Standard ActionPill Search & Filter Popover */}
+      <ActionPill
+        searchQuery={searchQuery}
+        setSearchQuery={(val: string) => {
+          setSearchQuery(val);
+          setListLimit(40);
+        }}
+        searchPlaceholder={t("search_files", "Search files...")}
+        primaryPopover={{
+          icon: t("icon_tune", "tune"),
+          label: t("filters", "Filters"),
+          content: (
+            <div className="flex flex-col w-[360px] max-w-[calc(100vw-32px)] p-4 gap-3.5 text-left">
+              {/* Sort By */}
+              <div className="flex flex-col w-full">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                  {t("sort_by", "Sort By")}
+                  <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    { id: "DEFAULT", label: t("default", "Default") },
+                    { id: "NAME", label: t("sort_name", "Name (A-Z)") },
+                    { id: "SIZE", label: t("tc_col_size", "Size") },
+                    { id: "SECTOR", label: t("category", "Category") },
+                  ].map((opt) => {
+                    const active = sortBy === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(opt.id as any);
+                          setListLimit(40);
                         }}
+                        className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                          active ? "is-selected font-bold" : "font-semibold"
+                        }`}
                       >
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {catInfo.icon}
-                        </span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold tracking-tight text-[var(--text)] truncate">
-                          {diff.path.split("/").pop()}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                          {folderSub} &bull; {catInfo.label}
-                        </span>
-                      </div>
-                    </div>
+                        <span className="truncate">{opt.label}</span>
+                        {active && (
+                          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                            {t("icon_check", "check")}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                    {/* Col 2: Size */}
-                    <span className="text-right text-[11px] font-mono font-bold text-[var(--subtext)] whitespace-nowrap">
-                      {sizeLabel}
-                    </span>
+              {/* Sector / Category Filter */}
+              <div className="flex flex-col w-full">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                  {t("category", "Category")}
+                  <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {sectorOptions.map((opt) => {
+                    const active = sectorFilter === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSectorFilter(opt.id);
+                          setListLimit(40);
+                        }}
+                        className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                          active ? "is-selected font-bold" : "font-semibold"
+                        }`}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {active && (
+                          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                            {t("icon_check", "check")}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                    {/* Col 3: Status Badge */}
-                    <div className="flex justify-center">
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span
-                          className="material-symbols-rounded !text-[12px] shrink-0"
-                          style={{ color: badgeColorVar }}
-                        >
-                          {badgeIcon}
-                        </span>
-                        <span>
-                          {isMod
-                            ? t("modified", "Modified")
-                            : isMiss
-                              ? t("tc_diff_filter_missing", "Missing in Active")
-                              : isNewActive
-                                ? t(
-                                    "tc_diff_filter_new_in_active",
-                                    "New in Active"
-                                  )
-                                : t("tc_diff_filter_identical", "Unchanged")}
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Col 4: Action */}
-                    <div className="flex items-center justify-end gap-1.5">
-                      {canRestoreFromSnapshot &&
-                        (isConfirmingThis ? (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isBusy || isBatchExtracting}
-                              onClick={() =>
-                                handleExtractSingle(diff.path, true)
-                              }
-                              className="px-2.5 h-7 rounded-lg border bg-transparent border-[var(--accent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all"
-                            >
-                              {t("confirm", "Confirm")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmExtractPath(null)}
-                              className="w-7 h-7 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
-                            >
-                              <span className="material-symbols-outlined !text-[13px]">
-                                {t("icon_close", "close")}
-                              </span>
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmExtractPath(diff.path)}
-                            disabled={isBusy || isBatchExtracting}
-                            className={`px-2.5 h-7 rounded-lg border bg-transparent inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 ${
-                              isDone
-                                ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                                : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                            }`}
-                          >
-                            <span
-                              className={`material-symbols-outlined !text-[13px] ${
-                                isBusy ? "animate-spin" : ""
-                              }`}
-                            >
-                              {isDone
-                                ? t("icon_check", "check")
-                                : isBusy
-                                  ? t("icon_sync", "sync")
-                                  : t("icon_restore", "restore")}
-                            </span>
-                            <span>
-                              {isDone
-                                ? t("tc_panel_extracted_badge", "Extracted")
-                                : t("btn_restore", "Restore")}
-                            </span>
-                          </button>
-                        ))}
-                    </div>
+              {/* Status Filter (DELTA & DIFF views) */}
+              {activeView !== "EXTRACT" && (
+                <div className="flex flex-col w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                    {t("status", "Status")}
+                    <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
                   </div>
-                );
-              })}
+                  <div className="grid grid-cols-2 gap-1">
+                    {(activeView === "DIFF"
+                      ? [
+                          { id: "ALL", label: t("filter_all", "All") },
+                          { id: "MODIFIED", label: t("modified", "Modified") },
+                          {
+                            id: "MISSING",
+                            label: t(
+                              "tc_diff_filter_missing",
+                              "Missing in Active"
+                            ),
+                          },
+                          {
+                            id: "ADDED",
+                            label: t(
+                              "tc_diff_filter_new_in_active",
+                              "New in Active"
+                            ),
+                          },
+                        ]
+                      : [
+                          { id: "ALL", label: t("filter_all", "All") },
+                          {
+                            id: "MODIFIED",
+                            label: t("tc_delta_filter_updated", "Updated"),
+                          },
+                          {
+                            id: "ADDED",
+                            label: t("tc_delta_filter_added", "New Files"),
+                          },
+                          {
+                            id: "REMOVED",
+                            label: t("diff_status_removed", "Removed"),
+                          },
+                        ]
+                    ).map((opt) => {
+                      const active = statusFilter === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(opt.id);
+                            setListLimit(40);
+                          }}
+                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                            active ? "is-selected font-bold" : "font-semibold"
+                          }`}
+                        >
+                          <span className="truncate">{opt.label}</span>
+                          {active && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                              {t("icon_check", "check")}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-              {filteredDiff.length > listLimit && (
-                <div className="flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--text)_2%,transparent)]">
-                  <span className="text-[10px] font-mono text-[var(--subtext)] uppercase tracking-widest">
-                    {t("showing_files", "Showing first {0} files")?.replace(
-                      "{0}",
-                      listLimit.toString()
-                    ) || `Showing first ${listLimit} files`}
-                  </span>
+              {/* .ver Save Revisions Toggle (World State) */}
+              {!isEngine && verRevisionFiles.length > 0 && (
+                <div className="flex flex-col w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-1.5 px-1 flex items-center gap-2">
+                    {t("label_saves", "Saves")}
+                    <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setListLimit((l) => l + 100)}
-                    className="px-3.5 py-1.5 rounded-xl bg-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--text)_15%,transparent)] transition-colors cursor-pointer"
+                    onClick={() => setShowVerRevisions((v) => !v)}
+                    className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-1.5 text-[11px] tracking-wide text-left cursor-pointer ${
+                      showVerRevisions
+                        ? "is-selected font-bold"
+                        : "font-semibold"
+                    }`}
                   >
-                    {t("load_more", "Load More")}
+                    <span className="truncate">
+                      {t("tc_show_ver_backups", "Show .ver Revisions")} (
+                      {verRevisionFiles.length})
+                    </span>
+                    {showVerRevisions && (
+                      <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                        {t("icon_check", "check")}
+                      </span>
+                    )}
                   </button>
                 </div>
               )}
-            </>
+
+              {hasActiveFilters && (
+                <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSectorFilter("ALL");
+                      setStatusFilter("ALL");
+                      setSortBy("DEFAULT");
+                      setShowVerRevisions(false);
+                      setListLimit(40);
+                    }}
+                    className="px-3 py-1.5 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                      {t("icon_restart_alt", "restart_alt")}
+                    </span>
+                    <span>{t("clear", "Clear")}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ),
+        }}
+      />
+
+      {/* Active Filter Chips */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-1.5 px-1">
+          {sectorFilter !== "ALL" && (
+            <button
+              type="button"
+              onClick={() => setSectorFilter("ALL")}
+              className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)]`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_folder", "folder")}
+              </span>
+              <span>
+                {sectorOptions.find((s) => s.id === sectorFilter)?.label ||
+                  sectorFilter}
+              </span>
+              <span className="material-symbols-outlined !text-[12px] opacity-60">
+                {t("icon_close", "close")}
+              </span>
+            </button>
+          )}
+          {statusFilter !== "ALL" && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter("ALL")}
+              className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)]`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_filter_alt", "filter_alt")}
+              </span>
+              <span>{statusFilter}</span>
+              <span className="material-symbols-outlined !text-[12px] opacity-60">
+                {t("icon_close", "close")}
+              </span>
+            </button>
+          )}
+          {sortBy !== "DEFAULT" && (
+            <button
+              type="button"
+              onClick={() => setSortBy("DEFAULT")}
+              className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)]`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_sort", "sort")}
+              </span>
+              <span>{sortBy}</span>
+              <span className="material-symbols-outlined !text-[12px] opacity-60">
+                {t("icon_close", "close")}
+              </span>
+            </button>
+          )}
+          {showVerRevisions && (
+            <button
+              type="button"
+              onClick={() => setShowVerRevisions(false)}
+              className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)]`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_history", "history")}
+              </span>
+              <span>{t("tc_show_ver_backups", "Show .ver Revisions")}</span>
+              <span className="material-symbols-outlined !text-[12px] opacity-60">
+                {t("icon_close", "close")}
+              </span>
+            </button>
           )}
         </div>
-      </div>
+      )}
+
+      {/* 4. 2-Column 2-Row Sanctuary Card Grids Inside UniversalGroup Containers */}
+      {isLoading ? (
+        <EmptyState
+          icon={t("icon_sync", "sync")}
+          title={
+            activeView === "DIFF"
+              ? t("calculating_diff", "Calculating differences...")
+              : t("loading_contents", "Loading contents...")
+          }
+        />
+      ) : activeView === "DELTA" ? (
+        filteredDelta.length === 0 ? (
+          <EmptyState
+            icon={t("icon_link", "link")}
+            title={
+              deltaStats.changed === 0 && !searchQuery && !hasActiveFilters
+                ? t(
+                    "tc_delta_zero_changes_title",
+                    "Zero Changed Files Since Previous Snapshot (100% Deduplicated)"
+                  )
+                : t("no_files_found", "No editable {mods} located.")
+            }
+          />
+        ) : (
+          <UniversalGroup
+            title={`${t("tc_tab_backed_up_delta", "Backed Up Delta")} (${filteredDelta.length.toLocaleString()})`}
+            icon={t("icon_archive", "archive")}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+              {filteredDelta.slice(0, listLimit).map((item, idx) => {
+                const st = item.delta_status;
+                const isAdded = st === "Added" || st === "Baseline";
+                const isUpdated = st === "Updated";
+                const isRemoved = st === "Removed";
+
+                const badgeColorVar = isUpdated
+                  ? "var(--warning)"
+                  : isAdded
+                    ? "var(--success)"
+                    : isRemoved
+                      ? "var(--danger)"
+                      : "var(--subtext)";
+
+                const badgeIcon = isUpdated
+                  ? t("icon_edit", "edit")
+                  : isAdded
+                    ? t("icon_add_circle", "add_circle")
+                    : isRemoved
+                      ? t("icon_remove_circle", "remove_circle")
+                      : t("icon_link", "link");
+
+                const badgeLabel =
+                  st === "Baseline"
+                    ? t("tc_delta_badge_baseline", "Baseline")
+                    : isUpdated
+                      ? t("tc_delta_filter_updated", "Updated")
+                      : isAdded
+                        ? t("tc_delta_filter_added", "New Files")
+                        : isRemoved
+                          ? t("diff_status_removed", "Removed")
+                          : t("tc_delta_filter_dedup", "Hardlinked");
+
+                return renderCapsuleFileCard(
+                  {
+                    path: item.path,
+                    sizeLabel: formatFileSizeMb(item.size_mb),
+                    badgeIcon,
+                    badgeColorVar,
+                    badgeLabel,
+                    canExtract: !isRemoved,
+                    refreshDiffOnExtract: true,
+                    actionLabel: t("tab_extract", "Extract"),
+                  },
+                  idx
+                );
+              })}
+            </div>
+
+            {filteredDelta.length > listLimit && (
+              <div className="pt-3 flex justify-center">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_expand_more", "expand_more")}
+                  label={`${t("load_more", "Load More")} (${(
+                    filteredDelta.length - listLimit
+                  ).toLocaleString()})`}
+                  onClick={() => setListLimit((l) => l + 60)}
+                  className="w-full justify-center"
+                />
+              </div>
+            )}
+          </UniversalGroup>
+        )
+      ) : activeView === "EXTRACT" ? (
+        extractGroups.length === 0 ? (
+          <EmptyState
+            icon={t("icon_folder", "folder")}
+            title={t("no_files_found", "No editable {mods} located.")}
+          />
+        ) : (
+          <div className="flex flex-col gap-4 w-full">
+            {extractGroups.map((group: any) => {
+              const isCollapsed = collapsedGroups.has(group.id);
+              const groupPaths: string[] = group.files.map((f: any) => f.path);
+              const allGroupSelected =
+                groupPaths.length > 0 &&
+                groupPaths.every((p) => selectedPaths.has(p));
+
+              return (
+                <UniversalGroup
+                  key={group.id}
+                  title={`${group.label} (${group.files.length.toLocaleString()} • ${formatFileSizeMb(group.sizeMb)})`}
+                  icon={group.icon}
+                  headerAction={
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {group.hasVerToggle && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowVerRevisions((v) => !v);
+                          }}
+                          className={`px-2.5 h-7 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] cursor-pointer transition-all flex items-center gap-1.5 ${
+                            showVerRevisions
+                              ? "sa-glass-pill-active text-[var(--text)]"
+                              : "sa-glass-pill-hover text-[var(--subtext)] hover:text-[var(--text)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                            {t("icon_history", "history")}
+                          </span>
+                          <span>
+                            {showVerRevisions
+                              ? t("tc_hide_ver_backups", "Hide .ver Revisions")
+                              : `${t("tc_show_ver_backups", "Show .ver Revisions")} (${verRevisionFiles.length})`}
+                          </span>
+                        </button>
+                      )}
+
+                      {group.files.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPaths((prev) => {
+                              const next = new Set(prev);
+                              if (allGroupSelected) {
+                                groupPaths.forEach((p) => next.delete(p));
+                              } else {
+                                groupPaths.forEach((p) => next.add(p));
+                              }
+                              return next;
+                            });
+                          }}
+                          className={`px-2.5 h-7 rounded-lg text-[10px] font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] cursor-pointer transition-all flex items-center gap-1.5 ${
+                            allGroupSelected
+                              ? "sa-glass-pill-active text-[var(--text)]"
+                              : "sa-glass-pill-hover text-[var(--text)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                            {allGroupSelected
+                              ? t("icon_deselect", "deselect")
+                              : t("icon_select_all", "select_all")}
+                          </span>
+                          <span>
+                            {allGroupSelected
+                              ? t("clear", "Clear")
+                              : t("all", "All")}
+                          </span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupCollapse(group.id)}
+                        className="w-7 h-7 rounded-lg glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center cursor-pointer transition-all"
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {isCollapsed
+                            ? t("icon_expand_more", "expand_more")
+                            : t("icon_expand_less", "expand_less")}
+                        </span>
+                      </button>
+                    </div>
+                  }
+                >
+                  {!isCollapsed && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                        {group.files
+                          .slice(0, listLimit)
+                          .map((file: any, idx: number) => {
+                            const catInfo = getFileCategoryInfo(file.path);
+                            return renderCapsuleFileCard(
+                              {
+                                path: file.path,
+                                sizeLabel: formatFileSizeMb(file.size_mb),
+                                badgeIcon: catInfo.icon,
+                                badgeColorVar: catInfo.colorVar,
+                                badgeLabel: catInfo.label,
+                                canExtract: true,
+                                refreshDiffOnExtract: false,
+                                actionLabel: t("tab_extract", "Extract"),
+                                selectable: true,
+                              },
+                              idx
+                            );
+                          })}
+                      </div>
+
+                      {group.files.length > listLimit && (
+                        <div className="pt-3 flex justify-center">
+                          <ActionButton
+                            variant="glass"
+                            icon={t("icon_expand_more", "expand_more")}
+                            label={`${t("load_more", "Load More")} (${(
+                              group.files.length - listLimit
+                            ).toLocaleString()})`}
+                            onClick={() => setListLimit((l) => l + 60)}
+                            className="w-full justify-center"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </UniversalGroup>
+              );
+            })}
+          </div>
+        )
+      ) : filteredDiff.length === 0 ? (
+        <EmptyState
+          icon={t("icon_verified", "verified")}
+          title={
+            diffCounts.changes === 0 && !searchQuery && !hasActiveFilters
+              ? t("everything_identical", "Everything is identical")
+              : t("no_files_found", "No editable {mods} located.")
+          }
+        />
+      ) : (
+        <UniversalGroup
+          title={`${t("tc_tab_live_diff", "Live Folder Diff")} (${filteredDiff.length.toLocaleString()})`}
+          icon={t("icon_compare_arrows", "compare_arrows")}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+            {filteredDiff.slice(0, listLimit).map((diff, i) => {
+              const isMod = diff.status === "Modified";
+              const isMiss = diff.status === "Missing in Current";
+              const isNewActive = diff.status === "Added in Current";
+
+              const badgeColorVar = isMod
+                ? "var(--warning)"
+                : isMiss
+                  ? "var(--danger)"
+                  : isNewActive
+                    ? "var(--accent)"
+                    : "var(--success)";
+
+              const badgeIcon = isMod
+                ? t("icon_edit", "edit")
+                : isMiss
+                  ? t("icon_warning", "warning")
+                  : isNewActive
+                    ? t("icon_add_circle", "add_circle")
+                    : t("icon_check_circle", "check_circle");
+
+              const badgeLabel = isMod
+                ? t("modified", "Modified")
+                : isMiss
+                  ? t("tc_diff_filter_missing", "Missing in Active")
+                  : isNewActive
+                    ? t("tc_diff_filter_new_in_active", "New in Active")
+                    : t("tc_diff_filter_identical", "Unchanged");
+
+              const canRestoreFromSnapshot = isMod || isMiss;
+
+              const sizeLabel =
+                isNewActive && typeof diff.live_size_mb === "number"
+                  ? formatFileSizeMb(diff.live_size_mb)
+                  : isMod &&
+                      typeof diff.live_size_mb === "number" &&
+                      Math.abs((diff.size_mb || 0) - diff.live_size_mb) > 0.001
+                    ? `${formatFileSizeMb(diff.size_mb)} → ${formatFileSizeMb(
+                        diff.live_size_mb
+                      )}`
+                    : formatFileSizeMb(diff.size_mb);
+
+              return renderCapsuleFileCard(
+                {
+                  path: diff.path,
+                  sizeLabel,
+                  badgeIcon,
+                  badgeColorVar,
+                  badgeLabel,
+                  canExtract: canRestoreFromSnapshot,
+                  refreshDiffOnExtract: true,
+                  actionLabel: t("btn_restore", "Restore"),
+                },
+                i
+              );
+            })}
+          </div>
+
+          {filteredDiff.length > listLimit && (
+            <div className="pt-3 flex justify-center">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_expand_more", "expand_more")}
+                label={`${t("load_more", "Load More")} (${(
+                  filteredDiff.length - listLimit
+                ).toLocaleString()})`}
+                onClick={() => setListLimit((l) => l + 60)}
+                className="w-full justify-center"
+              />
+            </div>
+          )}
+        </UniversalGroup>
+      )}
     </div>
   );
 }

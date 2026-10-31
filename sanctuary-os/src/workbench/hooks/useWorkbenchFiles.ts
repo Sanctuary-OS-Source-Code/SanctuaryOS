@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { readTextFile, writeTextFile, mkdir, exists, remove } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { useStore } from '../../store';
 import { supabaseServices } from '../../lib/supabase-services';
 import { useLexicon } from '../../LexiconContext';
@@ -82,6 +83,28 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       };
       loadFiles();
    }, [vaultPath, refreshTrigger]);
+
+   useEffect(() => {
+      let unlisten: (() => void) | undefined;
+      listen<{ path: string; file_name: string; timestamp: number; source: string }>(
+         "workbench_config_intercepted",
+         (event) => {
+            setRefreshTrigger(prev => prev + 1);
+            const fname = event.payload?.file_name || "";
+            if (fname) {
+               pushStatus(
+                  `${t("cw_in_game_intercept_toast", "In-Game Engine Edit captured in Timeline:")} ${fname}`,
+                  "info"
+               );
+            }
+         }
+      ).then((fn) => {
+         unlisten = fn;
+      }).catch(() => {});
+      return () => {
+         if (unlisten) unlisten();
+      };
+   }, [pushStatus, t]);
 
    useEffect(() => {
       if (selectedFile && files.length > 0) {

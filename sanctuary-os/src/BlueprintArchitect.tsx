@@ -13,6 +13,8 @@ import {
   InlineFilterGroup,
   DashboardStatTile,
   handleOpenUrl,
+  deduplicateBlueprintArtifacts,
+  stripPriorityTierPrefix,
 } from "./shared";
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
@@ -70,7 +72,7 @@ export default function BlueprintArchitect({
 
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
-    const safeMods = Array.isArray(playSet?.mods) ? playSet.mods : [];
+    const safeMods = deduplicateBlueprintArtifacts(playSet?.mods, activeGameSchema);
     const safeList = Array.isArray(modList) ? modList : [];
 
     const exactMatchMap = new Map();
@@ -90,7 +92,7 @@ export default function BlueprintArchitect({
     return safeMods.map((rawMod: any) => {
       const modName =
         typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, "");
+      const cleanModName = stripPriorityTierPrefix(modName, activeGameSchema);
       const modNameLow = cleanModName.toLowerCase().replace(/\\/g, "/");
 
       const exactMatch = exactMatchMap.get(modNameLow);
@@ -103,7 +105,7 @@ export default function BlueprintArchitect({
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [playSet?.mods, modList, extRegex]);
+  }, [playSet?.mods, modList, extRegex, activeGameSchema]);
 
   const activeConflicts = useMemo(() => {
     return resolveBlueprintConflicts(playSet?.name, activeMods, ignoredGlobal, t);

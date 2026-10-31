@@ -16,9 +16,13 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
     const activeCatUpper = activeCategory.toUpperCase();
     const activeSubUpper = activeSubType.toUpperCase();
     const strStable = (t("status_stable", "STABLE")).toLowerCase();
+    const strUnstable = (t("label_unstable", "Unstable")).toLowerCase();
+    const strCorrupted = (t("status_corrupted", "Corrupted")).toLowerCase();
     const strReview = (t("status_dd_review", "Under Review")).toLowerCase();
+    const strPending = (t("pending", "Pending")).toLowerCase();
     const strUnverified = (t("unverified", "Unverified")).toLowerCase();
     const strLocal = (t("badge_local", "Local")).toLowerCase();
+    const filterStatusUpper = String(filterStatus || "ALL").toUpperCase();
 
     const res = displayModList.reduce((acc: any[], mod: any) => {
       if (!mod) return acc;
@@ -55,16 +59,34 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
         const rawStatus = (m.status || "").toLowerCase();
         
         let matchesStatus = false;
-        if (filterStatus === "ALL") {
+        if (filterStatusUpper === "ALL") {
           matchesStatus = true;
-        } else if (filterStatus === "STABLE") {
+        } else if (filterStatusUpper === "STABLE") {
           matchesStatus =
-            rawStatus.includes(strStable) && !rawStatus.includes(strUnverified);
-        } else if (filterStatus === "REVIEW") {
-          matchesStatus = rawStatus.includes(strReview);
-        } else if (filterStatus === "UNVERIFIED") {
+            (rawStatus.includes(strStable) || rawStatus === "stable" || rawStatus === "verified") &&
+            !rawStatus.includes(strUnverified) &&
+            !rawStatus.includes("unverified");
+        } else if (filterStatusUpper === "UNSTABLE") {
+          matchesStatus = rawStatus.includes(strUnstable) || rawStatus.includes("unstable");
+        } else if (filterStatusUpper === "CORRUPTED" || filterStatusUpper === "BROKEN") {
           matchesStatus =
-            rawStatus.includes(strUnverified) || rawStatus.includes(strLocal);
+            rawStatus.includes(strCorrupted) ||
+            rawStatus.includes("corrupted") ||
+            rawStatus.includes("broken");
+        } else if (filterStatusUpper === "REVIEW" || filterStatusUpper === "UNDER_REVIEW") {
+          matchesStatus =
+            rawStatus.includes(strReview) ||
+            rawStatus.includes("under_review") ||
+            rawStatus.includes("under review");
+        } else if (filterStatusUpper === "PENDING") {
+          matchesStatus = rawStatus.includes(strPending) || rawStatus.includes("pending");
+        } else if (filterStatusUpper === "UNVERIFIED" || filterStatusUpper === "UNKNOWN") {
+          matchesStatus =
+            rawStatus.includes(strUnverified) ||
+            rawStatus.includes(strLocal) ||
+            rawStatus.includes("unverified") ||
+            rawStatus.includes("local") ||
+            rawStatus.includes("unknown");
         }
         return (
           matchesSearch &&

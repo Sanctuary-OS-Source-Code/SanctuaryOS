@@ -6,6 +6,7 @@ import {
   HoverTooltip,
   SidePanelHeroCard,
   UniversalGroup,
+  countBlueprintArtifacts,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -22,7 +23,7 @@ export default function BlueprintSwapSidePanel({
   equipPlaySet,
 }: BlueprintSwapSidePanelProps) {
   const { t } = useLexicon();
-  const { playSets, activePlaySetIndex, setActivePlaySetIndex } = useStore();
+  const { playSets, activePlaySetIndex, setActivePlaySetIndex, activeGameSchema } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSelect = async (index: number) => {
@@ -44,9 +45,10 @@ export default function BlueprintSwapSidePanel({
   }, [playSets, searchQuery]);
 
   const activePlaySet = playSets?.[activePlaySetIndex];
-  const activeModCount = Array.isArray(activePlaySet?.mods)
-    ? activePlaySet.mods.length
-    : 0;
+  const activeModCount = useMemo(
+    () => countBlueprintArtifacts(activePlaySet?.mods, activeGameSchema),
+    [activePlaySet?.mods, activeGameSchema]
+  );
 
   const activeSetName = useMemo(() => {
     if (!activePlaySet?.name) return t("none", "None");
@@ -101,7 +103,7 @@ export default function BlueprintSwapSidePanel({
                 const rawName = String(bp.name || "");
                 const cleanName =
                   rawName.replace(/\s*\(imported\)\s*$/i, "").trim() || rawName;
-                const itemCount = bp.mods?.length || 0;
+                const itemCount = countBlueprintArtifacts(bp.mods, activeGameSchema);
 
                 return (
                   <div
