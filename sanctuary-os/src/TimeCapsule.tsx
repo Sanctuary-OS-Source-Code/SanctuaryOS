@@ -63,6 +63,27 @@ export default function TimeCapsule({
     fetchConfig();
   }, []);
 
+  useEffect(() => {
+    const handleTourInspector = (e: Event) => {
+      const open = Boolean((e as CustomEvent)?.detail?.open);
+      if (open) {
+        const firstBackup = backupList?.[0];
+        const firstName =
+          typeof firstBackup === "string"
+            ? firstBackup
+            : firstBackup?.name || "World_State--Preview";
+        setSelectedBackupForInspection(firstName);
+        setIsSidePanelOpen(true);
+      } else {
+        setIsSidePanelOpen(false);
+        setSelectedBackupForInspection(null);
+      }
+    };
+    window.addEventListener("sanctuary-tour-time-capsule-panel", handleTourInspector);
+    return () =>
+      window.removeEventListener("sanctuary-tour-time-capsule-panel", handleTourInspector);
+  }, [backupList]);
+
   const getBackupTimestamp = (backup: any): number => {
     const backupName =
       typeof backup === "string" ? backup : backup?.name || "";

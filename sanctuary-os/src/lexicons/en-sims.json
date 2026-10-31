@@ -2635,5 +2635,9 @@
   "cw_settings_count_suffix": "Options",
   "cw_group_section_badge": "Group",
   "cw_wrap_lines": "Wrap Text",
-  "cw_click_card_diff_hint": "Click any snapshot card to compare changes"
+  "cw_click_card_diff_hint": "Click any snapshot card to compare changes",
+  "screenshot_tour_hub_subsections": "Hub Subsections",
+  "screenshot_tour_panels": "Panels & Drawers",
+  "screenshot_tour_delayed_snap": "Delayed Snap (3s)",
+  "screenshot_tour_delayed_snap_toast": "Snapping screen in 3 seconds — open any panel or menu now..."
 }

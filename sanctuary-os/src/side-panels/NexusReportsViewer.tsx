@@ -717,7 +717,7 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
         subtitle={t("dossier_subtitle", "Review report dossier")}
         icon={t("icon_shield", "shield")}
         iconColorClass="text-[var(--warning)]"
-        widthClass="w-[90vw] md:w-[680px]"
+        widthClass="w-[90vw] md:w-[760px]"
         headerActions={
           selectedReport ? (
             <PanelHeaderGroup>

@@ -1085,7 +1085,7 @@ export function CollectionForge({ setStatus }: any) {
               {flaggedSets.length === 0 ? (
                 <EmptyState
                   icon="collections_bookmark"
-                  title={t("cc_no_sets", "No collections found")}
+                  title={t("cc_no_sets", "No Issues Detected")}
                   className="py-8"
                 />
               ) : (

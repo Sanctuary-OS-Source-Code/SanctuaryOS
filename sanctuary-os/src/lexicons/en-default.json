@@ -2664,5 +2664,9 @@
   "cw_settings_count_suffix": "Settings",
   "cw_group_section_badge": "Group",
   "cw_wrap_lines": "Wrap Lines",
-  "cw_click_card_diff_hint": "Click any snapshot card to open the Diff Inspector"
+  "cw_click_card_diff_hint": "Click any snapshot card to open the Diff Inspector",
+  "screenshot_tour_hub_subsections": "Elevated Hub Subsections",
+  "screenshot_tour_panels": "Panels & Drawers",
+  "screenshot_tour_delayed_snap": "Delayed Snap (3s)",
+  "screenshot_tour_delayed_snap_toast": "Capturing screen in 3 seconds — open any panel or menu now..."
 }

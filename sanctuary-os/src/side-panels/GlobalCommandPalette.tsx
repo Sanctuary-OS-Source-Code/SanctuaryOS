@@ -225,13 +225,19 @@ export function GlobalCommandPalette({
       openPalette(requestedTab);
     };
 
+    const handleCustomClose = () => {
+      closePalette();
+    };
+
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     window.addEventListener("sanctuary-open-command-palette", handleCustomOpen);
+    window.addEventListener("sanctuary-close-command-palette", handleCustomClose);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       window.removeEventListener("sanctuary-open-command-palette", handleCustomOpen);
+      window.removeEventListener("sanctuary-close-command-palette", handleCustomClose);
     };
-  }, [openPalette]);
+  }, [openPalette, closePalette]);
 
   const activeBlueprintModsSet = useMemo(() => {
     const set = new Set<string>();

@@ -451,6 +451,41 @@ function App() {
     return () => document.removeEventListener("open-support-modal", handleOpenSupport);
   }, []);
 
+  useEffect(() => {
+    const handleTourPanelControl = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail || {};
+      const { panel, open } = detail;
+      if (panel === "notifications") {
+        setIsNotificationSidebarOpen(Boolean(open));
+      } else if (panel === "citizen_tickets") {
+        setIsCitizenTicketsOpen(Boolean(open));
+      } else if (panel === "mod_dossier") {
+        if (open) {
+          const list = useStore.getState().modList || [];
+          const sampleMod =
+            list.find((m: any) => !m.isVirtual && m.name) ||
+            list[0] || {
+              name: "Sanctuary_Core_Module.package",
+              displayName: "Sanctuary Core Module",
+              author: "Sanctuary Foundry",
+              version: "1.0.0",
+              status: "verified",
+              hash: "preview_hash",
+            };
+          setActiveDossier(sampleMod);
+        } else {
+          setActiveDossier(null);
+          setEditMode(false);
+          setIsEditingMeta(false);
+          setIsCorrectingMeta(false);
+        }
+      }
+    };
+    window.addEventListener("sanctuary-tour-panel-control", handleTourPanelControl);
+    return () =>
+      window.removeEventListener("sanctuary-tour-panel-control", handleTourPanelControl);
+  }, []);
+
   const selectedVersion = useStore((state) => state.selectedVersion);
   const setSelectedVersion = useStore((state) => state.setSelectedVersion);
 

@@ -40,6 +40,16 @@ export function TitleBar({
   const [isMobileHiddenOnScroll, setIsMobileHiddenOnScroll] = React.useState(false);
 
   React.useEffect(() => {
+    const handleTourWorkspacePanel = (e: Event) => {
+      const open = Boolean((e as CustomEvent)?.detail?.open);
+      setIsWorkspacePanelOpen(open);
+    };
+    window.addEventListener('sanctuary-tour-workspace-panel', handleTourWorkspacePanel);
+    return () =>
+      window.removeEventListener('sanctuary-tour-workspace-panel', handleTourWorkspacePanel);
+  }, []);
+
+  React.useEffect(() => {
     import('./supabase').then(({ supabase }) => {
       supabase
         .from('sanctuary_games')

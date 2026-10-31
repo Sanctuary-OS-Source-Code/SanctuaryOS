@@ -98,6 +98,7 @@ pub fn webview_eval(
     label: String,
     script: String,
 ) -> Result<(), String> {
+    use tauri::Manager;
     if label == "main" || !label.starts_with("side-browser-tab-") {
         return Err("webview_eval is restricted to side-browser-tab-* webviews.".into());
     }
@@ -110,6 +111,7 @@ pub fn webview_eval(
 
 #[tauri::command]
 pub fn webview_url(app_handle: tauri::AppHandle, label: String) -> Result<String, String> {
+    use tauri::Manager;
     if let Some(webview) = app_handle.get_webview(&label) {
         if let Ok(url) = webview.url() {
             Ok(url.to_string())
@@ -123,13 +125,14 @@ pub fn webview_url(app_handle: tauri::AppHandle, label: String) -> Result<String
 
 #[tauri::command]
 pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     let app_version = app_handle.package_info().version.to_string();
 
+    let mut os_version = String::new();
     #[cfg(target_os = "windows")]
-    let os_version = {
-        let mut ver = String::new();
+    {
         if let Ok(output) = std::process::Command::new("cmd")
             .args(["/c", "ver"])
             .output()
@@ -147,18 +150,17 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
                             }
                         }
                     }
-                    ver = format!("{} (Build {})", display_name, version_part);
+                    os_version = format!("{} (Build {})", display_name, version_part);
                 } else {
-                    ver = ver_str.trim().to_string();
+                    os_version = ver_str.trim().to_string();
                 }
             } else {
-                ver = ver_str.trim().to_string();
+                os_version = ver_str.trim().to_string();
             }
         }
-        ver
-    };
+    }
     #[cfg(not(target_os = "windows"))]
-    let os_version = {
+    {
         let mut distro_name = String::new();
         if let Ok(os_rel) = std::fs::read_to_string("/etc/os-release") {
             for line in os_rel.lines() {
@@ -172,13 +174,13 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
         if let Ok(output) = std::process::Command::new("uname").arg("-r").output() {
             kernel_ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
         }
-        match (distro_name.is_empty(), kernel_ver.is_empty()) {
+        os_version = match (distro_name.is_empty(), kernel_ver.is_empty()) {
             (false, false) => format!("{} (Kernel {})", distro_name, kernel_ver),
             (false, true) => distro_name,
             (true, false) => format!("{} {}", os, kernel_ver),
             (true, true) => os.to_string(),
-        }
-    };
+        };
+    }
 
     let mut info = format!(
         "OS: {}\nArchitecture: {}\nSanctuary OS Version: {}\n",
@@ -551,7 +553,6 @@ pub fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(target_os = "windows")]
 fn crc32_ieee(bytes: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFF_FFFF;
     for &b in bytes {
@@ -567,7 +568,6 @@ fn crc32_ieee(bytes: &[u8]) -> u32 {
     !crc
 }
 
-#[cfg(target_os = "windows")]
 fn write_png_chunk(out: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
     out.extend_from_slice(&(data.len() as u32).to_be_bytes());
     out.extend_from_slice(chunk_type);
@@ -579,7 +579,6 @@ fn write_png_chunk(out: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
     out.extend_from_slice(&crc.to_be_bytes());
 }
 
-#[cfg(target_os = "windows")]
 fn encode_bgra_to_png(width: u32, height: u32, bgra: &[u8]) -> Result<Vec<u8>, String> {
     use flate2::write::ZlibEncoder;
     use flate2::Compression;

@@ -1332,6 +1332,7 @@ export function parseSeedCommunityBlog(markdown: string) {
   let subtitle = "";
   let releaseDate = "";
   let version = "";
+  let platform = "";
   let intro = "";
   const tldrBullets: string[] = [];
   let inTldr = false;
@@ -1353,6 +1354,10 @@ export function parseSeedCommunityBlog(markdown: string) {
     if (!version && /version:/i.test(line)) {
       const vm = line.match(/version:\s*\*{0,2}([0-9A-Za-z._-]+)/i);
       if (vm && vm[1]) version = vm[1].trim();
+    }
+    if (!platform && /platform:/i.test(line)) {
+      const pm = line.match(/platform:\s*\*{0,2}([^|*\n]+)/i);
+      if (pm && pm[1]) platform = pm[1].trim();
     }
     if (line.startsWith("## ")) {
       const heading = line.replace(/^##\s+/, "").toLowerCase();
@@ -1378,9 +1383,37 @@ export function parseSeedCommunityBlog(markdown: string) {
     mainTitle,
     releaseDate,
     version,
+    platform,
     summary: subtitle || intro || tldrBullets[0] || "",
     cleanBody: cleanPostBodyForViewer(markdown),
   };
+}
+
+export function formatReleasePostToMarkdownFile(
+  record: Omit<KeepersReleasePostRecord, "id">
+): string {
+  const headerLines: string[] = [];
+  if (record.title.trim()) {
+    headerLines.push(`# ${record.title.trim()}`);
+  }
+  if (record.summary.trim()) {
+    headerLines.push(`### ${record.summary.trim()}`);
+  }
+  const metaParts: string[] = [];
+  if (record.releaseDate.trim()) {
+    metaParts.push(`**Release Date:** ${record.releaseDate.trim()}`);
+  }
+  if (record.version.trim()) {
+    metaParts.push(`**Version:** ${record.version.trim().replace(/^v/i, "")}`);
+  }
+  if (record.platform.trim()) {
+    metaParts.push(`**Platform:** ${record.platform.trim()}`);
+  }
+  if (metaParts.length > 0) {
+    headerLines.push(metaParts.join(" | "));
+  }
+  const cleanBody = cleanPostBodyForViewer(record.body || "");
+  return `${headerLines.join("\n")}\n\n${cleanBody}\n`;
 }
 
 export function isBundledVersionNewer(bundledVer?: string, dbVer?: string): boolean {
@@ -1445,7 +1478,9 @@ export function parseLatestChangelogBlock(changelog: string) {
   };
 }
 
-function serializeReleasePostMessage(record: Omit<KeepersReleasePostRecord, "id" | "title">): string {
+export function serializeReleasePostMessage(
+  record: Omit<KeepersReleasePostRecord, "id" | "title">
+): string {
   const meta = {
     summary: record.summary || "",
     version: record.version || "",
@@ -1461,12 +1496,25 @@ function serializeReleasePostMessage(record: Omit<KeepersReleasePostRecord, "id"
 
 export function deserializeReleasePostRow(
   row: any,
-  fallback: Omit<KeepersReleasePostRecord, "id">
+  fallback: Omit<KeepersReleasePostRecord, "id">,
+  usePublished = false
 ): KeepersReleasePostRecord {
   if (!row) {
     return { id: null, ...fallback };
   }
-  const rawMessage = String(row.message || "");
+  const rawMessage = String(
+    (usePublished ? row.published_message || row.message : row.message) || ""
+  );
+  if (!rawMessage.trim()) {
+    return { id: row.id || null, ...fallback };
+  }
+  const rawDescription = usePublished
+    ? row.published_description ?? row.description
+    : row.description;
+  const rawTitle = String(
+    (usePublished ? row.published_title || row.title : row.title) || ""
+  ).trim();
+
   const metaMatch = rawMessage.match(/^<!--\s*RELEASE_META:(\{.*?\})\s*-->\s*/s);
   let parsedMeta: any = {};
   let body = rawMessage;
@@ -1481,20 +1529,14 @@ export function deserializeReleasePostRow(
   } else {
     const legacyParsed = parseSeedCommunityBlog(rawMessage);
     parsedMeta = {
-      summary: row.description || legacyParsed.summary,
+      summary: rawDescription || legacyParsed.summary,
       releaseDate: legacyParsed.releaseDate,
+      version: legacyParsed.version,
+      platform: legacyParsed.platform,
     };
     body = legacyParsed.cleanBody || rawMessage;
   }
 
-  if (
-    isBundledVersionNewer(fallback.version, parsedMeta.version) ||
-    (!isBundledVersionNewer(parsedMeta.version, fallback.version) && !parsedMeta.customEdited)
-  ) {
-    return { id: row.id || null, ...fallback };
-  }
-
-  const rawTitle = String(row.title || "").trim();
   const isInternalTitle =
     rawTitle === LEGACY_BLOG_BROADCAST_TITLE ||
     rawTitle === PUBLIC_POST_BROADCAST_TITLE ||
@@ -1506,7 +1548,7 @@ export function deserializeReleasePostRow(
     summary:
       parsedMeta.summary !== undefined && parsedMeta.summary !== ""
         ? parsedMeta.summary
-        : row.description || fallback.summary,
+        : rawDescription || fallback.summary,
     version: parsedMeta.version || fallback.version,
     releaseDate: parsedMeta.releaseDate || fallback.releaseDate,
     platform: parsedMeta.platform || fallback.platform || "Windows & macOS",
@@ -1521,6 +1563,39 @@ export function deserializeReleasePostRow(
         : row.poll_data || fallback.pollData || null,
     body: body || fallback.body,
   };
+}
+
+export function deserializeChangelogRow(
+  row: any,
+  fallback: string,
+  usePublished = false
+): string {
+  if (!row) return fallback;
+  const raw = String(
+    (usePublished ? row.published_message || row.message : row.message) || ""
+  ).trim();
+  return raw || fallback;
+}
+
+const normalizeMd = (txt: string): string =>
+  (txt || "").replace(/\r\n/g, "\n").trim();
+
+export function areReleasePostsEquivalent(
+  a: Omit<KeepersReleasePostRecord, "id">,
+  b: Omit<KeepersReleasePostRecord, "id">
+): boolean {
+  return (
+    normalizeMd(a.title) === normalizeMd(b.title) &&
+    normalizeMd(a.summary) === normalizeMd(b.summary) &&
+    normalizeMd(a.version.replace(/^v/i, "")) ===
+      normalizeMd(b.version.replace(/^v/i, "")) &&
+    normalizeMd(cleanPostBodyForViewer(a.body)) ===
+      normalizeMd(cleanPostBodyForViewer(b.body))
+  );
+}
+
+export function areChangelogsEquivalent(a: string, b: string): boolean {
+  return normalizeMd(a) === normalizeMd(b);
 }
 
 export function ReleaseNotesShowcase({
@@ -1539,8 +1614,10 @@ export function ReleaseNotesShowcase({
   const isStaff = useMemo(() => {
     const r1 = String(osRole || "").toLowerCase();
     const r2 = String(userRole || "").toLowerCase();
-    return ["keeper", "wayfinder", "architect", "admin"].includes(r1) ||
-      ["keeper", "wayfinder", "architect", "admin"].includes(r2);
+    return (
+      ["keeper", "wayfinder", "architect", "admin"].includes(r1) ||
+      ["keeper", "wayfinder", "architect", "admin"].includes(r2)
+    );
   }, [osRole, userRole]);
 
   useEffect(() => {
@@ -1621,7 +1698,9 @@ export function ReleaseNotesShowcase({
         ),
       version: defaultStableVersion,
       releaseDate: defaultStableDate,
-      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
+      platform:
+        seedPublicBlog.platform ||
+        t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
@@ -1648,7 +1727,9 @@ export function ReleaseNotesShowcase({
             )),
       version: defaultDevVersion,
       releaseDate: defaultDevDate,
-      platform: t("release_notes_meta_platform_default", "Windows & macOS"),
+      platform:
+        seedDevBlog.platform ||
+        t("release_notes_meta_platform_default", "Windows & macOS"),
       imageUrl: "",
       codeSnippet: "",
       pollData: null,
@@ -1657,22 +1738,71 @@ export function ReleaseNotesShowcase({
     [seedDevBlog, seedChangelog, defaultDevVersion, defaultDevDate, t]
   );
 
-  const [publicPost, setPublicPost] = useState<KeepersReleasePostRecord>({
+  // Working (Synced .md + DB) vs. Published (User-Facing) States
+  const [workingPublicPost, setWorkingPublicPost] = useState<KeepersReleasePostRecord>({
     id: null,
     ...defaultPublicPost,
   });
-  const [devPost, setDevPost] = useState<KeepersReleasePostRecord>({
+  const [publishedPublicPost, setPublishedPublicPost] = useState<KeepersReleasePostRecord>({
+    id: null,
+    ...defaultPublicPost,
+  });
+  const [workingDevPost, setWorkingDevPost] = useState<KeepersReleasePostRecord>({
+    id: null,
+    ...defaultDevPost,
+  });
+  const [publishedDevPost, setPublishedDevPost] = useState<KeepersReleasePostRecord>({
     id: null,
     ...defaultDevPost,
   });
 
+  const [workingStableChangelog, setWorkingStableChangelog] = useState<string>(
+    bundledRunningChangelog || bundledNerdChangelog
+  );
+  const [publishedStableChangelog, setPublishedStableChangelog] = useState<string>(
+    bundledRunningChangelog || bundledNerdChangelog
+  );
+  const [workingDevChangelog, setWorkingDevChangelog] = useState<string>(
+    bundledNerdChangelog || seedChangelog.markdown
+  );
+  const [publishedDevChangelog, setPublishedDevChangelog] = useState<string>(
+    bundledNerdChangelog || seedChangelog.markdown
+  );
+  const [stableChangelogRowId, setStableChangelogRowId] = useState<string | null>(null);
+  const [devChangelogRowId, setDevChangelogRowId] = useState<string | null>(null);
+
+  // User-facing vs. Keepers Core effective records
+  const publicPost = isKeepers ? workingPublicPost : publishedPublicPost;
+  const devPost = isKeepers ? workingDevPost : publishedDevPost;
+
+  const hasUnpublishedPublicPost = useMemo(
+    () => !areReleasePostsEquivalent(workingPublicPost, publishedPublicPost),
+    [workingPublicPost, publishedPublicPost]
+  );
+  const hasUnpublishedPublicChangelog = useMemo(
+    () => !areChangelogsEquivalent(workingStableChangelog, publishedStableChangelog),
+    [workingStableChangelog, publishedStableChangelog]
+  );
+  const hasUnpublishedPublic = hasUnpublishedPublicPost || hasUnpublishedPublicChangelog;
+
+  const hasUnpublishedDevPost = useMemo(
+    () => !areReleasePostsEquivalent(workingDevPost, publishedDevPost),
+    [workingDevPost, publishedDevPost]
+  );
+  const hasUnpublishedDevChangelog = useMemo(
+    () => !areChangelogsEquivalent(workingDevChangelog, publishedDevChangelog),
+    [workingDevChangelog, publishedDevChangelog]
+  );
+  const hasUnpublishedDev = hasUnpublishedDevPost || hasUnpublishedDevChangelog;
+
   const [activeChannel, setActiveChannel] = useState<"stable" | "dev" | null>(null);
   const [activeView, setActiveView] = useState<"post" | "changelog">("post");
 
-  // Keepers Core Dispatch / Comm-Link Post Editor state
+  // Keepers Core Dispatch / Comm-Link Post & Changelog Editor state
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<PostEditorMode>("visual");
   const [editorChannel, setEditorChannel] = useState<"stable" | "dev">("stable");
+  const [editorDocType, setEditorDocType] = useState<"post" | "changelog">("post");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftSummary, setDraftSummary] = useState("");
   const [draftVersion, setDraftVersion] = useState("");
@@ -1685,6 +1815,7 @@ export function ReleaseNotesShowcase({
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const updateTimeoutRef = useRef<any>(null);
@@ -1706,29 +1837,83 @@ export function ReleaseNotesShowcase({
     },
   });
 
-  const loadPostsAndReleases = useCallback(
-    async (forceRefreshGitHub = false) => {
+  const persistReleaseStateCache = useCallback(
+    (stateObj: {
+      workingPublicPost: KeepersReleasePostRecord;
+      publishedPublicPost: KeepersReleasePostRecord;
+      workingDevPost: KeepersReleasePostRecord;
+      publishedDevPost: KeepersReleasePostRecord;
+      workingStableChangelog: string;
+      publishedStableChangelog: string;
+      workingDevChangelog: string;
+      publishedDevChangelog: string;
+    }) => {
       try {
-        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v4");
-        if (cachedRaw) {
-          const parsedCache = JSON.parse(cachedRaw);
-          if (parsedCache?.publicPost) setPublicPost(parsedCache.publicPost);
-          if (parsedCache?.devPost) setDevPost(parsedCache.devPost);
+        localStorage.setItem(
+          "sanctuary_keepers_release_posts_v5",
+          JSON.stringify(stateObj)
+        );
+        // Keep v4 in sync with published posts for legacy readers
+        localStorage.setItem(
+          "sanctuary_keepers_release_posts_v4",
+          JSON.stringify({
+            publicPost: stateObj.publishedPublicPost,
+            devPost: stateObj.publishedDevPost,
+            publishedStableChangelog: stateObj.publishedStableChangelog,
+            publishedDevChangelog: stateObj.publishedDevChangelog,
+          })
+        );
+      } catch {
+        // ignore storage errors
+      }
+    },
+    []
+  );
+
+  const loadPostsAndReleases = useCallback(
+    async (
+      forceRefreshGitHub = false,
+      syncDirection: "auto" | "local_to_hub" | "hub_to_local" = "auto"
+    ) => {
+      try {
+        const cachedRawV5 = localStorage.getItem("sanctuary_keepers_release_posts_v5");
+        if (cachedRawV5) {
+          const parsedCache = JSON.parse(cachedRawV5);
+          if (parsedCache?.workingPublicPost) setWorkingPublicPost(parsedCache.workingPublicPost);
+          if (parsedCache?.publishedPublicPost)
+            setPublishedPublicPost(parsedCache.publishedPublicPost);
+          if (parsedCache?.workingDevPost) setWorkingDevPost(parsedCache.workingDevPost);
+          if (parsedCache?.publishedDevPost) setPublishedDevPost(parsedCache.publishedDevPost);
+          if (parsedCache?.workingStableChangelog)
+            setWorkingStableChangelog(parsedCache.workingStableChangelog);
+          if (parsedCache?.publishedStableChangelog)
+            setPublishedStableChangelog(parsedCache.publishedStableChangelog);
+          if (parsedCache?.workingDevChangelog)
+            setWorkingDevChangelog(parsedCache.workingDevChangelog);
+          if (parsedCache?.publishedDevChangelog)
+            setPublishedDevChangelog(parsedCache.publishedDevChangelog);
         }
       } catch {
         // ignore cache parse error
       }
 
       try {
-        const [broadcastRes, cfg] = await Promise.all([
+        const [broadcastRes, cfg, localSnapshots] = await Promise.all([
           supabaseAuth
             .from("keeper_system_broadcasts")
             .select(
-              "id, title, description, message, category, target_audience, code_snippet, poll_data, created_at"
+              "id, title, description, message, published_title, published_description, published_message, published_at, updated_at, category, target_audience, code_snippet, poll_data, created_at"
             )
-            .in("category", ["ReleasePost_Public", "ReleasePost_Dev", "ReleaseNotesBlog"])
+            .in("category", [
+              "ReleasePost_Public",
+              "ReleasePost_Dev",
+              "ReleaseNotesBlog",
+              PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
+              DEV_CHANGELOG_BROADCAST_CATEGORY,
+            ])
             .order("created_at", { ascending: false }),
           getKeepersPipelineConfig(forceRefreshGitHub),
+          readAllLocalDocSnapshots(),
         ]);
 
         if (cfg) {
@@ -1743,45 +1928,406 @@ export function ReleaseNotesShowcase({
               (r: any) =>
                 r.category === "ReleaseNotesBlog" || r.title === LEGACY_BLOG_BROADCAST_TITLE
             );
-
           const devRow = rows.find((r: any) => r.category === "ReleasePost_Dev");
+          const publicChangelogRow = rows.find(
+            (r: any) => r.category === PUBLIC_CHANGELOG_BROADCAST_CATEGORY
+          );
+          const devChangelogRow = rows.find(
+            (r: any) => r.category === DEV_CHANGELOG_BROADCAST_CATEGORY
+          );
 
-          const resolvedPublic = deserializeReleasePostRow(publicRow, defaultPublicPost);
-          const resolvedDev = deserializeReleasePostRow(devRow, defaultDevPost);
+          // 1. Parse local .md snapshots
+          const localPubSnap = localSnapshots.release_notes_public;
+          const localDevSnap = localSnapshots.release_notes_dev;
+          const localRunningClSnap = localSnapshots.changelog_running;
+          const localDevClSnap = localSnapshots.changelog_dev;
 
-          setPublicPost(resolvedPublic);
-          setDevPost(resolvedDev);
+          const parsedLocalPub = localPubSnap?.content
+            ? parseSeedCommunityBlog(localPubSnap.content)
+            : seedPublicBlog;
+          const parsedLocalDev = localDevSnap?.content
+            ? parseSeedCommunityBlog(localDevSnap.content)
+            : seedDevBlog;
 
-          try {
-            localStorage.setItem(
-              "sanctuary_keepers_release_posts_v4",
-              JSON.stringify({
-                publicPost: resolvedPublic,
-                devPost: resolvedDev,
-              })
-            );
-          } catch {
-            // ignore storage errors
+          let resolvedPubPublished = deserializeReleasePostRow(
+            publicRow,
+            defaultPublicPost,
+            true
+          );
+          let resolvedPubWorking = deserializeReleasePostRow(
+            publicRow,
+            defaultPublicPost,
+            false
+          );
+
+          let resolvedDevPublished = deserializeReleasePostRow(
+            devRow,
+            defaultDevPost,
+            true
+          );
+          let resolvedDevWorking = deserializeReleasePostRow(
+            devRow,
+            defaultDevPost,
+            false
+          );
+
+          const localPubPostCandidate: KeepersReleasePostRecord = {
+            id: resolvedPubWorking.id,
+            title: parsedLocalPub.mainTitle || resolvedPubWorking.title,
+            summary: parsedLocalPub.summary || resolvedPubWorking.summary,
+            version: parsedLocalPub.version || resolvedPubWorking.version,
+            releaseDate: parsedLocalPub.releaseDate || resolvedPubWorking.releaseDate,
+            platform: parsedLocalPub.platform || resolvedPubWorking.platform,
+            imageUrl: resolvedPubWorking.imageUrl || "",
+            codeSnippet: resolvedPubWorking.codeSnippet || "",
+            pollData: resolvedPubWorking.pollData || null,
+            body: parsedLocalPub.cleanBody || resolvedPubWorking.body,
+          };
+
+          const localDevPostCandidate: KeepersReleasePostRecord = {
+            id: resolvedDevWorking.id,
+            title: parsedLocalDev.mainTitle || resolvedDevWorking.title,
+            summary: parsedLocalDev.summary || resolvedDevWorking.summary,
+            version: parsedLocalDev.version || resolvedDevWorking.version,
+            releaseDate: parsedLocalDev.releaseDate || resolvedDevWorking.releaseDate,
+            platform: parsedLocalDev.platform || resolvedDevWorking.platform,
+            imageUrl: resolvedDevWorking.imageUrl || "",
+            codeSnippet: resolvedDevWorking.codeSnippet || "",
+            pollData: resolvedDevWorking.pollData || null,
+            body: parsedLocalDev.cleanBody || resolvedDevWorking.body,
+          };
+
+          const localStableClContent =
+            localRunningClSnap?.content || bundledRunningChangelog || bundledNerdChangelog;
+          const localDevClContent =
+            localDevClSnap?.content || bundledNerdChangelog || seedChangelog.markdown;
+
+          let resolvedStableClPublished = deserializeChangelogRow(
+            publicChangelogRow,
+            localStableClContent,
+            true
+          );
+          let resolvedStableClWorking = deserializeChangelogRow(
+            publicChangelogRow,
+            localStableClContent,
+            false
+          );
+
+          let resolvedDevClPublished = deserializeChangelogRow(
+            devChangelogRow,
+            localDevClContent,
+            true
+          );
+          let resolvedDevClWorking = deserializeChangelogRow(
+            devChangelogRow,
+            localDevClContent,
+            false
+          );
+
+          let nextPubRowId = publicRow?.id || null;
+          let nextDevRowId = devRow?.id || null;
+          let nextPubClRowId = publicChangelogRow?.id || null;
+          let nextDevClRowId = devChangelogRow?.id || null;
+
+          const canSyncWorking = isKeepers || isStaff || syncDirection !== "auto";
+
+          // 2. Two-Way Sync (.md <-> Hub DB Working Columns ONLY; never touches published_*)
+          if (canSyncWorking) {
+            // A. Public Release Post (Release Notes (Community Blog).md <-> ReleasePost_Public)
+            const pubDbEpoch = publicRow?.updated_at
+              ? new Date(publicRow.updated_at).getTime()
+              : publicRow?.created_at
+                ? new Date(publicRow.created_at).getTime()
+                : 0;
+            const pubLocalEpoch = localPubSnap?.modified_epoch_ms || 0;
+
+            if (!areReleasePostsEquivalent(localPubPostCandidate, resolvedPubWorking)) {
+              if (
+                syncDirection === "local_to_hub" ||
+                (syncDirection === "auto" && pubLocalEpoch > pubDbEpoch + 1500)
+              ) {
+                resolvedPubWorking = localPubPostCandidate;
+                const serialized = serializeReleasePostMessage(resolvedPubWorking);
+                const nowIso = new Date().toISOString();
+                if (nextPubRowId) {
+                  await supabaseAuth
+                    .from("keeper_system_broadcasts")
+                    .update({
+                      title: resolvedPubWorking.title,
+                      description: resolvedPubWorking.summary || null,
+                      message: serialized,
+                      updated_at: nowIso,
+                    })
+                    .eq("id", nextPubRowId);
+                } else {
+                  const { data } = await supabaseAuth
+                    .from("keeper_system_broadcasts")
+                    .insert({
+                      title: resolvedPubWorking.title,
+                      description: resolvedPubWorking.summary || null,
+                      category: "ReleasePost_Public",
+                      target_audience: "Public",
+                      message: serialized,
+                      published_title: resolvedPubPublished.title,
+                      published_description: resolvedPubPublished.summary || null,
+                      published_message: serializeReleasePostMessage(resolvedPubPublished),
+                      published_at: nowIso,
+                      updated_at: nowIso,
+                      is_active: false,
+                      is_pinned: "false",
+                    })
+                    .select("id");
+                  if (data?.[0]?.id) {
+                    nextPubRowId = data[0].id;
+                    resolvedPubWorking.id = nextPubRowId;
+                  }
+                }
+              } else if (
+                syncDirection === "hub_to_local" ||
+                (syncDirection === "auto" && pubDbEpoch > 0 && pubLocalEpoch > 0)
+              ) {
+                await writeLocalDirectiveFile(
+                  "release_notes_public",
+                  formatReleasePostToMarkdownFile(resolvedPubWorking)
+                );
+              }
+            }
+
+            // B. Dev Release Post (Release Notes (Dev).md <-> ReleasePost_Dev)
+            const devDbEpoch = devRow?.updated_at
+              ? new Date(devRow.updated_at).getTime()
+              : devRow?.created_at
+                ? new Date(devRow.created_at).getTime()
+                : 0;
+            const devLocalEpoch = localDevSnap?.modified_epoch_ms || 0;
+
+            if (!areReleasePostsEquivalent(localDevPostCandidate, resolvedDevWorking)) {
+              if (
+                syncDirection === "local_to_hub" ||
+                (syncDirection === "auto" && devLocalEpoch > devDbEpoch + 1500)
+              ) {
+                resolvedDevWorking = localDevPostCandidate;
+                const serialized = serializeReleasePostMessage(resolvedDevWorking);
+                const nowIso = new Date().toISOString();
+                if (nextDevRowId) {
+                  await supabaseAuth
+                    .from("keeper_system_broadcasts")
+                    .update({
+                      title: resolvedDevWorking.title,
+                      description: resolvedDevWorking.summary || null,
+                      message: serialized,
+                      updated_at: nowIso,
+                    })
+                    .eq("id", nextDevRowId);
+                } else {
+                  const { data } = await supabaseAuth
+                    .from("keeper_system_broadcasts")
+                    .insert({
+                      title: resolvedDevWorking.title,
+                      description: resolvedDevWorking.summary || null,
+                      category: "ReleasePost_Dev",
+                      target_audience: "Dev",
+                      message: serialized,
+                      published_title: resolvedDevPublished.title,
+                      published_description: resolvedDevPublished.summary || null,
+                      published_message: serializeReleasePostMessage(resolvedDevPublished),
+                      published_at: nowIso,
+                      updated_at: nowIso,
+                      is_active: false,
+                      is_pinned: "false",
+                    })
+                    .select("id");
+                  if (data?.[0]?.id) {
+                    nextDevRowId = data[0].id;
+                    resolvedDevWorking.id = nextDevRowId;
+                  }
+                }
+              } else if (
+                syncDirection === "hub_to_local" ||
+                (syncDirection === "auto" && devDbEpoch > 0 && devLocalEpoch > 0)
+              ) {
+                await writeLocalDirectiveFile(
+                  "release_notes_dev",
+                  formatReleasePostToMarkdownFile(resolvedDevWorking)
+                );
+              }
+            }
+
+            // C. Stable Changelog (changelog (running).md <-> ReleaseChangelog_Public)
+            const pubClDbEpoch = publicChangelogRow?.updated_at
+              ? new Date(publicChangelogRow.updated_at).getTime()
+              : publicChangelogRow?.created_at
+                ? new Date(publicChangelogRow.created_at).getTime()
+                : 0;
+            const pubClLocalEpoch = localRunningClSnap?.modified_epoch_ms || 0;
+
+            if (!nextPubClRowId) {
+              const nowIso = new Date().toISOString();
+              const { data } = await supabaseAuth
+                .from("keeper_system_broadcasts")
+                .insert({
+                  title: "Full Change Log (Stable)",
+                  description: "Running changelog across dev builds since last stable release",
+                  category: PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
+                  target_audience: "Public",
+                  message: localStableClContent,
+                  published_title: "Full Change Log (Stable)",
+                  published_description:
+                    "Running changelog across dev builds since last stable release",
+                  published_message: localStableClContent,
+                  published_at: nowIso,
+                  updated_at: nowIso,
+                  is_active: false,
+                  is_pinned: "false",
+                })
+                .select("id");
+              if (data?.[0]?.id) {
+                nextPubClRowId = data[0].id;
+              }
+            } else if (!areChangelogsEquivalent(localStableClContent, resolvedStableClWorking)) {
+              if (
+                syncDirection === "local_to_hub" ||
+                (syncDirection === "auto" && pubClLocalEpoch > pubClDbEpoch + 1500)
+              ) {
+                resolvedStableClWorking = localStableClContent;
+                await supabaseAuth
+                  .from("keeper_system_broadcasts")
+                  .update({
+                    message: resolvedStableClWorking,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", nextPubClRowId);
+              } else if (
+                syncDirection === "hub_to_local" ||
+                (syncDirection === "auto" && pubClDbEpoch > 0 && pubClLocalEpoch > 0)
+              ) {
+                await writeLocalDirectiveFile("changelog_running", resolvedStableClWorking);
+              }
+            }
+
+            // D. Dev Changelog (changelog.md <-> ReleaseChangelog_Dev)
+            const devClDbEpoch = devChangelogRow?.updated_at
+              ? new Date(devChangelogRow.updated_at).getTime()
+              : devChangelogRow?.created_at
+                ? new Date(devChangelogRow.created_at).getTime()
+                : 0;
+            const devClLocalEpoch = localDevClSnap?.modified_epoch_ms || 0;
+
+            if (!nextDevClRowId) {
+              const nowIso = new Date().toISOString();
+              const { data } = await supabaseAuth
+                .from("keeper_system_broadcasts")
+                .insert({
+                  title: "Full Change Log (Dev)",
+                  description: "Current Dev Build technical changelog",
+                  category: DEV_CHANGELOG_BROADCAST_CATEGORY,
+                  target_audience: "Dev",
+                  message: localDevClContent,
+                  published_title: "Full Change Log (Dev)",
+                  published_description: "Current Dev Build technical changelog",
+                  published_message: localDevClContent,
+                  published_at: nowIso,
+                  updated_at: nowIso,
+                  is_active: false,
+                  is_pinned: "false",
+                })
+                .select("id");
+              if (data?.[0]?.id) {
+                nextDevClRowId = data[0].id;
+              }
+            } else if (!areChangelogsEquivalent(localDevClContent, resolvedDevClWorking)) {
+              if (
+                syncDirection === "local_to_hub" ||
+                (syncDirection === "auto" && devClLocalEpoch > devClDbEpoch + 1500)
+              ) {
+                resolvedDevClWorking = localDevClContent;
+                await supabaseAuth
+                  .from("keeper_system_broadcasts")
+                  .update({
+                    message: resolvedDevClWorking,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", nextDevClRowId);
+              } else if (
+                syncDirection === "hub_to_local" ||
+                (syncDirection === "auto" && devClDbEpoch > 0 && devClLocalEpoch > 0)
+              ) {
+                await writeLocalDirectiveFile("changelog_dev", resolvedDevClWorking);
+              }
+            }
           }
+
+          setStableChangelogRowId(nextPubClRowId);
+          setDevChangelogRowId(nextDevClRowId);
+
+          setWorkingPublicPost(resolvedPubWorking);
+          setPublishedPublicPost(resolvedPubPublished);
+          setWorkingDevPost(resolvedDevWorking);
+          setPublishedDevPost(resolvedDevPublished);
+
+          setWorkingStableChangelog(resolvedStableClWorking);
+          setPublishedStableChangelog(resolvedStableClPublished);
+          setWorkingDevChangelog(resolvedDevClWorking);
+          setPublishedDevChangelog(resolvedDevClPublished);
+
+          persistReleaseStateCache({
+            workingPublicPost: resolvedPubWorking,
+            publishedPublicPost: resolvedPubPublished,
+            workingDevPost: resolvedDevWorking,
+            publishedDevPost: resolvedDevPublished,
+            workingStableChangelog: resolvedStableClWorking,
+            publishedStableChangelog: resolvedStableClPublished,
+            workingDevChangelog: resolvedDevClWorking,
+            publishedDevChangelog: resolvedDevClPublished,
+          });
         }
       } catch {
         // Keep current / cached state if offline
       }
     },
-    [defaultPublicPost, defaultDevPost]
+    [
+      defaultPublicPost,
+      defaultDevPost,
+      seedPublicBlog,
+      seedDevBlog,
+      seedChangelog.markdown,
+      isKeepers,
+      isStaff,
+      persistReleaseStateCache,
+    ]
   );
 
   useEffect(() => {
     loadPostsAndReleases(false);
-    const onUpdated = () => loadPostsAndReleases(false);
+    const onUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail;
+      const dir = detail?.syncDirection || "auto";
+      loadPostsAndReleases(false, dir);
+    };
+    const onTourReleasePanel = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail || {};
+      if (detail.open) {
+        setActiveChannel(detail.channel === "dev" ? "dev" : "stable");
+        setActiveView(detail.view === "changelog" ? "changelog" : "post");
+      } else {
+        setActiveChannel(null);
+      }
+    };
     window.addEventListener("keepers_release_posts_updated", onUpdated);
-    return () => window.removeEventListener("keepers_release_posts_updated", onUpdated);
+    window.addEventListener("sanctuary-tour-release-notes-panel", onTourReleasePanel);
+    return () => {
+      window.removeEventListener("keepers_release_posts_updated", onUpdated);
+      window.removeEventListener("sanctuary-tour-release-notes-panel", onTourReleasePanel);
+    };
   }, [loadPostsAndReleases]);
 
   const populateDraftForChannel = useCallback(
-    (channel: "stable" | "dev") => {
-      const target = channel === "dev" ? devPost : publicPost;
+    (channel: "stable" | "dev", docType: "post" | "changelog" = editorDocType) => {
+      const target = channel === "dev" ? workingDevPost : workingPublicPost;
+      const targetChangelog =
+        channel === "dev" ? workingDevChangelog : workingStableChangelog;
       setEditorChannel(channel);
+      setEditorDocType(docType);
       setDraftTitle(target.title);
       setDraftSummary(target.summary);
       setDraftVersion(
@@ -1791,21 +2337,25 @@ export function ReleaseNotesShowcase({
         target.releaseDate || (channel === "dev" ? defaultDevDate : defaultStableDate)
       );
       setDraftPlatform(
-        target.platform || t("release_notes_meta_platform_default", "Windows / Mac (Planned)")
+        target.platform || t("release_notes_meta_platform_default", "Windows & macOS")
       );
       setDraftImageUrl(target.imageUrl || "");
       setDraftCodeSnippet(target.codeSnippet || "");
       setShowCodeInput(Boolean(target.codeSnippet));
       setDraftPollData(target.pollData || null);
-      setDraftBody(target.body);
+      const nextBody = docType === "changelog" ? targetChangelog : target.body;
+      setDraftBody(nextBody);
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       if (editor) {
-        editor.commands.setContent(target.body || "", { emitUpdate: false });
+        editor.commands.setContent(nextBody || "", { emitUpdate: false });
       }
     },
     [
-      devPost,
-      publicPost,
+      editorDocType,
+      workingDevPost,
+      workingPublicPost,
+      workingDevChangelog,
+      workingStableChangelog,
       defaultDevVersion,
       defaultStableVersion,
       defaultDevDate,
@@ -1815,8 +2365,11 @@ export function ReleaseNotesShowcase({
     ]
   );
 
-  const openKeepersEditor = (channel: "stable" | "dev") => {
-    populateDraftForChannel(channel);
+  const openKeepersEditor = (
+    channel: "stable" | "dev",
+    docType: "post" | "changelog" = "post"
+  ) => {
+    populateDraftForChannel(channel, docType);
     setIsEditorOpen(true);
   };
 
@@ -1850,7 +2403,155 @@ export function ReleaseNotesShowcase({
     setIsAssetPanelOpen(false);
   };
 
-  const handleSaveKeepersPost = async () => {
+  const handlePublishChannel = async (
+    channel: "stable" | "dev",
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    setIsPublishing(true);
+    try {
+      const isDev = channel === "dev";
+      const targetPost = isDev ? workingDevPost : workingPublicPost;
+      const targetCl = isDev ? workingDevChangelog : workingStableChangelog;
+      const postCat = isDev ? "ReleasePost_Dev" : "ReleasePost_Public";
+      const clCat = isDev
+        ? DEV_CHANGELOG_BROADCAST_CATEGORY
+        : PUBLIC_CHANGELOG_BROADCAST_CATEGORY;
+      const nowIso = new Date().toISOString();
+
+      const serializedPostMsg = serializeReleasePostMessage(targetPost);
+
+      // 1. Publish Release Post row
+      let postId = targetPost.id;
+      if (!postId) {
+        const { data: existingRows } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .select("id")
+          .eq("category", postCat)
+          .order("created_at", { ascending: false });
+        if (existingRows?.[0]?.id) postId = existingRows[0].id;
+      }
+
+      if (postId) {
+        await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .update({
+            title: targetPost.title,
+            description: targetPost.summary || null,
+            message: serializedPostMsg,
+            published_title: targetPost.title,
+            published_description: targetPost.summary || null,
+            published_message: serializedPostMsg,
+            published_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("id", postId);
+      } else {
+        const { data } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .insert({
+            title: targetPost.title,
+            description: targetPost.summary || null,
+            category: postCat,
+            target_audience: isDev ? "Dev" : "Public",
+            message: serializedPostMsg,
+            published_title: targetPost.title,
+            published_description: targetPost.summary || null,
+            published_message: serializedPostMsg,
+            published_at: nowIso,
+            updated_at: nowIso,
+            is_active: false,
+            is_pinned: "false",
+          })
+          .select("id");
+        if (data?.[0]?.id) postId = data[0].id;
+      }
+
+      // 2. Publish Changelog row
+      let clId = isDev ? devChangelogRowId : stableChangelogRowId;
+      if (!clId) {
+        const { data: existingCl } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .select("id")
+          .eq("category", clCat)
+          .order("created_at", { ascending: false });
+        if (existingCl?.[0]?.id) clId = existingCl[0].id;
+      }
+
+      if (clId) {
+        await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .update({
+            message: targetCl,
+            published_message: targetCl,
+            published_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("id", clId);
+      } else {
+        const { data } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .insert({
+            title: isDev ? "Full Change Log (Dev)" : "Full Change Log (Stable)",
+            description: isDev
+              ? "Current Dev Build technical changelog"
+              : "Running changelog across dev builds since last stable release",
+            category: clCat,
+            target_audience: isDev ? "Dev" : "Public",
+            message: targetCl,
+            published_title: isDev ? "Full Change Log (Dev)" : "Full Change Log (Stable)",
+            published_message: targetCl,
+            published_at: nowIso,
+            updated_at: nowIso,
+            is_active: false,
+            is_pinned: "false",
+          })
+          .select("id");
+        if (data?.[0]?.id) clId = data[0].id;
+      }
+
+      const nextPubPublished = isDev ? publishedPublicPost : { ...targetPost, id: postId };
+      const nextDevPublished = isDev ? { ...targetPost, id: postId } : publishedDevPost;
+      const nextStableClPublished = isDev ? publishedStableChangelog : targetCl;
+      const nextDevClPublished = isDev ? targetCl : publishedDevChangelog;
+
+      if (isDev) {
+        setPublishedDevPost(nextDevPublished);
+        setPublishedDevChangelog(nextDevClPublished);
+        setDevChangelogRowId(clId);
+      } else {
+        setPublishedPublicPost(nextPubPublished);
+        setPublishedStableChangelog(nextStableClPublished);
+        setStableChangelogRowId(clId);
+      }
+
+      persistReleaseStateCache({
+        workingPublicPost,
+        publishedPublicPost: nextPubPublished,
+        workingDevPost,
+        publishedDevPost: nextDevPublished,
+        workingStableChangelog,
+        publishedStableChangelog: nextStableClPublished,
+        workingDevChangelog,
+        publishedDevChangelog: nextDevClPublished,
+      });
+
+      window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "dir_toast_published_live",
+            "Published live to {Citizens} and synced with local .md file!"
+          ),
+          "success"
+        );
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleSaveKeepersPost = async (publishLive = false) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
@@ -1860,13 +2561,116 @@ export function ReleaseNotesShowcase({
       finalBody = (editor.storage as any).markdown.getMarkdown();
       setDraftBody(finalBody);
     }
-    if (!draftTitle.trim() || !finalBody.trim()) return;
+    if (!finalBody.trim()) return;
+    if (editorDocType === "post" && !draftTitle.trim()) return;
 
     setIsSaving(true);
     try {
       const isDev = editorChannel === "dev";
+      const nowIso = new Date().toISOString();
+
+      if (editorDocType === "changelog") {
+        const clCat = isDev
+          ? DEV_CHANGELOG_BROADCAST_CATEGORY
+          : PUBLIC_CHANGELOG_BROADCAST_CATEGORY;
+        const clSlug = isDev ? "changelog_dev" : "changelog_running";
+        const trimmedCl = finalBody.trim();
+
+        // 1. Write to local .md file
+        await writeLocalDirectiveFile(clSlug, `${trimmedCl}\n`);
+
+        // 2. Sync to Hub DB (working message + optional publish)
+        let clId = isDev ? devChangelogRowId : stableChangelogRowId;
+        if (!clId) {
+          const { data: existingRows } = await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .select("id")
+            .eq("category", clCat)
+            .order("created_at", { ascending: false });
+          if (existingRows?.[0]?.id) clId = existingRows[0].id;
+        }
+
+        const clPayload: any = {
+          title: isDev ? "Full Change Log (Dev)" : "Full Change Log (Stable)",
+          description: isDev
+            ? "Current Dev Build technical changelog"
+            : "Running changelog across dev builds since last stable release",
+          category: clCat,
+          target_audience: isDev ? "Dev" : "Public",
+          message: trimmedCl,
+          updated_at: nowIso,
+          is_active: false,
+          is_pinned: "false",
+        };
+        if (publishLive) {
+          clPayload.published_title = clPayload.title;
+          clPayload.published_description = clPayload.description;
+          clPayload.published_message = trimmedCl;
+          clPayload.published_at = nowIso;
+        }
+
+        if (clId) {
+          await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .update(clPayload)
+            .eq("id", clId);
+        } else {
+          if (!publishLive) {
+            clPayload.published_title = clPayload.title;
+            clPayload.published_description = clPayload.description;
+            clPayload.published_message = isDev
+              ? publishedDevChangelog
+              : publishedStableChangelog;
+            clPayload.published_at = nowIso;
+          }
+          const { data } = await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .insert(clPayload)
+            .select("id");
+          if (data?.[0]?.id) clId = data[0].id;
+        }
+
+        if (isDev) {
+          setWorkingDevChangelog(trimmedCl);
+          setDevChangelogRowId(clId);
+          if (publishLive) setPublishedDevChangelog(trimmedCl);
+        } else {
+          setWorkingStableChangelog(trimmedCl);
+          setStableChangelogRowId(clId);
+          if (publishLive) setPublishedStableChangelog(trimmedCl);
+        }
+
+        if (publishLive) {
+          await handlePublishChannel(editorChannel);
+        } else {
+          persistReleaseStateCache({
+            workingPublicPost,
+            publishedPublicPost,
+            workingDevPost,
+            publishedDevPost,
+            workingStableChangelog: isDev ? workingStableChangelog : trimmedCl,
+            publishedStableChangelog,
+            workingDevChangelog: isDev ? trimmedCl : workingDevChangelog,
+            publishedDevChangelog,
+          });
+          window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "dir_sync_toast_synced",
+                "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
+              ),
+              "success"
+            );
+        }
+        setIsEditorOpen(false);
+        return;
+      }
+
+      // Post mode: Save & Sync (.md + DB) and optionally Publish
       const targetCategory = isDev ? "ReleasePost_Dev" : "ReleasePost_Public";
-      const existingId = isDev ? devPost.id : publicPost.id;
+      const existingId = isDev ? workingDevPost.id : workingPublicPost.id;
       const sanitizedPoll =
         draftPollData &&
         draftPollData.question.trim() &&
@@ -1880,30 +2684,49 @@ export function ReleaseNotesShowcase({
             }
           : null;
 
-      const serializedMessage = serializeReleasePostMessage({
+      const nextRecord: KeepersReleasePostRecord = {
+        id: existingId || null,
+        title: draftTitle.trim(),
         summary: draftSummary.trim(),
         version: draftVersion.trim().replace(/^v/i, ""),
         releaseDate: draftReleaseDate.trim(),
         platform:
           draftPlatform.trim() ||
-          t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
+          t("release_notes_meta_platform_default", "Windows & macOS"),
         imageUrl: draftImageUrl.trim(),
         codeSnippet: draftCodeSnippet.trim(),
         pollData: sanitizedPoll,
         body: finalBody.trim(),
-      });
+      };
 
+      const serializedMessage = serializeReleasePostMessage(nextRecord);
+
+      // 1. Write to local .md file
+      await writeLocalDirectiveFile(
+        isDev ? "release_notes_dev" : "release_notes_public",
+        formatReleasePostToMarkdownFile(nextRecord)
+      );
+
+      // 2. Write to Hub DB (working columns + optional published columns)
       const payload: any = {
-        title: draftTitle.trim(),
-        description: draftSummary.trim() || null,
+        title: nextRecord.title,
+        description: nextRecord.summary || null,
         category: targetCategory,
         target_audience: isDev ? "Dev" : "Public",
         message: serializedMessage,
-        code_snippet: draftCodeSnippet.trim() || null,
+        code_snippet: nextRecord.codeSnippet || null,
         poll_data: sanitizedPoll,
+        updated_at: nowIso,
         is_active: false,
         is_pinned: "false",
       };
+
+      if (publishLive) {
+        payload.published_title = nextRecord.title;
+        payload.published_description = nextRecord.summary || null;
+        payload.published_message = serializedMessage;
+        payload.published_at = nowIso;
+      }
 
       let savedId = existingId;
       let saveError: any = null;
@@ -1926,6 +2749,13 @@ export function ReleaseNotesShowcase({
           .eq("id", savedId);
         saveError = error;
       } else {
+        if (!publishLive) {
+          const prevPub = isDev ? publishedDevPost : publishedPublicPost;
+          payload.published_title = prevPub.title;
+          payload.published_description = prevPub.summary || null;
+          payload.published_message = serializeReleasePostMessage(prevPub);
+          payload.published_at = nowIso;
+        }
         const { data, error } = await supabaseAuth
           .from("keeper_system_broadcasts")
           .insert(payload)
@@ -1943,48 +2773,85 @@ export function ReleaseNotesShowcase({
         return;
       }
 
-      const nextRecord: KeepersReleasePostRecord = {
-        id: savedId || null,
-        title: draftTitle.trim(),
-        summary: draftSummary.trim(),
-        version: draftVersion.trim().replace(/^v/i, ""),
-        releaseDate: draftReleaseDate.trim(),
-        platform:
-          draftPlatform.trim() ||
-          t("release_notes_meta_platform_default", "Windows / Mac (Planned)"),
-        imageUrl: draftImageUrl.trim(),
-        codeSnippet: draftCodeSnippet.trim(),
-        pollData: sanitizedPoll,
-        body: finalBody.trim(),
-      };
+      nextRecord.id = savedId || null;
 
-      const nextPublic = isDev ? publicPost : nextRecord;
-      const nextDev = isDev ? nextRecord : devPost;
+      const nextWorkingPublic = isDev ? workingPublicPost : nextRecord;
+      const nextWorkingDev = isDev ? nextRecord : workingDevPost;
+      const nextPublishedPublic =
+        !isDev && publishLive ? nextRecord : publishedPublicPost;
+      const nextPublishedDev =
+        isDev && publishLive ? nextRecord : publishedDevPost;
 
       if (isDev) {
-        setDevPost(nextRecord);
+        setWorkingDevPost(nextRecord);
+        if (publishLive) setPublishedDevPost(nextRecord);
       } else {
-        setPublicPost(nextRecord);
+        setWorkingPublicPost(nextRecord);
+        if (publishLive) setPublishedPublicPost(nextRecord);
       }
 
-      try {
-        localStorage.setItem(
-          "sanctuary_keepers_release_posts_v4",
-          JSON.stringify({
-            publicPost: nextPublic,
-            devPost: nextDev,
-          })
-        );
-      } catch {
-        // ignore storage errors
+      if (publishLive) {
+        // Also publish the channel's changelog if it has staged changes
+        const clCat = isDev
+          ? DEV_CHANGELOG_BROADCAST_CATEGORY
+          : PUBLIC_CHANGELOG_BROADCAST_CATEGORY;
+        const targetCl = isDev ? workingDevChangelog : workingStableChangelog;
+        let clId = isDev ? devChangelogRowId : stableChangelogRowId;
+        if (clId) {
+          await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .update({
+              message: targetCl,
+              published_message: targetCl,
+              published_at: nowIso,
+              updated_at: nowIso,
+            })
+            .eq("id", clId);
+        } else {
+          await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .update({
+              message: targetCl,
+              published_message: targetCl,
+              published_at: nowIso,
+              updated_at: nowIso,
+            })
+            .eq("category", clCat);
+        }
+        if (isDev) {
+          setPublishedDevChangelog(targetCl);
+        } else {
+          setPublishedStableChangelog(targetCl);
+        }
       }
+
+      persistReleaseStateCache({
+        workingPublicPost: nextWorkingPublic,
+        publishedPublicPost: nextPublishedPublic,
+        workingDevPost: nextWorkingDev,
+        publishedDevPost: nextPublishedDev,
+        workingStableChangelog,
+        publishedStableChangelog:
+          !isDev && publishLive ? workingStableChangelog : publishedStableChangelog,
+        workingDevChangelog,
+        publishedDevChangelog:
+          isDev && publishLive ? workingDevChangelog : publishedDevChangelog,
+      });
 
       window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
       setIsEditorOpen(false);
       useStore
         .getState()
         .pushStatus(
-          t("release_notes_saved_toast", "Published updated Release Notes Blog!"),
+          publishLive
+            ? t(
+                "dir_toast_published_live",
+                "Published live to {Citizens} and synced with local .md file!"
+              )
+            : t(
+                "dir_sync_toast_synced",
+                "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
+              ),
           "success"
         );
     } finally {
@@ -2031,47 +2898,14 @@ export function ReleaseNotesShowcase({
     devPost.platform || t("release_notes_meta_platform_default", "Windows & macOS");
 
   // Full Change Logs:
-  // - Stable Build -> changelog (running).md (all dev builds since last stable build)
-  // - Dev Build -> changelog.md (current dev build changes)
-  const isDetailedChangelog = (raw?: string | null): boolean => {
-    const trimmed = String(raw || "").trim();
-    if (!trimmed) return false;
-    const placeholderStr = "See the assets to download this version and install.";
-    const defaultDevNote =
-      "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).";
-    if (trimmed === placeholderStr || trimmed === defaultDevNote) {
-      return false;
-    }
-    return (
-      trimmed.length > 140 &&
-      (trimmed.includes("\n") || trimmed.includes("- ") || trimmed.includes("#"))
-    );
-  };
-
-  const stableGitHubChangelog = useMemo(() => {
-    if (
-      isDetailedChangelog(pipelineConfig.stable_release_notes) &&
-      isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
-    ) {
-      return pipelineConfig.stable_release_notes!.trim();
-    }
-    return bundledRunningChangelog || bundledNerdChangelog;
-  }, [pipelineConfig.stable_release_notes, pipelineConfig.stable_version, defaultStableVersion]);
-
-  const devGitHubChangelog = useMemo(() => {
-    if (
-      isDetailedChangelog(pipelineConfig.dev_build_notes) &&
-      isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
-    ) {
-      return pipelineConfig.dev_build_notes!.trim();
-    }
-    return bundledNerdChangelog || seedChangelog.markdown;
-  }, [
-    pipelineConfig.dev_build_notes,
-    pipelineConfig.dev_build_version,
-    defaultDevVersion,
-    seedChangelog.markdown,
-  ]);
+  // - Keepers view (isKeepers=true) displays working (synced .md + DB) changelog
+  // - User view (isKeepers=false) displays published changelog ONLY
+  const stableGitHubChangelog = isKeepers
+    ? workingStableChangelog
+    : publishedStableChangelog;
+  const devGitHubChangelog = isKeepers
+    ? workingDevChangelog
+    : publishedDevChangelog;
 
   const openReleasePanel = (channel: "stable" | "dev") => {
     setActiveChannel(channel);
@@ -2100,6 +2934,7 @@ export function ReleaseNotesShowcase({
 
   const isDevActive = activeChannel === "dev";
   const activePostRecord = isDevActive ? devPost : publicPost;
+  const activeChannelHasUnpublished = isDevActive ? hasUnpublishedDev : hasUnpublishedPublic;
   const activeVersion = isDevActive ? devVersion : stableVersion;
   const activeDateStr = isDevActive ? devDateDisplay : stableDateDisplay;
   const activePlatformStr = isDevActive ? devPlatformDisplay : stablePlatformDisplay;
@@ -2202,18 +3037,30 @@ export function ReleaseNotesShowcase({
             className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group"
           >
             <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] group-hover:scale-110 transition-transform duration-300">
                     {t("icon_verified", "verified")}
                   </span>
                 </div>
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t("icon_verified", "verified")}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {hasUnpublishedPublic && (
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                        {t("icon_pending_actions", "pending_actions")}
+                      </span>
+                      <span>
+                        {t("dir_status_staged_sync", "Synced • Unpushed")}
+                      </span>
+                    </span>
+                  )}
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_verified", "verified")}
+                    </span>
+                    {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
                   </span>
-                  {t("release_notes_meta_channel_public", "Public")} &bull; v{stableVersion}
-                </span>
+                </div>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]">
@@ -2234,12 +3081,27 @@ export function ReleaseNotesShowcase({
                 </span>
                 {stableDateDisplay}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                {t("release_notes_read_notes_cta", "Read Release Notes")}
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_arrow_forward", "arrow_forward")}
+              <div className="flex items-center gap-2 shrink-0">
+                {hasUnpublishedPublic && (
+                  <button
+                    type="button"
+                    onClick={(e) => handlePublishChannel("stable", e)}
+                    disabled={isPublishing || isSaving || isSyncing}
+                    className="px-2.5 py-1 rounded-lg glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_publish", "publish")}
+                    </span>
+                    <span>{t("btn_publish", "Publish")}</span>
+                  </button>
+                )}
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                  {t("release_notes_read_notes_cta", "Read Release Notes")}
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_arrow_forward", "arrow_forward")}
+                  </span>
                 </span>
-              </span>
+              </div>
             </div>
           </div>
 
@@ -2249,18 +3111,30 @@ export function ReleaseNotesShowcase({
             className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-3 group"
           >
             <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[18px] text-[var(--success)] group-hover:scale-110 transition-transform duration-300">
                     {t("icon_bolt", "bolt")}
                   </span>
                 </div>
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                    {t("icon_bolt", "bolt")}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {hasUnpublishedDev && (
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                        {t("icon_pending_actions", "pending_actions")}
+                      </span>
+                      <span>
+                        {t("dir_status_staged_sync", "Synced • Unpushed")}
+                      </span>
+                    </span>
+                  )}
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                      {t("icon_bolt", "bolt")}
+                    </span>
+                    {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
                   </span>
-                  {t("release_notes_meta_channel_dev", "Dev")} &bull; v{devVersion}
-                </span>
+                </div>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] font-black uppercase tracking-widest text-[var(--success)]">
@@ -2281,12 +3155,27 @@ export function ReleaseNotesShowcase({
                 </span>
                 {devDateDisplay}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
-                {t("release_notes_read_dev_cta", "Read Dev Build Notes")}
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_arrow_forward", "arrow_forward")}
+              <div className="flex items-center gap-2 shrink-0">
+                {hasUnpublishedDev && (
+                  <button
+                    type="button"
+                    onClick={(e) => handlePublishChannel("dev", e)}
+                    disabled={isPublishing || isSaving || isSyncing}
+                    className="px-2.5 py-1 rounded-lg glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_publish", "publish")}
+                    </span>
+                    <span>{t("btn_publish", "Publish")}</span>
+                  </button>
+                )}
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] opacity-80 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                  {t("release_notes_read_dev_cta", "Read Dev Build Notes")}
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_arrow_forward", "arrow_forward")}
+                  </span>
                 </span>
-              </span>
+              </div>
             </div>
           </div>
         </div>
@@ -2405,16 +3294,28 @@ export function ReleaseNotesShowcase({
           isKeepers ? (
             <PanelHeaderGroup>
               <PanelHeaderButton
-                onClick={() => openKeepersEditor(isDevActive ? "dev" : "stable")}
+                onClick={() => handlePublishChannel(isDevActive ? "dev" : "stable")}
+                disabled={isPublishing || isSaving || isSyncing}
+                tooltip={t("dir_btn_publish_live", "Update / Publish to {Citizens}")}
+                icon={isPublishing ? t("icon_sync", "sync") : t("icon_publish", "publish")}
+                variant={activeChannelHasUnpublished ? "accent" : undefined}
+              />
+              <PanelHeaderButton
+                onClick={() =>
+                  openKeepersEditor(
+                    isDevActive ? "dev" : "stable",
+                    activeView === "changelog" ? "changelog" : "post"
+                  )
+                }
                 tooltip={t("release_notes_edit_post_btn", "Edit Release Post")}
-                icon="edit"
+                icon={t("icon_edit", "edit")}
                 variant="accent"
               />
               <PanelHeaderButton
                 onClick={handleRefreshGitHubChangelog}
                 disabled={isSyncing}
                 tooltip={t("release_notes_sync_github_btn", "Sync from Repo / GitHub")}
-                icon="sync"
+                icon={t("icon_sync", "sync")}
               />
             </PanelHeaderGroup>
           ) : undefined
@@ -2462,6 +3363,16 @@ export function ReleaseNotesShowcase({
             icon={isDevActive ? t("icon_bolt", "bolt") : t("icon_forum", "forum")}
             variant="accent"
             badges={[
+              ...(isKeepers && activeChannelHasUnpublished
+                ? [
+                    {
+                      icon: t("icon_pending_actions", "pending_actions"),
+                      label: t("dir_status_staged_sync", "Synced • Unpushed"),
+                      colorClass:
+                        "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
+                    },
+                  ]
+                : []),
               {
                 icon: t("icon_verified", "verified"),
                 label: t("author_sanctuary_team", "Sanctuary Foundry"),
@@ -2522,33 +3433,59 @@ export function ReleaseNotesShowcase({
         </div>
       </SidePanel>
 
-      {/* SidePanel: Reuse the Dispatch / Comm-Link Post Editor for Public & Dev Release Posts */}
+      {/* SidePanel: Reuse the Dispatch / Comm-Link Post Editor for Public & Dev Release Posts & Changelogs */}
       {isKeepers && (
         <>
           <SidePanel
             isOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
-            icon="cell_tower"
+            icon={t("icon_cell_tower", "cell_tower")}
             widthClass="w-[800px]"
             backdropZ="z-[60000]"
             panelZ="z-[60001]"
             title={t("update_transmission", "Update {Dispatch}")}
             subtitle={
               editorChannel === "dev"
-                ? t("release_notes_dev_post_label", "Dev Channel Post")
-                : t("release_notes_public_post_label", "Public Channel Post")
+                ? `${t("release_notes_dev_post_label", "Dev Channel Post")} • ${
+                    editorDocType === "changelog"
+                      ? t("release_notes_tile_changelog", "Changelog")
+                      : t("btn_post", "Post")
+                  }`
+                : `${t("release_notes_public_post_label", "Public Channel Post")} • ${
+                    editorDocType === "changelog"
+                      ? t("release_notes_tile_changelog", "Changelog")
+                      : t("btn_post", "Post")
+                  }`
             }
             headerActions={
               <PanelHeaderGroup>
                 <PanelHeaderButton
-                  onClick={handleSaveKeepersPost}
-                  disabled={isSaving || !draftTitle.trim() || !draftBody.trim()}
+                  onClick={() => handleSaveKeepersPost(false)}
+                  disabled={
+                    isSaving ||
+                    !draftBody.trim() ||
+                    (editorDocType === "post" && !draftTitle.trim())
+                  }
                   tooltip={
                     isSaving
                       ? t("btn_saving", "Saving...")
-                      : t("update_transmission", "Update {Dispatch}")
+                      : t("dir_btn_save_sync_staged", "Save & Sync (.md + DB)")
                   }
-                  icon={isSaving ? "sync" : "send"}
+                  icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+                />
+                <PanelHeaderButton
+                  onClick={() => handleSaveKeepersPost(true)}
+                  disabled={
+                    isSaving ||
+                    !draftBody.trim() ||
+                    (editorDocType === "post" && !draftTitle.trim())
+                  }
+                  tooltip={
+                    isSaving
+                      ? t("btn_saving", "Saving...")
+                      : t("dir_btn_publish_live", "Update / Publish to {Citizens}")
+                  }
+                  icon={isSaving ? t("icon_sync", "sync") : t("icon_publish", "publish")}
                   variant="accent"
                   className={isSaving ? "animate-pulse" : ""}
                 />
@@ -2556,8 +3493,8 @@ export function ReleaseNotesShowcase({
             }
           >
             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {/* Switch between Public and Dev Release Post */}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+              {/* Switch between Public and Dev Release Channel + Post vs Changelog */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
                 <DashboardStatTile
                   variant="filter"
                   className="!w-full"
@@ -2567,9 +3504,22 @@ export function ReleaseNotesShowcase({
                     </span>
                   }
                   label={t("release_notes_meta_channel_public", "Public")}
-                  number={t("release_notes_public_post_label", "Public Channel Post")}
-                  isActive={editorChannel === "stable"}
-                  onClick={() => populateDraftForChannel("stable")}
+                  number={t("btn_post", "Post")}
+                  isActive={editorChannel === "stable" && editorDocType === "post"}
+                  onClick={() => populateDraftForChannel("stable", "post")}
+                />
+                <DashboardStatTile
+                  variant="filter"
+                  className="!w-full"
+                  icon={
+                    <span className="material-symbols-outlined">
+                      {t("icon_terminal", "terminal")}
+                    </span>
+                  }
+                  label={t("release_notes_meta_channel_public", "Public")}
+                  number={t("release_notes_tile_changelog", "Changelog")}
+                  isActive={editorChannel === "stable" && editorDocType === "changelog"}
+                  onClick={() => populateDraftForChannel("stable", "changelog")}
                 />
                 <DashboardStatTile
                   variant="filter"
@@ -2578,92 +3528,106 @@ export function ReleaseNotesShowcase({
                     <span className="material-symbols-outlined">{t("icon_bolt", "bolt")}</span>
                   }
                   label={t("release_notes_meta_channel_dev", "Dev")}
-                  number={t("release_notes_dev_post_label", "Dev Channel Post")}
-                  isActive={editorChannel === "dev"}
-                  onClick={() => populateDraftForChannel("dev")}
+                  number={t("btn_post", "Post")}
+                  isActive={editorChannel === "dev" && editorDocType === "post"}
+                  onClick={() => populateDraftForChannel("dev", "post")}
+                />
+                <DashboardStatTile
+                  variant="filter"
+                  className="!w-full"
+                  icon={
+                    <span className="material-symbols-outlined">
+                      {t("icon_terminal", "terminal")}
+                    </span>
+                  }
+                  label={t("release_notes_meta_channel_dev", "Dev")}
+                  number={t("release_notes_tile_changelog", "Changelog")}
+                  isActive={editorChannel === "dev" && editorDocType === "changelog"}
+                  onClick={() => populateDraftForChannel("dev", "changelog")}
                 />
               </div>
 
-              {/* Single Compact Metadata Card */}
-              <UniversalGroup
-                title={t("metadata", "Metadata")}
-                icon={t("icon_tune", "tune")}
-              >
-                <div className="flex flex-col gap-4 w-full">
-                  <div className="flex flex-col gap-1.5 w-full">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                      {t("post_title", "Post Title")}
-                    </label>
-                    <input
-                      value={draftTitle}
-                      onChange={(e) => setDraftTitle(e.target.value)}
-                      placeholder={t("post_title", "Title")}
-                      className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                    />
-                  </div>
+              {editorDocType === "post" && (
+                <UniversalGroup
+                  title={t("metadata", "Metadata")}
+                  icon={t("icon_tune", "tune")}
+                >
+                  <div className="flex flex-col gap-4 w-full">
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                        {t("post_title", "Post Title")}
+                      </label>
+                      <input
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        placeholder={t("post_title", "Title")}
+                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
+                      />
+                    </div>
 
-                  <div className="flex flex-col gap-1.5 w-full">
-                    <div className="flex justify-between items-center ml-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest">
-                        {t("post_description", "Description")}
-                      </label>
-                      <span
-                        className={`text-[9px] font-black ${
-                          draftSummary.length >= 250
-                            ? "text-[var(--warning)]"
-                            : "text-[var(--subtext)] opacity-60"
-                        }`}
-                      >
-                        {draftSummary.length} / 250
-                      </span>
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <div className="flex justify-between items-center ml-1">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest">
+                          {t("post_description", "Description")}
+                        </label>
+                        <span
+                          className={`text-[9px] font-black ${
+                            draftSummary.length >= 250
+                              ? "text-[var(--warning)]"
+                              : "text-[var(--subtext)] opacity-60"
+                          }`}
+                        >
+                          {draftSummary.length} / 250
+                        </span>
+                      </div>
+                      <input
+                        maxLength={250}
+                        value={draftSummary}
+                        onChange={(e) => setDraftSummary(e.target.value)}
+                        placeholder={t(
+                          "post_description_ph",
+                          "Short summary shown on the Release Card..."
+                        )}
+                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-medium focus:outline-none focus:theme-border-accent transition-all"
+                      />
                     </div>
-                    <input
-                      maxLength={250}
-                      value={draftSummary}
-                      onChange={(e) => setDraftSummary(e.target.value)}
-                      placeholder={t(
-                        "post_description_ph",
-                        "Short summary shown on the Release Card..."
-                      )}
-                      className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-medium focus:outline-none focus:theme-border-accent transition-all"
-                    />
-                  </div>
 
-                  {/* Release Info Fields (Release Date / Version Number / Platform) */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                        {t("release_notes_meta_release_date", "Release Date")}
-                      </label>
-                      <input
-                        value={draftReleaseDate}
-                        onChange={(e) => setDraftReleaseDate(e.target.value)}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                        {t("release_notes_meta_version", "Version Number")}
-                      </label>
-                      <input
-                        value={draftVersion}
-                        onChange={(e) => setDraftVersion(e.target.value)}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--accent)] font-mono text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                        {t("release_notes_meta_platform", "Platform")}
-                      </label>
-                      <input
-                        value={draftPlatform}
-                        onChange={(e) => setDraftPlatform(e.target.value)}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                      />
+                    {/* Release Info Fields (Release Date / Version Number / Platform) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                          {t("release_notes_meta_release_date", "Release Date")}
+                        </label>
+                        <input
+                          value={draftReleaseDate}
+                          onChange={(e) => setDraftReleaseDate(e.target.value)}
+                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                          {t("release_notes_meta_version", "Version Number")}
+                        </label>
+                        <input
+                          value={draftVersion}
+                          onChange={(e) => setDraftVersion(e.target.value)}
+                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--accent)] font-mono text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
+                          {t("release_notes_meta_platform", "Platform")}
+                        </label>
+                        <input
+                          value={draftPlatform}
+                          onChange={(e) => setDraftPlatform(e.target.value)}
+                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </UniversalGroup>
+                </UniversalGroup>
+              )}
 
               {/* Unified 3-Mode Post Editor (Visual UI / Rich Text / Markdown) */}
               <UnifiedPostBodyEditor
@@ -2675,21 +3639,22 @@ export function ReleaseNotesShowcase({
                 placeholder={t("post_content", "{Dispatch} Body...")}
               />
 
-              {/* Revamped Attachments & Media */}
-              <PostAttachmentsManager
-                content={draftBody}
-                onContentChange={setDraftBody}
-                editor={editor}
-                onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
-                imageUrl={draftImageUrl}
-                onImageUrlChange={setDraftImageUrl}
-                showCodeInput={showCodeInput}
-                onToggleCodeInput={setShowCodeInput}
-                codeSnippet={draftCodeSnippet}
-                onCodeSnippetChange={setDraftCodeSnippet}
-                pollData={draftPollData}
-                onPollDataChange={setDraftPollData}
-              />
+              {editorDocType === "post" && (
+                <PostAttachmentsManager
+                  content={draftBody}
+                  onContentChange={setDraftBody}
+                  editor={editor}
+                  onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
+                  imageUrl={draftImageUrl}
+                  onImageUrlChange={setDraftImageUrl}
+                  showCodeInput={showCodeInput}
+                  onToggleCodeInput={setShowCodeInput}
+                  codeSnippet={draftCodeSnippet}
+                  onCodeSnippetChange={setDraftCodeSnippet}
+                  pollData={draftPollData}
+                  onPollDataChange={setDraftPollData}
+                />
+              )}
             </div>
           </SidePanel>
 

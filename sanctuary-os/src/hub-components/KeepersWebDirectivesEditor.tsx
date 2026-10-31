@@ -575,6 +575,11 @@ export default function KeepersWebDirectivesEditor({
       clearCanonicalDirectiveDrafts();
       await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      window.dispatchEvent(
+        new CustomEvent("keepers_release_posts_updated", {
+          detail: { syncDirection: "auto" },
+        })
+      );
       useStore
         .getState()
         .pushStatus(
@@ -598,6 +603,11 @@ export default function KeepersWebDirectivesEditor({
       );
       await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      window.dispatchEvent(
+        new CustomEvent("keepers_release_posts_updated", {
+          detail: { syncDirection: "local_to_hub" },
+        })
+      );
       useStore
         .getState()
         .pushStatus(
@@ -619,6 +629,11 @@ export default function KeepersWebDirectivesEditor({
       await pullKeepersCoreDirectivesToCodebase();
       await fetchPostsAndAssets(true);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+      window.dispatchEvent(
+        new CustomEvent("keepers_release_posts_updated", {
+          detail: { syncDirection: "hub_to_local" },
+        })
+      );
       useStore
         .getState()
         .pushStatus(

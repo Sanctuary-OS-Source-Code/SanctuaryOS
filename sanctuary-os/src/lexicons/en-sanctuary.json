@@ -2648,5 +2648,9 @@
   "cw_settings_count_suffix": "Parameters",
   "cw_group_section_badge": "Cluster",
   "cw_wrap_lines": "Wrap Lines",
-  "cw_click_card_diff_hint": "Click any snapshot card to launch the Diff Inspector"
+  "cw_click_card_diff_hint": "Click any snapshot card to launch the Diff Inspector",
+  "screenshot_tour_hub_subsections": "Elevated Hub Sectors",
+  "screenshot_tour_panels": "Side Panels & Drawers",
+  "screenshot_tour_delayed_snap": "Delayed Optical Snap (3s)",
+  "screenshot_tour_delayed_snap_toast": "Optical capture in 3 seconds — open any panel or drawer now..."
 }

@@ -29,11 +29,14 @@ import { formatSanctuaryDate } from "../utils/dateUtils";
 import {
   KeepersReleasePostRecord,
   LEGACY_BLOG_BROADCAST_TITLE,
+  PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
+  DEV_CHANGELOG_BROADCAST_CATEGORY,
   StructuredReleaseNotesView,
   cleanPostBodyForViewer,
   parseSeedCommunityBlog,
   parseLatestChangelogBlock,
   deserializeReleasePostRow,
+  deserializeChangelogRow,
   isBundledVersionNewer,
 } from "../components/ReleaseNotesShowcase";
 import packageJson from "../../package.json";
@@ -166,15 +169,31 @@ export function UpdateSidePanel() {
     id: null,
     ...defaultDevPost,
   });
+  const [stableChangelog, setStableChangelog] = useState<string>(
+    bundledRunningChangelog || bundledNerdChangelog
+  );
+  const [devChangelog, setDevChangelog] = useState<string>(
+    bundledNerdChangelog || seedChangelog.markdown
+  );
 
   const loadPostsAndReleases = useCallback(
     async (forceRefreshGitHub = false) => {
       try {
-        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v4");
+        const cachedRaw = localStorage.getItem("sanctuary_keepers_release_posts_v5");
         if (cachedRaw) {
           const parsedCache = JSON.parse(cachedRaw);
-          if (parsedCache?.publicPost) setPublicPost(parsedCache.publicPost);
-          if (parsedCache?.devPost) setDevPost(parsedCache.devPost);
+          if (parsedCache?.publishedPublicPost || parsedCache?.publicPost) {
+            setPublicPost(parsedCache.publishedPublicPost || parsedCache.publicPost);
+          }
+          if (parsedCache?.publishedDevPost || parsedCache?.devPost) {
+            setDevPost(parsedCache.publishedDevPost || parsedCache.devPost);
+          }
+          if (typeof parsedCache?.publishedStableChangelog === "string") {
+            setStableChangelog(parsedCache.publishedStableChangelog);
+          }
+          if (typeof parsedCache?.publishedDevChangelog === "string") {
+            setDevChangelog(parsedCache.publishedDevChangelog);
+          }
         }
       } catch {
         // ignore cache parse errors
@@ -185,9 +204,15 @@ export function UpdateSidePanel() {
           supabaseAuth
             .from("keeper_system_broadcasts")
             .select(
-              "id, title, description, message, category, target_audience, code_snippet, poll_data, created_at"
+              "id, title, description, message, published_title, published_description, published_message, published_at, updated_at, category, target_audience, code_snippet, poll_data, created_at"
             )
-            .in("category", ["ReleasePost_Public", "ReleasePost_Dev", "ReleaseNotesBlog"])
+            .in("category", [
+              "ReleasePost_Public",
+              "ReleasePost_Dev",
+              "ReleaseNotesBlog",
+              PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
+              DEV_CHANGELOG_BROADCAST_CATEGORY,
+            ])
             .order("created_at", { ascending: false }),
           getKeepersPipelineConfig(forceRefreshGitHub),
         ]);
@@ -206,30 +231,44 @@ export function UpdateSidePanel() {
             );
 
           const devRow = rows.find((r: any) => r.category === "ReleasePost_Dev");
+          const publicChangelogRow = rows.find(
+            (r: any) => r.category === PUBLIC_CHANGELOG_BROADCAST_CATEGORY
+          );
+          const devChangelogRow = rows.find(
+            (r: any) => r.category === DEV_CHANGELOG_BROADCAST_CATEGORY
+          );
 
-          const resolvedPublic = deserializeReleasePostRow(publicRow, defaultPublicPost);
-          const resolvedDev = deserializeReleasePostRow(devRow, defaultDevPost);
+          const resolvedPublic = deserializeReleasePostRow(
+            publicRow,
+            defaultPublicPost,
+            true
+          );
+          const resolvedDev = deserializeReleasePostRow(
+            devRow,
+            defaultDevPost,
+            true
+          );
+          const resolvedStableChangelog = deserializeChangelogRow(
+            publicChangelogRow,
+            bundledRunningChangelog || bundledNerdChangelog,
+            true
+          );
+          const resolvedDevChangelog = deserializeChangelogRow(
+            devChangelogRow,
+            bundledNerdChangelog || seedChangelog.markdown,
+            true
+          );
 
           setPublicPost(resolvedPublic);
           setDevPost(resolvedDev);
-
-          try {
-            localStorage.setItem(
-              "sanctuary_keepers_release_posts_v4",
-              JSON.stringify({
-                publicPost: resolvedPublic,
-                devPost: resolvedDev,
-              })
-            );
-          } catch {
-            // ignore storage errors
-          }
+          setStableChangelog(resolvedStableChangelog);
+          setDevChangelog(resolvedDevChangelog);
         }
       } catch {
         // Keep cached / fallback post data when offline
       }
     },
-    [defaultPublicPost, defaultDevPost]
+    [defaultPublicPost, defaultDevPost, seedChangelog.markdown]
   );
 
   useEffect(() => {
@@ -237,6 +276,15 @@ export function UpdateSidePanel() {
       setActiveView("post");
       loadPostsAndReleases(false);
     }
+    const onPostsUpdated = () => {
+      if (isUpdatePanelOpen) {
+        loadPostsAndReleases(false);
+      }
+    };
+    window.addEventListener("keepers_release_posts_updated", onPostsUpdated);
+    return () => {
+      window.removeEventListener("keepers_release_posts_updated", onPostsUpdated);
+    };
   }, [isUpdatePanelOpen, loadPostsAndReleases]);
 
   useEffect(() => {
@@ -416,13 +464,13 @@ export function UpdateSidePanel() {
     isDetailedChangelog(pipelineConfig.stable_release_notes) &&
     isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
       ? pipelineConfig.stable_release_notes!.trim()
-      : bundledRunningChangelog || bundledNerdChangelog;
+      : stableChangelog;
 
   const devGitHubChangelog =
     isDetailedChangelog(pipelineConfig.dev_build_notes) &&
     isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
       ? pipelineConfig.dev_build_notes!.trim()
-      : bundledNerdChangelog || seedChangelog.markdown;
+      : devChangelog;
 
   const resolvedChangelogMarkdown = (() => {
     if (isDetailedChangelog(liveReleaseNotes)) {

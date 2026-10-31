@@ -31,7 +31,7 @@ export default function CodeSnippetSidebar({
   isOpen = true,
   onClose,
   code,
-  widthClass,
+  widthClass = "w-[90vw] md:w-[760px]",
   title,
   backdropZ = "z-[120000]",
   panelZ = "z-[120001]",
@@ -395,10 +395,8 @@ export default function CodeSnippetSidebar({
             ? window.innerWidth
             : 1400
           : effectiveShowReference || (hasVisualStudio && effectiveViewMode === "split")
-            ? 1420
-            : hasVisualStudio
-              ? 1220
-              : 1000
+            ? 1220
+            : 760
       }
       widthClass={isFullscreen ? "!w-full !max-w-[100vw]" : widthClass}
       backdropZ={backdropZ}
