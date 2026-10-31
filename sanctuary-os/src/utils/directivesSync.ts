@@ -260,7 +260,7 @@ export function extractDirectiveMetaFromMarkdown(
   return { title, summary };
 }
 
-async function readAllLocalDocSnapshots(): Promise<
+export async function readAllLocalDocSnapshots(): Promise<
   Record<string, LocalDirectiveSnapshot>
 > {
   const result: Record<string, LocalDirectiveSnapshot> = {};
@@ -284,6 +284,31 @@ async function readAllLocalDocSnapshots(): Promise<
       modified_epoch_ms: 0,
     };
   }
+
+  result.release_notes_public = {
+    slug: "release_notes_public",
+    file_path: "Release Notes (Community Blog).md",
+    content: releaseNotesPublicRaw,
+    modified_epoch_ms: 0,
+  };
+  result.release_notes_dev = {
+    slug: "release_notes_dev",
+    file_path: "Release Notes (Dev).md",
+    content: releaseNotesDevRaw,
+    modified_epoch_ms: 0,
+  };
+  result.changelog_running = {
+    slug: "changelog_running",
+    file_path: "changelog (running).md",
+    content: changelogRunningRaw,
+    modified_epoch_ms: 0,
+  };
+  result.changelog_dev = {
+    slug: "changelog_dev",
+    file_path: "changelog.md",
+    content: changelogDevRaw,
+    modified_epoch_ms: 0,
+  };
 
   if (isDesktop()) {
     try {
