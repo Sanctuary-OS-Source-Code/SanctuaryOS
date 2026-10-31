@@ -42,10 +42,16 @@ import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw
 import bundledDevBlog from "../../../Release Notes (Dev).md?raw";
 import bundledNerdChangelog from "../../../changelog.md?raw";
 import bundledRunningChangelog from "../../../changelog (running).md?raw";
+import {
+  readAllLocalDocSnapshots,
+  writeLocalDirectiveFile,
+} from "../utils/directivesSync";
 
 export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
 const DEV_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_DEV]";
+export const PUBLIC_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Public";
+export const DEV_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Dev";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -83,9 +89,7 @@ export function cleanPostBodyForViewer(markdown: string): string {
     if (
       !skippedTopHeading &&
       i < 6 &&
-      (/^\\?#\s+(?:sanctuary\s+os|state\s+of\s+the\s+sanctuary)\b/i.test(
-        stripEmojiPrefix(trimmed.replace(/^\\?#\s+/, "# "))
-      ) ||
+      ((/^\\?#\s+[^#]/.test(trimmed) && trimmed.length <= 110) ||
         /^\\?##\s+\*".*"\*\s*$/.test(trimmed))
     ) {
       skippedTopHeading = true;
