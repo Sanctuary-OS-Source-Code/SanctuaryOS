@@ -307,6 +307,8 @@ pub struct ModVersionPoolItem {
     pub recorded_at: u64,
     pub size_bytes: u64,
     pub is_active: bool,
+    #[serde(default)]
+    pub is_pinned: bool,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -342,6 +344,7 @@ pub async fn get_mod_version_pool_status(
         let backups_mods = crate::utils::get_vault_backups_mods_dir(&vault_path);
         let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
         let cache = load_cache(&vault_path);
+        let pinned_map = crate::utils::load_pinned_mod_versions(&vault_path);
 
         let mut total_bytes: u64 = 0;
         let mut reclaimable_bytes: u64 = 0;
@@ -382,6 +385,12 @@ pub async fn get_mod_version_pool_status(
                 let size_bytes = std::fs::metadata(&full).map(|m| m.len()).unwrap_or(0);
                 let is_active =
                     !active_hash.is_empty() && entry.dna_hash.eq_ignore_ascii_case(&active_hash);
+                let f_name_lower = Path::new(&entry.rel_path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
+                let is_pinned = !f_name_lower.is_empty() && pinned_map.contains_key(&f_name_lower);
                 raw_items.push(ModVersionPoolItem {
                     rel_path: entry.rel_path,
                     dna_hash: entry.dna_hash,
@@ -391,6 +400,7 @@ pub async fn get_mod_version_pool_status(
                     recorded_at: entry.recorded_at,
                     size_bytes,
                     is_active,
+                    is_pinned,
                 });
             }
         }
@@ -737,8 +747,391 @@ pub async fn activate_archived_mod_version(
             }
         }
         save_cache(&vault_path, &cache);
+        if !target_file_name.is_empty() {
+            let mut pinned_map = crate::utils::load_pinned_mod_versions(&vault_path);
+            pinned_map.insert(target_file_name, target_entry.dna_hash.to_lowercase());
+            crate::utils::save_pinned_mod_versions(&vault_path, &pinned_map);
+        }
 
         Ok("Activated".into())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ModVersionBatchTarget {
+    pub rel_path: String,
+    pub dna_hash: String,
+}
+
+#[tauri::command]
+pub async fn activate_archived_mod_versions_batch(
+    vault_path: String,
+    targets: Vec<ModVersionBatchTarget>,
+) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = crate::utils::load_mod_versions_index(&vault_path);
+        let backups_mods = crate::utils::get_vault_backups_mods_dir(&vault_path);
+        let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+        let mut cache = load_cache(&vault_path);
+        let mut pinned_map = crate::utils::load_pinned_mod_versions(&vault_path);
+        let mut activated_count = 0usize;
+
+        for target in targets {
+            let key = target.rel_path.replace('\\', "/").to_lowercase();
+            let target_file_name = Path::new(&key)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_lowercase();
+            let Some(target_entry) = index
+                .get(&key)
+                .and_then(|entries| {
+                    entries
+                        .iter()
+                        .find(|e| e.dna_hash.eq_ignore_ascii_case(&target.dna_hash))
+                })
+                .or_else(|| {
+                    index.values().flat_map(|v| v.iter()).find(|e| {
+                        let e_file = Path::new(&e.rel_path)
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_lowercase();
+                        !target_file_name.is_empty()
+                            && e_file == target_file_name
+                            && e.dna_hash.eq_ignore_ascii_case(&target.dna_hash)
+                    })
+                })
+            else {
+                continue;
+            };
+
+            let b_full = backups_mods.join(
+                target_entry
+                    .backup_rel_path
+                    .replace('/', std::path::MAIN_SEPARATOR_STR),
+            );
+            if !b_full.exists() {
+                continue;
+            }
+
+            let mut target_rel_paths: Vec<String> = vec![target.rel_path.replace('\\', "/")];
+            for entries in index.values() {
+                if let Some(first) = entries.first() {
+                    let f_name = Path::new(&first.rel_path)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_lowercase();
+                    if !target_file_name.is_empty() && f_name == target_file_name {
+                        let candidate = first.rel_path.replace('\\', "/");
+                        let candidate_full =
+                            mods_lane.join(candidate.replace('/', std::path::MAIN_SEPARATOR_STR));
+                        if candidate_full.exists()
+                            && !target_rel_paths
+                                .iter()
+                                .any(|p| p.eq_ignore_ascii_case(&candidate))
+                        {
+                            target_rel_paths.push(candidate);
+                        }
+                    }
+                }
+            }
+
+            let mut any_linked = false;
+            for rel_target in target_rel_paths {
+                let active_full =
+                    mods_lane.join(rel_target.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if let Some(ap) = active_full.parent() {
+                    let _ = std::fs::create_dir_all(ap);
+                }
+                if active_full.exists() {
+                    let _ = std::fs::remove_file(&active_full);
+                }
+                if std::fs::hard_link(&b_full, &active_full)
+                    .or_else(|_| crate::utils::create_symlink_file(&b_full, &active_full))
+                    .or_else(|_| std::fs::copy(&b_full, &active_full).map(|_| ()))
+                    .is_ok()
+                {
+                    any_linked = true;
+                    let active_full_str = active_full.to_string_lossy().to_string();
+                    let mtime = std::fs::metadata(&active_full)
+                        .and_then(|m| m.modified())
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    if let Some(c) = cache.get_mut(&active_full_str) {
+                        c.dna_hash = target_entry.dna_hash.clone();
+                        c.mtime = mtime;
+                    } else {
+                        cache.insert(
+                            active_full_str,
+                            crate::state::CacheEntry {
+                                mtime,
+                                dna_hash: target_entry.dna_hash.clone(),
+                                explicitly_local: false,
+                                quarantined: false,
+                                heuristic_malware_sig: None,
+                                heuristic_sigs_mtime: 0,
+                            },
+                        );
+                    }
+                }
+            }
+
+            if any_linked {
+                activated_count += 1;
+                if !target_file_name.is_empty() {
+                    pinned_map.insert(target_file_name, target_entry.dna_hash.to_lowercase());
+                }
+            }
+        }
+
+        save_cache(&vault_path, &cache);
+        crate::utils::save_pinned_mod_versions(&vault_path, &pinned_map);
+
+        Ok(activated_count)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn reset_mod_versions_to_auto(
+    vault_path: String,
+    rel_paths: Option<Vec<String>>,
+    target_game_version: String,
+) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = crate::utils::load_mod_versions_index(&vault_path);
+        let backups_mods = crate::utils::get_vault_backups_mods_dir(&vault_path);
+        let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+        let mut cache = load_cache(&vault_path);
+        let mut pinned_map = crate::utils::load_pinned_mod_versions(&vault_path);
+
+        let target_files: std::collections::HashSet<String> = match rel_paths {
+            Some(paths) if !paths.is_empty() => paths
+                .into_iter()
+                .filter_map(|p| {
+                    let norm = p.replace('\\', "/");
+                    let f = Path::new(&norm)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_lowercase();
+                    if f.is_empty() {
+                        None
+                    } else {
+                        Some(f)
+                    }
+                })
+                .collect(),
+            _ => std::collections::HashSet::new(),
+        };
+
+        if target_files.is_empty() {
+            pinned_map.clear();
+        } else {
+            for f in &target_files {
+                pinned_map.remove(f);
+            }
+        }
+        crate::utils::save_pinned_mod_versions(&vault_path, &pinned_map);
+
+        let clean_target = target_game_version
+            .trim()
+            .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
+            .trim();
+
+        // Consolidate candidates by lowercase filename
+        let mut by_filename: std::collections::HashMap<
+            String,
+            Vec<crate::utils::ArchivedModVersion>,
+        > = std::collections::HashMap::new();
+        let mut rel_paths_by_filename: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+
+        for entries in index.values() {
+            if entries.is_empty() {
+                continue;
+            }
+            let first_rel = entries[0].rel_path.replace('\\', "/");
+            let f_name = Path::new(&first_rel)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_lowercase();
+            if f_name.is_empty() {
+                continue;
+            }
+            if !target_files.is_empty() && !target_files.contains(&f_name) {
+                continue;
+            }
+            let rel_list = rel_paths_by_filename.entry(f_name.clone()).or_default();
+            if !rel_list.iter().any(|p| p.eq_ignore_ascii_case(&first_rel)) {
+                rel_list.push(first_rel);
+            }
+            let group = by_filename.entry(f_name).or_default();
+            for entry in entries.iter().rev() {
+                if entry.backup_rel_path.is_empty() {
+                    continue;
+                }
+                let b_full = backups_mods.join(
+                    entry
+                        .backup_rel_path
+                        .replace('/', std::path::MAIN_SEPARATOR_STR),
+                );
+                if !b_full.exists() {
+                    continue;
+                }
+                if let Some(existing) = group
+                    .iter_mut()
+                    .find(|x| x.dna_hash.eq_ignore_ascii_case(&entry.dna_hash))
+                {
+                    if entry.recorded_at > existing.recorded_at {
+                        existing.recorded_at = entry.recorded_at;
+                    }
+                    for cv in &entry.compatible_versions {
+                        if !existing
+                            .compatible_versions
+                            .iter()
+                            .any(|c| c.eq_ignore_ascii_case(cv))
+                        {
+                            existing.compatible_versions.push(cv.clone());
+                        }
+                    }
+                } else {
+                    group.push(entry.clone());
+                }
+            }
+        }
+
+        let mut synced_count = 0usize;
+        for (f_name, mut group) in by_filename {
+            if group.is_empty() {
+                continue;
+            }
+            // Sort newest first
+            group.sort_by(|a, b| b.recorded_at.cmp(&a.recorded_at));
+
+            // Pick best auto-swap candidate:
+            // 1. Newest with explicit compatible_versions matching clean_target
+            // 2. Newest compatible (including Any/All/untagged)
+            // 3. Newest overall
+            let winner = if !clean_target.is_empty() && !clean_target.eq_ignore_ascii_case("unknown")
+            {
+                group
+                    .iter()
+                    .find(|c| {
+                        !c.compatible_versions.is_empty()
+                            && crate::utils::is_game_version_compatible(
+                                &c.compatible_versions,
+                                clean_target,
+                            )
+                    })
+                    .or_else(|| {
+                        group.iter().find(|c| {
+                            c.compatible_versions.is_empty()
+                                || crate::utils::is_game_version_compatible(
+                                    &c.compatible_versions,
+                                    clean_target,
+                                )
+                        })
+                    })
+                    .or_else(|| group.first())
+            } else {
+                group.first()
+            };
+
+            let Some(winner) = winner else {
+                continue;
+            };
+            let b_full = backups_mods.join(
+                winner
+                    .backup_rel_path
+                    .replace('/', std::path::MAIN_SEPARATOR_STR),
+            );
+            if !b_full.exists() {
+                continue;
+            }
+
+            let target_rels = rel_paths_by_filename
+                .get(&f_name)
+                .cloned()
+                .unwrap_or_else(|| vec![winner.rel_path.replace('\\', "/")]);
+            let mut any_updated = false;
+
+            for rel_target in target_rels {
+                let active_full =
+                    mods_lane.join(rel_target.replace('/', std::path::MAIN_SEPARATOR_STR));
+                let active_full_str = active_full.to_string_lossy().to_string();
+                let current_hash = if let Some(c) = cache.get(&active_full_str) {
+                    if !c.dna_hash.is_empty() && active_full.exists() {
+                        c.dna_hash.to_lowercase()
+                    } else if active_full.exists() {
+                        calculate_hash(&active_full).unwrap_or_default().to_lowercase()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+
+                if !current_hash.is_empty()
+                    && current_hash.eq_ignore_ascii_case(&winner.dna_hash)
+                    && active_full.exists()
+                {
+                    any_updated = true;
+                    continue;
+                }
+
+                if let Some(ap) = active_full.parent() {
+                    let _ = std::fs::create_dir_all(ap);
+                }
+                if active_full.exists() {
+                    let _ = std::fs::remove_file(&active_full);
+                }
+                if std::fs::hard_link(&b_full, &active_full)
+                    .or_else(|_| crate::utils::create_symlink_file(&b_full, &active_full))
+                    .or_else(|_| std::fs::copy(&b_full, &active_full).map(|_| ()))
+                    .is_ok()
+                {
+                    any_updated = true;
+                    let mtime = std::fs::metadata(&active_full)
+                        .and_then(|m| m.modified())
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    if let Some(c) = cache.get_mut(&active_full_str) {
+                        c.dna_hash = winner.dna_hash.clone();
+                        c.mtime = mtime;
+                    } else {
+                        cache.insert(
+                            active_full_str,
+                            crate::state::CacheEntry {
+                                mtime,
+                                dna_hash: winner.dna_hash.clone(),
+                                explicitly_local: false,
+                                quarantined: false,
+                                heuristic_malware_sig: None,
+                                heuristic_sigs_mtime: 0,
+                            },
+                        );
+                    }
+                }
+            }
+
+            if any_updated {
+                synced_count += 1;
+            }
+        }
+
+        save_cache(&vault_path, &cache);
+        Ok(synced_count)
     })
     .await
     .map_err(|e| e.to_string())?

@@ -31,6 +31,9 @@ interface CommunitySupportSidePanelProps {
   initialPartnerId?: string;
   onSuccess?: (newState: LocalSupporterStatePayload) => void;
   onNavigateSettings?: () => void;
+  panelClass?: string;
+  backdropZ?: string;
+  panelZ?: string;
 }
 
 export function CommunitySupportSidePanel({
@@ -39,6 +42,9 @@ export function CommunitySupportSidePanel({
   initialPartnerId,
   onSuccess,
   onNavigateSettings,
+  panelClass,
+  backdropZ,
+  panelZ,
 }: CommunitySupportSidePanelProps) {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
@@ -356,6 +362,9 @@ export function CommunitySupportSidePanel({
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[680px]"
+      panelClass={panelClass}
+      backdropZ={backdropZ}
+      panelZ={panelZ}
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         {/* SELECTED COMMUNITY DONATION HERO CARD */}

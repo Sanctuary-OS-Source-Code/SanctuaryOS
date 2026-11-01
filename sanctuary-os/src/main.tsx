@@ -9,6 +9,14 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isDesktop } from "./utils/envUtils";
 
 if (typeof window !== "undefined") {
+  if (
+    typeof document !== "undefined" &&
+    isDesktop() &&
+    /Linux/i.test(navigator.userAgent || "") &&
+    !/Android/i.test(navigator.userAgent || "")
+  ) {
+    document.documentElement.setAttribute("data-sa-platform", "linux");
+  }
   window.alert = (msg) => useStore.getState().pushStatus(msg, "info");
 
   (window as any).__sanctuaryRevealBootWindow = () => {

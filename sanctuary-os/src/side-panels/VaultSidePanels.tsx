@@ -877,9 +877,28 @@ export interface ModVersionBinaryGroup {
   typeLabel: string;
   versions: any[];
   activeVersion: any | null;
+  isPinned?: boolean;
   totalBytes: number;
   reclaimableBytes: number;
   latestRecordedAt: number;
+  searchIndex: string;
+}
+
+export interface ModVersionFamilyEntry {
+  key: string;
+  displayTitle: string;
+  groups: ModVersionBinaryGroup[];
+  isMultiModule: boolean;
+  isScript: boolean;
+  hasPackage: boolean;
+  typeLabel: string;
+  totalVersions: number;
+  maxModuleVersions: number;
+  totalBytes: number;
+  reclaimableBytes: number;
+  isPinned: boolean;
+  compatLabel: string;
+  isAllLinked: boolean;
   searchIndex: string;
 }
 
@@ -920,6 +939,9 @@ export function groupModVersionPoolItems(
         if (v.is_active && !existing.is_active) {
           existing.is_active = true;
           existing.rel_path = v.rel_path;
+        }
+        if (v.is_pinned && !existing.is_pinned) {
+          existing.is_pinned = true;
         }
         if (!existing.mod_version && v.mod_version) {
           existing.mod_version = v.mod_version;
@@ -991,6 +1013,7 @@ export function groupModVersionPoolItems(
     const searchIndex = normalizeVersionPoolSearch(
       `${displayTitle} ${fileName} ${relPath} ${typeLabel} ${versionTokens.join(" ")}`
     );
+    const isPinned = versions.some((v: any) => Boolean(v.is_pinned));
 
     groups.push({
       key,
@@ -1001,6 +1024,7 @@ export function groupModVersionPoolItems(
       typeLabel,
       versions,
       activeVersion,
+      isPinned,
       totalBytes,
       reclaimableBytes,
       latestRecordedAt,
@@ -1079,6 +1103,170 @@ export function matchVersionGroupsForMod(
   });
 }
 
+export function groupBinaryGroupsIntoFamilies(
+  allGroups: ModVersionBinaryGroup[],
+  displayModList: any[],
+  t: (k: string, f?: string) => string
+): ModVersionFamilyEntry[] {
+  if (!Array.isArray(allGroups) || allGroups.length === 0) return [];
+
+  const assignedKeys = new Set<string>();
+  const rawBuckets: { key: string; title: string; groups: ModVersionBinaryGroup[] }[] = [];
+
+  // Tier 1: Match parent suites from displayModList
+  if (Array.isArray(displayModList) && displayModList.length > 0) {
+    for (const m of displayModList) {
+      if (
+        !m ||
+        !(m.isParent || (m.isVirtual && Array.isArray(m.flavors) && m.flavors.length > 1))
+      ) {
+        continue;
+      }
+      const matched = matchVersionGroupsForMod(m, allGroups).filter(
+        (g) => !assignedKeys.has(g.key)
+      );
+      if (matched.length >= 2) {
+        matched.forEach((g) => assignedKeys.add(g.key));
+        const rawSuiteName = formatDisplayName(m.displayName || m.name || "");
+        const cleanSuiteTitle = formatCleanModTitle(rawSuiteName) || rawSuiteName;
+        rawBuckets.push({
+          key: `suite_${String(m.hash || m.name || cleanSuiteTitle).toLowerCase()}`,
+          title: cleanSuiteTitle,
+          groups: matched,
+        });
+      }
+    }
+  }
+
+  // Tier 2: Group remaining MC Command Center modules together if multiple mc_* binaries exist
+  const unassignedAfterSuites = allGroups.filter((g) => !assignedKeys.has(g.key));
+  const mcccCandidates = unassignedAfterSuites.filter((g) =>
+    /^mc_(cmd_center|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
+      g.fileName
+    )
+  );
+  if (mcccCandidates.length >= 2) {
+    mcccCandidates.forEach((g) => assignedKeys.add(g.key));
+    const existingMccc = rawBuckets.find((b) =>
+      /mc\s*(cmd|command)\s*center/i.test(b.title)
+    );
+    if (existingMccc) {
+      existingMccc.groups.push(...mcccCandidates);
+    } else {
+      rawBuckets.push({
+        key: "suite_mc_command_center",
+        title: "MC Command Center",
+        groups: mcccCandidates,
+      });
+    }
+  }
+
+  // Tier 3: Group remaining binaries that share the exact same clean displayTitle (e.g. .package + .ts4script pair)
+  const byCleanTitle = new Map<string, ModVersionBinaryGroup[]>();
+  for (const g of allGroups) {
+    if (assignedKeys.has(g.key)) continue;
+    const normTitle = g.displayTitle
+      .toLowerCase()
+      .replace(/\b(script|scripts|package|pkg|core)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const key = normTitle || g.displayTitle.toLowerCase();
+    const list = byCleanTitle.get(key);
+    if (list) list.push(g);
+    else byCleanTitle.set(key, [g]);
+  }
+
+  byCleanTitle.forEach((list, normKey) => {
+    if (list.length >= 2) {
+      list.forEach((g) => assignedKeys.add(g.key));
+      rawBuckets.push({
+        key: `pair_${normKey}`,
+        title: list[0].displayTitle,
+        groups: list,
+      });
+    }
+  });
+
+  // Remaining standalone binaries
+  for (const g of allGroups) {
+    if (assignedKeys.has(g.key)) continue;
+    assignedKeys.add(g.key);
+    rawBuckets.push({
+      key: g.key,
+      title: g.displayTitle,
+      groups: [g],
+    });
+  }
+
+  const entries: ModVersionFamilyEntry[] = rawBuckets.map((bucket) => {
+    const sortedGroups = [...bucket.groups].sort((a, b) =>
+      a.displayTitle.localeCompare(b.displayTitle)
+    );
+    const isMultiModule = sortedGroups.length > 1;
+    const isScript = sortedGroups.some((g) => g.isScript);
+    const hasPackage = sortedGroups.some((g) => !g.isScript);
+    const typeLabel = isMultiModule
+      ? `${sortedGroups.length} ${t("badge_modules_count", "Modules")}`
+      : sortedGroups[0].typeLabel;
+    const totalVersions = sortedGroups.reduce((s, g) => s + g.versions.length, 0);
+    const maxModuleVersions = Math.max(
+      0,
+      ...sortedGroups.map((g) => g.versions.length)
+    );
+    const totalBytes = sortedGroups.reduce((s, g) => s + g.totalBytes, 0);
+    const reclaimableBytes = sortedGroups.reduce((s, g) => s + g.reclaimableBytes, 0);
+    const isPinned = sortedGroups.some((g) => Boolean(g.isPinned));
+    const isAllLinked = sortedGroups.every((g) => Boolean(g.activeVersion?.is_active));
+
+    const compatSet = new Set<string>();
+    sortedGroups.forEach((g) => {
+      const av = g.activeVersion || g.versions[0];
+      if (Array.isArray(av?.compatible_versions)) {
+        av.compatible_versions.forEach((cv: string) => {
+          if (cv && String(cv).trim()) compatSet.add(String(cv).trim());
+        });
+      }
+    });
+    const compatLabel =
+      compatSet.size > 0 ? Array.from(compatSet).join(", ") : t("any", "Any");
+
+    const searchIndex = normalizeVersionPoolSearch(
+      `${bucket.title} ${typeLabel} ${compatLabel} ${sortedGroups
+        .map((g) => g.searchIndex)
+        .join(" ")}`
+    );
+
+    return {
+      key: bucket.key,
+      displayTitle: bucket.title,
+      groups: sortedGroups,
+      isMultiModule,
+      isScript,
+      hasPackage,
+      typeLabel,
+      totalVersions,
+      maxModuleVersions,
+      totalBytes,
+      reclaimableBytes,
+      isPinned,
+      compatLabel,
+      isAllLinked,
+      searchIndex,
+    };
+  });
+
+  entries.sort((a, b) => {
+    const aMultiVer = a.maxModuleVersions > 1 ? 1 : 0;
+    const bMultiVer = b.maxModuleVersions > 1 ? 1 : 0;
+    if (bMultiVer !== aMultiVer) return bMultiVer - aMultiVer;
+    if (a.isMultiModule !== b.isMultiModule) return a.isMultiModule ? -1 : 1;
+    if (b.totalVersions !== a.totalVersions) return b.totalVersions - a.totalVersions;
+    return a.displayTitle.localeCompare(b.displayTitle);
+  });
+
+  return entries;
+}
+
 export function ModVersionHistorySidePanel({
   group,
   groups,
@@ -1086,7 +1274,12 @@ export function ModVersionHistorySidePanel({
   isOpen,
   onClose,
   onActivateVersion,
+  onActivateBatchVersions,
+  onResetToAutoSwap,
   onDeleteVersion,
+  onRefresh,
+  runRadarSweep,
+  setStatus,
 }: {
   group?: ModVersionBinaryGroup | null;
   groups?: ModVersionBinaryGroup[];
@@ -1094,7 +1287,12 @@ export function ModVersionHistorySidePanel({
   isOpen: boolean;
   onClose: () => void;
   onActivateVersion: (relPath: string, dnaHash: string) => void;
+  onActivateBatchVersions?: (targets: { rel_path: string; dna_hash: string }[]) => void;
+  onResetToAutoSwap?: (relPaths: string[]) => void;
   onDeleteVersion: (relPath: string, dnaHash: string) => void;
+  onRefresh?: () => Promise<void> | void;
+  runRadarSweep?: (silent?: boolean, skipSync?: boolean) => void;
+  setStatus?: (msg: string) => void;
 }) {
   const { t } = useLexicon();
   const resolvedGroups = React.useMemo(() => {
@@ -1104,6 +1302,7 @@ export function ModVersionHistorySidePanel({
   }, [group, groups]);
 
   const [selectedSubKey, setSelectedSubKey] = React.useState<string | null>(null);
+  const [isBusy, setIsBusy] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -1115,6 +1314,86 @@ export function ModVersionHistorySidePanel({
       setSelectedSubKey(null);
     }
   }, [isOpen, resolvedGroups, selectedSubKey]);
+
+  const handleBatchActivate = React.useCallback(
+    async (targets: { rel_path: string; dna_hash: string }[]) => {
+      if (!targets || targets.length === 0 || isBusy) return;
+      if (onActivateBatchVersions) {
+        onActivateBatchVersions(targets);
+        return;
+      }
+      setIsBusy(true);
+      try {
+        let vaultPath = useStore.getState().vaultPath;
+        if (!vaultPath) {
+          const cfg: any = await invoke("get_saved_coordinates");
+          vaultPath = cfg?.vault_path || "";
+        }
+        if (!vaultPath) return;
+        await invoke("activate_archived_mod_versions_batch", {
+          vaultPath,
+          targets,
+        });
+        if (onRefresh) await onRefresh();
+        if (runRadarSweep) runRadarSweep(true, true);
+        if (setStatus) {
+          setStatus(
+            t(
+              "version_pool_toast_family_switched",
+              "Switched {Mod} family to selected revision."
+            )
+          );
+        }
+      } catch (e) {
+        console.warn("Batch version activation failed:", e);
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [isBusy, onActivateBatchVersions, onRefresh, runRadarSweep, setStatus, t]
+  );
+
+  const handleResetAutoSwap = React.useCallback(
+    async (relPaths: string[]) => {
+      if (isBusy) return;
+      if (onResetToAutoSwap) {
+        onResetToAutoSwap(relPaths);
+        return;
+      }
+      setIsBusy(true);
+      try {
+        let vaultPath = useStore.getState().vaultPath;
+        if (!vaultPath) {
+          const cfg: any = await invoke("get_saved_coordinates");
+          vaultPath = cfg?.vault_path || "";
+        }
+        if (!vaultPath) return;
+        const targetGameVersion = String(
+          useStore.getState().selectedVersion || ""
+        );
+        await invoke("reset_mod_versions_to_auto", {
+          vaultPath,
+          relPaths,
+          targetGameVersion,
+        });
+        if (onRefresh) await onRefresh();
+        if (runRadarSweep) runRadarSweep(true, true);
+        if (setStatus) {
+          setStatus(
+            t(
+              "version_pool_toast_auto_swap",
+              "Reset {Mod} version routing to automatic game-version matching."
+            )
+          );
+        }
+      } catch (e) {
+        console.warn("Reset to auto-swap failed:", e);
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [isBusy, onResetToAutoSwap, onRefresh, runRadarSweep, setStatus, t]
+  );
 
   if (!isOpen || resolvedGroups.length === 0) return null;
 
@@ -1130,6 +1409,13 @@ export function ModVersionHistorySidePanel({
     panelZ: string
   ) => {
     const olderCount = targetGroup.versions.filter((v: any) => !v.is_active).length;
+    const isTargetPinned = Boolean(
+      targetGroup.isPinned ||
+        targetGroup.versions.some((v: any) => Boolean(v.is_pinned))
+    );
+    const isOldRevisionLinked =
+      targetGroup.versions.length > 1 && !Boolean(targetGroup.versions[0]?.is_active);
+
     return (
       <SidePanel
         isOpen={true}
@@ -1137,10 +1423,11 @@ export function ModVersionHistorySidePanel({
         backdropZ={backdropZ}
         panelZ={panelZ}
         title={targetGroup.displayTitle}
-        subtitle={`${targetGroup.typeLabel} • ${targetGroup.versions.length} ${t(
-          "version_pool_stored_versions",
-          "Stored Versions"
-        )}`}
+        subtitle={`${targetGroup.typeLabel} • ${targetGroup.versions.length} ${
+          targetGroup.versions.length === 1
+            ? t("revision", "Revision")
+            : t("revisions", "Revisions")
+        }`}
         icon={
           targetGroup.isScript
             ? t("icon_terminal", "terminal")
@@ -1158,37 +1445,55 @@ export function ModVersionHistorySidePanel({
             }
             overline={targetGroup.typeLabel}
             title={targetGroup.displayTitle}
-            badge={`${targetGroup.versions.length} ${t(
-              "version_pool_stored_versions",
-              "Stored Versions"
-            )}`}
-            badgeIcon={t("icon_inventory_2", "inventory_2")}
+            badge={
+              isTargetPinned
+                ? t("version_pool_badge_manual_pin", "Manual Override")
+                : t("version_pool_badge_auto_swap", "Auto-Swap")
+            }
+            badgeIcon={
+              isTargetPinned
+                ? t("icon_push_pin", "push_pin")
+                : t("icon_autorenew", "autorenew")
+            }
             variant="accent"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-              <StatBox
-                label={t("version_pool_stored_versions", "Stored Versions")}
-                value={targetGroup.versions.length}
-                icon={t("icon_inventory_2", "inventory_2")}
-                iconColorClass="text-[var(--accent)]"
-              />
-              <StatBox
-                label={t("version_pool_older_versions", "Older Versions")}
-                value={olderCount}
-                icon={t("icon_history", "history")}
-                iconColorClass="text-[var(--warning)]"
-              />
-              <StatBox
-                label={t("version_pool_reclaimable_space", "Reclaimable Space")}
-                value={formatByteSize(targetGroup.reclaimableBytes)}
-                icon={t("icon_cleaning_services", "cleaning_services")}
-                iconColorClass="text-[var(--success)]"
-              />
+            <div className="flex flex-col gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <StatBox
+                  label={t("revisions", "Revisions")}
+                  value={targetGroup.versions.length}
+                  icon={t("icon_inventory_2", "inventory_2")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("version_pool_older_versions", "Legacy Versions")}
+                  value={olderCount}
+                  icon={t("icon_history", "history")}
+                  iconColorClass="text-[var(--warning)]"
+                />
+                <StatBox
+                  label={t("version_pool_reclaimable_space", "Reclaimable Space")}
+                  value={formatByteSize(targetGroup.reclaimableBytes)}
+                  icon={t("icon_cleaning_services", "cleaning_services")}
+                  iconColorClass="text-[var(--success)]"
+                />
+              </div>
+              {(isTargetPinned || isOldRevisionLinked) && (
+                <div className="flex items-center justify-end pt-1">
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_autorenew", "autorenew")}
+                    label={t("version_pool_btn_auto_swap", "Auto-Swap Versions")}
+                    disabled={isBusy}
+                    onClick={() => handleResetAutoSwap([targetGroup.relPath])}
+                  />
+                </div>
+              )}
             </div>
           </SidePanelHeroCard>
 
           <UniversalGroup
-            title={`${t("version_pool_stored_versions", "Stored Versions")} (${
+            title={`${t("revisions", "Revisions")} (${
               targetGroup.versions.length
             })`}
             icon={t("icon_history", "history")}
@@ -1361,11 +1666,7 @@ export function ModVersionHistorySidePanel({
 
   const suiteTitle =
     parentTitle ||
-    t("version_pool_title", "{Mod} Version {Backups}");
-  const totalSuiteVersions = resolvedGroups.reduce(
-    (acc, g) => acc + g.versions.length,
-    0
-  );
+    t("version_pool_title", "{Mod} Version History");
   const totalSuiteOlder = resolvedGroups.reduce(
     (acc, g) => acc + g.versions.filter((v: any) => !v.is_active).length,
     0
@@ -1374,6 +1675,62 @@ export function ModVersionHistorySidePanel({
     (acc, g) => acc + g.reclaimableBytes,
     0
   );
+  const anySuitePinned = resolvedGroups.some(
+    (g) => Boolean(g.isPinned) || g.versions.some((v: any) => Boolean(v.is_pinned))
+  );
+  const maxSuiteRevs = Math.max(
+    1,
+    ...resolvedGroups.map((g) => g.versions.length)
+  );
+  const familyRevisions = Array.from({ length: maxSuiteRevs }, (_, stepIdx) => {
+    const revNum = maxSuiteRevs - stepIdx;
+    const targets: { rel_path: string; dna_hash: string; item: any; group: ModVersionBinaryGroup }[] = [];
+    for (const g of resolvedGroups) {
+      const picked = g.versions[Math.min(stepIdx, g.versions.length - 1)];
+      if (picked) {
+        targets.push({
+          rel_path: g.relPath,
+          dna_hash: picked.dna_hash,
+          item: picked,
+          group: g,
+        });
+      }
+    }
+    const activeCount = targets.filter((x) => Boolean(x.item?.is_active)).length;
+    const isAllActive = targets.length > 0 && activeCount === targets.length;
+    const totalSize = targets.reduce(
+      (acc, x) => acc + (Number(x.item?.size_bytes) || 0),
+      0
+    );
+    const latestEpoch = Math.max(
+      0,
+      ...targets.map((x) => Number(x.item?.recorded_at) || 0)
+    );
+    const compatSet = new Set<string>();
+    targets.forEach((x) => {
+      if (Array.isArray(x.item?.compatible_versions)) {
+        x.item.compatible_versions.forEach((cv: string) => {
+          if (cv && String(cv).trim()) compatSet.add(String(cv).trim());
+        });
+      }
+    });
+    const compatStr =
+      compatSet.size > 0 ? Array.from(compatSet).join(", ") : t("any", "Any");
+
+    return {
+      stepIdx,
+      revNum,
+      targets,
+      activeCount,
+      isAllActive,
+      totalSize,
+      latestEpoch,
+      compatStr,
+    };
+  });
+
+  const anyOldSuiteRevisionLinked =
+    familyRevisions.length > 1 && !Boolean(familyRevisions[0]?.isAllActive);
 
   return (
     <>
@@ -1386,10 +1743,11 @@ export function ModVersionHistorySidePanel({
         subtitle={`${resolvedGroups.length} ${t(
           "badge_modules_count",
           "Modules"
-        )} • ${totalSuiteVersions} ${t(
-          "version_pool_stored_versions",
-          "Stored Versions"
-        )}`}
+        )} • ${
+          maxSuiteRevs === 1
+            ? `${t("revision", "Revision")} #1`
+            : `${maxSuiteRevs} ${t("revisions", "Revisions")}`
+        }`}
         icon={t("icon_account_tree", "account_tree")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[760px]"
@@ -1397,36 +1755,208 @@ export function ModVersionHistorySidePanel({
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_account_tree", "account_tree")}
-            overline={t("version_pool_title", "{Mod} Version {Backups}")}
+            overline={t("version_pool_title", "{Mod} Version History")}
             title={suiteTitle}
-            badge={`${resolvedGroups.length} ${t(
-              "badge_modules_count",
-              "Modules"
-            )}`}
-            badgeIcon={t("icon_inventory_2", "inventory_2")}
+            badge={
+              anySuitePinned
+                ? t("version_pool_badge_manual_pin", "Manual Override")
+                : t("version_pool_badge_auto_swap", "Auto-Swap")
+            }
+            badgeIcon={
+              anySuitePinned
+                ? t("icon_push_pin", "push_pin")
+                : t("icon_autorenew", "autorenew")
+            }
             variant="accent"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-              <StatBox
-                label={t("version_pool_stored_versions", "Stored Versions")}
-                value={totalSuiteVersions}
-                icon={t("icon_inventory_2", "inventory_2")}
-                iconColorClass="text-[var(--accent)]"
-              />
-              <StatBox
-                label={t("version_pool_older_versions", "Older Versions")}
-                value={totalSuiteOlder}
-                icon={t("icon_history", "history")}
-                iconColorClass="text-[var(--warning)]"
-              />
-              <StatBox
-                label={t("version_pool_reclaimable_space", "Reclaimable Space")}
-                value={formatByteSize(totalSuiteReclaimable)}
-                icon={t("icon_cleaning_services", "cleaning_services")}
-                iconColorClass="text-[var(--success)]"
-              />
+            <div className="flex flex-col gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <StatBox
+                  label={t("badge_modules_count", "Modules")}
+                  value={resolvedGroups.length}
+                  icon={t("icon_account_tree", "account_tree")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("version_pool_older_versions", "Legacy Versions")}
+                  value={totalSuiteOlder}
+                  icon={t("icon_history", "history")}
+                  iconColorClass="text-[var(--warning)]"
+                />
+                <StatBox
+                  label={t("version_pool_reclaimable_space", "Reclaimable Space")}
+                  value={formatByteSize(totalSuiteReclaimable)}
+                  icon={t("icon_cleaning_services", "cleaning_services")}
+                  iconColorClass="text-[var(--success)]"
+                />
+              </div>
+
+              {(anySuitePinned || anyOldSuiteRevisionLinked) && (
+                <div className="flex items-center justify-end pt-1">
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_autorenew", "autorenew")}
+                    label={t("version_pool_btn_auto_swap", "Auto-Swap Versions")}
+                    disabled={isBusy}
+                    onClick={() =>
+                      handleResetAutoSwap(resolvedGroups.map((g) => g.relPath))
+                    }
+                  />
+                </div>
+              )}
             </div>
           </SidePanelHeroCard>
+
+          {familyRevisions.length > 1 && (
+            <UniversalGroup
+              title={`${t("version_pool_family_rollback", "Family Rollback")} (${
+                familyRevisions.length
+              })`}
+              icon={t("icon_history", "history")}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {familyRevisions.map((fRev) => {
+                  const ageLabel =
+                    fRev.stepIdx === 0
+                      ? t("version_pool_newest", "Newest")
+                      : fRev.stepIdx === familyRevisions.length - 1 &&
+                          familyRevisions.length > 1
+                        ? t("version_pool_oldest", "Oldest")
+                        : null;
+                  const recordedDate = fRev.latestEpoch
+                    ? new Date(fRev.latestEpoch * 1000).toLocaleDateString()
+                    : t("source_local", "Local");
+                  const innerGhostClass = !fRev.isAllActive
+                    ? "opacity-50 grayscale group-hover/vercard:opacity-100 group-hover/vercard:grayscale-0 transition-all duration-300"
+                    : "";
+
+                  return (
+                    <div
+                      key={`family-rev-${fRev.revNum}`}
+                      className={`relative group/vercard flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border transition-all ${
+                        fRev.isAllActive
+                          ? "border-[color-mix(in_srgb,var(--success)_55%,rgba(255,255,255,0.28))] shadow-[0_0_24px_color-mix(in_srgb,var(--success)_14%,transparent)]"
+                          : "!border-dashed border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-solid hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                      }`}
+                    >
+                      {!fRev.isAllActive && (
+                        <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-black/20 group-hover/vercard:bg-transparent transition-colors duration-300" />
+                      )}
+
+                      <div
+                        className={`relative z-10 flex items-center gap-3 min-w-0 ${innerGhostClass}`}
+                      >
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                            fRev.isAllActive
+                              ? "text-[var(--success)]"
+                              : "text-[var(--accent)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {fRev.isAllActive
+                              ? t("icon_verified_user", "verified_user")
+                              : t("icon_history", "history")}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                            {`${t(
+                              "version_pool_family_revision",
+                              "Family Revision"
+                            )} #${fRev.revNum}`}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+                            {ageLabel && (
+                              <>
+                                <span className="text-[var(--accent)] shrink-0">
+                                  {ageLabel}
+                                </span>
+                                <span className="opacity-40 shrink-0">•</span>
+                              </>
+                            )}
+                            <span className="opacity-85 shrink-0">
+                              {recordedDate}
+                            </span>
+                            <span className="opacity-40 shrink-0">•</span>
+                            <span className="opacity-85 shrink-0">
+                              {formatByteSize(fRev.totalSize)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="relative z-10 pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <div
+                          className={`flex items-center gap-1.5 min-w-0 flex-wrap ${innerGhostClass}`}
+                        >
+                          {fRev.isAllActive ? (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--success)]">
+                                {t("icon_check_circle", "check_circle")}
+                              </span>
+                              <span>
+                                {t("version_pool_badge_linked", "Linked")}
+                              </span>
+                            </span>
+                          ) : fRev.activeCount > 0 ? (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                                {t("icon_timelapse", "timelapse")}
+                              </span>
+                              <span>
+                                {`${fRev.activeCount}/${fRev.targets.length} ${t(
+                                  "version_pool_badge_linked",
+                                  "Linked"
+                                )}`}
+                              </span>
+                            </span>
+                          ) : null}
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
+                              {t("icon_sports_esports", "sports_esports")}
+                            </span>
+                            <span>{fRev.compatStr}</span>
+                          </span>
+                        </div>
+
+                        {!fRev.isAllActive && (
+                          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                handleBatchActivate(
+                                  fRev.targets.map((x) => ({
+                                    rel_path: x.rel_path,
+                                    dna_hash: x.dna_hash,
+                                  }))
+                                )
+                              }
+                              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                            >
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_check", "check")}
+                              </span>
+                              <HoverTooltip
+                                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                                title={t(
+                                  "version_pool_btn_use_version",
+                                  "Link Version"
+                                )}
+                                icon={t("icon_check", "check")}
+                              />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </UniversalGroup>
+          )}
 
           <UniversalGroup
             title={`${t("badge_modules_count", "Modules")} (${
@@ -1443,6 +1973,9 @@ export function ModVersionHistorySidePanel({
                     ? activeVer.compatible_versions.join(", ")
                     : t("any", "Any");
                 const isLinked = Boolean(activeVer?.is_active);
+                const activeIdx = g.versions.findIndex((v: any) => v.is_active);
+                const activeRevNum =
+                  activeIdx >= 0 ? g.versions.length - activeIdx : g.versions.length;
 
                 return (
                   <div
@@ -1470,11 +2003,9 @@ export function ModVersionHistorySidePanel({
                           </span>
                           <span className="opacity-40 shrink-0">•</span>
                           <span className="text-[var(--accent)] shrink-0">
-                            {g.versions.length}{" "}
-                            {t(
-                              "version_pool_stored_versions",
-                              "Stored Versions"
-                            )}
+                            {`${t("revision", "Revision")} #${activeRevNum}/${
+                              g.versions.length
+                            }`}
                           </span>
                           <span className="opacity-40 shrink-0">•</span>
                           <span className="opacity-85 shrink-0">
@@ -1543,6 +2074,7 @@ export function VaultVersionPoolSidePanel({
   onClose,
   runRadarSweep,
   setStatus,
+  displayModList = [],
 }: any) {
   const { t } = useLexicon();
   const [poolStatus, setPoolStatus] = React.useState<any>({
@@ -1559,8 +2091,7 @@ export function VaultVersionPoolSidePanel({
   const [typeFilter, setTypeFilter] = React.useState<"ALL" | "SCRIPT" | "PACKAGE">("ALL");
   const [versionCountFilter, setVersionCountFilter] = React.useState<"ALL" | "MULTI">("ALL");
   const [visibleCount, setVisibleCount] = React.useState(40);
-  const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
-  const [confirmClearAll, setConfirmClearAll] = React.useState(false);
+  const [selectedFamilyKey, setSelectedFamilyKey] = React.useState<string | null>(null);
 
   const loadPoolStatus = React.useCallback(async () => {
     setIsLoading(true);
@@ -1583,11 +2114,10 @@ export function VaultVersionPoolSidePanel({
 
   React.useEffect(() => {
     if (isOpen) {
-      setConfirmClearAll(false);
       setVisibleCount(40);
       loadPoolStatus();
     } else {
-      setSelectedGroupKey(null);
+      setSelectedFamilyKey(null);
     }
   }, [isOpen, loadPoolStatus]);
 
@@ -1626,13 +2156,35 @@ export function VaultVersionPoolSidePanel({
         vaultPath,
         keepActiveOnly,
       });
-      setConfirmClearAll(false);
       await loadPoolStatus();
       if (setStatus) {
+        setStatus(t("version_pool_prune_older", "Purge Legacy Versions"));
+      }
+    } catch {}
+  };
+
+  const handleResetAllAutoSwap = async () => {
+    try {
+      let vaultPath = useStore.getState().vaultPath;
+      if (!vaultPath) {
+        const cfg: any = await invoke("get_saved_coordinates");
+        vaultPath = cfg?.vault_path || "";
+      }
+      if (!vaultPath) return;
+      const targetGameVersion = String(useStore.getState().selectedVersion || "");
+      await invoke("reset_mod_versions_to_auto", {
+        vaultPath,
+        relPaths: null,
+        targetGameVersion,
+      });
+      await loadPoolStatus();
+      if (runRadarSweep) runRadarSweep(true, true);
+      if (setStatus) {
         setStatus(
-          keepActiveOnly
-            ? t("version_pool_prune_older", "Clean Up Older Versions")
-            : t("version_pool_clear_all", "Clear All Version {Backups}")
+          t(
+            "version_pool_toast_auto_swap",
+            "Reset {Mod} version routing to automatic game-version matching."
+          )
         );
       }
     } catch {}
@@ -1678,34 +2230,44 @@ export function VaultVersionPoolSidePanel({
     [poolStatus.items, t]
   );
 
-  const filteredGroups = React.useMemo(() => {
+  const allFamilies = React.useMemo(
+    () => groupBinaryGroupsIntoFamilies(allGroups, displayModList, t),
+    [allGroups, displayModList, t]
+  );
+
+  const anyVaultPinned = React.useMemo(
+    () => allFamilies.some((f) => f.isPinned),
+    [allFamilies]
+  );
+
+  const filteredFamilies = React.useMemo(() => {
     const qNorm = normalizeVersionPoolSearch(deferredSearchQuery);
     const qTokens = qNorm ? qNorm.split(" ").filter(Boolean) : [];
 
-    return allGroups.filter((group) => {
-      if (typeFilter === "SCRIPT" && !group.isScript) return false;
-      if (typeFilter === "PACKAGE" && group.isScript) return false;
-      if (versionCountFilter === "MULTI" && group.versions.length < 2) return false;
+    return allFamilies.filter((fam) => {
+      if (typeFilter === "SCRIPT" && !fam.isScript) return false;
+      if (typeFilter === "PACKAGE" && !fam.hasPackage) return false;
+      if (versionCountFilter === "MULTI" && fam.maxModuleVersions < 2) return false;
       if (qTokens.length > 0) {
         for (const tok of qTokens) {
-          if (!group.searchIndex.includes(tok)) return false;
+          if (!fam.searchIndex.includes(tok)) return false;
         }
       }
       return true;
     });
-  }, [allGroups, deferredSearchQuery, typeFilter, versionCountFilter]);
+  }, [allFamilies, deferredSearchQuery, typeFilter, versionCountFilter]);
 
-  const visibleGroups = React.useMemo(
-    () => filteredGroups.slice(0, visibleCount),
-    [filteredGroups, visibleCount]
+  const visibleFamilies = React.useMemo(
+    () => filteredFamilies.slice(0, visibleCount),
+    [filteredFamilies, visibleCount]
   );
 
-  const selectedGroup = React.useMemo(
+  const selectedFamily = React.useMemo(
     () =>
-      selectedGroupKey
-        ? allGroups.find((g) => g.key === selectedGroupKey) || null
+      selectedFamilyKey
+        ? allFamilies.find((f) => f.key === selectedFamilyKey) || null
         : null,
-    [allGroups, selectedGroupKey]
+    [allFamilies, selectedFamilyKey]
   );
 
   if (!isOpen) return null;
@@ -1720,10 +2282,10 @@ export function VaultVersionPoolSidePanel({
         onClose={onClose}
         backdropZ="z-[115000]"
         panelZ="z-[115001]"
-        title={t("version_pool_title", "{Mod} Version {Backups}")}
+        title={t("version_pool_title", "{Mod} Version History")}
         subtitle={t(
           "version_pool_subtitle",
-          "Manage archived {mod} versions and auto-version matching"
+          "Manage {mod} version history and automatic game version swapping"
         )}
         icon={t("icon_history", "history")}
         iconColorClass="text-[var(--accent)]"
@@ -1732,24 +2294,24 @@ export function VaultVersionPoolSidePanel({
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_history", "history")}
-            overline={t("version_pool_title", "{Mod} Version {Backups}")}
+            overline={t("version_pool_title", "{Mod} Version History")}
             title={t(
               "version_pool_subtitle",
-              "Manage archived {mod} versions and auto-version matching"
+              "Manage {mod} version history and automatic game version swapping"
             )}
-            badge={`${poolStatus.total_versions || 0} ${t("version_pool_stored_versions", "Stored Versions")}`}
+            badge={`${allFamilies.length} ${t("term_mods", "{Mods}")}`}
             badgeIcon={t("icon_inventory_2", "inventory_2")}
             variant="accent"
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
               <StatBox
-                label={t("version_pool_stored_versions", "Stored Versions")}
-                value={poolStatus.total_versions || 0}
+                label={t("term_mods", "{Mods}")}
+                value={allFamilies.length}
                 icon={t("icon_inventory_2", "inventory_2")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("version_pool_older_versions", "Older Versions")}
+                label={t("version_pool_older_versions", "Legacy Versions")}
                 value={poolStatus.older_versions || 0}
                 icon={t("icon_history", "history")}
                 iconColorClass="text-[var(--warning)]"
@@ -1771,12 +2333,12 @@ export function VaultVersionPoolSidePanel({
               <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-xs font-black text-[var(--text)]">
-                    {t("version_pool_auto_archive", "Auto-Archive {Mod} Versions")}
+                    {t("version_pool_auto_archive", "Version History System")}
                   </span>
                   <span className="text-[11px] font-medium text-[var(--subtext)]">
                     {t(
                       "version_pool_auto_archive_desc",
-                      "Keep previous {mod} binaries in {Backups} for automatic game version matching"
+                      "When enabled, keeps multiple {mod} versions for rollback and auto-swapping. When disabled, keeps only one version."
                     )}
                   </span>
                 </div>
@@ -1801,46 +2363,62 @@ export function VaultVersionPoolSidePanel({
                 />
               </div>
 
+              {!poolStatus.enabled && (poolStatus.older_versions || 0) > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)]">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] shrink-0 mt-0.5">
+                      {t("icon_warning", "warning")}
+                    </span>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-bold text-[var(--text)] leading-snug">
+                        {t(
+                          "version_pool_disabled_legacy_warning",
+                          "Version History System is disabled, but legacy versions are still stored. Purge legacy versions to keep only one version per {mod}."
+                        )}
+                      </span>
+                      <span className="text-[11px] font-semibold text-[var(--warning)]">
+                        {`${poolStatus.older_versions || 0} ${t(
+                          "version_pool_older_versions",
+                          "Legacy Versions"
+                        )} • ${formatByteSize(poolStatus.reclaimable_bytes || 0)}`}
+                      </span>
+                    </div>
+                  </div>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_cleaning_services", "cleaning_services")}
+                    label={t("version_pool_prune_older", "Purge Legacy Versions")}
+                    onClick={() => handlePruneVersions(true)}
+                    className="shrink-0 !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <ActionButton
-                  variant="glass"
-                  icon={t("icon_cleaning_services", "cleaning_services")}
-                  label={`${t("version_pool_prune_older", "Clean Up Older Versions")} (${formatByteSize(
-                    poolStatus.reclaimable_bytes || 0
-                  )})`}
-                  disabled={!poolStatus.older_versions}
-                  onClick={() => handlePruneVersions(true)}
+                  variant={anyVaultPinned ? "accent" : "glass"}
+                  icon={t("icon_autorenew", "autorenew")}
+                  label={t("version_pool_btn_auto_swap", "Auto-Swap Versions")}
+                  disabled={!poolStatus.total_versions}
+                  onClick={handleResetAllAutoSwap}
                   className="w-full"
                 />
                 <ActionButton
                   variant="glass"
-                  icon={
-                    confirmClearAll
-                      ? t("icon_warning", "warning")
-                      : t("icon_delete_sweep", "delete_sweep")
-                  }
-                  label={
-                    confirmClearAll
-                      ? t("btn_confirm_delete", "Confirm {Delete}")
-                      : t("version_pool_clear_all", "Clear All Version {Backups}")
-                  }
-                  disabled={!poolStatus.total_versions}
-                  onClick={() => {
-                    if (confirmClearAll) {
-                      handlePruneVersions(false);
-                    } else {
-                      setConfirmClearAll(true);
-                      setTimeout(() => setConfirmClearAll(false), 3000);
-                    }
-                  }}
-                  className="w-full !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                  icon={t("icon_cleaning_services", "cleaning_services")}
+                  label={`${t("version_pool_prune_older", "Purge Legacy Versions")} (${formatByteSize(
+                    poolStatus.reclaimable_bytes || 0
+                  )})`}
+                  disabled={!poolStatus.older_versions}
+                  onClick={() => handlePruneVersions(true)}
+                  className="w-full !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
                 />
               </div>
             </div>
           </UniversalGroup>
 
           <UniversalGroup
-            title={`${t("version_pool_stored_versions", "Stored Versions")} (${filteredGroups.length})`}
+            title={`${t("term_mods", "{Mods}")} (${filteredFamilies.length})`}
             icon={t("icon_inventory_2", "inventory_2")}
           >
             <div className="flex flex-col gap-3">
@@ -1870,7 +2448,7 @@ export function VaultVersionPoolSidePanel({
 
                       <div className="flex flex-col gap-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
-                          {t("version_pool_stored_versions", "Stored Versions")}
+                          {t("revisions", "Revisions")}
                         </span>
                         <InlineFilterGroup
                           value={versionCountFilter}
@@ -1905,7 +2483,7 @@ export function VaultVersionPoolSidePanel({
                 }
               />
 
-              {!isLoading && filteredGroups.length === 0 ? (
+              {!isLoading && filteredFamilies.length === 0 ? (
                 <EmptyState
                   icon={t("icon_history", "history")}
                   title={t("version_pool_empty_title", "No Archived {Mod} Versions")}
@@ -1917,45 +2495,40 @@ export function VaultVersionPoolSidePanel({
               ) : (
                 <div className="max-h-[460px] overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {visibleGroups.map((group) => {
-                      const activeVer = group.activeVersion;
-                      const compatStr =
-                        activeVer &&
-                        Array.isArray(activeVer.compatible_versions) &&
-                        activeVer.compatible_versions.length > 0
-                          ? activeVer.compatible_versions.join(", ")
-                          : t("any", "Any");
-
+                    {visibleFamilies.map((fam) => {
                       return (
                         <div
-                          key={group.key}
-                          onClick={() => setSelectedGroupKey(group.key)}
+                          key={fam.key}
+                          onClick={() => setSelectedFamilyKey(fam.key)}
                           className="flex flex-col justify-between gap-3 p-3.5 glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all cursor-pointer group/vcard"
                         >
                           {/* Top Row: Liquid Glass Icon Well + Title & Subtitle */}
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                               <span className="material-symbols-outlined !text-[20px]">
-                                {group.isScript
-                                  ? t("icon_terminal", "terminal")
-                                  : t("icon_deployed_code", "deployed_code")}
+                                {fam.isMultiModule
+                                  ? t("icon_account_tree", "account_tree")
+                                  : fam.isScript
+                                    ? t("icon_terminal", "terminal")
+                                    : t("icon_deployed_code", "deployed_code")}
                               </span>
                             </div>
 
                             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                               <span className="text-sm font-black text-[var(--text)] group-hover/vcard:text-[var(--accent)] transition-colors tracking-tight leading-snug truncate">
-                                {group.displayTitle}
+                                {fam.displayTitle}
                               </span>
                               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
-                                <span className="opacity-85 shrink-0">{group.typeLabel}</span>
+                                <span className="opacity-85 shrink-0">{fam.typeLabel}</span>
                                 <span className="opacity-40 shrink-0">•</span>
-                                <span className="opacity-85 shrink-0">
-                                  {group.versions.length}{" "}
-                                  {t("version_pool_stored_versions", "Stored Versions")}
+                                <span className="text-[var(--accent)] shrink-0">
+                                  {fam.maxModuleVersions === 1
+                                    ? `${t("revision", "Revision")} #1`
+                                    : `${fam.maxModuleVersions} ${t("revisions", "Revisions")}`}
                                 </span>
                                 <span className="opacity-40 shrink-0">•</span>
                                 <span className="opacity-85 shrink-0">
-                                  {formatByteSize(group.totalBytes)}
+                                  {formatByteSize(fam.totalBytes)}
                                 </span>
                               </div>
                             </div>
@@ -1964,7 +2537,7 @@ export function VaultVersionPoolSidePanel({
                           {/* Bottom Status & Action Bar */}
                           <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                              {activeVer?.is_active && (
+                              {fam.isAllLinked && (
                                 <span className={VAULT_CHIP_CLASS}>
                                   <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--success)]">
                                     {t("icon_check_circle", "check_circle")}
@@ -1972,11 +2545,21 @@ export function VaultVersionPoolSidePanel({
                                   <span>{t("version_pool_badge_linked", "Linked")}</span>
                                 </span>
                               )}
+                              {fam.isPinned && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--warning)]">
+                                    {t("icon_push_pin", "push_pin")}
+                                  </span>
+                                  <span>
+                                    {t("version_pool_badge_manual_pin", "Manual Override")}
+                                  </span>
+                                </span>
+                              )}
                               <span className={VAULT_CHIP_CLASS}>
                                 <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--accent)]">
                                   {t("icon_sports_esports", "sports_esports")}
                                 </span>
-                                <span>{compatStr}</span>
+                                <span>{fam.compatLabel}</span>
                               </span>
                             </div>
 
@@ -1985,7 +2568,7 @@ export function VaultVersionPoolSidePanel({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedGroupKey(group.key);
+                                  setSelectedFamilyKey(fam.key);
                                 }}
                                 className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover/vcard:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] group-hover/vcard:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
                               >
@@ -2005,12 +2588,12 @@ export function VaultVersionPoolSidePanel({
                     })}
                   </div>
 
-                  {filteredGroups.length > visibleCount && (
+                  {filteredFamilies.length > visibleCount && (
                     <ActionButton
                       variant="glass"
                       icon={t("icon_expand_more", "expand_more")}
                       label={`${t("next", "Next")} (${
-                        filteredGroups.length - visibleCount
+                        filteredFamilies.length - visibleCount
                       })`}
                       onClick={() => setVisibleCount((prev) => prev + 40)}
                       className="w-full justify-center"
@@ -2024,11 +2607,15 @@ export function VaultVersionPoolSidePanel({
       </SidePanel>
 
       <ModVersionHistorySidePanel
-        group={selectedGroup}
-        isOpen={Boolean(selectedGroup)}
-        onClose={() => setSelectedGroupKey(null)}
+        groups={selectedFamily?.groups || []}
+        parentTitle={selectedFamily?.displayTitle}
+        isOpen={Boolean(selectedFamily)}
+        onClose={() => setSelectedFamilyKey(null)}
         onActivateVersion={handleActivateVersion}
         onDeleteVersion={handleDeleteVersion}
+        onRefresh={loadPoolStatus}
+        runRadarSweep={runRadarSweep}
+        setStatus={setStatus}
       />
     </>
   );

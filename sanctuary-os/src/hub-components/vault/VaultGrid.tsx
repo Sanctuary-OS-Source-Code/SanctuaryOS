@@ -1,14 +1,66 @@
 import React from 'react';
-import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer, stripPriorityTierPrefix } from '../../shared';
+import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill } from '../../shared';
 import { ModCard } from '../../ModCard';
+
+function DrawerFilterSection({ title, options, value, onChange, t }: any) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div className="flex flex-col mb-4 w-full last:mb-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+        {title}
+        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {options.map((opt: any) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? "is-selected font-bold" : "font-semibold"
+              }`}
+            >
+              <span className="truncate flex items-center gap-2 min-w-0">
+                {opt.label}
+              </span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t ? t("icon_check", "check") : ""}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function VaultGrid(props: any) {
   const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, hasActiveFilters, onResetFilters, setSelectedMods } = props;
   const localSets = Array.isArray(playSets) ? playSets : [];
   const [drawerSearchQuery, setDrawerSearchQuery] = React.useState("");
+  const deferredDrawerSearch = React.useDeferredValue(drawerSearchQuery);
+  const [drawerEquipFilter, setDrawerEquipFilter] = React.useState<"ALL" | "EQUIPPED" | "UNEQUIPPED">("ALL");
+  const [drawerCategoryFilter, setDrawerCategoryFilter] = React.useState<string>("ALL");
+  const [drawerStatusFilter, setDrawerStatusFilter] = React.useState<string>("ALL");
+  const [drawerVisibleLimit, setDrawerVisibleLimit] = React.useState<number>(20);
+  const drawerScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const drawerSentinelRef = React.useRef<HTMLDivElement | null>(null);
+
   React.useEffect(() => {
     setDrawerSearchQuery("");
+    setDrawerEquipFilter("ALL");
+    setDrawerCategoryFilter("ALL");
+    setDrawerStatusFilter("ALL");
+    setDrawerVisibleLimit(20);
   }, [expandedFolder]);
+
+  React.useEffect(() => {
+    setDrawerVisibleLimit(20);
+  }, [deferredDrawerSearch, drawerEquipFilter, drawerCategoryFilter, drawerStatusFilter]);
   const archetypePeersByHash = React.useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (let i = 0; i < localSets.length; i++) {
@@ -365,157 +417,381 @@ export function VaultGrid(props: any) {
     activeGameSchema
   ]);
 
+  const expandedModEntry = React.useMemo(() => {
+    if (!expandedFolder) return null;
+    for (let index = 0; index < paginatedMods.length; index++) {
+      const mod = paginatedMods[index];
+      const mainKey = `${mod.hash || mod.name}-${index}`;
+      if (mainKey === expandedFolder) {
+        return { mod, index, mainKey };
+      }
+    }
+    return null;
+  }, [expandedFolder, paginatedMods]);
+
+  const resolveFlavorCategory = React.useCallback((flavor: any): string => {
+    const explicitCat = String(
+      flavor?.category_override || flavor?.category || flavor?.subType || ""
+    ).trim();
+    if (
+      explicitCat &&
+      !/^(package|script|collection|folder|local|unknown|mod)$/i.test(explicitCat)
+    ) {
+      return explicitCat;
+    }
+    if (/\.ts4script$/i.test(String(flavor?.name || flavor?.file_extension || ""))) {
+      return "Script";
+    }
+    return explicitCat || "Package";
+  }, []);
+
+  const availableDrawerCategories = React.useMemo(() => {
+    const flavors = expandedModEntry?.mod?.flavors || [];
+    const set = new Set<string>();
+    for (let i = 0; i < flavors.length; i++) {
+      const cat = resolveFlavorCategory(flavors[i]);
+      if (cat) set.add(cat);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [expandedModEntry, resolveFlavorCategory]);
+
+  const filteredDrawerFlavors = React.useMemo(() => {
+    const mod = expandedModEntry?.mod;
+    if (!mod) return [];
+    const flavors = Array.isArray(mod.flavors) ? mod.flavors : [];
+    const normQuery = deferredDrawerSearch
+      .trim()
+      .toLowerCase()
+      .replace(/[_.\-/\\]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    return flavors.filter((flavor: any) => {
+      const isEquipped = cleanedActiveSet.has(flavor.name);
+      if (drawerEquipFilter === "EQUIPPED" && !isEquipped) return false;
+      if (drawerEquipFilter === "UNEQUIPPED" && isEquipped) return false;
+
+      if (drawerCategoryFilter !== "ALL") {
+        const cat = resolveFlavorCategory(flavor);
+        if (cat.toLowerCase() !== drawerCategoryFilter.toLowerCase()) return false;
+      }
+
+      if (drawerStatusFilter !== "ALL") {
+        const rawStatus = String(flavor.status || "").toLowerCase();
+        const isLocalOnly =
+          !flavor.dbId ||
+          rawStatus === "local" ||
+          rawStatus === "unverified" ||
+          String(flavor.version || "").toLowerCase() === "v.local";
+        if (drawerStatusFilter === "UNVERIFIED") {
+          if (!isLocalOnly) return false;
+        } else if (rawStatus !== drawerStatusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      if (normQuery) {
+        const disp = formatDisplayName(flavor.displayName || flavor.name || "")
+          .toLowerCase()
+          .replace(/[_.\-/\\]+/g, " ");
+        const rawName = String(flavor.name || "")
+          .toLowerCase()
+          .replace(/[_.\-/\\]+/g, " ");
+        const auth = String(flavor.author || mod.author || "")
+          .toLowerCase()
+          .replace(/[_.\-/\\]+/g, " ");
+        const catStr = resolveFlavorCategory(flavor).toLowerCase();
+        if (
+          !disp.includes(normQuery) &&
+          !rawName.includes(normQuery) &&
+          !auth.includes(normQuery) &&
+          !catStr.includes(normQuery)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    expandedModEntry,
+    deferredDrawerSearch,
+    drawerEquipFilter,
+    drawerCategoryFilter,
+    drawerStatusFilter,
+    cleanedActiveSet,
+    resolveFlavorCategory,
+  ]);
+
+  const visibleDrawerFlavors = React.useMemo(
+    () =>
+      filteredDrawerFlavors.length > drawerVisibleLimit
+        ? filteredDrawerFlavors.slice(0, drawerVisibleLimit)
+        : filteredDrawerFlavors,
+    [filteredDrawerFlavors, drawerVisibleLimit]
+  );
+
+  React.useEffect(() => {
+    if (drawerVisibleLimit >= filteredDrawerFlavors.length) return;
+    const node = drawerSentinelRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          React.startTransition(() => {
+            setDrawerVisibleLimit((prev) =>
+              Math.min(filteredDrawerFlavors.length, prev + 25)
+            );
+          });
+        }
+      },
+      { root: drawerScrollRef.current, rootMargin: "320px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [drawerVisibleLimit, filteredDrawerFlavors.length, expandedFolder]);
+
+  const hasActiveDrawerFilters =
+    drawerEquipFilter !== "ALL" ||
+    drawerCategoryFilter !== "ALL" ||
+    drawerStatusFilter !== "ALL";
+
+  const drawerFilterPopoverContent = React.useMemo(
+    () => (
+      <div className="flex flex-col w-[440px] p-4 max-w-[calc(100vw-40px)] text-left">
+        <DrawerFilterSection
+          t={t}
+          title={t("blueprint", "{Blueprint}")}
+          value={drawerEquipFilter}
+          onChange={(val: "ALL" | "EQUIPPED" | "UNEQUIPPED") =>
+            setDrawerEquipFilter(val)
+          }
+          options={[
+            { id: "ALL", label: t("filter_all", "All") },
+            {
+              id: "EQUIPPED",
+              label: t("filter_in_blueprint", "In {Blueprint}"),
+            },
+            {
+              id: "UNEQUIPPED",
+              label: t("filter_not_equipped", "Not Equipped"),
+            },
+          ]}
+        />
+
+        {availableDrawerCategories.length > 1 && (
+          <DrawerFilterSection
+            t={t}
+            title={t("filter_category", "Filter Category")}
+            value={drawerCategoryFilter}
+            onChange={(val: string) => setDrawerCategoryFilter(val)}
+            options={[
+              { id: "ALL", label: t("filter_all", "All") },
+              ...availableDrawerCategories.map((cat) => ({
+                id: cat,
+                label:
+                  cat === "Script"
+                    ? t("type_script", "Script")
+                    : cat === "Package"
+                      ? t("type_package", "Package")
+                      : cat,
+              })),
+            ]}
+          />
+        )}
+
+        <DrawerFilterSection
+          t={t}
+          title={t("filter_status", "Filter Status")}
+          value={drawerStatusFilter}
+          onChange={(val: string) => setDrawerStatusFilter(val)}
+          options={[
+            { id: "ALL", label: t("filter_all", "All") },
+            { id: "stable", label: t("status_stable", "STABLE") },
+            { id: "UNVERIFIED", label: t("unverified", "Unverified") },
+            { id: "unstable", label: t("label_unstable", "Unstable") },
+            { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+          ]}
+        />
+
+        {hasActiveDrawerFilters && (
+          <button
+            type="button"
+            onClick={() => {
+              setDrawerEquipFilter("ALL");
+              setDrawerCategoryFilter("ALL");
+              setDrawerStatusFilter("ALL");
+            }}
+            className="mt-1 px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+              {t("icon_filter_alt_off", "filter_alt_off")}
+            </span>
+            <span>{t("btn_clear", "Clear Filters")}</span>
+          </button>
+        )}
+      </div>
+    ),
+    [
+      t,
+      drawerEquipFilter,
+      availableDrawerCategories,
+      drawerCategoryFilter,
+      drawerStatusFilter,
+      hasActiveDrawerFilters,
+    ]
+  );
+
   const drawerComputations = React.useMemo(() => {
     const map = new Map();
-    paginatedMods.forEach((mod: any, index: number) => {
-      const mainKey = `${mod.hash || mod.name}-${index}`;
-      const isExpanded = expandedFolder === mainKey;
-      if (!isExpanded) return;
+    const mod = expandedModEntry?.mod;
+    if (!mod) return map;
 
-      (mod.flavors || []).forEach((flavor: any) => {
-        const isFlavorEquipped = activeSetMods.includes(flavor.name);
-        
-        // If the folder isn't expanded, we only care about maintaining the equipped state
-        // for the sliding close animation. Skip all heavy math.
-        if (!isExpanded) {
-          map.set(flavor.hash || flavor.name, {
-            isFlavorEquipped,
-            drawerCasualties: [],
-            flavorTier3: [],
-            isSwappedState: false,
-            isBetaSwap: false,
-            missingPacks: [],
-            hasMissingDeps: false,
-            flavorVersionMismatch: false,
-            flavorGhostReason: null,
-            isFlavorGhosted: false
-          });
-          return;
-        }
+    const modBaseCasualties: any[] = [];
+    const modBaseTier3: any[] = [];
+    checkConflicts(mod, modBaseCasualties, modBaseTier3);
 
-        const getDrawerDeepCasualties = (seeds: any[]) => {
-          let queue = [...seeds];
-          let seen = new Set<string>();
-          let result: any[] = [];
-          while (queue.length > 0) {
-            const current = queue.shift();
-            if (!current || seen.has(current.name)) continue;
-            seen.add(current.name);
-            result.push(current);
-            const dependents = dependencyGraph.get(current.name) || [];
-            queue.push(...dependents);
-          }
-          return result;
-        };
+    let modRawDLC: string[] = [];
+    if (mod.requiredDLC) {
+      if (typeof mod.requiredDLC === 'string') {
+        try { modRawDLC.push(...JSON.parse(mod.requiredDLC)); }
+        catch { modRawDLC.push(...mod.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
+      } else if (Array.isArray(mod.requiredDLC)) {
+        modRawDLC.push(...mod.requiredDLC);
+      }
+    }
+    const modVersionMismatch = Boolean(
+      mod.compatible_versions &&
+      mod.compatible_versions.length > 0 &&
+      selectedVersion &&
+      selectedVersion !== "" &&
+      !isVersionMatch(mod.compatible_versions, selectedVersion)
+    );
 
-        let drawerCasualties: any[] = [];
-        let isSwappedState = false;
-        let isBetaSwap = false;
+    const getDrawerDeepCasualties = (seeds: any[]) => {
+      let queue = [...seeds];
+      let seen = new Set<string>();
+      let result: any[] = [];
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || seen.has(current.name)) continue;
+        seen.add(current.name);
+        result.push(current);
+        const dependents = dependencyGraph.get(current.name) || [];
+        queue.push(...dependents);
+      }
+      return result;
+    };
 
-        if (!isFlavorEquipped) {
-          const localRivals = mod.isFlavorFolder
-            ? (mod.flavors || []).filter((f: any) => f.name !== flavor.name && activeSetMods.includes(f.name) && !areArchetypes(flavor.hash, f.hash))
+    visibleDrawerFlavors.forEach((flavor: any) => {
+      const isFlavorEquipped = cleanedActiveSet.has(flavor.name);
+
+      let drawerCasualties: any[] = [];
+      let isSwappedState = false;
+      let isBetaSwap = false;
+
+      if (!isFlavorEquipped) {
+        const localRivals = mod.isFlavorFolder
+          ? (mod.flavors || []).filter((f: any) => f.name !== flavor.name && cleanedActiveSet.has(f.name) && !areArchetypes(flavor.hash, f.hash))
+          : [];
+        const globalRivals =
+          flavor.flavorGroupId || flavor.communityGroupId || flavor.relationshipType === 'beta'
+            ? equippedDisplayMods.filter((m: any) => {
+                if (m.name === flavor.name) return false;
+                const isSameFlavorGroup = (flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId)) || (flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
+                const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
+                if (isSameFlavorGroup || isBetaRival) {
+                  if (areArchetypes(flavor.hash, m.hash)) return false;
+                  return true;
+                }
+                return false;
+              })
             : [];
-          const globalRivals = equippedDisplayMods.filter((m: any) => {
-            if (m.name === flavor.name) return false;
-            const isSameFlavorGroup = (flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId)) || (flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
-            const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
-            if (isSameFlavorGroup || isBetaRival) {
-              if (areArchetypes(flavor.hash, m.hash)) return false;
-              return true;
-            }
-            return false;
-          });
-          const allRivals = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-          drawerCasualties = getDrawerDeepCasualties(allRivals);
-          
-          if (localRivals.length > 0 || globalRivals.length > 0) {
-             const hasBeta = [...localRivals, ...globalRivals].some(r => r.relationshipType === 'beta');
-             if (flavor.relationshipType === 'beta' || hasBeta) {
-                isBetaSwap = true;
-             } else {
-                isSwappedState = true;
-             }
-          }
-        } else {
-          let wouldBeRemoved = [flavor];
-          const parentSet = localSets.find((s: any) => s.archetypes?.core === flavor.hash || s.archetypes?.twins?.includes(flavor.hash));
-          if (parentSet) {
-            const siblings = equippedDisplayMods.filter((m: any) => !m.isVirtual && m.name && m.name !== flavor.name && parentSet.items.includes(m.hash));
-            wouldBeRemoved.push(...siblings);
-          } else if (flavor.relationshipType === "core") {
-            const anchor = flavor.familyId || flavor.dbId;
-            const siblings = equippedDisplayMods.filter((m: any) => !m.isVirtual && m.name && m.name !== flavor.name && (String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor) || String(m.setId) === String(flavor.dbId)));
-            wouldBeRemoved.push(...siblings);
-          }
-          drawerCasualties = getDrawerDeepCasualties(wouldBeRemoved).filter((c: any) => c.name !== flavor.name);
-          if (wouldBeRemoved.length > 1) {
-            const siblingObjs = wouldBeRemoved.filter((m: any) => m.name !== flavor.name);
-            drawerCasualties = [...drawerCasualties, ...siblingObjs].filter((v, i, a) => a.findIndex(t => (t.name || t) === (v.name || v)) === i);
-          }
-        }
-        
-        // ADD S4 COLLISIONS TO DRAWER CASUALTIES
-        let flavorTier3: any[] = [];
-        if (!isFlavorEquipped) {
-            checkConflicts(flavor, drawerCasualties, flavorTier3);
-            checkConflicts(mod, drawerCasualties, flavorTier3);
-            
-            drawerCasualties = Array.from(new Map(drawerCasualties.map((item: any) => [item.name || item, item])).values());
-            flavorTier3 = Array.from(new Map(flavorTier3.map((item: any) => [item.name || item, item])).values());
-        }
-        if (anarchyRules?.intercept === false) {
-          drawerCasualties = [];
-        }
+        const allRivals = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+        drawerCasualties = getDrawerDeepCasualties(allRivals);
 
-        let rawFlavorDLC: string[] = [];
-        if (mod.requiredDLC) {
-          if (typeof mod.requiredDLC === 'string') {
-            try { rawFlavorDLC.push(...JSON.parse(mod.requiredDLC)); }
-            catch { rawFlavorDLC.push(...mod.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
+        if (localRivals.length > 0 || globalRivals.length > 0) {
+          const hasBeta = [...localRivals, ...globalRivals].some(r => r.relationshipType === 'beta');
+          if (flavor.relationshipType === 'beta' || hasBeta) {
+            isBetaSwap = true;
+          } else {
+            isSwappedState = true;
           }
-          else if (Array.isArray(mod.requiredDLC)) rawFlavorDLC.push(...mod.requiredDLC);
         }
-        if (flavor.requiredDLC) {
-          if (typeof flavor.requiredDLC === 'string') {
-            try { rawFlavorDLC.push(...JSON.parse(flavor.requiredDLC)); }
-            catch { rawFlavorDLC.push(...flavor.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
-          }
-          else if (Array.isArray(flavor.requiredDLC)) rawFlavorDLC.push(...flavor.requiredDLC);
+      } else {
+        let wouldBeRemoved = [flavor];
+        const parentSet = localSets.find((s: any) => s.archetypes?.core === flavor.hash || s.archetypes?.twins?.includes(flavor.hash));
+        if (parentSet) {
+          const siblings = equippedDisplayMods.filter((m: any) => !m.isVirtual && m.name && m.name !== flavor.name && parentSet.items.includes(m.hash));
+          wouldBeRemoved.push(...siblings);
+        } else if (flavor.relationshipType === "core") {
+          const anchor = flavor.familyId || flavor.dbId;
+          const siblings = equippedDisplayMods.filter((m: any) => !m.isVirtual && m.name && m.name !== flavor.name && (String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor) || String(m.setId) === String(flavor.dbId)));
+          wouldBeRemoved.push(...siblings);
         }
+        drawerCasualties = getDrawerDeepCasualties(wouldBeRemoved).filter((c: any) => c.name !== flavor.name);
+        if (wouldBeRemoved.length > 1) {
+          const siblingObjs = wouldBeRemoved.filter((m: any) => m.name !== flavor.name);
+          drawerCasualties = [...drawerCasualties, ...siblingObjs].filter((v, i, a) => a.findIndex(t => (t.name || t) === (v.name || v)) === i);
+        }
+      }
 
-        let flavorDLC = Array.from(new Set(rawFlavorDLC))
-          .map((p: string) => String(p).replace(/[\{\}\[\]"']/g, "").trim())
-          .filter((p: string) => {
-            const code = p.split(' ')[0].toUpperCase().trim();
-            return Boolean(code) && code !== "BASE";
-          });
-        const missingPacks = flavorDLC.filter((p: string) => {
-          const baseCode = p.split(' ')[0].toUpperCase().trim();
-          return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+      let flavorTier3: any[] = [];
+      if (!isFlavorEquipped) {
+        if (modBaseCasualties.length > 0) drawerCasualties.push(...modBaseCasualties);
+        if (modBaseTier3.length > 0) flavorTier3.push(...modBaseTier3);
+        checkConflicts(flavor, drawerCasualties, flavorTier3);
+
+        drawerCasualties = Array.from(new Map(drawerCasualties.map((item: any) => [item.name || item, item])).values());
+        flavorTier3 = Array.from(new Map(flavorTier3.map((item: any) => [item.name || item, item])).values());
+      }
+      if (anarchyRules?.intercept === false) {
+        drawerCasualties = [];
+      }
+
+      let rawFlavorDLC: string[] = [...modRawDLC];
+      if (flavor.requiredDLC) {
+        if (typeof flavor.requiredDLC === 'string') {
+          try { rawFlavorDLC.push(...JSON.parse(flavor.requiredDLC)); }
+          catch { rawFlavorDLC.push(...flavor.requiredDLC.replace(/[\{\}\[\]]/g, '').split(',').map((s: string) => s.replace(/^"/, '').replace(/"$/, '').trim())); }
+        }
+        else if (Array.isArray(flavor.requiredDLC)) rawFlavorDLC.push(...flavor.requiredDLC);
+      }
+
+      let flavorDLC = Array.from(new Set(rawFlavorDLC))
+        .map((p: string) => String(p).replace(/[\{\}\[\]"']/g, "").trim())
+        .filter((p: string) => {
+          const code = p.split(' ')[0].toUpperCase().trim();
+          return Boolean(code) && code !== "BASE";
         });
-        const hasMissingDeps = (flavor.missingReqs && flavor.missingReqs.length > 0) || (mod.missingReqs && mod.missingReqs.length > 0);
+      const missingPacks = flavorDLC.filter((p: string) => {
+        const baseCode = p.split(' ')[0].toUpperCase().trim();
+        return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+      });
+      const hasMissingDeps = (flavor.missingReqs && flavor.missingReqs.length > 0) || (mod.missingReqs && mod.missingReqs.length > 0);
 
-        const flavorVersionMismatch = (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) || (mod.compatible_versions && mod.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(mod.compatible_versions, selectedVersion));
-        const flavorGhostReason = flavorVersionMismatch ? "VERSION_MISMATCH" : (missingPacks.length > 0 ? "MISSING_DLC" : null);
-        const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || Boolean(flavorVersionMismatch);
+      const flavorVersionMismatch = Boolean(
+        (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) ||
+        modVersionMismatch
+      );
+      const flavorGhostReason = flavorVersionMismatch ? "VERSION_MISMATCH" : (missingPacks.length > 0 ? "MISSING_DLC" : null);
+      const isFlavorGhosted = missingPacks.length > 0 || hasMissingDeps || Boolean(flavorVersionMismatch);
 
-        map.set(flavor.hash || flavor.name, {
-          isFlavorEquipped,
-          drawerCasualties,
-          flavorTier3,
-          isSwappedState,
-          isBetaSwap,
-          missingPacks,
-          hasMissingDeps,
-          flavorVersionMismatch,
-          flavorGhostReason,
-          isFlavorGhosted
-        });
+      map.set(flavor.hash || flavor.name, {
+        isFlavorEquipped,
+        drawerCasualties,
+        flavorTier3,
+        isSwappedState,
+        isBetaSwap,
+        missingPacks,
+        hasMissingDeps,
+        flavorVersionMismatch,
+        flavorGhostReason,
+        isFlavorGhosted
       });
     });
+
     return map;
-  }, [paginatedMods, activeSetMods, equippedDisplayMods, dependencyGraph, activeGameSchema, localSets, anarchyRules, ownedDLC, maskedDLC, selectedVersion, checkConflicts, expandedFolder]);
+  }, [expandedModEntry, visibleDrawerFlavors, cleanedActiveSet, equippedDisplayMods, dependencyGraph, activeGameSchema, localSets, anarchyRules, ownedDLC, maskedDLC, selectedVersion, checkConflicts]);
 
 
   const gridLayoutClass = vaultLayout === "list" ? "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(450px,1fr))]" : vaultLayout === "compact" ? "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(220px,1fr))]" : "grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(350px,1fr))]";
@@ -710,7 +986,11 @@ export function VaultGrid(props: any) {
                                 {t("icon_account_tree", "account_tree")}
                               </span>
                               <span>
-                                {t("nav_exploring", "Exploring")} {(renderedMod.flavors || []).length} {t("term_mods", "Artifacts")}
+                                {t("nav_exploring", "Exploring")}{" "}
+                                {filteredDrawerFlavors.length !== (renderedMod.flavors || []).length
+                                  ? `${filteredDrawerFlavors.length} / ${(renderedMod.flavors || []).length}`
+                                  : (renderedMod.flavors || []).length}{" "}
+                                {t("term_mods", "Artifacts")}
                               </span>
                             </div>
                           </div>
@@ -718,39 +998,18 @@ export function VaultGrid(props: any) {
                       </div>
 
                       <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
-                        <div
-                          className="relative flex-1 md:w-72 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center px-3.5 gap-2.5 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-70 shrink-0">
-                            {t("icon_search", "search")}
-                          </span>
-                          <input
-                            type="text"
-                            value={drawerSearchQuery}
-                            onChange={(e) => setDrawerSearchQuery(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                              if (e.key === "Escape") setDrawerSearchQuery("");
+                        <div className="flex-1 md:w-80 lg:w-96" onClick={(e) => e.stopPropagation()}>
+                          <ActionPill
+                            searchQuery={drawerSearchQuery}
+                            setSearchQuery={setDrawerSearchQuery}
+                            searchPlaceholder={t("search_ph", "Search {mods}...")}
+                            primaryPopover={{
+                              icon: t("icon_tune", "tune"),
+                              label: t("filters", "Filters"),
+                              content: drawerFilterPopoverContent,
                             }}
-                            placeholder={t("search_ph", "Search {mods}...")}
-                            className="w-full bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-50"
+                            className="!w-full !max-w-full"
                           />
-                          {drawerSearchQuery && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDrawerSearchQuery("");
-                              }}
-                              className="w-5 h-5 rounded-full flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors shrink-0"
-                            >
-                              <span className="material-symbols-outlined !text-[14px]">
-                                {t("icon_close", "close")}
-                              </span>
-                            </button>
-                          )}
                         </div>
                         <button
                           type="button"
@@ -759,7 +1018,7 @@ export function VaultGrid(props: any) {
                             setDrawerSearchQuery("");
                             setExpandedFolder(null);
                           }}
-                          className="w-10 h-10 rounded-xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                          className="w-11 h-11 rounded-2xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
                         >
                           <span className="material-symbols-outlined !text-[20px]">
                             {t("icon_close", "close")}
@@ -770,88 +1029,90 @@ export function VaultGrid(props: any) {
 
                     {/* Folder Sub-Cards Grid */}
                     <div className="w-full relative z-10">
-                      {(() => {
-                        const filteredFlavors = (renderedMod.flavors || []).filter((flavor: any) => {
-                          if (!drawerSearchQuery.trim()) return true;
-                          const query = drawerSearchQuery.trim().toLowerCase();
-                          const disp = formatDisplayName(flavor.displayName || flavor.name || "").toLowerCase();
-                          const rawName = String(flavor.name || "").toLowerCase();
-                          const auth = String(flavor.author || renderedMod.author || "").toLowerCase();
-                          return disp.includes(query) || rawName.includes(query) || auth.includes(query);
-                        });
+                      {filteredDrawerFlavors.length === 0 ? (
+                        <EmptyState
+                          icon={t("icon_search_off", "search_off")}
+                          title={t("registry_no_mods", "No {Mods} Found")}
+                          minHeightClass="min-h-[180px]"
+                          className="col-span-full py-6"
+                        />
+                      ) : (
+                        <div
+                          ref={drawerScrollRef}
+                          onScroll={(e) => {
+                            if (drawerVisibleLimit >= filteredDrawerFlavors.length) return;
+                            const el = e.currentTarget;
+                            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 360) {
+                              React.startTransition(() => {
+                                setDrawerVisibleLimit((prev) =>
+                                  Math.min(filteredDrawerFlavors.length, prev + 25)
+                                );
+                              });
+                            }
+                          }}
+                          className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5 max-h-[520px] lg:max-h-[620px] overflow-y-auto custom-scrollbar p-1"
+                        >
+                          {visibleDrawerFlavors.map((flavor: any, subIdx: number) => {
+                            const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
+                            const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
 
-                        if (filteredFlavors.length === 0) {
-                          return (
-                            <EmptyState
-                              icon={t("icon_search_off", "search_off")}
-                              title={t("registry_no_mods", "No {Mods} Found")}
-                              minHeightClass="min-h-[180px]"
-                              className="col-span-full py-6"
-                            />
-                          );
-                        }
+                            const combinedMissingDeps = [...(flavor.missingReqs || []), ...(mod.missingReqs || [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
-                        return (
-                          <div className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5 max-h-[520px] lg:max-h-[620px] overflow-y-auto custom-scrollbar p-1">
-                            {filteredFlavors.map((flavor: any, subIdx: number) => {
-                              const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: false, drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
-                              const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
-
-                              const combinedMissingDeps = [...(flavor.missingReqs || []), ...(mod.missingReqs || [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-
-                              return (
-                                <ModCard
-                                  compact={true}
-                                  hideHitBox={true}
-                                  key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
-                                  mod={flavor}
-                                  gameVersion={selectedVersion}
-                                  ownedDLC={ownedDLC}
-                                  maskedDLC={maskedDLC}
-                                  isInActiveSet={isFlavorEquipped}
-                                  casualtyList={drawerCasualties}
-                                  anarchyRules={anarchyRules}
-                                  tier3List={flavorTier3 || []}
-                                  missingDeps={combinedMissingDeps}
-                                  flavorGhostReason={flavorGhostReason}
-                                  isSelfGhosted={isFlavorGhosted}
-                                  isSelfSwapped={isSwappedState}
-                                  isSelfBetaSwap={isBetaSwap}
-                                  onToggleSet={async (e: any, overrideBroken: boolean = false) => {
-                                    e.stopPropagation();
-                                    if (flavor.isGhosted || missingPacks.length > 0 || hasMissingDeps || flavorGhostReason === "VERSION_MISMATCH") {
-                                      if (!overrideBroken) {
-                                        setDrawerConfirmHash(drawerConfirmHash === flavor.hash ? null : flavor.hash);
-                                        return;
-                                      }
-                                    }
-                                    if (!overrideBroken && !isFlavorEquipped && drawerCasualties.length > 0 && drawerConfirmHash !== flavor.hash && anarchyRules?.intercept !== false) {
-                                      setDrawerConfirmHash(flavor.hash);
+                            return (
+                              <ModCard
+                                compact={true}
+                                hideHitBox={true}
+                                key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                mod={flavor}
+                                gameVersion={selectedVersion}
+                                ownedDLC={ownedDLC}
+                                maskedDLC={maskedDLC}
+                                isInActiveSet={isFlavorEquipped}
+                                casualtyList={drawerCasualties}
+                                anarchyRules={anarchyRules}
+                                tier3List={flavorTier3 || []}
+                                missingDeps={combinedMissingDeps}
+                                flavorGhostReason={flavorGhostReason}
+                                isSelfGhosted={isFlavorGhosted}
+                                isSelfSwapped={isSwappedState}
+                                isSelfBetaSwap={isBetaSwap}
+                                onToggleSet={async (e: any, overrideBroken: boolean = false) => {
+                                  e.stopPropagation();
+                                  if (flavor.isGhosted || missingPacks.length > 0 || hasMissingDeps || flavorGhostReason === "VERSION_MISMATCH") {
+                                    if (!overrideBroken) {
+                                      setDrawerConfirmHash(drawerConfirmHash === flavor.hash ? null : flavor.hash);
                                       return;
                                     }
-                                    setDrawerConfirmHash(null);
-                                    await toggleInActiveSet(flavor.name, !overrideBroken);
-                                  }}
-                                  onContextMenu={(e: any) => {
-                                    if (props.onContextMenu) {
-                                      props.onContextMenu(e, flavor);
-                                    }
-                                  }}
-                                  onSelect={() => {
-                                    setMetaNameInput(flavor.displayName || flavor.name);
-                                    setMetaAuthorInput(flavor.author || mod.author || "");
-                                    setMetaVersionInput(flavor.version || mod.version || "");
-                                    setMetaDescInput(flavor.description || mod.description || "");
-                                    setMetaImageInput(flavor.image_url || flavor.imageUrl || mod.image_url || mod.imageUrl || "");
-                                    setMetaAllowWriteInput(flavor.allow_write || mod.allow_write || false);
-                                    setActiveDossier(flavor);
-                                  }}
-                                />
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
+                                  }
+                                  if (!overrideBroken && !isFlavorEquipped && drawerCasualties.length > 0 && drawerConfirmHash !== flavor.hash && anarchyRules?.intercept !== false) {
+                                    setDrawerConfirmHash(flavor.hash);
+                                    return;
+                                  }
+                                  setDrawerConfirmHash(null);
+                                  await toggleInActiveSet(flavor.name, !overrideBroken);
+                                }}
+                                onContextMenu={(e: any) => {
+                                  if (props.onContextMenu) {
+                                    props.onContextMenu(e, flavor);
+                                  }
+                                }}
+                                onSelect={() => {
+                                  setMetaNameInput(flavor.displayName || flavor.name);
+                                  setMetaAuthorInput(flavor.author || mod.author || "");
+                                  setMetaVersionInput(flavor.version || mod.version || "");
+                                  setMetaDescInput(flavor.description || mod.description || "");
+                                  setMetaImageInput(flavor.image_url || flavor.imageUrl || mod.image_url || mod.imageUrl || "");
+                                  setMetaAllowWriteInput(flavor.allow_write || mod.allow_write || false);
+                                  setActiveDossier(flavor);
+                                }}
+                              />
+                            );
+                          })}
+                          {drawerVisibleLimit < filteredDrawerFlavors.length && (
+                            <div ref={drawerSentinelRef} className="col-span-full h-2" />
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </AccordionDrawer>

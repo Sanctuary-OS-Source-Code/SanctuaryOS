@@ -69,6 +69,19 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [showLoginUI, setShowLoginUI] = useState(
     () => localStorage.getItem("sanctuary_show_login") === "true"
   );
+  const [isDevGateLocked, setIsDevGateLocked] = useState(
+    () => typeof window !== "undefined" && Boolean((window as any).__sanctuaryDevGateLocked)
+  );
+
+  useEffect(() => {
+    const handleDevGateLockChanged = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      setIsDevGateLocked(Boolean(detail?.locked));
+    };
+    window.addEventListener("sanctuary-dev-gate-lock-changed", handleDevGateLockChanged);
+    return () =>
+      window.removeEventListener("sanctuary-dev-gate-lock-changed", handleDevGateLockChanged);
+  }, []);
 
   const prepareMfaChallengeFromState = async (): Promise<boolean> => {
     const state = await fetchMfaSecurityState();
@@ -585,6 +598,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const isOnline = typeof navigator === "undefined" ? true : navigator.onLine;
   const isLoginPanelOpen =
     !loadingSession &&
+    !isDevGateLocked &&
     (isPasswordRecovery ||
       showMfaChallenge ||
       (!session && showLoginUI && isOnline));

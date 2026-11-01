@@ -1221,51 +1221,55 @@ export default function WebLandingPage() {
   const navigateToGame = async (gameId: string) => {
     setRecentTimestamps(recordWorkspaceLoaded(gameId));
     if (isDesktop()) {
-      if (gameId === activeWorkspaceId) {
-        setIsConfigured(true);
-        setView('dashboard');
-        return;
-      }
+      const isSameWorkspace = gameId === activeWorkspaceId;
       try {
         const globalConfig: any = await invoke('get_global_config');
         globalConfig.active_workspace_id = gameId;
-        if (Array.isArray(globalConfig.workspaces)) {
-          const existsInConfig = globalConfig.workspaces.some(
-            (w: any) =>
-              String(w.id || '').toLowerCase() ===
+        if (!Array.isArray(globalConfig.workspaces)) {
+          globalConfig.workspaces = [];
+        }
+        const existsInConfig = globalConfig.workspaces.some(
+          (w: any) =>
+            String(w.id || '').toLowerCase() ===
+              String(gameId || '').toLowerCase() ||
+            String(w.schema_id || '').toLowerCase() ===
+              String(gameId || '').toLowerCase()
+        );
+        if (!existsInConfig) {
+          const matchedGame = games.find(
+            (g: any) =>
+              String(g.schema_id || '').toLowerCase() ===
                 String(gameId || '').toLowerCase() ||
-              String(w.schema_id || '').toLowerCase() ===
+              String(g.id || '').toLowerCase() ===
                 String(gameId || '').toLowerCase()
           );
-          if (!existsInConfig) {
-            const matchedGame = games.find(
-              (g: any) =>
-                String(g.schema_id || '').toLowerCase() ===
-                  String(gameId || '').toLowerCase() ||
-                String(g.id || '').toLowerCase() ===
-                  String(gameId || '').toLowerCase()
-            );
-            const targetSchema = matchedGame?.schema_id || gameId;
-            const masterVault = globalConfig.vault_path || '';
-            globalConfig.workspaces.push({
-              id: gameId,
-              name: matchedGame?.name || gameId,
-              schema_id: targetSchema,
-              live_path: '',
-              mods_path: '',
-              vault_path: masterVault ? `${masterVault}\\${targetSchema}` : '',
-              supabase_url: matchedGame?.supabase_url || null,
-              supabase_anon_key: matchedGame?.supabase_anon_key || null,
-            });
-          }
+          const targetSchema = matchedGame?.schema_id || gameId;
+          const masterVault = globalConfig.vault_path || '';
+          const sep = masterVault.includes('/') ? '/' : '\\';
+          globalConfig.workspaces.push({
+            id: gameId,
+            name: matchedGame?.name || gameId,
+            schema_id: targetSchema,
+            live_path: '',
+            mods_path: '',
+            vault_path: masterVault ? `${masterVault}${sep}${targetSchema}` : '',
+            supabase_url: matchedGame?.supabase_url || null,
+            supabase_anon_key: matchedGame?.supabase_anon_key || null,
+          });
         }
         await invoke('save_coordinates', { config: globalConfig });
         localStorage.setItem('sanctuary_last_active_workspace', gameId);
         setIsConfigured(true);
         setView('dashboard');
-        setTimeout(() => window.location.reload(), 10);
+        if (!isSameWorkspace) {
+          setTimeout(() => window.location.reload(), 10);
+        }
       } catch (err) {
         console.error('Failed to swap workspace on desktop:', err);
+        if (isSameWorkspace) {
+          setIsConfigured(true);
+          setView('dashboard');
+        }
       }
     } else {
       const host = window.location.host;

@@ -379,12 +379,27 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const handleAutoDetect = async () => {
     try {
       const detected: any = await invoke("auto_detect_paths");
-      updateConfig("live_path", detected.live_path);
-      updateConfig("mods_path", detected.mods_path);
-      updateConfig("vault_path", detected.vault_path);
-      useStore.getState().pushStatus(
-        t("settings_auto_detect_success", "Paths Auto-Detected Successfully!")
-      );
+      const patch: Record<string, string> = {};
+      if (detected?.live_path) patch.live_path = detected.live_path;
+      if (detected?.mods_path) patch.mods_path = detected.mods_path;
+      const currentVaultVal = pathMap?.find((p: any) => p.rustKey === "vault_path")?.value;
+      if (detected?.vault_path && (!currentVaultVal || currentVaultVal === "web")) {
+        patch.vault_path = detected.vault_path;
+      }
+      if (Object.keys(patch).length > 0) {
+        await updateConfig(patch);
+      }
+      if (detected?.live_path || detected?.mods_path) {
+        useStore.getState().pushStatus(
+          t("settings_auto_detect_success", "Paths Auto-Detected Successfully!"),
+          "success"
+        );
+      } else {
+        useStore.getState().pushStatus(
+          t("settings_auto_detect_fail", "Failed to auto-detect paths."),
+          "warning"
+        );
+      }
     } catch {
       useStore.getState().pushStatus(
         t("settings_auto_detect_fail", "Failed to auto-detect paths."),
@@ -404,11 +419,13 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const renderPath = (dir: any) => {
     const obfuscatePath = (p: string) =>
       p
-        ? p.replace(/([A-Za-z]:\\[Uu]sers\\[^\\]+)/, (_match, p1) => {
-            const parts = p1.split("\\");
-            parts[2] = "***";
-            return parts.join("\\");
-          })
+        ? p
+            .replace(/([A-Za-z]:\\[Uu]sers\\[^\\]+)/, (_match, p1) => {
+              const parts = p1.split("\\");
+              parts[2] = "***";
+              return parts.join("\\");
+            })
+            .replace(/^(\/(?:home|Users)\/)[^/]+/, "$1***")
         : t("path_not_set", "Not Set");
 
     return (

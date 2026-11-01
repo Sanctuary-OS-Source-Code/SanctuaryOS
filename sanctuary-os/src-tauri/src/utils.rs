@@ -3139,6 +3139,30 @@ pub fn is_mod_version_archiving_enabled(vault_path: &str) -> bool {
     true
 }
 
+pub fn load_pinned_mod_versions(vault_path: &str) -> std::collections::HashMap<String, String> {
+    if vault_path.trim().is_empty() {
+        return std::collections::HashMap::new();
+    }
+    if let Some((val, _)) = get_vault_kv(vault_path, "pinned_mod_versions") {
+        if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, String>>(&val) {
+            return map;
+        }
+    }
+    std::collections::HashMap::new()
+}
+
+pub fn save_pinned_mod_versions(
+    vault_path: &str,
+    pins: &std::collections::HashMap<String, String>,
+) {
+    if vault_path.trim().is_empty() {
+        return;
+    }
+    if let Ok(raw) = serde_json::to_string(pins) {
+        set_vault_kv(vault_path, "pinned_mod_versions", &raw);
+    }
+}
+
 pub fn archive_mod_binary_version(
     vault_path: &str,
     active_file_path: &Path,
@@ -3146,9 +3170,7 @@ pub fn archive_mod_binary_version(
     mod_version: Option<&str>,
     compatible_versions: Option<Vec<String>>,
 ) -> Option<ArchivedModVersion> {
-    if !is_mod_version_archiving_enabled(vault_path) {
-        return None;
-    }
+    let keep_history = is_mod_version_archiving_enabled(vault_path);
     if !active_file_path.exists() || !active_file_path.is_file() {
         return None;
     }
@@ -3231,7 +3253,7 @@ pub fn archive_mod_binary_version(
     } else {
         let created = ArchivedModVersion {
             rel_path: rel_str,
-            dna_hash: hash,
+            dna_hash: hash.clone(),
             backup_rel_path,
             mod_version: mod_version.unwrap_or_default().trim().to_string(),
             compatible_versions: compatible_versions
@@ -3245,6 +3267,24 @@ pub fn archive_mod_binary_version(
         entries.push(created.clone());
         created
     };
+
+    if !keep_history {
+        // When Version History is disabled ("Keep One" mode), prune any previous versions of this file on update
+        entries.retain(|e| {
+            let is_current = e.dna_hash.eq_ignore_ascii_case(&hash);
+            if !is_current && !e.backup_rel_path.is_empty() {
+                let old_full = backups_mods
+                    .join(e.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if old_full.exists() {
+                    let _ = std::fs::remove_file(&old_full);
+                    if let Some(p) = old_full.parent() {
+                        let _ = std::fs::remove_dir(p);
+                    }
+                }
+            }
+            is_current
+        });
+    }
 
     save_mod_versions_index(vault_path, &index);
     Some(entry)
@@ -3289,57 +3329,58 @@ pub fn sync_vault_mod_versions_for_game(
                     index_dirty = true;
                 }
             }
-            if !existing.backup_rel_path.is_empty() {
-                let short_hash: String = hash_lower.chars().take(12).collect();
-                let orig_file_name = Path::new(&rel_norm)
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                let canonical_backup_rel = if let Some(parent) = Path::new(&rel_norm).parent() {
-                    let p_str = parent.to_string_lossy().replace('\\', "/");
-                    if p_str.is_empty() {
-                        format!("{}/{}", short_hash, orig_file_name)
-                    } else {
-                        format!("{}/{}/{}", p_str, short_hash, orig_file_name)
-                    }
-                } else {
+            let short_hash: String = hash_lower.chars().take(12).collect();
+            let orig_file_name = Path::new(&rel_norm)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let canonical_backup_rel = if let Some(parent) = Path::new(&rel_norm).parent() {
+                let p_str = parent.to_string_lossy().replace('\\', "/");
+                if p_str.is_empty() {
                     format!("{}/{}", short_hash, orig_file_name)
-                };
-                if existing.backup_rel_path != canonical_backup_rel
-                    && existing.backup_rel_path.contains("__")
-                {
-                    let old_b_full = backups_mods.join(
-                        existing
-                            .backup_rel_path
-                            .replace('/', std::path::MAIN_SEPARATOR_STR),
-                    );
-                    let new_b_full = backups_mods
-                        .join(canonical_backup_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
-                    if let Some(np) = new_b_full.parent() {
-                        let _ = std::fs::create_dir_all(np);
-                    }
-                    if old_b_full.exists() {
-                        if !new_b_full.exists() {
-                            let _ = std::fs::rename(&old_b_full, &new_b_full);
-                        } else {
-                            let _ = std::fs::remove_file(&old_b_full);
-                        }
-                    }
-                    existing.backup_rel_path = canonical_backup_rel;
-                    index_dirty = true;
+                } else {
+                    format!("{}/{}/{}", p_str, short_hash, orig_file_name)
                 }
-                let b_full = backups_mods
-                    .join(existing.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
-                if !b_full.exists() && active_full.exists() {
-                    if let Some(bp) = b_full.parent() {
-                        let _ = std::fs::create_dir_all(bp);
-                    }
-                    let _ = std::fs::hard_link(&active_full, &b_full)
-                        .or_else(|_| std::fs::copy(&active_full, &b_full).map(|_| ()));
+            } else {
+                format!("{}/{}", short_hash, orig_file_name)
+            };
+            if existing.backup_rel_path.is_empty() {
+                existing.backup_rel_path = canonical_backup_rel.clone();
+                index_dirty = true;
+            } else if existing.backup_rel_path != canonical_backup_rel
+                && existing.backup_rel_path.contains("__")
+            {
+                let old_b_full = backups_mods.join(
+                    existing
+                        .backup_rel_path
+                        .replace('/', std::path::MAIN_SEPARATOR_STR),
+                );
+                let new_b_full = backups_mods
+                    .join(canonical_backup_rel.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if let Some(np) = new_b_full.parent() {
+                    let _ = std::fs::create_dir_all(np);
                 }
+                if old_b_full.exists() {
+                    if !new_b_full.exists() {
+                        let _ = std::fs::rename(&old_b_full, &new_b_full);
+                    } else {
+                        let _ = std::fs::remove_file(&old_b_full);
+                    }
+                }
+                existing.backup_rel_path = canonical_backup_rel;
+                index_dirty = true;
             }
-        } else if archiving_enabled && !meta.compatible_versions.is_empty() && active_full.exists() {
+            let b_full = backups_mods
+                .join(existing.backup_rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+            if !b_full.exists() && active_full.exists() {
+                if let Some(bp) = b_full.parent() {
+                    let _ = std::fs::create_dir_all(bp);
+                }
+                let _ = std::fs::hard_link(&active_full, &b_full)
+                    .or_else(|_| std::fs::copy(&active_full, &b_full).map(|_| ()));
+            }
+        } else if archiving_enabled && active_full.exists() {
             let short_hash: String = hash_lower.chars().take(12).collect();
             let orig_file_name = active_full
                 .file_name()
@@ -3384,6 +3425,113 @@ pub fn sync_vault_mod_versions_for_game(
         }
     }
 
+    let mut cache = load_cache(vault_path);
+    let mut cache_dirty = false;
+
+    // Consolidate duplicate binary filenames across subfolders in <Vault>/Mods so two versions of the same file never coexist in <Vault>/Mods
+    let mut keys_by_filename: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for k in index.keys() {
+        let f_name = Path::new(k)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        let ext = Path::new(&f_name)
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if !f_name.is_empty() && (ext == "package" || ext == "ts4script") {
+            keys_by_filename.entry(f_name).or_default().push(k.clone());
+        }
+    }
+
+    for (_f_name, mut key_list) in keys_by_filename {
+        if key_list.len() <= 1 {
+            continue;
+        }
+        // Prefer the path that currently exists on disk, has metadata (compatible_versions), or is the shorter/cleaner path
+        key_list.sort_by(|a, b| {
+            let a_full = mods_lane.join(a.replace('/', std::path::MAIN_SEPARATOR_STR));
+            let b_full = mods_lane.join(b.replace('/', std::path::MAIN_SEPARATOR_STR));
+            let a_exists = a_full.exists();
+            let b_exists = b_full.exists();
+            let a_has_meta = index
+                .get(a)
+                .map(|v| v.iter().any(|e| !e.compatible_versions.is_empty()))
+                .unwrap_or(false);
+            let b_has_meta = index
+                .get(b)
+                .map(|v| v.iter().any(|e| !e.compatible_versions.is_empty()))
+                .unwrap_or(false);
+            b_exists
+                .cmp(&a_exists)
+                .then_with(|| b_has_meta.cmp(&a_has_meta))
+                .then_with(|| a.len().cmp(&b.len()))
+        });
+
+        let primary_key = key_list[0].clone();
+        let primary_rel = index
+            .get(&primary_key)
+            .and_then(|v| v.first())
+            .map(|e| e.rel_path.clone())
+            .unwrap_or_else(|| primary_key.clone());
+
+        for dup_key in key_list.into_iter().skip(1) {
+            if let Some(dup_entries) = index.remove(&dup_key) {
+                if let Some(first_dup) = dup_entries.first() {
+                    let dup_full = mods_lane
+                        .join(first_dup.rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                    if dup_full.exists() {
+                        let _ = std::fs::remove_file(&dup_full);
+                        let dup_full_str = dup_full.to_string_lossy().to_string();
+                        if cache.remove(&dup_full_str).is_some() {
+                            cache_dirty = true;
+                        }
+                        let mut cur_dir = dup_full.parent().map(|p| p.to_path_buf());
+                        while let Some(d) = cur_dir {
+                            if d == mods_lane || !d.starts_with(&mods_lane) {
+                                break;
+                            }
+                            if std::fs::remove_dir(&d).is_err() {
+                                break;
+                            }
+                            cur_dir = d.parent().map(|p| p.to_path_buf());
+                        }
+                    }
+                }
+                let primary_vec = index.entry(primary_key.clone()).or_default();
+                for mut de in dup_entries {
+                    de.rel_path = primary_rel.clone();
+                    if let Some(existing) = primary_vec
+                        .iter_mut()
+                        .find(|pe| pe.dna_hash.eq_ignore_ascii_case(&de.dna_hash))
+                    {
+                        if existing.mod_version.is_empty() && !de.mod_version.is_empty() {
+                            existing.mod_version = de.mod_version;
+                        }
+                        for cv in de.compatible_versions {
+                            if !existing
+                                .compatible_versions
+                                .iter()
+                                .any(|c| c.eq_ignore_ascii_case(&cv))
+                            {
+                                existing.compatible_versions.push(cv);
+                            }
+                        }
+                        if de.recorded_at > existing.recorded_at {
+                            existing.recorded_at = de.recorded_at;
+                        }
+                    } else {
+                        primary_vec.push(de);
+                    }
+                }
+                index_dirty = true;
+            }
+        }
+    }
+
     let clean_target = target_game_version
         .trim()
         .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
@@ -3392,18 +3540,29 @@ pub fn sync_vault_mod_versions_for_game(
         if index_dirty {
             save_mod_versions_index(vault_path, &index);
         }
+        if cache_dirty {
+            save_cache(vault_path, &cache);
+        }
         return Vec::new();
     }
 
-    let mut cache = load_cache(vault_path);
-    let mut cache_dirty = false;
     let mut swapped = Vec::new();
+    let pinned_map = load_pinned_mod_versions(vault_path);
 
     for entries in index.values() {
         if entries.is_empty() {
             continue;
         }
         let rel_norm = &entries[0].rel_path;
+        let f_name_lower = Path::new(rel_norm)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if !f_name_lower.is_empty() && pinned_map.contains_key(&f_name_lower) {
+            // Respect manual power-user version pin until reset to Auto-Swap
+            continue;
+        }
         let active_full = mods_lane.join(rel_norm.replace('/', std::path::MAIN_SEPARATOR_STR));
         let active_full_str = active_full.to_string_lossy().to_string();
 

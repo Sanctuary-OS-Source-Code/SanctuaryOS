@@ -802,19 +802,27 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const versionMetadata: any[] = [];
           for (const m of localMods) {
             if (!m || m.is_sandbox || !m.hash || !m.name) continue;
+            const resolvedVer = resolveVersionLabel(String(m.hash)) || "";
             versionMetadata.push({
               rel_path: String(m.name),
               dna_hash: String(m.hash),
-              version_label: resolveVersionLabel(String(m.hash)),
+              mod_version: resolvedVer,
+              version_label: resolvedVer,
               compatible_versions: resolveCompVersions(String(m.hash)),
             });
           }
           for (const a of archivedVersions || []) {
             if (!a || !a.dna_hash || !a.rel_path) continue;
+            const resolvedVer =
+              resolveVersionLabel(
+                String(a.dna_hash),
+                a.mod_version || a.version_label
+              ) || "";
             versionMetadata.push({
               rel_path: String(a.rel_path),
               dna_hash: String(a.dna_hash),
-              version_label: resolveVersionLabel(String(a.dna_hash), a.version_label),
+              mod_version: resolvedVer,
+              version_label: resolvedVer,
               compatible_versions: resolveCompVersions(
                 String(a.dna_hash),
                 Array.isArray(a.compatible_versions) ? a.compatible_versions : []
@@ -850,6 +858,43 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               }
             }
           }
+
+          // Ensure at most one active entry per .package / .ts4script filename in localMods
+          const byFileName = new Map<string, any>();
+          const dedupedLocalMods: any[] = [];
+          for (const lm of localMods) {
+            if (!lm || lm.is_sandbox) {
+              dedupedLocalMods.push(lm);
+              continue;
+            }
+            const rawFName = String(lm.name || "")
+              .split(/[\\/]/)
+              .pop()
+              ?.toLowerCase() || "";
+            if (
+              rawFName &&
+              (rawFName.endsWith(".package") || rawFName.endsWith(".ts4script"))
+            ) {
+              const prev = byFileName.get(rawFName);
+              if (!prev) {
+                byFileName.set(rawFName, lm);
+              } else {
+                const prevInCloud = cloudMap.has(String(prev.hash));
+                const curInCloud = cloudMap.has(String(lm.hash));
+                if (
+                  (curInCloud && !prevInCloud) ||
+                  (curInCloud === prevInCloud &&
+                    String(lm.name || "").length < String(prev.name || "").length)
+                ) {
+                  byFileName.set(rawFName, lm);
+                }
+              }
+            } else {
+              dedupedLocalMods.push(lm);
+            }
+          }
+          dedupedLocalMods.push(...byFileName.values());
+          localMods.splice(0, localMods.length, ...dedupedLocalMods);
         }
       } catch (e) {
         console.warn("Mod version pool sync error:", e);

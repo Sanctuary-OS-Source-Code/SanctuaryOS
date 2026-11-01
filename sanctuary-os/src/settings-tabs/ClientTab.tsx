@@ -52,6 +52,7 @@ export default function ClientTab({ config, updateConfig }: any) {
   const [archiveModVersions, setArchiveModVersions] = useState<boolean>(() => {
     return localStorage.getItem("sanctuary_archive_mod_versions") !== "false";
   });
+  const [legacyVersionCount, setLegacyVersionCount] = useState<number>(0);
 
   useEffect(() => {
     if (!isDesktop()) return;
@@ -61,6 +62,7 @@ export default function ClientTab({ config, updateConfig }: any) {
       .then((res: any) => {
         if (res && typeof res.enabled === "boolean") {
           setArchiveModVersions(res.enabled);
+          setLegacyVersionCount(Number(res.older_versions) || 0);
           localStorage.setItem("sanctuary_archive_mod_versions", res.enabled ? "true" : "false");
         }
       })
@@ -79,9 +81,28 @@ export default function ClientTab({ config, updateConfig }: any) {
             vaultPath,
             enabled: nextVal,
           });
+          const res: any = await invoke("get_mod_version_pool_status", { vaultPath });
+          if (res) {
+            setLegacyVersionCount(Number(res.older_versions) || 0);
+          }
         } catch {}
       }
     }
+  };
+
+  const handlePurgeLegacyFromSettings = async (e: any) => {
+    e.stopPropagation();
+    if (!isDesktop()) return;
+    const vaultPath = config?.vault_path || useStore.getState().vaultPath;
+    if (!vaultPath || vaultPath === "web") return;
+    try {
+      await invoke("prune_archived_mod_versions", {
+        vaultPath,
+        keepActiveOnly: true,
+      });
+      setLegacyVersionCount(0);
+      useStore.getState().pushStatus(t("version_pool_prune_older", "Purge Legacy Versions"));
+    } catch {}
   };
 
   const session = useStore((state) => state.session);
@@ -193,14 +214,36 @@ export default function ClientTab({ config, updateConfig }: any) {
 
           {isDesktop() && (
             <UniversalCard
-              title={t("version_pool_auto_archive", "Auto-Archive {Mod} Versions")}
+              title={t("version_pool_auto_archive", "Version History System")}
               subtitle={t(
                 "version_pool_auto_archive_desc",
-                "Keep previous {mod} binaries in {Backups} for automatic game version matching"
+                "When enabled, keeps multiple {mod} versions for rollback and auto-swapping. When disabled, keeps only one version."
               )}
               icon={t("icon_history", "history")}
               onClick={handleToggleArchiveModVersions}
               actions={<SettingsToggle checked={archiveModVersions} />}
+              footer={
+                !archiveModVersions && legacyVersionCount > 0 ? (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)]"
+                  >
+                    <span className="text-[11px] font-semibold text-[var(--text)] leading-snug">
+                      {t(
+                        "version_pool_disabled_legacy_warning",
+                        "Version History System is disabled, but legacy versions are still stored. Purge legacy versions to keep only one version per {mod}."
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handlePurgeLegacyFromSettings}
+                      className="px-3 py-1.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] hover:border-[var(--warning)] text-[var(--warning)] text-[11px] font-black tracking-wide shrink-0 cursor-pointer transition-all"
+                    >
+                      {t("version_pool_prune_older", "Purge Legacy Versions")}
+                    </button>
+                  </div>
+                ) : undefined
+              }
             />
           )}
 

@@ -188,7 +188,7 @@ pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
 pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value {
     let mut live_path = String::new();
     let mut mods_path = String::new();
-    let vault_path = String::new();
+    let mut vault_path = String::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
 
     let mut search_paths = if let Some(schema) = &game_schema {
@@ -214,6 +214,16 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     } else {
         vec![]
     };
+
+    if crate::game_logic::is_sims4_schema(&game_schema) && search_paths.is_empty() {
+        search_paths.extend([
+            "~/.local/share/Steam/steamapps/common/The Sims 4".to_string(),
+            "~/.steam/steam/steamapps/common/The Sims 4".to_string(),
+            "C:\\Program Files\\EA Games\\The Sims 4".to_string(),
+            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4".to_string(),
+            "C:\\Program Files (x86)\\Origin Games\\The Sims 4".to_string(),
+        ]);
+    }
 
     // Resolve Steam libraryfolders.vdf & Proton compatdata prefix across Windows, macOS, Linux & SteamOS
     let steam_resolution =
@@ -329,7 +339,14 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
     let default_mod_raw = game_schema
         .as_ref()
         .map(|s| crate::game_logic::select_os_default_mod_dir(&s.paths).to_string())
-        .unwrap_or_default();
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            if crate::game_logic::is_sims4_schema(&game_schema) {
+                "Documents/Electronic Arts/The Sims 4/Mods".to_string()
+            } else {
+                String::new()
+            }
+        });
 
     if mods_path.is_empty() && !default_mod_raw.is_empty() {
         let expanded_mod = crate::game_logic::expand_schema_path_for_os(
@@ -344,13 +361,33 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
         let exp_path = std::path::Path::new(&expanded_mod);
         if exp_path.is_absolute() && exp_path.exists() {
             mods_path = exp_path.to_string_lossy().to_string();
-        } else if let Ok(profile) =
-            std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-        {
-            let docs = std::path::Path::new(&profile);
-            let user_mods = docs.join(&expanded_mod);
-            if user_mods.exists() {
-                mods_path = user_mods.to_string_lossy().to_string();
+        } else if cfg!(target_os = "linux") {
+            if let Some(ref res) = steam_resolution {
+                if let Some(ref pfx_user) = res.compatdata_pfx_user_dir {
+                    let rel_mod = default_mod_raw
+                        .replace('\\', "/")
+                        .trim_start_matches('/')
+                        .to_string();
+                    let candidate = if rel_mod.to_lowercase().starts_with("documents/") {
+                        pfx_user.join(&rel_mod)
+                    } else {
+                        pfx_user.join("Documents").join(&rel_mod)
+                    };
+                    if candidate.exists() || std::fs::create_dir_all(&candidate).is_ok() {
+                        mods_path = candidate.to_string_lossy().to_string();
+                    }
+                }
+            }
+        }
+        if mods_path.is_empty() {
+            if let Ok(profile) =
+                std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+            {
+                let docs = std::path::Path::new(&profile);
+                let user_mods = docs.join(&expanded_mod);
+                if user_mods.exists() {
+                    mods_path = user_mods.to_string_lossy().to_string();
+                }
             }
         }
         if mods_path.is_empty() && !live_path.is_empty() {
@@ -364,6 +401,50 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
                     mods_path = engine_mods.to_string_lossy().to_string();
                 }
             }
+        }
+    }
+
+    // Populate a default Vault path if none is configured yet
+    let global_cfg = get_global_config();
+    let schema_folder = game_schema
+        .as_ref()
+        .and_then(|s| {
+            let gid = s.game_id.trim();
+            if !gid.is_empty() && gid != "default_schema" {
+                Some(gid.to_string())
+            } else {
+                s.id.clone().filter(|id| !id.trim().is_empty() && id != "default_schema")
+            }
+        })
+        .or_else(|| global_cfg.active_workspace_id.clone())
+        .unwrap_or_else(|| "sims4".to_string());
+
+    if let Some(existing_ws) = global_cfg.workspaces.iter().find(|w| {
+        w.id.eq_ignore_ascii_case(&schema_folder)
+            || w.schema_id.eq_ignore_ascii_case(&schema_folder)
+    }) {
+        if !existing_ws.vault_path.trim().is_empty() {
+            vault_path = existing_ws.vault_path.clone();
+        }
+    }
+    if vault_path.is_empty() {
+        if let Some(ref master_vault) = global_cfg.vault_path {
+            if !master_vault.trim().is_empty() {
+                let candidate = std::path::Path::new(master_vault).join(&schema_folder);
+                let _ = std::fs::create_dir_all(&candidate);
+                vault_path = candidate.to_string_lossy().to_string();
+            }
+        }
+    }
+    if vault_path.is_empty() {
+        if let Some(home) = std::env::var("HOME")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .or_else(dirs::home_dir)
+        {
+            let default_vault = home.join("SanctuaryVault").join(&schema_folder);
+            let _ = std::fs::create_dir_all(&default_vault);
+            vault_path = default_vault.to_string_lossy().to_string();
         }
     }
 

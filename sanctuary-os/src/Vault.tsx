@@ -1079,6 +1079,7 @@ const Vault = React.memo(function Vault(props: any) {
         onClose={() => setIsVersionPoolOpen(false)}
         runRadarSweep={runRadarSweep}
         setStatus={setStatus}
+        displayModList={displayModList}
       />
 
       <ModVersionHistorySidePanel
@@ -1090,6 +1091,11 @@ const Vault = React.memo(function Vault(props: any) {
         }}
         onActivateVersion={handleActivateContextVersion}
         onDeleteVersion={handleDeleteContextVersion}
+        onRefresh={() => {
+          if (contextVersionTarget) openVersionsForMod(contextVersionTarget);
+        }}
+        runRadarSweep={runRadarSweep}
+        setStatus={setStatus}
         parentTitle={
           contextVersionTarget
             ? formatCleanModTitle(

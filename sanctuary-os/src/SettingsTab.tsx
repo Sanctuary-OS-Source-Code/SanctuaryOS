@@ -101,26 +101,54 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         return;
       }
       const gConf: any = await invoke('get_global_config');
-      setGlobalConfig(gConf);
-      const activeId = gConf.active_workspace_id;
-      let activeW = gConf.workspaces?.find(
+      const storeState = useStore.getState();
+      const fallbackWorkspaceId =
+        storeState.activeWorkspaceId ||
+        localStorage.getItem('sanctuary_last_active_workspace') ||
+        'sims4';
+      const activeId =
+        gConf?.active_workspace_id && gConf.active_workspace_id !== 'default_workspace'
+          ? gConf.active_workspace_id
+          : fallbackWorkspaceId;
+
+      let activeW = gConf?.workspaces?.find(
         (w: any) =>
           String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
           String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
       );
-      if (!activeW && activeId && activeId !== 'default_workspace') {
-        activeW = {
-          id: activeId,
-          name: activeId,
-          schema_id: activeId,
-          live_path: '',
-          mods_path: '',
-          vault_path: gConf.vault_path ? `${gConf.vault_path}\\${activeId}` : '',
-        };
-      } else if (!activeW && gConf.workspaces?.length > 0) {
+      if (!activeW && gConf?.workspaces?.length > 0) {
         activeW = gConf.workspaces[0];
       }
-      setConfig(activeW || { isGuest: true });
+      if (!activeW) {
+        const storeMatch = (storeState.workspaces || []).find(
+          (w: any) =>
+            String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
+            String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
+        );
+        const masterVault = gConf?.vault_path || '';
+        const sep = masterVault.includes('/') ? '/' : '\\';
+        const resolvedId = storeMatch?.id || activeId || 'sims4';
+        const resolvedSchema = storeMatch?.schema_id || resolvedId;
+        activeW = {
+          id: resolvedId,
+          name:
+            storeMatch?.name ||
+            (String(resolvedId).toLowerCase() === 'sims4' ? 'The Sims 4' : resolvedId),
+          schema_id: resolvedSchema,
+          live_path: storeState.livePath || '',
+          mods_path: storeState.modsPath || '',
+          vault_path:
+            storeState.vaultPath ||
+            (masterVault ? `${masterVault}${sep}${resolvedSchema}` : ''),
+        };
+      }
+      const normalizedGlobal = {
+        ...gConf,
+        active_workspace_id: activeW.id || activeId,
+        workspaces: Array.isArray(gConf?.workspaces) ? gConf.workspaces : [],
+      };
+      setGlobalConfig(normalizedGlobal);
+      setConfig(activeW);
     } catch (err) { console.error(err); }
   };
 
@@ -132,16 +160,76 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     }
   }, [config, activeTab]);
 
-  const updateConfig = async (key: string, val: any) => {
+  const INT_CONFIG_KEYS = new Set([
+    'vault_capacity_gb',
+    'engine_agency_level',
+    'backup_preference',
+    'defcon_backup_target',
+    'engine_retention_cycles',
+    'world_retention_cycles',
+    'timeline_retention_copies',
+    'timeline_retention_size_mb',
+  ]);
+
+  const updateConfig = async (keyOrPatch: string | Record<string, any>, val?: any) => {
     if (!config || !globalConfig) return;
-    const parsedVal = (key === 'vault_capacity_gb' || key === 'engine_agency_level' || key === 'backup_preference' || key === 'defcon_backup_target' || key === 'engine_retention_cycles' || key === 'world_retention_cycles' || key === 'timeline_retention_copies' || key === 'timeline_retention_size_mb') ? parseInt(val) : val;
-    
-    const newConfig = { ...config, [key]: parsedVal };
+    const rawPatch: Record<string, any> =
+      typeof keyOrPatch === 'string' ? { [keyOrPatch]: val } : { ...keyOrPatch };
+    const parsedPatch: Record<string, any> = {};
+    for (const [k, v] of Object.entries(rawPatch)) {
+      parsedPatch[k] = INT_CONFIG_KEYS.has(k) ? parseInt(String(v), 10) : v;
+    }
+
+    const { isGuest: _ignoredGuest, ...cleanBase } = config;
+    const resolvedId =
+      cleanBase.id ||
+      useStore.getState().activeWorkspaceId ||
+      localStorage.getItem('sanctuary_last_active_workspace') ||
+      'sims4';
+    const newConfig = {
+      ...cleanBase,
+      id: resolvedId,
+      name:
+        cleanBase.name ||
+        (String(resolvedId).toLowerCase() === 'sims4' ? 'The Sims 4' : resolvedId),
+      schema_id: cleanBase.schema_id || resolvedId,
+      ...parsedPatch,
+    };
     setConfig(newConfig);
-    
-    const newGlobal = { ...globalConfig };
-    newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
+
+    const existingList = Array.isArray(globalConfig.workspaces)
+      ? [...globalConfig.workspaces]
+      : [];
+    const matchIdx = existingList.findIndex(
+      (w: any) =>
+        String(w.id || '').toLowerCase() === String(newConfig.id || '').toLowerCase() ||
+        String(w.schema_id || '').toLowerCase() === String(newConfig.schema_id || '').toLowerCase()
+    );
+    if (matchIdx >= 0) {
+      existingList[matchIdx] = newConfig;
+    } else {
+      existingList.push(newConfig);
+    }
+
+    const newGlobal = {
+      ...globalConfig,
+      active_workspace_id: newConfig.id,
+      workspaces: existingList,
+    };
+    if (parsedPatch.vault_path) {
+      newGlobal.vault_path = parsedPatch.vault_path;
+    }
     setGlobalConfig(newGlobal);
+
+    // Sync Zustand store so paths and configuration state reflect immediately across the OS
+    const storeState = useStore.getState();
+    if (typeof newConfig.live_path === 'string') storeState.setLivePath(newConfig.live_path);
+    if (typeof newConfig.mods_path === 'string') storeState.setModsPath(newConfig.mods_path);
+    if (typeof newConfig.vault_path === 'string') storeState.setVaultPath(newConfig.vault_path);
+    storeState.setWorkspaces(existingList);
+    if (newConfig.mods_path || newConfig.vault_path || newConfig.live_path) {
+      storeState.setIsConfigured(true);
+    }
 
     try {
       if (isDesktop()) {
@@ -155,19 +243,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     try {
       const selected = await open({ directory: true, multiple: false, title: `${t("select_path", "Select Directory for")} ${label}` });
       if (selected) {
-        const newConfig = { ...config, [rustKey]: selected };
-        setConfig(newConfig);
-        
-        const newGlobal = { ...globalConfig };
-        newGlobal.workspaces = newGlobal.workspaces.map((w: any) => w.id === newConfig.id ? newConfig : w);
-        if (rustKey === 'vault_path') {
-          newGlobal.vault_path = selected;
-        }
-        setGlobalConfig(newGlobal);
-        
-        if (isDesktop()) {
-          await invoke("save_coordinates", { config: newGlobal });
-        }
+        await updateConfig(rustKey, selected);
       }
     } catch (err) { useStore.getState().pushStatus(String(err), 'error'); }
   };

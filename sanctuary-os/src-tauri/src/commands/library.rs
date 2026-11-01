@@ -1211,6 +1211,13 @@ pub async fn ingest_dropped_file(
                 } else if let Some(e_str) = p.extension().and_then(|s| s.to_str()) {
                     if supported.contains(&e_str.to_lowercase()) {
                         if let Ok(h) = calculate_hash(p) {
+                            let _ = crate::utils::archive_mod_binary_version(
+                                &config.vault_path,
+                                p,
+                                Some(&h),
+                                None,
+                                None,
+                            );
                             if !h.is_empty() && !dir_hashes.contains(&h) {
                                 dir_hashes.push(h);
                             }
@@ -1383,11 +1390,11 @@ pub async fn ingest_dropped_file(
                                 };
 
                                 if found_existing {
+                                    final_path =
+                                        Path::new(&resolution_existing_name).to_path_buf();
                                     if is_setting_file {
                                         needs_resolution = true;
                                     } else if force_replace || is_lineage_upgrade {
-                                        final_path =
-                                            Path::new(&resolution_existing_name).to_path_buf();
                                         let _ = crate::utils::archive_mod_binary_version(
                                             &config.vault_path,
                                             &final_path,
@@ -1594,15 +1601,6 @@ pub async fn ingest_dropped_file(
                                                 );
                                             }
                                         } else {
-                                            if !is_setting_file && found_existing {
-                                                let _ = crate::utils::archive_mod_binary_version(
-                                                    &config.vault_path,
-                                                    &extract_target,
-                                                    Some(&extracted_hash),
-                                                    None,
-                                                    None,
-                                                );
-                                            }
                                             let mut hash_match_found = false;
                                             let mut matched_existing_name = String::new();
                                             for (k, v) in cache.iter() {
@@ -1640,6 +1638,14 @@ pub async fn ingest_dropped_file(
                                                     "reason": "ZIP_DNA_MATCH",
                                                     "override_json": zip_override_json.clone()
                                                 }));
+                                            } else if !is_setting_file {
+                                                let _ = crate::utils::archive_mod_binary_version(
+                                                    &config.vault_path,
+                                                    &extract_target,
+                                                    Some(&extracted_hash),
+                                                    None,
+                                                    None,
+                                                );
                                             }
                                         }
                                     }
@@ -1894,10 +1900,10 @@ pub async fn ingest_dropped_file(
                             }
 
                             if found_existing {
+                                final_path = Path::new(&resolution_existing_name).to_path_buf();
                                 if is_setting_file {
                                     needs_resolution = true;
                                 } else if force_replace {
-                                    final_path = Path::new(&resolution_existing_name).to_path_buf();
                                     let _ = crate::utils::archive_mod_binary_version(
                                         &config.vault_path,
                                         &final_path,
@@ -2099,15 +2105,6 @@ pub async fn ingest_dropped_file(
                                             );
                                         }
                                     } else {
-                                        if !is_setting_file && found_existing {
-                                            let _ = crate::utils::archive_mod_binary_version(
-                                                &config.vault_path,
-                                                &extract_target,
-                                                Some(&extracted_hash),
-                                                None,
-                                                None,
-                                            );
-                                        }
                                         let mut hash_match_found = false;
                                         let mut matched_existing_name = String::new();
                                         for (k, v) in cache.iter() {
@@ -2141,6 +2138,14 @@ pub async fn ingest_dropped_file(
                                                 "reason": "ZIP_DNA_MATCH",
                                                 "override_json": None::<String>
                                             }));
+                                        } else if !is_setting_file {
+                                            let _ = crate::utils::archive_mod_binary_version(
+                                                &config.vault_path,
+                                                &extract_target,
+                                                Some(&extracted_hash),
+                                                None,
+                                                None,
+                                            );
                                         }
                                     }
                                 }
@@ -2286,6 +2291,22 @@ pub async fn ingest_dropped_file(
                     }));
                 }
                 let _ = std::fs::remove_file(&target);
+            } else {
+                let ext_with_dot = format!(".{}", ext);
+                let is_setting_file = game_schema
+                    .as_ref()
+                    .and_then(|s| s.extensions.ignore_unidentified.as_ref())
+                    .map(|list| list.contains(&ext_with_dot))
+                    .unwrap_or(false);
+                if !is_setting_file {
+                    let _ = crate::utils::archive_mod_binary_version(
+                        &config.vault_path,
+                        &target,
+                        Some(&file_hash),
+                        None,
+                        None,
+                    );
+                }
             }
 
             return Ok(

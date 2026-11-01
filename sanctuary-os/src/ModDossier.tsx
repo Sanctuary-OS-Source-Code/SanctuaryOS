@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./utils/envUtils";
 import { resolvePayloadDependencies } from "./utils/stagingCrypto";
@@ -30,6 +30,8 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
+  stripPriorityTierPrefix,
+  ActionPill,
 } from "./shared";
 import {
   normalizeModGroupTitle,
@@ -176,8 +178,79 @@ function pickFirstValidAuthor(t: any, ...candidates: any[]): string {
 const MOD_SELECT =
   "id, name, created_at, category_override, master_author, mason_id, masons(name), compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
 
+const spokeMetadataCache = new Map<string, any>();
+const cleanTitleCache = new Map<string, { cleanTitle: string; groupTitle: string }>();
+const normTitleMatchCache = new Map<string, string>();
+let cachedDossierVersionPoolItems: any[] | null = null;
+let cachedDossierVersionPoolTimestamp = 0;
+
+function getDossierTargetCacheKey(targetMod: any): string {
+  if (!targetMod) return "";
+  const idPart = extractCleanUuid(
+    targetMod.dbId,
+    targetMod.id,
+    targetMod.baseFamilyId,
+    targetMod.familyId,
+    targetMod.name
+  );
+  const hashPart = String(targetMod.hash || "").trim();
+  const namePart = String(targetMod.name || targetMod.displayName || "").trim();
+  return `${idPart}::${hashPart}::${namePart}`.toLowerCase();
+}
+
+function getCachedGroupTitles(rawStr: string): { cleanTitle: string; groupTitle: string } {
+  const cached = cleanTitleCache.get(rawStr);
+  if (cached) return cached;
+  const cleanTitle = formatCleanModTitle(rawStr) || rawStr;
+  const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
+  const res = { cleanTitle, groupTitle };
+  if (cleanTitleCache.size > 6000) cleanTitleCache.clear();
+  cleanTitleCache.set(rawStr, res);
+  return res;
+}
+
+function DossierFilterSection({ title, options, value, onChange, t }: any) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div className="flex flex-col mb-4 w-full last:mb-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
+        {title}
+        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1" />
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {options.map((opt: any) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? "is-selected font-bold" : "font-semibold"
+              }`}
+            >
+              <span className="truncate flex items-center gap-2 min-w-0">
+                {opt.label}
+              </span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t ? t("icon_check", "check") : ""}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | null> {
   if (!targetMod) return null;
+  const cacheKey = getDossierTargetCacheKey(targetMod);
+  if (cacheKey && spokeMetadataCache.has(cacheKey)) {
+    return spokeMetadataCache.get(cacheKey);
+  }
   const candidateIds = collectAllCandidateUuids(targetMod);
   const rawHash = String(targetMod.hash || "").trim();
   const candidateHash =
@@ -264,24 +337,24 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
         .from("mod_relationships")
         .select("parent_id, child_id, relationship_type")
         .in("relationship_type", ["addon", "flavor", "set_item", "beta", "twin"])
-        .in("child_id", allKnownIds.slice(0, 15))
-        .limit(30),
+        .in("child_id", allKnownIds.slice(0, 25))
+        .limit(60),
       supabase
         .from("mod_relationships")
         .select("parent_id, child_id, relationship_type")
         .in("relationship_type", ["addon", "flavor", "set_item", "beta", "twin"])
-        .in("parent_id", allKnownIds.slice(0, 15))
-        .limit(100),
+        .in("parent_id", allKnownIds.slice(0, 25))
+        .limit(500),
       supabase
         .from("mod_dependencies")
         .select("parent_id, child_id")
-        .in("child_id", allKnownIds.slice(0, 15))
-        .limit(30),
+        .in("child_id", allKnownIds.slice(0, 25))
+        .limit(60),
       supabase
         .from("collection_members")
         .select("set_id, mod_id")
-        .in("set_id", allKnownIds.slice(0, 15))
-        .limit(100),
+        .in("set_id", allKnownIds.slice(0, 25))
+        .limit(500),
     ]);
 
     const extraParentIds = Array.from(
@@ -294,12 +367,20 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     ).filter((pid) => pid && !allKnownIds.includes(pid));
 
     if (extraParentIds.length > 0) {
-      const { data: pData } = await supabase
-        .from("mods")
-        .select(MOD_SELECT)
-        .in("id", extraParentIds.slice(0, 80));
-      if (Array.isArray(pData)) {
-        relatedMods = pData;
+      const chunks: string[][] = [];
+      const cappedIds = extraParentIds.slice(0, 450);
+      for (let i = 0; i < cappedIds.length; i += 150) {
+        chunks.push(cappedIds.slice(i, i + 150));
+      }
+      const chunkResults = await Promise.all(
+        chunks.map((chunk) =>
+          supabase.from("mods").select(MOD_SELECT).in("id", chunk)
+        )
+      );
+      for (const res of chunkResults) {
+        if (Array.isArray(res.data)) {
+          relatedMods.push(...res.data);
+        }
       }
     }
 
@@ -441,7 +522,40 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     relatedMods.find((m: any) => m?.created_at)?.created_at ||
     undefined;
 
-  return {
+  const hydratedByIdMap: Record<string, any> = {};
+  for (const row of allCandidates) {
+    if (!row?.id) continue;
+    const rowLatestVer =
+      Array.isArray(row.mod_versions) && row.mod_versions.length > 0
+        ? row.mod_versions.find((mv: any) => !isPlaceholderVersionStr(mv?.version_label, t)) ||
+          row.mod_versions[0]
+        : null;
+    const rowAuthor = pickFirstValidAuthor(t, row) || undefined;
+    hydratedByIdMap[String(row.id).toLowerCase()] = {
+      dbId: row.id,
+      name: row.name,
+      hash: rowLatestVer?.dna_hash || undefined,
+      author: rowAuthor,
+      master_author: rowAuthor,
+      mason_id: row.mason_id || undefined,
+      category_override: row.category_override || undefined,
+      description: row.description || undefined,
+      url: row.url || undefined,
+      image_url: row.image_url || undefined,
+      compatible_versions: row.compatible_versions || undefined,
+      created_at: row.created_at || rowLatestVer?.created_at || undefined,
+      updated_at: rowLatestVer?.created_at || row.created_at || undefined,
+      version: rowLatestVer?.version_label || undefined,
+      status: row.status || "stable",
+      status_reason: row.status_reason || undefined,
+      compliance_tier: row.compliance_tier ?? undefined,
+      is_paid: Boolean(row.is_paid),
+      is_early_access: Boolean(row.is_early_access),
+      mod_versions: row.mod_versions || undefined,
+    };
+  }
+
+  const resultPayload = {
     dbId: primaryMod?.id || candidateIds[0] || undefined,
     hash: latestVer?.dna_hash || undefined,
     author: resolvedAuthor,
@@ -470,13 +584,139 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     twins: hydratedTwins.length > 0 ? hydratedTwins : undefined,
     hydratedCollectionChildren:
       hydratedCollectionChildren.length > 0 ? hydratedCollectionChildren : undefined,
+    hydratedByIdMap,
+  };
+  if (cacheKey) {
+    if (spokeMetadataCache.size > 300) spokeMetadataCache.clear();
+    spokeMetadataCache.set(cacheKey, resultPayload);
+  }
+  return resultPayload;
+}
+
+function normTitleForMatch(raw: any): string {
+  if (!raw) return "";
+  const rawStr = String(raw);
+  const cached = normTitleMatchCache.get(rawStr);
+  if (cached !== undefined) return cached;
+  const s =
+    rawStr
+      .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+      .split(/[/\\]/)
+      .pop() || "";
+  if (!s || UUID_REGEX.test(s.split("@")[0])) {
+    normTitleMatchCache.set(rawStr, "");
+    return "";
+  }
+  const stripped = s
+    .replace(/_/g, " ")
+    .replace(/\.[^/.]+$/, "")
+    .trim();
+  if (!stripped) {
+    normTitleMatchCache.set(rawStr, "");
+    return "";
+  }
+  const { groupTitle } = getCachedGroupTitles(stripped);
+  const res = groupTitle.toLowerCase().trim();
+  if (normTitleMatchCache.size > 6000) normTitleMatchCache.clear();
+  normTitleMatchCache.set(rawStr, res);
+  return res;
+}
+
+interface VaultModIndex {
+  allMods: any[];
+  physicalMods: any[];
+  virtualMods: any[];
+  byUuid: Map<string, any[]>;
+  physicalByUuid: Map<string, any[]>;
+  physicalByHash: Map<string, any[]>;
+  physicalByName: Map<string, any[]>;
+  physicalByNormTitle: Map<string, any[]>;
+  virtualByUuid: Map<string, any>;
+}
+
+function buildVaultModIndex(allVaultMods: any[]): VaultModIndex {
+  const allMods = Array.isArray(allVaultMods) ? allVaultMods : [];
+  const physicalMods: any[] = [];
+  const virtualMods: any[] = [];
+  const byUuid = new Map<string, any[]>();
+  const physicalByUuid = new Map<string, any[]>();
+  const physicalByHash = new Map<string, any[]>();
+  const physicalByName = new Map<string, any[]>();
+  const physicalByNormTitle = new Map<string, any[]>();
+  const virtualByUuid = new Map<string, any>();
+
+  const pushToMap = (map: Map<string, any[]>, key: string, val: any) => {
+    if (!key) return;
+    let arr = map.get(key);
+    if (!arr) {
+      arr = [];
+      map.set(key, arr);
+    }
+    arr.push(val);
+  };
+
+  for (const vm of allMods) {
+    if (!vm) continue;
+    const vmUuid = extractCleanUuid(
+      vm.dbId,
+      vm.id,
+      vm.baseFamilyId,
+      vm.familyId
+    ).toLowerCase();
+    if (vmUuid) {
+      pushToMap(byUuid, vmUuid, vm);
+    }
+
+    if (vm.isVirtual) {
+      if (!vm.isCollection) {
+        virtualMods.push(vm);
+        const virtUuid = extractCleanUuid(
+          vm.dbId,
+          vm.baseFamilyId
+        ).toLowerCase();
+        if (virtUuid && !virtualByUuid.has(virtUuid)) {
+          virtualByUuid.set(virtUuid, vm);
+        }
+      }
+    } else {
+      physicalMods.push(vm);
+      const pmUuid = extractCleanUuid(vm.dbId, vm.id).toLowerCase();
+      if (pmUuid) {
+        pushToMap(physicalByUuid, pmUuid, vm);
+      }
+      if (vm.hash) {
+        pushToMap(physicalByHash, String(vm.hash).toLowerCase(), vm);
+      }
+      if (vm.name && typeof vm.name === "string") {
+        pushToMap(physicalByName, vm.name, vm);
+        pushToMap(physicalByName, vm.name.toLowerCase(), vm);
+      }
+      const titleFromDisp = normTitleForMatch(vm.displayName);
+      const titleFromName = normTitleForMatch(vm.name);
+      if (titleFromDisp) pushToMap(physicalByNormTitle, titleFromDisp, vm);
+      if (titleFromName && titleFromName !== titleFromDisp) {
+        pushToMap(physicalByNormTitle, titleFromName, vm);
+      }
+    }
+  }
+
+  return {
+    allMods,
+    physicalMods,
+    virtualMods,
+    byUuid,
+    physicalByUuid,
+    physicalByHash,
+    physicalByName,
+    physicalByNormTitle,
+    virtualByUuid,
   };
 }
 
 function mergeHydratedMod(
   baseMod: any,
   hydratedMeta: any,
-  allVaultMods: any[],
+  vaultOrIndex: VaultModIndex | any[],
   t: any
 ): any {
   if (!baseMod) return null;
@@ -494,12 +734,22 @@ function mergeHydratedMod(
     baseMod.name
   );
 
-  if (cleanBaseId && Array.isArray(allVaultMods)) {
-    for (const vm of allVaultMods) {
-      if (!vm) continue;
-      const vmId = extractCleanUuid(vm.dbId, vm.id, vm.baseFamilyId, vm.familyId);
-      if (vmId && vmId.toLowerCase() === cleanBaseId.toLowerCase()) {
-        childSources.push(vm);
+  if (cleanBaseId) {
+    const cleanLower = cleanBaseId.toLowerCase();
+    if (vaultOrIndex && !Array.isArray(vaultOrIndex) && vaultOrIndex.byUuid) {
+      const matched = vaultOrIndex.byUuid.get(cleanLower);
+      if (matched) {
+        for (let i = 0; i < matched.length; i++) {
+          childSources.push(matched[i]);
+        }
+      }
+    } else if (Array.isArray(vaultOrIndex)) {
+      for (const vm of vaultOrIndex) {
+        if (!vm) continue;
+        const vmId = extractCleanUuid(vm.dbId, vm.id, vm.baseFamilyId, vm.familyId);
+        if (vmId && vmId.toLowerCase() === cleanLower) {
+          childSources.push(vm);
+        }
       }
     }
   }
@@ -660,9 +910,10 @@ function mergeHydratedMod(
   };
 }
 
-function DossierModuleCard({
+const DossierModuleCard = React.memo(function DossierModuleCard({
   item,
   activeMods,
+  isModNameEquipped,
   isNexusView,
   activeGameSchema,
   showImages,
@@ -683,6 +934,11 @@ function DossierModuleCard({
   const relationType: "manifest" | "requirement" | "twin" =
     item.relationType || "manifest";
 
+  const checkEquipped = (n: string): boolean =>
+    typeof isModNameEquipped === "function"
+      ? isModNameEquipped(n)
+      : Array.isArray(activeMods) && activeMods.includes(n);
+
   const equippableNames = groupedMods
     .map((gm: any) => gm?.name)
     .filter(
@@ -694,7 +950,7 @@ function DossierModuleCard({
   const isEquipped =
     isInstalled &&
     equippableNames.length > 0 &&
-    equippableNames.some((n: string) => activeMods.includes(n));
+    equippableNames.some((n: string) => checkEquipped(n));
 
   const rawTitle =
     item._groupedTitle ||
@@ -777,6 +1033,7 @@ function DossierModuleCard({
 
   return (
     <div
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 108px" }}
       onClick={() => {
         if (isInstalled || item.dbId || (item._groupedIds && item._groupedIds.length > 0)) {
           onInspect(item);
@@ -1053,7 +1310,7 @@ function DossierModuleCard({
               formatCleanModTitle(
                 rawChildFile.replace(/_/g, " ").replace(/\.[^/.]+$/, "")
               ) || rawChildFile;
-            const childEquipped = Boolean(gm?.name && activeMods.includes(gm.name));
+            const childEquipped = Boolean(gm?.name && checkEquipped(gm.name));
             const isChildScript = /\.ts4script$/i.test(rawChildFile);
 
             return (
@@ -1104,7 +1361,48 @@ function DossierModuleCard({
       )}
     </div>
   );
-}
+}, function areDossierModuleCardsEqual(prevProps: any, nextProps: any) {
+  if (prevProps.item !== nextProps.item) return false;
+  if (prevProps.isNexusView !== nextProps.isNexusView) return false;
+  if (prevProps.showImages !== nextProps.showImages) return false;
+  if (prevProps.activeGameSchema !== nextProps.activeGameSchema) return false;
+
+  const getEquippedMask = (props: any) => {
+    const it = props.item;
+    if (!it || it.isInstalled === false) return "0";
+    const gMods =
+      Array.isArray(it._groupedMods) && it._groupedMods.length > 0
+        ? it._groupedMods
+        : [it];
+    const check =
+      typeof props.isModNameEquipped === "function"
+        ? props.isModNameEquipped
+        : (n: string) =>
+            Array.isArray(props.activeMods) && props.activeMods.includes(n);
+    let mask = "";
+    for (let i = 0; i < gMods.length; i++) {
+      const n = gMods[i]?.name;
+      if (
+        n &&
+        typeof n === "string" &&
+        !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+      ) {
+        mask += check(n) ? "1" : "0";
+      }
+    }
+    return mask;
+  };
+
+  if (getEquippedMask(prevProps) !== getEquippedMask(nextProps)) return false;
+
+  if (nextProps.isNexusView) {
+    const prevStaged = Boolean(prevProps.isSingleItemStaged?.(prevProps.item));
+    const nextStaged = Boolean(nextProps.isSingleItemStaged?.(nextProps.item));
+    if (prevStaged !== nextStaged) return false;
+  }
+
+  return true;
+});
 
 export default function ModDossier({
   mod: rawMod,
@@ -1145,21 +1443,53 @@ export default function ModDossier({
     return combined;
   }, [modList, storeModList]);
 
+  const vaultIndex = useMemo(
+    () => buildVaultModIndex(allAvailableMods),
+    [allAvailableMods]
+  );
+
   const requireScoutLabTest =
     activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
   const session = useStore((state) => state.session);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
   const [isModLabVerified, setIsModLabVerified] = useState<boolean>(false);
-  const [hydratedMeta, setHydratedMeta] = useState<any | null>(null);
+  const [hydratedMeta, setHydratedMeta] = useState<any | null>(() => {
+    const k = getDossierTargetCacheKey(rawMod);
+    return k ? spokeMetadataCache.get(k) || null : null;
+  });
   const [kidHydratedMeta, setKidHydratedMeta] = useState<any | null>(null);
   const [relationDbMap, setRelationDbMap] = useState<Record<string, any>>({});
   const [collectionFilter, setCollectionFilter] = useState<"all" | "in_vault" | "missing">("all");
-  const [kidCollectionFilter, setKidCollectionFilter] = useState<"all" | "in_vault" | "missing">("all");
-  const [versionPoolItems, setVersionPoolItems] = useState<any[]>([]);
-  const [selectedVersionGroupKeys, setSelectedVersionGroupKeys] = useState<string[]>([]);
+  const [collectionSearchQuery, setCollectionSearchQuery] = useState<string>("");
+  const deferredCollectionSearch = React.useDeferredValue(collectionSearchQuery);
+  const [collectionEquipFilter, setCollectionEquipFilter] = useState<"ALL" | "EQUIPPED" | "UNEQUIPPED">("ALL");
+  const [collectionCategoryFilter, setCollectionCategoryFilter] = useState<string>("ALL");
+  const [collectionStatusFilter, setCollectionStatusFilter] = useState<string>("ALL");
 
-  const loadDossierVersionPool = async () => {
+  const [kidCollectionFilter, setKidCollectionFilter] = useState<"all" | "in_vault" | "missing">("all");
+  const [kidSearchQuery, setKidSearchQuery] = useState<string>("");
+  const deferredKidSearch = React.useDeferredValue(kidSearchQuery);
+  const [kidEquipFilter, setKidEquipFilter] = useState<"ALL" | "EQUIPPED" | "UNEQUIPPED">("ALL");
+  const [kidCategoryFilter, setKidCategoryFilter] = useState<string>("ALL");
+  const [kidStatusFilter, setKidStatusFilter] = useState<string>("ALL");
+
+  const [versionPoolItems, setVersionPoolItems] = useState<any[]>(
+    () => cachedDossierVersionPoolItems || []
+  );
+  const [selectedVersionGroupKeys, setSelectedVersionGroupKeys] = useState<string[]>([]);
+  const [visibleKidsLimit, setVisibleKidsLimit] = useState<number>(30);
+  const kidsSentinelRef = React.useRef<HTMLDivElement | null>(null);
+
+  const loadDossierVersionPool = React.useCallback(async (forceRefresh = false) => {
     if (!isDesktop()) return;
+    if (
+      !forceRefresh &&
+      cachedDossierVersionPoolItems &&
+      Date.now() - cachedDossierVersionPoolTimestamp < 60000
+    ) {
+      setVersionPoolItems(cachedDossierVersionPoolItems);
+      return;
+    }
     try {
       let vaultPath = useStore.getState().vaultPath;
       if (!vaultPath) {
@@ -1169,19 +1499,26 @@ export default function ModDossier({
       if (vaultPath) {
         const res: any = await invoke("get_mod_version_pool_status", { vaultPath });
         if (res && Array.isArray(res.items)) {
-          setVersionPoolItems(res.items);
+          cachedDossierVersionPoolItems = res.items;
+          cachedDossierVersionPoolTimestamp = Date.now();
+          React.startTransition(() => {
+            setVersionPoolItems(res.items);
+          });
         }
       }
     } catch {}
-  };
+  }, []);
 
   useEffect(() => {
     if (isDossierOpen && isDesktop()) {
-      loadDossierVersionPool();
+      const timer = setTimeout(() => {
+        loadDossierVersionPool(false);
+      }, 220);
+      return () => clearTimeout(timer);
     } else if (!isDossierOpen) {
       setSelectedVersionGroupKeys([]);
     }
-  }, [isDossierOpen, rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name]);
+  }, [isDossierOpen, rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name, loadDossierVersionPool]);
 
   const handleActivateDossierVersion = async (relPath: string, dnaHash: string) => {
     try {
@@ -1196,7 +1533,7 @@ export default function ModDossier({
         relPath,
         dnaHash,
       });
-      await loadDossierVersionPool();
+      await loadDossierVersionPool(true);
     } catch {}
   };
 
@@ -1213,61 +1550,89 @@ export default function ModDossier({
         relPath,
         dnaHash,
       });
-      await loadDossierVersionPool();
+      await loadDossierVersionPool(true);
     } catch {}
   };
 
-  const allVersionGroups = useMemo(
-    () => groupModVersionPoolItems(versionPoolItems, t),
+  const filterVersionGroupsForTarget = React.useCallback(
+    (targetObj: any): ModVersionBinaryGroup[] => {
+      if (!targetObj || versionPoolItems.length === 0) return [];
+      const relPaths = new Set<string>();
+      const fileNames = new Set<string>();
+      const hashes = new Set<string>();
+
+      const registerCandidate = (item: any) => {
+        if (!item) return;
+        if (item.hash) hashes.add(String(item.hash).toLowerCase());
+        const rawName = String(item.name || "");
+        if (rawName && !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawName)) {
+          const normRel = rawName.replace(/\\/g, "/").toLowerCase();
+          relPaths.add(normRel);
+          const base = normRel.split("/").pop();
+          if (base) fileNames.add(base);
+        }
+      };
+
+      registerCandidate(targetObj);
+      if (Array.isArray(targetObj.flavors)) targetObj.flavors.forEach(registerCandidate);
+      if (Array.isArray(targetObj._groupedMods)) targetObj._groupedMods.forEach(registerCandidate);
+
+      if (relPaths.size === 0 && fileNames.size === 0 && hashes.size === 0) {
+        return [];
+      }
+
+      const matchedPoolItems = versionPoolItems.filter((item: any) => {
+        if (!item) return false;
+        const h = item.dna_hash ? String(item.dna_hash).toLowerCase() : "";
+        if (h && hashes.has(h)) return true;
+        const rawRel = String(item.rel_path || "").replace(/\\/g, "/").toLowerCase();
+        if (rawRel && relPaths.has(rawRel)) return true;
+        const base = rawRel.split("/").pop() || rawRel;
+        return Boolean(base && fileNames.has(base));
+      });
+
+      if (matchedPoolItems.length === 0) return [];
+      return groupModVersionPoolItems(matchedPoolItems, t);
+    },
     [versionPoolItems, t]
   );
 
-  const filterVersionGroupsForTarget = (targetObj: any): ModVersionBinaryGroup[] => {
-    if (!targetObj || allVersionGroups.length === 0) return [];
-    const relPaths = new Set<string>();
-    const fileNames = new Set<string>();
-    const hashes = new Set<string>();
+  const [activeVersionModalGroups, setActiveVersionModalGroups] = useState<ModVersionBinaryGroup[]>([]);
 
-    const registerCandidate = (item: any) => {
-      if (!item) return;
-      if (item.hash) hashes.add(String(item.hash).toLowerCase());
-      const rawName = String(item.name || "");
-      if (rawName && !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawName)) {
-        const normRel = rawName.replace(/\\/g, "/").toLowerCase();
-        relPaths.add(normRel);
-        const base = normRel.split("/").pop();
-        if (base) fileNames.add(base);
-      }
-    };
-
-    registerCandidate(targetObj);
-    if (Array.isArray(targetObj.flavors)) targetObj.flavors.forEach(registerCandidate);
-    if (Array.isArray(targetObj._groupedMods)) targetObj._groupedMods.forEach(registerCandidate);
-    if (targetObj === mod && Array.isArray(kids)) kids.forEach(registerCandidate);
-
-    return allVersionGroups.filter((g) => {
-      if (relPaths.has(g.key)) return true;
-      if (fileNames.has(g.fileName.toLowerCase())) return true;
-      return g.versions.some((v: any) => v?.dna_hash && hashes.has(String(v.dna_hash).toLowerCase()));
+  const selectedVersionGroups = useMemo(() => {
+    if (selectedVersionGroupKeys.length === 0) return [];
+    const matchedFromActive = activeVersionModalGroups.filter((g) =>
+      selectedVersionGroupKeys.includes(g.key)
+    );
+    if (matchedFromActive.length > 0) return matchedFromActive;
+    const rawMatched = versionPoolItems.filter((item: any) => {
+      const rawRel = String(item?.rel_path || "").replace(/\\/g, "/");
+      const fileName = (rawRel.split("/").pop() || rawRel).toLowerCase();
+      return selectedVersionGroupKeys.includes(fileName);
     });
-  };
-
-  const selectedVersionGroups = useMemo(
-    () =>
-      selectedVersionGroupKeys.length > 0
-        ? allVersionGroups.filter((g) => selectedVersionGroupKeys.includes(g.key))
-        : [],
-    [allVersionGroups, selectedVersionGroupKeys]
-  );
+    return groupModVersionPoolItems(rawMatched, t);
+  }, [selectedVersionGroupKeys, activeVersionModalGroups, versionPoolItems, t]);
 
   useEffect(() => {
-    setHydratedMeta(null);
+    const cached = getDossierTargetCacheKey(rawMod)
+      ? spokeMetadataCache.get(getDossierTargetCacheKey(rawMod)) || null
+      : null;
+    setHydratedMeta(cached);
     setCollectionFilter("all");
-    if (!rawMod) return;
+    setCollectionSearchQuery("");
+    setCollectionEquipFilter("ALL");
+    setCollectionCategoryFilter("ALL");
+    setCollectionStatusFilter("ALL");
+    setVisibleKidsLimit(30);
+    if (!rawMod || cached) return;
     let cancelled = false;
     fetchSpokeModMetadata(rawMod, t)
       .then((res) => {
-        if (!cancelled && res) setHydratedMeta(res);
+        if (!cancelled && res) {
+          React.startTransition(() => {
+            setHydratedMeta(res);
+          });
+        }
       })
       .catch(() => {});
     return () => {
@@ -1276,8 +1641,16 @@ export default function ModDossier({
   }, [rawMod?.id, rawMod?.dbId, rawMod?.hash, rawMod?.name]);
 
   const mod = useMemo(
-    () => mergeHydratedMod(rawMod, hydratedMeta, allAvailableMods, t),
-    [rawMod, hydratedMeta, allAvailableMods, t]
+    () => mergeHydratedMod(rawMod, hydratedMeta, vaultIndex, t),
+    [rawMod, hydratedMeta, vaultIndex, t]
+  );
+
+  const combinedDbMap = useMemo(
+    () => ({
+      ...(hydratedMeta?.hydratedByIdMap || {}),
+      ...relationDbMap,
+    }),
+    [hydratedMeta?.hydratedByIdMap, relationDbMap]
   );
 
   useEffect(() => {
@@ -1304,14 +1677,29 @@ export default function ModDossier({
   }, [selectedKid]);
   const rawKidToRender = selectedKid || displayedKid;
 
+  const handleInspectKid = React.useCallback((target: any) => {
+    setSelectedKid(target);
+  }, []);
+
   useEffect(() => {
-    setKidHydratedMeta(null);
+    const cached = getDossierTargetCacheKey(rawKidToRender)
+      ? spokeMetadataCache.get(getDossierTargetCacheKey(rawKidToRender)) || null
+      : null;
+    setKidHydratedMeta(cached);
     setKidCollectionFilter("all");
-    if (!rawKidToRender) return;
+    setKidSearchQuery("");
+    setKidEquipFilter("ALL");
+    setKidCategoryFilter("ALL");
+    setKidStatusFilter("ALL");
+    if (!rawKidToRender || cached) return;
     let cancelled = false;
     fetchSpokeModMetadata(rawKidToRender, t)
       .then((res) => {
-        if (!cancelled && res) setKidHydratedMeta(res);
+        if (!cancelled && res) {
+          React.startTransition(() => {
+            setKidHydratedMeta(res);
+          });
+        }
       })
       .catch(() => {});
     return () => {
@@ -1333,14 +1721,14 @@ export default function ModDossier({
       rawKidToRender.baseFamilyId,
       rawKidToRender.name
     );
-    const fromRelMap = preHydratedId ? relationDbMap[preHydratedId.toLowerCase()] : null;
+    const fromRelMap = preHydratedId ? combinedDbMap[preHydratedId.toLowerCase()] : null;
     return mergeHydratedMod(
       rawKidToRender,
       kidHydratedMeta || fromRelMap,
-      allAvailableMods,
+      vaultIndex,
       t
     );
-  }, [rawKidToRender, kidHydratedMeta, relationDbMap, allAvailableMods, t]);
+  }, [rawKidToRender, kidHydratedMeta, combinedDbMap, vaultIndex, t]);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
   const isNexusView = mod?.isNexusView;
@@ -1407,19 +1795,24 @@ export default function ModDossier({
       setRelationDbMap({});
       return;
     }
+    const alreadyHydrated = hydratedMeta?.hydratedByIdMap || {};
     const candidateSet = new Set<string>();
     const addEntry = (item: any) => {
       if (!item) return;
       const raw =
         typeof item === "string" ? item : item.id || item.dbId || item.hash || "";
       const u = extractCleanUuid(raw);
-      if (u) candidateSet.add(u.toLowerCase());
+      if (u) {
+        const lower = u.toLowerCase();
+        if (!alreadyHydrated[lower] && !vaultIndex.byUuid.has(lower)) {
+          candidateSet.add(lower);
+        }
+      }
     };
     (mod.requirements || mod.requires || []).forEach(addEntry);
     (mod.twins || []).forEach(addEntry);
     if (Array.isArray(mod.flavors)) {
       mod.flavors.forEach((fl: any) => {
-        addEntry(fl);
         (fl?.requirements || fl?.requires || []).forEach(addEntry);
         (fl?.twins || []).forEach(addEntry);
       });
@@ -1465,12 +1858,724 @@ export default function ModDossier({
             mod_versions: row.mod_versions || undefined,
           };
         }
-        setRelationDbMap(map);
+        React.startTransition(() => {
+          setRelationDbMap(map);
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [mod?.dbId, mod?.id, mod?.hash, mod?.requirements, mod?.twins, mod?.flavors, t]);
+  }, [mod?.dbId, mod?.id, mod?.hash, mod?.requirements, mod?.twins, mod?.flavors, hydratedMeta?.hydratedByIdMap, vaultIndex, t]);
+
+  const activeMods = activePlaySet?.mods || [];
+
+  const equippedLookup = useMemo(() => {
+    const exact = new Set<string>();
+    const lowerRel = new Set<string>();
+    const baseNames = new Set<string>();
+    for (const rawEntry of activeMods) {
+      if (!rawEntry || typeof rawEntry !== "string") continue;
+      exact.add(rawEntry);
+      const norm = rawEntry.replace(/\\/g, "/").toLowerCase();
+      lowerRel.add(norm);
+      const stripped = stripPriorityTierPrefix(rawEntry, activeGameSchema);
+      if (stripped) {
+        exact.add(stripped);
+        lowerRel.add(stripped.replace(/\\/g, "/").toLowerCase());
+      }
+      const base = (rawEntry.split(/[\\/]/).pop() || rawEntry).toLowerCase();
+      if (base) baseNames.add(base);
+    }
+    return { exact, lowerRel, baseNames };
+  }, [activeMods, activeGameSchema]);
+
+  const isModNameEquipped = React.useCallback(
+    (name: any): boolean => {
+      if (!name || typeof name !== "string") return false;
+      if (/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(name)) return false;
+      if (equippedLookup.exact.has(name)) return true;
+      const norm = name.replace(/\\/g, "/").toLowerCase();
+      if (equippedLookup.lowerRel.has(norm)) return true;
+      const stripped = stripPriorityTierPrefix(name, activeGameSchema);
+      if (
+        stripped &&
+        (equippedLookup.exact.has(stripped) ||
+          equippedLookup.lowerRel.has(stripped.replace(/\\/g, "/").toLowerCase()))
+      ) {
+        return true;
+      }
+      const base = (name.split(/[\\/]/).pop() || name).toLowerCase();
+      if (base && base.includes(".") && equippedLookup.baseNames.has(base)) {
+        return true;
+      }
+      return false;
+    },
+    [equippedLookup, activeGameSchema]
+  );
+
+  const buildGroupedCollectionModules = React.useCallback(
+    (localItems: any[], dbCollectionChildren: any[]): any[] => {
+      const combinedSource = [
+        ...(Array.isArray(localItems) ? localItems : []),
+        ...(Array.isArray(dbCollectionChildren) ? dbCollectionChildren : []),
+      ];
+      if (combinedSource.length === 0) return [];
+
+      const map = new Map<string, any>();
+
+      for (const rawKid of combinedSource) {
+        if (!rawKid) continue;
+        const kidUuid = extractCleanUuid(rawKid.dbId, rawKid.id).toLowerCase();
+        const kidHash =
+          rawKid.hash && !/^(virtual_|set_|local_)/i.test(String(rawKid.hash))
+            ? String(rawKid.hash).toLowerCase()
+            : "";
+
+        const matchedSet = new Set<any>();
+        const addMatches = (arr?: any[]) => {
+          if (!arr) return;
+          for (let i = 0; i < arr.length; i++) {
+            matchedSet.add(arr[i]);
+          }
+        };
+
+        if (kidHash) {
+          addMatches(vaultIndex.physicalByHash.get(kidHash));
+        }
+        if (Array.isArray(rawKid.mod_versions)) {
+          for (let i = 0; i < rawKid.mod_versions.length; i++) {
+            const vHash = String(
+              rawKid.mod_versions[i]?.dna_hash || rawKid.mod_versions[i]?.hash || ""
+            )
+              .trim()
+              .toLowerCase();
+            if (vHash) addMatches(vaultIndex.physicalByHash.get(vHash));
+          }
+        }
+        if (kidUuid) {
+          addMatches(vaultIndex.physicalByUuid.get(kidUuid));
+        }
+        if (
+          rawKid.name &&
+          typeof rawKid.name === "string" &&
+          !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(rawKid.name) &&
+          !UUID_REGEX.test(rawKid.name.split("@")[0])
+        ) {
+          addMatches(vaultIndex.physicalByName.get(rawKid.name));
+          addMatches(vaultIndex.physicalByName.get(rawKid.name.toLowerCase()));
+        }
+        if (matchedSet.size === 0) {
+          const fallbackTitle = normTitleForMatch(
+            rawKid.displayName || rawKid.name
+          );
+          if (fallbackTitle) {
+            addMatches(vaultIndex.physicalByNormTitle.get(fallbackTitle));
+          }
+        }
+
+        const matchedPhysical = Array.from(matchedSet);
+        const isKidInstalled = matchedPhysical.length > 0;
+        const dbMeta = kidUuid ? combinedDbMap[kidUuid] || rawKid : rawKid;
+        const hydratedKid = mergeHydratedMod(
+          isKidInstalled ? matchedPhysical[0] : rawKid,
+          dbMeta,
+          vaultIndex,
+          t
+        );
+
+        const resolvedSubMods = isKidInstalled
+          ? matchedPhysical.map((pm: any) =>
+              mergeHydratedMod(pm, dbMeta, vaultIndex, t)
+            )
+          : [hydratedKid];
+
+        const rawTitle = (
+          (hydratedKid.displayName &&
+          !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(hydratedKid.displayName)) &&
+          !UUID_REGEX.test(String(hydratedKid.displayName).split("@")[0])
+            ? hydratedKid.displayName
+            : (hydratedKid.name || "")
+                .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+                .split(/[/\\]/)
+                .pop()) || ""
+        )
+          .replace(/_/g, " ")
+          .replace(/\.[^/.]+$/, "");
+        const { groupTitle } = getCachedGroupTitles(rawTitle);
+        const groupKey = groupTitle.toLowerCase();
+
+        if (!map.has(groupKey)) {
+          map.set(groupKey, {
+            ...hydratedKid,
+            displayName: groupTitle,
+            _groupedTitle: groupTitle,
+            _groupedMods: [...resolvedSubMods],
+            _groupedIds: collectAllCandidateUuids(hydratedKid),
+            isInstalled: isKidInstalled,
+            relationType: "manifest" as const,
+          });
+        } else {
+          const existing = map.get(groupKey);
+          if (isKidInstalled && !existing.isInstalled) {
+            existing.isInstalled = true;
+            existing._groupedMods = [...resolvedSubMods];
+          } else if (isKidInstalled === existing.isInstalled) {
+            for (const rsm of resolvedSubMods) {
+              const alreadyHas = existing._groupedMods.some(
+                (gm: any) =>
+                  (gm.name && rsm.name && gm.name === rsm.name) ||
+                  (gm.hash && rsm.hash && gm.hash === rsm.hash) ||
+                  (extractCleanUuid(gm.dbId, gm.id) &&
+                    extractCleanUuid(gm.dbId, gm.id) ===
+                      extractCleanUuid(rsm.dbId, rsm.id))
+              );
+              if (!alreadyHas) {
+                existing._groupedMods.push(rsm);
+              }
+            }
+          }
+          for (const cid of collectAllCandidateUuids(hydratedKid)) {
+            if (!existing._groupedIds.includes(cid)) {
+              existing._groupedIds.push(cid);
+            }
+          }
+          if (
+            isPlaceholderAuthorStr(existing.author, t) &&
+            !isPlaceholderAuthorStr(hydratedKid.author, t)
+          ) {
+            existing.author = hydratedKid.author;
+          }
+          if (!existing.description && hydratedKid.description) {
+            existing.description = hydratedKid.description;
+          }
+          if (!existing.url && hydratedKid.url) {
+            existing.url = hydratedKid.url;
+          }
+          if (!existing.created_at && hydratedKid.created_at) {
+            existing.created_at = hydratedKid.created_at;
+          }
+          if (!existing.updated_at && hydratedKid.updated_at) {
+            existing.updated_at = hydratedKid.updated_at;
+          }
+          if (
+            (!existing.version ||
+              /^(v\.?local|local|unknown)$/i.test(String(existing.version))) &&
+            hydratedKid.version &&
+            !/^(v\.?local|local|unknown)$/i.test(String(hydratedKid.version))
+          ) {
+            existing.version = hydratedKid.version;
+          }
+        }
+      }
+
+      return Array.from(map.values());
+    },
+    [vaultIndex, combinedDbMap, t]
+  );
+
+  const groupedKids = useMemo(() => {
+    if (!mod) return [];
+    const localKids = mod.flavors || [];
+    if (
+      (Array.isArray(localKids) && localKids.length > 0) ||
+      mod.isVirtual ||
+      mod.isParent ||
+      mod.isCollection
+    ) {
+      return buildGroupedCollectionModules(
+        localKids,
+        mod.hydratedCollectionChildren || []
+      );
+    }
+    return [];
+  }, [mod, buildGroupedCollectionModules]);
+
+  const inVaultKidsCount = useMemo(
+    () => groupedKids.filter((k: any) => k.isInstalled !== false).length,
+    [groupedKids]
+  );
+  const missingKidsCount = useMemo(
+    () => groupedKids.filter((k: any) => k.isInstalled === false).length,
+    [groupedKids]
+  );
+
+  const isKidGroupEquipped = React.useCallback(
+    (k: any): boolean => {
+      if (!k || k.isInstalled === false) return false;
+      const gMods =
+        Array.isArray(k._groupedMods) && k._groupedMods.length > 0
+          ? k._groupedMods
+          : [k];
+      return gMods.some(
+        (gm: any) => gm?.name && isModNameEquipped(gm.name)
+      );
+    },
+    [isModNameEquipped]
+  );
+
+  const resolveKidCategoryKey = React.useCallback((k: any): string => {
+    const gMods =
+      Array.isArray(k?._groupedMods) && k._groupedMods.length > 0
+        ? k._groupedMods
+        : [k];
+    const explicitCat = String(
+      k?.category_override || k?.category || ""
+    ).trim();
+    if (
+      explicitCat &&
+      !/^(package|script|collection|folder|local|unknown|mod)$/i.test(explicitCat)
+    ) {
+      return explicitCat;
+    }
+    const hasScript = gMods.some((gm: any) =>
+      /\.ts4script$/i.test(
+        String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
+      )
+    );
+    if (hasScript) return "Script";
+    return explicitCat || "Package";
+  }, []);
+
+  const availableCollectionCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const k of groupedKids) {
+      const cat = resolveKidCategoryKey(k);
+      if (cat) set.add(cat);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [groupedKids, resolveKidCategoryKey]);
+
+  const filteredGroupedKids = useMemo(() => {
+    const normSearch = deferredCollectionSearch
+      .trim()
+      .toLowerCase()
+      .replace(/[_.\-/\\]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    return groupedKids.filter((k: any) => {
+      if (collectionFilter === "in_vault" && k.isInstalled === false) return false;
+      if (collectionFilter === "missing" && k.isInstalled !== false) return false;
+
+      if (collectionEquipFilter === "EQUIPPED" && !isKidGroupEquipped(k)) {
+        return false;
+      }
+      if (collectionEquipFilter === "UNEQUIPPED" && isKidGroupEquipped(k)) {
+        return false;
+      }
+
+      if (collectionCategoryFilter !== "ALL") {
+        const cat = resolveKidCategoryKey(k);
+        if (cat.toLowerCase() !== collectionCategoryFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      if (collectionStatusFilter !== "ALL") {
+        const rawStatus = String(k.status || "").toLowerCase();
+        const isLocalOnly =
+          !k.dbId ||
+          rawStatus === "local" ||
+          rawStatus === "unverified" ||
+          String(k.version || "").toLowerCase() === "v.local";
+        if (collectionStatusFilter === "UNVERIFIED") {
+          if (!isLocalOnly) return false;
+        } else if (rawStatus !== collectionStatusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
+      if (normSearch) {
+        const gMods =
+          Array.isArray(k._groupedMods) && k._groupedMods.length > 0
+            ? k._groupedMods
+            : [k];
+        const titleStr = String(
+          k._groupedTitle || k.displayName || k.name || ""
+        )
+          .toLowerCase()
+          .replace(/[_.\-/\\]+/g, " ");
+        const authorStr = String(k.author || k.master_author || "")
+          .toLowerCase()
+          .replace(/[_.\-/\\]+/g, " ");
+        const catStr = resolveKidCategoryKey(k).toLowerCase();
+        const matchesSubFile = gMods.some((gm: any) =>
+          String(gm?.name || gm?.displayName || "")
+            .toLowerCase()
+            .replace(/[_.\-/\\]+/g, " ")
+            .includes(normSearch)
+        );
+        if (
+          !titleStr.includes(normSearch) &&
+          !authorStr.includes(normSearch) &&
+          !catStr.includes(normSearch) &&
+          !matchesSubFile
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [
+    groupedKids,
+    collectionFilter,
+    collectionEquipFilter,
+    collectionCategoryFilter,
+    collectionStatusFilter,
+    deferredCollectionSearch,
+    isKidGroupEquipped,
+    resolveKidCategoryKey,
+  ]);
+
+  useEffect(() => {
+    setVisibleKidsLimit(30);
+  }, [
+    collectionFilter,
+    collectionEquipFilter,
+    collectionCategoryFilter,
+    collectionStatusFilter,
+    deferredCollectionSearch,
+  ]);
+
+  useEffect(() => {
+    if (visibleKidsLimit >= filteredGroupedKids.length) return;
+    const node = kidsSentinelRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          React.startTransition(() => {
+            setVisibleKidsLimit((prev) =>
+              Math.min(filteredGroupedKids.length, prev + 36)
+            );
+          });
+        }
+      },
+      { rootMargin: "420px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visibleKidsLimit, filteredGroupedKids.length]);
+
+  const visibleGroupedKids = useMemo(
+    () =>
+      filteredGroupedKids.length > visibleKidsLimit
+        ? filteredGroupedKids.slice(0, visibleKidsLimit)
+        : filteredGroupedKids,
+    [filteredGroupedKids, visibleKidsLimit]
+  );
+
+  const hasActiveCollectionFilters =
+    collectionEquipFilter !== "ALL" ||
+    collectionCategoryFilter !== "ALL" ||
+    collectionStatusFilter !== "ALL";
+
+  const collectionFilterPopoverContent = useMemo(
+    () => (
+      <div className="flex flex-col w-[440px] p-4 max-w-[calc(100vw-40px)] text-left">
+        {!isNexusView && (
+          <DossierFilterSection
+            t={t}
+            title={t("blueprint", "{Blueprint}")}
+            value={collectionEquipFilter}
+            onChange={(val: "ALL" | "EQUIPPED" | "UNEQUIPPED") =>
+              setCollectionEquipFilter(val)
+            }
+            options={[
+              { id: "ALL", label: t("filter_all", "All") },
+              {
+                id: "EQUIPPED",
+                label: t("filter_in_blueprint", "In {Blueprint}"),
+              },
+              {
+                id: "UNEQUIPPED",
+                label: t("filter_not_equipped", "Not Equipped"),
+              },
+            ]}
+          />
+        )}
+
+        {availableCollectionCategories.length > 1 && (
+          <DossierFilterSection
+            t={t}
+            title={t("filter_category", "Filter Category")}
+            value={collectionCategoryFilter}
+            onChange={(val: string) => setCollectionCategoryFilter(val)}
+            options={[
+              { id: "ALL", label: t("filter_all", "All") },
+              ...availableCollectionCategories.map((cat) => ({
+                id: cat,
+                label:
+                  cat === "Script"
+                    ? t("type_script", "Script")
+                    : cat === "Package"
+                      ? t("type_package", "Package")
+                      : cat,
+              })),
+            ]}
+          />
+        )}
+
+        <DossierFilterSection
+          t={t}
+          title={t("filter_status", "Filter Status")}
+          value={collectionStatusFilter}
+          onChange={(val: string) => setCollectionStatusFilter(val)}
+          options={[
+            { id: "ALL", label: t("filter_all", "All") },
+            { id: "stable", label: t("status_stable", "STABLE") },
+            { id: "UNVERIFIED", label: t("unverified", "Unverified") },
+            { id: "unstable", label: t("label_unstable", "Unstable") },
+            { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+          ]}
+        />
+
+        {hasActiveCollectionFilters && (
+          <button
+            type="button"
+            onClick={() => {
+              setCollectionEquipFilter("ALL");
+              setCollectionCategoryFilter("ALL");
+              setCollectionStatusFilter("ALL");
+            }}
+            className="mt-1 px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+              {t("icon_filter_alt_off", "filter_alt_off")}
+            </span>
+            <span>{t("btn_clear", "Clear Filters")}</span>
+          </button>
+        )}
+      </div>
+    ),
+    [
+      isNexusView,
+      t,
+      collectionEquipFilter,
+      availableCollectionCategories,
+      collectionCategoryFilter,
+      collectionStatusFilter,
+      hasActiveCollectionFilters,
+    ]
+  );
+
+  const groupedRelations = useMemo(() => {
+    if (!mod) return [];
+    const rawReqs = [
+      ...(mod.requirements || mod.requires || []),
+      ...(mod.isVirtual && Array.isArray(mod.flavors)
+        ? mod.flavors.flatMap((fl: any) => fl?.requirements || fl?.requires || [])
+        : []),
+    ];
+    const rawTwins = [
+      ...(mod.twins || []),
+      ...(mod.isVirtual && Array.isArray(mod.flavors)
+        ? mod.flavors.flatMap((fl: any) => fl?.twins || [])
+        : []),
+    ];
+    if (rawReqs.length === 0 && rawTwins.length === 0) return [];
+
+    const selfUuids = new Set<string>(
+      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
+        ? mod.flavors.flatMap((fl: any) => collectAllCandidateUuids(fl))
+        : [extractCleanUuid(mod.dbId, mod.id).toLowerCase()].filter(Boolean)
+    );
+    const selfNames = new Set<string>(
+      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
+        ? mod.flavors
+            .map((fl: any) => String(fl?.name || "").toLowerCase())
+            .filter(Boolean)
+        : [String(mod.name || "").toLowerCase()].filter(Boolean)
+    );
+
+    const combinedEntries: Array<{ rawItem: any; relType: "requirement" | "twin" }> = [
+      ...rawReqs.map((r: any) => ({ rawItem: r, relType: "requirement" as const })),
+      ...rawTwins.map((tw: any) => ({ rawItem: tw, relType: "twin" as const })),
+    ];
+
+    const map = new Map<string, any>();
+
+    for (const { rawItem, relType } of combinedEntries) {
+      if (!rawItem) continue;
+      const rawId =
+        typeof rawItem === "string"
+          ? rawItem
+          : rawItem.id || rawItem.dbId || rawItem.hash || "";
+      const cleanId = extractCleanUuid(rawId).toLowerCase();
+      const rawHash = (
+        typeof rawItem === "object" && rawItem?.hash
+          ? String(rawItem.hash)
+          : !cleanId && typeof rawId === "string"
+            ? rawId
+            : ""
+      ).toLowerCase();
+
+      if (cleanId && selfUuids.has(cleanId)) continue;
+
+      const matchedSet = new Set<any>();
+      if (cleanId) {
+        const byId = vaultIndex.physicalByUuid.get(cleanId);
+        if (byId) byId.forEach((pm) => matchedSet.add(pm));
+      }
+      if (rawHash) {
+        const byHash = vaultIndex.physicalByHash.get(rawHash);
+        if (byHash) byHash.forEach((pm) => matchedSet.add(pm));
+      }
+      const matchedPhysical = Array.from(matchedSet);
+
+      if (
+        matchedPhysical.length > 0 &&
+        matchedPhysical.every((pm: any) =>
+          selfNames.has(String(pm.name || "").toLowerCase())
+        )
+      ) {
+        continue;
+      }
+
+      const dbHydrated = cleanId ? combinedDbMap[cleanId] : null;
+      const virtualMatch = cleanId
+        ? vaultIndex.virtualByUuid.get(cleanId) || null
+        : null;
+
+      let primaryMatch: any = null;
+      let isInstalled = false;
+      let resolvedModules: any[] = [];
+
+      if (matchedPhysical.length > 0) {
+        isInstalled = true;
+        resolvedModules = matchedPhysical.map((pm: any) =>
+          mergeHydratedMod(pm, dbHydrated, vaultIndex, t)
+        );
+        primaryMatch = resolvedModules[0];
+      } else if (virtualMatch) {
+        const nonSelfFlavors = (virtualMatch.flavors || []).filter(
+          (fl: any) => !selfNames.has(String(fl?.name || "").toLowerCase())
+        );
+        if (nonSelfFlavors.length === 0 && mod.isVirtual) continue;
+        isInstalled = true;
+        resolvedModules =
+          nonSelfFlavors.length > 0
+            ? nonSelfFlavors.map((fl: any) =>
+                mergeHydratedMod(fl, dbHydrated, vaultIndex, t)
+              )
+            : [mergeHydratedMod(virtualMatch, dbHydrated, vaultIndex, t)];
+        primaryMatch = mergeHydratedMod(
+          { ...virtualMatch, ...(resolvedModules[0] || {}) },
+          dbHydrated,
+          vaultIndex,
+          t
+        );
+      } else {
+        isInstalled = false;
+        const fallbackBase =
+          typeof rawItem === "string"
+            ? {
+                id: rawItem,
+                dbId: cleanId || undefined,
+                name: dbHydrated?.name || rawItem,
+                displayName: dbHydrated?.name || rawItem,
+              }
+            : {
+                ...rawItem,
+                dbId: cleanId || rawItem.dbId || rawItem.id,
+                name: dbHydrated?.name || rawItem.name || rawItem.displayName || String(rawId),
+                displayName:
+                  dbHydrated?.name || rawItem.displayName || rawItem.name || String(rawId),
+              };
+        primaryMatch = mergeHydratedMod(fallbackBase, dbHydrated, vaultIndex, t);
+        resolvedModules = [primaryMatch];
+      }
+
+      const rawDisplay =
+        dbHydrated?.name ||
+        (primaryMatch.displayName &&
+        !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(primaryMatch.displayName))
+          ? primaryMatch.displayName
+          : "") ||
+        (typeof rawItem === "object" && (rawItem.displayName || rawItem.name)) ||
+        primaryMatch.name ||
+        String(rawId);
+
+      const cleanedRaw =
+        String(rawDisplay)
+          .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+          .split(/[/\\]/)
+          .pop()
+          ?.replace(/_/g, " ")
+          .replace(/\.[^/.]+$/, "")
+          .trim() || String(rawDisplay);
+
+      const cleanTitle = formatCleanModTitle(cleanedRaw) || cleanedRaw;
+      const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
+      const groupKey = groupTitle.toLowerCase();
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          ...primaryMatch,
+          displayName: groupTitle,
+          _groupedTitle: groupTitle,
+          _groupedMods: [...resolvedModules],
+          _groupedIds: cleanId
+            ? Array.from(new Set([cleanId, ...collectAllCandidateUuids(primaryMatch)]))
+            : collectAllCandidateUuids(primaryMatch),
+          isInstalled,
+          relationType: relType,
+        });
+      } else {
+        const existing = map.get(groupKey);
+        if (isInstalled) existing.isInstalled = true;
+        if (relType === "requirement") existing.relationType = "requirement";
+
+        for (const rm of resolvedModules) {
+          const alreadyHas = existing._groupedMods.some(
+            (gm: any) =>
+              (gm.name && rm.name && gm.name === rm.name) ||
+              (gm.hash && rm.hash && gm.hash === rm.hash) ||
+              (extractCleanUuid(gm.dbId, gm.id) &&
+                extractCleanUuid(gm.dbId, gm.id) === extractCleanUuid(rm.dbId, rm.id))
+          );
+          if (!alreadyHas) {
+            existing._groupedMods.push(rm);
+          }
+        }
+        if (cleanId && !existing._groupedIds.includes(cleanId)) {
+          existing._groupedIds.push(cleanId);
+        }
+        for (const cid of collectAllCandidateUuids(primaryMatch)) {
+          if (!existing._groupedIds.includes(cid)) {
+            existing._groupedIds.push(cid);
+          }
+        }
+        if (
+          isPlaceholderAuthorStr(existing.author, t) &&
+          !isPlaceholderAuthorStr(primaryMatch.author, t)
+        ) {
+          existing.author = primaryMatch.author;
+        }
+        if (!existing.description && primaryMatch.description) {
+          existing.description = primaryMatch.description;
+        }
+        if (!existing.url && primaryMatch.url) {
+          existing.url = primaryMatch.url;
+        }
+        if (!existing.created_at && primaryMatch.created_at) {
+          existing.created_at = primaryMatch.created_at;
+        }
+        if (!existing.updated_at && primaryMatch.updated_at) {
+          existing.updated_at = primaryMatch.updated_at;
+        }
+        if (
+          (!existing.version || /^(v\.?local|local|unknown)$/i.test(String(existing.version))) &&
+          primaryMatch.version &&
+          !/^(v\.?local|local|unknown)$/i.test(String(primaryMatch.version))
+        ) {
+          existing.version = primaryMatch.version;
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }, [mod, vaultIndex, combinedDbMap, t]);
   const isSingleItemStaged = (target: any) => {
     if (!target) return false;
     const targetId = String(target.id || target.dbId || "").toLowerCase();
@@ -1545,7 +2650,6 @@ export default function ModDossier({
       ? "local"
       : (mod.status || "").toLowerCase();
 
-  const activeMods = activePlaySet?.mods || [];
   const kids = mod.flavors || [];
   const isCollection = mod.isCollection;
 
@@ -1621,7 +2725,7 @@ export default function ModDossier({
               m.name &&
               !m.isVirtual &&
               m.name !== mItem.name &&
-              activeMods.includes(m.name)
+              isModNameEquipped(m.name)
           )
           .forEach((m: any) => toDelete.add(m.name));
       }
@@ -1633,7 +2737,7 @@ export default function ModDossier({
       (modList || []).forEach((m: any) => {
         if (
           !m.isVirtual &&
-          activeMods.includes(m.name) &&
+          isModNameEquipped(m.name) &&
           !toDelete.has(m.name)
         ) {
           const isDependent = m.requirements?.some((r: any) => {
@@ -1695,20 +2799,62 @@ export default function ModDossier({
     return [cleanTarget, ...cleanDeps];
   };
 
-  const safeToggle = (targetName: string) => {
-    const isCurrentlyEquipped = activeMods.includes(targetName);
+  const allEquippableManifestNames = (() => {
+    const set = new Set<string>();
+    const addValidName = (n: any) => {
+      if (
+        n &&
+        typeof n === "string" &&
+        !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+      ) {
+        set.add(n);
+      }
+    };
+
+    if (groupedKids.length > 0) {
+      groupedKids.forEach((kidGroup: any) => {
+        if (kidGroup?.isInstalled === false) return;
+        const gMods: any[] =
+          Array.isArray(kidGroup?._groupedMods) &&
+          kidGroup._groupedMods.length > 0
+            ? kidGroup._groupedMods
+            : [kidGroup];
+        gMods.forEach((gm: any) => addValidName(gm?.name));
+      });
+    } else if (kids.length > 0) {
+      kids.forEach((k: any) => addValidName(k?.name));
+    } else if (!mod.isVirtual) {
+      addValidName(mod.name);
+    }
+
+    return Array.from(set);
+  })();
+
+  const allEquipped =
+    allEquippableManifestNames.length > 0 &&
+    allEquippableManifestNames.every((n) => isModNameEquipped(n));
+
+  const safeToggle = (targetName: string, forceMode?: "add" | "remove") => {
+    if (!targetName) return;
+    const isCurrentlyEquipped = isModNameEquipped(targetName);
+    const shouldRemove =
+      forceMode === "remove"
+        ? true
+        : forceMode === "add"
+          ? false
+          : isCurrentlyEquipped;
     const doToggle = () => {
-      onToggleInActiveSet(targetName);
+      onToggleInActiveSet(targetName, false, shouldRemove, !shouldRemove);
       if (
         selectedKid &&
         selectedKid.name === targetName &&
-        isCurrentlyEquipped
+        shouldRemove
       ) {
         setSelectedKid(null);
       }
     };
 
-    if (isCurrentlyEquipped) {
+    if (shouldRemove) {
       const c = getCasualties(targetName);
       if (c.length > 0 && onShowYeetAlert) {
         onShowYeetAlert(c, doToggle);
@@ -1718,30 +2864,135 @@ export default function ModDossier({
     doToggle();
   };
 
-  const allEquipped =
-    kids.length > 0 && kids.every((k: any) => activeMods.includes(k.name));
+  const safeToggleGroup = (groupItem: any) => {
+    const groupMods: any[] =
+      Array.isArray(groupItem?._groupedMods) && groupItem._groupedMods.length > 0
+        ? groupItem._groupedMods
+        : Array.isArray(groupItem?.flavors) && groupItem.flavors.length > 0
+          ? groupItem.flavors
+          : [groupItem];
+    const validNames = Array.from(
+      new Set(
+        groupMods
+          .map((gm: any) => gm?.name)
+          .filter(
+            (n: any) =>
+              n &&
+              typeof n === "string" &&
+              !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
+          )
+      )
+    );
+    if (validNames.length === 0) {
+      if (groupItem?.name) safeToggle(groupItem.name);
+      return;
+    }
 
-  const handleToggleAll = () => {
-    if (allEquipped && kids.length > 0) {
-      const allDeps: any[] = [];
-      kids.forEach((k: any) => {
-        if (activeMods.includes(k.name)) {
-          allDeps.push(
-            (k.displayName || (k.name || "").split("/").pop() || "")
-              .replace(/_/g, " ")
-              .replace(/\.[^/.]+$/, "")
-          );
-          const c = getCasualties(k.name);
-          if (c.length > 0) allDeps.push(...c);
+    const isGroupEquipped = validNames.some((n) => isModNameEquipped(n));
+    const performGroupToggle = () => {
+      if (isGroupEquipped) {
+        validNames.forEach((n) => {
+          if (isModNameEquipped(n)) {
+            onToggleInActiveSet(n, false, true, false);
+          }
+        });
+      } else {
+        validNames.forEach((n) => {
+          onToggleInActiveSet(n, false, false, true);
+        });
+      }
+    };
+
+    if (isGroupEquipped) {
+      const groupNameSet = new Set(validNames);
+      const allCas: string[] = [];
+      validNames.forEach((n) => {
+        const c = getCasualties(n);
+        if (c.length > 1) {
+          c.slice(1).forEach((depLabel) => {
+            const isInternal = groupMods.some((gm: any) => {
+              if (!gm?.name || !groupNameSet.has(gm.name)) return false;
+              const cleanGm = (
+                gm.displayName ||
+                (gm.name || "").split("/").pop() ||
+                ""
+              )
+                .replace(/_/g, " ")
+                .replace(/\.[^/.]+$/, "");
+              return cleanGm.toLowerCase() === String(depLabel).toLowerCase();
+            });
+            if (!isInternal) allCas.push(depLabel);
+          });
         }
       });
-      const uniqueDeps = [...new Set(allDeps)];
-      if (uniqueDeps.length > 0 && onShowYeetAlert) {
-        onShowYeetAlert(uniqueDeps, () => onToggleInActiveSet(mod.name));
+      const uniqueCas = Array.from(new Set(allCas));
+      if (uniqueCas.length > 0 && onShowYeetAlert) {
+        const groupLabel =
+          groupItem?._groupedTitle ||
+          groupItem?.displayName ||
+          validNames[0];
+        onShowYeetAlert([groupLabel, ...uniqueCas], performGroupToggle);
         return;
       }
     }
-    onToggleInActiveSet(mod.name);
+
+    performGroupToggle();
+  };
+
+  const handleToggleAll = () => {
+    if (allEquippableManifestNames.length === 0) {
+      if (mod?.name) onToggleInActiveSet(mod.name, false);
+      return;
+    }
+
+    if (allEquipped) {
+      const doRemoveAll = () => {
+        allEquippableManifestNames.forEach((n) => {
+          if (isModNameEquipped(n)) {
+            onToggleInActiveSet(n, false, true, false);
+          }
+        });
+      };
+
+      const manifestNameSet = new Set(allEquippableManifestNames);
+      const externalDeps: string[] = [];
+      allEquippableManifestNames.forEach((n) => {
+        if (isModNameEquipped(n)) {
+          const c = getCasualties(n);
+          if (c.length > 1) {
+            c.slice(1).forEach((depLabel) => {
+              const isSelfMember = (modList || []).some((m: any) => {
+                if (!m?.name || !manifestNameSet.has(m.name)) return false;
+                const cleanM = (
+                  m.displayName ||
+                  (m.name || "").split("/").pop() ||
+                  ""
+                )
+                  .replace(/_/g, " ")
+                  .replace(/\.[^/.]+$/, "");
+                return cleanM.toLowerCase() === String(depLabel).toLowerCase();
+              });
+              if (!isSelfMember) externalDeps.push(depLabel);
+            });
+          }
+        }
+      });
+      const uniqueDeps = [...new Set(externalDeps)];
+      if (uniqueDeps.length > 0 && onShowYeetAlert) {
+        const rootLabel =
+          mod.displayName ||
+          (mod.name || "").replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "");
+        onShowYeetAlert([rootLabel, ...uniqueDeps], doRemoveAll);
+        return;
+      }
+      doRemoveAll();
+    } else {
+      allEquippableManifestNames.forEach((n) => {
+        if (!isModNameEquipped(n)) {
+          onToggleInActiveSet(n, false, false, true);
+        }
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -2034,407 +3285,7 @@ export default function ModDossier({
     setIsSaving(false);
   };
 
-  const safeToggleGroup = (groupItem: any) => {
-    const groupMods: any[] =
-      Array.isArray(groupItem?._groupedMods) && groupItem._groupedMods.length > 0
-        ? groupItem._groupedMods
-        : [groupItem];
-    const validNames = Array.from(
-      new Set(
-        groupMods
-          .map((gm: any) => gm?.name)
-          .filter(
-            (n: any) =>
-              n &&
-              typeof n === "string" &&
-              !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(n)
-          )
-      )
-    );
-    if (validNames.length === 0) {
-      if (groupItem?.name) safeToggle(groupItem.name);
-      return;
-    }
-    safeToggle(validNames[0]);
-  };
-
-  const buildGroupedCollectionModules = (
-    localItems: any[],
-    dbCollectionChildren: any[]
-  ): any[] => {
-    const combinedSource = [
-      ...(Array.isArray(localItems) ? localItems : []),
-      ...(Array.isArray(dbCollectionChildren) ? dbCollectionChildren : []),
-    ];
-    if (combinedSource.length === 0) return [];
-
-    const physicalVaultMods = (allAvailableMods || []).filter(
-      (m: any) => m && !m.isVirtual
-    );
-    const map = new Map<string, any>();
-
-    for (const rawKid of combinedSource) {
-      if (!rawKid) continue;
-      const kidUuid = extractCleanUuid(rawKid.dbId, rawKid.id).toLowerCase();
-      const kidHash =
-        rawKid.hash && !/^(virtual_|set_|local_)/i.test(String(rawKid.hash))
-          ? String(rawKid.hash)
-          : "";
-
-      const matchedPhysical = physicalVaultMods.filter((pm: any) => {
-        const pmUuid = extractCleanUuid(pm.dbId, pm.id).toLowerCase();
-        return (
-          (kidHash && pm.hash && String(pm.hash) === kidHash) ||
-          (kidUuid && pmUuid && pmUuid === kidUuid) ||
-          (rawKid.name &&
-            !/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i.test(String(rawKid.name)) &&
-            !UUID_REGEX.test(String(rawKid.name).split("@")[0]) &&
-            pm.name === rawKid.name)
-        );
-      });
-
-      const isKidInstalled = matchedPhysical.length > 0;
-      const dbMeta = kidUuid ? relationDbMap[kidUuid] || rawKid : rawKid;
-      const hydratedKid = mergeHydratedMod(
-        isKidInstalled ? matchedPhysical[0] : rawKid,
-        dbMeta,
-        allAvailableMods,
-        t
-      );
-
-      const resolvedSubMods = isKidInstalled
-        ? matchedPhysical.map((pm: any) =>
-            mergeHydratedMod(pm, dbMeta, allAvailableMods, t)
-          )
-        : [hydratedKid];
-
-      const rawTitle = (
-        (hydratedKid.displayName &&
-        !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(hydratedKid.displayName)) &&
-        !UUID_REGEX.test(String(hydratedKid.displayName).split("@")[0])
-          ? hydratedKid.displayName
-          : (hydratedKid.name || "")
-              .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
-              .split(/[/\\]/)
-              .pop()) || ""
-      )
-        .replace(/_/g, " ")
-        .replace(/\.[^/.]+$/, "");
-      const cleanTitle = formatCleanModTitle(rawTitle) || rawTitle;
-      const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
-      const groupKey = groupTitle.toLowerCase();
-
-      if (!map.has(groupKey)) {
-        map.set(groupKey, {
-          ...hydratedKid,
-          displayName: groupTitle,
-          _groupedTitle: groupTitle,
-          _groupedMods: [...resolvedSubMods],
-          _groupedIds: collectAllCandidateUuids(hydratedKid),
-          isInstalled: isKidInstalled,
-          relationType: "manifest" as const,
-        });
-      } else {
-        const existing = map.get(groupKey);
-        if (isKidInstalled && !existing.isInstalled) {
-          existing.isInstalled = true;
-          existing._groupedMods = [...resolvedSubMods];
-        } else if (isKidInstalled === existing.isInstalled) {
-          for (const rsm of resolvedSubMods) {
-            const alreadyHas = existing._groupedMods.some(
-              (gm: any) =>
-                (gm.name && rsm.name && gm.name === rsm.name) ||
-                (gm.hash && rsm.hash && gm.hash === rsm.hash) ||
-                (extractCleanUuid(gm.dbId, gm.id) &&
-                  extractCleanUuid(gm.dbId, gm.id) ===
-                    extractCleanUuid(rsm.dbId, rsm.id))
-            );
-            if (!alreadyHas) {
-              existing._groupedMods.push(rsm);
-            }
-          }
-        }
-        for (const cid of collectAllCandidateUuids(hydratedKid)) {
-          if (!existing._groupedIds.includes(cid)) {
-            existing._groupedIds.push(cid);
-          }
-        }
-        if (
-          isPlaceholderAuthorStr(existing.author, t) &&
-          !isPlaceholderAuthorStr(hydratedKid.author, t)
-        ) {
-          existing.author = hydratedKid.author;
-        }
-        if (!existing.description && hydratedKid.description) {
-          existing.description = hydratedKid.description;
-        }
-        if (!existing.url && hydratedKid.url) {
-          existing.url = hydratedKid.url;
-        }
-        if (!existing.created_at && hydratedKid.created_at) {
-          existing.created_at = hydratedKid.created_at;
-        }
-        if (!existing.updated_at && hydratedKid.updated_at) {
-          existing.updated_at = hydratedKid.updated_at;
-        }
-        if (
-          (!existing.version ||
-            /^(v\.?local|local|unknown)$/i.test(String(existing.version))) &&
-          hydratedKid.version &&
-          !/^(v\.?local|local|unknown)$/i.test(String(hydratedKid.version))
-        ) {
-          existing.version = hydratedKid.version;
-        }
-      }
-    }
-
-    return Array.from(map.values());
-  };
-
-  const groupedKids =
-    (Array.isArray(kids) && kids.length > 0) ||
-    mod.isVirtual ||
-    mod.isParent ||
-    mod.isCollection
-      ? buildGroupedCollectionModules(
-          kids,
-          mod.hydratedCollectionChildren || []
-        )
-      : [];
-
-  const inVaultKidsCount = groupedKids.filter(
-    (k: any) => k.isInstalled !== false
-  ).length;
-  const missingKidsCount = groupedKids.filter(
-    (k: any) => k.isInstalled === false
-  ).length;
-  const filteredGroupedKids = groupedKids.filter((k: any) => {
-    if (collectionFilter === "in_vault") return k.isInstalled !== false;
-    if (collectionFilter === "missing") return k.isInstalled === false;
-    return true;
-  });
-
   const conflicts = mod.conflicts || [];
-
-  const groupedRelations = (() => {
-    const rawReqs = [
-      ...(mod.requirements || mod.requires || []),
-      ...(mod.isVirtual && Array.isArray(mod.flavors)
-        ? mod.flavors.flatMap((fl: any) => fl?.requirements || fl?.requires || [])
-        : []),
-    ];
-    const rawTwins = [
-      ...(mod.twins || []),
-      ...(mod.isVirtual && Array.isArray(mod.flavors)
-        ? mod.flavors.flatMap((fl: any) => fl?.twins || [])
-        : []),
-    ];
-
-    const selfUuids = new Set<string>(
-      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
-        ? mod.flavors.flatMap((fl: any) => collectAllCandidateUuids(fl))
-        : [extractCleanUuid(mod.dbId, mod.id).toLowerCase()].filter(Boolean)
-    );
-    const selfNames = new Set<string>(
-      mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
-        ? mod.flavors
-            .map((fl: any) => String(fl?.name || "").toLowerCase())
-            .filter(Boolean)
-        : [String(mod.name || "").toLowerCase()].filter(Boolean)
-    );
-
-    const physicalVaultMods = allAvailableMods.filter((m: any) => !m.isVirtual);
-    const virtualVaultMods = allAvailableMods.filter(
-      (m: any) => m.isVirtual && !m.isCollection
-    );
-
-    const combinedEntries: Array<{ rawItem: any; relType: "requirement" | "twin" }> = [
-      ...rawReqs.map((r: any) => ({ rawItem: r, relType: "requirement" as const })),
-      ...rawTwins.map((tw: any) => ({ rawItem: tw, relType: "twin" as const })),
-    ];
-
-    const map = new Map<string, any>();
-
-    for (const { rawItem, relType } of combinedEntries) {
-      if (!rawItem) continue;
-      const rawId =
-        typeof rawItem === "string"
-          ? rawItem
-          : rawItem.id || rawItem.dbId || rawItem.hash || "";
-      const cleanId = extractCleanUuid(rawId).toLowerCase();
-      const rawHash =
-        typeof rawItem === "object" && rawItem?.hash
-          ? String(rawItem.hash)
-          : !cleanId && typeof rawId === "string"
-            ? rawId
-            : "";
-
-      if (cleanId && selfUuids.has(cleanId)) continue;
-
-      const matchedPhysical = physicalVaultMods.filter((pm: any) => {
-        const pmUuid = extractCleanUuid(pm.dbId, pm.id).toLowerCase();
-        return (
-          (cleanId && pmUuid === cleanId) ||
-          (rawHash && pm.hash && String(pm.hash) === rawHash)
-        );
-      });
-
-      if (
-        matchedPhysical.length > 0 &&
-        matchedPhysical.every((pm: any) =>
-          selfNames.has(String(pm.name || "").toLowerCase())
-        )
-      ) {
-        continue;
-      }
-
-      const dbHydrated = cleanId ? relationDbMap[cleanId] : null;
-      const virtualMatch = cleanId
-        ? virtualVaultMods.find(
-            (vm: any) =>
-              extractCleanUuid(vm.dbId, vm.baseFamilyId).toLowerCase() === cleanId
-          )
-        : null;
-
-      let primaryMatch: any = null;
-      let isInstalled = false;
-      let resolvedModules: any[] = [];
-
-      if (matchedPhysical.length > 0) {
-        isInstalled = true;
-        resolvedModules = matchedPhysical.map((pm: any) =>
-          mergeHydratedMod(pm, dbHydrated, allAvailableMods, t)
-        );
-        primaryMatch = resolvedModules[0];
-      } else if (virtualMatch) {
-        const nonSelfFlavors = (virtualMatch.flavors || []).filter(
-          (fl: any) => !selfNames.has(String(fl?.name || "").toLowerCase())
-        );
-        if (nonSelfFlavors.length === 0 && mod.isVirtual) continue;
-        isInstalled = true;
-        resolvedModules =
-          nonSelfFlavors.length > 0
-            ? nonSelfFlavors.map((fl: any) =>
-                mergeHydratedMod(fl, dbHydrated, allAvailableMods, t)
-              )
-            : [mergeHydratedMod(virtualMatch, dbHydrated, allAvailableMods, t)];
-        primaryMatch = mergeHydratedMod(
-          { ...virtualMatch, ...(resolvedModules[0] || {}) },
-          dbHydrated,
-          allAvailableMods,
-          t
-        );
-      } else {
-        isInstalled = false;
-        const fallbackBase =
-          typeof rawItem === "string"
-            ? {
-                id: rawItem,
-                dbId: cleanId || undefined,
-                name: dbHydrated?.name || rawItem,
-                displayName: dbHydrated?.name || rawItem,
-              }
-            : {
-                ...rawItem,
-                dbId: cleanId || rawItem.dbId || rawItem.id,
-                name: dbHydrated?.name || rawItem.name || rawItem.displayName || String(rawId),
-                displayName:
-                  dbHydrated?.name || rawItem.displayName || rawItem.name || String(rawId),
-              };
-        primaryMatch = mergeHydratedMod(fallbackBase, dbHydrated, allAvailableMods, t);
-        resolvedModules = [primaryMatch];
-      }
-
-      const rawDisplay =
-        dbHydrated?.name ||
-        (primaryMatch.displayName &&
-        !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(primaryMatch.displayName))
-          ? primaryMatch.displayName
-          : "") ||
-        (typeof rawItem === "object" && (rawItem.displayName || rawItem.name)) ||
-        primaryMatch.name ||
-        String(rawId);
-
-      const cleanedRaw =
-        String(rawDisplay)
-          .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
-          .split(/[/\\]/)
-          .pop()
-          ?.replace(/_/g, " ")
-          .replace(/\.[^/.]+$/, "")
-          .trim() || String(rawDisplay);
-
-      const cleanTitle = formatCleanModTitle(cleanedRaw) || cleanedRaw;
-      const groupTitle = normalizeModGroupTitle(cleanTitle) || cleanTitle;
-      const groupKey = groupTitle.toLowerCase();
-
-      if (!map.has(groupKey)) {
-        map.set(groupKey, {
-          ...primaryMatch,
-          displayName: groupTitle,
-          _groupedTitle: groupTitle,
-          _groupedMods: [...resolvedModules],
-          _groupedIds: cleanId
-            ? Array.from(new Set([cleanId, ...collectAllCandidateUuids(primaryMatch)]))
-            : collectAllCandidateUuids(primaryMatch),
-          isInstalled,
-          relationType: relType,
-        });
-      } else {
-        const existing = map.get(groupKey);
-        if (isInstalled) existing.isInstalled = true;
-        if (relType === "requirement") existing.relationType = "requirement";
-
-        for (const rm of resolvedModules) {
-          const alreadyHas = existing._groupedMods.some(
-            (gm: any) =>
-              (gm.name && rm.name && gm.name === rm.name) ||
-              (gm.hash && rm.hash && gm.hash === rm.hash) ||
-              (extractCleanUuid(gm.dbId, gm.id) &&
-                extractCleanUuid(gm.dbId, gm.id) === extractCleanUuid(rm.dbId, rm.id))
-          );
-          if (!alreadyHas) {
-            existing._groupedMods.push(rm);
-          }
-        }
-        if (cleanId && !existing._groupedIds.includes(cleanId)) {
-          existing._groupedIds.push(cleanId);
-        }
-        for (const cid of collectAllCandidateUuids(primaryMatch)) {
-          if (!existing._groupedIds.includes(cid)) {
-            existing._groupedIds.push(cid);
-          }
-        }
-        if (
-          isPlaceholderAuthorStr(existing.author, t) &&
-          !isPlaceholderAuthorStr(primaryMatch.author, t)
-        ) {
-          existing.author = primaryMatch.author;
-        }
-        if (!existing.description && primaryMatch.description) {
-          existing.description = primaryMatch.description;
-        }
-        if (!existing.url && primaryMatch.url) {
-          existing.url = primaryMatch.url;
-        }
-        if (!existing.created_at && primaryMatch.created_at) {
-          existing.created_at = primaryMatch.created_at;
-        }
-        if (!existing.updated_at && primaryMatch.updated_at) {
-          existing.updated_at = primaryMatch.updated_at;
-        }
-        if (
-          (!existing.version || /^(v\.?local|local|unknown)$/i.test(String(existing.version))) &&
-          primaryMatch.version &&
-          !/^(v\.?local|local|unknown)$/i.test(String(primaryMatch.version))
-        ) {
-          existing.version = primaryMatch.version;
-        }
-      }
-    }
-
-    return Array.from(map.values());
-  })();
 
   const rawArtifactTitle = (
     (mod.displayName && !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(mod.displayName))
@@ -2627,6 +3478,9 @@ export default function ModDossier({
             );
           }
 
+          const canEquipMain = Boolean(
+            !isNexusView && allEquippableManifestNames.length > 0
+          );
           const canSyncSandbox = Boolean(mod.hash?.startsWith("dev_sandbox_") && isDesktop());
           const canExportRelease = Boolean(
             !mod.isVirtual &&
@@ -2646,6 +3500,7 @@ export default function ModDossier({
           );
 
           if (
+            !canEquipMain &&
             !canSyncSandbox &&
             !canExportRelease &&
             !canEditDesktop &&
@@ -2657,6 +3512,22 @@ export default function ModDossier({
 
           return (
             <PanelHeaderGroup>
+              {canEquipMain && (
+                <PanelHeaderButton
+                  icon={
+                    allEquipped
+                      ? t("icon_remove", "remove")
+                      : t("icon_add", "add")
+                  }
+                  tooltip={
+                    allEquipped
+                      ? t("btn_unequip", "Unequip {Mod}")
+                      : t("btn_equip", "Equip {Mod}")
+                  }
+                  variant={allEquipped ? "danger" : "success"}
+                  onClick={handleToggleAll}
+                />
+              )}
               {canSyncSandbox && (
                 <PanelHeaderButton
                   icon={t("icon_cloud_sync", "cloud_sync")}
@@ -2819,22 +3690,20 @@ export default function ModDossier({
                         }}
                       />
                     )}
-                  {!editMode && !isNexusView && isDesktop() && (() => {
-                    const mainVersionGroups = filterVersionGroupsForTarget(mod);
-                    if (mainVersionGroups.length === 0) return null;
-                    return (
-                      <ActionButton
-                        variant="glass"
-                        icon={t("icon_history", "history")}
-                        label={t("version_pool_btn_versions", "Versions")}
-                        onClick={() =>
-                          setSelectedVersionGroupKeys(
-                            mainVersionGroups.map((g) => g.key)
-                          )
-                        }
-                      />
-                    );
-                  })()}
+                  {!editMode && !isNexusView && isDesktop() && versionPoolItems.length > 0 && (
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_history", "history")}
+                      label={t("version_pool_btn_versions", "Versions")}
+                      onClick={() => {
+                        const mainVersionGroups = filterVersionGroupsForTarget(mod);
+                        setActiveVersionModalGroups(mainVersionGroups);
+                        setSelectedVersionGroupKeys(
+                          mainVersionGroups.map((g) => g.key)
+                        );
+                      }}
+                    />
+                  )}
                   {!editMode && (
                     <ActionButton
                       variant="glass"
@@ -3261,13 +4130,26 @@ export default function ModDossier({
                 />
               </div>
 
+              <div className="mb-3">
+                <ActionPill
+                  searchQuery={collectionSearchQuery}
+                  setSearchQuery={setCollectionSearchQuery}
+                  searchPlaceholder={t("search_ph", "Search {mods}...")}
+                  primaryPopover={{
+                    icon: t("icon_tune", "tune"),
+                    label: t("filters", "Filters"),
+                    content: collectionFilterPopoverContent,
+                  }}
+                />
+              </div>
+
               {filteredGroupedKids.length === 0 ? (
                 <div className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed font-medium glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-center">
                   {t("registry_no_mods", "No {Mods} Found")}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {filteredGroupedKids.map((kidGroup: any, kidIndex: number) => (
+                  {visibleGroupedKids.map((kidGroup: any, kidIndex: number) => (
                     <DossierModuleCard
                       key={
                         kidGroup.hash ||
@@ -3276,17 +4158,21 @@ export default function ModDossier({
                       }
                       item={kidGroup}
                       activeMods={activeMods}
+                      isModNameEquipped={isModNameEquipped}
                       isNexusView={isNexusView}
                       activeGameSchema={activeGameSchema}
                       showImages={showImages}
                       t={t}
-                      onInspect={(target: any) => setSelectedKid(target)}
+                      onInspect={handleInspectKid}
                       onToggleGroup={safeToggleGroup}
                       onToggleSingle={safeToggle}
                       isSingleItemStaged={isSingleItemStaged}
                       handleStageTargetToPc={handleStageTargetToPc}
                     />
                   ))}
+                  {visibleKidsLimit < filteredGroupedKids.length && (
+                    <div ref={kidsSentinelRef} className="col-span-full h-2" />
+                  )}
                 </div>
               )}
             </UniversalGroup>
@@ -3307,11 +4193,12 @@ export default function ModDossier({
                     }
                     item={relItem}
                     activeMods={activeMods}
+                    isModNameEquipped={isModNameEquipped}
                     isNexusView={isNexusView}
                     activeGameSchema={activeGameSchema}
                     showImages={showImages}
                     t={t}
-                    onInspect={(target: any) => setSelectedKid(target)}
+                    onInspect={handleInspectKid}
                     onToggleGroup={safeToggleGroup}
                     onToggleSingle={safeToggle}
                     isSingleItemStaged={isSingleItemStaged}
@@ -3421,9 +4308,67 @@ export default function ModDossier({
           const kidMissingCount = groupedKidModules.filter(
             (k: any) => k.isInstalled === false
           ).length;
+
+          const normKidSearch = deferredKidSearch
+            .trim()
+            .toLowerCase()
+            .replace(/[_.\-/\\]+/g, " ")
+            .replace(/\s+/g, " ");
+
           const filteredKidModules = groupedKidModules.filter((k: any) => {
-            if (kidCollectionFilter === "in_vault") return k.isInstalled !== false;
-            if (kidCollectionFilter === "missing") return k.isInstalled === false;
+            if (kidCollectionFilter === "in_vault" && k.isInstalled === false)
+              return false;
+            if (kidCollectionFilter === "missing" && k.isInstalled !== false)
+              return false;
+            if (kidEquipFilter === "EQUIPPED" && !isKidGroupEquipped(k))
+              return false;
+            if (kidEquipFilter === "UNEQUIPPED" && isKidGroupEquipped(k))
+              return false;
+            if (kidCategoryFilter !== "ALL") {
+              const cat = resolveKidCategoryKey(k);
+              if (cat.toLowerCase() !== kidCategoryFilter.toLowerCase())
+                return false;
+            }
+            if (kidStatusFilter !== "ALL") {
+              const rawStatus = String(k.status || "").toLowerCase();
+              const isLocalOnly =
+                !k.dbId ||
+                rawStatus === "local" ||
+                rawStatus === "unverified" ||
+                String(k.version || "").toLowerCase() === "v.local";
+              if (kidStatusFilter === "UNVERIFIED") {
+                if (!isLocalOnly) return false;
+              } else if (rawStatus !== kidStatusFilter.toLowerCase()) {
+                return false;
+              }
+            }
+            if (normKidSearch) {
+              const gMods =
+                Array.isArray(k._groupedMods) && k._groupedMods.length > 0
+                  ? k._groupedMods
+                  : [k];
+              const titleStr = String(
+                k._groupedTitle || k.displayName || k.name || ""
+              )
+                .toLowerCase()
+                .replace(/[_.\-/\\]+/g, " ");
+              const authorStr = String(k.author || k.master_author || "")
+                .toLowerCase()
+                .replace(/[_.\-/\\]+/g, " ");
+              const matchesSub = gMods.some((gm: any) =>
+                String(gm?.name || gm?.displayName || "")
+                  .toLowerCase()
+                  .replace(/[_.\-/\\]+/g, " ")
+                  .includes(normKidSearch)
+              );
+              if (
+                !titleStr.includes(normKidSearch) &&
+                !authorStr.includes(normKidSearch) &&
+                !matchesSub
+              ) {
+                return false;
+              }
+            }
             return true;
           });
 
@@ -3437,7 +4382,7 @@ export default function ModDossier({
             );
           const isKidEquipped =
             kidEquippableNames.length > 0 &&
-            kidEquippableNames.some((n: string) => activeMods.includes(n));
+            kidEquippableNames.some((n: string) => isModNameEquipped(n));
 
           const rawKidName = String(kidToRender.name || "");
 
@@ -3537,22 +4482,20 @@ export default function ModDossier({
                         }
                       />
                     )}
-                    {!isNexusView && isDesktop() && (() => {
-                      const kidVersionGroups = filterVersionGroupsForTarget(kidToRender);
-                      if (kidVersionGroups.length === 0) return null;
-                      return (
-                        <ActionButton
-                          variant="glass"
-                          icon={t("icon_history", "history")}
-                          label={t("version_pool_btn_versions", "Versions")}
-                          onClick={() =>
-                            setSelectedVersionGroupKeys(
-                              kidVersionGroups.map((g) => g.key)
-                            )
-                          }
-                        />
-                      );
-                    })()}
+                    {!isNexusView && isDesktop() && versionPoolItems.length > 0 && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_history", "history")}
+                        label={t("version_pool_btn_versions", "Versions")}
+                        onClick={() => {
+                          const kidVersionGroups = filterVersionGroupsForTarget(kidToRender);
+                          setActiveVersionModalGroups(kidVersionGroups);
+                          setSelectedVersionGroupKeys(
+                            kidVersionGroups.map((g) => g.key)
+                          );
+                        }}
+                      />
+                    )}
                     <ActionButton
                       variant="glass"
                       icon={
@@ -3721,6 +4664,56 @@ export default function ModDossier({
                       />
                     </div>
 
+                    <div className="mb-3">
+                      <ActionPill
+                        searchQuery={kidSearchQuery}
+                        setSearchQuery={setKidSearchQuery}
+                        searchPlaceholder={t("search_ph", "Search {mods}...")}
+                        primaryPopover={{
+                          icon: t("icon_tune", "tune"),
+                          label: t("filters", "Filters"),
+                          content: (
+                            <div className="flex flex-col w-[440px] p-4 max-w-[calc(100vw-40px)] text-left">
+                              {!isNexusView && (
+                                <DossierFilterSection
+                                  t={t}
+                                  title={t("blueprint", "{Blueprint}")}
+                                  value={kidEquipFilter}
+                                  onChange={(val: "ALL" | "EQUIPPED" | "UNEQUIPPED") =>
+                                    setKidEquipFilter(val)
+                                  }
+                                  options={[
+                                    { id: "ALL", label: t("filter_all", "All") },
+                                    {
+                                      id: "EQUIPPED",
+                                      label: t("filter_in_blueprint", "In {Blueprint}"),
+                                    },
+                                    {
+                                      id: "UNEQUIPPED",
+                                      label: t("filter_not_equipped", "Not Equipped"),
+                                    },
+                                  ]}
+                                />
+                              )}
+                              <DossierFilterSection
+                                t={t}
+                                title={t("filter_status", "Filter Status")}
+                                value={kidStatusFilter}
+                                onChange={(val: string) => setKidStatusFilter(val)}
+                                options={[
+                                  { id: "ALL", label: t("filter_all", "All") },
+                                  { id: "stable", label: t("status_stable", "STABLE") },
+                                  { id: "UNVERIFIED", label: t("unverified", "Unverified") },
+                                  { id: "unstable", label: t("label_unstable", "Unstable") },
+                                  { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                                ]}
+                              />
+                            </div>
+                          ),
+                        }}
+                      />
+                    </div>
+
                     {filteredKidModules.length === 0 ? (
                       <div className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed font-medium glass-surface p-4 rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-center">
                         {t("registry_no_mods", "No {Mods} Found")}
@@ -3736,11 +4729,12 @@ export default function ModDossier({
                             }
                             item={kmGroup}
                             activeMods={activeMods}
+                            isModNameEquipped={isModNameEquipped}
                             isNexusView={isNexusView}
                             activeGameSchema={activeGameSchema}
                             showImages={showImages}
                             t={t}
-                            onInspect={(target: any) => setSelectedKid(target)}
+                            onInspect={handleInspectKid}
                             onToggleGroup={safeToggleGroup}
                             onToggleSingle={safeToggle}
                             isSingleItemStaged={isSingleItemStaged}
@@ -3759,9 +4753,15 @@ export default function ModDossier({
       <ModVersionHistorySidePanel
         groups={selectedVersionGroups}
         isOpen={selectedVersionGroups.length > 0}
-        onClose={() => setSelectedVersionGroupKeys([])}
+        onClose={() => {
+          setSelectedVersionGroupKeys([]);
+          setActiveVersionModalGroups([]);
+        }}
         onActivateVersion={handleActivateDossierVersion}
         onDeleteVersion={handleDeleteDossierVersion}
+        onRefresh={() => loadDossierVersionPool(true)}
+        runRadarSweep={() => window.dispatchEvent(new CustomEvent("runRadarSweep"))}
+        setStatus={(msg: string) => useStore.getState().pushStatus(msg)}
         parentTitle={cleanArtifactTitle}
       />
 

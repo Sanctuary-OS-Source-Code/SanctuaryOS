@@ -904,7 +904,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       try {
         const BATCH_SIZE = 1000;
         const modSelectCols =
-          "id, name, created_at, category_override, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
+          "id, name, created_at, category_override, sub_type, file_extension, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
 
         const [
           firstModsRes,
@@ -923,7 +923,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             .range(0, BATCH_SIZE - 1),
           supabase.from('masons').select('name, is_verified'),
           supabase.from("flavor_groups").select("*"),
-          supabase.from("collections").select("*"),
+          supabase.from("collections").select("*, masons(id, name)"),
           supabase.from("mod_relationships").select("parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]),
           supabase.from("flavor_group_members").select("group_id, mod_hash"),
           supabase.from("collection_members").select("set_id, mod_id")
@@ -992,15 +992,47 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         const processedMods = new Set<string>();
 
         if (relationships) {
+          const parentRelsByChild = new Map<string, any[]>();
           relationships.forEach((rel: any) => {
             const parentId = String(rel.parent_id);
             const childId = String(rel.child_id);
+            if (!modsById.has(parentId) || !modsById.has(childId)) return;
+            if (!parentRelsByChild.has(childId)) parentRelsByChild.set(childId, []);
+            parentRelsByChild.get(childId)!.push(rel);
+          });
 
-            if (modsById.has(parentId) && modsById.has(childId)) {
-              if (!familyMap.has(parentId)) {
-                familyMap.set(parentId, new Set([parentId]));
+          const resolveRootParentId = (startId: string): string => {
+            let cur = startId;
+            let hops = 0;
+            while (hops < 5) {
+              const rels = parentRelsByChild.get(cur) || [];
+              const nextRel =
+                rels.find((r: any) => r.relationship_type === "addon") ||
+                rels.find((r: any) => r.relationship_type === "set_item") ||
+                rels.find((r: any) => r.relationship_type === "twin") ||
+                rels.find((r: any) => r.relationship_type === "beta") ||
+                rels[0];
+              if (nextRel && String(nextRel.parent_id) !== cur && modsById.has(String(nextRel.parent_id))) {
+                cur = String(nextRel.parent_id);
+                hops++;
+              } else {
+                break;
               }
-              familyMap.get(parentId)!.add(childId);
+            }
+            return cur;
+          };
+
+          relationships.forEach((rel: any) => {
+            const rawParentId = String(rel.parent_id);
+            const childId = String(rel.child_id);
+
+            if (modsById.has(rawParentId) && modsById.has(childId)) {
+              const rootParentId = resolveRootParentId(rawParentId);
+              if (!familyMap.has(rootParentId)) {
+                familyMap.set(rootParentId, new Set([rootParentId]));
+              }
+              familyMap.get(rootParentId)!.add(rawParentId);
+              familyMap.get(rootParentId)!.add(childId);
             }
           });
 
@@ -1010,11 +1042,14 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 .map(id => modsById.get(id))
                 .filter(Boolean);
 
-              const seenMemberNames = new Set<string>();
+              const seenMemberKeys = new Set<string>();
               const members = rawMembers.filter((m: any) => {
                 const normName = String(m?.name || "").trim().toLowerCase();
-                if (!normName || seenMemberNames.has(normName)) return false;
-                seenMemberNames.add(normName);
+                if (!normName) return false;
+                const ext = String(m?.file_extension || "").trim().toLowerCase();
+                const memberKey = `${normName}::${ext || m?.id}`;
+                if (seenMemberKeys.has(memberKey)) return false;
+                seenMemberKeys.add(memberKey);
                 return true;
               });
 
@@ -1064,12 +1099,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             }
 
             if (members.length > 0) {
+              const groupAuthor =
+                members.find((m: any) => m?.master_author && m.master_author !== "Unknown")?.master_author ||
+                "Flavor Group";
               allItems.push({
                 id: `flavor_${group.id}`,
                 name: group.name,
                 category_override: "Exclusives",
                 image_url: group.image_url || null,
-                master_author: "Flavor Group",
+                master_author: groupAuthor,
+                is_verified: Boolean(groupAuthor && verifiedMap[groupAuthor]),
                 description: null,
                 created_at: group.created_at,
                 isFlavorGroup: true,
@@ -1104,12 +1143,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             }
 
             if (members.length > 0) {
+              const setMasonName = Array.isArray(set.masons) ? set.masons[0]?.name : set.masons?.name;
+              const resolvedSetAuthor =
+                setMasonName ||
+                set.creator_name ||
+                members.find((m: any) => m?.master_author && m.master_author !== "Unknown")?.master_author ||
+                "Unknown Creator";
               allItems.push({
                 id: `ccset_${set.id}`,
                 name: set.name,
                 category_override: "Collection",
                 image_url: set.image_url || null,
-                master_author: set.creator_name || "Unknown Creator",
+                master_author: resolvedSetAuthor,
+                is_verified: Boolean(resolvedSetAuthor && verifiedMap[resolvedSetAuthor]),
                 description: null,
                 created_at: set.created_at,
                 url: set.url || null,

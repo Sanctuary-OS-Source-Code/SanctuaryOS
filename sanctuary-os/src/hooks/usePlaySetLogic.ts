@@ -984,7 +984,7 @@ export function usePlaySetLogic() {
                const isReqNumeric = !isNaN(Number(reqName));
                let match = null;
                    if (reqId) {
-                       match = byDbId.get(String(reqId)) || hashToMod.get(reqId);
+                       match = byDbId.get(String(reqId)) || hashToMod.get(reqId) || byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
                        if (!match) match = modList.find(m => m.interchangeableIds?.includes(String(reqId)));
                    }
                if (!match && !isReqNumeric && reqBaseName) {
@@ -1022,12 +1022,25 @@ export function usePlaySetLogic() {
         return false;
       };
 
-      const targetMod = modMap.get(targetName) || modList.find((m: any) => m.name === targetName);
+      const normRelPath = (n: string) => stripTierPrefix(String(n || "")).replace(/\\/g, "/").toLowerCase();
+      const normBaseName = (n: string) => (normRelPath(n).split("/").pop() || "");
+      const isSameModPath = (a: string, b: string) => {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const na = normRelPath(a);
+        const nb = normRelPath(b);
+        if (na && na === nb) return true;
+        const ba = normBaseName(a);
+        const bb = normBaseName(b);
+        return Boolean(ba && ba === bb);
+      };
+
+      const targetMod = modMap.get(targetName) || modList.find((m: any) => isSameModPath(m.name, targetName));
       if (!targetMod) {
          if (forceRemove) {
             const toDelete = Array.from(newMods).find((m: any) => {
                 const strM = typeof m === 'string' ? m : (m.name || m.path || '');
-                return strM === targetName || stripTierPrefix(strM) === stripTierPrefix(targetName);
+                return isSameModPath(strM, targetName);
             });
             if (toDelete) {
                newMods.delete(toDelete);
@@ -1057,17 +1070,24 @@ export function usePlaySetLogic() {
       const newModsCleaned = new Set(Array.from(newMods).map((mObj: any) => 
           cleanSanctuaryPrefix(typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || ''))
       ));
+      const hasInNewMods = (name: string) => {
+        if (newModsCleaned.has(cleanSanctuaryPrefix(name))) return true;
+        return Array.from(newMods).some((mObj: any) => {
+          const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
+          return isSameModPath(strM, name);
+        });
+      };
       const deletedInPass = new Set<string>();
 
       let isEquipping = targetMod.isVirtual
-        ? !kids.some((k) => newModsCleaned.has(cleanSanctuaryPrefix(k.name)))
-        : !newModsCleaned.has(cleanSanctuaryPrefix(targetName));
+        ? !kids.some((k) => hasInNewMods(k.name))
+        : !hasInNewMods(targetMod.name || targetName);
       if (forceRemove) isEquipping = false;
       if (forceActive) isEquipping = true;
       const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
         const toDelete = Array.from(newMods).find((mObj: any) => {
            const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-           return strM === nameToDelete || stripTierPrefix(strM) === stripTierPrefix(nameToDelete);
+           return isSameModPath(strM, nameToDelete);
         });
         if (!toDelete) return;
         newMods.delete(toDelete);
@@ -1184,13 +1204,27 @@ export function usePlaySetLogic() {
         }
       };
       
+      const addPathCleanly = (nameToAdd: string) => {
+        if (!nameToAdd) return;
+        const targetBase = normBaseName(nameToAdd);
+        if (targetBase) {
+          Array.from(newMods).forEach((existing: any) => {
+            const strE = typeof existing === 'string' ? existing : (existing.name || existing.path || '');
+            if (strE !== nameToAdd && normBaseName(strE) === targetBase && stripTierPrefix(strE) === strE) {
+              newMods.delete(existing);
+            }
+          });
+        }
+        newMods.add(nameToAdd);
+      };
+
       const addWithFamily = (modObj: any) => {
         if (!modObj || !modObj.name) return;
         if (excludeBroken && (modObj.status === t("status_corrupted", "Corrupted") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
           setStatus(t("critical_action", "CRITICAL ACTION REQUIRED: Fatal conflicts require resolution before deployment"));
           return;
         }
-        newMods.add(modObj.name);
+        addPathCleanly(modObj.name);
         applyConflicts(modObj);
         
         Array.from(newMods as Set<string>).forEach((activeName: string) => {
@@ -1266,7 +1300,7 @@ export function usePlaySetLogic() {
                 if (!(excludeBroken && (m.status === t("status_corrupted", "Corrupted") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
                   if (!deletedInPass.has(m.name)) {
                      applyConflicts(m);
-                     newMods.add(m.name);
+                     addPathCleanly(m.name);
                   }
                 }
               }
@@ -1345,7 +1379,7 @@ export function usePlaySetLogic() {
                   if (!alreadySatisfied) {
                     let provider = null;
                     if (reqId) {
-                        provider = byDbId.get(String(reqId)) || hashToMod.get(reqId);
+                        provider = byDbId.get(String(reqId)) || hashToMod.get(reqId) || byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
                         if (!provider) provider = modList.find((m: any) => m.interchangeableIds?.includes(String(reqId)));
                     }
                     if (!provider && !isReqNumeric && reqBaseName) {

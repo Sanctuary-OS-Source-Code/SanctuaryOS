@@ -98,15 +98,7 @@ export function WorkspaceSidePanel({
 
   const selectWorkspace = async (workspace: any) => {
     recordWorkspaceLoaded(workspace);
-
-    if (workspace.id === activeWorkspaceId) {
-      setIsConfigured(true);
-      if (view === "landing") {
-        setView("dashboard");
-      }
-      onClose();
-      return;
-    }
+    const isSameWorkspace = workspace.id === activeWorkspaceId;
 
     let globalConfig: any = null;
     try {
@@ -114,44 +106,55 @@ export function WorkspaceSidePanel({
         globalConfig = await invoke("get_global_config");
         globalConfig.active_workspace_id = workspace.id;
 
-        if (globalConfig.workspaces) {
-          const defaultWs = globalConfig.workspaces.find(
-            (w: any) => w.id === "default_workspace"
-          );
-          if (defaultWs && defaultWs.schema_id) {
-            defaultWs.id = defaultWs.schema_id;
-            if (globalConfig.active_workspace_id === "default_workspace") {
-              globalConfig.active_workspace_id = defaultWs.schema_id;
-            }
+        if (!Array.isArray(globalConfig.workspaces)) {
+          globalConfig.workspaces = [];
+        }
+        const defaultWs = globalConfig.workspaces.find(
+          (w: any) => w.id === "default_workspace"
+        );
+        if (defaultWs && defaultWs.schema_id) {
+          defaultWs.id = defaultWs.schema_id;
+          if (globalConfig.active_workspace_id === "default_workspace") {
+            globalConfig.active_workspace_id = defaultWs.schema_id;
           }
-          const targetSchemaId =
-            workspace.schema_id || globalConfig.active_workspace_id;
-          const existingTarget = globalConfig.workspaces.find(
-            (w: any) =>
-              String(w.id || "").toLowerCase() ===
-                String(globalConfig.active_workspace_id || "").toLowerCase() ||
-              String(w.schema_id || "").toLowerCase() ===
-                String(targetSchemaId || "").toLowerCase()
-          );
-          if (!existingTarget) {
-            const masterVault = globalConfig.vault_path || "";
-            const cleanWorkspace = {
-              id: globalConfig.active_workspace_id,
-              name: workspace.name || targetSchemaId,
-              schema_id: targetSchemaId,
-              live_path: "",
-              mods_path: "",
-              vault_path: masterVault ? `${masterVault}\\${targetSchemaId}` : "",
-              supabase_url: workspace.supabase_url || null,
-              supabase_anon_key: workspace.supabase_anon_key || null,
-            };
-            globalConfig.workspaces.push(cleanWorkspace);
-          }
+        }
+        const targetSchemaId =
+          workspace.schema_id || globalConfig.active_workspace_id;
+        const existingTarget = globalConfig.workspaces.find(
+          (w: any) =>
+            String(w.id || "").toLowerCase() ===
+              String(globalConfig.active_workspace_id || "").toLowerCase() ||
+            String(w.schema_id || "").toLowerCase() ===
+              String(targetSchemaId || "").toLowerCase()
+        );
+        if (!existingTarget) {
+          const masterVault = globalConfig.vault_path || "";
+          const sep = masterVault.includes("/") ? "/" : "\\";
+          const cleanWorkspace = {
+            id: globalConfig.active_workspace_id,
+            name: workspace.name || targetSchemaId,
+            schema_id: targetSchemaId,
+            live_path: "",
+            mods_path: "",
+            vault_path: masterVault ? `${masterVault}${sep}${targetSchemaId}` : "",
+            supabase_url: workspace.supabase_url || null,
+            supabase_anon_key: workspace.supabase_anon_key || null,
+          };
+          globalConfig.workspaces.push(cleanWorkspace);
         }
         await invoke("save_coordinates", { config: globalConfig });
       }
     } catch (err) {
       console.error("Desktop config save failed:", err);
+    }
+
+    if (isSameWorkspace) {
+      setIsConfigured(true);
+      if (view === "landing") {
+        setView("dashboard");
+      }
+      onClose();
+      return;
     }
 
     const safeActiveId =

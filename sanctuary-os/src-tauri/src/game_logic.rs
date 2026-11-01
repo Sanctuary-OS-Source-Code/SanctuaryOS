@@ -618,6 +618,17 @@ pub struct SteamProtonResolution {
 }
 
 pub fn default_steam_app_id(schema: &Option<GameSchema>) -> Option<String> {
+    if is_sims4_schema(schema) {
+        if let Some(ref s) = schema {
+            if let Some(ref explicit) = s.steam_app_id {
+                let trimmed = explicit.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+        return Some("1222670".to_string());
+    }
     let s = schema.as_ref()?;
     if let Some(ref explicit) = s.steam_app_id {
         let trimmed = explicit.trim();
@@ -634,7 +645,9 @@ pub fn default_steam_app_id(schema: &Option<GameSchema>) -> Option<String> {
     };
 
     match id_key.as_str() {
-        "sims4" | "the_sims_4" | "the sims 4" => Some("1222670".to_string()),
+        "sims4" | "the_sims_4" | "the-sims-4" | "the sims 4" | "default_schema" => {
+            Some("1222670".to_string())
+        }
         "gtav" | "gta_v" | "gta5" | "grand theft auto v" => Some("271590".to_string()),
         "wwe2k" | "wwe2k24" | "wwe 2k24" => Some("2315690".to_string()),
         "skyrim" | "skyrimse" | "skyrim_se" | "skyrim special edition" => {
@@ -926,6 +939,14 @@ pub fn resolve_steam_app_and_proton_prefix(
         }
     }
 
+    if is_sims4_schema(schema)
+        && !expected_folder_names
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case("The Sims 4"))
+    {
+        expected_folder_names.push("The Sims 4".to_string());
+    }
+
     // Helper to locate compatdata/<app_id>/pfx/drive_c/users/steamuser across all Steam libraries
     let find_compatdata_across_libs = |app_id: &str, primary_lib: &Path| -> Option<PathBuf> {
         let primary_compat = primary_lib.join("steamapps").join("compatdata").join(app_id);
@@ -1064,8 +1085,57 @@ pub fn resolve_steam_app_and_proton_prefix(
         }
     }
 
-    // 3. Fallback scan of Heroic Games Launcher, Bottles, and Lutris prefixes on Linux/SteamOS
+    // 3. Fallback scan of Steam compatdata prefixes (Non-Steam EA App / Origin shortcuts)
+    // and Heroic Games Launcher, Bottles, and Lutris prefixes on Linux/SteamOS
     if cfg!(target_os = "linux") && !expected_folder_names.is_empty() {
+        for lib in &libraries {
+            let compat_root = lib.join("steamapps").join("compatdata");
+            if let Ok(entries) = std::fs::read_dir(&compat_root) {
+                for entry in entries.flatten() {
+                    let compat_dir = entry.path();
+                    if !compat_dir.is_dir() {
+                        continue;
+                    }
+                    if let Some(pfx_user) = find_pfx_user_dir(&compat_dir) {
+                        let sims_docs = pfx_user
+                            .join("Documents")
+                            .join("Electronic Arts")
+                            .join("The Sims 4");
+                        let drive_c = pfx_user
+                            .parent()
+                            .and_then(|u| u.parent())
+                            .map(|p| p.to_path_buf());
+                        let mut found_in_prefix: Option<PathBuf> = None;
+                        if let Some(ref dc) = drive_c {
+                            for rel in [
+                                "Program Files/EA Games/The Sims 4",
+                                "Program Files (x86)/Origin Games/The Sims 4",
+                                "Program Files/Origin Games/The Sims 4",
+                            ] {
+                                let candidate = dc.join(rel);
+                                if candidate.is_dir() {
+                                    found_in_prefix = Some(candidate);
+                                    break;
+                                }
+                            }
+                        }
+                        if (is_sims4_schema(schema) && sims_docs.is_dir())
+                            || found_in_prefix.is_some()
+                        {
+                            let detected_app_id =
+                                entry.file_name().to_string_lossy().to_string();
+                            return Some(SteamProtonResolution {
+                                app_id: detected_app_id,
+                                library_root: lib.clone(),
+                                install_dir: found_in_prefix,
+                                compatdata_pfx_user_dir: Some(pfx_user),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         if let Some(home) = std::env::var("HOME")
             .ok()
             .map(PathBuf::from)
