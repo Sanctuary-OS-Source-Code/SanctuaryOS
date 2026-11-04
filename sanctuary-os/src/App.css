@@ -2320,3 +2320,23 @@ code,
   color: var(--accent) !important;
 }
 
+/* ---- LINUX / STEAM DECK (WEBKITGTK) COMPOSITOR & READABILITY OPTIMIZATIONS ---- */
+html[data-sa-platform="linux"] .sa-side-panel-backdrop,
+html[data-sa-platform="linux"] .portal-glass-fix,
+html[data-sa-platform="linux"] .portal-glass-fix.portal-glass-modal,
+html[data-sa-platform="linux"] .sa-dropdown-popover,
+html[data-sa-platform="linux"] .sa-tooltip-glass,
+html[data-sa-platform="linux"] .theme-panel-success,
+html[data-sa-platform="linux"] .theme-panel-warning,
+html[data-sa-platform="linux"] .theme-panel-danger,
+html[data-sa-platform="linux"] [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-sa-platform="linux"] .sa-tooltip-glass,
+html[data-sa-platform="linux"] .sa-dropdown-popover {
+  background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+}
+
+

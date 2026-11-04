@@ -35,7 +35,7 @@ import Nexus from "./Nexus";
 import { DbpfScout } from "./DbpfScout";
 import { useLexicon } from "./LexiconContext";
 import WebLandingPage from "./WebLandingPage";
-import { isDesktop } from "./utils/envUtils";
+import { isDesktop, isLinuxDesktop } from "./utils/envUtils";
 import { isRootDomain, getSubdomain } from "./utils/routingUtils";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -435,7 +435,7 @@ function App() {
   const [isSearchingCloud, setIsSearchingCloud] = useState(false);
   const [isDraftingSet, setIsDraftingSet] = useState(false);
   const [draftSetName, setDraftSetName] = useState("");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => isLinuxDesktop());
   const [isCitizenTicketsOpen, setIsCitizenTicketsOpen] = useState(false);
 
   useEffect(() => {
@@ -4378,7 +4378,7 @@ function App() {
         (which causes CRT fuzzy artifacts) and prevents its mix-blend-mode from breaking backdrop-filter
         for the rest of the application.
       */}
-      {currentTheme.ambientNoise !== false && (
+      {currentTheme.ambientNoise !== false && !isLinuxDesktop() && (
         <div
           className="fixed inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none z-[9999999] transform-gpu"
           style={{

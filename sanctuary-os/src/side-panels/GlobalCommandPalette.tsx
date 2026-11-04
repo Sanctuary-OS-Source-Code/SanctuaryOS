@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   SidePanel,
   PanelHeaderButton,
@@ -16,7 +17,7 @@ import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { getActiveGameClient } from "../supabase";
-import { isDesktop } from "../utils/envUtils";
+import { isDesktop, isLinuxDesktop } from "../utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "../utils/routingUtils";
 
 export interface GlobalCommandPaletteProps {
@@ -2215,13 +2216,67 @@ export function GlobalCommandPalette({
   useEffect(() => {
     const el = itemRefs.current[selectedIndex];
     if (el) {
-      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      el.scrollIntoView({
+        block: "nearest",
+        behavior: isLinuxDesktop() ? "auto" : "smooth",
+      });
     }
   }, [selectedIndex]);
 
-  // Web Gamepad API Polling (Steam Deck & Controller Support)
+  // Web Gamepad API + Native Linux / Steam Deck Input Polling
   const prevPadButtonsRef = useRef<boolean[]>([]);
   const lastStickMoveRef = useRef<number>(0);
+  const chordCaptureRef = useRef<number[]>([]);
+  const nativePadRef = useRef<{
+    connected: boolean;
+    id: string;
+    buttons: boolean[];
+    axes: number[];
+    seq: number;
+  } | null>(null);
+
+  const padStateRef = useRef({
+    isOpen,
+    isControlsOpen,
+    connectedGamepadName,
+    recordingPadField,
+    controllerBindings,
+    updateControllerBindings,
+    filteredItems,
+    selectedIndex,
+    activeTab,
+    closePalette,
+  });
+
+  useEffect(() => {
+    padStateRef.current = {
+      isOpen,
+      isControlsOpen,
+      connectedGamepadName,
+      recordingPadField,
+      controllerBindings,
+      updateControllerBindings,
+      filteredItems,
+      selectedIndex,
+      activeTab,
+      closePalette,
+    };
+  }, [
+    isOpen,
+    isControlsOpen,
+    connectedGamepadName,
+    recordingPadField,
+    controllerBindings,
+    updateControllerBindings,
+    filteredItems,
+    selectedIndex,
+    activeTab,
+    closePalette,
+  ]);
+
+  useEffect(() => {
+    chordCaptureRef.current = [];
+  }, [recordingPadField]);
 
   useEffect(() => {
     const checkGamepadCombo = (pressedIndices: number[], targetCombo: string): boolean => {
@@ -2231,25 +2286,20 @@ export function GlobalCommandPalette({
         .map((s) => Number(s.trim()))
         .filter((n) => !Number.isNaN(n));
       if (required.length === 0) return false;
+      if (required.length === 1 && pressedIndices.length > 1) return false;
       return required.every((idx) => pressedIndices.includes(idx));
     };
 
-    const interval = window.setInterval(() => {
-      if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return;
-      const pads = navigator.getGamepads();
-      const pad = Array.from(pads || []).find((p) => p && p.connected);
-
-      if (!pad) {
-        if (connectedGamepadName !== null) setConnectedGamepadName(null);
-        prevPadButtonsRef.current = [];
-        return;
+    const processGamepadFrame = (
+      padId: string,
+      currButtons: boolean[],
+      axes: readonly number[]
+    ) => {
+      const st = padStateRef.current;
+      if (st.connectedGamepadName !== padId) {
+        setConnectedGamepadName(padId);
       }
 
-      if (connectedGamepadName !== pad.id) {
-        setConnectedGamepadName(pad.id);
-      }
-
-      const currButtons = pad.buttons.map((b) => Boolean(b?.pressed));
       const prevButtons = prevPadButtonsRef.current;
       const pressedIndices: number[] = [];
       const newlyPressedIndices: number[] = [];
@@ -2265,13 +2315,29 @@ export function GlobalCommandPalette({
 
       prevPadButtonsRef.current = currButtons;
 
-      // Recording controller button/chord
-      if (recordingPadField) {
-        if (newlyPressedIndices.length > 0 && pressedIndices.length > 0) {
-          const comboStr = pressedIndices.slice(0, 2).sort((a, b) => a - b).join("+");
-          updateControllerBindings({
-            ...controllerBindings,
-            [recordingPadField]: comboStr,
+      // Recording controller button/chord (supports both single buttons and 2-button chords like L1+R1)
+      if (st.recordingPadField) {
+        if (pressedIndices.length > 0) {
+          for (const idx of pressedIndices) {
+            if (!chordCaptureRef.current.includes(idx) && chordCaptureRef.current.length < 2) {
+              chordCaptureRef.current.push(idx);
+            }
+          }
+          if (chordCaptureRef.current.length >= 2) {
+            const comboStr = [...chordCaptureRef.current].sort((a, b) => a - b).join("+");
+            chordCaptureRef.current = [];
+            st.updateControllerBindings({
+              ...st.controllerBindings,
+              [st.recordingPadField]: comboStr,
+            });
+            setRecordingPadField(null);
+          }
+        } else if (chordCaptureRef.current.length > 0) {
+          const comboStr = [...chordCaptureRef.current].sort((a, b) => a - b).join("+");
+          chordCaptureRef.current = [];
+          st.updateControllerBindings({
+            ...st.controllerBindings,
+            [st.recordingPadField]: comboStr,
           });
           setRecordingPadField(null);
         }
@@ -2281,7 +2347,7 @@ export function GlobalCommandPalette({
       // Check Toggle Palette chord/button when at least one button in the combo is newly pressed
       if (
         newlyPressedIndices.length > 0 &&
-        checkGamepadCombo(pressedIndices, controllerBindings.togglePalette)
+        checkGamepadCombo(pressedIndices, st.controllerBindings.togglePalette)
       ) {
         setIsOpen((prev) => {
           const next = !prev;
@@ -2295,31 +2361,42 @@ export function GlobalCommandPalette({
         return;
       }
 
-      if (!isOpen) return;
+      if (!st.isOpen) return;
 
-      // Inside open Command Matrix: D-Pad & Left Stick navigation
+      // Inside open Command Matrix: D-Pad & Left Stick 2D grid navigation
       const now = Date.now();
-      const stickY = pad.axes?.[1] ?? 0;
-      const stickX = pad.axes?.[0] ?? 0;
+      const stickY = axes?.[1] ?? 0;
+      const stickX = axes?.[0] ?? 0;
 
       const moveDown =
         newlyPressedIndices.includes(13) ||
-        (stickY > 0.55 && now - lastStickMoveRef.current > 190);
+        (stickY > 0.55 && now - lastStickMoveRef.current > 180);
       const moveUp =
         newlyPressedIndices.includes(12) ||
-        (stickY < -0.55 && now - lastStickMoveRef.current > 190);
+        (stickY < -0.55 && now - lastStickMoveRef.current > 180);
       const moveRight =
         newlyPressedIndices.includes(15) ||
-        (stickX > 0.55 && now - lastStickMoveRef.current > 190);
+        (stickX > 0.55 && now - lastStickMoveRef.current > 180);
       const moveLeft =
         newlyPressedIndices.includes(14) ||
-        (stickX < -0.55 && now - lastStickMoveRef.current > 190);
+        (stickX < -0.55 && now - lastStickMoveRef.current > 180);
 
-      if ((moveDown || moveUp || moveRight || moveLeft) && filteredItems.length > 0) {
+      const total = st.filteredItems.length;
+      if ((moveDown || moveUp || moveRight || moveLeft) && total > 0) {
         lastStickMoveRef.current = now;
+        const cols = typeof window !== "undefined" && window.innerWidth >= 768 ? 2 : 1;
         setSelectedIndex((prev) => {
-          if (moveDown || moveRight) return (prev + 1) % filteredItems.length;
-          return (prev - 1 + filteredItems.length) % filteredItems.length;
+          if (moveRight) return (prev + 1) % total;
+          if (moveLeft) return (prev - 1 + total) % total;
+          if (moveDown) {
+            const next = prev + cols;
+            return next < total ? next : prev % cols;
+          }
+          const next = prev - cols;
+          if (next >= 0) return next;
+          const col = prev % cols;
+          const lastRowStart = Math.floor((total - 1) / cols) * cols;
+          return Math.min(total - 1, lastRowStart + col);
         });
         return;
       }
@@ -2327,92 +2404,249 @@ export function GlobalCommandPalette({
       if (newlyPressedIndices.length === 0) return;
 
       // Close / Back
-      if (checkGamepadCombo(pressedIndices, controllerBindings.closePalette)) {
-        if (isControlsOpen) {
+      if (checkGamepadCombo(pressedIndices, st.controllerBindings.closePalette)) {
+        if (st.isControlsOpen) {
           setIsControlsOpen(false);
         } else {
-          closePalette();
+          st.closePalette();
         }
         return;
       }
 
       // Next Tab
-      if (checkGamepadCombo(pressedIndices, controllerBindings.nextTab)) {
+      if (checkGamepadCombo(pressedIndices, st.controllerBindings.nextTab)) {
         const order: CommandCategory[] = ["all", "views", "vault", "actions"];
         setActiveTab((prev) => order[(order.indexOf(prev) + 1) % order.length]);
         return;
       }
 
       // Previous Tab
-      if (checkGamepadCombo(pressedIndices, controllerBindings.prevTab)) {
+      if (checkGamepadCombo(pressedIndices, st.controllerBindings.prevTab)) {
         const order: CommandCategory[] = ["all", "views", "vault", "actions"];
         setActiveTab((prev) => order[(order.indexOf(prev) - 1 + order.length) % order.length]);
         return;
       }
 
       // Execute Item
-      if (!isControlsOpen && checkGamepadCombo(pressedIndices, controllerBindings.executeItem)) {
-        const target = filteredItems[selectedIndex];
+      if (!st.isControlsOpen && checkGamepadCombo(pressedIndices, st.controllerBindings.executeItem)) {
+        const target = st.filteredItems[st.selectedIndex];
         if (target) target.onSelect();
         return;
       }
 
       // Secondary Action
       if (
-        !isControlsOpen &&
-        checkGamepadCombo(pressedIndices, controllerBindings.secondaryAction)
+        !st.isControlsOpen &&
+        checkGamepadCombo(pressedIndices, st.controllerBindings.secondaryAction)
       ) {
-        const target = filteredItems[selectedIndex];
+        const target = st.filteredItems[st.selectedIndex];
         if (target?.secondaryAction) {
           target.secondaryAction.onClick({ stopPropagation: () => {} } as React.MouseEvent);
         }
       }
-    }, 55);
+    };
 
-    return () => window.clearInterval(interval);
-  }, [
-    isOpen,
-    isControlsOpen,
-    connectedGamepadName,
-    recordingPadField,
-    controllerBindings,
-    updateControllerBindings,
-    filteredItems,
-    selectedIndex,
-    closePalette,
-  ]);
+    let unlistenNative: (() => void) | null = null;
+    if (isDesktop()) {
+      invoke<{
+        connected: boolean;
+        id: string;
+        buttons: boolean[];
+        axes: number[];
+        seq: number;
+      }>("get_native_gamepad_state")
+        .then((snap) => {
+          if (snap && snap.connected) {
+            nativePadRef.current = snap;
+            setConnectedGamepadName(snap.id || "Steam Deck Controller");
+          }
+        })
+        .catch(() => {});
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (filteredItems.length > 0) {
-        setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
+      listen<{
+        connected: boolean;
+        id: string;
+        buttons: boolean[];
+        axes: number[];
+        seq: number;
+      }>("sanctuary-native-gamepad", (event) => {
+        const snap = event.payload;
+        nativePadRef.current = snap;
+        if (snap && snap.connected) {
+          processGamepadFrame(
+            snap.id || "Steam Deck Controller",
+            snap.buttons || [],
+            snap.axes || [0, 0, 0, 0]
+          );
+        } else if (padStateRef.current.connectedGamepadName !== null) {
+          setConnectedGamepadName(null);
+          prevPadButtonsRef.current = [];
+        }
+      })
+        .then((fn) => {
+          unlistenNative = fn;
+        })
+        .catch(() => {});
+    }
+
+    const interval = window.setInterval(() => {
+      let webPad: Gamepad | null = null;
+      if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
+        try {
+          const pads = navigator.getGamepads();
+          webPad = Array.from(pads || []).find((p): p is Gamepad => Boolean(p && p.connected)) || null;
+        } catch {
+          webPad = null;
+        }
       }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (filteredItems.length > 0) {
-        setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
+
+      if (webPad) {
+        processGamepadFrame(
+          webPad.id,
+          webPad.buttons.map((b) => Boolean(b?.pressed)),
+          webPad.axes
+        );
+        return;
       }
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      const target = filteredItems[selectedIndex];
-      if (target) {
-        target.onSelect();
+
+      const nativePad = nativePadRef.current;
+      if (nativePad && nativePad.connected) {
+        processGamepadFrame(
+          nativePad.id || "Steam Deck Controller",
+          nativePad.buttons || [],
+          nativePad.axes || [0, 0, 0, 0]
+        );
+        return;
       }
-    } else if (e.key === "Tab") {
-      e.preventDefault();
+
+      if (padStateRef.current.connectedGamepadName !== null) {
+        setConnectedGamepadName(null);
+      }
+      prevPadButtonsRef.current = [];
+    }, 50);
+
+    return () => {
+      window.clearInterval(interval);
+      if (unlistenNative) unlistenNative();
+    };
+  }, []);
+
+  const navigateGridByKey = useCallback((key: string, shiftKey = false): boolean => {
+    const st = padStateRef.current;
+    const total = st.filteredItems.length;
+    const cols = typeof window !== "undefined" && window.innerWidth >= 768 ? 2 : 1;
+
+    if (key === "ArrowDown") {
+      if (total > 0) {
+        setSelectedIndex((prev) => {
+          const next = prev + cols;
+          return next < total ? next : prev % cols;
+        });
+      }
+      return true;
+    }
+    if (key === "ArrowUp") {
+      if (total > 0) {
+        setSelectedIndex((prev) => {
+          const next = prev - cols;
+          if (next >= 0) return next;
+          const col = prev % cols;
+          const lastRowStart = Math.floor((total - 1) / cols) * cols;
+          return Math.min(total - 1, lastRowStart + col);
+        });
+      }
+      return true;
+    }
+    if (key === "ArrowRight") {
+      if (total > 0) {
+        setSelectedIndex((prev) => (prev + 1) % total);
+      }
+      return true;
+    }
+    if (key === "ArrowLeft") {
+      if (total > 0) {
+        setSelectedIndex((prev) => (prev - 1 + total) % total);
+      }
+      return true;
+    }
+    if (key === "Enter") {
+      const target = st.filteredItems[st.selectedIndex];
+      if (target) target.onSelect();
+      return true;
+    }
+    if (key === "Tab") {
       const order: CommandCategory[] = ["all", "views", "vault", "actions"];
-      const idx = order.indexOf(activeTab);
-      const nextIdx = e.shiftKey
+      const idx = order.indexOf(st.activeTab);
+      const nextIdx = shiftKey
         ? (idx - 1 + order.length) % order.length
         : (idx + 1) % order.length;
       setActiveTab(order[nextIdx]);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      if (isControlsOpen) {
+      return true;
+    }
+    if (key === "Escape") {
+      if (st.isControlsOpen) {
         setIsControlsOpen(false);
       } else {
-        closePalette();
+        st.closePalette();
+      }
+      return true;
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onWindowKeyDown = (e: KeyboardEvent) => {
+      if (padStateRef.current.recordingPadField || recordingHotkeyField) return;
+      const targetEl = e.target as HTMLElement | null;
+      const isSearchInput = targetEl === inputRef.current;
+      // When typing in search input with non-empty query, allow ArrowLeft/ArrowRight to move text caret
+      if (
+        isSearchInput &&
+        (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+        inputRef.current &&
+        inputRef.current.value.length > 0
+      ) {
+        return;
+      }
+      if (
+        e.key === "ArrowDown" ||
+        e.key === "ArrowUp" ||
+        e.key === "ArrowRight" ||
+        e.key === "ArrowLeft" ||
+        e.key === "Enter" ||
+        e.key === "Tab" ||
+        e.key === "Escape"
+      ) {
+        if (navigateGridByKey(e.key, e.shiftKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, [isOpen, recordingHotkeyField, navigateGridByKey]);
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+      e.currentTarget.value.length > 0
+    ) {
+      return;
+    }
+    if (
+      e.key === "ArrowDown" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowRight" ||
+      e.key === "ArrowLeft" ||
+      e.key === "Enter" ||
+      e.key === "Tab" ||
+      e.key === "Escape"
+    ) {
+      if (navigateGridByKey(e.key, e.shiftKey)) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     }
   };

@@ -134,6 +134,7 @@ fn main() {
                 }
             }
             let handle = app.handle().clone();
+            start_linux_gamepad_poller(handle.clone());
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(1500));
                 if let Some(win) = handle.get_webview_window("main") {
@@ -282,7 +283,8 @@ fn main() {
             download_and_install_update,
             native_webauthn_register,
             native_webauthn_authenticate,
-            reveal_main_window
+            reveal_main_window,
+            get_native_gamepad_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6,6 +6,7 @@ import {
   DashboardStatTile,
   UniversalGroup,
   ActionButton,
+  PanelHeaderGroup,
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
 } from "../shared";
@@ -722,7 +723,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       backdropZ="z-[70000]"
       panelZ="z-[70001]"
       headerActions={
-        <div className="flex items-center gap-1">
+        <PanelHeaderGroup>
           <PanelHeaderButton
             icon={t("icon_data_object", "data_object")}
             onClick={() => setMode("schema")}
@@ -735,7 +736,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
             isActive={!isSchema}
             tooltip={t("lexicon_guide_btn", "{Lexicon} Guide")}
           />
-        </div>
+        </PanelHeaderGroup>
       }
     >
       <div className="flex flex-col gap-5 pb-10">

@@ -833,3 +833,385 @@ pub fn capture_window_screenshot(
         Err("Native window capture is only supported on Windows.".into())
     }
 }
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct NativeGamepadState {
+    pub connected: bool,
+    pub id: String,
+    pub buttons: Vec<bool>,
+    pub axes: Vec<f32>,
+    pub seq: u64,
+}
+
+impl Default for NativeGamepadState {
+    fn default() -> Self {
+        Self {
+            connected: false,
+            id: String::new(),
+            buttons: vec![false; 17],
+            axes: vec![0.0; 4],
+            seq: 0,
+        }
+    }
+}
+
+static NATIVE_GAMEPAD_STATE: std::sync::OnceLock<std::sync::Mutex<NativeGamepadState>> =
+    std::sync::OnceLock::new();
+
+fn gamepad_state_mutex() -> &'static std::sync::Mutex<NativeGamepadState> {
+    NATIVE_GAMEPAD_STATE.get_or_init(|| std::sync::Mutex::new(NativeGamepadState::default()))
+}
+
+#[tauri::command]
+pub fn get_native_gamepad_state() -> NativeGamepadState {
+    gamepad_state_mutex()
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_default()
+}
+
+pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = app;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::io::Read;
+        use std::os::unix::fs::OpenOptionsExt;
+        use tauri::Emitter;
+
+        std::thread::spawn(move || {
+            struct EvdevHandle {
+                file: std::fs::File,
+                name: String,
+                hat_x: i32,
+                hat_y: i32,
+            }
+            struct JsHandle {
+                file: std::fs::File,
+                name: String,
+                hat_x: i16,
+                hat_y: i16,
+            }
+
+            let mut ev_handles: Vec<EvdevHandle> = Vec::new();
+            let mut js_handles: Vec<JsHandle> = Vec::new();
+            let mut last_scan = std::time::Instant::now()
+                .checked_sub(std::time::Duration::from_secs(10))
+                .unwrap_or_else(std::time::Instant::now);
+
+            let mut buttons = vec![false; 17];
+            let mut axes = vec![0.0f32; 4];
+            let mut active_name = String::new();
+            let mut seq: u64 = 0;
+
+            let is_gamepad_name = |name: &str| -> bool {
+                let lower = name.to_lowercase();
+                if lower.contains("keyboard")
+                    || lower.contains("mouse")
+                    || lower.contains("touchpad")
+                    || lower.contains("trackpad")
+                    || lower.contains("power button")
+                    || lower.contains("video bus")
+                    || lower.contains("lid switch")
+                    || lower.contains("hd-audio")
+                    || lower.contains("speaker")
+                {
+                    return false;
+                }
+                lower.contains("pad")
+                    || lower.contains("controller")
+                    || lower.contains("x-box")
+                    || lower.contains("xbox")
+                    || lower.contains("steam")
+                    || lower.contains("deck")
+                    || lower.contains("joystick")
+                    || lower.contains("dualshock")
+                    || lower.contains("dualsense")
+                    || lower.contains("wireless controller")
+                    || lower.contains("nintendo")
+                    || lower.contains("8bitdo")
+            };
+
+            loop {
+                if (ev_handles.is_empty() && js_handles.is_empty())
+                    || last_scan.elapsed() > std::time::Duration::from_secs(3)
+                {
+                    last_scan = std::time::Instant::now();
+                    if ev_handles.is_empty() {
+                        for idx in 0..32 {
+                            let sys_name_path =
+                                format!("/sys/class/input/event{}/device/name", idx);
+                            let dev_name = std::fs::read_to_string(&sys_name_path)
+                                .unwrap_or_default()
+                                .trim()
+                                .to_string();
+                            let has_js_sibling = (0..8).any(|j| {
+                                std::path::Path::new(&format!(
+                                    "/sys/class/input/event{}/device/js{}",
+                                    idx, j
+                                ))
+                                .exists()
+                            });
+                            if !has_js_sibling && !is_gamepad_name(&dev_name) {
+                                continue;
+                            }
+                            let dev_path = format!("/dev/input/event{}", idx);
+                            if let Ok(file) = std::fs::OpenOptions::new()
+                                .read(true)
+                                .custom_flags(0o4000) // O_NONBLOCK
+                                .open(&dev_path)
+                            {
+                                let label = if dev_name.is_empty() {
+                                    "Steam Deck Controller".to_string()
+                                } else {
+                                    dev_name
+                                };
+                                ev_handles.push(EvdevHandle {
+                                    file,
+                                    name: label,
+                                    hat_x: 0,
+                                    hat_y: 0,
+                                });
+                            }
+                        }
+                    }
+
+                    if ev_handles.is_empty() && js_handles.is_empty() {
+                        for idx in 0..8 {
+                            let dev_path = format!("/dev/input/js{}", idx);
+                            if !std::path::Path::new(&dev_path).exists() {
+                                continue;
+                            }
+                            let sys_name_path = format!("/sys/class/input/js{}/device/name", idx);
+                            let dev_name = std::fs::read_to_string(&sys_name_path)
+                                .unwrap_or_else(|_| "Steam Deck Controller".to_string())
+                                .trim()
+                                .to_string();
+                            if let Ok(file) = std::fs::OpenOptions::new()
+                                .read(true)
+                                .custom_flags(0o4000) // O_NONBLOCK
+                                .open(&dev_path)
+                            {
+                                js_handles.push(JsHandle {
+                                    file,
+                                    name: if dev_name.is_empty() {
+                                        "Steam Deck Controller".to_string()
+                                    } else {
+                                        dev_name
+                                    },
+                                    hat_x: 0,
+                                    hat_y: 0,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                let prev_buttons = buttons.clone();
+                let prev_axes = axes.clone();
+                let prev_connected = !active_name.is_empty();
+
+                if !ev_handles.is_empty() {
+                    if active_name.is_empty() {
+                        active_name = ev_handles[0].name.clone();
+                    }
+                    let mut buf = [0u8; 24];
+                    let mut dead_indices = Vec::new();
+
+                    for (h_idx, handle) in ev_handles.iter_mut().enumerate() {
+                        loop {
+                            match handle.file.read_exact(&mut buf) {
+                                Ok(()) => {
+                                    active_name = handle.name.clone();
+                                    let ev_type = u16::from_ne_bytes([buf[16], buf[17]]);
+                                    let ev_code = u16::from_ne_bytes([buf[18], buf[19]]);
+                                    let ev_val =
+                                        i32::from_ne_bytes([buf[20], buf[21], buf[22], buf[23]]);
+
+                                    if ev_type == 0x01 {
+                                        // EV_KEY
+                                        let pressed = ev_val != 0;
+                                        let mapped = match ev_code {
+                                            0x130 => Some(0),  // BTN_SOUTH (A)
+                                            0x131 | 0x132 => Some(1), // BTN_EAST (B)
+                                            0x133 => Some(2),  // BTN_NORTH/WEST (X)
+                                            0x134 => Some(3),  // BTN_WEST/NORTH (Y)
+                                            0x136 => Some(4),  // BTN_TL (L1)
+                                            0x137 => Some(5),  // BTN_TR (R1)
+                                            0x138 => Some(6),  // BTN_TL2 (L2)
+                                            0x139 => Some(7),  // BTN_TR2 (R2)
+                                            0x13a => Some(8),  // BTN_SELECT
+                                            0x13b => Some(9),  // BTN_START
+                                            0x13d => Some(10), // BTN_THUMBL (L3)
+                                            0x13e => Some(11), // BTN_THUMBR (R3)
+                                            0x220 => Some(12), // BTN_DPAD_UP
+                                            0x221 => Some(13), // BTN_DPAD_DOWN
+                                            0x222 => Some(14), // BTN_DPAD_LEFT
+                                            0x223 => Some(15), // BTN_DPAD_RIGHT
+                                            0x13c => Some(16), // BTN_MODE (Guide/Steam)
+                                            _ => None,
+                                        };
+                                        if let Some(b_idx) = mapped {
+                                            buttons[b_idx] = pressed;
+                                        }
+                                    } else if ev_type == 0x03 {
+                                        // EV_ABS
+                                        match ev_code {
+                                            0x00 => {
+                                                axes[0] =
+                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                            }
+                                            0x01 => {
+                                                axes[1] =
+                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                            }
+                                            0x03 => {
+                                                axes[2] =
+                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                            }
+                                            0x04 => {
+                                                axes[3] =
+                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                            }
+                                            0x02 | 0x0a => {
+                                                buttons[6] = ev_val > 64;
+                                            }
+                                            0x05 | 0x09 => {
+                                                buttons[7] = ev_val > 64;
+                                            }
+                                            0x10 => {
+                                                // ABS_HAT0X
+                                                handle.hat_x = ev_val;
+                                                buttons[14] = handle.hat_x < 0;
+                                                buttons[15] = handle.hat_x > 0;
+                                            }
+                                            0x11 => {
+                                                // ABS_HAT0Y
+                                                handle.hat_y = ev_val;
+                                                buttons[12] = handle.hat_y < 0;
+                                                buttons[13] = handle.hat_y > 0;
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                                Err(_) => {
+                                    dead_indices.push(h_idx);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    for idx in dead_indices.into_iter().rev() {
+                        ev_handles.remove(idx);
+                    }
+                } else if !js_handles.is_empty() {
+                    if active_name.is_empty() {
+                        active_name = js_handles[0].name.clone();
+                    }
+                    let mut buf = [0u8; 8];
+                    let mut dead_indices = Vec::new();
+
+                    for (h_idx, handle) in js_handles.iter_mut().enumerate() {
+                        loop {
+                            match handle.file.read_exact(&mut buf) {
+                                Ok(()) => {
+                                    active_name = handle.name.clone();
+                                    let val = i16::from_ne_bytes([buf[4], buf[5]]);
+                                    let ev_type = buf[6] & !0x80; // strip JS_EVENT_INIT
+                                    let num = buf[7];
+                                    if ev_type == 0x01 {
+                                        // JS_EVENT_BUTTON
+                                        let pressed = val != 0;
+                                        let mapped = match num {
+                                            0 => Some(0),
+                                            1 => Some(1),
+                                            2 => Some(2),
+                                            3 => Some(3),
+                                            4 => Some(4),
+                                            5 => Some(5),
+                                            6 => Some(8),  // Back/Select on xpad
+                                            7 => Some(9),  // Start on xpad
+                                            8 => Some(16), // Guide on xpad
+                                            9 => Some(10), // L3
+                                            10 => Some(11), // R3
+                                            11 => Some(14), // D-Pad Left (digital xpad)
+                                            12 => Some(15), // D-Pad Right (digital xpad)
+                                            13 => Some(12), // D-Pad Up (digital xpad)
+                                            14 => Some(13), // D-Pad Down (digital xpad)
+                                            _ => None,
+                                        };
+                                        if let Some(b_idx) = mapped {
+                                            buttons[b_idx] = pressed;
+                                        }
+                                    } else if ev_type == 0x02 {
+                                        // JS_EVENT_AXIS
+                                        match num {
+                                            0 => axes[0] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
+                                            1 => axes[1] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
+                                            2 => buttons[6] = val > 4000, // LT
+                                            3 => axes[2] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
+                                            4 => axes[3] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
+                                            5 => buttons[7] = val > 4000, // RT
+                                            6 => {
+                                                handle.hat_x = val;
+                                                buttons[14] = handle.hat_x < -12000;
+                                                buttons[15] = handle.hat_x > 12000;
+                                            }
+                                            7 => {
+                                                handle.hat_y = val;
+                                                buttons[12] = handle.hat_y < -12000;
+                                                buttons[13] = handle.hat_y > 12000;
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                                Err(_) => {
+                                    dead_indices.push(h_idx);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    for idx in dead_indices.into_iter().rev() {
+                        js_handles.remove(idx);
+                    }
+                } else {
+                    active_name.clear();
+                    buttons.fill(false);
+                    axes.fill(0.0);
+                }
+
+                let now_connected = !active_name.is_empty();
+                let buttons_changed = buttons != prev_buttons;
+                let axes_changed = axes
+                    .iter()
+                    .zip(prev_axes.iter())
+                    .any(|(a, b)| (a - b).abs() > 0.08);
+
+                if now_connected != prev_connected || buttons_changed || axes_changed {
+                    seq = seq.wrapping_add(1);
+                    let snapshot = NativeGamepadState {
+                        connected: now_connected,
+                        id: active_name.clone(),
+                        buttons: buttons.clone(),
+                        axes: axes.clone(),
+                        seq,
+                    };
+                    if let Ok(mut guard) = gamepad_state_mutex().lock() {
+                        *guard = snapshot.clone();
+                    }
+                    let _ = app.emit("sanctuary-native-gamepad", snapshot);
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(28));
+            }
+        });
+    }
+}
+

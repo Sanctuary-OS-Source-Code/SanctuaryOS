@@ -1185,52 +1185,46 @@ export default function VersionTimeline({
         backdropZ="z-[70002]"
         panelZ="z-[70003]"
         headerActions={
-          <div className="flex items-center gap-2">
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t('icon_tune', 'tune')}
-                tooltip={t('diff_mode_visual', 'Visual Diff')}
-                isActive={diffViewMode === 'visual'}
-                onClick={() => setDiffViewMode('visual')}
-              />
-              <PanelHeaderButton
-                icon={t('icon_code', 'code')}
-                tooltip={t('diff_mode_raw', 'Raw Code Diff')}
-                isActive={diffViewMode === 'raw'}
-                onClick={() => setDiffViewMode('raw')}
-              />
-            </PanelHeaderGroup>
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t('icon_tune', 'tune')}
+              tooltip={t('diff_mode_visual', 'Visual Diff')}
+              isActive={diffViewMode === 'visual'}
+              onClick={() => setDiffViewMode('visual')}
+            />
+            <PanelHeaderButton
+              icon={t('icon_code', 'code')}
+              tooltip={t('diff_mode_raw', 'Raw Code Diff')}
+              isActive={diffViewMode === 'raw'}
+              onClick={() => setDiffViewMode('raw')}
+            />
 
             {selectedMode === 'unsaved' && hasUnsavedChanges && onUndoAllUnsaved && (
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={t('icon_undo', 'undo')}
-                  tooltip={t('workbench_undo_all_unsaved', 'Revert Edits')}
-                  onClick={() => onUndoAllUnsaved()}
-                />
-              </PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_undo', 'undo')}
+                tooltip={t('workbench_undo_all_unsaved', 'Revert Edits')}
+                onClick={() => onUndoAllUnsaved()}
+              />
             )}
 
             {selectedMode === 'snapshot' && selectedEntry && !isRawIdentical && (
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={t('icon_restore', 'restore')}
-                  tooltip={t('restore_btn', 'Restore Snapshot')}
-                  isActive={confirmRestore === selectedEntry.timestamp}
-                  onClick={() => {
-                    if (confirmRestore === selectedEntry.timestamp) {
-                      onRestore(selectedEntry.content, selectedEntry.timestamp);
-                      setConfirmRestore(null);
-                      setIsDiffPanelOpen(false);
-                      onClose();
-                    } else {
-                      setConfirmRestore(selectedEntry.timestamp);
-                    }
-                  }}
-                />
-              </PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_restore', 'restore')}
+                tooltip={t('restore_btn', 'Restore Snapshot')}
+                isActive={confirmRestore === selectedEntry.timestamp}
+                onClick={() => {
+                  if (confirmRestore === selectedEntry.timestamp) {
+                    onRestore(selectedEntry.content, selectedEntry.timestamp);
+                    setConfirmRestore(null);
+                    setIsDiffPanelOpen(false);
+                    onClose();
+                  } else {
+                    setConfirmRestore(selectedEntry.timestamp);
+                  }
+                }}
+              />
             )}
-          </div>
+          </PanelHeaderGroup>
         }
       >
         <div

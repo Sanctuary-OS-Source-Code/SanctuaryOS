@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { applyDominantSystemBarColors, harmonizeBarColorWithTheme, useTheme } from './ThemeContext';
-import { isDesktop } from './utils/envUtils';
+import { isDesktop, isLinuxDesktop } from './utils/envUtils';
 
 export const VERTEX_SHADER_BG = `#version 300 es
 precision highp float;
@@ -66,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v61';
+export const SHADER_REV = 'webgl_glass_v62';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -88,6 +88,7 @@ uniform float u_bezelScale;
 uniform float u_shadowScale;
 uniform float u_isPassthrough;
 uniform vec2 u_mobileDockFade;
+uniform float u_linuxOpacityBoost;
 
 out vec4 outColor;
 
@@ -204,14 +205,18 @@ void main() {
       : smoothstep(0.75, 0.15, blurLum) * 0.20;
     opticalBlurCol = mix(blurCol, mix(blurCol, vec3(0.96, 0.97, 1.0), 0.72), troughLift);
   } else {
-    float highlightAtten = (glassKind > 1.5)
-      ? mix(1.0, 0.86, smoothstep(0.32, 0.92, blurLum))
-      : mix(1.0, 0.76, smoothstep(0.28, 0.92, blurLum));
+    float highlightAtten = (u_linuxOpacityBoost > 0.5)
+      ? ((glassKind > 1.5)
+          ? mix(0.84, 0.54, smoothstep(0.18, 0.88, blurLum))
+          : mix(0.78, 0.44, smoothstep(0.16, 0.88, blurLum)))
+      : ((glassKind > 1.5)
+          ? mix(1.0, 0.86, smoothstep(0.32, 0.92, blurLum))
+          : mix(1.0, 0.76, smoothstep(0.28, 0.92, blurLum)));
     opticalBlurCol = blurCol * highlightAtten;
   }
 
   // Smooth transition into crystal-clear edge refraction along the outer lip without creating an inner ring
-  float rimClarity = smoothstep(0.55, 0.98, rimSlope) * 0.48 * (0.45 + 0.55 * compactFactor);
+  float rimClarity = smoothstep(0.55, 0.98, rimSlope) * 0.48 * (0.45 + 0.55 * compactFactor) * mix(1.0, 0.35, u_linuxOpacityBoost);
   vec3 refractedCol = mix(opticalBlurCol, sharpCol, rimClarity);
 
   // 5. Crystal-Clear See-Through Optical Glass (92-96% transparent backdrop + glossy surface sheen)
@@ -219,36 +224,56 @@ void main() {
   vec3 crystalCol;
 
   if (u_isLight > 0.5) {
-    float lightReadability = (isSideDrawer > 1.75)
-      ? clamp(0.06 + opScale * 0.14, 0.06, 0.15)
-      : (isMobileOverlay > 0.5)
-        ? clamp(0.08 + opScale * 0.16, 0.07, 0.17)
-        : (glassKind > 0.5 && glassKind < 1.5)
-          ? clamp(0.05 + opScale * 0.11, 0.04, 0.12)
-          : (glassKind > 1.5)
-            ? clamp(0.02 + opScale * 0.06, 0.02, 0.07)
-            : clamp(0.04 + opScale * 0.09, 0.03, 0.10);
+    float lightReadability = (u_linuxOpacityBoost > 0.5)
+      ? ((isSideDrawer > 1.75)
+          ? clamp(0.62 + opScale * 0.40, 0.60, 0.82)
+          : (isMobileOverlay > 0.5)
+            ? clamp(0.56 + opScale * 0.38, 0.54, 0.78)
+            : (glassKind > 0.5 && glassKind < 1.5)
+              ? clamp(0.50 + opScale * 0.36, 0.48, 0.72)
+              : (glassKind > 1.5)
+                ? clamp(0.32 + opScale * 0.28, 0.30, 0.52)
+                : clamp(0.44 + opScale * 0.34, 0.42, 0.64))
+      : ((isSideDrawer > 1.75)
+          ? clamp(0.06 + opScale * 0.14, 0.06, 0.15)
+          : (isMobileOverlay > 0.5)
+            ? clamp(0.08 + opScale * 0.16, 0.07, 0.17)
+            : (glassKind > 0.5 && glassKind < 1.5)
+              ? clamp(0.05 + opScale * 0.11, 0.04, 0.12)
+              : (glassKind > 1.5)
+                ? clamp(0.02 + opScale * 0.06, 0.02, 0.07)
+                : clamp(0.04 + opScale * 0.09, 0.03, 0.10));
 
     float bodyMix = lightReadability * (1.0 - rimSlope * 0.18);
     vec3 lightBodyTone = mix(vec3(0.98, 0.99, 1.0), u_tintRgb, 0.30);
-    crystalCol = mix(refractedCol, lightBodyTone, clamp(bodyMix, 0.0, 0.15));
+    crystalCol = mix(refractedCol, lightBodyTone, clamp(bodyMix, 0.0, mix(0.15, 0.82, u_linuxOpacityBoost)));
 
     // Crisp diagonal glass surface reflection across the top-left dome
     float glassReflection = pow(clamp(1.0 - diagCoord, 0.0, 1.0), 3.2) * (glassKind > 1.5 ? 0.07 : 0.11) * u_specScale;
     crystalCol = mix(crystalCol, vec3(1.0), clamp(glassReflection, 0.0, 0.16));
   } else {
-    float darkReadability = (isSideDrawer > 1.75)
-      ? clamp(0.10 + opScale * 0.18, 0.09, 0.22)
-      : (isMobileOverlay > 0.5)
-        ? clamp(0.12 + opScale * 0.20, 0.10, 0.24)
-        : (glassKind > 0.5 && glassKind < 1.5)
-          ? clamp(0.05 + opScale * 0.11, 0.04, 0.12)
-          : (glassKind > 1.5)
-            ? clamp(0.02 + opScale * 0.06, 0.02, 0.06)
-            : clamp(0.04 + opScale * 0.09, 0.03, 0.10);
+    float darkReadability = (u_linuxOpacityBoost > 0.5)
+      ? ((isSideDrawer > 1.75)
+          ? clamp(0.64 + opScale * 0.42, 0.62, 0.84)
+          : (isMobileOverlay > 0.5)
+            ? clamp(0.58 + opScale * 0.40, 0.56, 0.80)
+            : (glassKind > 0.5 && glassKind < 1.5)
+              ? clamp(0.50 + opScale * 0.38, 0.48, 0.74)
+              : (glassKind > 1.5)
+                ? clamp(0.34 + opScale * 0.30, 0.32, 0.54)
+                : clamp(0.46 + opScale * 0.36, 0.44, 0.68))
+      : ((isSideDrawer > 1.75)
+          ? clamp(0.10 + opScale * 0.18, 0.09, 0.22)
+          : (isMobileOverlay > 0.5)
+            ? clamp(0.12 + opScale * 0.20, 0.10, 0.24)
+            : (glassKind > 0.5 && glassKind < 1.5)
+              ? clamp(0.05 + opScale * 0.11, 0.04, 0.12)
+              : (glassKind > 1.5)
+                ? clamp(0.02 + opScale * 0.06, 0.02, 0.06)
+                : clamp(0.04 + opScale * 0.09, 0.03, 0.10));
 
     float bodyMix = darkReadability * (1.0 - rimSlope * 0.18);
-    crystalCol = mix(refractedCol, u_tintRgb, clamp(bodyMix, 0.0, 0.16));
+    crystalCol = mix(refractedCol, u_tintRgb, clamp(bodyMix, 0.0, mix(0.16, 0.84, u_linuxOpacityBoost)));
 
     // Crisp diagonal glass surface reflection across the top-left dome
     float glassReflection = pow(clamp(1.0 - diagCoord, 0.0, 1.0), 3.2) * (glassKind > 1.5 ? 0.06 : 0.095) * u_specScale;
@@ -440,13 +465,14 @@ export function SystemBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const isLinux = isLinuxDesktop();
     const gl = canvas.getContext('webgl2', {
       alpha: true,
       antialias: false,
       depth: false,
       stencil: false,
       premultipliedAlpha: false,
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: !isLinux,
       powerPreference: 'high-performance',
     });
     if (!gl) return;
@@ -507,7 +533,9 @@ export function SystemBackground() {
     const glassUniformShadowScale = gl.getUniformLocation(glassProg, 'u_shadowScale');
     const glassUniformIsPassthrough = gl.getUniformLocation(glassProg, 'u_isPassthrough');
     const glassUniformMobileDockFade = gl.getUniformLocation(glassProg, 'u_mobileDockFade');
+    const glassUniformLinuxOpacityBoost = gl.getUniformLocation(glassProg, 'u_linuxOpacityBoost');
 
+    let linuxOverlaySourceCanvas: HTMLCanvasElement | null = null;
     let metaCache = new WeakMap<HTMLElement, CachedElementMeta>();
     const overlayCanvasMap = new WeakMap<HTMLElement, HTMLCanvasElement>();
     let cachedLayer0: HTMLElement[] = [];
@@ -620,6 +648,9 @@ export function SystemBackground() {
         if (el.classList.contains('portal-glass-modal') || el.closest('.portal-glass-modal')) {
           continue;
         }
+        if (isLinux && el.classList.contains('sa-tooltip-glass')) {
+          continue;
+        }
 
         const isSelfOverlay =
           el.classList.contains('sa-side-panel-window') ||
@@ -710,6 +741,12 @@ export function SystemBackground() {
     }
 
     function triggerAnimWindow(ms = 420) {
+      if (isLinux) {
+        scheduleRender();
+        window.setTimeout(scheduleRender, 140);
+        window.setTimeout(scheduleRender, 320);
+        return;
+      }
       animEndTimestamp = Math.max(animEndTimestamp, performance.now() + ms);
       scheduleRender();
     }
@@ -727,7 +764,7 @@ export function SystemBackground() {
       const canvasOffsetY = canvasRect.top;
       const vw = Math.max(1, Math.round(canvasRect.width || window.innerWidth));
       const vh = Math.max(1, Math.round(canvasRect.height || window.innerHeight));
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = isLinux ? 1 : Math.min(2, window.devicePixelRatio || 1);
       const targetW = Math.round(vw * dpr);
       const targetH = Math.round(vh * dpr);
 
@@ -925,6 +962,7 @@ export function SystemBackground() {
         gl!.uniform1f(glassUniformShadowScale, shadowScale);
         gl!.uniform1f(glassUniformIsPassthrough, isTransparentPassthrough ? 1.0 : 0.0);
         gl!.uniform2f(glassUniformMobileDockFade, dockFadeStart, dockFadeEnd);
+        gl!.uniform1f(glassUniformLinuxOpacityBoost, isLinux ? 1.0 : 0.0);
 
         gl!.bindVertexArray(glassVao);
         gl!.bindBuffer(gl!.ARRAY_BUFFER, instanceVbo);
@@ -994,13 +1032,33 @@ export function SystemBackground() {
       if (dirtyOverlays.length > 0) {
         for (let i = 0; i < dirtyOverlays.length; i++) {
           const { ovCanvas, ow, oh, sx, sy, sw, sh, blitKey, startIdx, instCount } = dirtyOverlays[i];
-          drawWallpaperPass();
-          drawGlassSlice(startIdx, instCount);
           if (ovCanvas.width !== ow || ovCanvas.height !== oh) {
             ovCanvas.width = ow;
             ovCanvas.height = oh;
           }
           const ctx2d = ovCanvas.getContext('2d');
+          if (isLinux && linuxOverlaySourceCanvas) {
+            if (ctx2d && sw > 0 && sh > 0) {
+              const scaleX = linuxOverlaySourceCanvas.width / Math.max(1, targetW);
+              const scaleY = linuxOverlaySourceCanvas.height / Math.max(1, targetH);
+              ctx2d.clearRect(0, 0, ow, oh);
+              ctx2d.drawImage(
+                linuxOverlaySourceCanvas,
+                sx * scaleX,
+                sy * scaleY,
+                sw * scaleX,
+                sh * scaleY,
+                0,
+                0,
+                ow,
+                oh
+              );
+              (ovCanvas as any).__lastBlitKey = blitKey;
+            }
+            continue;
+          }
+          drawWallpaperPass();
+          drawGlassSlice(startIdx, instCount);
           if (ctx2d && sw > 0 && sh > 0) {
             ctx2d.clearRect(0, 0, ow, oh);
             ctx2d.drawImage(canvas!, sx, sy, sw, sh, 0, 0, ow, oh);
@@ -1056,7 +1114,7 @@ export function SystemBackground() {
       const canvasRect = canvas ? canvas.getBoundingClientRect() : null;
       const vw = Math.max(320, Math.round(canvasRect?.width || window.innerWidth));
       const vh = Math.max(240, Math.round(canvasRect?.height || window.innerHeight));
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = isLinux ? 1 : Math.min(2, window.devicePixelRatio || 1);
       const physW = Math.max(640, Math.round(vw * dpr));
       const physH = Math.max(360, Math.round(vh * dpr));
       const targetAspect = vw / vh;
@@ -1124,6 +1182,55 @@ export function SystemBackground() {
             : `saturate(${satPct}%) brightness(${blurBright})`;
           blurCtx.drawImage(padCanvas, -pad, -pad, padCanvas.width, padCanvas.height);
           blurCtx.filter = 'none';
+
+          // On Linux (WebKitGTK 4.1 Cairo 2D canvas), ctx.filter blur() is a no-op.
+          // Perform a fast 2-stage bilinear downscale/upscale pyramid so blurTex gets real frosted diffusion
+          // and prepare a 2D overlay source canvas to avoid synchronous WebGL glReadPixels stalls.
+          if (isLinux && blurPx > 0) {
+            const quarterW = Math.max(64, Math.round(bw * 0.22));
+            const quarterH = Math.max(36, Math.round(bh * 0.22));
+            const eigthW = Math.max(32, Math.round(bw * 0.11));
+            const eigthH = Math.max(18, Math.round(bh * 0.11));
+            const step1 = document.createElement('canvas');
+            step1.width = quarterW;
+            step1.height = quarterH;
+            const s1Ctx = step1.getContext('2d');
+            const step2 = document.createElement('canvas');
+            step2.width = eigthW;
+            step2.height = eigthH;
+            const s2Ctx = step2.getContext('2d');
+            if (s1Ctx && s2Ctx) {
+              s1Ctx.imageSmoothingEnabled = true;
+              s1Ctx.imageSmoothingQuality = 'high';
+              s2Ctx.imageSmoothingEnabled = true;
+              s2Ctx.imageSmoothingQuality = 'high';
+              s1Ctx.drawImage(blurCanvas, 0, 0, bw, bh, 0, 0, quarterW, quarterH);
+              s2Ctx.drawImage(step1, 0, 0, quarterW, quarterH, 0, 0, eigthW, eigthH);
+              s1Ctx.clearRect(0, 0, quarterW, quarterH);
+              s1Ctx.drawImage(step2, 0, 0, eigthW, eigthH, 0, 0, quarterW, quarterH);
+              blurCtx.clearRect(0, 0, bw, bh);
+              blurCtx.drawImage(step1, 0, 0, quarterW, quarterH, 0, 0, bw, bh);
+            }
+          }
+
+          if (isLinux) {
+            const ovSrc = document.createElement('canvas');
+            ovSrc.width = bw;
+            ovSrc.height = bh;
+            const ovCtx = ovSrc.getContext('2d');
+            if (ovCtx) {
+              ovCtx.drawImage(blurCanvas, 0, 0);
+              const { tintRgb: uTint, isLight: uLight } = computeThemeShaderUniforms(t);
+              const tr = Math.round(uTint[0] * 255);
+              const tg = Math.round(uTint[1] * 255);
+              const tb = Math.round(uTint[2] * 255);
+              ovCtx.fillStyle = uLight > 0.5
+                ? `rgba(${Math.round(tr * 0.35 + 248 * 0.65)}, ${Math.round(tg * 0.35 + 250 * 0.65)}, ${Math.round(tb * 0.35 + 255 * 0.65)}, 0.80)`
+                : `rgba(${Math.max(4, Math.round(tr * 0.72))}, ${Math.max(7, Math.round(tg * 0.72))}, ${Math.max(14, Math.round(tb * 0.72))}, 0.82)`;
+              ovCtx.fillRect(0, 0, bw, bh);
+              linuxOverlaySourceCanvas = ovSrc;
+            }
+          }
 
           gl.bindTexture(gl.TEXTURE_2D, blurTex);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, blurCanvas);
@@ -1364,19 +1471,36 @@ export function SystemBackground() {
         const m = mutations[i];
         const tgt = m.target as HTMLElement | null;
         if (!tgt) continue;
+        // Never rescan or redraw WebGL wallpaper lenses for mutations inside modal overlays
+        // or internal content descendants inside an already-open SidePanel (whose outer slab is static)
+        if (tgt.classList?.contains('portal-glass-modal') || tgt.closest?.('.portal-glass-modal')) {
+          continue;
+        }
+        if (
+          !tgt.classList?.contains('sa-side-panel-window') &&
+          !tgt.classList?.contains('sa-floating-glass-pill') &&
+          !tgt.classList?.contains('sa-dropdown-popover') &&
+          tgt.closest?.('.sa-side-panel-window')
+        ) {
+          continue;
+        }
 
         if (m.type === 'childList') {
           let isOnlyOverlayCanvas = true;
           for (let j = 0; j < m.addedNodes.length; j++) {
             const n = m.addedNodes[j] as HTMLElement;
             if (n.nodeType === 1 && !n.classList?.contains('sa-webgl-overlay-canvas')) {
+              if (n.classList?.contains('portal-glass-modal') || n.closest?.('.portal-glass-modal')) {
+                continue;
+              }
               isOnlyOverlayCanvas = false;
               if (
-                n.id === 'sa-tooltip-portal' ||
-                n.classList?.contains('sa-tooltip-glass') ||
-                n.classList?.contains('sa-dropdown-popover') ||
-                n.classList?.contains('portal-glass-fix') ||
-                n.querySelector?.('.sa-tooltip-glass, .sa-dropdown-popover, .portal-glass-fix')
+                !isLinux &&
+                (n.id === 'sa-tooltip-portal' ||
+                  n.classList?.contains('sa-tooltip-glass') ||
+                  n.classList?.contains('sa-dropdown-popover') ||
+                  n.classList?.contains('portal-glass-fix') ||
+                  n.querySelector?.('.sa-tooltip-glass, .sa-dropdown-popover, .portal-glass-fix'))
               ) {
                 needsSyncOverlayRender = true;
               }
@@ -1389,7 +1513,7 @@ export function SystemBackground() {
                 n.classList?.contains('sa-mobile-drawer-wrapper') ||
                 n.classList?.contains('portal-glass-fix') ||
                 n.classList?.contains('sa-dropdown-popover') ||
-                n.classList?.contains('sa-tooltip-glass') ||
+                (!isLinux && n.classList?.contains('sa-tooltip-glass')) ||
                 n.classList?.contains('grid')
               ) {
                 needsAnimLoop = true;
@@ -1399,6 +1523,9 @@ export function SystemBackground() {
           for (let j = 0; j < m.removedNodes.length; j++) {
             const n = m.removedNodes[j] as HTMLElement;
             if (n.nodeType === 1 && !n.classList?.contains('sa-webgl-overlay-canvas')) {
+              if (n.classList?.contains('portal-glass-modal') || n.closest?.('.portal-glass-modal')) {
+                continue;
+              }
               isOnlyOverlayCanvas = false;
             }
           }
@@ -1406,11 +1533,23 @@ export function SystemBackground() {
             hasRelevantMutation = true;
           }
         } else if (m.type === 'attributes') {
+          if (isLinux && (tgt.classList?.contains('glass-panel') || tgt.classList?.contains('glass-surface'))) {
+            // On Linux, ignore hover/active class mutations on static cards unless visibility changed
+            if (
+              m.attributeName === 'class' &&
+              !tgt.classList.contains('hidden') &&
+              !tgt.classList.contains('opacity-0') &&
+              !tgt.classList.contains('invisible')
+            ) {
+              continue;
+            }
+          }
           const isTooltipTarget =
-            tgt.id === 'sa-tooltip-portal' ||
-            tgt.classList?.contains('sa-tooltip-glass') ||
-            Boolean(tgt.closest?.('#sa-tooltip-portal')) ||
-            Boolean(tgt.querySelector?.('.sa-dropdown-popover, .sa-tooltip-glass, .portal-glass-fix'));
+            !isLinux &&
+            (tgt.id === 'sa-tooltip-portal' ||
+              tgt.classList?.contains('sa-tooltip-glass') ||
+              Boolean(tgt.closest?.('#sa-tooltip-portal')) ||
+              Boolean(tgt.querySelector?.('.sa-dropdown-popover, .sa-tooltip-glass, .portal-glass-fix')));
           const isGlassOrOverlayTarget =
             isTooltipTarget ||
             tgt.classList?.contains('sa-side-panel-window') ||
@@ -1579,7 +1718,7 @@ export function SystemBackground() {
       ) : null}
 
       {/* Volumetric Aero-Mesh Orbs for Non-Wallpaper Themes */}
-      {!currentTheme.bgImage && ambientOrb && volumetricOrbs && volumetricOrbs.length > 0 ? (
+      {!currentTheme.bgImage && !isLinuxDesktop() && ambientOrb && volumetricOrbs && volumetricOrbs.length > 0 ? (
         <div className="absolute inset-0 rounded-[inherit] w-full h-full">
           {volumetricOrbs.map((orb: any, index: number) => (
             <div

@@ -1,5 +1,6 @@
 import { useLexicon, normalizeAllCapsForThemeCase } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
+import { isLinuxDesktop } from '../utils/envUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelHeaderButton } from "./buttons";
@@ -666,7 +667,7 @@ export function SidePanel({
             {/* Liquid Glass Specular Edge Catchlights */}
             <div className="pointer-events-none absolute inset-x-8 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/35 to-transparent z-40" />
             <div className="pointer-events-none absolute inset-y-8 left-0 w-[1px] bg-gradient-to-b from-white/25 via-white/10 to-transparent z-40" />
-            {theme.ambientNoise && (
+            {theme.ambientNoise && !isLinuxDesktop() && (
               <div
                 className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none"
                 style={{

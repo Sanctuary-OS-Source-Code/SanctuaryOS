@@ -734,7 +734,6 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
                   variant={isActive ? "success" : "default"}
                   isActive={isActive}
                 />
-                <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-2" />
                 {Boolean((editingPostId || 'new') && wayfinderDrafts[editingPostId || 'new']) && (
                   <PanelHeaderButton
                     onClick={handleDiscardChanges}

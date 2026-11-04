@@ -2344,14 +2344,11 @@ export default function KeepersWebDirectivesEditor({
           headerActions={
             <PanelHeaderGroup>
               {activeCanonicalMeta && (
-                <>
-                  <PanelHeaderButton
-                    onClick={handleResetBuilderToDefault}
-                    tooltip={t("dir_builder_btn_reset", "Reset to Default")}
-                    icon={t("icon_restart_alt", "restart_alt")}
-                  />
-                  <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1.5" />
-                </>
+                <PanelHeaderButton
+                  onClick={handleResetBuilderToDefault}
+                  tooltip={t("dir_builder_btn_reset", "Reset to Default")}
+                  icon={t("icon_restart_alt", "restart_alt")}
+                />
               )}
 
               {editingPostId && editingRecordKind === "news" && (
@@ -2376,7 +2373,6 @@ export default function KeepersWebDirectivesEditor({
                       variant="danger"
                     />
                   )}
-                  <div className="w-[1px] h-6 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] mx-1.5" />
                 </>
               )}
 

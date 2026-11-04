@@ -83,6 +83,10 @@
           true_glass: { bg: "transparent", sidebar: "#080c14", topBar: "#152238", bottomBar: "#0e1a2d", bgImage: "", transparentWindow: true }
         };
         var isNativeDesktop = Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
+        var bootUa = navigator.userAgent || "";
+        if (isNativeDesktop && /Linux/i.test(bootUa) && !/Android/i.test(bootUa)) {
+          document.documentElement.setAttribute("data-sa-platform", "linux");
+        }
         var host = (window.location.hostname || "").toLowerCase();
         var path = window.location.pathname || "/";
         var isWebRootHub = !isNativeDesktop && (host === "sanctuaryos.net" || host === "www.sanctuaryos.net" || host === "localhost" || host === "127.0.0.1") && (path === "/" || path === "");

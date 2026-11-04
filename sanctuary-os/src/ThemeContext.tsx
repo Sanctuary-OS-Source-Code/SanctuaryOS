@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
 import { createClient } from '@supabase/supabase-js';
-import { isDesktop } from './utils/envUtils';
+import { isDesktop, isLinuxDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
 
 import { useStore } from './store';
@@ -259,20 +259,26 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-outer-shadow'] = `0 16px 34px -8px rgba(15, 23, 42, ${(lightShadowScale * 1.25).toFixed(3)}), 0 4px 12px -3px rgba(15, 23, 42, ${(lightShadowScale * 0.72).toFixed(3)})`;
     vars['--glass-surface-outer-shadow'] = `0 0 #0000`;
 
+    const isLinux = isLinuxDesktop();
+
     // Nested Glass inside Cards / SidePanels / Modals (Sheer neutral frosted glass, never solid colored paint)
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.22)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.16)`;
+    vars['--glass-nested-panel-bg'] = isLinux
+      ? `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, 0.56)`
+      : `rgba(255, 255, 255, 0.22)`;
+    vars['--glass-nested-surface-bg'] = isLinux
+      ? `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, 0.42)`
+      : `rgba(255, 255, 255, 0.16)`;
     vars['--glass-nested-sheen'] = `none`;
     vars['--glass-nested-shadow'] = `0 6px 16px -6px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.55).toFixed(3)})`;
 
     // Chrome & Containers (Sidebar, SidePanel Drawer, Floating Pills, Card Banner/Icon)
-    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${Math.max(0.14, Math.min(0.42, lightPanelAlpha + 0.02)).toFixed(3)})`;
+    vars['--glass-sidebar-bg'] = `rgba(${sbR}, ${sbG}, ${sbB}, ${(isLinux ? Math.max(0.66, Math.min(0.84, lightPanelAlpha + 0.46)) : Math.max(0.14, Math.min(0.42, lightPanelAlpha + 0.02))).toFixed(3)})`;
     vars['--glass-sidebar-sheen'] = `none`;
     vars['--glass-sidebar-shadow'] = `0 20px 44px -10px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.05).toFixed(3)}), 0 6px 16px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.65).toFixed(3)}), inset 0 1px 0 0 rgba(255, 255, 255, 0.24)`;
-    vars['--glass-drawer-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.20, Math.min(0.48, lightPanelAlpha + 0.05)).toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${(isLinux ? Math.max(0.84, Math.min(0.94, lightPanelAlpha + 0.62)) : Math.max(0.20, Math.min(0.48, lightPanelAlpha + 0.05))).toFixed(3)})`;
     vars['--glass-drawer-sheen'] = `none`;
     vars['--glass-drawer-shadow'] = `-20px 0 50px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.10).toFixed(3)}), 0 20px 50px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.78).toFixed(3)})`;
-    vars['--glass-portal-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${Math.max(0.24, Math.min(0.54, lightPanelAlpha + 0.06)).toFixed(3)})`;
+    vars['--glass-portal-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${(isLinux ? Math.max(0.82, Math.min(0.92, lightPanelAlpha + 0.60)) : Math.max(0.24, Math.min(0.54, lightPanelAlpha + 0.06))).toFixed(3)})`;
     vars['--glass-portal-sheen'] = `none`;
     vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.15).toFixed(3)}), 0 6px 16px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.72).toFixed(3)})`;
     const ddLightR = Math.round(sbR * 0.55 + tr * 0.45);
@@ -360,22 +366,28 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-outer-shadow'] = `0 18px 40px -10px rgba(0, 0, 0, ${outerShadowMain.toFixed(3)}), 0 6px 16px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
     vars['--glass-surface-outer-shadow'] = `0 0 #0000`;
 
+    const isLinux = isLinuxDesktop();
+
     // Pure neutral ultra-sheer glass for nested surfaces inside cards/sidebars (never solid accent paint)
-    vars['--glass-nested-panel-bg'] = `rgba(255, 255, 255, 0.032)`;
-    vars['--glass-nested-surface-bg'] = `rgba(255, 255, 255, 0.024)`;
+    vars['--glass-nested-panel-bg'] = isLinux
+      ? `rgba(${baseR}, ${baseG}, ${baseB}, 0.56)`
+      : `rgba(255, 255, 255, 0.032)`;
+    vars['--glass-nested-surface-bg'] = isLinux
+      ? `rgba(${baseR}, ${baseG}, ${baseB}, 0.42)`
+      : `rgba(255, 255, 255, 0.024)`;
     vars['--glass-nested-sheen'] = `none`;
     vars['--glass-nested-shadow'] = `0 8px 20px -6px rgba(0, 0, 0, ${(outerShadowAmbient * 0.65).toFixed(3)})`;
 
     const sbGlassR = Math.max(6, Math.min(36, Math.round(sbR * 0.88 + accR * 0.04 + 2)));
     const sbGlassG = Math.max(8, Math.min(42, Math.round(sbG * 0.88 + accG * 0.04 + 3)));
     const sbGlassB = Math.max(12, Math.min(54, Math.round(sbB * 0.88 + accB * 0.04 + 6)));
-    vars['--glass-sidebar-bg'] = `rgba(${sbGlassR}, ${sbGlassG}, ${sbGlassB}, ${Math.max(0.12, Math.min(0.38, darkPanelAlpha + 0.02)).toFixed(3)})`;
+    vars['--glass-sidebar-bg'] = `rgba(${sbGlassR}, ${sbGlassG}, ${sbGlassB}, ${(isLinux ? Math.max(0.68, Math.min(0.86, darkPanelAlpha + 0.52)) : Math.max(0.12, Math.min(0.38, darkPanelAlpha + 0.02))).toFixed(3)})`;
     vars['--glass-sidebar-sheen'] = `none`;
     vars['--glass-sidebar-shadow'] = `0 22px 48px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.08).toFixed(3)}), 0 8px 20px -4px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)}), inset 0 1px 0 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)})`;
-    vars['--glass-drawer-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.18, Math.min(0.48, darkPanelAlpha + 0.08)).toFixed(3)})`;
+    vars['--glass-drawer-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${(isLinux ? Math.max(0.84, Math.min(0.94, darkPanelAlpha + 0.72)) : Math.max(0.18, Math.min(0.48, darkPanelAlpha + 0.08))).toFixed(3)})`;
     vars['--glass-drawer-sheen'] = `none`;
     vars['--glass-drawer-shadow'] = `-24px 0 60px rgba(0, 0, 0, ${(outerShadowMain * 1.08).toFixed(3)}), 0 24px 60px rgba(0, 0, 0, ${(outerShadowMain * 0.85).toFixed(3)})`;
-    vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.24, Math.min(0.56, darkPanelAlpha + 0.16)).toFixed(3)})`;
+    vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${(isLinux ? Math.max(0.82, Math.min(0.92, darkPanelAlpha + 0.70)) : Math.max(0.24, Math.min(0.56, darkPanelAlpha + 0.16))).toFixed(3)})`;
     vars['--glass-portal-sheen'] = `none`;
     vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, ${(outerShadowMain * 1.10).toFixed(3)}), 0 8px 18px -2px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
     const ddDarkR = Math.round(sbGlassR * 0.55 + baseR * 0.45);

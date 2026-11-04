@@ -7,7 +7,6 @@ import {
   SidePanel,
   renderTextWithIcons,
   EmptyState,
-  HoverTooltip,
   ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -748,82 +747,64 @@ export default function MasonPostViewer({
         }
         headerActions={
           !hideActions ? (
-            <>
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={t("icon_translate", "translate")}
-                  tooltip={t("lex_translate_post", "Translate {Dispatch}")}
-                  isActive={forceTranslatePost}
-                  onClick={() => setForceTranslatePost((prev) => !prev)}
-                />
-              </PanelHeaderGroup>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_translate", "translate")}
+                tooltip={t("lex_translate_post", "Translate {Dispatch}")}
+                isActive={forceTranslatePost}
+                onClick={() => setForceTranslatePost((prev) => !prev)}
+              />
               {!userId || isBanned ? (
-                <div className="relative group/flagbtn h-full flex items-center">
-                  <HoverTooltip
-                    variant="danger"
-                    title={
-                      isBanned
-                        ? t("alert_comm_banned", "Communications Restricted")
-                        : t("alert_guest_mode_uploads", "Authentication Required")
-                    }
-                    subtitle={
-                      isBanned
-                        ? t("alert_comm_banned_desc", "Your account cannot flag or reply.")
-                        : t("alert_guest_mode_desc", "Sign in to interact with transmissions.")
-                    }
-                    className="group-hover/flagbtn:flex z-[1000]"
-                  />
-                  <PanelHeaderGroup>
-                    <PanelHeaderButton
-                      icon={t("icon_flag", "flag")}
-                      tooltip={t("feed_btn_flag", "Flag")}
-                      disabled={true}
-                      variant="danger"
-                    />
-                  </PanelHeaderGroup>
-                </div>
+                <PanelHeaderButton
+                  icon={t("icon_flag", "flag")}
+                  tooltip={
+                    isBanned
+                      ? t("alert_comm_banned", "Communications Restricted")
+                      : t("alert_guest_mode_uploads", "Authentication Required")
+                  }
+                  tooltipSubtitle={
+                    isBanned
+                      ? t("alert_comm_banned_desc", "Your account cannot flag or reply.")
+                      : t("alert_guest_mode_desc", "Sign in to interact with transmissions.")
+                  }
+                  disabled={true}
+                  variant="danger"
+                />
               ) : (
                 !isPostAuthor && (
-                  <PanelHeaderGroup>
-                    <PanelHeaderButton
-                      icon={t("icon_flag", "flag")}
-                      tooltip={t("feed_btn_flag", "Flag")}
-                      onClick={() => setFlagTarget({ id: post.id, type: "post" })}
-                      variant="danger"
-                    />
-                  </PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon={t("icon_flag", "flag")}
+                    tooltip={t("feed_btn_flag", "Flag")}
+                    onClick={() => setFlagTarget({ id: post.id, type: "post" })}
+                    variant="danger"
+                  />
                 )
               )}
-              {post.mason_id !== "system" &&
-                (onOpenMasonProfile || post.masons?.patreon_url || post.masons?.discord_url) && (
-                  <PanelHeaderGroup>
-                    {onOpenMasonProfile && (
-                      <PanelHeaderButton
-                        icon={t("icon_person", "person")}
-                        tooltip={t("btn_view_profile", "View Profile")}
-                        onClick={() => {
-                          onOpenMasonProfile(post.mason_id);
-                        }}
-                      />
-                    )}
-                    {post.masons?.patreon_url && (
-                      <PanelHeaderButton
-                        icon={t("icon_favorite", "favorite")}
-                        tooltip={t("btn_patreon", "Patreon")}
-                        onClick={() => handleOpenUrl(post.masons.patreon_url)}
-                        variant="danger"
-                      />
-                    )}
-                    {post.masons?.discord_url && (
-                      <PanelHeaderButton
-                        icon={t("icon_forum", "forum")}
-                        tooltip={t("btn_discord", "Discord")}
-                        onClick={() => handleOpenUrl(post.masons.discord_url)}
-                      />
-                    )}
-                  </PanelHeaderGroup>
-                )}
-            </>
+              {post.mason_id !== "system" && onOpenMasonProfile && (
+                <PanelHeaderButton
+                  icon={t("icon_person", "person")}
+                  tooltip={t("btn_view_profile", "View Profile")}
+                  onClick={() => {
+                    onOpenMasonProfile(post.mason_id);
+                  }}
+                />
+              )}
+              {post.mason_id !== "system" && post.masons?.patreon_url && (
+                <PanelHeaderButton
+                  icon={t("icon_favorite", "favorite")}
+                  tooltip={t("btn_patreon", "Patreon")}
+                  onClick={() => handleOpenUrl(post.masons.patreon_url)}
+                  variant="danger"
+                />
+              )}
+              {post.mason_id !== "system" && post.masons?.discord_url && (
+                <PanelHeaderButton
+                  icon={t("icon_forum", "forum")}
+                  tooltip={t("btn_discord", "Discord")}
+                  onClick={() => handleOpenUrl(post.masons.discord_url)}
+                />
+              )}
+            </PanelHeaderGroup>
           ) : undefined
         }
       >
