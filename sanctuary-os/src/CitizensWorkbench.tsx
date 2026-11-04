@@ -77,8 +77,10 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
       if (fileState.availableTemplates.length > 0) {
          const existingMatch = fileState.availableTemplates.find((tmpl: any) => tmpl.id === selectedTemplatePath);
-         const hasHydratedData = Boolean(activeTemplate || customAppliedTemplate);
-         if (lastInitializedFile !== selectedFile.path || !existingMatch || !hasHydratedData) {
+         const currentData = activeTemplate || customAppliedTemplate;
+         const hasHydratedData = Boolean(currentData);
+         const versionChanged = existingMatch?.data?.template_version && currentData?.template_version !== existingMatch.data.template_version;
+         if (lastInitializedFile !== selectedFile.path || !existingMatch || !hasHydratedData || versionChanged) {
             setLastInitializedFile(selectedFile.path);
 
             const commTmpl = fileState.availableTemplates.find((tmpl: any) => tmpl.isCommunity);
@@ -106,6 +108,27 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    }, [selectedFile, fileState.availableTemplates, lastInitializedFile, selectedTemplatePath, activeTemplate, customAppliedTemplate]);
 
    useEffect(() => {
+      const currentUnsaved = useStore.getState().cwUnsavedEdits || {};
+      let mutated = false;
+      const nextUnsaved = { ...currentUnsaved };
+      for (const [fPath, rawVal] of Object.entries(currentUnsaved)) {
+         const lower = fPath.toLowerCase();
+         if (lower.endsWith('mc_settings.json') || lower.endsWith('mccc_settings_template_template.json') || lower.endsWith('template_jrmu.json')) {
+            if (typeof rawVal === 'string' && (!rawVal.includes('"template_version": "2.0.0"') || rawVal.includes('"Appearance Female Fit Limits"'))) {
+               delete nextUnsaved[fPath];
+               mutated = true;
+            }
+         } else if (lower.endsWith('mc_settings.cfg')) {
+            if (typeof rawVal === 'string' && rawVal.includes('"Appearance_FemaleFitLimits": "0"')) {
+               delete nextUnsaved[fPath];
+               mutated = true;
+            }
+         }
+      }
+      if (mutated) {
+         useStore.getState().setCwUnsavedEdits(nextUnsaved);
+      }
+
       return () => {
          useStore.getState().setCwSelectedFile(null);
       };

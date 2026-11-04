@@ -2072,9 +2072,26 @@ function App() {
 
       Object.entries(localOvrMap).forEach(([h, ovr]: [string, any]) => {
         if (ovr?.manifest_url) addEdgeBinding(ovr.manifest_url, h, ovr.displayName, ovr.author);
+        else if (typeof ovr?.url === "string" && /\.json(\?.*)?$/i.test(ovr.url.trim())) {
+          addEdgeBinding(ovr.url.trim(), h, ovr.displayName, ovr.author);
+        }
+      });
+      Object.entries(edgeLogicMap).forEach(([h, logic]: [string, any]) => {
+        if (logic?.manifest_url) {
+          addEdgeBinding(logic.manifest_url, h, logic.artifact_id || logic.name, logic.author);
+        }
       });
       syncedMods.forEach((m: any) => {
-        if (m.manifest_url && m.hash) addEdgeBinding(m.manifest_url, m.hash, m.displayName || m.name, m.author);
+        if (m.manifest_url && m.hash) {
+          addEdgeBinding(m.manifest_url, m.hash, m.displayName || m.name, m.author);
+        } else if (
+          m.hash &&
+          typeof m.url === "string" &&
+          /\.json(\?.*)?$/i.test(m.url.trim()) &&
+          (Number(m.compliance_tier || 0) >= 1 || !m.dbId || String(m.status || "").toLowerCase() === "unverified")
+        ) {
+          addEdgeBinding(m.url.trim(), m.hash, m.displayName || m.name, m.author);
+        }
       });
 
       if (hasError && cloudData.length === 0 && edgeBindings.size === 0) {
@@ -2174,15 +2191,20 @@ function App() {
             const isMultiModule = currentReleaseHashes.size > 1 || matchedLocalMods.length > 1;
 
             for (const famHash of allFamilyHashes) {
-              if (manifest.atomic_logic) {
+              if (manifest.atomic_logic || manifest.artifact) {
                 edgeLogicMap[famHash] = {
-                  ...manifest.atomic_logic,
+                  ...(edgeLogicMap[famHash] || {}),
+                  ...(manifest.atomic_logic || {}),
                   manifest_url: manifestUrl,
                   artifact_id: manifest.artifact?.id || binding.artifactId,
                   name: manifest.artifact?.name || binding.artifactId,
                   author: manifest.artifact?.author || binding.masonId,
                   version: manifest.artifact?.version,
                   game_version: manifest.artifact?.game_version,
+                  status:
+                    manifest.artifact?.status ||
+                    manifest.status ||
+                    manifest.atomic_logic?.status,
                   download_url: manifest.payload?.download_url,
                   sha256: manifest.payload?.sha256,
                   current_hashes: Array.from(currentReleaseHashes),
@@ -2210,10 +2232,28 @@ function App() {
             if (matchedLocalMods.length > 0) {
               const latestSha = String(manifest.payload?.sha256 || "").toLowerCase().trim();
               const cleanEdgeVer = String(manifest.artifact?.version || "").toLowerCase().replace(/^v/, "").trim();
+              const edgeStatusRaw = String(
+                manifest.artifact?.status ||
+                  manifest.status ||
+                  manifest.atomic_logic?.status ||
+                  ""
+              )
+                .toLowerCase()
+                .trim();
 
               for (const localMod of matchedLocalMods) {
                 const localHash = String(localMod.hash || "").toLowerCase().trim();
                 const cleanLocalVer = String(localMod.version || "").toLowerCase().replace(/^v/, "").trim();
+
+                if (edgeStatusRaw === "broken" || edgeStatusRaw === "corrupted") {
+                  if (!broken.some((b) => (b.hash && b.hash === localMod.hash) || b.name === localMod.name)) {
+                    broken.push(localMod);
+                  }
+                } else if (edgeStatusRaw === "obsolete") {
+                  if (!obsolete.some((o) => (o.hash && o.hash === localMod.hash) || o.name === localMod.name)) {
+                    obsolete.push(localMod);
+                  }
+                }
 
                 const isInCurrentRelease = Boolean(localHash && currentReleaseHashes.has(localHash));
                 const isDeprecatedLineageHash = Boolean(localHash && previousLineageHashes.has(localHash));
@@ -2332,6 +2372,9 @@ function App() {
           let needsUpdate = false;
           let newMod = { ...m };
 
+          const edgeEntry = m.hash ? edgeLogicMap[m.hash] : undefined;
+          const edgeStatus = String(edgeEntry?.status || "").toLowerCase().trim();
+
           if (broken.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
             if (newMod.status !== 'broken') {
               newMod.status = 'broken';
@@ -2340,6 +2383,25 @@ function App() {
           } else if (obsolete.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
             if (newMod.status !== 'obsolete') {
               newMod.status = 'obsolete';
+              needsUpdate = true;
+            }
+          } else if (edgeStatus === 'unstable' && newMod.status !== 'unstable') {
+            newMod.status = 'unstable';
+            needsUpdate = true;
+          }
+
+          if (edgeEntry) {
+            if (edgeEntry.game_version && (!Array.isArray(newMod.compatible_versions) || newMod.compatible_versions.length === 0)) {
+              newMod.compatible_versions = [edgeEntry.game_version];
+              needsUpdate = true;
+            }
+            if (Array.isArray(edgeEntry.required_dlc) && edgeEntry.required_dlc.length > 0 && (!Array.isArray(newMod.requiredDLC) || newMod.requiredDLC.length === 0)) {
+              newMod.requiredDLC = edgeEntry.required_dlc;
+              needsUpdate = true;
+            }
+            if (Array.isArray(edgeEntry.dependencies) && edgeEntry.dependencies.length > 0 && (!Array.isArray(newMod.dependencies) || newMod.dependencies.length === 0)) {
+              newMod.dependencies = edgeEntry.dependencies;
+              newMod.requirements = edgeEntry.dependencies;
               needsUpdate = true;
             }
           }
@@ -3654,6 +3716,7 @@ function App() {
                               setIsSupportDeskOpen={() => useModalStore.getState().setIsSupportPanelOpen(true)}
                               setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
                               equipPlaySet={equipPlaySet}
+                              onOpenDossier={setActiveDossier}
                             />
                           </ErrorBoundary>
                         </div>

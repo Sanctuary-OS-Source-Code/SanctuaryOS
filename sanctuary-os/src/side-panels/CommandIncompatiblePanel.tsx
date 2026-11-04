@@ -52,6 +52,7 @@ function getCachedActiveModNames(activeMods: any[]): { list: string[]; exactSet:
       String(m.name || "").toLowerCase(),
       String(m.displayName || "").toLowerCase(),
       m.dbId ? String(m.dbId).toLowerCase() : "",
+      m.hash ? String(m.hash).toLowerCase() : "",
     ];
     for (let j = 0; j < candidates.length; j++) {
       const c = candidates[j];
@@ -118,8 +119,17 @@ export function evaluateModIssues(
       isBroken = false;
     }
   }
+  const hasStaticEdgeVerification = Boolean(
+    mod.manifest_url &&
+      typeof mod.status === "string" &&
+      mod.status.toLowerCase() !== "broken" &&
+      mod.status.toLowerCase() !== "corrupted" &&
+      mod.status.toLowerCase() !== "obsolete"
+  );
   const isNonCompliant =
-    !hasVersionMismatch && (mod.compliance_tier === 3 || mod.compliance_tier === 4);
+    !hasVersionMismatch &&
+    !hasStaticEdgeVerification &&
+    (mod.compliance_tier === 3 || mod.compliance_tier === 4);
 
   if (isBroken || isNonCompliant) {
     addCategory("corrupted");
@@ -1243,17 +1253,12 @@ export function IncompatibleModCard({
                   toggleInActiveSet(m._originalSetName || m.name, true, true);
                 });
               }}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined !text-[15px]">
-                {t("icon_delete", "delete")}
+              <span className="material-symbols-outlined !text-[14px]">
+                {t("icon_remove_circle_outline", "remove_circle_outline")}
               </span>
-              <HoverTooltip
-                className="z-[100] !right-0 !translate-x-0 !left-auto"
-                title={t("btn_remove", "{Remove}")}
-                icon={t("icon_delete", "delete")}
-                variant="danger"
-              />
+              <span>{t("btn_remove", "{Remove}")}</span>
             </button>
           )}
         </div>
@@ -1357,12 +1362,12 @@ export function IncompatibleModCard({
                         className="relative group/gmbtn w-6 h-6 rounded-md hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
                       >
                         <span className="material-symbols-outlined !text-[13px]">
-                          {t("icon_delete", "delete")}
+                          {t("icon_remove_circle_outline", "remove_circle_outline")}
                         </span>
                         <HoverTooltip
                           className="z-[100] !right-0 !translate-x-0 !left-auto"
                           title={t("btn_remove", "{Remove}")}
-                          icon={t("icon_delete", "delete")}
+                          icon={t("icon_remove_circle_outline", "remove_circle_outline")}
                           variant="danger"
                         />
                       </button>
@@ -1637,17 +1642,12 @@ export function ConflictComparisonCard({
                             true
                           );
                         }}
-                        className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                        className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
                       >
-                        <span className="material-symbols-outlined !text-[15px]">
-                          {t("icon_delete", "delete")}
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_remove_circle_outline", "remove_circle_outline")}
                         </span>
-                        <HoverTooltip
-                          className="z-[100] !right-0 !translate-x-0 !left-auto"
-                          title={t("btn_remove", "{Remove}")}
-                          icon={t("icon_delete", "delete")}
-                          variant="danger"
-                        />
+                        <span>{t("btn_remove", "{Remove}")}</span>
                       </button>
                     )
                   ) : Number(ac.conflict?.severity_rank) === 3 ? (

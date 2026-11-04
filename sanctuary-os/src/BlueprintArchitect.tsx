@@ -309,8 +309,8 @@ export default function BlueprintArchitect({
           <PanelHeaderGroup>
             {rawRedMods.length > 0 && (
               <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_corrupted", "Purge {0} Corrupted").replace(
+                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                tooltip={t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(
                   "{0}",
                   String(groupedRedMods.length)
                 )}
@@ -324,8 +324,8 @@ export default function BlueprintArchitect({
             )}
             {rawAmberMods.length > 0 && (
               <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_unstable", "Purge {0} Unstable").replace(
+                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                tooltip={t("bp_purge_unstable", "{Remove} {0} Unstable").replace(
                   "{0}",
                   String(groupedAmberMods.length)
                 )}

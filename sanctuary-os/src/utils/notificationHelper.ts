@@ -11,6 +11,7 @@ export type NotificationCategory =
   | 'defcon'
   | 'alert_banner'
   | 'system_dispatch'
+  | 'mod_alerts'
   | 'new_posts'
   | 'replies'
   | 'support';
@@ -24,6 +25,7 @@ export const SPOKE_NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   'alert_banner',
   'system_dispatch',
   'defcon',
+  'mod_alerts',
   'new_posts',
   'replies',
   'support',
@@ -57,10 +59,22 @@ const LEGACY_KEY_MAP: Record<NotificationCategory, string> = {
   defcon: 'sanctuary_notify_defcon',
   alert_banner: 'sanctuary_notify_alert_banner',
   system_dispatch: 'sanctuary_notify_system_dispatch',
+  mod_alerts: 'sanctuary_notify_mod_alerts',
   new_posts: 'sanctuary_notify_new_posts',
   replies: 'sanctuary_notify_replies',
   support: 'sanctuary_notify_support',
 };
+
+export function getModAlertsBlueprintScope(): string {
+  if (typeof window === 'undefined') return 'ACTIVE';
+  return localStorage.getItem('sanctuary_mod_alerts_bp_scope') || 'ACTIVE';
+}
+
+export function setModAlertsBlueprintScope(scope: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('sanctuary_mod_alerts_bp_scope', scope || 'ACTIVE');
+  window.dispatchEvent(new Event('sanctuary_notification_prefs_changed'));
+}
 
 function getDeliveredSet(): Set<string> {
   if (typeof window === 'undefined') return new Set();

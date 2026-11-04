@@ -111,34 +111,42 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          const loadMatchingTemplates = async () => {
             const matches: any[] = [];
 
+            const rawBuiltIn = (workbenchTemplates as any)?.templates || (workbenchTemplates as any)?.default || workbenchTemplates;
+            const templatesArray = Array.isArray(rawBuiltIn)
+               ? rawBuiltIn
+               : rawBuiltIn
+                  ? [rawBuiltIn]
+                  : [];
+            const builtInMatch = templatesArray.find((tItem: any) => tItem?.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
+
             if (communityDefaults && communityDefaults.length > 0) {
                const commTmpl = communityDefaults.find((d: any) => {
                   const tData = Array.isArray(d.template_data) ? d.template_data[0] : d.template_data;
                   const targetFile = tData?.target_file || d.name;
-                  return targetFile?.toLowerCase() === selectedFile.name.toLowerCase();
+                  return targetFile?.toLowerCase() === selectedFile.name.toLowerCase() ||
+                     (d.name?.toLowerCase() === 'mc settings' && selectedFile.name.toLowerCase() === 'mc_settings.cfg');
                });
                if (commTmpl) {
-                  const tData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
+                  const rawCommData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
+                  const useBuiltInUpgrade = builtInMatch && builtInMatch.template_version === "2.0.0" && rawCommData?.template_version !== "2.0.0";
+                  const tData = useBuiltInUpgrade ? builtInMatch : rawCommData;
+                  const rawLabel = commTmpl.name && commTmpl.name.toLowerCase() !== "mc settings"
+                     ? commTmpl.name
+                     : t("template_builtin", "Sanctuary Default");
                   matches.push({
                      id: commTmpl.id,
-                     label: commTmpl.name || t("template_builtin", "Sanctuary Default"),
+                     label: rawLabel,
                      data: tData,
                      isCommunity: true,
-                     author: commTmpl.author || tData.template_author || t("label_unknown_author", "Unknown Author"),
+                     author: commTmpl.author || tData?.template_author || t("label_unknown_author", "Unknown Author"),
                      authorId: commTmpl.author_id
                   });
                }
             }
 
-            const templatesArray = Array.isArray(workbenchTemplates)
-               ? workbenchTemplates
-               : Array.isArray((workbenchTemplates as any)?.default)
-                  ? (workbenchTemplates as any).default
-                  : workbenchTemplates
-                     ? [workbenchTemplates]
-                     : [];
-            const builtInMatch = templatesArray.find((tItem: any) => tItem?.target_file?.toLowerCase() === selectedFile.name.toLowerCase());
-            if (builtInMatch) matches.push({ id: "built_in", label: t("template_builtin", "Sanctuary Default"), data: builtInMatch });
+            if (builtInMatch && matches.length === 0) {
+               matches.push({ id: "built_in", label: t("template_builtin", "Sanctuary Default"), data: builtInMatch });
+            }
 
             for (const f of files.filter(f => f.name.toLowerCase().endsWith('.json'))) {
                try {

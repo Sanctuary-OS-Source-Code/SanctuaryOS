@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { useModalStore } from "../store/modalStore";
 import { notifyOS } from "../utils/notificationHelper";
 import { precomputeBlueprintConflicts } from "./usePlaySetLogic";
+import { syncDesktopCompanionRadarSnapshot } from "../utils/stagingCrypto";
 
 const recentlyShreddedSet = new Set<string>();
 
@@ -731,6 +732,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                   author: parsedMeta?.artifact?.author || row.mason_id,
                   version: parsedMeta?.artifact?.version,
                   game_version: parsedMeta?.artifact?.game_version,
+                  status:
+                    parsedMeta?.artifact?.status ||
+                    parsedMeta?.status ||
+                    parsedMeta?.atomic_logic?.status,
                   download_url: parsedMeta?.payload?.download_url,
                   sha256: parsedMeta?.payload?.sha256 || row.target_hash,
                   current_hashes: Array.isArray(parsedMeta?.current_hashes)
@@ -1326,6 +1331,35 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           ? modLocalOvr.image_url
           : (modLocalOvr?.imageUrl !== undefined ? modLocalOvr.imageUrl : effectiveDbMod?.image_url);
 
+        const candidateStaticManifestUrl = [
+          modLocalOvr?.manifest_url,
+          modEdgeLogic?.manifest_url,
+          mod.manifest_url,
+          typeof rawDbMod?.url === "string" && /\.json(\?.*)?$/i.test(rawDbMod.url.trim())
+            ? rawDbMod.url.trim()
+            : undefined,
+          typeof rawCloudMatch?.download_url === "string" && /\.json(\?.*)?$/i.test(rawCloudMatch.download_url.trim())
+            ? rawCloudMatch.download_url.trim()
+            : undefined,
+        ].find((u) => typeof u === "string" && u.trim().length > 0);
+
+        const edgeStatusNorm = String(modEdgeLogic?.status || "").toLowerCase().trim();
+        const lowerModHash = String(mod.hash || "").toLowerCase().trim();
+        const edgeCurrentHashes: string[] = Array.isArray(modEdgeLogic?.current_hashes)
+          ? modEdgeLogic.current_hashes.map((h: any) => String(h).toLowerCase().trim())
+          : [];
+        const edgePrevHashes: string[] = Array.isArray(modEdgeLogic?.previous_hashes)
+          ? modEdgeLogic.previous_hashes.map((h: any) => String(h).toLowerCase().trim())
+          : [];
+        const edgeLatestSha = String(modEdgeLogic?.sha256 || "").toLowerCase().trim();
+        const isEdgeOutdated = Boolean(
+          modEdgeLogic &&
+            lowerModHash &&
+            !edgeCurrentHashes.includes(lowerModHash) &&
+            (edgePrevHashes.includes(lowerModHash) ||
+              (edgeLatestSha && edgeLatestSha !== lowerModHash))
+        );
+
         return {
           ...mod,
           ...(modLocalOvr || {}),
@@ -1366,7 +1400,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               return extMatch ? extMatch[1].toLowerCase() : undefined;
             })(),
           url: modLocalOvr?.url || effectiveCloudMatch?.download_url || effectiveDbMod?.url || modEdgeLogic?.download_url || mod.url || null,
-          manifest_url: modLocalOvr?.manifest_url || modEdgeLogic?.manifest_url || mod.manifest_url || undefined,
+          manifest_url: candidateStaticManifestUrl,
           author:
             modLocalOvr?.author ||
             modEdgeLogic?.author ||
@@ -1390,7 +1424,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             ...myChildRels.filter((r: any) => r.relationship_type === "beta" || r.relationship_type === "twin").map((r: any) => String(r.child_id)),
             ...edgeTwins.map((t: any) => String(t.id)),
           ],
-          displayName: modLocalOvr?.displayName || effectiveDbMod?.name || (() => {
+          displayName: modLocalOvr?.displayName || effectiveDbMod?.name || modEdgeLogic?.name || (() => {
             const rawName = mod.name.split(/[\\/]/).pop() || "";
             const base = rawName.replace(extRegex, "").replace(/_/g, " ");
             return base.toUpperCase();
@@ -1400,25 +1434,47 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           is_early_access: modLocalOvr?.is_early_access !== undefined ? modLocalOvr.is_early_access : (effectiveDbMod?.is_early_access || false),
           compliance_tier: detectedComplianceTier,
           mason_id: dbMod?.mason_id || null,
-          status: dbMod
-            ? dbMod.status === "stable" || dbMod.status === "verified"
-              ? t("status_stable", "STABLE")
-              : dbMod.status === "unverified"
-                ? t("unverified", "Unverified")
-                : dbMod.status
-            : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
-              ? "🚫 EXPLICIT LOCAL"
-              : (modEdgeLogic || modLocalOvr?.manifest_url)
-                ? t("status_stable", "STABLE")
-                : t("badge_local", "Local"),
-          color: dbMod
-            ? mod.color
-            : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
-              ? mod.color
-              : (modEdgeLogic || modLocalOvr?.manifest_url)
-                ? "var(--success)"
-                : mod.color,
-          isSynced: !!(dbMod || modEdgeLogic || modLocalOvr?.manifest_url),
+          ...(isEdgeOutdated
+            ? {
+                hasUpdate: true,
+                newVersion: modEdgeLogic?.version || "Update",
+                newGameVersion: modEdgeLogic?.game_version,
+                download_url: modEdgeLogic?.download_url || candidateStaticManifestUrl,
+              }
+            : {}),
+          status:
+            edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted"
+              ? "broken"
+              : edgeStatusNorm === "obsolete"
+                ? "obsolete"
+                : edgeStatusNorm === "unstable"
+                  ? "unstable"
+                  : dbMod
+                    ? dbMod.status === "stable" || dbMod.status === "verified"
+                      ? t("status_stable", "STABLE")
+                      : dbMod.status === "unverified"
+                        ? (modEdgeLogic || candidateStaticManifestUrl)
+                          ? t("status_stable", "STABLE")
+                          : t("unverified", "Unverified")
+                        : dbMod.status
+                    : (modEdgeLogic || candidateStaticManifestUrl)
+                      ? t("status_stable", "STABLE")
+                      : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
+                        ? "🚫 EXPLICIT LOCAL"
+                        : t("badge_local", "Local"),
+          color:
+            edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted" || edgeStatusNorm === "obsolete"
+              ? "var(--danger)"
+              : edgeStatusNorm === "unstable"
+                ? "var(--warning)"
+                : dbMod
+                  ? mod.color
+                  : (modEdgeLogic || candidateStaticManifestUrl)
+                    ? "var(--success)"
+                    : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
+                      ? mod.color
+                      : mod.color,
+          isSynced: !!(dbMod || modEdgeLogic || candidateStaticManifestUrl),
           isLocalOverride: !!modLocalOvr,
           isVirtual: false,
           isGhosted: isDlcMissing || isVersionMismatch,
@@ -1953,12 +2009,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           console.warn("Cache save failed:", cacheErr);
         }
         await yieldToMain();
-        checkNetworkUpdates(finalMasterList);
+        await checkNetworkUpdates(finalMasterList);
         await yieldToMain();
         const stateSnap = useStore.getState();
         const activeBpName = stateSnap.activeSetName || stateSnap.playSets?.[stateSnap.activePlaySetIndex]?.name || stateSnap.playSets?.[0]?.name;
         if (activeBpName) {
           precomputeBlueprintConflicts(activeBpName, undefined, config?.vault_path).catch(() => {});
+        }
+        if (stateSnap.session?.user?.id) {
+          syncDesktopCompanionRadarSnapshot(
+            stateSnap.modList?.length > 0 ? stateSnap.modList : finalMasterList,
+            stateSnap.session,
+            activeBpName,
+            stateSnap.selectedVersion,
+            {
+              playSets: stateSnap.playSets,
+              blueprintsCount: stateSnap.playSets?.length,
+            }
+          ).catch(() => {});
         }
       }, 150);
     } catch (err) {

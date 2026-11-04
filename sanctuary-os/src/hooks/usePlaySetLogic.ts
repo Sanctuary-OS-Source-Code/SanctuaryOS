@@ -1666,11 +1666,18 @@ export function usePlaySetLogic() {
     setPendingImportSet(null);
   }
 
-  async function equipPlaySet(setName: string) {
-    const targetSet = playSets.find((s) => s.name === setName);
+  async function equipPlaySet(setName: string | number, overrideSet?: any) {
+    const latestPlaySets = useStore.getState().playSets || playSets;
+    const targetSet =
+      overrideSet ||
+      (typeof setName === "number"
+        ? latestPlaySets[setName]
+        : latestPlaySets.find((s: any) => s.name === setName) ||
+          playSets.find((s) => s.name === setName));
     if (!targetSet) return;
+    const resolvedSetName = targetSet.name || String(setName);
     setStatus(
-      `${t("status_deploying_prefix", "DEPLOYING: {Blueprint} [")}${setName}${t("status_deploying_suffix", "]...")}`,
+      `${t("status_deploying_prefix", "DEPLOYING: {Blueprint} [")}${resolvedSetName}${t("status_deploying_suffix", "]...")}`,
     );
     await new Promise(resolve => setTimeout(resolve, 50));
     
@@ -1895,15 +1902,16 @@ export function usePlaySetLogic() {
         modsPath: config.mods_path,
         vaultPath: config.vault_path,
       });
-      setActiveSetName(setName);
-      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, setName);
+      setActiveSetName(resolvedSetName);
+      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, resolvedSetName);
       
-      const newIndex = playSets.findIndex((s) => s.name === setName);
+      const currentSets = useStore.getState().playSets || playSets;
+      const newIndex = currentSets.findIndex((s: any) => s.name === resolvedSetName);
       if (newIndex !== -1 && setActivePlaySetIndex) {
         setActivePlaySetIndex(newIndex);
       }
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
-      precomputeBlueprintConflicts(setName, targetSet.mods, config.vault_path).catch(() => {});
+      precomputeBlueprintConflicts(resolvedSetName, targetSet.mods, config.vault_path).catch(() => {});
     } catch (err) {
       const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
       setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${t(errStr, errStr)}`);

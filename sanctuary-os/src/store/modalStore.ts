@@ -134,11 +134,43 @@ interface ModalState {
   downloadsQueue: string[];
   setDownloadsQueue: (val: string[] | ((prev: string[]) => string[])) => void;
 
+  // Guided Batch Update Queue (SidePanelBrowser 1 of N Stepper)
+  guidedBrowserQueue: {
+    id: string;
+    name: string;
+    author?: string;
+    url: string;
+    hash?: string;
+    version?: string;
+    status: "pending" | "completed" | "skipped";
+  }[];
+  guidedBrowserIndex: number;
+  startGuidedBrowserQueue: (
+    items: {
+      id: string;
+      name: string;
+      author?: string;
+      url: string;
+      hash?: string;
+      version?: string;
+      status?: "pending" | "completed" | "skipped";
+    }[]
+  ) => void;
+  advanceGuidedBrowserQueue: (markCurrentAs?: "completed" | "skipped") => {
+    done: boolean;
+    nextItem?: any;
+    nextIndex?: number;
+  };
+  setGuidedBrowserIndex: (idx: number) => void;
+  clearGuidedBrowserQueue: () => void;
+
   // Remote Staging Draft (PWA / Web Payload Editor — Held in Local Device Memory until Sent or Discarded)
   stagingDraftMode: "mod_queue" | "blueprint";
   setStagingDraftMode: (val: "mod_queue" | "blueprint") => void;
   stagingDraftName: string;
   setStagingDraftName: (val: string) => void;
+  stagingTargetDesktopBlueprint: string | null;
+  setStagingTargetDesktopBlueprint: (val: string | null) => void;
   stagingDraftCode: string;
   setStagingDraftCode: (val: string) => void;
   stagingDraftNotes: string;
@@ -149,18 +181,25 @@ interface ModalState {
   setStagingDraftStrategy: (val: "alphabetical" | "numeric_prefix" | "loadorder_txt") => void;
   stagingDraftItems: any[];
   setStagingDraftItems: (val: any[] | ((prev: any[]) => any[])) => void;
+  stagingDraftRemovedItems: any[];
+  setStagingDraftRemovedItems: (val: any[] | ((prev: any[]) => any[])) => void;
   stagingDraftLastSavedAt: string | null;
   savedLocalDrafts: any[];
   saveCurrentDraftLocally: (customName?: string) => void;
   loadSavedLocalDraft: (draftId: string) => void;
   deleteSavedLocalDraft: (draftId: string) => void;
   toggleModInStagingDraft: (mod: any) => boolean;
+  toggleRemoveModInStagingDraft: (mod: any) => boolean;
   stageBlueprintToDraft: (blueprint: any) => void;
   clearStagingDraft: () => void;
 
   // Volatile Desktop Signature Queue (RAM Only — Zero Disk Footprint)
   volatileSignatureQueue: any | null;
   setVolatileSignatureQueue: (val: any | null | ((prev: any | null) => any | null)) => void;
+  volatileSignatureQueues: any[];
+  setVolatileSignatureQueues: (val: any[] | ((prev: any[]) => any[])) => void;
+  activeSignatureQueueIndex: number;
+  setActiveSignatureQueueIndex: (idx: number) => void;
   isSignatureQueueOpen: boolean;
   setIsSignatureQueueOpen: (val: boolean) => void;
 }
@@ -172,7 +211,19 @@ function loadInitialStagingDraft() {
   try {
     const raw = localStorage.getItem(LOCAL_STAGING_DRAFT_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed?.stagingDraftItems) && parsed.stagingDraftItems.length > 200) {
+      localStorage.removeItem(LOCAL_STAGING_DRAFT_KEY);
+      return null;
+    }
+    const hasItems = Array.isArray(parsed?.stagingDraftItems) && parsed.stagingDraftItems.length > 0;
+    const hasRemoved = Array.isArray(parsed?.stagingDraftRemovedItems) && parsed.stagingDraftRemovedItems.length > 0;
+    const hasTarget = Boolean(parsed?.stagingTargetDesktopBlueprint || parsed?.stagingDraftName);
+    if (!hasItems && !hasRemoved && !hasTarget) {
+      localStorage.removeItem(LOCAL_STAGING_DRAFT_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -183,7 +234,9 @@ function loadSavedDraftSnapshots(): any[] {
     const raw = localStorage.getItem(SAVED_LOCAL_DRAFTS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((d: any) => !Array.isArray(d?.items) || d.items.length <= 200)
+      : [];
   } catch {
     return [];
   }
@@ -192,17 +245,19 @@ function loadSavedDraftSnapshots(): any[] {
 function persistActiveStagingDraft(state: {
   stagingDraftMode: "mod_queue" | "blueprint";
   stagingDraftName: string;
+  stagingTargetDesktopBlueprint?: string | null;
   stagingDraftCode: string;
   stagingDraftNotes: string;
   stagingDraftAutoEquip: boolean;
   stagingDraftStrategy: "alphabetical" | "numeric_prefix" | "loadorder_txt";
   stagingDraftItems: any[];
+  stagingDraftRemovedItems?: any[];
 }): string | null {
   try {
     const hasContent =
       (state.stagingDraftItems && state.stagingDraftItems.length > 0) ||
-      !!state.stagingDraftName.trim() ||
-      !!state.stagingDraftNotes.trim();
+      (state.stagingDraftRemovedItems && state.stagingDraftRemovedItems.length > 0) ||
+      Boolean(state.stagingTargetDesktopBlueprint || state.stagingDraftName);
     if (!hasContent) {
       localStorage.removeItem(LOCAL_STAGING_DRAFT_KEY);
       return null;
@@ -449,11 +504,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftMode, stagingDraftLastSavedAt: updatedAt };
     }),
@@ -463,13 +520,31 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftName, stagingDraftLastSavedAt: updatedAt };
+    }),
+  stagingTargetDesktopBlueprint: initialDraft?.stagingTargetDesktopBlueprint || null,
+  setStagingTargetDesktopBlueprint: (stagingTargetDesktopBlueprint) =>
+    set((state) => {
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
+      });
+      return { stagingTargetDesktopBlueprint, stagingDraftLastSavedAt: updatedAt };
     }),
   stagingDraftCode: initialDraft?.stagingDraftCode || "",
   setStagingDraftCode: (stagingDraftCode) =>
@@ -477,11 +552,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftCode, stagingDraftLastSavedAt: updatedAt };
     }),
@@ -491,11 +568,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftNotes, stagingDraftLastSavedAt: updatedAt };
     }),
@@ -508,11 +587,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftAutoEquip, stagingDraftLastSavedAt: updatedAt };
     }),
@@ -526,11 +607,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy,
         stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return { stagingDraftStrategy, stagingDraftLastSavedAt: updatedAt };
     }),
@@ -546,14 +629,41 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: nextItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       return {
         stagingDraftItems: nextItems,
+        stagingDraftLastSavedAt: updatedAt,
+      };
+    }),
+  stagingDraftRemovedItems: Array.isArray(initialDraft?.stagingDraftRemovedItems)
+    ? initialDraft.stagingDraftRemovedItems
+    : [],
+  setStagingDraftRemovedItems: (stagingDraftRemovedItems) =>
+    set((state) => {
+      const nextRemoved =
+        typeof stagingDraftRemovedItems === "function"
+          ? stagingDraftRemovedItems(state.stagingDraftRemovedItems)
+          : stagingDraftRemovedItems;
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: nextRemoved,
+      });
+      return {
+        stagingDraftRemovedItems: nextRemoved,
         stagingDraftLastSavedAt: updatedAt,
       };
     }),
@@ -723,11 +833,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: nextItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       set({
         stagingDraftItems: nextItems,
@@ -756,11 +868,13 @@ export const useModalStore = create<ModalState>((set, get) => ({
       const updatedAt = persistActiveStagingDraft({
         stagingDraftMode: state.stagingDraftMode,
         stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
         stagingDraftCode: state.stagingDraftCode,
         stagingDraftNotes: state.stagingDraftNotes,
         stagingDraftAutoEquip: state.stagingDraftAutoEquip,
         stagingDraftStrategy: state.stagingDraftStrategy,
         stagingDraftItems: nextItems,
+        stagingDraftRemovedItems: state.stagingDraftRemovedItems,
       });
       set({
         stagingDraftItems: nextItems,
@@ -818,14 +932,79 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const updatedAt = persistActiveStagingDraft({
       stagingDraftMode: state.stagingDraftMode,
       stagingDraftName: state.stagingDraftName,
+      stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
       stagingDraftCode: state.stagingDraftCode,
       stagingDraftNotes: state.stagingDraftNotes,
       stagingDraftAutoEquip: state.stagingDraftAutoEquip,
       stagingDraftStrategy: state.stagingDraftStrategy,
       stagingDraftItems: nextItems,
+      stagingDraftRemovedItems: state.stagingDraftRemovedItems,
     });
     set({
       stagingDraftItems: nextItems,
+      stagingDraftLastSavedAt: updatedAt,
+    });
+    return true;
+  },
+  toggleRemoveModInStagingDraft: (mod: any) => {
+    const state = get();
+    const currentRemoved = state.stagingDraftRemovedItems || [];
+    const targetId = String(mod.id || mod.dbId || mod.hash || mod.name || "");
+    const targetHash = String(mod.hash || "");
+    const targetName = String(mod.name || mod.displayName || "");
+    const existsIdx = currentRemoved.findIndex(
+      (item: any) =>
+        (targetId && item.id === targetId) ||
+        (targetHash && item.hash && item.hash === targetHash) ||
+        (targetName && item.name.toLowerCase() === targetName.toLowerCase())
+    );
+    if (existsIdx >= 0) {
+      const nextRemoved = currentRemoved.filter((_: any, i: number) => i !== existsIdx);
+      const updatedAt = persistActiveStagingDraft({
+        stagingDraftMode: state.stagingDraftMode,
+        stagingDraftName: state.stagingDraftName,
+        stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
+        stagingDraftCode: state.stagingDraftCode,
+        stagingDraftNotes: state.stagingDraftNotes,
+        stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+        stagingDraftStrategy: state.stagingDraftStrategy,
+        stagingDraftItems: state.stagingDraftItems,
+        stagingDraftRemovedItems: nextRemoved,
+      });
+      set({
+        stagingDraftRemovedItems: nextRemoved,
+        stagingDraftLastSavedAt: updatedAt,
+      });
+      return false;
+    }
+    const modName = mod.name || mod.displayName || "Unknown Mod";
+    const resolvedAuthor = mod.master_author || mod.author || "";
+    const newItem = {
+      id: targetId || targetName,
+      dbId: mod.dbId || mod.id,
+      name: modName,
+      displayName: mod.displayName || mod.name || "Unknown Mod",
+      hash: targetHash,
+      author: resolvedAuthor,
+      master_author: resolvedAuthor,
+      url: mod.url || "",
+      version: mod.version || "",
+      category: mod.category_override || mod.category || "",
+    };
+    const nextRemoved = [...currentRemoved, newItem];
+    const updatedAt = persistActiveStagingDraft({
+      stagingDraftMode: state.stagingDraftMode,
+      stagingDraftName: state.stagingDraftName,
+      stagingTargetDesktopBlueprint: state.stagingTargetDesktopBlueprint,
+      stagingDraftCode: state.stagingDraftCode,
+      stagingDraftNotes: state.stagingDraftNotes,
+      stagingDraftAutoEquip: state.stagingDraftAutoEquip,
+      stagingDraftStrategy: state.stagingDraftStrategy,
+      stagingDraftItems: state.stagingDraftItems,
+      stagingDraftRemovedItems: nextRemoved,
+    });
+    set({
+      stagingDraftRemovedItems: nextRemoved,
       stagingDraftLastSavedAt: updatedAt,
     });
     return true;
@@ -901,6 +1080,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const nextState = {
       stagingDraftMode: "blueprint" as const,
       stagingDraftName: blueprint?.name || parsedJson?.name || "Staged Blueprint",
+      stagingTargetDesktopBlueprint: null as string | null,
       stagingDraftCode: parsedJson?.code || blueprint?.code || "",
       stagingDraftNotes: blueprint?.description || parsedJson?.notes || "",
       stagingDraftAutoEquip: true,
@@ -909,6 +1089,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
         | "numeric_prefix"
         | "loadorder_txt",
       stagingDraftItems: mappedItems,
+      stagingDraftRemovedItems: [] as any[],
     };
     const updatedAt = persistActiveStagingDraft(nextState);
     set({
@@ -924,7 +1105,9 @@ export const useModalStore = create<ModalState>((set, get) => ({
     }
     set({
       stagingDraftItems: [],
+      stagingDraftRemovedItems: [],
       stagingDraftName: "",
+      stagingTargetDesktopBlueprint: null,
       stagingDraftCode: "",
       stagingDraftNotes: "",
       stagingDraftLastSavedAt: null,
@@ -933,12 +1116,141 @@ export const useModalStore = create<ModalState>((set, get) => ({
 
   volatileSignatureQueue: null,
   setVolatileSignatureQueue: (volatileSignatureQueue) =>
-    set((state) => ({
-      volatileSignatureQueue:
+    set((state) => {
+      const nextVal =
         typeof volatileSignatureQueue === "function"
           ? volatileSignatureQueue(state.volatileSignatureQueue)
-          : volatileSignatureQueue,
-    })),
+          : volatileSignatureQueue;
+      if (!nextVal) {
+        const remaining = state.volatileSignatureQueues.filter(
+          (q: any) => q?.rowId !== state.volatileSignatureQueue?.rowId
+        );
+        return {
+          volatileSignatureQueue: remaining[0] || null,
+          volatileSignatureQueues: remaining,
+          activeSignatureQueueIndex: 0,
+        };
+      }
+      const existingIdx = state.volatileSignatureQueues.findIndex(
+        (q: any) => q?.rowId === nextVal.rowId
+      );
+      const nextQueues =
+        existingIdx >= 0
+          ? state.volatileSignatureQueues.map((q: any, i: number) =>
+              i === existingIdx ? nextVal : q
+            )
+          : [nextVal, ...state.volatileSignatureQueues];
+      return {
+        volatileSignatureQueue: nextVal,
+        volatileSignatureQueues: nextQueues,
+      };
+    }),
+  volatileSignatureQueues: [],
+  setVolatileSignatureQueues: (volatileSignatureQueues) =>
+    set((state) => {
+      const nextQueues =
+        typeof volatileSignatureQueues === "function"
+          ? volatileSignatureQueues(state.volatileSignatureQueues)
+          : volatileSignatureQueues;
+      const clampedIdx =
+        nextQueues.length === 0
+          ? 0
+          : Math.min(state.activeSignatureQueueIndex, nextQueues.length - 1);
+      return {
+        volatileSignatureQueues: nextQueues,
+        activeSignatureQueueIndex: clampedIdx,
+        volatileSignatureQueue: nextQueues[clampedIdx] || null,
+      };
+    }),
+  activeSignatureQueueIndex: 0,
+  setActiveSignatureQueueIndex: (idx: number) =>
+    set((state) => {
+      const queues = state.volatileSignatureQueues || [];
+      const clamped =
+        queues.length === 0 ? 0 : Math.max(0, Math.min(idx, queues.length - 1));
+      return {
+        activeSignatureQueueIndex: clamped,
+        volatileSignatureQueue: queues[clamped] || null,
+      };
+    }),
   isSignatureQueueOpen: false,
   setIsSignatureQueueOpen: (isSignatureQueueOpen) => set({ isSignatureQueueOpen }),
+
+  guidedBrowserQueue: [],
+  guidedBrowserIndex: 0,
+  startGuidedBrowserQueue: (items) => {
+    const valid = (items || [])
+      .filter((it) => it && typeof it.url === "string" && it.url.trim().length > 0)
+      .map((it) => ({
+        ...it,
+        status: it.status || ("pending" as const),
+      }));
+    if (valid.length === 0) return;
+    const first = valid[0];
+    const tabId = `guided_${Date.now()}`;
+    set((state) => ({
+      guidedBrowserQueue: valid,
+      guidedBrowserIndex: 0,
+      browserTabs: [{ id: tabId, url: first.url, title: first.name, sleeping: false }],
+      activeBrowserTabId: tabId,
+      sideBrowserUrl: first.url,
+      sideBrowserTrigger: state.sideBrowserTrigger + 1,
+    }));
+  },
+  advanceGuidedBrowserQueue: (markCurrentAs = "completed") => {
+    const state = get();
+    const queue = [...(state.guidedBrowserQueue || [])];
+    if (queue.length === 0) return { done: true };
+    const curIdx = state.guidedBrowserIndex;
+    if (queue[curIdx]) {
+      queue[curIdx] = { ...queue[curIdx], status: markCurrentAs };
+    }
+    const nextIdx = curIdx + 1;
+    if (nextIdx >= queue.length) {
+      set({ guidedBrowserQueue: queue });
+      return { done: true };
+    }
+    const nextItem = queue[nextIdx];
+    const activeTabId = state.activeBrowserTabId || `guided_${Date.now()}`;
+    const nextTabs =
+      state.browserTabs.length > 0
+        ? state.browserTabs.map((t) =>
+            t.id === activeTabId
+              ? { ...t, url: nextItem.url, title: nextItem.name, sleeping: false }
+              : t
+          )
+        : [{ id: activeTabId, url: nextItem.url, title: nextItem.name, sleeping: false }];
+    set({
+      guidedBrowserQueue: queue,
+      guidedBrowserIndex: nextIdx,
+      browserTabs: nextTabs,
+      activeBrowserTabId: activeTabId,
+      sideBrowserUrl: nextItem.url,
+      sideBrowserTrigger: state.sideBrowserTrigger + 1,
+    });
+    return { done: false, nextItem, nextIndex: nextIdx };
+  },
+  setGuidedBrowserIndex: (idx: number) => {
+    const state = get();
+    const queue = state.guidedBrowserQueue || [];
+    if (idx < 0 || idx >= queue.length) return;
+    const item = queue[idx];
+    const activeTabId = state.activeBrowserTabId || `guided_${Date.now()}`;
+    const nextTabs =
+      state.browserTabs.length > 0
+        ? state.browserTabs.map((t) =>
+            t.id === activeTabId
+              ? { ...t, url: item.url, title: item.name, sleeping: false }
+              : t
+          )
+        : [{ id: activeTabId, url: item.url, title: item.name, sleeping: false }];
+    set({
+      guidedBrowserIndex: idx,
+      browserTabs: nextTabs,
+      activeBrowserTabId: activeTabId,
+      sideBrowserUrl: item.url,
+      sideBrowserTrigger: state.sideBrowserTrigger + 1,
+    });
+  },
+  clearGuidedBrowserQueue: () => set({ guidedBrowserQueue: [], guidedBrowserIndex: 0 }),
 }));

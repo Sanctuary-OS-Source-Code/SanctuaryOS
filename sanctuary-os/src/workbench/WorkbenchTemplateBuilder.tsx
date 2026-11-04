@@ -180,10 +180,15 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
 
    const childTypeOptions = typeOptions.filter((o) => o.id !== "group");
 
+   const resolveIconGlyph = (raw?: string, fallback = "folder") => {
+      const g = (raw || fallback).replace(/^workbench_icon_/, "").replace(/^icon_/, "").trim() || fallback;
+      return t(`icon_${g}`, g);
+   };
+
    const categoryDropdownOptions = categories.map((cat: any) => ({
       id: cat.id,
       label: resolveText(cat.name_key, cat.name || cat.id),
-      icon: resolveText(cat.icon_key, cat.icon || "folder")
+      icon: resolveIconGlyph(cat.icon_key, cat.icon || "folder")
    }));
 
    const getIconForType = (type: string) => {
@@ -614,9 +619,18 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                            <input
                               type={setting.type === "tuple" ? "text" : "number"}
                               placeholder={setting.type === "tuple" ? "-100,100" : "0"}
-                              value={setting.default ?? (setting.type === "tuple" ? "-100,100" : 0)}
+                              value={Array.isArray(setting.default) ? setting.default.join(",") : (setting.default ?? (setting.type === "tuple" ? "-100,100" : 0))}
                               onChange={(e) => updateThisSetting((target) => {
-                                 target.default = setting.type === "tuple" ? e.target.value : Number(e.target.value);
+                                 if (setting.type === "tuple") {
+                                    if (Array.isArray(target.default) || target.tuple_format === "array") {
+                                       const parts = e.target.value.split(",").map((p) => Number(p.trim())).filter((n) => !isNaN(n));
+                                       if (parts.length === 2) target.default = parts;
+                                    } else {
+                                       target.default = e.target.value;
+                                    }
+                                 } else {
+                                    target.default = Number(e.target.value);
+                                 }
                               })}
                               className="h-8 glass-surface rounded-lg px-2.5 text-[11px] font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none"
                            />
@@ -927,7 +941,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                   <div className="flex flex-wrap items-center gap-2">
                      {categories.map((cat: any, cIdx: number) => {
                         const count = settingsList.filter((s) => s.category === cat.id).length;
-                        const iconName = resolveText(cat.icon_key, cat.icon || "folder");
+                        const iconName = resolveIconGlyph(cat.icon_key, cat.icon || "folder");
                         const labelName = resolveText(cat.name_key, cat.name || cat.id);
 
                         return (
@@ -1038,7 +1052,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                            >
                               <div className="flex items-center gap-2 min-w-0">
                                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                                    {resolveText(categories[editingCategoryIndex].icon_key, "folder")}
+                                    {resolveIconGlyph(categories[editingCategoryIndex].icon_key, "folder")}
                                  </span>
                                  <span className="text-[11px] font-mono font-bold truncate">
                                     {categories[editingCategoryIndex].icon_key || "folder"}

@@ -42,12 +42,19 @@ import {
   getSystemNotificationPermissionState,
   requestSystemNotificationPermission,
   notifyOS,
+  getModAlertsBlueprintScope,
+  setModAlertsBlueprintScope,
 } from '../utils/notificationHelper';
 
 export default function NotificationsTab() {
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const workspaces = useStore((state: any) => state.workspaces);
+  const playSets = useStore((state: any) => state.playSets);
+
+  const [modAlertsBpScope, setModAlertsBpScopeState] = useState<string>(() =>
+    getModAlertsBlueprintScope()
+  );
 
   const [availableSpokes, setAvailableSpokes] = useState<
     Array<{ id: string; schema_id: string; name: string; icon?: string }>
@@ -76,6 +83,7 @@ export default function NotificationsTab() {
       defcon: getNotificationMode('defcon', spokeKey),
       alert_banner: getNotificationMode('alert_banner', spokeKey),
       system_dispatch: getNotificationMode('system_dispatch', spokeKey),
+      mod_alerts: getNotificationMode('mod_alerts', spokeKey),
       new_posts: getNotificationMode('new_posts', spokeKey),
       replies: getNotificationMode('replies', spokeKey),
       support: getNotificationMode('support', spokeKey),
@@ -522,6 +530,15 @@ export default function NotificationsTab() {
       ),
       icon: t('icon_shield', 'shield'),
     },
+    {
+      id: 'mod_alerts',
+      title: t('notify_mod_alerts_title', '{Mod} Alerts & Patch Casualties'),
+      subtitle: t(
+        'notify_mod_alerts_desc',
+        'Alerts when installed {mods} in your {Vault} or {Blueprints} have updates available, compatibility warnings, or patch casualties.'
+      ),
+      icon: t('icon_radar', 'radar'),
+    },
   ];
 
   const renderCategoryCard = (card: {
@@ -775,6 +792,39 @@ export default function NotificationsTab() {
       >
         <SettingsGrid>
           {spokeAlertCards.map(renderCategoryCard)}
+          <UniversalCard
+            title={t('notify_mod_alerts_scope_title', '{Mod} Alert {Blueprint} Scope')}
+            subtitle={t(
+              'notify_mod_alerts_scope_desc',
+              'Choose whether {Mod} Alerts monitor only your active {Blueprint}, your entire {Vault}, or a specific {Blueprint}.'
+            )}
+            icon={t('icon_map', 'map')}
+            footer={
+              <CustomSettingsDropdown
+                value={modAlertsBpScope}
+                options={[
+                  {
+                    value: 'ACTIVE',
+                    label: t('staging_desktop_bp_active_badge', 'Active {Blueprint}'),
+                  },
+                  {
+                    value: 'ALL_VAULT',
+                    label: t('filter_all_vault_scope', 'All {Vault}'),
+                  },
+                  ...(Array.isArray(playSets)
+                    ? playSets.map((ps: any) => ({
+                        value: String(ps?.name || 'Blueprint'),
+                        label: `${t('term_blueprint', '{Blueprint}')}: ${String(ps?.name || 'Blueprint')}`,
+                      }))
+                    : []),
+                ]}
+                onChange={(val: string) => {
+                  setModAlertsBpScopeState(val);
+                  setModAlertsBlueprintScope(val);
+                }}
+              />
+            }
+          />
         </SettingsGrid>
       </TabContainer>
 

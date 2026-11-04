@@ -143,6 +143,37 @@ pub fn mark_path_hidden(path: &Path) {
 }
 
 pub fn get_cache_path(vault_path: &str) -> PathBuf {
+    let vp_trimmed = vault_path.trim().trim_end_matches(&['/', '\\'][..]);
+    let raw_p = Path::new(vp_trimmed);
+    // Guard against creating a rogue .sanctuary_cache.db inside the Master Vault root (one level above <schema_id> spokes)
+    if !vp_trimmed.is_empty() && raw_p.join("Data").is_dir() && !raw_p.join("Mods").is_dir() {
+        let global_cfg = crate::commands::state_ops::get_global_config();
+        let active_schema = global_cfg
+            .active_workspace_id
+            .as_deref()
+            .and_then(|aid| {
+                global_cfg
+                    .workspaces
+                    .iter()
+                    .find(|w| w.id.eq_ignore_ascii_case(aid) || w.schema_id.eq_ignore_ascii_case(aid))
+                    .map(|w| w.schema_id.clone())
+            })
+            .or_else(|| global_cfg.workspaces.first().map(|w| w.schema_id.clone()));
+        if let Some(schema_id) = active_schema {
+            if !schema_id.trim().is_empty() {
+                let spoke_dir = raw_p.join(schema_id.trim());
+                if spoke_dir.is_dir() {
+                    let rogue_db = raw_p.join(".sanctuary_cache.db");
+                    if rogue_db.exists() {
+                        let _ = fs::remove_file(&rogue_db);
+                        let _ = fs::remove_file(raw_p.join(".sanctuary_cache.db-wal"));
+                        let _ = fs::remove_file(raw_p.join(".sanctuary_cache.db-shm"));
+                    }
+                    return spoke_dir.join(".sanctuary_cache.db");
+                }
+            }
+        }
+    }
     Path::new(vault_path).join(".sanctuary_cache.db")
 }
 

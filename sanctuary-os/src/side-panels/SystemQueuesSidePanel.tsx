@@ -35,6 +35,8 @@ export function SystemQueuesSidePanel({
     dnaMatchQueue,
     setIsDnaModalOpen,
     volatileSignatureQueue,
+    setVolatileSignatureQueue,
+    setActiveSignatureQueueIndex,
     setIsSignatureQueueOpen,
     stagingDraftItems,
     scoutQueue,
@@ -52,12 +54,27 @@ export function SystemQueuesSidePanel({
     ? quarantineList.length
     : 0;
   const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
-  const sigQueueCount = volatileSignatureQueue?.resolvedItems?.length || 0;
-  const stagingDraftCount = Array.isArray(stagingDraftItems)
-    ? stagingDraftItems.length
-    : 0;
-  const blueprintQueueCount =
-    sigQueueCount > 0 ? sigQueueCount : stagingDraftCount;
+  const volatileSignatureQueues = useModalStore((state) => state.volatileSignatureQueues);
+  const stagingDraftRemovedItems = useModalStore((state) => state.stagingDraftRemovedItems);
+  const totalCloudQueues =
+    Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
+      ? volatileSignatureQueues.length
+      : volatileSignatureQueue
+        ? 1
+        : 0;
+  const sigQueueCount =
+    Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
+      ? volatileSignatureQueues.filter((q: any) => !q?.isCompletedLocally).length
+      : volatileSignatureQueue && !(volatileSignatureQueue as any)?.isCompletedLocally
+        ? 1
+        : 0;
+  const hasStagingDraft =
+    (Array.isArray(stagingDraftItems) &&
+      stagingDraftItems.length > 0 &&
+      stagingDraftItems.length <= 200) ||
+    (Array.isArray(stagingDraftRemovedItems) &&
+      stagingDraftRemovedItems.length > 0);
+  const blueprintQueueCount = sigQueueCount + (hasStagingDraft ? 1 : 0);
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
   const hasAppUpdate = Boolean(updatePayload);
@@ -163,22 +180,39 @@ export function SystemQueuesSidePanel({
     });
   }
 
-  if (blueprintQueueCount > 0) {
+  if (blueprintQueueCount > 0 || totalCloudQueues > 0) {
+    const isAllCompletedLocally = blueprintQueueCount === 0 && totalCloudQueues > 0;
     activeQueues.push({
       id: "signature_queue",
       icon: t("icon_phonelink_ring", "phonelink_ring"),
-      statusColor: "success",
+      statusColor: isAllCompletedLocally ? "accent" : "success",
       title: t("sig_queue_title", "Signature Queue"),
-      subtitle: `${blueprintQueueCount} ${t("term_mods", "{Mods}")}`,
+      subtitle: isAllCompletedLocally
+        ? t("sig_queue_badge_completed_local", "Completed Here • Pending on Other Systems")
+        : `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`,
       description: t(
         "sig_queue_subtitle",
         "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature"
       ),
-      badgeLabel: `${blueprintQueueCount}`,
-      badgeIcon: t("icon_draw", "draw"),
-      badgeColorClass: "text-[var(--success)]",
+      badgeLabel: isAllCompletedLocally
+        ? t("sig_queue_badge_completed_short", "Completed on Rig")
+        : `${blueprintQueueCount}`,
+      badgeIcon: isAllCompletedLocally
+        ? t("icon_task_alt", "task_alt")
+        : t("icon_draw", "draw"),
+      badgeColorClass: isAllCompletedLocally
+        ? "text-[var(--text-muted)]"
+        : "text-[var(--success)]",
       onClick: () => {
-        if (sigQueueCount > 0) {
+        if (sigQueueCount > 0 || totalCloudQueues > 0) {
+          if (Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0) {
+            const firstPendingIdx = volatileSignatureQueues.findIndex(
+              (q: any) => !q?.isCompletedLocally
+            );
+            const targetIdx = firstPendingIdx >= 0 ? firstPendingIdx : 0;
+            setActiveSignatureQueueIndex(targetIdx);
+            setVolatileSignatureQueue(volatileSignatureQueues[targetIdx]);
+          }
           setIsSignatureQueueOpen(true);
         } else {
           setIsBlueprintSwapOpen(true);

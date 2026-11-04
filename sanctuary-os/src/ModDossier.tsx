@@ -1212,21 +1212,29 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
               className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
-                {item.url
-                  ? t("icon_download", "download")
-                  : t("icon_open_in_new", "open_in_new")}
+                {!isDesktop()
+                  ? t("icon_open_in_new", "open_in_new")
+                  : item.url
+                    ? t("icon_download", "download")
+                    : t("icon_open_in_new", "open_in_new")}
               </span>
               <HoverTooltip
                 className="z-[100] !right-0 !translate-x-0 !left-auto"
                 title={
-                  item.url
-                    ? t("btn_download", "Download")
-                    : t("btn_search_web", "Search Web")
+                  !isDesktop()
+                    ? item.url
+                      ? t("btn_view", "View")
+                      : t("btn_search_web", "Search Web")
+                    : item.url
+                      ? t("btn_download", "Download")
+                      : t("btn_search_web", "Search Web")
                 }
                 icon={
-                  item.url
-                    ? t("icon_download", "download")
-                    : t("icon_open_in_new", "open_in_new")
+                  !isDesktop()
+                    ? t("icon_open_in_new", "open_in_new")
+                    : item.url
+                      ? t("icon_download", "download")
+                      : t("icon_open_in_new", "open_in_new")
                 }
               />
             </button>
@@ -3708,14 +3716,22 @@ export default function ModDossier({
                     <ActionButton
                       variant="glass"
                       icon={
-                        mod.url || hasOverrides
-                          ? t("icon_download", "download")
-                          : t("icon_search", "search")
+                        !isDesktop()
+                          ? mod.url || hasOverrides
+                            ? t("icon_open_in_new", "open_in_new")
+                            : t("icon_search", "search")
+                          : mod.url || hasOverrides
+                            ? t("icon_download", "download")
+                            : t("icon_search", "search")
                       }
                       label={
-                        mod.url || hasOverrides
-                          ? t("btn_download", "Download")
-                          : t("btn_search_web", "Search Web")
+                        !isDesktop()
+                          ? mod.url || hasOverrides
+                            ? t("btn_view", "View")
+                            : t("btn_search_web", "Search Web")
+                          : mod.url || hasOverrides
+                            ? t("btn_download", "Download")
+                            : t("btn_search_web", "Search Web")
                       }
                       onClick={() => {
                         const url = getModFallbackUrl(
@@ -4499,14 +4515,22 @@ export default function ModDossier({
                     <ActionButton
                       variant="glass"
                       icon={
-                        kidToRender.url || mod.url
-                          ? t("icon_download", "download")
-                          : t("icon_search", "search")
+                        !isDesktop()
+                          ? kidToRender.url || mod.url
+                            ? t("icon_open_in_new", "open_in_new")
+                            : t("icon_search", "search")
+                          : kidToRender.url || mod.url
+                            ? t("icon_download", "download")
+                            : t("icon_search", "search")
                       }
                       label={
-                        kidToRender.url || mod.url
-                          ? t("btn_download", "Download")
-                          : t("btn_search_web", "Search Web")
+                        !isDesktop()
+                          ? kidToRender.url || mod.url
+                            ? t("btn_view", "View")
+                            : t("btn_search_web", "Search Web")
+                          : kidToRender.url || mod.url
+                            ? t("btn_download", "Download")
+                            : t("btn_search_web", "Search Web")
                       }
                       onClick={() => {
                         const url = getModFallbackUrl(

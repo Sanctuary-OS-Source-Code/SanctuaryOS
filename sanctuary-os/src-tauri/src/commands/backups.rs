@@ -44,6 +44,11 @@ pub async fn sanitize_vault(
         let quarantine_dir = vault_root.join("Quarantine");
         let hidden_quarantine_dir = vault_root.join(".sanctuary_quarantine");
         let master_vault_root = crate::utils::get_master_vault_root(&vault_path);
+        if master_vault_root != vault_root {
+            let _ = std::fs::remove_file(master_vault_root.join(".sanctuary_cache.db"));
+            let _ = std::fs::remove_file(master_vault_root.join(".sanctuary_cache.db-wal"));
+            let _ = std::fs::remove_file(master_vault_root.join(".sanctuary_cache.db-shm"));
+        }
         let master_data_dir = master_vault_root.join("Data");
         let theme_chameleon = master_data_dir.join("Themes");
         let theme_lexicon = master_data_dir.join("Lexicons");

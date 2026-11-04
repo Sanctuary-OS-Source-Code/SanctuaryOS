@@ -25,7 +25,9 @@ export function TitleBar({
   const quarantineList = useStore((state) => state.quarantineList);
   const nexusUpdatesCount = useStore((state) => state.nexusUpdatesCount);
   const volatileSignatureQueue = useModalStore((state) => state.volatileSignatureQueue);
+  const volatileSignatureQueues = useModalStore((state) => state.volatileSignatureQueues);
   const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
+  const stagingDraftRemovedItems = useModalStore((state) => state.stagingDraftRemovedItems);
   const dnaMatchQueue = useModalStore((state) => state.dnaMatchQueue);
   const scoutQueue = useModalStore((state) => state.scoutQueue);
   const updatePayload = useModalStore((state) => state.updatePayload);
@@ -121,9 +123,13 @@ export function TitleBar({
     "Sanctuary OS";
   const activeGameIcon = activeGame?.icon || activeGameSchema?.icon || activeWorkspace?.icon;
 
-  const sigQueueCount = volatileSignatureQueue?.resolvedItems?.length || 0;
-  const stagingDraftCount = Array.isArray(stagingDraftItems) ? stagingDraftItems.length : 0;
-  const blueprintQueueCount = sigQueueCount > 0 ? sigQueueCount : stagingDraftCount;
+  const sigQueueCount = Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
+    ? volatileSignatureQueues.filter((q: any) => !q?.isCompletedLocally).length
+    : (volatileSignatureQueue && !(volatileSignatureQueue as any)?.isCompletedLocally ? 1 : 0);
+  const hasStagingDraft =
+    (Array.isArray(stagingDraftItems) && stagingDraftItems.length > 0 && stagingDraftItems.length <= 200) ||
+    (Array.isArray(stagingDraftRemovedItems) && stagingDraftRemovedItems.length > 0);
+  const blueprintQueueCount = sigQueueCount + (hasStagingDraft ? 1 : 0);
   const quarantineCount = Array.isArray(quarantineList) ? quarantineList.length : 0;
   const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;

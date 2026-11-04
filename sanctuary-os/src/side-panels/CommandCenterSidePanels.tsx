@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import {
   SidePanel,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  ActionButton,
   cleanSearchName,
   getModFallbackUrl,
   getModIcon,
@@ -452,6 +456,49 @@ export function UpdatesSidePanel({
     });
   }, [groupedUpdates, searchQuery]);
 
+  const handleStartGuidedUpdateQueue = () => {
+    const seen = new Set<string>();
+    const guidedItems: {
+      id: string;
+      name: string;
+      author?: string;
+      url: string;
+      hash?: string;
+      version?: string;
+      status: "pending" | "completed" | "skipped";
+    }[] = [];
+
+    filteredUpdates.forEach((u: any, idx: number) => {
+      const title = formatCleanModTitle(u);
+      const targetUrl =
+        u.download_url ||
+        u.url ||
+        getModFallbackUrl(
+          u._groupedTitle || u.displayName || u.name,
+          u.hash,
+          activeGameSchema
+        );
+      if (targetUrl && !seen.has(targetUrl)) {
+        seen.add(targetUrl);
+        guidedItems.push({
+          id: String(u.hash || u.dbId || idx),
+          name: title || u.displayName || u.name || "Unknown Artifact",
+          author: u.author || undefined,
+          url: targetUrl,
+          hash: u.hash || undefined,
+          version: u.newVersion || u.version || undefined,
+          status: "pending",
+        });
+      }
+    });
+
+    if (guidedItems.length === 0) return;
+    const mStore = useModalStore.getState();
+    mStore.startGuidedBrowserQueue(guidedItems);
+    mStore.setIsSideBrowserOpen(true);
+    onClose?.();
+  };
+
   return (
     <SidePanel
       isOpen={isOpen}
@@ -461,6 +508,21 @@ export function UpdatesSidePanel({
       icon={t("icon_update", "update")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[760px]"
+      headerActions={
+        filteredUpdates.length > 0 ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_playlist_play", "playlist_play")}
+              tooltip={t(
+                "guided_queue_start_btn",
+                "Guided Batch Update ({0})"
+              ).replace("{0}", String(filteredUpdates.length))}
+              variant="accent"
+              onClick={handleStartGuidedUpdateQueue}
+            />
+          </PanelHeaderGroup>
+        ) : undefined
+      }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
@@ -476,19 +538,33 @@ export function UpdatesSidePanel({
           badgeIcon={t("icon_update", "update")}
           variant={groupedUpdates.length > 0 ? "accent" : "success"}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <StatBox
-              label={t("updates_avail", "Updates Available")}
-              value={groupedUpdates.length}
-              icon={t("icon_update", "update")}
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("card_files_linked", "Linked Files")}
-              value={(activeUpdates || []).length}
-              icon={t("icon_inventory_2", "inventory_2")}
-              iconColorClass="text-[var(--accent)]"
-            />
+          <div className="flex flex-col gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <StatBox
+                label={t("updates_avail", "Updates Available")}
+                value={groupedUpdates.length}
+                icon={t("icon_update", "update")}
+                iconColorClass="text-[var(--accent)]"
+              />
+              <StatBox
+                label={t("card_files_linked", "Linked Files")}
+                value={(activeUpdates || []).length}
+                icon={t("icon_inventory_2", "inventory_2")}
+                iconColorClass="text-[var(--accent)]"
+              />
+            </div>
+            {filteredUpdates.length > 0 && (
+              <ActionButton
+                variant="primary"
+                icon={t("icon_playlist_play", "playlist_play")}
+                label={t(
+                  "guided_queue_start_btn",
+                  "Guided Batch Update ({0})"
+                ).replace("{0}", String(filteredUpdates.length))}
+                onClick={handleStartGuidedUpdateQueue}
+                className="!h-9 !w-full justify-center !text-[10px]"
+              />
+            )}
           </div>
         </SidePanelHeroCard>
 

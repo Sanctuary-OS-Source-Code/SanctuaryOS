@@ -44,12 +44,30 @@ export default function CommandAlertsPanel({
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const ignoredGlobal = useStore((state: any) => state.ignoredGlobal);
   const showImages = useStore((state: any) => state.showImages);
+  const playSets = useStore((state: any) => state.playSets);
+  const [selectedBpName, setSelectedBpName] = useState<string>("");
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"all" | "broken" | "conflicts">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [radarCacheTick, setRadarCacheTick] = useState(0);
+
+  const effectivePlaySet = useMemo(() => {
+    if (selectedBpName === "ALL_VAULT") {
+      return {
+        name: t("filter_all_vault_scope", "All {Vault}"),
+        mods: (Array.isArray(modList) ? modList : []).map((m: any) => m.name).filter(Boolean),
+      };
+    }
+    if (selectedBpName && Array.isArray(playSets)) {
+      const found = playSets.find(
+        (ps: any) => String(ps?.name || "").toLowerCase() === selectedBpName.toLowerCase()
+      );
+      if (found) return found;
+    }
+    return playSet;
+  }, [selectedBpName, playSets, playSet, modList, t]);
 
   useEffect(() => {
     const handleRadarCacheUpdate = () => setRadarCacheTick((c) => c + 1);
@@ -61,7 +79,7 @@ export default function CommandAlertsPanel({
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
     if (!isOpen) return [];
-    const safeMods = deduplicateBlueprintArtifacts(playSet?.mods, activeGameSchema);
+    const safeMods = deduplicateBlueprintArtifacts(effectivePlaySet?.mods, activeGameSchema);
     const safeList = Array.isArray(modList) ? modList : [];
 
     const exactMatchMap = new Map();
@@ -93,12 +111,12 @@ export default function CommandAlertsPanel({
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [isOpen, playSet?.mods, modList, extRegex, activeGameSchema]);
+  }, [isOpen, effectivePlaySet?.mods, modList, extRegex, activeGameSchema]);
 
   const activeConflicts = useMemo(() => {
     if (!isOpen) return [];
     const allResolved = resolveBlueprintConflicts(
-      playSet?.name,
+      effectivePlaySet?.name,
       activeMods,
       ignoredGlobal,
       t
@@ -108,7 +126,7 @@ export default function CommandAlertsPanel({
         ? Number(c.conflict?.severity_rank) === 4
         : Number(c.conflict?.severity_rank) !== 4
     );
-  }, [isOpen, playSet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
+  }, [isOpen, effectivePlaySet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
 
   const brokenMods = useMemo(() => {
     if (!isOpen) return [];
@@ -262,8 +280,8 @@ export default function CommandAlertsPanel({
           <PanelHeaderGroup>
             {groupedRedMods.length > 0 && (
               <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_corrupted", "Purge {0} Corrupted").replace(
+                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                tooltip={t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(
                   "{0}",
                   String(groupedRedMods.length)
                 )}
@@ -277,8 +295,8 @@ export default function CommandAlertsPanel({
             )}
             {groupedAmberMods.length > 0 && (
               <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_unstable", "Purge {0} Unstable").replace(
+                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                tooltip={t("bp_purge_unstable", "{Remove} {0} Unstable").replace(
                   "{0}",
                   String(groupedAmberMods.length)
                 )}
@@ -302,7 +320,7 @@ export default function CommandAlertsPanel({
               ? t("action_required", "Critical Action Required")
               : t("system_alerts_title", "System Alerts")
           }
-          title={playSet?.name || t("active", "Active")}
+          title={effectivePlaySet?.name || t("active", "Active")}
           description={`${activeMods.length} ${t("term_mods", "Items")} ${t("active", "Active")}`}
           badge={
             totalIssues === 0
@@ -358,47 +376,65 @@ export default function CommandAlertsPanel({
           </div>
         )}
 
-        {totalIssues > 0 && (
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("nav_search", "Search...")}
-            primaryPopover={
-              activeTab !== "conflicts"
-                ? {
-                    icon: t("icon_tune", "tune"),
-                    label: t("filters", "Filters"),
-                    content: (
-                      <div className="flex flex-col gap-4 w-[280px] p-3">
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                            {t("status", "Status")}
-                          </span>
-                          <InlineFilterGroup
-                            value={categoryFilter}
-                            onChange={(v: string) => setCategoryFilter(v)}
-                            options={[
-                              { id: "all", label: t("filter_all", "All") },
-                              { id: "corrupted", label: t("status_corrupted", "Corrupted") },
-                              {
-                                id: "version_mismatch",
-                                label: t("modal_version_mismatch", "Version Mismatch"),
-                              },
-                              {
-                                id: "missing_reqs",
-                                label: t("badge_missing_dep", "Missing Dependency"),
-                              },
-                              { id: "unstable", label: t("label_unstable", "Unstable") },
-                            ]}
-                          />
-                        </div>
-                      </div>
-                    ),
-                  }
-                : undefined
-            }
-          />
-        )}
+        <ActionPill
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchPlaceholder={t("nav_search", "Search...")}
+          primaryPopover={{
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters"),
+            content: (
+              <div className="flex flex-col gap-4 w-[280px] p-3">
+                {Array.isArray(playSets) && playSets.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t("filter_blueprint_scope", "{Blueprint} Scope")}
+                    </span>
+                    <InlineFilterGroup
+                      value={selectedBpName || playSet?.name || ""}
+                      onChange={(v: string) => setSelectedBpName(v)}
+                      options={[
+                        {
+                          id: "ALL_VAULT",
+                          label: t("filter_all_vault_scope", "All {Vault}"),
+                        },
+                        ...playSets.map((ps: any) => ({
+                          id: String(ps?.name || "Blueprint"),
+                          label: String(ps?.name || "Blueprint"),
+                        })),
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {activeTab !== "conflicts" && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t("status", "Status")}
+                    </span>
+                    <InlineFilterGroup
+                      value={categoryFilter}
+                      onChange={(v: string) => setCategoryFilter(v)}
+                      options={[
+                        { id: "all", label: t("filter_all", "All") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                        {
+                          id: "version_mismatch",
+                          label: t("modal_version_mismatch", "Version Mismatch"),
+                        },
+                        {
+                          id: "missing_reqs",
+                          label: t("badge_missing_dep", "Missing Dependency"),
+                        },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            ),
+          }}
+        />
 
         {/* Conflicts Section */}
         {filteredConflicts.length > 0 && (

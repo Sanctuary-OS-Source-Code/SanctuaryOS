@@ -4,12 +4,12 @@ import { ActionPill } from "../../shared";
 function FilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;
   return (
-    <div className="flex flex-col mb-5 w-full last:mb-0">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
-        {title}
-        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+    <div className="flex flex-col mb-4 w-full last:mb-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 mb-2.5 px-1.5 flex items-center gap-2">
+        <span className="text-[var(--text)] opacity-90">{title}</span>
+        <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1"></div>
       </div>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-2 gap-1.5">
         {options.map((opt: any) => {
           const active = value === opt.id;
           return (

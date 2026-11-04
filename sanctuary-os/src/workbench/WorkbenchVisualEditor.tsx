@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
-import { CustomDropdown, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
+import { CustomDropdown, HoverTooltip } from '../shared';
 
 interface WorkbenchVisualEditorProps {
    settings: any[];
@@ -27,11 +27,19 @@ const clampNumber = (v: number, min?: number, max?: number) => {
 };
 
 export const isNumericTupleValue = (val: any): boolean => {
+   if (Array.isArray(val) && val.length === 2 && typeof val[0] === "number" && typeof val[1] === "number") {
+      return true;
+   }
    if (typeof val !== "string") return false;
    return /^\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*$/.test(val);
 };
 
 export const parseNumericTuple = (val: any, fallbackMin = 0, fallbackMax = 0): [number, number] => {
+   if (Array.isArray(val) && val.length >= 2) {
+      const a = Number(val[0]);
+      const b = Number(val[1]);
+      return [isNaN(a) ? fallbackMin : a, isNaN(b) ? fallbackMax : b];
+   }
    if (typeof val === "string" && val.includes(",")) {
       const parts = val.split(",");
       const a = parseFloat(parts[0]?.trim() || "");
@@ -39,6 +47,13 @@ export const parseNumericTuple = (val: any, fallbackMin = 0, fallbackMax = 0): [
       return [isNaN(a) ? fallbackMin : a, isNaN(b) ? fallbackMax : b];
    }
    return [fallbackMin, fallbackMax];
+};
+
+export const resolveSettingDataPath = (parentPath: string, setting: any, parentIsVirtual = false): string => {
+   const localPath = setting?.path || setting?.key || "";
+   if (!localPath) return "";
+   if (!parentPath || parentIsVirtual || setting?.top_level === true) return localPath;
+   return !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
 };
 
 export const countSettingsByCategory = (settings: any[]): Record<string, number> => {
@@ -64,14 +79,14 @@ export const humanizeConfigLabel = (raw: string): string => {
       .trim();
 };
 
-export const isSettingModified = (setting: any, dataSource: any, parentPath = ""): boolean => {
+export const isSettingModified = (setting: any, dataSource: any, parentPath = "", parentIsVirtual = false): boolean => {
    if (!setting || !dataSource) return false;
-   const localPath = setting.path || setting.key;
-   if (!localPath) return false;
-   const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+   const dataPath = resolveSettingDataPath(parentPath, setting, parentIsVirtual);
+   if (!dataPath) return false;
 
    if (setting.type === "group" && Array.isArray(setting.settings)) {
-      return setting.settings.some((child: any) => isSettingModified(child, dataSource, dataPath));
+      const isVirt = Boolean(setting.virtual_group);
+      return setting.settings.some((child: any) => isSettingModified(child, dataSource, isVirt ? "" : dataPath, isVirt));
    }
 
    if (setting.default === undefined) return false;
@@ -80,30 +95,30 @@ export const isSettingModified = (setting: any, dataSource: any, parentPath = ""
    return JSON.stringify(val) !== JSON.stringify(setting.default);
 };
 
-export const countModifiedSettings = (settings: any[], dataSource: any, parentPath = ""): number => {
+export const countModifiedSettings = (settings: any[], dataSource: any, parentPath = "", parentIsVirtual = false): number => {
    if (!Array.isArray(settings) || !dataSource) return 0;
    let count = 0;
    for (const s of settings) {
-      const localPath = s?.path || s?.key;
-      if (!localPath) continue;
-      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+      const dataPath = resolveSettingDataPath(parentPath, s, parentIsVirtual);
+      if (!dataPath) continue;
       if (s.type === "group" && Array.isArray(s.settings)) {
-         count += countModifiedSettings(s.settings, dataSource, dataPath);
-      } else if (isSettingModified(s, dataSource, parentPath)) {
+         const isVirt = Boolean(s.virtual_group);
+         count += countModifiedSettings(s.settings, dataSource, isVirt ? "" : dataPath, isVirt);
+      } else if (isSettingModified(s, dataSource, parentPath, parentIsVirtual)) {
          count++;
       }
    }
    return count;
 };
 
-export const isSettingEditedFromSaved = (setting: any, dataSource: any, savedDataSource: any, parentPath = ""): boolean => {
+export const isSettingEditedFromSaved = (setting: any, dataSource: any, savedDataSource: any, parentPath = "", parentIsVirtual = false): boolean => {
    if (!setting || !dataSource || !savedDataSource) return false;
-   const localPath = setting.path || setting.key;
-   if (!localPath) return false;
-   const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+   const dataPath = resolveSettingDataPath(parentPath, setting, parentIsVirtual);
+   if (!dataPath) return false;
 
    if (setting.type === "group" && Array.isArray(setting.settings)) {
-      return setting.settings.some((child: any) => isSettingEditedFromSaved(child, dataSource, savedDataSource, dataPath));
+      const isVirt = Boolean(setting.virtual_group);
+      return setting.settings.some((child: any) => isSettingEditedFromSaved(child, dataSource, savedDataSource, isVirt ? "" : dataPath, isVirt));
    }
 
    const val = dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource);
@@ -112,16 +127,16 @@ export const isSettingEditedFromSaved = (setting: any, dataSource: any, savedDat
    return JSON.stringify(val) !== JSON.stringify(savedVal);
 };
 
-export const countEditedFromSavedSettings = (settings: any[], dataSource: any, savedDataSource: any, parentPath = ""): number => {
+export const countEditedFromSavedSettings = (settings: any[], dataSource: any, savedDataSource: any, parentPath = "", parentIsVirtual = false): number => {
    if (!Array.isArray(settings) || !dataSource || !savedDataSource) return 0;
    let count = 0;
    for (const s of settings) {
-      const localPath = s?.path || s?.key;
-      if (!localPath) continue;
-      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+      const dataPath = resolveSettingDataPath(parentPath, s, parentIsVirtual);
+      if (!dataPath) continue;
       if (s.type === "group" && Array.isArray(s.settings)) {
-         count += countEditedFromSavedSettings(s.settings, dataSource, savedDataSource, dataPath);
-      } else if (isSettingEditedFromSaved(s, dataSource, savedDataSource, parentPath)) {
+         const isVirt = Boolean(s.virtual_group);
+         count += countEditedFromSavedSettings(s.settings, dataSource, savedDataSource, isVirt ? "" : dataPath, isVirt);
+      } else if (isSettingEditedFromSaved(s, dataSource, savedDataSource, parentPath, parentIsVirtual)) {
          count++;
       }
    }
@@ -137,7 +152,9 @@ const getCleanDescription = (rawDesc: string, label: string) => {
    if (
       lowerDesc === `enable or disable ${lowerLabel}` ||
       lowerDesc === `configure the setting for ${lowerLabel}` ||
+      lowerDesc === `set the numerical value for ${lowerLabel}` ||
       lowerDesc === `configure ${lowerLabel}` ||
+      (lowerDesc.startsWith("configure ") && lowerDesc.includes(" in ")) ||
       lowerDesc === lowerLabel
    ) {
       return "";
@@ -183,6 +200,10 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
          const optLabel = matchedOpt ? resolveText(matchedOpt.label_key, matchedOpt.value) : String(setting.default ?? "");
          return optLabel ? `${t("cw_default_prefix", "Default:")} ${optLabel}` : "";
       }
+      if (Array.isArray(setting.default)) {
+         if (setting.default.length === 0) return t("cw_not_set_default", "Default (Empty)");
+         return `${t("cw_default_prefix", "Default:")} ${setting.default.join(", ")}`;
+      }
       if (setting.default !== undefined && String(setting.default).trim() !== "") {
          return `${t("cw_default_prefix", "Default:")} ${String(setting.default)}`;
       }
@@ -192,8 +213,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
    return (
       <div
          data-setting-key={setting.key}
-         style={{ contentVisibility: 'auto', containIntrinsicSize: isNested ? '56px' : '64px' }}
-         className={`h-full rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative overflow-hidden ${
+         className={`h-full rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative ${
             isHighlighted
                ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_24px_rgba(var(--accent-rgb),0.15)]'
                : isNested
@@ -203,25 +223,25 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
       >
          <div className={`flex ${isCompactHorizontal ? 'items-center justify-between gap-3' : 'flex-col gap-2.5'} relative z-10 w-full`}>
             <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-               <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+               <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-[12.5px] font-bold tracking-wide text-[var(--text)] leading-snug truncate">
                      <HoverTooltip title={`${label} (${setting.key})`} />
                      {label}
                   </span>
                   {setting.risk === "advanced" && (
-                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
-                        <span className="material-symbols-outlined !text-[11px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[10px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
                         <span>{t("advanced_badge", "Advanced")}</span>
                      </span>
                   )}
                   {isUnsavedEdit ? (
-                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
-                        <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
                         <span>{t("unsaved", "Unsaved")}</span>
                      </span>
                   ) : isModified ? (
-                     <span className={`${VAULT_CHIP_CLASS} !h-5 !px-2 !text-[9px]`}>
-                        <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
                         <span>{t("modified", "Modified")}</span>
                      </span>
                   ) : null}
@@ -335,22 +355,23 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                   const [defaultMin, defaultMax] = parseNumericTuple(setting.default, setting.min ?? -100, setting.max ?? 100);
                   const [tupleMin, tupleMax] = parseNumericTuple(effectiveVal, defaultMin, defaultMax);
                   const step = setting.step || 1;
+                  const isArrayTuple = Array.isArray(effectiveVal) || Array.isArray(setting.default) || setting.tuple_format === "array";
                   const updateTuple = (nextMin: number, nextMax: number) => {
                      const clampedMin = clampNumber(nextMin, setting.min, setting.max);
                      const clampedMax = clampNumber(nextMax, setting.min, setting.max);
-                     onVisualChange(dataPath, `${clampedMin},${clampedMax}`);
+                     onVisualChange(dataPath, isArrayTuple ? [clampedMin, clampedMax] : `${clampedMin},${clampedMax}`);
                   };
                   return (
-                     <div className="grid grid-cols-2 gap-2 w-full flex-1">
-                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
-                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
+                     <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full flex-1">
+                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 sm:px-2 py-0.5 min-w-0">
+                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1 shrink-0">
                               {t("workbench_field_min", "Min")}
                            </span>
-                           <div className="flex items-center">
+                           <div className="flex items-center min-w-0">
                               <button
                                  type="button"
                                  onClick={() => updateTuple(tupleMin - step, tupleMax)}
-                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                                 className="w-5.5 h-5.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
                               >
                                  <span className="material-symbols-outlined !text-[13px]">{t("icon_remove", "remove")}</span>
                               </button>
@@ -361,27 +382,27 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                                     const parsed = parseFloat(e.target.value);
                                     if (!isNaN(parsed)) updateTuple(parsed, tupleMax);
                                  }}
-                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
+                                 className="w-10 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
                               />
                               <button
                                  type="button"
                                  onClick={() => updateTuple(tupleMin + step, tupleMax)}
-                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                                 className="w-5.5 h-5.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
                               >
                                  <span className="material-symbols-outlined !text-[13px]">{t("icon_add", "add")}</span>
                               </button>
                            </div>
                         </div>
 
-                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-2 py-0.5">
-                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1">
+                        <div className="flex items-center justify-between glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-1.5 sm:px-2 py-0.5 min-w-0">
+                           <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-70 mr-1 shrink-0">
                               {t("workbench_field_max", "Max")}
                            </span>
-                           <div className="flex items-center">
+                           <div className="flex items-center min-w-0">
                               <button
                                  type="button"
                                  onClick={() => updateTuple(tupleMin, tupleMax - step)}
-                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                                 className="w-5.5 h-5.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
                               >
                                  <span className="material-symbols-outlined !text-[13px]">{t("icon_remove", "remove")}</span>
                               </button>
@@ -392,12 +413,12 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                                     const parsed = parseFloat(e.target.value);
                                     if (!isNaN(parsed)) updateTuple(tupleMin, parsed);
                                  }}
-                                 className="w-12 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
+                                 className="w-10 px-0.5 bg-transparent text-[11px] font-black text-[var(--text)] focus:outline-none text-center tabular-nums"
                               />
                               <button
                                  type="button"
                                  onClick={() => updateTuple(tupleMin, tupleMax + step)}
-                                 className="w-6 h-6 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                                 className="w-5.5 h-5.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] transition-colors cursor-pointer shrink-0"
                               >
                                  <span className="material-symbols-outlined !text-[13px]">{t("icon_add", "add")}</span>
                               </button>
@@ -407,26 +428,55 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                   );
                })()}
 
-               {setting.type === "string" && (
-                  <input
-                     type="text"
-                     value={effectiveVal !== undefined ? effectiveVal : ""}
-                     onChange={(e) => onVisualChange(dataPath, e.target.value)}
-                     placeholder={
-                        setting.default !== undefined && String(setting.default).trim() !== ""
-                           ? String(setting.default)
-                           : t("cw_not_set_default", "Default (Empty)")
-                     }
-                     className={`h-8 glass-surface rounded-xl px-3 text-[11px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-45 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none transition-all ${
-                        isCompactHorizontal ? 'w-[145px] sm:w-[175px]' : 'w-full'
-                     }`}
-                  />
-               )}
+               {setting.type === "string" && (() => {
+                  const isArrayBacked = Array.isArray(effectiveVal) || Array.isArray(setting.default);
+                  const isNumericArray =
+                     setting.value_format === "number_array" ||
+                     (Array.isArray(setting.default) && setting.default.length > 0 && setting.default.every((x: any) => typeof x === "number"));
+                  const displayStr = Array.isArray(effectiveVal)
+                     ? effectiveVal.join(", ")
+                     : (effectiveVal !== undefined ? String(effectiveVal) : "");
+                  const placeholderStr = Array.isArray(setting.default)
+                     ? (setting.default.length > 0 ? setting.default.join(", ") : t("cw_not_set_default", "Default (Empty)"))
+                     : (setting.default !== undefined && String(setting.default).trim() !== ""
+                        ? String(setting.default)
+                        : t("cw_not_set_default", "Default (Empty)"));
+
+                  return (
+                     <input
+                        type="text"
+                        value={displayStr}
+                        onChange={(e) => {
+                           const rawInput = e.target.value;
+                           if (!isArrayBacked) {
+                              onVisualChange(dataPath, rawInput);
+                              return;
+                           }
+                           if (!rawInput.trim()) {
+                              onVisualChange(dataPath, []);
+                              return;
+                           }
+                           const parts = rawInput.split(",").map((p) => p.trim()).filter(Boolean);
+                           if (isNumericArray) {
+                              const nums = parts.map((p) => Number(p)).filter((n) => !isNaN(n));
+                              onVisualChange(dataPath, nums);
+                           } else {
+                              onVisualChange(dataPath, parts);
+                           }
+                        }}
+                        placeholder={placeholderStr}
+                        className={`h-8 glass-surface rounded-xl px-3 text-[11px] font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-45 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none transition-all ${
+                           isCompactHorizontal ? 'w-[145px] sm:w-[175px]' : 'w-full'
+                        }`}
+                     />
+                  );
+               })()}
 
                {setting.type === "dropdown" && (
-                  <div className={isCompactHorizontal ? 'w-[155px] sm:w-[185px]' : 'w-full flex-1'}>
+                  <div className={isCompactHorizontal ? 'w-[175px] sm:w-[215px]' : 'w-full flex-1'}>
                      <CustomDropdown
                         disableTint={true}
+                        menuMinWidth={240}
                         value={effectiveVal !== undefined ? effectiveVal : ""}
                         options={
                            setting.options?.map((opt: any) => ({
@@ -566,22 +616,30 @@ const GroupNode = ({
    resolveText,
    t
 }: any) => {
-   const [isCollapsed, setIsCollapsed] = useState(false);
+   const [isCollapsed, setIsCollapsed] = useState(() => Boolean(setting.default_collapsed));
+   const isVirtualGroup = Boolean(setting.virtual_group);
+   const effectiveParentPath = isVirtualGroup ? "" : dataPath;
    const childSettings: any[] = Array.isArray(setting.settings) ? setting.settings : [];
-   const modifiedCount = countModifiedSettings(childSettings, dataSource, dataPath);
-   const unsavedCount = countEditedFromSavedSettings(childSettings, dataSource, savedDataSource, dataPath);
+   const modifiedCount = countModifiedSettings(childSettings, dataSource, effectiveParentPath, isVirtualGroup);
+   const unsavedCount = countEditedFromSavedSettings(childSettings, dataSource, savedDataSource, effectiveParentPath, isVirtualGroup);
 
    const rawLabel = resolveText(setting.label_key, setting.key);
    const label = humanizeConfigLabel(rawLabel);
    const rawDesc = resolveText(setting.desc_key, "");
    const cleanDesc = getCleanDescription(rawDesc, label);
 
+   const groupIcon = setting.icon_key
+      ? t(`icon_${setting.icon_key}`, setting.icon_key)
+      : t("icon_account_tree", "account_tree");
+
+   const effectiveCollapsed = (Boolean(searchQuery?.trim()) || onlyModified || onlyUnsaved) ? false : isCollapsed;
+
    const handleResetGroup = (e: React.MouseEvent) => {
       e.stopPropagation();
       for (const child of childSettings) {
-         const childLocal = child.path || child.key;
-         if (!childLocal || child.default === undefined) continue;
-         const childPath = dataPath && !childLocal.startsWith(dataPath + ".") ? `${dataPath}.${childLocal}` : childLocal;
+         if (child.default === undefined) continue;
+         const childPath = resolveSettingDataPath(effectiveParentPath, child, isVirtualGroup);
+         if (!childPath) continue;
          onVisualChange(childPath, child.default);
       }
    };
@@ -590,9 +648,8 @@ const GroupNode = ({
       e.stopPropagation();
       if (!savedDataSource) return;
       for (const child of childSettings) {
-         const childLocal = child.path || child.key;
-         if (!childLocal) continue;
-         const childPath = dataPath && !childLocal.startsWith(dataPath + ".") ? `${dataPath}.${childLocal}` : childLocal;
+         const childPath = resolveSettingDataPath(effectiveParentPath, child, isVirtualGroup);
+         if (!childPath) continue;
          const savedVal = childPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource);
          if (savedVal !== undefined) {
             if (onUndoToSaved) {
@@ -606,34 +663,33 @@ const GroupNode = ({
 
    return (
       <div
-         style={{ contentVisibility: 'auto', containIntrinsicSize: '120px' }}
          className="col-span-full flex flex-col w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-hidden transition-colors duration-200 shadow-sm"
       >
          <div
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={() => setIsCollapsed(!effectiveCollapsed)}
             className="px-4 py-3 flex items-center justify-between gap-4 cursor-pointer bg-[color-mix(in_srgb,var(--text)_2%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors select-none"
          >
             <div className="flex items-center gap-3 min-w-0">
                <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                     {t("icon_account_tree", "account_tree")}
+                     {groupIcon}
                   </span>
                </div>
                <div className="flex flex-col min-w-0 gap-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
                      <span className="text-[12.5px] font-black capitalize tracking-tight text-[var(--text)]">{label}</span>
-                     <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-outlined !text-[11px] text-[var(--subtext)]">{t("icon_tune", "tune")}</span>
+                     <span className="shrink-0 inline-flex items-center gap-1 h-5 px-2 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] text-[9.5px] font-bold tracking-wide leading-none whitespace-nowrap">
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_tune", "tune")}</span>
                         <span className="tabular-nums">{childSettings.length} {t("workbench_settings_count", "Settings")}</span>
                      </span>
                      {unsavedCount > 0 && (
-                        <span className={VAULT_CHIP_CLASS}>
+                        <span className="shrink-0 inline-flex items-center gap-1 h-5 px-2 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] text-[9.5px] font-bold tracking-wide leading-none whitespace-nowrap">
                            <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
                            <span className="tabular-nums">{unsavedCount} {t("unsaved", "Unsaved")}</span>
                         </span>
                      )}
                      {modifiedCount > 0 && (
-                        <span className={VAULT_CHIP_CLASS}>
+                        <span className="shrink-0 inline-flex items-center gap-1 h-5 px-2 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9.5px] font-bold tracking-wide leading-none whitespace-nowrap">
                            <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
                            <span className="tabular-nums">{modifiedCount} {t("modified", "Modified")}</span>
                         </span>
@@ -672,13 +728,13 @@ const GroupNode = ({
                )}
                <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center text-[var(--subtext)]">
                   <span className="material-symbols-outlined !text-[16px]">
-                     {isCollapsed ? t("icon_expand_more", "expand_more") : t("icon_expand_less", "expand_less")}
+                     {effectiveCollapsed ? t("icon_expand_more", "expand_more") : t("icon_expand_less", "expand_less")}
                   </span>
                </div>
             </div>
          </div>
 
-         {!isCollapsed && (
+         {!effectiveCollapsed && (
             <div className="p-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 @[440px]:grid-cols-2 @[680px]:grid-cols-3 gap-2.5 items-stretch">
                <WorkbenchVisualEditor
                   settings={childSettings}
@@ -686,7 +742,7 @@ const GroupNode = ({
                   savedDataSource={savedDataSource}
                   isPreview={isPreview}
                   isNested={true}
-                  parentPath={dataPath}
+                  parentPath={effectiveParentPath}
                   selectedCategory={selectedCategory}
                   searchQuery={searchQuery}
                   onlyModified={onlyModified}
@@ -790,9 +846,9 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
    const displayedSettings = isNested ? filteredSettings : filteredSettings.slice(0, visibleLimit);
 
    const renderSettingItem = (setting: any, idx: number) => {
-      const localPath = setting.path || setting.key;
+      const dataPath = resolveSettingDataPath(parentPath, setting);
 
-      if (!localPath) {
+      if (!dataPath) {
          return (
             <div key={idx} className="col-span-full p-4 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl">
                <span className="text-red-400 text-xs font-black tracking-widest capitalize">{t("err_invalid_setting", "Invalid Setting Object")}</span>
@@ -800,7 +856,6 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
          );
       }
 
-      const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
       const val = dataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource) : undefined;
       const savedVal = savedDataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource) : undefined;
 
@@ -850,29 +905,11 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
       return <>{displayedSettings.map((s, idx) => renderSettingItem(s, idx))}</>;
    }
 
-   const groupItems: { setting: any; idx: number }[] = [];
-   const leafItems: { setting: any; idx: number }[] = [];
-   displayedSettings.forEach((setting, idx) => {
-      if (setting?.type === "group") {
-         groupItems.push({ setting, idx });
-      } else {
-         leafItems.push({ setting, idx });
-      }
-   });
-
    return (
       <div className="w-full @container flex flex-col gap-3">
-         {groupItems.length > 0 && (
-            <div className="flex flex-col gap-2.5 w-full">
-               {groupItems.map(({ setting, idx }) => renderSettingItem(setting, idx))}
-            </div>
-         )}
-
-         {leafItems.length > 0 && (
-            <div className="grid grid-cols-1 @[620px]:grid-cols-2 gap-2.5 items-stretch w-full">
-               {leafItems.map(({ setting, idx }) => renderSettingItem(setting, idx))}
-            </div>
-         )}
+         <div className="grid grid-cols-1 @[620px]:grid-cols-2 gap-2.5 items-stretch w-full">
+            {displayedSettings.map((setting, idx) => renderSettingItem(setting, idx))}
+         </div>
 
          {visibleLimit < filteredSettings.length && (
             <div ref={loadMoreRef} className="w-full py-4 flex items-center justify-center">

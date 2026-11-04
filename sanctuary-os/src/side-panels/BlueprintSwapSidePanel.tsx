@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   SidePanel,
   EmptyState,
@@ -10,6 +10,12 @@ import {
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
+import { isDesktop } from "../utils/envUtils";
+import {
+  fetchEncryptedVaultCompanionSnapshots,
+  VaultCompanionDesktopBlueprint,
+} from "../utils/stagingCrypto";
 
 interface BlueprintSwapSidePanelProps {
   isOpen: boolean;
@@ -23,10 +29,101 @@ export default function BlueprintSwapSidePanel({
   equipPlaySet,
 }: BlueprintSwapSidePanelProps) {
   const { t } = useLexicon();
-  const { playSets, activePlaySetIndex, setActivePlaySetIndex, activeGameSchema } = useStore();
+  const {
+    playSets,
+    activePlaySetIndex,
+    setActivePlaySetIndex,
+    activeGameSchema,
+    session,
+    setView,
+  } = useStore();
+  const {
+    setStagingDraftMode,
+    setStagingDraftName,
+    setStagingTargetDesktopBlueprint,
+    stagingTargetDesktopBlueprint,
+  } = useModalStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [companionBlueprints, setCompanionBlueprints] = useState<
+    VaultCompanionDesktopBlueprint[]
+  >([]);
+
+  useEffect(() => {
+    if (!isOpen || isDesktop() || !session?.user?.id) return;
+    let active = true;
+    fetchEncryptedVaultCompanionSnapshots(session).then((snaps) => {
+      if (!active) return;
+      const latest = snaps[0];
+      if (Array.isArray(latest?.desktopBlueprints)) {
+        setCompanionBlueprints(latest.desktopBlueprints);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, session?.user?.id]);
+
+  const effectivePlaySets = useMemo(() => {
+    if (!isDesktop() && companionBlueprints.length > 0) {
+      return companionBlueprints.map((bp) => ({
+        name: bp.name,
+        code: bp.code,
+        isActive: bp.isActive,
+        modsCount: bp.modsCount,
+        artifacts: bp.artifacts || [],
+        mods: bp.artifacts || [],
+      }));
+    }
+    if (Array.isArray(playSets) && playSets.length > 0) {
+      return playSets;
+    }
+    return companionBlueprints.map((bp) => ({
+      name: bp.name,
+      code: bp.code,
+      isActive: bp.isActive,
+      modsCount: bp.modsCount,
+      artifacts: bp.artifacts || [],
+      mods: bp.artifacts || [],
+    }));
+  }, [playSets, companionBlueprints]);
+
+  const effectiveActiveIndex = useMemo(() => {
+    if (!isDesktop()) {
+      if (stagingTargetDesktopBlueprint) {
+        const targetIdx = effectivePlaySets.findIndex(
+          (bp: any) =>
+            String(bp?.name || "").toLowerCase() ===
+            stagingTargetDesktopBlueprint.toLowerCase()
+        );
+        if (targetIdx >= 0) return targetIdx;
+      }
+      const idx = effectivePlaySets.findIndex((bp: any) => bp.isActive);
+      return idx >= 0 ? idx : 0;
+    }
+    return activePlaySetIndex;
+  }, [
+    playSets,
+    activePlaySetIndex,
+    effectivePlaySets,
+    stagingTargetDesktopBlueprint,
+  ]);
 
   const handleSelect = async (index: number) => {
+    const selected = effectivePlaySets[index];
+    if (!selected) return;
+    if (!isDesktop()) {
+      setStagingDraftMode("blueprint");
+      setStagingDraftName(selected.name);
+      setStagingTargetDesktopBlueprint(selected.name);
+      window.dispatchEvent(
+        new CustomEvent("sanctuary-select-desktop-blueprint", {
+          detail: selected,
+        })
+      );
+      onClose();
+      setView("playsets");
+      return;
+    }
     setActivePlaySetIndex(index);
     if (equipPlaySet && playSets && playSets[index]) {
       await equipPlaySet(playSets[index].name);
@@ -34,21 +131,22 @@ export default function BlueprintSwapSidePanel({
   };
 
   const indexedPlaySets = useMemo(() => {
-    const safe = Array.isArray(playSets) ? playSets : [];
     const q = searchQuery.trim().toLowerCase();
-    return safe
+    return effectivePlaySets
       .map((bp: any, index: number) => ({ bp, index }))
       .filter(({ bp }) => {
         if (!q) return true;
         return String(bp?.name || "").toLowerCase().includes(q);
       });
-  }, [playSets, searchQuery]);
+  }, [effectivePlaySets, searchQuery]);
 
-  const activePlaySet = playSets?.[activePlaySetIndex];
-  const activeModCount = useMemo(
-    () => countBlueprintArtifacts(activePlaySet?.mods, activeGameSchema),
-    [activePlaySet?.mods, activeGameSchema]
-  );
+  const activePlaySet = effectivePlaySets?.[effectiveActiveIndex];
+  const activeModCount = useMemo(() => {
+    if (typeof activePlaySet?.modsCount === "number") {
+      return activePlaySet.modsCount;
+    }
+    return countBlueprintArtifacts(activePlaySet?.mods, activeGameSchema);
+  }, [activePlaySet, activeGameSchema]);
 
   const activeSetName = useMemo(() => {
     if (!activePlaySet?.name) return t("none", "None");
@@ -74,12 +172,12 @@ export default function BlueprintSwapSidePanel({
           overline={t("stat_blueprints", "Active {Blueprint}")}
           title={activeSetName}
           description={`${activeModCount} ${t("term_mods", "Items")}`}
-          badge={`${(playSets || []).length} ${t("playsets_title", "{Blueprints}")}`}
+          badge={`${effectivePlaySets.length} ${t("playsets_title", "{Blueprints}")}`}
           badgeIcon={t("icon_layers", "layers")}
           variant="accent"
         />
 
-        {playSets && playSets.length > 0 && (
+        {effectivePlaySets.length > 0 && (
           <ActionPill
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -87,7 +185,7 @@ export default function BlueprintSwapSidePanel({
           />
         )}
 
-        {!playSets || indexedPlaySets.length === 0 ? (
+        {effectivePlaySets.length === 0 || indexedPlaySets.length === 0 ? (
           <EmptyState
             icon={t("icon_scan_delete", "scan_delete")}
             title={t("bp_no_blueprints_found", "No {Blueprints} Found")}
@@ -99,11 +197,14 @@ export default function BlueprintSwapSidePanel({
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {indexedPlaySets.map(({ bp, index }) => {
-                const isActive = activePlaySetIndex === index;
+                const isActive = effectiveActiveIndex === index;
                 const rawName = String(bp.name || "");
                 const cleanName =
                   rawName.replace(/\s*\(imported\)\s*$/i, "").trim() || rawName;
-                const itemCount = countBlueprintArtifacts(bp.mods, activeGameSchema);
+                const itemCount =
+                  typeof bp.modsCount === "number"
+                    ? bp.modsCount
+                    : countBlueprintArtifacts(bp.mods, activeGameSchema);
 
                 return (
                   <div

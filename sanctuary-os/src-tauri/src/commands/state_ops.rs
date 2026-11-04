@@ -18,12 +18,37 @@ pub fn get_global_config() -> SolderConfig {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Ok(mut config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
+                    let mut healed = false;
+                    if let Some(mv) = config.vault_path.clone() {
+                        let mv_trimmed = mv.trim().trim_end_matches(&['/', '\\'][..]);
+                        if !mv_trimmed.is_empty() {
+                            let mv_path = std::path::PathBuf::from(mv_trimmed);
+                            for ws in config.workspaces.iter_mut() {
+                                if ws.master_vault_path.as_deref() != Some(mv_trimmed) {
+                                    ws.master_vault_path = Some(mv_trimmed.to_string());
+                                    healed = true;
+                                }
+                                let ws_vp_trimmed =
+                                    ws.vault_path.trim().trim_end_matches(&['/', '\\'][..]);
+                                if !ws.schema_id.trim().is_empty()
+                                    && (ws_vp_trimmed.is_empty()
+                                        || ws_vp_trimmed.eq_ignore_ascii_case(mv_trimmed))
+                                {
+                                    let spoke_vp =
+                                        mv_path.join(&ws.schema_id).to_string_lossy().to_string();
+                                    if ws.vault_path != spoke_vp {
+                                        ws.vault_path = spoke_vp;
+                                        healed = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // Auto-heal any workspace whose live_path or mods_path was accidentally cloned from the primary workspace
                     if config.workspaces.len() > 1 {
                         let first_schema = config.workspaces[0].schema_id.to_lowercase();
                         let first_live = config.workspaces[0].live_path.clone();
                         let first_mods = config.workspaces[0].mods_path.clone();
-                        let mut healed = false;
                         for ws in config.workspaces.iter_mut().skip(1) {
                             if ws.schema_id.to_lowercase() != first_schema {
                                 if !first_live.is_empty() && ws.live_path == first_live {
@@ -36,10 +61,10 @@ pub fn get_global_config() -> SolderConfig {
                                 }
                             }
                         }
-                        if healed {
-                            if let Ok(healed_json) = serde_json::to_string_pretty(&config) {
-                                let _ = fs::write(&path, healed_json);
-                            }
+                    }
+                    if healed {
+                        if let Ok(healed_json) = serde_json::to_string_pretty(&config) {
+                            let _ = fs::write(&path, healed_json);
                         }
                     }
                     return config;

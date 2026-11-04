@@ -5,7 +5,7 @@ import { useLexicon } from './LexiconContext';
 import { isRootDomain, scrollToLandingSection, getActiveLandingTab, normalizeLandingTab } from './utils/routingUtils';
 import { isDesktop } from './utils/envUtils';
 import { usePwaInstall, PwaInstallPrompt } from './utils/pwaManager';
-import { supabase } from './supabase';
+import { getActiveGameClient } from './supabase';
 import { openSanctuaryLogin } from './AuthWrapper';
 
 function MobileNavItem({
@@ -83,8 +83,12 @@ export function MobileBottomNav({
   const session = useStore((state) => state.session);
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
+  const stagingDraftRemovedItems = useModalStore((state) => state.stagingDraftRemovedItems);
+  const volatileSignatureQueue = useModalStore((state) => state.volatileSignatureQueue);
+  const volatileSignatureQueues = useModalStore((state) => state.volatileSignatureQueues);
   const masonActiveTab = useStore((state: any) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state: any) => state.setMasonActiveTab);
   const architectActiveTab = useStore((state: any) => state.architectActiveTab);
@@ -127,21 +131,22 @@ export function MobileBottomNav({
   const [isMasonRecordVerified, setIsMasonRecordVerified] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.id) {
+    const gameClient = getActiveGameClient();
+    if (!session?.user?.id || !gameClient) {
       setHasLinkedMasonRecord(false);
       setIsMasonRecordVerified(false);
       return;
     }
-    supabase
+    gameClient
       .from('masons')
       .select('id, is_verified')
-      .eq('owner_id', session.user.id)
-      .limit(1)
+      .eq('profile_id', session.user.id)
+      .maybeSingle()
       .then(({ data }) => {
-        setHasLinkedMasonRecord(Boolean(data && data.length > 0));
-        setIsMasonRecordVerified(Boolean(data?.[0]?.is_verified));
+        setHasLinkedMasonRecord(Boolean(data));
+        setIsMasonRecordVerified(Boolean(data?.is_verified));
       });
-  }, [session?.user?.id]);
+  }, [session?.user?.id, activeWorkspaceId]);
 
   const isVerifiedMason =
     (hasLinkedMasonRecord && isMasonRecordVerified) ||
@@ -198,11 +203,23 @@ export function MobileBottomNav({
     if (localStorage.getItem("sanctuary_blacklisted") !== "true") {
       tabs.push({ id: 'nexus', icon: t("icon_hub", "hub"), label: t("market_title", "The {Nexus}") });
       if (schemaFeatures.has_cc) {
+        const hasLocalDraft =
+          (Array.isArray(stagingDraftItems) &&
+            stagingDraftItems.length > 0 &&
+            stagingDraftItems.length <= 200) ||
+          (Array.isArray(stagingDraftRemovedItems) &&
+            stagingDraftRemovedItems.length > 0);
+        const cloudQueuesCount =
+          Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
+            ? volatileSignatureQueues.filter((q: any) => !q?.isCompletedLocally).length
+            : volatileSignatureQueue && !(volatileSignatureQueue as any)?.isCompletedLocally
+              ? 1
+              : 0;
         tabs.push({
           id: 'playsets',
           icon: t("icon_map", "map"),
           label: t("playsets_title", "{Blueprints}"),
-          badge: (stagingDraftItems || []).length,
+          badge: (hasLocalDraft ? 1 : 0) + cloudQueuesCount,
         });
       }
       tabs.push({ id: 'GlobalFeed', icon: t("icon_satellite_alt", "satellite_alt"), label: t("feed_title", "Feed") });

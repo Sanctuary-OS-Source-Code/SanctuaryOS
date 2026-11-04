@@ -1,6 +1,8 @@
 import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
+import { useStore } from '../store';
+import { useModalStore } from '../store/modalStore';
 import { ActionButton, HoverTooltip } from '../shared';
 
 export function SidePanelBrowserDownloads({
@@ -107,6 +109,35 @@ export function SidePanelBrowserDownloads({
                           targetFolder: null,
                           moveOriginal,
                         });
+                        const mState = useModalStore.getState();
+                        if (mState.guidedBrowserQueue.length > 0) {
+                          const res = mState.advanceGuidedBrowserQueue("completed");
+                          if (res.done) {
+                            useStore
+                              .getState()
+                              .pushStatus(
+                                t(
+                                  "guided_queue_completed_toast",
+                                  "Guided Update Queue complete! All {0} {mods} processed."
+                                ).replace("{0}", String(mState.guidedBrowserQueue.length)),
+                                "success"
+                              );
+                            mState.clearGuidedBrowserQueue();
+                          } else if (res.nextItem) {
+                            useStore
+                              .getState()
+                              .pushStatus(
+                                t(
+                                  "guided_queue_advanced_toast",
+                                  "Verified archive! Advancing to {0} ({1} of {2})..."
+                                )
+                                  .replace("{0}", res.nextItem.name || "")
+                                  .replace("{1}", String((res.nextIndex || 0) + 1))
+                                  .replace("{2}", String(mState.guidedBrowserQueue.length)),
+                                "info"
+                              );
+                          }
+                        }
                       } catch (err) {
                         console.error("Failed to ingest file", err);
                       }

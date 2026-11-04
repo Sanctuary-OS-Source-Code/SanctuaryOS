@@ -2,13 +2,15 @@ import React, { useState, useEffect } from "react";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown, isSupportedExtension, deduplicateBlueprintArtifacts, stripPriorityTierPrefix } from "./shared";
+import { DashboardStatTile, ViewHeader, getExtensionRegex, HoverTooltip, stripMarkdown, isSupportedExtension, deduplicateBlueprintArtifacts, stripPriorityTierPrefix, compareVersions } from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
 import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
 
 import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
+import VaultCompanionRadarSidePanel from "./side-panels/VaultCompanionRadarSidePanel";
+import { fetchEncryptedVaultCompanionSnapshots, syncDesktopCompanionRadarSnapshot, VaultCompanionSnapshot, VaultCompanionArtifact } from "./utils/stagingCrypto";
 import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
 import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
 import { evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
@@ -19,7 +21,7 @@ import { CommunitySupportSidePanel } from "./side-panels/CommunitySupportSidePan
 import { extractDispatchMetadata, formatDispatchCategory } from "./components/universal/DispatchPollAndMeta";
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
-  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet
+  modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet, onOpenDossier
 }: any) {
   const { t } = useLexicon();
   const ownedDLC = useStore((state) => state.ownedDLC);
@@ -33,7 +35,11 @@ export default function CommandCenter({
   const ignoredGlobal = useStore((state) => state.ignoredGlobal);
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const { setShowUpdatesModal, setIsConflictRadarOpen, setIsBlueprintSwapOpen } = useModalStore();
+  const {
+    setShowUpdatesModal,
+    setIsConflictRadarOpen,
+    setIsBlueprintSwapOpen,
+  } = useModalStore();
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
@@ -52,6 +58,92 @@ export default function CommandCenter({
     return "-";
   });
   const [ticketCount, setTicketCount] = useState<number | "-">("-");
+  const [companionSnapshots, setCompanionSnapshots] = useState<VaultCompanionSnapshot[]>([]);
+  const [isCompanionRadarOpen, setIsCompanionRadarOpen] = useState(false);
+  const [companionRadarInitialFilter, setCompanionRadarInitialFilter] = useState<
+    "ISSUES" | "CRITICAL" | "ALERTS" | "UPDATES" | "ALL"
+  >("ISSUES");
+
+  useEffect(() => {
+    if (isDesktop() || !session?.user?.id) return;
+    let cancelled = false;
+    fetchEncryptedVaultCompanionSnapshots(session).then((snaps) => {
+      if (!cancelled) setCompanionSnapshots(snaps);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  const activeCompanionSnapshot = React.useMemo(
+    () => (companionSnapshots.length > 0 ? companionSnapshots[0] : null),
+    [companionSnapshots]
+  );
+
+  const enrichedCompanionArtifacts = React.useMemo(() => {
+    if (!activeCompanionSnapshot?.artifacts) return [];
+    return activeCompanionSnapshot.artifacts.map((art: VaultCompanionArtifact) => {
+      const rawStatus = String(art.status || "stable").toLowerCase();
+      const isBroken =
+        art.alertType === "critical" ||
+        rawStatus.includes("broken") ||
+        rawStatus.includes("corrupt") ||
+        rawStatus.includes("obsolete");
+      const isAlert =
+        art.alertType === "alert" ||
+        (!isBroken && rawStatus.includes("unstable"));
+      const cleanLocalVer = String(art.version || "")
+        .toLowerCase()
+        .replace(/^v/, "")
+        .trim();
+      const cleanLatestVer = String(art.newVersion || "")
+        .toLowerCase()
+        .replace(/^v/, "")
+        .trim();
+      const verCmp =
+        cleanLatestVer && cleanLocalVer
+          ? compareVersions(cleanLatestVer, cleanLocalVer)
+          : 0;
+      const hasUpdate = Boolean(
+        art.hasUpdate && (!cleanLocalVer || !cleanLatestVer || verCmp > 0)
+      );
+      return {
+        ...art,
+        newVersion:
+          art.newVersion &&
+          (!cleanLocalVer || compareVersions(art.newVersion, cleanLocalVer) > 0)
+            ? art.newVersion
+            : undefined,
+        isBroken,
+        alertType: isBroken ? "critical" : isAlert ? "alert" : undefined,
+        hasUpdate,
+        needsAttention: isBroken || isAlert || hasUpdate,
+      };
+    });
+  }, [activeCompanionSnapshot]);
+
+  const companionCriticalCount = React.useMemo(
+    () =>
+      activeCompanionSnapshot?.criticalCount ??
+      enrichedCompanionArtifacts.filter((a) => a.isBroken).length,
+    [activeCompanionSnapshot, enrichedCompanionArtifacts]
+  );
+  const companionAlertsCount = React.useMemo(
+    () =>
+      activeCompanionSnapshot?.alertsCount ??
+      enrichedCompanionArtifacts.filter((a) => a.alertType === "alert").length,
+    [activeCompanionSnapshot, enrichedCompanionArtifacts]
+  );
+  const companionUpdatesCount = React.useMemo(
+    () =>
+      activeCompanionSnapshot?.updatesCount ??
+      enrichedCompanionArtifacts.filter((a) => a.hasUpdate).length,
+    [activeCompanionSnapshot, enrichedCompanionArtifacts]
+  );
+  const companionVaultCount = React.useMemo(
+    () => activeCompanionSnapshot?.vaultCount ?? enrichedCompanionArtifacts.length,
+    [activeCompanionSnapshot, enrichedCompanionArtifacts]
+  );
 
   const vaultItemCount = React.useMemo(() => {
     if (!Array.isArray(modList) || modList.length === 0) return 0;
@@ -319,11 +411,9 @@ export default function CommandCenter({
       }));
     return groupUpdateMods(rawUpdates);
   }, [activeBlueprintMods, modList, networkUpdates, activePlaySet]);
-  const activeBrokenCounts = React.useMemo(() => {
+  const groupedBrokenAndAlertMods = React.useMemo(() => {
     const hasLoadedMods = Array.isArray(modList) && modList.length > 0;
-    if (!hasLoadedMods && cachedStoreBrokenCounts && (cachedStoreBrokenCounts.broken > 0 || cachedStoreBrokenCounts.unstable > 0)) {
-      return cachedStoreBrokenCounts;
-    }
+    if (!hasLoadedMods) return [];
     const evaluated = activeBlueprintMods
       .map((mod: any) =>
         evaluateModIssues(mod, {
@@ -336,9 +426,15 @@ export default function CommandCenter({
         })
       )
       .filter(Boolean);
+    return groupBrokenMods(evaluated);
+  }, [activeBlueprintMods, modList, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
-    const grouped = groupBrokenMods(evaluated);
-    return grouped.reduce(
+  const activeBrokenCounts = React.useMemo(() => {
+    const hasLoadedMods = Array.isArray(modList) && modList.length > 0;
+    if (!hasLoadedMods && cachedStoreBrokenCounts && (cachedStoreBrokenCounts.broken > 0 || cachedStoreBrokenCounts.unstable > 0)) {
+      return cachedStoreBrokenCounts;
+    }
+    return groupedBrokenAndAlertMods.reduce(
       (acc: { broken: number; unstable: number }, m: any) => {
         if (m._alert_type === "red") acc.broken += 1;
         else if (m._alert_type === "amber") acc.unstable += 1;
@@ -346,7 +442,7 @@ export default function CommandCenter({
       },
       { broken: 0, unstable: 0 }
     );
-  }, [activeBlueprintMods, modList, cachedStoreBrokenCounts, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
+  }, [groupedBrokenAndAlertMods, modList, cachedStoreBrokenCounts]);
 
   const [radarCacheTick, setRadarCacheTick] = React.useState(0);
   React.useEffect(() => {
@@ -425,6 +521,91 @@ export default function CommandCenter({
   const radarTier3Count = activeConflictCount.tier3 || 0;
   const radarBrokenCount = activeBrokenCounts.broken || 0;
   const radarUnstableCount = activeBrokenCounts.unstable || 0;
+
+  // Automatically sync exact Desktop Command Center telemetry to encrypted Zero-Knowledge Cloud Companion
+  useEffect(() => {
+    if (!isDesktop() || !session?.user?.id || !Array.isArray(modList) || modList.length === 0 || vaultItemCount === 0) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const brokenItems = groupedBrokenAndAlertMods.filter((m: any) => m._alert_type === "red");
+      const unstableItems = groupedBrokenAndAlertMods.filter((m: any) => m._alert_type === "amber");
+
+      const fatalConflictItems: any[] = [];
+      const tuningConflictItems: any[] = [];
+      try {
+        const scopeKey = activeSetName || activePlaySet?.name || "";
+        const cachedRaw = scopeKey ? localStorage.getItem(`sanctuary_radar_cache_${scopeKey}`) : null;
+        if (cachedRaw) {
+          const parsedCache = JSON.parse(cachedRaw);
+          const fatalList = Array.isArray(parsedCache?.fatal) ? parsedCache.fatal : [];
+          const tuningList = Array.isArray(parsedCache?.tuning) ? parsedCache.tuning : [];
+          const cloneList = Array.isArray(parsedCache?.clone) ? parsedCache.clone : [];
+
+          fatalList
+            .filter((c: any) => !ignoredGlobal.includes(c.mod_pair))
+            .forEach((c: any, idx: number) => {
+              const nameA = String(c.mod_a || c.modA || c.mod_pair || `Conflict ${idx + 1}`);
+              const nameB = String(c.mod_b || c.modB || "");
+              fatalConflictItems.push({
+                hash: `conflict_fatal_${idx}_${nameA}`,
+                name: nameA,
+                displayName: nameB ? `${nameA} ↔ ${nameB}` : nameA,
+                status: "broken",
+                _issue_label: "Fatal Conflict",
+              });
+            });
+
+          [...tuningList, ...cloneList]
+            .filter((c: any) => !ignoredGlobal.includes(c.mod_pair))
+            .forEach((c: any, idx: number) => {
+              const nameA = String(c.mod_a || c.modA || c.mod_pair || `Conflict ${idx + 1}`);
+              const nameB = String(c.mod_b || c.modB || "");
+              tuningConflictItems.push({
+                hash: `conflict_tuning_${idx}_${nameA}`,
+                name: nameA,
+                displayName: nameB ? `${nameA} ↔ ${nameB}` : nameA,
+                status: "unstable",
+                _issue_label: "Tuning Conflict",
+              });
+            });
+        }
+      } catch {}
+
+      const criticalItems = [...brokenItems, ...fatalConflictItems];
+      const alertItems = [...unstableItems, ...tuningConflictItems];
+
+      syncDesktopCompanionRadarSnapshot(
+        modList,
+        session,
+        activeSetName || activePlaySet?.name,
+        selectedVersion,
+        {
+          vaultCount: vaultItemCount,
+          criticalCount: radarTier4Count + radarBrokenCount,
+          alertsCount: radarTier3Count + radarUnstableCount,
+          updatesCount: radarUpdatesCount,
+          blueprintsCount: playSets?.length || 0,
+          criticalItems,
+          alertItems,
+          updateItems: activeUpdates,
+          playSets: Array.isArray(playSets) ? playSets : [],
+        }
+      ).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [
+    session?.user?.id,
+    vaultItemCount,
+    radarTier4Count,
+    radarBrokenCount,
+    radarTier3Count,
+    radarUnstableCount,
+    radarUpdatesCount,
+    activeSetName,
+    selectedVersion,
+    playSets?.length,
+  ]);
 
   let radarState = "optimal";
   if (radarTier4Count > 0 || radarBrokenCount > 0) {
@@ -596,7 +777,72 @@ export default function CommandCenter({
           );
         }
 
-        if (hasSymlinkPerms !== false && radarState === 'optimal') {
+        if (!isDesktop()) {
+          if (companionCriticalCount > 0) {
+            systemTiles.push(
+              <DashboardStatTile
+                key="mobile_radar_critical"
+                icon={<span className="material-symbols-outlined ">{t("icon_gpp_bad", "gpp_bad")}</span>}
+                number={companionCriticalCount}
+                label={t("crit_fail", "critical failures") || "Critical Failures"}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] shadow-[0_0_15px_color-mix(in_srgb,var(--danger)_10%,transparent)] animate-pulse w-full"
+                onClick={() => {
+                  setCompanionRadarInitialFilter("CRITICAL");
+                  setIsCompanionRadarOpen(true);
+                }}
+              />
+            );
+          }
+          if (companionAlertsCount > 0) {
+            systemTiles.push(
+              <DashboardStatTile
+                key="mobile_radar_alerts"
+                icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>}
+                number={companionAlertsCount}
+                label={t("system_alerts_title", "System Alerts") || "System Alerts"}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] shadow-[0_0_15px_color-mix(in_srgb,var(--warning)_10%,transparent)] w-full"
+                onClick={() => {
+                  setCompanionRadarInitialFilter("ALERTS");
+                  setIsCompanionRadarOpen(true);
+                }}
+              />
+            );
+          }
+          if (companionUpdatesCount > 0) {
+            systemTiles.push(
+              <DashboardStatTile
+                key="mobile_radar_updates"
+                icon={<span className="material-symbols-outlined ">{t("icon_update", "update")}</span>}
+                number={companionUpdatesCount}
+                label={t("updates_avail", "Updates Available") || "Updates Available"}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] !border-[color-mix(in_srgb,var(--accent)_30%,transparent)] !text-[var(--accent)] shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_10%,transparent)] w-full"
+                onClick={() => {
+                  setCompanionRadarInitialFilter("UPDATES");
+                  setIsCompanionRadarOpen(true);
+                }}
+              />
+            );
+          }
+          if (companionCriticalCount === 0 && companionAlertsCount === 0 && companionUpdatesCount === 0) {
+            systemTiles.push(
+              <DashboardStatTile
+                key="mobile_radar_stable"
+                icon={<span className="material-symbols-outlined ">{t("icon_check_circle", "check_circle")}</span>}
+                number="0"
+                label={t("sys_stable", "System Stable")}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--success)_10%,transparent)] !border-[color-mix(in_srgb,var(--success)_20%,transparent)] !text-[var(--success)]"
+                onClick={() => {
+                  setCompanionRadarInitialFilter("ALL");
+                  setIsCompanionRadarOpen(true);
+                }}
+              />
+            );
+          }
+        } else if (hasSymlinkPerms !== false && radarState === 'optimal') {
           systemTiles.push(
             <DashboardStatTile
               key="stable"
@@ -611,7 +857,7 @@ export default function CommandCenter({
         }
 
         const normalStatsElements = [
-          isDesktop() && (
+          isDesktop() ? (
             <DashboardStatTile
               key="vault"
               icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
@@ -620,7 +866,19 @@ export default function CommandCenter({
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
             />
-          ),
+          ) : activeCompanionSnapshot ? (
+            <DashboardStatTile
+              key="mobile_vault"
+              icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
+              number={companionVaultCount}
+              label={t("vault_title", "Your {Vault}")}
+              colorClass="text-[var(--accent)]"
+              onClick={() => {
+                setCompanionRadarInitialFilter("ALL");
+                setIsCompanionRadarOpen(true);
+              }}
+            />
+          ) : null,
           <DashboardStatTile
             key="nexus"
             icon={<span className="material-symbols-outlined ">{t("icon_hub", "hub")}</span>}
@@ -629,7 +887,7 @@ export default function CommandCenter({
             colorClass="text-[var(--text)]"
             onClick={() => { if (setView) setView("nexus"); }}
           />,
-          isDesktop() && (
+          isDesktop() ? (
             <DashboardStatTile
               key="blueprints"
               icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
@@ -638,7 +896,18 @@ export default function CommandCenter({
               colorClass="text-[var(--accent)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
             />
-          ),
+          ) : activeCompanionSnapshot ? (
+            <DashboardStatTile
+              key="mobile_blueprints"
+              icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
+              number={activeCompanionSnapshot.blueprintsCount ?? activeCompanionSnapshot.desktopBlueprints?.length ?? 0}
+              label={t("playsets_title", "{Blueprints}")}
+              colorClass="text-[var(--accent)]"
+              onClick={() => {
+                setIsBlueprintSwapOpen(true);
+              }}
+            />
+          ) : null,
           <div key="support" className="relative group/ticket flex-1 flex min-w-0">
             {!session && (
               <HoverTooltip
@@ -660,7 +929,7 @@ export default function CommandCenter({
           </div>
         ];
 
-        if (systemTiles.length > 1) {
+        if (isDesktop() && systemTiles.length > 1) {
           return (
             <>
               <div className="mb-4">
@@ -845,6 +1114,20 @@ export default function CommandCenter({
         vaultPath={modsPath}
         toggleInActiveSet={toggleInActiveSet}
       />
+
+      {!isDesktop() && (
+        <VaultCompanionRadarSidePanel
+          isOpen={isCompanionRadarOpen}
+          onClose={() => setIsCompanionRadarOpen(false)}
+          snapshot={activeCompanionSnapshot}
+          enrichedArtifacts={enrichedCompanionArtifacts}
+          initialFilter={companionRadarInitialFilter}
+          onOpenDossier={onOpenDossier}
+          onNavigateToBlueprints={() => {
+            if (setView) setView("playsets");
+          }}
+        />
+      )}
     </div>
   );
 }

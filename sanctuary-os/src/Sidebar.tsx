@@ -102,8 +102,14 @@ export function Sidebar({
       setIsMasonRecordVerified(false);
       return;
     }
-    import('./supabase').then(({ supabase }) => {
-      supabase.from('masons').select('id, is_verified').eq('profile_id', session.user.id).maybeSingle().then(({ data }) => {
+    import('./supabase').then(({ getActiveGameClient }) => {
+      const gameClient = getActiveGameClient();
+      if (!gameClient) {
+        setHasLinkedMasonRecord(false);
+        setIsMasonRecordVerified(false);
+        return;
+      }
+      gameClient.from('masons').select('id, is_verified').eq('profile_id', session.user.id).maybeSingle().then(({ data }) => {
         setHasLinkedMasonRecord(!!data);
         setIsMasonRecordVerified(!!data?.is_verified);
       });

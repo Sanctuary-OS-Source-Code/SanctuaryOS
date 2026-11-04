@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, ActionButton, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
@@ -18,8 +18,9 @@ import {
   DynamicBlueprintPreviewBanner,
   DynamicTemplatePreviewBanner,
   DynamicArtifactPreviewBanner,
+  resolveThemePreviewData,
 } from "./chameleon-components/ThemeCard";
-import { uploadThemeAssetsToCloud } from "./chameleon-components/ChameleonShared";
+import { uploadThemeAssetsToCloud, getLuminance } from "./chameleon-components/ChameleonShared";
 
 
 
@@ -206,12 +207,20 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   useEffect(() => {
     if (marketTab === 'HOME' && !isOffline) {
       const fetchHomeData = async () => {
-        const isCacheFresh = window.__sanctuaryCache!.nexus!.homeStats && window.__sanctuaryCache!.nexus!.lastHomeFetch > 0 && (performance.now() - window.__sanctuaryCache!.nexus!.lastHomeFetch < CACHE_TTL);
+        const cachedFeed = window.__sanctuaryCache!.nexus!.recentFeed || [];
+        const hasIncompleteSuiteCache = cachedFeed.some(
+          (item: any) => (item.familyCount || 0) > 1 && (item.flavors?.length || 0) < 2
+        );
+        const isCacheFresh =
+          !hasIncompleteSuiteCache &&
+          window.__sanctuaryCache!.nexus!.homeStats &&
+          window.__sanctuaryCache!.nexus!.lastHomeFetch > 0 &&
+          (performance.now() - window.__sanctuaryCache!.nexus!.lastHomeFetch < CACHE_TTL);
 
         // Stale-While-Revalidate: Show cache immediately if we have it
-        if (window.__sanctuaryCache!.nexus!.homeStats) {
+        if (window.__sanctuaryCache!.nexus!.homeStats && !hasIncompleteSuiteCache) {
           setStats(window.__sanctuaryCache!.nexus!.homeStats);
-          setRecentFeed((window.__sanctuaryCache!.nexus!.recentFeed || []).filter((item: any) => item.is_public !== false));
+          setRecentFeed(cachedFeed.filter((item: any) => item.is_public !== false));
           setLoadingHome(false);
         }
 
@@ -291,6 +300,22 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             ]);
             const fetchedParents: any[] = fetchedParentsRes.data || [];
 
+            const siblingIdsToFetch = Array.from(new Set(
+              (allSiblings || [])
+                .map((s: any) => s.child_id)
+                .filter((id: any) => id && !modIds.includes(id) && !parentIdsToFetch.includes(id))
+            ));
+            let fetchedSiblings: any[] = [];
+            if (siblingIdsToFetch.length > 0) {
+              const { data: sibData } = await supabase
+                .from('mods')
+                .select(selectFields)
+                .in('id', siblingIdsToFetch.slice(0, 200))
+                .eq('compliance_tier', 0)
+                .neq('status', 'unverified');
+              fetchedSiblings = sibData || [];
+            }
+
             const trueFamilyCounts = new Map();
             allSiblings?.forEach((s: any) => {
               trueFamilyCounts.set(s.parent_id, (trueFamilyCounts.get(s.parent_id) || 0) + 1);
@@ -300,9 +325,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               trueSetCounts.set(s.set_id, (trueSetCounts.get(s.set_id) || 0) + 1);
             });
 
-            const allModsForFeed = [...recentModsRaw, ...fetchedParents];
+            const allModsForFeed = [...recentModsRaw, ...fetchedParents, ...fetchedSiblings];
             const modMap = new Map(allModsForFeed.map(m => [m.id, m]));
             const groupedMods = new Map();
+
+            const pushUniqueFlavor = (flavorsArr: any[], candidate: any) => {
+              if (!candidate) return;
+              const cid = String(candidate.id || "");
+              if (cid && flavorsArr.some((f: any) => String(f.id || "") === cid)) return;
+              flavorsArr.push(candidate);
+            };
 
             recentModsRaw.forEach(mod => {
               const colMember = collections?.find(c => c.mod_id === mod.id);
@@ -324,7 +356,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     flavors: [mod]
                   });
                 } else {
-                  groupedMods.get(`ccset_${col.id}`).flavors.push(mod);
+                  pushUniqueFlavor(groupedMods.get(`ccset_${col.id}`).flavors, mod);
                 }
               } else {
                 const rel = relationsAsChild?.find(r => r.child_id === mod.id);
@@ -332,13 +364,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                   const parent = modMap.get(rel.parent_id);
                   if (parent) {
                     if (!groupedMods.has(parent.id)) {
+                      const initFlavors: any[] = [];
+                      pushUniqueFlavor(initFlavors, { ...parent });
+                      pushUniqueFlavor(initFlavors, mod);
                       groupedMods.set(parent.id, {
                         ...parent,
                         created_at: mod.created_at,
                         isParent: true,
                         isVirtual: true,
                         familyCount: (trueFamilyCounts.get(parent.id) || 0) + 1,
-                        flavors: [mod]
+                        flavors: initFlavors
                       });
                     } else {
                       const existingParent = groupedMods.get(parent.id);
@@ -347,7 +382,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         existingParent.isParent = true;
                         existingParent.isVirtual = true;
                       }
-                      existingParent.flavors.push(mod);
+                      pushUniqueFlavor(existingParent.flavors, mod);
                     }
                   } else {
                     groupedMods.set(mod.id, mod);
@@ -361,13 +396,29 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         isParent: true,
                         isVirtual: true,
                         familyCount: (trueFamilyCounts.get(mod.id) || 0) + 1,
-                        flavors: [mod]
+                        flavors: [{ ...mod }]
                       });
+                    } else {
+                      const existingParent = groupedMods.get(mod.id);
+                      if (!existingParent.flavors) {
+                        existingParent.flavors = [];
+                      }
+                      if (!existingParent.flavors.some((f: any) => String(f.id) === String(mod.id))) {
+                        existingParent.flavors.unshift({ ...mod });
+                      }
                     }
                   } else {
                     if (!groupedMods.has(mod.id)) groupedMods.set(mod.id, mod);
                   }
                 }
+              }
+            });
+
+            allSiblings?.forEach((s: any) => {
+              const parentEntry = groupedMods.get(s.parent_id);
+              const sibMod = modMap.get(s.child_id);
+              if (parentEntry && parentEntry.flavors && sibMod) {
+                pushUniqueFlavor(parentEntry.flavors, sibMod);
               }
             });
 
@@ -1478,12 +1529,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const FilterSection = ({ title, options, value, onChange, multiSelect }: any) => {
     if (!options || options.length === 0) return null;
     return (
-      <div className="flex flex-col mb-5 w-full last:mb-0">
-        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2 px-1 flex items-center gap-2">
-          {title}
-          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+      <div className="flex flex-col mb-4 w-full last:mb-0">
+        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 mb-2.5 px-1.5 flex items-center gap-2">
+          <span className="text-[var(--text)] opacity-90">{title}</span>
+          <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1"></div>
         </div>
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-2 gap-1.5">
           {options.map((opt: any) => {
             const active = multiSelect ? (value || []).includes(opt.id) : value === opt.id;
             return (
@@ -1853,26 +1904,31 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           </div>
 
                           <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                            <div className="w-full glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                            <div
+                              className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {/* Header */}
-                              <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
-                                <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
-                                    <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
+                              <div className="flex flex-wrap gap-3 sm:gap-4 items-center justify-between pb-4 sm:pb-5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-20 w-full">
+                                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
                                   </div>
-                                  <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-3">
-                                      <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-none">
-                                        {formatDisplayName(item.displayName || item.name || item.title)}
-                                      </h3>
+                                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                                    <h3 className="text-base sm:text-xl md:text-2xl font-black text-[var(--text)] tracking-tight leading-tight truncate">
+                                      {formatDisplayName(item.displayName || item.name || item.title)}
+                                    </h3>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
+                                        <span>
+                                          {t("nav_exploring", "Exploring")} {(item.flavors || []).length} {t("term_mods", "Mods")}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
-                                      <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree", "account_tree")}</span>
-                                      {t("nav_exploring", "Exploring")} {(item.flavors || []).length} {t("term_mods", "Mods")}
-                                    </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
+                                <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto relative z-30">
                                   <div
                                     className="relative flex-1 md:w-72 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center px-3.5 gap-2.5 transition-colors"
                                     onClick={(e) => e.stopPropagation()}
@@ -1924,29 +1980,27 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               </div>
 
                               {/* Content Area */}
-                              <div className="flex flex-col xl:flex-row gap-10 relative z-10">
-                                <div className="w-full xl:w-[350px] shrink-0 flex flex-col relative pointer-events-none">
-                                  <div className="w-full relative">
-                                    {renderedCard}
-                                    <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-[50px] rounded-full pointer-events-none z-[-1]" />
-                                  </div>
-                                </div>
-                                <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
-
-                                <div className="flex-1 min-w-0">
-                                  <DeferredRender>
-                                    <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
-                                      {(item.flavors || [])
-                                        .filter((flavor: any) => {
-                                          if (!drawerSearchQuery) return true;
-                                          const query = drawerSearchQuery.toLowerCase();
-                                          return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
-                                        })
-                                        .map((flavor: any, subIdx: number) => (
+                              <div className="w-full relative z-10">
+                                <DeferredRender>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[520px] xl:max-h-[600px] overflow-y-auto custom-scrollbar pr-1 pt-1 pb-2">
+                                    {(item.flavors || [])
+                                      .filter((flavor: any) => {
+                                        if (!drawerSearchQuery) return true;
+                                        const query = drawerSearchQuery.toLowerCase().replace(/[_\-\.\/]+/g, ' ').replace(/\s+/g, ' ').trim();
+                                        const target = `${flavor.displayName || ""} ${flavor.name || ""} ${flavor.master_author || flavor.author || ""}`.toLowerCase().replace(/[_\-\.\/]+/g, ' ').replace(/\s+/g, ' ');
+                                        return target.includes(query);
+                                      })
+                                      .map((flavor: any, subIdx: number) => {
+                                        const flavorIsScript =
+                                          String(flavor.file_extension || "").toLowerCase().includes("script") ||
+                                          String(flavor.category_override || "").toLowerCase() === "script" ||
+                                          String(flavor.sub_type || "").toLowerCase() === "script" ||
+                                          String(flavor.name || "").toLowerCase().includes("ts4script");
+                                        return (
                                           <div
-                                            key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                            key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}
                                             onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
                                           >
                                             <div
                                               className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -1976,22 +2030,51 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                               <p className="text-[8px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
                                                 {flavor.master_author || item.master_author || "Unknown Creator"}{(flavor.latest_version || flavor.version) ? ` • ${flavor.latest_version || flavor.version}` : ""}
                                               </p>
-                                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                              <div className="flex flex-wrap items-center gap-1.5 mt-1 mb-2">
                                                 <div className={chipClass}>
                                                   <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                                                    {flavorIsScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                   </span>
                                                   <span className="text-[var(--subtext)]">
-                                                    {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("type_script", "Script") : t("type_package", "Package")}
+                                                    {flavorIsScript ? t("type_script", "Script") : t("type_package", "Package")}
                                                   </span>
                                                 </div>
                                               </div>
+                                              {!isDesktop() && (
+                                                <div className="mt-auto pt-2 flex justify-end">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      const wasStaged = stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash)));
+                                                      toggleModInStagingDraft(flavor);
+                                                      onSetStatus(wasStaged ? t("status_staging_item_removed", "Removed from Remote Staging Queue.") : t("status_staging_item_added", "Added to Remote Staging Queue."));
+                                                    }}
+                                                    className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
+                                                      (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                        ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                                                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
+                                                    }`}
+                                                  >
+                                                    <span className="material-symbols-outlined !text-[12px]">
+                                                      {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                        ? t("icon_playlist_add_check", "playlist_add_check")
+                                                        : t("icon_playlist_add", "playlist_add")}
+                                                    </span>
+                                                    <span>
+                                                      {(stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
+                                                        ? t("staging_btn_staged", "Staged")
+                                                        : t("staging_btn_stage_mod", "Stage to PC")}
+                                                    </span>
+                                                  </button>
+                                                </div>
+                                              )}
                                             </div>
                                           </div>
-                                        ))}
-                                    </div>
-                                  </DeferredRender>
-                                </div>
+                                        );
+                                      })}
+                                  </div>
+                                </DeferredRender>
                               </div>
                             </div>
                           </AccordionDrawer>
@@ -2190,11 +2273,11 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             </p>
                           )}
 
-                          <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative gap-2">
+                          <div className="mt-auto pt-3.5 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative gap-2">
                             {isFolder ? (
                               <button
                                 type="button"
-                                className="group/hitbox relative z-20 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] transition-colors pointer-events-auto cursor-pointer"
+                                className="group/hitbox relative z-20 flex items-center gap-1.5 font-black text-[9px] uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] transition-colors pointer-events-auto cursor-pointer whitespace-nowrap"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setExpandedFolder((prev: string | null) => prev === mainKey ? null : mainKey);
@@ -2209,8 +2292,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 </span>
                               </button>
                             ) : (
-                              <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest pointer-events-auto z-10">
-                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString() : t("date_unknown", "Unknown Date")}
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--subtext)] opacity-65 tracking-wider pointer-events-auto z-10 whitespace-nowrap">
+                                <span className="material-symbols-outlined !text-[12px] opacity-75">{t("icon_calendar", "event")}</span>
+                                {mod.created_at ? new Date(mod.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : t("date_unknown", "Unknown Date")}
                               </span>
                             )}
 
@@ -2229,10 +2313,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         : t("status_staging_item_added", "Added to Remote Staging Queue.")
                                     );
                                   }}
-                                  className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all pointer-events-auto z-20 ${
+                                  className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all pointer-events-auto z-20 cursor-pointer ${
                                     isModOrSuiteStaged
-                                      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] shadow-sm'
-                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                                      ? 'sa-glass-active text-[var(--accent)]'
+                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
                                   }`}
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
@@ -2245,7 +2329,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       ? t("staging_btn_staged", "Staged")
                                       : isFolder
                                         ? t("staging_btn_stage_suite", "Stage Suite")
-                                        : t("staging_btn_stage_mod", "Stage to PC")}
+                                        : t("nexus_btn_stage_compact", "Stage to Desktop")}
                                   </span>
                                   <HoverTooltip
                                     title={
@@ -2253,7 +2337,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         ? t("staging_btn_unstage_mod", "Remove from Staging")
                                         : isFolder
                                           ? t("staging_btn_stage_suite", "Stage Suite")
-                                          : t("staging_btn_stage_mod", "Stage to PC")
+                                          : t("nexus_btn_stage_compact", "Stage to Desktop")
                                     }
                                   />
                                 </button>
@@ -2271,26 +2355,31 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </div>
 
                         <AccordionDrawer isOpen={expandedFolder === mainKey}>
-                          <div className="w-full glass-panel rounded-3xl p-8 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col gap-8 relative isolate">
+                          <div
+                            className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {/* Header */}
-                            <div className="flex flex-wrap gap-4 items-center justify-between pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
-                              <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
-                                  <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
+                            <div className="flex flex-wrap gap-3 sm:gap-4 items-center justify-between pb-4 sm:pb-5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-20 w-full">
+                              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                                  <span className="material-symbols-outlined !text-[22px] sm:!text-[24px] text-[var(--accent)]">{t("icon_folder_open", "folder_open")}</span>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-3">
-                                    <h3 className="text-2xl md:text-3xl font-black text-[var(--text)] capitalize tracking-widest leading-none">
-                                      {formatDisplayName(mod.displayName || mod.name)}
-                                    </h3>
+                                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                                  <h3 className="text-base sm:text-xl md:text-2xl font-black text-[var(--text)] tracking-tight leading-tight truncate">
+                                    {formatDisplayName(mod.displayName || mod.name)}
+                                  </h3>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
+                                      <span>
+                                        {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("term_mods", "Mods")}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <span className="text-[11px] font-black capitalize tracking-[0.2em] text-[var(--accent)] opacity-80 flex items-center gap-2 mt-1">
-                                    <span className="material-symbols-outlined !text-[14px]">{t("icon_account_tree", "account_tree")}</span>
-                                    {t("nav_exploring", "Exploring")} {(mod.flavors || []).length} {t("term_mods", "Mods")}
-                                  </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
+                              <div className="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto relative z-30">
                                 <div
                                   className="relative flex-1 md:w-72 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] flex items-center px-3.5 gap-2.5 transition-colors"
                                   onClick={(e) => e.stopPropagation()}
@@ -2342,29 +2431,27 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             </div>
 
                             {/* Content Area */}
-                            <div className="flex flex-col xl:flex-row gap-10 relative z-10">
-                              <div className="w-full xl:w-[350px] shrink-0 flex flex-col relative pointer-events-none">
-                                <div className="w-full relative">
-                                  {renderedCard}
-                                  <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-[50px] rounded-full pointer-events-none z-[-1]" />
-                                </div>
-                              </div>
-                              <div className="hidden xl:block w-px bg-gradient-to-b from-[color-mix(in_srgb,var(--text)_10%,transparent)] via-[color-mix(in_srgb,var(--text)_5%,transparent)] to-transparent" />
-
-                              <div className="flex-1 min-w-0">
-                                <DeferredRender>
-                                  <div className="grid grid-cols-1 xl:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 max-h-[500px] xl:max-h-[600px] overflow-y-auto custom-scrollbar p-6">
-                                    {(mod.flavors || [])
-                                      .filter((flavor: any) => {
-                                        if (!drawerSearchQuery) return true;
-                                        const query = drawerSearchQuery.toLowerCase();
-                                        return (flavor.displayName || flavor.name || "").toLowerCase().includes(query) || (flavor.author || "").toLowerCase().includes(query);
-                                      })
-                                      .map((flavor: any, subIdx: number) => (
+                            <div className="w-full relative z-10">
+                              <DeferredRender>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[520px] xl:max-h-[600px] overflow-y-auto custom-scrollbar pr-1 pt-1 pb-2">
+                                  {(mod.flavors || [])
+                                    .filter((flavor: any) => {
+                                      if (!drawerSearchQuery) return true;
+                                      const query = drawerSearchQuery.toLowerCase().replace(/[_\-\.\/]+/g, ' ').replace(/\s+/g, ' ').trim();
+                                      const target = `${flavor.displayName || ""} ${flavor.name || ""} ${flavor.master_author || flavor.author || ""}`.toLowerCase().replace(/[_\-\.\/]+/g, ' ').replace(/\s+/g, ' ');
+                                      return target.includes(query);
+                                    })
+                                    .map((flavor: any, subIdx: number) => {
+                                      const flavorIsScript =
+                                        String(flavor.file_extension || "").toLowerCase().includes("script") ||
+                                        String(flavor.category_override || "").toLowerCase() === "script" ||
+                                        String(flavor.sub_type || "").toLowerCase() === "script" ||
+                                        String(flavor.name || "").toLowerCase().includes("ts4script");
+                                      return (
                                         <div
-                                          key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                          key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}
                                           onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-500 shadow-xl hover:shadow-2xl cursor-pointer hover:scale-[1.02] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] group"
+                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
                                         >
                                           <div
                                             className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -2397,16 +2484,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                             <div className="flex flex-wrap items-center gap-1.5 mt-1 mb-2">
                                               <div className={chipClass}>
                                                 <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+                                                  {flavorIsScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                 </span>
                                                 <span className="text-[var(--subtext)]">
-                                                  {String(flavor.name || "").toLowerCase().includes("ts4script") ? t("type_script", "Script") : t("type_package", "Package")}
+                                                  {flavorIsScript ? t("type_script", "Script") : t("type_package", "Package")}
                                                 </span>
                                               </div>
                                             </div>
                                             {!isDesktop() && (
                                               <div className="mt-auto pt-2 flex justify-end">
                                                 <button
+                                                  type="button"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     const wasStaged = stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash)));
@@ -2434,10 +2522,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                             )}
                                           </div>
                                         </div>
-                                      ))}
-                                  </div>
-                                </DeferredRender>
-                              </div>
+                                      );
+                                    })}
+                                </div>
+                              </DeferredRender>
                             </div>
                           </div>
                         </AccordionDrawer>
@@ -2559,27 +2647,87 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           onClick={(e) => { e.stopPropagation(); onOpenMasonProfile?.(masonMap[asset.author.toLowerCase()]); }}
                           className="text-[9px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2 cursor-pointer hover:underline hover:text-[var(--text)] transition-colors"
                         >
-                          {asset.author}
+                          {asset.author} • v{String(getAssetDisplayVersion(asset) || '1.0.0').replace(/^v/i, '')}
                         </p>
                       ) : (
                         <p className="text-[9px] font-black text-[color-mix(in_srgb,var(--text)_30%,transparent)] capitalize tracking-widest truncate mb-2">
-                          {asset.author || "Citizen"}
+                          {asset.author || "Citizen"} • v{String(getAssetDisplayVersion(asset) || '1.0.0').replace(/^v/i, '')}
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-2 mt-1 mb-3">
-                        <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                            {marketTab === 'BLUEPRINTS' ? t("icon_map", "map") : marketTab === 'CHAMELEONS' ? t("icon_palette", "palette") : marketTab === 'TEMPLATES' ? t("icon_draw", "draw") : t("icon_translate", "translate")}
-                          </span>
-                          <span>
-                            {marketTab === 'BLUEPRINTS' ? t("blueprint", "{Blueprint}") : marketTab === 'CHAMELEONS' ? t("chameleon", "Theme") : marketTab === 'TEMPLATES' ? t("workbench_template", "Template") : t("tab_lexicons", "Language")}
-                          </span>
-                        </div>
+                      {asset.description && !/^(language|theme)\s+pack:/i.test(String(asset.description).trim()) && (
+                        <p className="text-[10px] text-[var(--subtext)] opacity-75 line-clamp-2 leading-relaxed mb-3">
+                          {asset.description}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-1.5 mt-auto pt-1 pb-3">
+                        {marketTab === 'CHAMELEONS' && (() => {
+                          const resolvedTheme = resolveThemePreviewData(asset);
+                          const isDark = getLuminance(resolvedTheme?.bg || '#060b14') < 0.5;
+                          return (
+                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {isDark ? t("icon_dark_mode", "dark_mode") : t("icon_light_mode", "light_mode")}
+                              </span>
+                              <span>{isDark ? t("mode_dark", "Dark") : t("mode_light", "Light")}</span>
+                            </div>
+                          );
+                        })()}
+
+                        {marketTab === 'LEXICONS' && (
+                          <>
+                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_language", "language")}
+                              </span>
+                              <span>{asset.language || "English"}</span>
+                            </div>
+                            {asset.lexicon_type && (
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                  {t("icon_translate", "translate")}
+                                </span>
+                                <span>{asset.lexicon_type}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {marketTab === 'BLUEPRINTS' && countBlueprintArtifacts(asset.json_data?.artifacts) > 0 && (
+                          <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_account_tree", "account_tree")}
+                            </span>
+                            <span>
+                              +{countBlueprintArtifacts(asset.json_data?.artifacts)} {t("badge_modules_count", "Modules")}
+                            </span>
+                          </div>
+                        )}
+
+                        {marketTab === 'TEMPLATES' && (() => {
+                          const parsedTpl = (() => {
+                            try {
+                              const raw = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : (asset.json_data || asset);
+                              return Array.isArray(raw) ? raw[0] || {} : raw || {};
+                            } catch {
+                              return {};
+                            }
+                          })();
+                          const targetFile = String(parsedTpl?.target_file || asset.name || 'settings.cfg').split(/[\\/]/).pop();
+                          return (
+                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                {t("icon_tune", "tune")}
+                              </span>
+                              <span>{targetFile}</span>
+                            </div>
+                          );
+                        })()}
 
                         {asset.is_early_access && (
                           <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                            <span className="material-symbols-outlined !text-[12px] text-purple-400">
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                               {t("icon_science", "science")}
                             </span>
                             <span>{t("badge_early_access", "Early Access")}</span>
@@ -2588,7 +2736,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                         {asset.is_paid && (
                           <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                            <span className="material-symbols-outlined !text-[12px] text-amber-400">
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                               {t("icon_monetization_on", "monetization_on")}
                             </span>
                             <span>{t("badge_paid", "Paid")}</span>
@@ -2596,43 +2744,32 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         )}
                       </div>
 
-                      {asset.description && (
-                        <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-4">
-                          {asset.description}
-                        </p>
-                      )}
-
-                      <div className="mt-auto pt-4 flex items-center justify-between border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative">
-                        <div className="flex flex-col justify-center gap-1.5 relative z-10 pointer-events-auto">
-                          <div className="flex flex-col gap-1.5 items-start">
-                            {marketTab === 'BLUEPRINTS' && countBlueprintArtifacts(asset.json_data?.artifacts) > 0 && (
-                              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
-                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                                  {t("icon_account_tree", "account_tree")}
-                                </span>
-                                +{countBlueprintArtifacts(asset.json_data?.artifacts)} {t("badge_modules_count", "Modules")}
-                              </span>
-                            )}
-                            {asset.created_at && (
-                              <span className="flex items-center gap-1 text-[8px] font-bold text-[var(--subtext)] opacity-60 capitalize tracking-widest">
-                                <span className="material-symbols-outlined !text-[12px] opacity-70">{t("icon_calendar", "event")}</span>
-                                {t("updated_date", "Last Updated")}: {new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1 text-[10px] font-black text-[var(--accent)] capitalize tracking-widest">
-                              <span className="material-symbols-outlined !text-[14px]">{t("icon_download", "download")}</span>
-                              {asset.downloads || 0} <span className="opacity-70">{t("sort_downloads", "DOWNLOADS")}</span>
-                            </span>
-                          </div>
+                      <div className="pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10 pointer-events-auto">
+                        <div className="flex items-center gap-2.5 text-[9px] font-bold text-[var(--subtext)] opacity-65 tracking-wider whitespace-nowrap min-w-0 truncate">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined !text-[12px] opacity-75">{t("icon_calendar", "event")}</span>
+                            {asset.created_at
+                              ? new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                              : t("date_unknown", "Unknown Date")}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined !text-[12px] opacity-75">{t("icon_download", "download")}</span>
+                            {asset.downloads || 0}
+                          </span>
                         </div>
-                        <div className="flex gap-2">
+
+                        <div className="flex items-center gap-1.5 shrink-0">
                           {session?.user?.user_metadata?.username === asset.author && (
-                            <ActionButton
+                            <button
+                              type="button"
                               onClick={(e) => handleEditAsset(e, asset)}
-                              variant="glass"
-                              label={t("icon_edit", "edit")}
-                              className="!py-1.5 !px-3 !text-[9px]"
-                            />
+                              className="relative group/editbtn w-8 h-8 rounded-xl border flex items-center justify-center transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] cursor-pointer shrink-0"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">
+                                {t("icon_edit", "edit")}
+                              </span>
+                              <HoverTooltip title={t("edit", "Edit")} className="group-hover/editbtn:flex z-[200]" />
+                            </button>
                           )}
                           {(marketTab === 'CHAMELEONS' || marketTab === 'LEXICONS') && (() => {
                             const isPreviewingThis =
@@ -2640,7 +2777,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 ? String(previewThemeId || '') === String(asset.id)
                                 : String(previewLexiconId || '') === String(asset.id);
                             return (
-                              <ActionButton
+                              <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (isPreviewingThis) {
@@ -2666,50 +2804,69 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     );
                                   }
                                 }}
-                                variant={isPreviewingThis ? "primary" : "glass"}
-                                icon={
+                                className={`relative group/prevbtn w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                                   isPreviewingThis
+                                    ? 'sa-glass-active text-[var(--accent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">
+                                  {isPreviewingThis
                                     ? t("icon_visibility_off", "visibility_off")
-                                    : t("icon_visibility", "visibility")
-                                }
-                                label={
-                                  isPreviewingThis
-                                    ? t("btn_stop_preview", "Stop Preview")
-                                    : t("preview", "Preview")
-                                }
-                                className="!py-1.5 !px-3 !text-[9px]"
-                              />
+                                    : t("icon_visibility", "visibility")}
+                                </span>
+                                <HoverTooltip
+                                  title={
+                                    isPreviewingThis
+                                      ? t("btn_stop_preview", "Stop Preview")
+                                      : t("preview", "Preview")
+                                  }
+                                  className="group-hover/prevbtn:flex z-[200]"
+                                />
+                              </button>
                             );
                           })()}
                           {marketTab === 'BLUEPRINTS' ? (() => {
                             const isInstalledBp = playSets.some((p: any) => p.code && asset.json_data?.code && p.code === asset.json_data.code);
                             if (!isDesktop()) {
                               return (
-                                <ActionButton
+                                <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     stageBlueprintToDraft(asset);
                                     onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
                                     useStore.getState().setView('playsets');
                                   }}
-                                  variant="glass"
-                                  icon={t("icon_phonelink", "phonelink")}
-                                  label={t("staging_btn_stage_mod", "Stage to PC")}
-                                  className="!py-1.5 !px-3 !text-[9px]"
-                                />
+                                  className="h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t("icon_phonelink", "phonelink")}
+                                  </span>
+                                  <span>{t("nexus_btn_stage_compact", "Stage to Desktop")}</span>
+                                </button>
                               );
                             }
                             return (
-                              <ActionButton
+                              <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedBlueprint(asset);
                                 }}
-                                variant={isInstalledBp ? "primary" : "success"}
-                                icon={t("icon_download", "download")}
-                                label={isInstalledBp ? (t("btn_install_copy", "Install Copy")) : (t("update_panel_install", "Install"))}
-                                className="!py-1.5 !px-3 !text-[9px]"
-                              />
+                                className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                                  isInstalledBp
+                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">
+                                  {t("icon_download", "download")}
+                                </span>
+                                <span>
+                                  {isInstalledBp ? t("btn_install_copy", "Install Copy") : t("update_panel_install", "Install")}
+                                </span>
+                              </button>
                             );
                           })() : (() => {
                             const assetTypeKey = marketTab === 'LEXICONS' ? 'lexicon' : marketTab === 'CHAMELEONS' ? 'chameleon' : 'workbench_template';
@@ -2719,7 +2876,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             if (!isDesktop()) {
                               if (marketTab === 'TEMPLATES') {
                                 return (
-                                  <ActionButton
+                                  <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       toggleModInStagingDraft({
@@ -2733,17 +2891,26 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           : t("status_staging_item_added", "Added to Remote Staging Queue.")
                                       );
                                     }}
-                                    variant={isAssetStaged ? "primary" : "glass"}
-                                    icon={isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
-                                    label={isAssetStaged ? t("staging_btn_staged", "Staged") : t("staging_btn_stage_mod", "Stage to PC")}
-                                    className="!py-1.5 !px-3 !text-[9px]"
-                                  />
+                                    className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                                      isAssetStaged
+                                        ? 'sa-glass-active text-[var(--accent)]'
+                                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                    }`}
+                                  >
+                                    <span className="material-symbols-outlined !text-[14px]">
+                                      {isAssetStaged ? t("icon_playlist_add_check", "playlist_add_check") : t("icon_playlist_add", "playlist_add")}
+                                    </span>
+                                    <span>
+                                      {isAssetStaged ? t("staging_btn_staged", "Staged") : t("nexus_btn_stage_compact", "Stage to Desktop")}
+                                    </span>
+                                  </button>
                                 );
                               }
 
                               // Web / Mobile PWA unified action for Lexicons & Chameleons: Apply locally AND stage to Desktop Queue
                               return (
-                                <ActionButton
+                                <button
+                                  type="button"
                                   onClick={async (e) => {
                                     e.stopPropagation();
                                     if (isAssetStaged) {
@@ -2794,36 +2961,33 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       return newMap;
                                     });
                                   }}
-                                  variant={
+                                  className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                                     isAssetStaged
-                                      ? "primary"
-                                      : isInstalled(asset)
-                                        ? isOutdated(asset)
-                                          ? "primary"
-                                          : "glass"
-                                        : "success"
-                                  }
-                                  icon={
-                                    isAssetStaged
+                                      ? 'sa-glass-active text-[var(--accent)]'
+                                      : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {isAssetStaged
                                       ? t("icon_playlist_add_check", "playlist_add_check")
                                       : isInstalled(asset) && isOutdated(asset)
                                         ? t("icon_update", "update")
-                                        : t("icon_download", "download")
-                                  }
-                                  label={
-                                    isAssetStaged
+                                        : t("icon_download", "download")}
+                                  </span>
+                                  <span>
+                                    {isAssetStaged
                                       ? t("staging_btn_staged", "Staged")
                                       : isInstalled(asset) && isOutdated(asset)
                                         ? t("btn_update", "Update")
-                                        : t("staging_btn_apply_and_stage", "Apply & Stage to PC")
-                                  }
-                                  className="!py-1.5 !px-3 !text-[9px]"
-                                />
+                                        : t("nexus_btn_stage_apply_compact", "Apply & Stage")}
+                                  </span>
+                                </button>
                               );
                             }
 
                             return (
-                              <ActionButton
+                              <button
+                                type="button"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   if (marketTab === 'CHAMELEONS') {
@@ -2856,11 +3020,19 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     return newMap;
                                   });
                                 }}
-                                variant={isInstalled(asset) ? (isOutdated(asset) ? 'primary' : 'glass') : 'success'}
-                                icon={isInstalled(asset) ? (isOutdated(asset) ? t("icon_update", "update") : t("icon_refresh", "refresh")) : t("icon_download", "download")}
-                                label={isInstalled(asset) ? (isOutdated(asset) ? t("btn_update", "Update") : (t("btn_reinstall", "Reinstall"))) : (t("update_panel_install", "Install"))}
-                                className="!py-1.5 !px-3 !text-[9px]"
-                              />
+                                className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                                  isInstalled(asset) && !isOutdated(asset)
+                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">
+                                  {isInstalled(asset) ? (isOutdated(asset) ? t("icon_update", "update") : t("icon_refresh", "refresh")) : t("icon_download", "download")}
+                                </span>
+                                <span>
+                                  {isInstalled(asset) ? (isOutdated(asset) ? t("btn_update", "Update") : t("btn_reinstall", "Reinstall")) : t("update_panel_install", "Install")}
+                                </span>
+                              </button>
                             );
                           })()}
                         </div>

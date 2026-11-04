@@ -4,7 +4,7 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { SidePanel, CustomDropdown, ActionPill, PanelHeaderGroup, PanelHeaderButton, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
-import { WorkbenchVisualEditor, countModifiedSettings, countEditedFromSavedSettings, countSettingsByCategory } from './WorkbenchVisualEditor';
+import { WorkbenchVisualEditor, countModifiedSettings, countEditedFromSavedSettings, countSettingsByCategory, resolveSettingDataPath } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
 import { WorkbenchTemplateTools } from './WorkbenchTemplateTools';
 import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
@@ -13,14 +13,15 @@ import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/m
 
 const resolveCategoryIcon = (
    cat: any,
-   resolveText: (k?: string, fallback?: string) => string,
+   _resolveText: (k?: string, fallback?: string) => string,
    t: (k: string, fallback: string) => string
 ): string => {
-   const rawIcon = resolveText(cat?.icon_key, cat?.icon || "");
-   if (rawIcon && rawIcon !== "tag" && rawIcon !== "folder" && rawIcon !== "#") {
-      return rawIcon;
+   const key = `${cat?.id || ""} ${cat?.name_key || ""} ${cat?.name || ""}`.toLowerCase();
+   const rawIcon = (cat?.icon_key || cat?.icon || "").replace(/^workbench_icon_/, "").replace(/^icon_/, "").trim();
+   const isGenericIcon = !rawIcon || rawIcon === "tag" || rawIcon === "folder" || rawIcon === "#" || (rawIcon === "tune" && !key.includes("general") && !key.includes("tuner"));
+   if (!isGenericIcon) {
+      return t(`icon_${rawIcon}`, rawIcon);
    }
-   const key = `${cat?.id || ""} ${cat?.name || ""}`.toLowerCase();
    if (key.includes("general") || key.includes("core") || key.includes("main")) return t("icon_tune", "tune");
    if (key.includes("appear") || key.includes("cas") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
    if (key.includes("autosave") || key.includes("save") || key.includes("backup")) return t("icon_save", "save");
@@ -250,13 +251,13 @@ export function WorkbenchSidePanel({
 
    const handleResetAllModified = () => {
       if (!currentVisualTemplate?.settings) return;
-      const resetRecursive = (list: any[], parentPath = "") => {
+      const resetRecursive = (list: any[], parentPath = "", parentIsVirtual = false) => {
          for (const s of list) {
-            const localPath = s?.path || s?.key;
-            if (!localPath) continue;
-            const dataPath = parentPath && !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
+            const dataPath = resolveSettingDataPath(parentPath, s, parentIsVirtual);
+            if (!dataPath) continue;
             if (s.type === "group" && Array.isArray(s.settings)) {
-               resetRecursive(s.settings, dataPath);
+               const isVirt = Boolean(s.virtual_group);
+               resetRecursive(s.settings, isVirt ? "" : dataPath, isVirt);
             } else if (s.default !== undefined) {
                editorState.handleVisualChange(dataPath, s.default);
             }
@@ -629,6 +630,7 @@ export function WorkbenchSidePanel({
                                                    {!isTemplateMode && availableTemplates.length > 0 && (
                                                       <CustomDropdown
                                                          disableTint={true}
+                                                         menuMinWidth={240}
                                                          className="h-9"
                                                          buttonClassName="!h-9 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-[11px] font-bold"
                                                          value={selectedTemplatePath}

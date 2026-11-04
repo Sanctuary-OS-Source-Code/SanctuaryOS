@@ -277,19 +277,19 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     const ddLightR = Math.round(sbR * 0.55 + tr * 0.45);
     const ddLightG = Math.round(sbG * 0.55 + tg * 0.45);
     const ddLightB = Math.round(sbB * 0.55 + tb * 0.45);
-    const ddLightAlpha = Math.max(0.84, Math.min(0.95, 0.78 + lightPanelAlpha * 0.35));
+    const ddLightAlpha = Math.max(0.56, Math.min(0.74, 0.50 + lightPanelAlpha * 0.35));
     vars['--glass-dropdown-bg'] = `rgba(${ddLightR}, ${ddLightG}, ${ddLightB}, ${ddLightAlpha.toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.65).toFixed(3)}) 0%, rgba(255, 255, 255, 0.18) 35%, rgba(255, 255, 255, 0) 68%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
-    vars['--glass-dropdown-border-top'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.88).toFixed(3)})`;
-    vars['--glass-dropdown-border-left'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.68).toFixed(3)})`;
-    vars['--glass-dropdown-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.10, Math.min(0.24, borderOpacity * 0.95)).toFixed(3)})`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.14, Math.min(0.28, borderOpacity * 1.15)).toFixed(3)})`;
-    vars['--glass-dropdown-shadow'] = `0 20px 44px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.40).toFixed(3)}), 0 6px 16px -3px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.85).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.92).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.68).toFixed(3)})`;
-    vars['--glass-dropdown-input-bg'] = `rgba(${tr}, ${tg}, ${tb}, ${Math.max(0.22, Math.min(0.55, lightSurfaceAlpha * 0.90)).toFixed(3)})`;
-    vars['--glass-dropdown-input-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.10, Math.min(0.24, borderOpacity * 0.90)).toFixed(3)})`;
-    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.055)`;
-    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.10)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.24)`;
+    vars['--glass-dropdown-gradient'] = `radial-gradient(120% 90% at 8% 0%, rgba(255, 255, 255, ${(lightSpecTop * 0.78).toFixed(3)}) 0%, transparent 54%), radial-gradient(100% 85% at 96% 100%, rgba(${accR}, ${accG}, ${accB}, 0.10) 0%, transparent 60%), linear-gradient(145deg, rgba(255, 255, 255, ${(lightSpecTop * 0.72).toFixed(3)}) 0%, rgba(255, 255, 255, 0.22) 35%, rgba(255, 255, 255, 0.04) 68%, rgba(${accR}, ${accG}, ${accB}, 0.08) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.94).toFixed(3)})`;
+    vars['--glass-dropdown-border-left'] = `rgba(255, 255, 255, ${(lightSpecTop * 0.76).toFixed(3)})`;
+    vars['--glass-dropdown-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.14, Math.min(0.28, borderOpacity * 1.05)).toFixed(3)})`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.18, Math.min(0.32, borderOpacity * 1.20)).toFixed(3)})`;
+    vars['--glass-dropdown-shadow'] = `0 24px 52px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.48).toFixed(3)}), 0 8px 20px -3px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.92).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.95).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(255, 255, 255, ${(lightSpecTop * 0.74).toFixed(3)}), inset 0 -1px 1px 0 rgba(${accR}, ${accG}, ${accB}, 0.10)`;
+    vars['--glass-dropdown-input-bg'] = `rgba(${tr}, ${tg}, ${tb}, ${Math.max(0.24, Math.min(0.56, lightSurfaceAlpha * 0.92)).toFixed(3)})`;
+    vars['--glass-dropdown-input-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, ${Math.max(0.12, Math.min(0.26, borderOpacity * 0.95)).toFixed(3)})`;
+    vars['--glass-dropdown-item-hover'] = `rgba(255, 255, 255, 0.42)`;
+    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.14)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.30)`;
     vars['--glass-backdrop-dim'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.08)`;
     vars['--glass-card-banner-bg'] = `transparent`;
     vars['--glass-card-icon-bg'] = `rgba(${tr}, ${tg}, ${tb}, ${Math.max(0.24, Math.min(0.58, lightSurfaceAlpha + 0.08)).toFixed(3)})`;
@@ -391,22 +391,22 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-portal-bg'] = `rgba(${baseR}, ${baseG}, ${baseB}, ${Math.max(0.30, Math.min(0.64, darkPanelAlpha + 0.22)).toFixed(3)})`;
     vars['--glass-portal-sheen'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.82).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.85).toFixed(3)}) 32%, transparent 60%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.80).toFixed(3)}) 100%)`;
     vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, ${(outerShadowMain * 1.15).toFixed(3)}), 0 8px 18px -2px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
-    const ddDarkR = Math.round(sbGlassR * 0.55 + baseR * 0.45);
-    const ddDarkG = Math.round(sbGlassG * 0.55 + baseG * 0.45);
-    const ddDarkB = Math.round(sbGlassB * 0.55 + baseB * 0.45);
-    const ddDarkAlpha = Math.max(0.82, Math.min(0.94, 0.74 + darkPanelAlpha * 0.45));
+    const ddDarkR = Math.round(sbGlassR * 0.50 + baseR * 0.50);
+    const ddDarkG = Math.round(sbGlassG * 0.50 + baseG * 0.50);
+    const ddDarkB = Math.round(sbGlassB * 0.50 + baseB * 0.50);
+    const ddDarkAlpha = Math.max(0.46, Math.min(0.64, 0.42 + darkPanelAlpha * 0.40));
     vars['--glass-dropdown-bg'] = `rgba(${ddDarkR}, ${ddDarkG}, ${ddDarkB}, ${ddDarkAlpha.toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 0.85).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.72).toFixed(3)}) 34%, transparent 64%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 0.75).toFixed(3)}) 100%)`;
-    vars['--glass-dropdown-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.32, topBorderAlpha * 0.58).toFixed(3)})`;
-    vars['--glass-dropdown-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.24, leftBorderAlpha * 0.52).toFixed(3)})`;
-    vars['--glass-dropdown-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.12, rightBorderAlpha * 0.50).toFixed(3)})`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.15, bottomBorderAlpha * 0.52).toFixed(3)})`;
-    vars['--glass-dropdown-shadow'] = `0 22px 48px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.22).toFixed(3)}), 0 8px 20px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 1.05).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specTop.toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${specLeft.toFixed(3)})`;
-    vars['--glass-dropdown-input-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.03, nestedSurfaceAlpha * 0.90).toFixed(3)})`;
-    vars['--glass-dropdown-input-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.09, Math.min(0.18, borderOpacity * 0.72)).toFixed(3)})`;
-    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.055)`;
-    vars['--glass-dropdown-item-active'] = `linear-gradient(135deg, rgba(${accR}, ${accG}, ${accB}, 0.16) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.05) 65%, rgba(${accR}, ${accG}, ${accB}, 0.02) 100%)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.28, topBorderAlpha * 0.54).toFixed(3)})`;
+    vars['--glass-dropdown-gradient'] = `radial-gradient(125% 95% at 6% 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 1.35).toFixed(3)}) 0%, transparent 52%), radial-gradient(110% 85% at 96% 100%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 1.45).toFixed(3)}) 0%, transparent 58%), linear-gradient(145deg, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenTop * 1.15).toFixed(3)}) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, ${(sheenMid * 0.88).toFixed(3)}) 34%, rgba(${baseR}, ${baseG}, ${baseB}, 0.10) 64%, rgba(${accR}, ${accG}, ${accB}, ${(sheenBottom * 1.05).toFixed(3)}) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.48, topBorderAlpha * 0.85).toFixed(3)})`;
+    vars['--glass-dropdown-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.36, leftBorderAlpha * 0.76).toFixed(3)})`;
+    vars['--glass-dropdown-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.18, rightBorderAlpha * 0.68).toFixed(3)})`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.24, bottomBorderAlpha * 0.72).toFixed(3)})`;
+    vars['--glass-dropdown-shadow'] = `0 26px 56px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.28).toFixed(3)}), 0 10px 24px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 1.12).toFixed(3)}), inset 0 1.5px 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.55, specTop * 1.25).toFixed(3)}), inset 1.5px 0 0.5px 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.42, specLeft * 1.20).toFixed(3)}), inset 0 -1px 1px 0 rgba(${accR}, ${accG}, ${accB}, 0.14)`;
+    vars['--glass-dropdown-input-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.05, nestedSurfaceAlpha * 1.15).toFixed(3)})`;
+    vars['--glass-dropdown-input-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.max(0.14, Math.min(0.24, borderOpacity * 0.88)).toFixed(3)})`;
+    vars['--glass-dropdown-item-hover'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.095)`;
+    vars['--glass-dropdown-item-active'] = `linear-gradient(135deg, rgba(${accR}, ${accG}, ${accB}, 0.22) 0%, rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.08) 65%, rgba(${accR}, ${accG}, ${accB}, 0.05) 100%)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, ${Math.min(0.38, topBorderAlpha * 0.72).toFixed(3)})`;
     vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.22)`;
     vars['--glass-card-banner-bg'] = `transparent`;
     vars['--glass-card-icon-bg'] = `rgba(${nestedTintR}, ${nestedTintG}, ${nestedTintB}, ${Math.max(0.04, Math.min(0.14, nestedSurfaceAlpha * 1.25)).toFixed(3)})`;
@@ -427,7 +427,7 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const GLASS_OPTICS_REV = "rev_51";
+const GLASS_OPTICS_REV = "rev_52";
 
 const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex: string }> = {
   '/themes/architect.png': { topHex: '#1d2737', bottomHex: '#0e2244' },

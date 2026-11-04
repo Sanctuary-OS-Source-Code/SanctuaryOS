@@ -553,13 +553,18 @@ export function useWorkbenchEditor() {
                .trim();
 
          const isTupleString = (v: any): boolean =>
-            typeof v === 'string' && /^\s*-?\d+(?:\.\d+)?\s*(?:,\s*-?\d+(?:\.\d+)?\s*)+$/.test(v);
+            typeof v === 'string' && /^\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*$/.test(v);
 
-         const applyNumericTupleBounds = (settingObj: any, rawTupleStr: string) => {
-            const nums = rawTupleStr
-               .split(',')
-               .map((s) => parseFloat(s.trim()))
-               .filter((n) => !isNaN(n));
+         const isTupleArray = (v: any): boolean =>
+            Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number';
+
+         const applyNumericTupleBounds = (settingObj: any, rawTupleVal: any) => {
+            const nums = Array.isArray(rawTupleVal)
+               ? rawTupleVal.map((n) => Number(n)).filter((n) => !isNaN(n))
+               : String(rawTupleVal)
+                    .split(',')
+                    .map((s) => parseFloat(s.trim()))
+                    .filter((n) => !isNaN(n));
             const hasNegative = nums.some((n) => n < 0);
             const maxAbs = Math.max(100, ...nums.map((n) => Math.ceil(Math.abs(n))));
             settingObj.min = hasNegative ? -maxAbs : Math.min(0, ...nums);
@@ -568,14 +573,30 @@ export function useWorkbenchEditor() {
             settingObj.allow_decimals = nums.some((n) => !Number.isInteger(n));
          };
 
+         const inferCategoryFromKey = (rawKey: string, cats: any[], fallbackCat: string): string => {
+            if (!Array.isArray(cats) || cats.length === 0) return fallbackCat;
+            const prefixMatch = rawKey.match(/^([A-Za-z]+)_/);
+            if (prefixMatch) {
+               const pref = prefixMatch[1].toLowerCase();
+               const direct = cats.find((c: any) => String(c.id).toLowerCase() === pref);
+               if (direct) return direct.id;
+               if (pref === 'cas') {
+                  const appCat = cats.find((c: any) => String(c.id).toLowerCase() === 'appearance');
+                  if (appCat) return appCat.id;
+               }
+            }
+            return fallbackCat;
+         };
+
          if (isJson && parsed && typeof parsed === 'object') {
             const defaultCategory = newParsedData.categories[0]?.id || "general";
             
-            const buildSettingsRecursively = (obj: any, parentPath: string): any[] => {
+            const buildSettingsRecursively = (obj: any, parentPath: string, inheritedCategory?: string): any[] => {
                const settings: any[] = [];
                for (const key of Object.keys(obj)) {
                   const val = obj[key];
                   const currentPath = parentPath ? `${parentPath}.${key}` : key;
+                  const resolvedCategory = inheritedCategory || inferCategoryFromKey(key, newParsedData.categories, defaultCategory);
                   
                   let type = "string";
                   let defaultVal = val;
@@ -585,12 +606,12 @@ export function useWorkbenchEditor() {
                      type = "boolean";
                   } else if (typeof val === 'number') {
                      type = "number";
-                  } else if (isTupleString(val)) {
+                  } else if (isTupleString(val) || isTupleArray(val)) {
                      type = "tuple";
                   } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
                      type = "group";
                      defaultVal = undefined;
-                     childSettings = buildSettingsRecursively(val, currentPath);
+                     childSettings = buildSettingsRecursively(val, currentPath, resolvedCategory);
                   }
                   
                   const newSetting: any = {
@@ -599,7 +620,7 @@ export function useWorkbenchEditor() {
                      type: type,
                      label_key: formatKeyLabel(key),
                      desc_key: "",
-                     category: defaultCategory
+                     category: resolvedCategory
                   };
                   
                   if (type !== 'group') {
@@ -615,7 +636,7 @@ export function useWorkbenchEditor() {
                      newSetting.step = 1;
                      newSetting.allow_decimals = !Number.isInteger(numDef);
                   } else if (type === 'tuple') {
-                     applyNumericTupleBounds(newSetting, String(defaultVal));
+                     applyNumericTupleBounds(newSetting, defaultVal);
                   }
                   
                   settings.push(newSetting);

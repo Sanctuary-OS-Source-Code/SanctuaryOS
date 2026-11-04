@@ -211,10 +211,10 @@ export function PwaInstallPrompt() {
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
-                    {t("pwa_banner_title", "Get the Sanctuary OS App")}
+                    {t("pwa_banner_title", "Get the Sanctuary PWA")}
                   </span>
                   <span className="text-[10px] font-bold text-[var(--subtext)] truncate">
-                    {t("pwa_banner_subtitle", "Add to your home screen for full-screen access")}
+                    {t("pwa_banner_subtitle", "Your Unified Hub on the go.")}
                   </span>
                 </div>
               </div>
@@ -227,7 +227,7 @@ export function PwaInstallPrompt() {
                   <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                     {t("icon_add_to_home_screen", "add_to_home_screen")}
                   </span>
-                  {t("pwa_btn_add_short", "Add App")}
+                  {t("pwa_btn_add_short", "Install")}
                 </button>
                 <button
                   type="button"

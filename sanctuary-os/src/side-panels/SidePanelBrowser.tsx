@@ -109,7 +109,35 @@ function formatReadableUrlTitle(urlStr?: string | null, customTitle?: string | n
 export default function SidePanelBrowser() {
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
-  const { isSideBrowserOpen, setIsSideBrowserOpen, sideBrowserUrl, sideBrowserTrigger, browserTabs, setBrowserTabs, activeBrowserTabId, setActiveBrowserTabId, browserBookmarks, setBrowserBookmarks, browserHistory, setBrowserHistory, maxActiveWebviews, downloadsQueue, setDownloadsQueue, dnaMatchQueue, confirmDialog, bulkModal, localFolderModal, yeetConfirmPending, isBackingUp, isRestoring } = useModalStore();
+  const {
+    isSideBrowserOpen,
+    setIsSideBrowserOpen,
+    sideBrowserUrl,
+    sideBrowserTrigger,
+    browserTabs,
+    setBrowserTabs,
+    activeBrowserTabId,
+    setActiveBrowserTabId,
+    browserBookmarks,
+    setBrowserBookmarks,
+    browserHistory,
+    setBrowserHistory,
+    maxActiveWebviews,
+    downloadsQueue,
+    setDownloadsQueue,
+    guidedBrowserQueue,
+    guidedBrowserIndex,
+    advanceGuidedBrowserQueue,
+    setGuidedBrowserIndex,
+    clearGuidedBrowserQueue,
+    dnaMatchQueue,
+    confirmDialog,
+    bulkModal,
+    localFolderModal,
+    yeetConfirmPending,
+    isBackingUp,
+    isRestoring,
+  } = useModalStore();
 
   // Compute theme-harmonized background colors for the Webview & corner mask
   const browserThemeColors = useMemo(() => {
@@ -717,6 +745,72 @@ export default function SidePanelBrowser() {
   }, []);
 
   const lastProcessedTriggerRef = useRef(sideBrowserTrigger);
+  const autoIngestingSetRef = useRef<Set<string>>(new Set());
+
+  // Guided Batch Updater: Auto-ingest & auto-advance the instant Rust intercepts a downloaded archive
+  useEffect(() => {
+    if (!isDesktop() || guidedBrowserQueue.length === 0 || downloadsQueue.length === 0) return;
+    const nextFile = downloadsQueue.find((f) => !autoIngestingSetRef.current.has(f));
+    if (!nextFile) return;
+
+    autoIngestingSetRef.current.add(nextFile);
+    (async () => {
+      try {
+        const w: any = window;
+        if (!w.__processedDownloads || typeof w.__processedDownloads.set !== 'function') {
+          w.__processedDownloads = new Map();
+        }
+        w.__processedDownloads.set(nextFile, Date.now());
+        setDownloadsQueue((prev) => prev.filter((p) => p !== nextFile));
+
+        const moveOriginal =
+          (localStorage.getItem('sanctuary_ingest_file_mode') || 'copy') === 'move';
+        await invoke('ingest_dropped_file', {
+          path: nextFile,
+          forceReplace: false,
+          targetFolder: null,
+          moveOriginal,
+        });
+
+        const total = guidedBrowserQueue.length;
+        const res = advanceGuidedBrowserQueue('completed');
+        if (res.done) {
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                'guided_queue_completed_toast',
+                'Guided Update Queue complete! All {0} {mods} processed.'
+              ).replace('{0}', String(total)),
+              'success'
+            );
+          clearGuidedBrowserQueue();
+        } else if (res.nextItem) {
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                'guided_queue_advanced_toast',
+                'Verified archive! Advancing to {0} ({1} of {2})...'
+              )
+                .replace('{0}', res.nextItem.name || '')
+                .replace('{1}', String((res.nextIndex || 0) + 1))
+                .replace('{2}', String(total)),
+              'info'
+            );
+        }
+      } catch (err) {
+        console.warn('Guided queue auto-ingest error:', err);
+      }
+    })();
+  }, [
+    downloadsQueue,
+    guidedBrowserQueue.length,
+    advanceGuidedBrowserQueue,
+    clearGuidedBrowserQueue,
+    setDownloadsQueue,
+    t,
+  ]);
 
   const handleNavigate = useCallback(
     async (urlToNavigate: string) => {
@@ -1205,6 +1299,109 @@ export default function SidePanelBrowser() {
               </span>
             </button>
           </div>
+
+          {/* Row 3: Guided Update Queue (1 of N) Stepper Bar */}
+          {guidedBrowserQueue.length > 0 && (() => {
+            const currentItem =
+              guidedBrowserQueue[guidedBrowserIndex] || guidedBrowserQueue[0];
+            const totalCount = guidedBrowserQueue.length;
+            const stepNum = Math.min(totalCount, guidedBrowserIndex + 1);
+            const pct = Math.round((stepNum / Math.max(1, totalCount)) * 100);
+            return (
+              <div className="mt-2 p-2.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2 relative z-30">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[17px]">
+                        {t('icon_playlist_play', 'playlist_play')}
+                      </span>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                          {t('guided_queue_bar_title', 'Guided Update Queue')}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
+                          {t('guided_queue_step_counter', '{0} of {1}')
+                            .replace('{0}', String(stepNum))
+                            .replace('{1}', String(totalCount))}
+                        </span>
+                        <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8.5px] font-black uppercase tracking-wider text-[var(--success)]">
+                          <span className="material-symbols-outlined !text-[11px]">
+                            {t('icon_bolt', 'bolt')}
+                          </span>
+                          {t('guided_queue_auto_advance_badge', 'Auto-Advances on Download')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-black text-[var(--text)] truncate mt-0.5">
+                        <span className="truncate">{currentItem?.name}</span>
+                        {currentItem?.author && (
+                          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                            • {currentItem.author}
+                          </span>
+                        )}
+                        {currentItem?.version && (
+                          <span className="text-[10px] font-mono text-[var(--accent)] shrink-0">
+                            ({currentItem.version})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={guidedBrowserIndex <= 0}
+                      onClick={() => setGuidedBrowserIndex(guidedBrowserIndex - 1)}
+                      className="h-8 w-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--text)] disabled:opacity-35 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t('icon_chevron_left', 'chevron_left')}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const res = advanceGuidedBrowserQueue('skipped');
+                        if (res.done) {
+                          clearGuidedBrowserQueue();
+                        }
+                      }}
+                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t('icon_skip_next', 'skip_next')}
+                      </span>
+                      <span>
+                        {stepNum >= totalCount
+                          ? t('guided_queue_finish_btn', 'Finish Queue')
+                          : t('guided_queue_skip_btn', 'Skip')}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearGuidedBrowserQueue}
+                      className="h-8 w-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t('icon_close', 'close')}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] transition-all duration-300"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Main Workspace: Webview Viewport & Bookmarks / History Drawer */}

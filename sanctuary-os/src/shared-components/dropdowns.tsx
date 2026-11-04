@@ -72,10 +72,11 @@ export function CustomDropdown({
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
-        const minW = menuMinWidth || (iconOnlyTrigger ? 250 : 160);
+        const minW = menuMinWidth || (iconOnlyTrigger ? 250 : 220);
         const menuWidth = Math.min(Math.max(rect.width, minW), window.innerWidth - 24);
+        const wouldOverflowRight = rect.left + menuWidth > window.innerWidth - 16;
         const preferredLeft =
-          iconOnlyTrigger && rect.right - menuWidth >= 12
+          (iconOnlyTrigger || wouldOverflowRight) && rect.right - menuWidth >= 12
             ? rect.right - menuWidth
             : rect.left;
         const clampedLeft = Math.max(12, Math.min(preferredLeft, window.innerWidth - menuWidth - 12));
@@ -311,7 +312,7 @@ export function CustomDropdown({
                           {opt.icon}
                         </span>
                       )}
-                      <span className="flex-1 whitespace-normal break-words leading-snug">{opt.label}</span>
+                      <span className="flex-1 min-w-0 truncate leading-snug">{opt.label}</span>
                       {isSelected && !multiSelect && (
                         <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
                           {t("icon_check", "check")}
