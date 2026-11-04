@@ -12,6 +12,7 @@ import {
   EmptyState,
   ActionButton,
   HoverTooltip,
+  VAULT_CHIP_CLASS,
 } from '../shared';
 import { useModalStore } from '../store/modalStore';
 import { useLexicon } from '../LexiconContext';
@@ -19,6 +20,7 @@ import { useStore } from '../store';
 import { useTheme } from '../ThemeContext';
 import { INJECTED_BROWSER_SCRIPT } from './browserInjection';
 import { SidePanelBrowserDownloads } from './SidePanelBrowserDownloads';
+import { formatCleanModTitle } from './CommandIncompatiblePanel';
 
 function parseHexRgb(hexStr: string | undefined, fallback: [number, number, number]): [number, number, number] {
   if (!hexStr || hexStr === 'transparent') return fallback;
@@ -73,7 +75,8 @@ function formatReadableUrlTitle(urlStr?: string | null, customTitle?: string | n
   if (
     safeCustom &&
     safeCustom !== safeUrl &&
-    !/^https?:\/\//i.test(safeCustom)
+    !/^https?:\/\//i.test(safeCustom) &&
+    !/^\[object\s+object\]$/i.test(safeCustom)
   ) {
     return safeCustom;
   }
@@ -1298,104 +1301,220 @@ export default function SidePanelBrowser() {
             </button>
           </div>
 
-          {/* Row 3: Guided Update Queue (1 of N) Stepper Bar */}
+          {/* Row 3: Guided Update Queue (1 of N) Stepper Card */}
           {guidedBrowserQueue.length > 0 && (() => {
             const currentItem =
               guidedBrowserQueue[guidedBrowserIndex] || guidedBrowserQueue[0];
             const totalCount = guidedBrowserQueue.length;
             const stepNum = Math.min(totalCount, guidedBrowserIndex + 1);
-            const pct = Math.round((stepNum / Math.max(1, totalCount)) * 100);
+            const cleanItemName =
+              formatCleanModTitle(currentItem?.name) ||
+              (currentItem?.name && !/^\[object\s+object\]$/i.test(String(currentItem.name))
+                ? String(currentItem.name)
+                : formatReadableUrlTitle(currentItem?.url));
+            const cleanAuthor = currentItem?.author
+              ? formatCleanModTitle(currentItem.author) || currentItem.author
+              : undefined;
+            const cleanInstVer = currentItem?.installedVersion
+              ? String(currentItem.installedVersion).replace(/^v\.?/i, '').trim()
+              : undefined;
+            const cleanNewVer = currentItem?.version
+              ? String(currentItem.version).replace(/^v\.?/i, '').trim()
+              : undefined;
+            const itemIcon = currentItem?.icon || t('icon_playlist_play', 'playlist_play');
+
             return (
-              <div className="mt-2 p-2.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2 relative z-30">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[17px]">
-                        {t('icon_playlist_play', 'playlist_play')}
+              <div className="mt-1 p-3 sm:p-3.5 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 relative z-30">
+                <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {itemIcon}
                       </span>
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent)] shrink-0">
                           {t('guided_queue_bar_title', 'Guided Update Queue')}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
-                          {t('guided_queue_step_counter', '{0} of {1}')
-                            .replace('{0}', String(stepNum))
-                            .replace('{1}', String(totalCount))}
+                        <span className="hidden sm:inline text-[10px] font-bold text-[var(--subtext)] opacity-45 shrink-0">
+                          •
                         </span>
-                        <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[8.5px] font-black uppercase tracking-wider text-[var(--success)]">
-                          <span className="material-symbols-outlined !text-[11px]">
+                        <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-[var(--subtext)] opacity-85 truncate">
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                             {t('icon_bolt', 'bolt')}
                           </span>
-                          {t('guided_queue_auto_advance_badge', 'Auto-Advances on Download')}
+                          <span className="truncate">
+                            {t('guided_queue_auto_advance_badge', 'Auto-Advances on Download')}
+                          </span>
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs font-black text-[var(--text)] truncate mt-0.5">
-                        <span className="truncate">{currentItem?.name}</span>
-                        {currentItem?.author && (
-                          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                            • {currentItem.author}
-                          </span>
+
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-black text-[var(--text)] tracking-tight truncate">
+                          {cleanItemName}
+                        </span>
+                        {cleanAuthor && (
+                          <>
+                            <span className="text-xs font-semibold text-[var(--subtext)] opacity-40 shrink-0">
+                              •
+                            </span>
+                            <span className="text-xs font-semibold text-[var(--subtext)] opacity-85 truncate">
+                              {cleanAuthor}
+                            </span>
+                          </>
                         )}
-                        {currentItem?.version && (
-                          <span className="text-[10px] font-mono text-[var(--accent)] shrink-0">
-                            ({currentItem.version})
-                          </span>
+                        {currentItem?.moduleCount && currentItem.moduleCount > 1 && (
+                          <>
+                            <span className="text-xs font-semibold text-[var(--subtext)] opacity-40 shrink-0">
+                              •
+                            </span>
+                            <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-80 shrink-0">
+                              {currentItem.moduleCount} {t('badge_modules_count', 'Modules')}
+                            </span>
+                          </>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      disabled={guidedBrowserIndex <= 0}
-                      onClick={() => setGuidedBrowserIndex(guidedBrowserIndex - 1)}
-                      className="h-8 w-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--text)] disabled:opacity-35 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {t('icon_chevron_left', 'chevron_left')}
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    {(cleanInstVer || cleanNewVer) && (
+                      <span className={`hidden lg:inline-flex ${VAULT_CHIP_CLASS} font-mono`}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t('icon_new_releases', 'new_releases')}
+                        </span>
+                        {cleanInstVer && cleanNewVer && cleanInstVer !== cleanNewVer ? (
+                          <>
+                            <span className="text-[var(--subtext)]">v{cleanInstVer} &rarr; </span>
+                            <span>v{cleanNewVer}</span>
+                          </>
+                        ) : (
+                          <span>v{cleanNewVer || cleanInstVer}</span>
+                        )}
                       </span>
-                    </button>
+                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const res = advanceGuidedBrowserQueue('skipped');
-                        if (res.done) {
-                          clearGuidedBrowserQueue();
-                        }
-                      }}
-                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9.5px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      <span className="material-symbols-outlined !text-[14px]">
-                        {t('icon_skip_next', 'skip_next')}
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t('icon_playlist_play', 'playlist_play')}
                       </span>
                       <span>
-                        {stepNum >= totalCount
-                          ? t('guided_queue_finish_btn', 'Finish Queue')
-                          : t('guided_queue_skip_btn', 'Skip')}
+                        {t('guided_queue_step_counter', '{0} of {1}')
+                          .replace('{0}', String(stepNum))
+                          .replace('{1}', String(totalCount))}
                       </span>
-                    </button>
+                    </span>
 
-                    <button
-                      type="button"
-                      onClick={clearGuidedBrowserQueue}
-                      className="h-8 w-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[15px]">
-                        {t('icon_close', 'close')}
-                      </span>
-                    </button>
+                    <div className="glass-surface rounded-xl h-9 divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center shrink-0 overflow-hidden">
+                      <button
+                        type="button"
+                        disabled={guidedBrowserIndex <= 0}
+                        onClick={() => setGuidedBrowserIndex(guidedBrowserIndex - 1)}
+                        className="relative group/gprev h-9 w-9 text-[var(--text)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] disabled:opacity-35 flex items-center justify-center transition-all cursor-pointer disabled:cursor-default"
+                      >
+                        <span className="material-symbols-outlined !text-[17px]">
+                          {t('icon_chevron_left', 'chevron_left')}
+                        </span>
+                        <HoverTooltip
+                          title={t('nav_prev', 'Back')}
+                          vAlign="bottom"
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentItem?.url) {
+                            handleNavigate(currentItem.url);
+                          }
+                        }}
+                        className="relative group/greload h-9 w-9 text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t('icon_my_location', 'my_location')}
+                        </span>
+                        <HoverTooltip
+                          title={cleanItemName}
+                          subtitle={currentItem?.url}
+                          vAlign="bottom"
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const res = advanceGuidedBrowserQueue('skipped');
+                          if (res.done) {
+                            clearGuidedBrowserQueue();
+                          }
+                        }}
+                        className="h-9 px-3 text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                          {stepNum >= totalCount
+                            ? t('icon_check', 'check')
+                            : t('icon_skip_next', 'skip_next')}
+                        </span>
+                        <span>
+                          {stepNum >= totalCount
+                            ? t('guided_queue_finish_btn', 'Finish Queue')
+                            : t('guided_queue_skip_btn', 'Skip')}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={clearGuidedBrowserQueue}
+                        className="relative group/gclose h-9 w-9 text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t('icon_close', 'close')}
+                        </span>
+                        <HoverTooltip
+                          title={t('btn_close', 'Close')}
+                          variant="danger"
+                          vAlign="bottom"
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="w-full h-1 rounded-full bg-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--accent)] transition-all duration-300"
-                    style={{ width: `${pct}%` }}
-                  />
+                <div className="flex items-center gap-1.5 w-full pt-0.5">
+                  {guidedBrowserQueue.map((qItem, qIdx) => {
+                    const isStepActive = qIdx === guidedBrowserIndex;
+                    const isStepCompleted = qItem.status === 'completed';
+                    const isStepSkipped = qItem.status === 'skipped';
+                    const qLabel =
+                      formatCleanModTitle(qItem.name) ||
+                      (qItem.name && !/^\[object\s+object\]$/i.test(String(qItem.name))
+                        ? String(qItem.name)
+                        : `${qIdx + 1}`);
+                    return (
+                      <button
+                        key={qItem.id || qIdx}
+                        type="button"
+                        onClick={() => setGuidedBrowserIndex(qIdx)}
+                        className={`relative group/gstep h-1.5 flex-1 rounded-full transition-all duration-200 cursor-pointer ${
+                          isStepActive
+                            ? 'bg-[var(--accent)]'
+                            : isStepCompleted
+                              ? 'bg-[var(--success)] opacity-85'
+                              : isStepSkipped
+                                ? 'bg-[color-mix(in_srgb,var(--warning)_60%,transparent)]'
+                                : 'bg-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_25%,transparent)]'
+                        }`}
+                      >
+                        <HoverTooltip
+                          title={`${qIdx + 1} / ${totalCount} • ${qLabel}`}
+                          subtitle={qItem.author ? `${qItem.author}` : undefined}
+                          vAlign="bottom"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );

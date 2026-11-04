@@ -5,6 +5,7 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import packageJson from "../../package.json";
 import { invoke } from "@tauri-apps/api/core";
+import { isDesktop } from "../utils/envUtils";
 
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -215,16 +216,17 @@ export function SystemStatusPanel({
         >
           <div className="grid grid-cols-2 gap-3">
             {(() => {
+              const activeUpdatePayload = isDesktop() ? updatePayload : null;
               const installedVersion = String(packageJson.version || "")
                 .replace(/^v/i, "")
                 .trim();
-              const targetUpdateVersion = updatePayload
-                ? String(updatePayload.version || "")
+              const targetUpdateVersion = activeUpdatePayload
+                ? String(activeUpdatePayload.version || "")
                     .replace(/^v/i, "")
                     .trim()
                 : "";
               const isDevUpdate = Boolean(
-                updatePayload?.isDevChannel || /dev/i.test(targetUpdateVersion)
+                activeUpdatePayload?.isDevChannel || /dev/i.test(targetUpdateVersion)
               );
               const channelSuffix =
                 installedVersion === targetUpdateVersion
@@ -237,14 +239,14 @@ export function SystemStatusPanel({
               return (
                 <StatBox
                   label={
-                    updatePayload
+                    activeUpdatePayload
                       ? isDevUpdate
                         ? t("sys_stat_dev_update_available", "Dev Build Available")
                         : t("card_update_available", "Update Available")
                       : t("sys_stat_version", "Build Version")
                   }
                   value={
-                    updatePayload && targetUpdateVersion ? (
+                    activeUpdatePayload && targetUpdateVersion ? (
                       <span className="inline-flex items-center gap-1.5">
                         <span>v{installedVersion}</span>
                         <span className="material-symbols-outlined !text-[16px] text-[var(--success)]">
@@ -260,15 +262,15 @@ export function SystemStatusPanel({
                     )
                   }
                   icon={
-                    updatePayload
+                    activeUpdatePayload
                       ? t("icon_system_update_alt", "system_update_alt")
                       : t("icon_tag", "tag")
                   }
                   iconColorClass={
-                    updatePayload ? "text-[var(--success)]" : "text-[var(--accent)]"
+                    activeUpdatePayload ? "text-[var(--success)]" : "text-[var(--accent)]"
                   }
                   tooltipSubtitle={
-                    updatePayload
+                    activeUpdatePayload
                       ? t(
                           "sys_stat_click_to_update",
                           "Click to view release notes and install update"
@@ -276,11 +278,12 @@ export function SystemStatusPanel({
                       : t("sys_stat_up_to_date", "Sanctuary OS is up to date")
                   }
                   className={
-                    updatePayload
+                    activeUpdatePayload
                       ? "!border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:!border-[var(--success)]"
                       : ""
                   }
                   onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                    if (!isDesktop()) return;
                     if (e.altKey) {
                       setUpdatePayload({
                         version: "9.9.9",
@@ -290,7 +293,7 @@ export function SystemStatusPanel({
                           console.log("Simulating install...");
                         },
                       } as any);
-                    } else if (updatePayload) {
+                    } else if (activeUpdatePayload) {
                       setIsUpdatePanelOpen(true);
                     }
                   }}

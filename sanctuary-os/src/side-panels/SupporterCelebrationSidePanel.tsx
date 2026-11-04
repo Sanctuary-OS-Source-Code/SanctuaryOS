@@ -15,6 +15,7 @@ import {
   syncUpdateChannelNotification,
   LocalSupporterStatePayload,
 } from "../utils/supporterManager";
+import { isDesktop } from "../utils/envUtils";
 import packageJson from "../../package.json";
 
 export interface SupporterCelebrationPayload {
@@ -222,11 +223,13 @@ export function SupporterCelebrationSidePanel() {
               window.dispatchEvent(
                 new CustomEvent("sanctuary-supporter-updated"),
               );
-              await syncUpdateChannelNotification({
-                currentVersion: packageJson.version,
-                switchedToChannel: updated.channel_enabled ? "dev" : "stable",
-                forceGitHubRefresh: true,
-              });
+              if (isDesktop()) {
+                await syncUpdateChannelNotification({
+                  currentVersion: packageJson.version,
+                  switchedToChannel: updated.channel_enabled ? "dev" : "stable",
+                  forceGitHubRefresh: true,
+                });
+              }
             }}
             label={t(
               "supporter_dev_builds_channel_toggle",

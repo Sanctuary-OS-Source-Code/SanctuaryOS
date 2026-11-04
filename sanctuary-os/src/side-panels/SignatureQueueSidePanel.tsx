@@ -22,7 +22,9 @@ import {
   UniversalGroup,
   getModIcon,
   VAULT_CHIP_CLASS,
+  formatDisplayName,
 } from "../shared";
+import { formatCleanModTitle } from "./CommandIncompatiblePanel";
 import { unpackBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 import {
   deriveUserStagingToken,
@@ -526,26 +528,26 @@ export function SignatureQueueSidePanel({
         version?: string;
         status: "pending" | "completed" | "skipped";
       }[] = [];
-      const seen = new Set<string>();
 
       itemsToAcquire
         .filter((m) => !m.asset_type)
         .forEach((mod, idx) => {
+          const rawName = formatDisplayName(mod.displayName || mod.name || "");
+          const cleanName = formatCleanModTitle(rawName) || rawName || "Unknown Artifact";
           const targetUrl = getModFallbackUrl(
             mod.displayName || mod.name,
             mod.hash,
             activeGameSchema,
             { url: mod.url, author: mod.author }
           );
-          if (targetUrl && !seen.has(targetUrl)) {
-            seen.add(targetUrl);
+          if (targetUrl) {
             guidedItems.push({
               id: String(mod.id || mod.hash || idx),
-              name: mod.displayName || mod.name || "Unknown Artifact",
-              author: mod.author || undefined,
+              name: cleanName,
+              author: mod.author ? formatCleanModTitle(mod.author) : undefined,
               url: targetUrl,
               hash: mod.hash || undefined,
-              version: mod.version || undefined,
+              version: mod.version ? String(mod.version).replace(/^v\.?/i, "").trim() : undefined,
               status: "pending",
             });
           }
@@ -557,8 +559,12 @@ export function SignatureQueueSidePanel({
         useModalStore.getState().startGuidedBrowserQueue(guidedItems);
         setIsSideBrowserOpen(true);
       } else {
-        guidedItems.slice(0, 5).forEach((g) => {
-          handleOpenUrl(g.url);
+        const seen = new Set<string>();
+        guidedItems.forEach((g) => {
+          if (!seen.has(g.url) && seen.size < 5) {
+            seen.add(g.url);
+            handleOpenUrl(g.url);
+          }
         });
       }
     },

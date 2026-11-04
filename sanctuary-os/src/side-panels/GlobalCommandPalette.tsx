@@ -413,7 +413,6 @@ export function GlobalCommandPalette({
   const [autoOpenKeyboard, setAutoOpenKeyboard] = useState<boolean>(() =>
     getAutoOpenKeyboardPref()
   );
-  const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = useState<boolean>(false);
 
   // Hotkeys & Controller / Steam Deck Bindings
   const [hotkeys, setHotkeys] = useState<CommandHotkeyMap>(() => getCommandHotkeys());
@@ -450,16 +449,6 @@ export function GlobalCommandPalette({
     if (isLinuxDesktop()) {
       invoke("open_steam_osk").catch(() => {});
     }
-  }, []);
-
-  const toggleOnScreenKeyboard = useCallback(() => {
-    setIsVirtualKeyboardOpen((prev) => {
-      const next = !prev;
-      if (next && isLinuxDesktop()) {
-        invoke("open_steam_osk").catch(() => {});
-      }
-      return next;
-    });
     window.setTimeout(() => {
       inputRef.current?.focus();
     }, 20);
@@ -485,11 +474,8 @@ export function GlobalCommandPalette({
     setIsControlsOpen(Boolean(openControls));
     setIsOpen(true);
     setSelectedIndex(0);
-    if (getAutoOpenKeyboardPref() && !openControls) {
-      setIsVirtualKeyboardOpen(true);
-      if (isLinuxDesktop()) {
-        invoke("open_steam_osk").catch(() => {});
-      }
+    if (getAutoOpenKeyboardPref() && !openControls && isLinuxDesktop()) {
+      invoke("open_steam_osk").catch(() => {});
     }
     window.setTimeout(() => {
       inputRef.current?.focus();
@@ -500,7 +486,6 @@ export function GlobalCommandPalette({
   const closePalette = useCallback(() => {
     setIsOpen(false);
     setIsControlsOpen(false);
-    setIsVirtualKeyboardOpen(false);
     setRecordingHotkeyField(null);
     setRecordingPadField(null);
   }, []);
@@ -581,11 +566,8 @@ export function GlobalCommandPalette({
           const next = !prev;
           if (next) {
             setSelectedIndex(0);
-            if (getAutoOpenKeyboardPref()) {
-              setIsVirtualKeyboardOpen(true);
-              if (isLinuxDesktop()) {
-                invoke("open_steam_osk").catch(() => {});
-              }
+            if (getAutoOpenKeyboardPref() && isLinuxDesktop()) {
+              invoke("open_steam_osk").catch(() => {});
             }
             window.setTimeout(() => {
               inputRef.current?.focus();
@@ -593,7 +575,6 @@ export function GlobalCommandPalette({
             }, 40);
           } else {
             setIsControlsOpen(false);
-            setIsVirtualKeyboardOpen(false);
           }
           return next;
         });
@@ -608,7 +589,7 @@ export function GlobalCommandPalette({
         ) {
           e.preventDefault();
           e.stopPropagation();
-          toggleOnScreenKeyboard();
+          triggerSteamOsk();
           return;
         }
         if (
@@ -2677,15 +2658,11 @@ export function GlobalCommandPalette({
           const next = !prev;
           if (next) {
             setSelectedIndex(0);
-            if (getAutoOpenKeyboardPref()) {
-              setIsVirtualKeyboardOpen(true);
-              if (isLinuxDesktop()) {
-                invoke("open_steam_osk").catch(() => {});
-              }
+            if (getAutoOpenKeyboardPref() && isLinuxDesktop()) {
+              invoke("open_steam_osk").catch(() => {});
             }
           } else {
             setIsControlsOpen(false);
-            setIsVirtualKeyboardOpen(false);
           }
           return next;
         });
@@ -2783,13 +2760,9 @@ export function GlobalCommandPalette({
         st.controllerBindings.openKeyboard &&
         checkGamepadCombo(pressedIndices, st.controllerBindings.openKeyboard)
       ) {
-        setIsVirtualKeyboardOpen((prev) => {
-          const next = !prev;
-          if (next && isLinuxDesktop()) {
-            invoke("open_steam_osk").catch(() => {});
-          }
-          return next;
-        });
+        if (isLinuxDesktop()) {
+          invoke("open_steam_osk").catch(() => {});
+        }
         window.setTimeout(() => {
           inputRef.current?.focus();
         }, 20);
@@ -3107,13 +3080,6 @@ export function GlobalCommandPalette({
     },
   ];
 
-  const VIRTUAL_KEY_ROWS = [
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
-    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-    ["a", "s", "d", "f", "g", "h", "j", "k", "l", "-"],
-    ["z", "x", "c", "v", "b", "n", "m", "_", "."],
-  ];
-
   return (
     <SidePanel
       isOpen={isOpen}
@@ -3178,30 +3144,30 @@ export function GlobalCommandPalette({
                   />
                 </button>
               )}
-              <button
-                type="button"
-                onClick={toggleOnScreenKeyboard}
-                className={`relative ${VAULT_CHIP_CLASS} cursor-pointer transition-all hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
-                  isVirtualKeyboardOpen ? "border-[var(--accent)] text-[var(--accent)]" : ""
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_keyboard", "keyboard")}
-                </span>
-                <span className="hidden sm:inline">
-                  {formatGamepadCombo(controllerBindings.openKeyboard || "3")}
-                </span>
-                <HoverTooltip
-                  title={t("cmd_palette_pad_keyboard", "Summon On-Screen Keyboard")}
-                  subtitle={t(
-                    "cmd_palette_osk_tooltip_sub",
-                    "Toggle Touch / Controller Keyboard & Steam Deck OSK"
-                  )}
-                  icon={t("icon_keyboard", "keyboard")}
-                  vAlign="bottom"
-                  align="right"
-                />
-              </button>
+              {isLinuxDesktop() && (
+                <button
+                  type="button"
+                  onClick={triggerSteamOsk}
+                  className={`relative ${VAULT_CHIP_CLASS} cursor-pointer transition-all hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]`}
+                >
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_keyboard", "keyboard")}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {formatGamepadCombo(controllerBindings.openKeyboard || "3")}
+                  </span>
+                  <HoverTooltip
+                    title={t("cmd_palette_pad_keyboard", "Summon On-Screen Keyboard")}
+                    subtitle={t(
+                      "cmd_palette_osk_tooltip_sub",
+                      "Open Steam Deck OS Keyboard"
+                    )}
+                    icon={t("icon_keyboard", "keyboard")}
+                    vAlign="bottom"
+                    align="right"
+                  />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsControlsOpen((prev) => !prev)}
@@ -3228,125 +3194,6 @@ export function GlobalCommandPalette({
               </button>
             </div>
           </div>
-
-          {isVirtualKeyboardOpen && (
-            <div className="flex flex-col gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_keyboard", "keyboard")}
-                  </span>
-                  <span>{t("cmd_palette_osk_title", "On-Screen Quick Keyboard")}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {isLinuxDesktop() && (
-                    <button
-                      type="button"
-                      onClick={triggerSteamOsk}
-                      className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]`}
-                    >
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {t("icon_sports_esports", "sports_esports")}
-                      </span>
-                      <span>{t("cmd_palette_btn_steam_osk", "Steam OSK")}</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => toggleAutoOpenKeyboard()}
-                    className={`${VAULT_CHIP_CLASS} cursor-pointer transition-colors ${
-                      autoOpenKeyboard
-                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                        : "hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                    }`}
-                  >
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        autoOpenKeyboard ? "text-[var(--success)]" : "text-[var(--subtext)]"
-                      }`}
-                    >
-                      {autoOpenKeyboard
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_radio_button_unchecked", "radio_button_unchecked")}
-                    </span>
-                    <span>{t("cmd_palette_auto_osk_short", "Auto-Open")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsVirtualKeyboardOpen(false)}
-                    className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]`}
-                  >
-                    <span className="material-symbols-outlined !text-[12px]">
-                      {t("icon_keyboard_hide", "keyboard_hide")}
-                    </span>
-                    <span>{t("close", "Close")}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5 select-none">
-                {VIRTUAL_KEY_ROWS.map((row, rIdx) => (
-                  <div key={rIdx} className="grid grid-cols-10 gap-1.5">
-                    {row.map((ch) => (
-                      <button
-                        key={ch}
-                        type="button"
-                        onClick={() => {
-                          setQuery((prev) => prev + ch);
-                          if (isControlsOpen) setIsControlsOpen(false);
-                          inputRef.current?.focus();
-                        }}
-                        className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] active:scale-95 text-xs font-black uppercase text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                      >
-                        {ch}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-                <div className="grid grid-cols-4 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery((prev) => prev + " ");
-                      inputRef.current?.focus();
-                    }}
-                    className="col-span-2 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t("icon_space_bar", "space_bar")}
-                    </span>
-                    <span>{t("cmd_palette_key_space", "Space")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery((prev) => prev.slice(0, -1));
-                      inputRef.current?.focus();
-                    }}
-                    className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--warning)] flex items-center justify-center gap-1 transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t("icon_backspace", "backspace")}
-                    </span>
-                    <span>{t("back", "Back")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery("");
-                      inputRef.current?.focus();
-                    }}
-                    className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center justify-center gap-1 transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t("icon_delete", "delete")}
-                    </span>
-                    <span>{t("clear", "Clear")}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center justify-between px-1 text-[10px] font-bold text-[var(--subtext)] opacity-75">
             <span>

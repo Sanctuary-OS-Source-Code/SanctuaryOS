@@ -116,6 +116,11 @@ export function DevBuildClearanceGate() {
       // ignore local preference error
     }
 
+    if (!isDesktop()) {
+      await runClearanceCheck();
+      return;
+    }
+
     const instantStablePayload = {
       version: targetStableVer,
       date: new Date().toISOString(),

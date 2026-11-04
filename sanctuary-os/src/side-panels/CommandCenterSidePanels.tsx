@@ -457,36 +457,70 @@ export function UpdatesSidePanel({
   }, [groupedUpdates, searchQuery]);
 
   const handleStartGuidedUpdateQueue = () => {
-    const seen = new Set<string>();
     const guidedItems: {
       id: string;
       name: string;
       author?: string;
       url: string;
       hash?: string;
+      installedVersion?: string;
       version?: string;
+      icon?: string;
+      moduleCount?: number;
       status: "pending" | "completed" | "skipped";
     }[] = [];
 
     filteredUpdates.forEach((u: any, idx: number) => {
-      const title = formatCleanModTitle(u);
+      const groupedMods: any[] =
+        Array.isArray(u._groupedMods) && u._groupedMods.length > 0
+          ? u._groupedMods
+          : [u];
+      const rawTitle = u._groupedTitle || formatDisplayName(u.displayName || u.name || "");
+      const title = formatCleanModTitle(rawTitle) || rawTitle || "Unknown Artifact";
+      const validCreator = extractValidCreator(u, ...groupedMods);
+      const modIcon = getModIcon(u, activeGameSchema, t);
+
+      const hasRealVersion = Boolean(
+        u.version &&
+          String(u.version).trim() !== "" &&
+          String(u.version).toLowerCase() !== "v.local" &&
+          String(u.version).toLowerCase() !== "vlocal" &&
+          String(u.version).toLowerCase() !== "local" &&
+          String(u.version).toLowerCase() !== "unknown"
+      );
+      const cleanInstalledVer = hasRealVersion
+        ? String(u.version).replace(/^v\.?/i, "").trim()
+        : undefined;
+      const cleanNewVer = u.newVersion
+        ? String(u.newVersion).replace(/^v\.?/i, "").trim()
+        : undefined;
+
+      const resolvedFallbackUrl = getModFallbackUrl(
+        title || u.name || "",
+        u.hash,
+        activeGameSchema,
+        { url: u.download_url || u.url }
+      );
+      const directTargetUrl = u.download_url || u.url || resolvedFallbackUrl;
       const targetUrl =
-        u.download_url ||
-        u.url ||
-        getModFallbackUrl(
-          u._groupedTitle || u.displayName || u.name,
-          u.hash,
-          activeGameSchema
-        );
-      if (targetUrl && !seen.has(targetUrl)) {
-        seen.add(targetUrl);
+        directTargetUrl ||
+        `https://www.google.com/search?q=${encodeURIComponent(
+          activeGameSchema?.display_name || "Mod"
+        )}+${encodeURIComponent(
+          cleanSearchName(title || u.name || "", activeGameSchema)
+        )}`;
+
+      if (targetUrl) {
         guidedItems.push({
-          id: String(u.hash || u.dbId || idx),
-          name: title || u.displayName || u.name || "Unknown Artifact",
-          author: u.author || undefined,
+          id: String(u.hash || u.dbId || `${title}_${idx}`),
+          name: title,
+          author: validCreator ? formatCleanModTitle(validCreator) : undefined,
           url: targetUrl,
           hash: u.hash || undefined,
-          version: u.newVersion || u.version || undefined,
+          installedVersion: cleanInstalledVer,
+          version: cleanNewVer || cleanInstalledVer || undefined,
+          icon: modIcon,
+          moduleCount: groupedMods.length > 1 ? groupedMods.length : undefined,
           status: "pending",
         });
       }

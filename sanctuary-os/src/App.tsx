@@ -259,6 +259,7 @@ function App() {
 
   useEffect(() => {
     async function checkForUpdates() {
+      if (!isDesktop()) return;
       try {
         const {
           syncUpdateChannelNotification,

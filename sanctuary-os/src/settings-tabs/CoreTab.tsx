@@ -935,39 +935,53 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
               <CompanionPasskeyHandshakeApprover inline={true} />
 
               {requiresPasskeyStepUp ? (
-                <div className="flex flex-col gap-4">
+                <div
+                  className={`grid grid-cols-1 ${
+                    isNativeLocalPasskeySupported() ? "md:grid-cols-2" : ""
+                  } gap-3.5 items-stretch`}
+                >
                   {isNativeLocalPasskeySupported() && (
-                    <UniversalGroup
-                      title={t(
-                        "auth_passkey_stepup_required_title",
-                        "Existing Passkey Verification Required"
-                      )}
-                      icon={t("icon_lock", "lock")}
-                      headerAction={
+                    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col h-full">
+                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[15px]">
+                              {t("icon_lock", "lock")}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+                            {t(
+                              "auth_passkey_stepup_required_title",
+                              "Existing Passkey Verification Required"
+                            )}
+                          </span>
+                        </div>
                         <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
                           <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                             {t("icon_lock", "lock")}
                           </span>
                           <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
                         </span>
-                      }
-                    >
-                      <div className="flex flex-col gap-4">
-                        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                          {t(
-                            "auth_passkey_stepup_required_desc",
-                            "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
-                          )}
-                        </p>
+                      </div>
 
-                        {passkeyError && (
-                          <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                            <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                              {t("icon_error", "error")}
-                            </span>
-                            <span>{passkeyError}</span>
-                          </div>
-                        )}
+                      <div className="p-4 flex flex-col justify-between gap-4 flex-1">
+                        <div className="flex flex-col gap-3.5">
+                          <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                            {t(
+                              "auth_passkey_stepup_required_desc",
+                              "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+                            )}
+                          </p>
+
+                          {passkeyError && (
+                            <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                              <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                                {t("icon_error", "error")}
+                              </span>
+                              <span>{passkeyError}</span>
+                            </div>
+                          )}
+                        </div>
 
                         <ActionButton
                           onClick={handlePasskeyStepUp}
@@ -979,10 +993,10 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                               ? t("btn_verifying_passkey", "Verifying Passkey...")
                               : t("btn_verify_with_passkey", "Authenticate with Passkey")
                           }
-                          className="w-full"
+                          className="w-full mt-auto"
                         />
                       </div>
-                    </UniversalGroup>
+                    </div>
                   )}
 
                   <CompanionPasskeyHandshakeRequester

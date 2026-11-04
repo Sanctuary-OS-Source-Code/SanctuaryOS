@@ -434,7 +434,7 @@ export function UpdateSidePanel() {
     };
   }, [updatePayload, handleInstallUpdate]);
 
-  if (!updatePayload) return null;
+  if (!isDesktop() || !updatePayload) return null;
 
   const activePostRecord = isDevUpdate ? devPost : publicPost;
   const cleanTargetVersion = (

@@ -152,7 +152,7 @@ export function TitleBar({
   const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
-  const hasAppUpdate = Boolean(updatePayload);
+  const hasAppUpdate = isDesktop() && Boolean(updatePayload);
   const totalQueueCount =
     quarantineCount +
     dnaCount +

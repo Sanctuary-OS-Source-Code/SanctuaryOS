@@ -603,9 +603,13 @@ const PRESERVED_ACRONYMS = new Set([
   "NWP",
 ]);
 
-export function formatCleanModTitle(rawTitle: string): string {
-  const trimmed = String(rawTitle || "").trim();
-  if (!trimmed) return "";
+export function formatCleanModTitle(rawTitle: any): string {
+  const resolved =
+    rawTitle && typeof rawTitle === "object"
+      ? rawTitle._groupedTitle || formatDisplayName(rawTitle.displayName || rawTitle.name || "")
+      : rawTitle;
+  const trimmed = String(resolved || "").trim();
+  if (!trimmed || /^\[object\s+object\]$/i.test(trimmed)) return "";
 
   const spaced = trimmed
     .replace(/([\]})])([A-Za-z0-9])/g, "$1 $2")

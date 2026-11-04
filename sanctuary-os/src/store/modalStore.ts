@@ -141,7 +141,10 @@ interface ModalState {
     author?: string;
     url: string;
     hash?: string;
+    installedVersion?: string;
     version?: string;
+    icon?: string;
+    moduleCount?: number;
     status: "pending" | "completed" | "skipped";
   }[];
   guidedBrowserIndex: number;
@@ -152,7 +155,10 @@ interface ModalState {
       author?: string;
       url: string;
       hash?: string;
+      installedVersion?: string;
       version?: string;
+      icon?: string;
+      moduleCount?: number;
       status?: "pending" | "completed" | "skipped";
     }[]
   ) => void;
@@ -1179,10 +1185,19 @@ export const useModalStore = create<ModalState>((set, get) => ({
   guidedBrowserQueue: [],
   guidedBrowserIndex: 0,
   startGuidedBrowserQueue: (items) => {
+    const sanitizeQueueName = (rawName: any, fallbackUrl: string) => {
+      const s =
+        rawName && typeof rawName === "object"
+          ? String(rawName._groupedTitle || rawName.displayName || rawName.name || "").trim()
+          : String(rawName || "").trim();
+      if (s && !/^\[object\s+object\]$/i.test(s)) return s;
+      return fallbackUrl;
+    };
     const valid = (items || [])
       .filter((it) => it && typeof it.url === "string" && it.url.trim().length > 0)
       .map((it) => ({
         ...it,
+        name: sanitizeQueueName(it.name, it.url),
         status: it.status || ("pending" as const),
       }));
     if (valid.length === 0) return;
@@ -1202,6 +1217,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const queue = [...(state.guidedBrowserQueue || [])];
     if (queue.length === 0) return { done: true };
     const curIdx = state.guidedBrowserIndex;
+    const prevItem = queue[curIdx];
     if (queue[curIdx]) {
       queue[curIdx] = { ...queue[curIdx], status: markCurrentAs };
     }
@@ -1212,11 +1228,20 @@ export const useModalStore = create<ModalState>((set, get) => ({
     }
     const nextItem = queue[nextIdx];
     const activeTabId = state.activeBrowserTabId || `guided_${Date.now()}`;
+    const sameUrl =
+      Boolean(prevItem?.url) &&
+      String(prevItem.url).trim().replace(/\/+$/, "").toLowerCase() ===
+        String(nextItem.url).trim().replace(/\/+$/, "").toLowerCase();
     const nextTabs =
       state.browserTabs.length > 0
         ? state.browserTabs.map((t) =>
             t.id === activeTabId
-              ? { ...t, url: nextItem.url, title: nextItem.name, sleeping: false }
+              ? {
+                  ...t,
+                  url: sameUrl ? t.url : nextItem.url,
+                  title: nextItem.name,
+                  sleeping: false,
+                }
               : t
           )
         : [{ id: activeTabId, url: nextItem.url, title: nextItem.name, sleeping: false }];
@@ -1226,7 +1251,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
       browserTabs: nextTabs,
       activeBrowserTabId: activeTabId,
       sideBrowserUrl: nextItem.url,
-      sideBrowserTrigger: state.sideBrowserTrigger + 1,
+      sideBrowserTrigger: sameUrl ? state.sideBrowserTrigger : state.sideBrowserTrigger + 1,
     });
     return { done: false, nextItem, nextIndex: nextIdx };
   },
@@ -1234,13 +1259,23 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const state = get();
     const queue = state.guidedBrowserQueue || [];
     if (idx < 0 || idx >= queue.length) return;
+    const prevItem = queue[state.guidedBrowserIndex];
     const item = queue[idx];
     const activeTabId = state.activeBrowserTabId || `guided_${Date.now()}`;
+    const sameUrl =
+      Boolean(prevItem?.url) &&
+      String(prevItem.url).trim().replace(/\/+$/, "").toLowerCase() ===
+        String(item.url).trim().replace(/\/+$/, "").toLowerCase();
     const nextTabs =
       state.browserTabs.length > 0
         ? state.browserTabs.map((t) =>
             t.id === activeTabId
-              ? { ...t, url: item.url, title: item.name, sleeping: false }
+              ? {
+                  ...t,
+                  url: sameUrl ? t.url : item.url,
+                  title: item.name,
+                  sleeping: false,
+                }
               : t
           )
         : [{ id: activeTabId, url: item.url, title: item.name, sleeping: false }];
@@ -1249,7 +1284,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
       browserTabs: nextTabs,
       activeBrowserTabId: activeTabId,
       sideBrowserUrl: item.url,
-      sideBrowserTrigger: state.sideBrowserTrigger + 1,
+      sideBrowserTrigger: sameUrl ? state.sideBrowserTrigger : state.sideBrowserTrigger + 1,
     });
   },
   clearGuidedBrowserQueue: () => set({ guidedBrowserQueue: [], guidedBrowserIndex: 0 }),

@@ -77,7 +77,7 @@ export function SystemQueuesSidePanel({
   const blueprintQueueCount = sigQueueCount + (hasStagingDraft ? 1 : 0);
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
-  const hasAppUpdate = Boolean(updatePayload);
+  const hasAppUpdate = isDesktop() && Boolean(updatePayload);
 
   const totalQueueItems =
     quarantineCount +

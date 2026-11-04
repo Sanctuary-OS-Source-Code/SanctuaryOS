@@ -125,9 +125,9 @@ export function CompanionPasskeyHandshakeRequester({
   };
 
   return (
-    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col">
+    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col h-full">
       <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined !text-[15px]">
               {t("icon_phonelink_lock", "phonelink_lock")}
@@ -141,28 +141,30 @@ export function CompanionPasskeyHandshakeRequester({
           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
             {t("icon_devices", "devices")}
           </span>
-          <span>
+          <span className="truncate max-w-[140px]">
             {t("passkey_handshake_badge", "Steam Deck • macOS • Mobile PWA")}
           </span>
         </span>
       </div>
 
-      <div className="p-4 flex flex-col gap-3.5">
-        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-          {t(
-            "passkey_handshake_desc",
-            "On Steam Deck, Linux, or macOS—or when your Passkey lives on your phone—use a live Companion Handshake. Your companion device must perform a real-time FIDO2 Passkey ceremony right then and there to unlock this session."
-          )}
-        </p>
+      <div className="p-4 flex flex-col justify-between gap-3.5 flex-1">
+        <div className="flex flex-col gap-3.5">
+          <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+            {t(
+              "passkey_handshake_desc",
+              "On Steam Deck, Linux, or macOS—or when your Passkey lives on your phone—use a live Companion Handshake. Your companion device must perform a real-time FIDO2 Passkey ceremony right then and there to unlock this session."
+            )}
+          </p>
 
-        {handshakeError && (
-          <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-            <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-              {t("icon_error", "error")}
-            </span>
-            <span>{handshakeError}</span>
-          </div>
-        )}
+          {handshakeError && (
+            <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+              <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                {t("icon_error", "error")}
+              </span>
+              <span>{handshakeError}</span>
+            </div>
+          )}
+        </div>
 
         {!activeHandshake ? (
           <ActionButton
@@ -181,10 +183,10 @@ export function CompanionPasskeyHandshakeRequester({
                     "Start Companion Passkey Handshake"
                   )
             }
-            className="w-full"
+            className="w-full mt-auto"
           />
         ) : (
-          <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-col items-center gap-3">
+          <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-col items-center gap-3 mt-auto">
             <div className="flex items-center justify-between w-full">
               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
                 {t("passkey_handshake_code_label", "Live Handshake Verification Code")}
@@ -993,67 +995,96 @@ export function ElevatedPasskeyGate({
               <div className="flex flex-col gap-4">
                 <CompanionPasskeyHandshakeApprover inline={true} />
 
-                {isNativeLocalPasskeySupported() && (
-                  <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 flex flex-col gap-4">
-                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                      {t(
-                        "passkey_gate_verify_desc",
-                        "Your account has a registered FIDO2 Passkey, but this session needs to complete Passkey verification before opening this hub."
-                      )}
-                    </p>
+                <div
+                  className={`grid grid-cols-1 ${
+                    isNativeLocalPasskeySupported() ? "md:grid-cols-2" : ""
+                  } gap-3.5 items-stretch`}
+                >
+                  {isNativeLocalPasskeySupported() && (
+                    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col h-full">
+                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[15px]">
+                              {t("icon_passkey", "passkey")}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+                            {t("auth_passkey_stepup_required_title", "Existing Passkey Verification Required")}
+                          </span>
+                        </div>
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_passkey", "passkey")}
+                          </span>
+                          <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
+                        </span>
+                      </div>
 
-                    {passkeys.length > 1 && (
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                          {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
-                        </label>
-                        <CustomDropdown
-                          value={selectedPasskeyId || passkeys[0]?.id || ""}
-                          onChange={(vals: any) =>
-                            setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                      <div className="p-4 flex flex-col justify-between gap-4 flex-1">
+                        <div className="flex flex-col gap-3.5">
+                          <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                            {t(
+                              "passkey_gate_verify_desc",
+                              "Your account has a registered FIDO2 Passkey, but this session needs to complete Passkey verification before opening this hub."
+                            )}
+                          </p>
+
+                          {passkeys.length > 1 && (
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                                {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
+                              </label>
+                              <CustomDropdown
+                                value={selectedPasskeyId || passkeys[0]?.id || ""}
+                                onChange={(vals: any) =>
+                                  setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                                }
+                                options={passkeys.map((pk: any) => ({
+                                  id: pk.id,
+                                  label: sanitizeFactorFriendlyName(
+                                    pk.friendly_name,
+                                    t("passkey_unnamed_device", "FIDO2 Passkey")
+                                  ),
+                                  icon: t("icon_passkey", "passkey"),
+                                }))}
+                                disableTint={true}
+                              />
+                            </div>
+                          )}
+
+                          {errorMsg && (
+                            <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                              <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                                {t("icon_error", "error")}
+                              </span>
+                              <span>{errorMsg}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <ActionButton
+                          onClick={handleVerifySessionPasskey}
+                          disabled={busy}
+                          variant="glass"
+                          icon={t("icon_passkey", "passkey")}
+                          label={
+                            busy
+                              ? t("btn_verifying_passkey", "Verifying Passkey...")
+                              : t("btn_verify_with_passkey", "Authenticate with Passkey")
                           }
-                          options={passkeys.map((pk: any) => ({
-                            id: pk.id,
-                            label: sanitizeFactorFriendlyName(
-                              pk.friendly_name,
-                              t("passkey_unnamed_device", "FIDO2 Passkey")
-                            ),
-                            icon: t("icon_passkey", "passkey"),
-                          }))}
-                          disableTint={true}
+                          className="w-full mt-auto"
                         />
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {errorMsg && (
-                      <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                        <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                          {t("icon_error", "error")}
-                        </span>
-                        <span>{errorMsg}</span>
-                      </div>
-                    )}
-
-                    <ActionButton
-                      onClick={handleVerifySessionPasskey}
-                      disabled={busy}
-                      variant="glass"
-                      icon={t("icon_passkey", "passkey")}
-                      label={
-                        busy
-                          ? t("btn_verifying_passkey", "Verifying Passkey...")
-                          : t("btn_verify_with_passkey", "Authenticate with Passkey")
-                      }
-                      className="w-full"
-                    />
-                  </div>
-                )}
-
-                <CompanionPasskeyHandshakeRequester
-                  targetScope={roleTitle}
-                  autoStart={!isNativeLocalPasskeySupported()}
-                  onVerified={refreshState}
-                />
+                  <CompanionPasskeyHandshakeRequester
+                    targetScope={roleTitle}
+                    autoStart={!isNativeLocalPasskeySupported()}
+                    onVerified={refreshState}
+                  />
+                </div>
               </div>
             )
           ) : (

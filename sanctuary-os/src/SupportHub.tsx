@@ -834,46 +834,58 @@ export default function SupportHub() {
               </div>
             )}
 
-            {vaultExtremeMods.length > 0 && (
-              <SidePanelHeroCard
-                icon={t("icon_block", "block")}
-                overline={t("security", "Compliance Lockout")}
-                title={t("support_vault_lock_title", "{Vault} Lock Engaged")}
-                description={t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
-                badge={`${vaultExtremeMods.length}`}
-                badgeIcon={t("icon_warning", "warning")}
-                variant="danger"
+            {(vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)) && (
+              <div
+                className={`grid grid-cols-1 ${
+                  vaultExtremeMods.length > 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0
+                    ? "md:grid-cols-2"
+                    : ""
+                } gap-3.5 items-stretch`}
               >
-                <div className="flex flex-wrap items-center justify-end gap-2 w-full">
-                  <ActionButton
+                {vaultExtremeMods.length > 0 && (
+                  <SidePanelHeroCard
+                    icon={t("icon_block", "block")}
+                    overline={t("security", "Compliance Lockout")}
+                    title={t("support_vault_lock_title", "{Vault} Lock Engaged")}
+                    description={t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
+                    badge={`${vaultExtremeMods.length}`}
+                    badgeIcon={t("icon_warning", "warning")}
                     variant="danger"
-                    icon={t("icon_delete", "delete")}
-                    label={t("resolve_issues", "Resolve Anomalies")}
-                    onClick={() => setResolutionType('vault')}
-                  />
-                </div>
-              </SidePanelHeroCard>
-            )}
+                    className="h-full justify-between"
+                  >
+                    <div className="flex flex-wrap items-center justify-end gap-2 w-full mt-auto pt-1">
+                      <ActionButton
+                        variant="danger"
+                        icon={t("icon_delete", "delete")}
+                        label={t("resolve_issues", "Resolve Anomalies")}
+                        onClick={() => setResolutionType('vault')}
+                      />
+                    </div>
+                  </SidePanelHeroCard>
+                )}
 
-            {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-              <SidePanelHeroCard
-                icon={t("icon_warning", "warning")}
-                overline={t("tab_blueprints", "{Blueprint} Compliance")}
-                title={t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}
-                description={t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
-                badge={`${activeAdultMods.length}`}
-                badgeIcon={t("icon_extension", "extension")}
-                variant="warning"
-              >
-                <div className="flex flex-wrap items-center justify-end gap-2 w-full">
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_engineering", "engineering")}
-                    label={t("resolve_issues", "Resolve Anomalies")}
-                    onClick={() => setResolutionType('blueprint')}
-                  />
-                </div>
-              </SidePanelHeroCard>
+                {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
+                  <SidePanelHeroCard
+                    icon={t("icon_warning", "warning")}
+                    overline={t("tab_blueprints", "{Blueprint} Compliance")}
+                    title={t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}
+                    description={t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
+                    badge={`${activeAdultMods.length}`}
+                    badgeIcon={t("icon_extension", "extension")}
+                    variant="warning"
+                    className="h-full justify-between"
+                  >
+                    <div className="flex flex-wrap items-center justify-end gap-2 w-full mt-auto pt-1">
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_engineering", "engineering")}
+                        label={t("resolve_issues", "Resolve Anomalies")}
+                        onClick={() => setResolutionType('blueprint')}
+                      />
+                    </div>
+                  </SidePanelHeroCard>
+                )}
+              </div>
             )}
 
             <div className="flex flex-col w-full transition-all duration-300">

@@ -436,62 +436,72 @@ export default function WayfinderSupportSidePanel({
             </div>
         )}
 
-        {vaultExtremeMods.length > 0 && (
-            <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
+        {(vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)) && (
+          <div
+            className={`grid grid-cols-1 ${
+              vaultExtremeMods.length > 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0
+                ? "md:grid-cols-2"
+                : ""
+            } gap-3.5 items-stretch mt-2`}
+          >
+            {vaultExtremeMods.length > 0 && (
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col justify-between overflow-hidden relative shadow-md group h-full">
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged") || "Vault Lock Engaged"}</span>
-                        <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
-                        </span>
-                    </div>
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 pt-0.5 w-full">
+                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged") || "Vault Lock Engaged"}</span>
+                    <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed">
+                      {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
+                    </span>
+                  </div>
                 </div>
-                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <div className="flex flex-wrap gap-2">
-                        {vaultExtremeMods.map((mod: any, i: number) => (
-                            <span
-                              key={i}
-                              className={VAULT_CHIP_CLASS}
-                            >
-                                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
-                                <span>T{mod.tier} • {mod.name}</span>
-                            </span>
-                        ))}
-                    </div>
+                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10 mt-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {vaultExtremeMods.map((mod: any, i: number) => (
+                      <span
+                        key={i}
+                        className={VAULT_CHIP_CLASS}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
+                        <span>T{mod.tier} • {mod.name}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-            </div>
-        )}
+              </div>
+            )}
 
-        {vaultExtremeMods.length === 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-            <div className="glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col overflow-hidden relative shadow-md group mt-2">
+            {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col justify-between overflow-hidden relative shadow-md group h-full">
                 <div className="flex items-start gap-4 p-5 relative z-10">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
-                        <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                        <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
-                        <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed pr-4">
-                            {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
-                        </span>
-                    </div>
+                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
+                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 pt-0.5 w-full">
+                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
+                    <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed">
+                      {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
+                    </span>
+                  </div>
                 </div>
-                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <div className="flex flex-wrap gap-2">
-                        {activeAdultMods.map((mod: any, i: number) => (
-                            <span
-                              key={i}
-                              className={VAULT_CHIP_CLASS}
-                            >
-                                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">{t("icon_extension", "extension")}</span>
-                                <span>T{mod.tier} • {mod.name}</span>
-                            </span>
-                        ))}
-                    </div>
+                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10 mt-auto">
+                  <div className="flex flex-wrap gap-2">
+                    {activeAdultMods.map((mod: any, i: number) => (
+                      <span
+                        key={i}
+                        className={VAULT_CHIP_CLASS}
+                      >
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">{t("icon_extension", "extension")}</span>
+                        <span>T{mod.tier} • {mod.name}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-            </div>
+              </div>
+            )}
+          </div>
         )}
 
           <div className="flex flex-col gap-2 relative z-[70]">

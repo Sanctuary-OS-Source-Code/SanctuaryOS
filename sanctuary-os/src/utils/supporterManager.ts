@@ -1648,6 +1648,15 @@ export async function syncUpdateChannelNotification(options?: {
   updateAvailable: boolean;
   payload: any | null;
 }> {
+  if (!isDesktop()) {
+    useModalStore.getState().setUpdatePayload(null);
+    return {
+      activeChannel: options?.switchedToChannel || "stable",
+      updateAvailable: false,
+      payload: null,
+    };
+  }
+
   let resolvedVersion = options?.currentVersion || "";
   if (!resolvedVersion) {
     try {
