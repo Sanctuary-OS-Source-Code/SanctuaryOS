@@ -2565,94 +2565,100 @@ export default function KeepersWebDirectivesEditor({
                                 setEditingSubCardIdx(null);
                               }
                             }}
-                            className="glass-panel rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 border transition-all duration-200 cursor-pointer opacity-50 hover:opacity-85 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
+                            className="glass-panel rounded-2xl px-4 py-3.5 flex flex-col gap-2 border transition-all duration-200 cursor-pointer opacity-50 hover:opacity-85 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] w-full"
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined !text-[18px]">
-                                  {card.icon || t("icon_layers", "layers")}
-                                </span>
+                            <div className="flex items-center justify-between gap-2.5 sm:gap-3 w-full">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                                  <span className="material-symbols-outlined !text-[18px]">
+                                    {card.icon || t("icon_layers", "layers")}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)] leading-snug">
+                                    {card.overline || `#${cardIdx + 1}`}
+                                  </span>
+                                  <span className="hidden sm:block text-sm font-black text-[var(--text)] truncate">
+                                    {renderCleanInlineText(card.title)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex flex-col min-w-0 flex-1">
-                                <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)] truncate">
-                                  {card.overline || `#${cardIdx + 1}`}
-                                </span>
-                                <span className="text-sm font-black text-[var(--text)] truncate">
-                                  {renderCleanInlineText(card.title)}
-                                </span>
+
+                              <div
+                                className="flex items-center gap-1.5 shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {card.badge && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1">
+                                    {activeCanonicalSlug === "phase_roadmap" && (
+                                      <span
+                                        className={`material-symbols-outlined !text-[12px] ${
+                                          card.status === "completed"
+                                            ? "text-[var(--success)]"
+                                            : card.status === "in_testing"
+                                              ? "text-[var(--warning)]"
+                                              : "text-[var(--accent)]"
+                                        }`}
+                                      >
+                                        {card.status === "completed"
+                                          ? t("icon_check_circle", "check_circle")
+                                          : card.status === "in_testing"
+                                            ? t("icon_science", "science")
+                                            : t("icon_rocket_launch", "rocket_launch")}
+                                      </span>
+                                    )}
+                                    {card.badge}
+                                  </span>
+                                )}
+                                <ActionButton
+                                  variant="glass"
+                                  icon={t("icon_arrow_upward", "arrow_upward")}
+                                  iconOnly={true}
+                                  disabled={cardIdx === 0}
+                                  onClick={() =>
+                                    handleMoveCard(
+                                      activeBuilderTabIdx,
+                                      cardIdx,
+                                      -1
+                                    )
+                                  }
+                                  className="!w-8 !h-8 !rounded-xl"
+                                />
+                                <ActionButton
+                                  variant="glass"
+                                  icon={t(
+                                    "icon_arrow_downward",
+                                    "arrow_downward"
+                                  )}
+                                  iconOnly={true}
+                                  disabled={
+                                    cardIdx >= activeBuilderTab.cards.length - 1
+                                  }
+                                  onClick={() =>
+                                    handleMoveCard(
+                                      activeBuilderTabIdx,
+                                      cardIdx,
+                                      1
+                                    )
+                                  }
+                                  className="!w-8 !h-8 !rounded-xl"
+                                />
+                                <ActionButton
+                                  variant="glass"
+                                  icon={t("icon_expand_more", "expand_more")}
+                                  iconOnly={true}
+                                  onClick={() => {
+                                    setSelectedBuilderCardIdx(cardIdx);
+                                    setEditingSubCardIdx(null);
+                                  }}
+                                  className="!w-8 !h-8 !rounded-xl"
+                                />
                               </div>
                             </div>
 
-                            <div
-                              className="flex items-center gap-1.5 shrink-0"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {card.badge && (
-                                <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider mr-1">
-                                  {activeCanonicalSlug === "phase_roadmap" && (
-                                    <span
-                                      className={`material-symbols-outlined !text-[12px] ${
-                                        card.status === "completed"
-                                          ? "text-[var(--success)]"
-                                          : card.status === "in_testing"
-                                            ? "text-[var(--warning)]"
-                                            : "text-[var(--accent)]"
-                                      }`}
-                                    >
-                                      {card.status === "completed"
-                                        ? t("icon_check_circle", "check_circle")
-                                        : card.status === "in_testing"
-                                          ? t("icon_science", "science")
-                                          : t("icon_rocket_launch", "rocket_launch")}
-                                    </span>
-                                  )}
-                                  {card.badge}
-                                </span>
-                              )}
-                              <ActionButton
-                                variant="glass"
-                                icon={t("icon_arrow_upward", "arrow_upward")}
-                                iconOnly={true}
-                                disabled={cardIdx === 0}
-                                onClick={() =>
-                                  handleMoveCard(
-                                    activeBuilderTabIdx,
-                                    cardIdx,
-                                    -1
-                                  )
-                                }
-                                className="!w-8 !h-8 !rounded-xl"
-                              />
-                              <ActionButton
-                                variant="glass"
-                                icon={t(
-                                  "icon_arrow_downward",
-                                  "arrow_downward"
-                                )}
-                                iconOnly={true}
-                                disabled={
-                                  cardIdx >= activeBuilderTab.cards.length - 1
-                                }
-                                onClick={() =>
-                                  handleMoveCard(
-                                    activeBuilderTabIdx,
-                                    cardIdx,
-                                    1
-                                  )
-                                }
-                                className="!w-8 !h-8 !rounded-xl"
-                              />
-                              <ActionButton
-                                variant="glass"
-                                icon={t("icon_expand_more", "expand_more")}
-                                iconOnly={true}
-                                onClick={() => {
-                                  setSelectedBuilderCardIdx(cardIdx);
-                                  setEditingSubCardIdx(null);
-                                }}
-                                className="!w-8 !h-8 !rounded-xl"
-                              />
-                            </div>
+                            <span className="sm:hidden text-sm font-black text-[var(--text)] leading-snug">
+                              {renderCleanInlineText(card.title)}
+                            </span>
                           </div>
                         );
                       }

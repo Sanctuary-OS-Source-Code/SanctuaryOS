@@ -38,11 +38,11 @@ function FieldReferenceGrid({ items }: { items: FieldDocItem[] }) {
           className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2 min-w-0"
         >
           <div className="flex flex-col gap-1.5 min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
-              <span className="text-xs font-black text-[var(--text)] tracking-wide">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+              <span className="order-2 sm:order-1 text-xs font-black text-[var(--text)] tracking-wide leading-snug">
                 {item.label}
               </span>
-              <span className={`${VAULT_CHIP_CLASS} font-mono !text-[10px]`}>
+              <span className={`order-1 sm:order-2 self-start ${VAULT_CHIP_CLASS} font-mono !text-[10px] max-w-full truncate`}>
                 {item.jsonKey}
               </span>
             </div>

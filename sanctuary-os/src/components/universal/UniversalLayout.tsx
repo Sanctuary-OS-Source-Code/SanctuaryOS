@@ -174,17 +174,17 @@ export function SidePanelHeroCard({
 
   return (
     <div
-      className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5 shrink-0 ${className}`}
+      className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 shrink-0 ${className}`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2.5 sm:gap-3.5">
-        <div className="flex items-start gap-3.5 min-w-[200px] flex-1">
+      <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3.5">
+        <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
           <div
-            className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
             style={{
               color: `var(${colorVar})`,
             }}
           >
-            <span className="material-symbols-outlined !text-[22px]">{icon}</span>
+            <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">{icon}</span>
           </div>
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
             {resolvedOverline && (
@@ -196,7 +196,7 @@ export function SidePanelHeroCard({
               </span>
             )}
             {resolvedTitle && (
-              <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug">
+              <h3 className={`text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug ${hasBadges ? "hidden sm:block" : ""}`}>
                 {resolvedTitle}
               </h3>
             )}
@@ -209,7 +209,7 @@ export function SidePanelHeroCard({
         </div>
 
         {hasBadges && (
-          <div className="flex items-center gap-1.5 flex-wrap sm:justify-end shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
             {resolvedBadge && (
               <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                 <span
@@ -255,10 +255,19 @@ export function SidePanelHeroCard({
         )}
       </div>
 
-      {resolvedDescription && hasBadges && (
-        <p className={`text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 ${hasWideBadges ? "" : "sm:hidden"}`}>
-          {resolvedDescription}
-        </p>
+      {hasBadges && (resolvedTitle || resolvedDescription) && (
+        <div className={`flex flex-col gap-1 min-w-0 ${hasWideBadges ? "" : "sm:hidden"}`}>
+          {resolvedTitle && (
+            <h3 className="sm:hidden text-sm font-black tracking-tight text-[var(--text)] m-0 leading-snug">
+              {resolvedTitle}
+            </h3>
+          )}
+          {resolvedDescription && (
+            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+              {resolvedDescription}
+            </p>
+          )}
+        </div>
       )}
 
       {children}

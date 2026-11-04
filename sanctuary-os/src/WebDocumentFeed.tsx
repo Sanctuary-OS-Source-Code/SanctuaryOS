@@ -1613,34 +1613,45 @@ export default function WebDocumentFeed({
                 >
                   {!isActive ? (
                     /* Compact Unselected Row */
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {stg.icon}
-                          </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {stg.icon}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                              {stageOverline}
+                            </span>
+                            <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                              {stg.title}
+                            </h3>
+                            <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                              {stg.sub}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
-                            {stageOverline}
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                            <span>{stg.short}</span>
                           </span>
-                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                            {stg.title}
-                          </h3>
-                          <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
-                            {stg.sub}
+                          <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {t("icon_expand_more", "expand_more")}
+                            </span>
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                          <span>{stg.short}</span>
-                        </span>
-                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_expand_more", "expand_more")}
-                          </span>
+                      <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
+                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {stg.title}
+                        </h3>
+                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                          {stg.sub}
                         </span>
                       </div>
                     </div>
@@ -1659,18 +1670,18 @@ export default function WebDocumentFeed({
                         }}
                         className="flex flex-col gap-3 cursor-pointer"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                              <span className="material-symbols-outlined !text-[22px]">
+                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {stg.icon}
                               </span>
                             </div>
                             <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
                                 {stageOverline}
                               </span>
-                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
                                 {stg.title}
                               </h3>
                             </div>
@@ -1690,6 +1701,10 @@ export default function WebDocumentFeed({
                             </span>
                           </div>
                         </div>
+
+                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {stg.title}
+                        </h3>
 
                         <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
                           {stg.desc}
@@ -2498,14 +2513,14 @@ export default function WebDocumentFeed({
                               key={mIdx}
                               className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                             >
-                              <div className="flex items-start justify-between gap-2.5">
+                              <div className="flex items-center sm:items-start justify-between gap-2.5">
                                 <div className="flex items-start gap-2 min-w-0 flex-1">
                                   <span
-                                    className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${mMeta.colorClass}`}
+                                    className={`material-symbols-outlined !text-[16px] shrink-0 sm:mt-0.5 ${mMeta.colorClass}`}
                                   >
                                     {mMeta.icon}
                                   </span>
-                                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                  <h4 className="hidden sm:block text-sm font-bold text-[var(--text)] leading-snug m-0">
                                     {renderCleanInlineText(
                                       m.title.replace(/^(✅|⏳|🧪)\s*/, "")
                                     )}
@@ -2520,6 +2535,11 @@ export default function WebDocumentFeed({
                                   <span>{mMeta.label}</span>
                                 </span>
                               </div>
+                              <h4 className="sm:hidden text-sm font-bold text-[var(--text)] leading-snug m-0">
+                                {renderCleanInlineText(
+                                  m.title.replace(/^(✅|⏳|🧪)\s*/, "")
+                                )}
+                              </h4>
                               <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
                                 {renderCleanInlineText(m.desc)}
                               </p>
@@ -2773,27 +2793,32 @@ export default function WebDocumentFeed({
                 key={`fork-spoke-extra-${extraCard.id || eIdx}`}
                 className="glass-surface rounded-2xl p-4 flex flex-col gap-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {extraCard.icon || t("icon_handshake", "handshake")}
-                      </span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                    <div className="flex items-center sm:items-start gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {extraCard.icon || t("icon_handshake", "handshake")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
+                          {t("", extraCard.overline || "")}
+                        </span>
+                        <h4 className="hidden sm:block text-base font-black text-[var(--text)] leading-snug m-0">
+                          {t("", extraCard.title || "")}
+                        </h4>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                        {t("", extraCard.overline || "")}
+                    {extraCard.badge && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                        <span>{t("", extraCard.badge)}</span>
                       </span>
-                      <h4 className="text-sm sm:text-base font-black text-[var(--text)] leading-snug m-0">
-                        {t("", extraCard.title || "")}
-                      </h4>
-                    </div>
+                    )}
                   </div>
-                  {extraCard.badge && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                      <span>{t("", extraCard.badge)}</span>
-                    </span>
-                  )}
+                  <h4 className="sm:hidden text-sm font-black text-[var(--text)] leading-snug m-0">
+                    {t("", extraCard.title || "")}
+                  </h4>
                 </div>
                 <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
                   {t("", extraCard.desc || "")}
@@ -2851,60 +2876,69 @@ export default function WebDocumentFeed({
                   : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                      forkModeIdx === 0
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_call_split", "call_split")}
-                    </span>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
+                        forkModeIdx === 0
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {t("icon_call_split", "call_split")}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
+                          forkModeIdx === 0
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t(
+                          "sd_fork_mode_standalone_badge",
+                          "Mode 1 • 1-Database Standalone"
+                        )}
+                      </span>
+                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                        {t(
+                          "sd_fork_mode_standalone_title",
+                          "1-File Standalone Fork (Single Database)"
+                        )}
+                      </h3>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
                     <span
-                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                      className={`material-symbols-outlined !text-[12px] ${
                         forkModeIdx === 0
                           ? "text-[var(--accent)]"
                           : "text-[var(--subtext)]"
                       }`}
                     >
-                      {t(
-                        "sd_fork_mode_standalone_badge",
-                        "Mode 1 • 1-Database Standalone"
-                      )}
+                      {forkModeIdx === 0
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_storage", "storage")}
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {t(
-                        "sd_fork_mode_standalone_title",
-                        "1-File Standalone Fork (Single Database)"
-                      )}
-                    </h3>
-                  </div>
+                    <span>
+                      {forkModeIdx === 0
+                        ? t("active", "Active")
+                        : t("dir_fk_t2_val", "1-File Fork")}
+                    </span>
+                  </span>
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                  <span
-                    className={`material-symbols-outlined !text-[12px] ${
-                      forkModeIdx === 0
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--subtext)]"
-                    }`}
-                  >
-                    {forkModeIdx === 0
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_storage", "storage")}
-                  </span>
-                  <span>
-                    {forkModeIdx === 0
-                      ? t("active", "Active")
-                      : t("dir_fk_t2_val", "1-File Fork")}
-                  </span>
-                </span>
+                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                  {t(
+                    "sd_fork_mode_standalone_title",
+                    "1-File Standalone Fork (Single Database)"
+                  )}
+                </h3>
               </div>
 
               {forkModeIdx === 0 && (
@@ -3019,60 +3053,69 @@ export default function WebDocumentFeed({
                   : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                      forkModeIdx === 1
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_hub", "hub")}
-                    </span>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
+                        forkModeIdx === 1
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {t("icon_hub", "hub")}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
+                          forkModeIdx === 1
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t(
+                          "sd_fork_mode_hub_badge",
+                          "Mode 2 • Full Hub & Spoke Federation"
+                        )}
+                      </span>
+                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                        {t(
+                          "sd_fork_mode_hub_title",
+                          "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
+                        )}
+                      </h3>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
                     <span
-                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                      className={`material-symbols-outlined !text-[12px] ${
                         forkModeIdx === 1
                           ? "text-[var(--accent)]"
                           : "text-[var(--subtext)]"
                       }`}
                     >
-                      {t(
-                        "sd_fork_mode_hub_badge",
-                        "Mode 2 • Full Hub & Spoke Federation"
-                      )}
+                      {forkModeIdx === 1
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_hub", "hub")}
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {t(
-                        "sd_fork_mode_hub_title",
-                        "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
-                      )}
-                    </h3>
-                  </div>
+                    <span>
+                      {forkModeIdx === 1
+                        ? t("active", "Active")
+                        : t("dir_ar_t2_val", "Hub & Spokes")}
+                    </span>
+                  </span>
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                  <span
-                    className={`material-symbols-outlined !text-[12px] ${
-                      forkModeIdx === 1
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--subtext)]"
-                    }`}
-                  >
-                    {forkModeIdx === 1
-                      ? t("icon_check_circle", "check_circle")
-                      : t("icon_hub", "hub")}
-                  </span>
-                  <span>
-                    {forkModeIdx === 1
-                      ? t("active", "Active")
-                      : t("dir_ar_t2_val", "Hub & Spokes")}
-                  </span>
-                </span>
+                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                  {t(
+                    "sd_fork_mode_hub_title",
+                    "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
+                  )}
+                </h3>
               </div>
 
               {forkModeIdx === 1 && (
@@ -3233,41 +3276,46 @@ export default function WebDocumentFeed({
                       : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                          isSelectedMode
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {extraCard.icon || t("icon_data_object", "data_object")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                             isSelectedMode
                               ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)]"
+                              : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                           }`}
                         >
-                          {t("", extraCard.overline || "")}
-                        </span>
-                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {t("", extraCard.title || "")}
-                        </h3>
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {extraCard.icon || t("icon_data_object", "data_object")}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
+                              isSelectedMode
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {t("", extraCard.overline || "")}
+                          </span>
+                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                            {t("", extraCard.title || "")}
+                          </h3>
+                        </div>
                       </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                      <span>
-                        {isSelectedMode
-                          ? t("active", "Active")
-                          : t("", extraCard.badge || "")}
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
+                        <span>
+                          {isSelectedMode
+                            ? t("active", "Active")
+                            : t("", extraCard.badge || "")}
+                        </span>
                       </span>
-                    </span>
+                    </div>
+                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {t("", extraCard.title || "")}
+                    </h3>
                   </div>
                   {isSelectedMode && (
                     <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -3331,74 +3379,80 @@ export default function WebDocumentFeed({
                   : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                      isSpokeSqlActive
-                        ? "text-[var(--success)]"
-                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_storage", "storage")}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                         isSpokeSqlActive
                           ? "text-[var(--success)]"
-                          : "text-[var(--subtext)]"
+                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                       }`}
                     >
-                      {t(
-                        "dir_fork_sql_spoke_sub",
-                        "Spoke & Standalone DB • 36 Tables"
-                      )}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
-                    </h3>
-                  </div>
-                </div>
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {t("icon_storage", "storage")}
+                      </span>
+                    </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {isSpokeSqlActive && (
-                    <ActionButton
-                      variant="accent"
-                      icon={
-                        copiedId === activeSqlCopyId
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
+                          isSpokeSqlActive
+                            ? "text-[var(--success)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t(
+                          "dir_fork_sql_spoke_sub",
+                          "Spoke & Standalone DB • 36 Tables"
+                        )}
+                      </span>
+                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                        {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isSpokeSqlActive && (
+                      <ActionButton
+                        variant="accent"
+                        icon={
+                          copiedId === activeSqlCopyId
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_content_copy", "content_copy")
+                        }
+                        onClick={() =>
+                          handleCopyCode(activeSqlCopyId, activeSqlCode)
+                        }
+                      >
+                        {copiedId === activeSqlCopyId
+                          ? t("dir_fork_sql_copied", "SQL Copied")
+                          : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
+                      </ActionButton>
+                    )}
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                      <span
+                        className={`material-symbols-outlined !text-[12px] ${
+                          isSpokeSqlActive
+                            ? "text-[var(--success)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {isSpokeSqlActive
                           ? t("icon_check_circle", "check_circle")
-                          : t("icon_content_copy", "content_copy")
-                      }
-                      onClick={() =>
-                        handleCopyCode(activeSqlCopyId, activeSqlCode)
-                      }
-                    >
-                      {copiedId === activeSqlCopyId
-                        ? t("dir_fork_sql_copied", "SQL Copied")
-                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                    </ActionButton>
-                  )}
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        isSpokeSqlActive
-                          ? "text-[var(--success)]"
-                          : "text-[var(--subtext)]"
-                      }`}
-                    >
-                      {isSpokeSqlActive
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_database", "database")}
+                          : t("icon_database", "database")}
+                      </span>
+                      <span>
+                        {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                      </span>
                     </span>
-                    <span>
-                      {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                    </span>
-                  </span>
+                  </div>
                 </div>
+
+                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                  {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
+                </h3>
               </div>
 
               {isSpokeSqlActive && (
@@ -3439,74 +3493,80 @@ export default function WebDocumentFeed({
                   : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                      !isSpokeSqlActive
-                        ? "text-[var(--accent)]"
-                        : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_memory", "memory")}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-[0.18em] transition-colors ${
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                         !isSpokeSqlActive
                           ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
+                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                       }`}
                     >
-                      {t(
-                        "dir_fork_sql_hub_sub",
-                        "Central Core Hub DB • 16 Tables"
-                      )}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
-                    </h3>
-                  </div>
-                </div>
+                      <span className="material-symbols-outlined !text-[20px]">
+                        {t("icon_memory", "memory")}
+                      </span>
+                    </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {!isSpokeSqlActive && (
-                    <ActionButton
-                      variant="accent"
-                      icon={
-                        copiedId === activeSqlCopyId
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span
+                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
+                          !isSpokeSqlActive
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t(
+                          "dir_fork_sql_hub_sub",
+                          "Central Core Hub DB • 16 Tables"
+                        )}
+                      </span>
+                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                        {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!isSpokeSqlActive && (
+                      <ActionButton
+                        variant="accent"
+                        icon={
+                          copiedId === activeSqlCopyId
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_content_copy", "content_copy")
+                        }
+                        onClick={() =>
+                          handleCopyCode(activeSqlCopyId, activeSqlCode)
+                        }
+                      >
+                        {copiedId === activeSqlCopyId
+                          ? t("dir_fork_sql_copied", "SQL Copied")
+                          : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
+                      </ActionButton>
+                    )}
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                      <span
+                        className={`material-symbols-outlined !text-[12px] ${
+                          !isSpokeSqlActive
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {!isSpokeSqlActive
                           ? t("icon_check_circle", "check_circle")
-                          : t("icon_content_copy", "content_copy")
-                      }
-                      onClick={() =>
-                        handleCopyCode(activeSqlCopyId, activeSqlCode)
-                      }
-                    >
-                      {copiedId === activeSqlCopyId
-                        ? t("dir_fork_sql_copied", "SQL Copied")
-                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                    </ActionButton>
-                  )}
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        !isSpokeSqlActive
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
-                      }`}
-                    >
-                      {!isSpokeSqlActive
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_database", "database")}
+                          : t("icon_database", "database")}
+                      </span>
+                      <span>
+                        {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
+                      </span>
                     </span>
-                    <span>
-                      {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                    </span>
-                  </span>
+                  </div>
                 </div>
+
+                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                  {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
+                </h3>
               </div>
 
               {!isSpokeSqlActive && (

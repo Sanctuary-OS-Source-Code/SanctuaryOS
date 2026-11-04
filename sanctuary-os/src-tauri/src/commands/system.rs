@@ -883,12 +883,14 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
 
         std::thread::spawn(move || {
             struct EvdevHandle {
+                path: String,
                 file: std::fs::File,
                 name: String,
                 hat_x: i32,
                 hat_y: i32,
             }
             struct JsHandle {
+                path: String,
                 file: std::fs::File,
                 name: String,
                 hat_x: i16,
@@ -897,6 +899,8 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
 
             let mut ev_handles: Vec<EvdevHandle> = Vec::new();
             let mut js_handles: Vec<JsHandle> = Vec::new();
+            let mut opened_paths: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
             let mut last_scan = std::time::Instant::now()
                 .checked_sub(std::time::Duration::from_secs(10))
                 .unwrap_or_else(std::time::Instant::now);
@@ -906,20 +910,38 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
             let mut active_name = String::new();
             let mut seq: u64 = 0;
 
-            let is_gamepad_name = |name: &str| -> bool {
+            let is_excluded_input_name = |name: &str| -> bool {
                 let lower = name.to_lowercase();
-                if lower.contains("keyboard")
+                lower.contains("motion")
+                    || lower.contains("sensor")
+                    || lower.contains("imu")
+                    || lower.contains("gyro")
+                    || lower.contains("accel")
+                    || lower.contains("als")
+                    || lower.contains("keyboard")
                     || lower.contains("mouse")
                     || lower.contains("touchpad")
                     || lower.contains("trackpad")
+                    || lower.contains("touchscreen")
                     || lower.contains("power button")
+                    || lower.contains("sleep button")
                     || lower.contains("video bus")
                     || lower.contains("lid switch")
                     || lower.contains("hd-audio")
                     || lower.contains("speaker")
-                {
+                    || lower.contains("headphone")
+                    || lower.contains("microphone")
+                    || lower.contains("hdmi")
+                    || lower.contains("acpi")
+                    || lower.contains("pcspkr")
+                    || lower.contains("wmi")
+            };
+
+            let is_gamepad_name = |name: &str| -> bool {
+                if is_excluded_input_name(name) {
                     return false;
                 }
+                let lower = name.to_lowercase();
                 lower.contains("pad")
                     || lower.contains("controller")
                     || lower.contains("x-box")
@@ -934,77 +956,120 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                     || lower.contains("8bitdo")
             };
 
+            let has_key_capabilities = |sys_cap_path: &str| -> bool {
+                match std::fs::read_to_string(sys_cap_path) {
+                    Ok(raw) => {
+                        let trimmed = raw.trim();
+                        !trimmed.is_empty()
+                            && !trimmed.chars().all(|c| c == '0' || c.is_whitespace())
+                    }
+                    Err(_) => true,
+                }
+            };
+
+            let norm_axis = |val: i32| -> f32 {
+                let f = (val as f32 / 32767.0).clamp(-1.0, 1.0);
+                if f.abs() < 0.18 {
+                    0.0
+                } else {
+                    f
+                }
+            };
+
             loop {
                 if (ev_handles.is_empty() && js_handles.is_empty())
                     || last_scan.elapsed() > std::time::Duration::from_secs(3)
                 {
                     last_scan = std::time::Instant::now();
-                    if ev_handles.is_empty() {
-                        for idx in 0..32 {
-                            let sys_name_path =
-                                format!("/sys/class/input/event{}/device/name", idx);
-                            let dev_name = std::fs::read_to_string(&sys_name_path)
-                                .unwrap_or_default()
-                                .trim()
-                                .to_string();
-                            let has_js_sibling = (0..8).any(|j| {
-                                std::path::Path::new(&format!(
-                                    "/sys/class/input/event{}/device/js{}",
-                                    idx, j
-                                ))
-                                .exists()
+                    for idx in 0..32 {
+                        let dev_path = format!("/dev/input/event{}", idx);
+                        if opened_paths.contains(&dev_path)
+                            || !std::path::Path::new(&dev_path).exists()
+                        {
+                            continue;
+                        }
+                        let sys_name_path =
+                            format!("/sys/class/input/event{}/device/name", idx);
+                        let dev_name = std::fs::read_to_string(&sys_name_path)
+                            .unwrap_or_default()
+                            .trim()
+                            .to_string();
+                        if is_excluded_input_name(&dev_name) {
+                            continue;
+                        }
+                        let sys_cap_path =
+                            format!("/sys/class/input/event{}/device/capabilities/key", idx);
+                        if !has_key_capabilities(&sys_cap_path) {
+                            continue;
+                        }
+                        let has_js_sibling = (0..8).any(|j| {
+                            std::path::Path::new(&format!(
+                                "/sys/class/input/event{}/device/js{}",
+                                idx, j
+                            ))
+                            .exists()
+                        });
+                        if !has_js_sibling && !is_gamepad_name(&dev_name) {
+                            continue;
+                        }
+                        if let Ok(file) = std::fs::OpenOptions::new()
+                            .read(true)
+                            .custom_flags(0o4000) // O_NONBLOCK
+                            .open(&dev_path)
+                        {
+                            let label = if dev_name.is_empty() {
+                                "Steam Deck Controller".to_string()
+                            } else {
+                                dev_name
+                            };
+                            opened_paths.insert(dev_path.clone());
+                            ev_handles.push(EvdevHandle {
+                                path: dev_path,
+                                file,
+                                name: label,
+                                hat_x: 0,
+                                hat_y: 0,
                             });
-                            if !has_js_sibling && !is_gamepad_name(&dev_name) {
-                                continue;
-                            }
-                            let dev_path = format!("/dev/input/event{}", idx);
-                            if let Ok(file) = std::fs::OpenOptions::new()
-                                .read(true)
-                                .custom_flags(0o4000) // O_NONBLOCK
-                                .open(&dev_path)
-                            {
-                                let label = if dev_name.is_empty() {
-                                    "Steam Deck Controller".to_string()
-                                } else {
-                                    dev_name
-                                };
-                                ev_handles.push(EvdevHandle {
-                                    file,
-                                    name: label,
-                                    hat_x: 0,
-                                    hat_y: 0,
-                                });
-                            }
                         }
                     }
 
-                    if ev_handles.is_empty() && js_handles.is_empty() {
-                        for idx in 0..8 {
-                            let dev_path = format!("/dev/input/js{}", idx);
-                            if !std::path::Path::new(&dev_path).exists() {
-                                continue;
-                            }
-                            let sys_name_path = format!("/sys/class/input/js{}/device/name", idx);
-                            let dev_name = std::fs::read_to_string(&sys_name_path)
-                                .unwrap_or_else(|_| "Steam Deck Controller".to_string())
-                                .trim()
-                                .to_string();
-                            if let Ok(file) = std::fs::OpenOptions::new()
-                                .read(true)
-                                .custom_flags(0o4000) // O_NONBLOCK
-                                .open(&dev_path)
-                            {
-                                js_handles.push(JsHandle {
-                                    file,
-                                    name: if dev_name.is_empty() {
-                                        "Steam Deck Controller".to_string()
-                                    } else {
-                                        dev_name
-                                    },
-                                    hat_x: 0,
-                                    hat_y: 0,
-                                });
-                            }
+                    for idx in 0..8 {
+                        let dev_path = format!("/dev/input/js{}", idx);
+                        if opened_paths.contains(&dev_path)
+                            || !std::path::Path::new(&dev_path).exists()
+                        {
+                            continue;
+                        }
+                        let sys_name_path = format!("/sys/class/input/js{}/device/name", idx);
+                        let dev_name = std::fs::read_to_string(&sys_name_path)
+                            .unwrap_or_else(|_| "Steam Deck Controller".to_string())
+                            .trim()
+                            .to_string();
+                        if is_excluded_input_name(&dev_name) {
+                            continue;
+                        }
+                        let sys_cap_path =
+                            format!("/sys/class/input/js{}/device/capabilities/key", idx);
+                        if !has_key_capabilities(&sys_cap_path) {
+                            continue;
+                        }
+                        if let Ok(file) = std::fs::OpenOptions::new()
+                            .read(true)
+                            .custom_flags(0o4000) // O_NONBLOCK
+                            .open(&dev_path)
+                        {
+                            opened_paths.insert(dev_path.clone());
+                            js_handles.push(JsHandle {
+                                path: dev_path,
+                                file,
+                                name: if dev_name.is_empty() {
+                                    "Steam Deck Controller".to_string()
+                                } else {
+                                    dev_name
+                                },
+                                hat_x: 0,
+                                hat_y: 0,
+                            });
                         }
                     }
                 }
@@ -1034,23 +1099,23 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                         // EV_KEY
                                         let pressed = ev_val != 0;
                                         let mapped = match ev_code {
-                                            0x130 => Some(0),  // BTN_SOUTH (A)
+                                            0x130 => Some(0),         // BTN_SOUTH (A)
                                             0x131 | 0x132 => Some(1), // BTN_EAST (B)
-                                            0x133 => Some(2),  // BTN_NORTH/WEST (X)
-                                            0x134 => Some(3),  // BTN_WEST/NORTH (Y)
-                                            0x136 => Some(4),  // BTN_TL (L1)
-                                            0x137 => Some(5),  // BTN_TR (R1)
-                                            0x138 => Some(6),  // BTN_TL2 (L2)
-                                            0x139 => Some(7),  // BTN_TR2 (R2)
-                                            0x13a => Some(8),  // BTN_SELECT
-                                            0x13b => Some(9),  // BTN_START
-                                            0x13d => Some(10), // BTN_THUMBL (L3)
-                                            0x13e => Some(11), // BTN_THUMBR (R3)
-                                            0x220 => Some(12), // BTN_DPAD_UP
-                                            0x221 => Some(13), // BTN_DPAD_DOWN
-                                            0x222 => Some(14), // BTN_DPAD_LEFT
-                                            0x223 => Some(15), // BTN_DPAD_RIGHT
-                                            0x13c => Some(16), // BTN_MODE (Guide/Steam)
+                                            0x133 => Some(2),         // BTN_NORTH/WEST (X)
+                                            0x134 => Some(3),         // BTN_WEST/NORTH (Y)
+                                            0x136 => Some(4),         // BTN_TL (L1)
+                                            0x137 => Some(5),         // BTN_TR (R1)
+                                            0x138 => Some(6),         // BTN_TL2 (L2)
+                                            0x139 => Some(7),         // BTN_TR2 (R2)
+                                            0x13a => Some(8),         // BTN_SELECT (View)
+                                            0x13b => Some(9),         // BTN_START (Menu)
+                                            0x13d => Some(10),        // BTN_THUMBL (L3)
+                                            0x13e => Some(11),        // BTN_THUMBR (R3)
+                                            0x220 => Some(12),        // BTN_DPAD_UP
+                                            0x221 => Some(13),        // BTN_DPAD_DOWN
+                                            0x222 => Some(14),        // BTN_DPAD_LEFT
+                                            0x223 => Some(15),        // BTN_DPAD_RIGHT
+                                            0x13c | 0x126 => Some(16), // BTN_MODE (Steam) / BTN_BASE (Quick Access)
                                             _ => None,
                                         };
                                         if let Some(b_idx) = mapped {
@@ -1060,26 +1125,22 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                         // EV_ABS
                                         match ev_code {
                                             0x00 => {
-                                                axes[0] =
-                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                                axes[0] = norm_axis(ev_val);
                                             }
                                             0x01 => {
-                                                axes[1] =
-                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                                axes[1] = norm_axis(ev_val);
                                             }
                                             0x03 => {
-                                                axes[2] =
-                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                                axes[2] = norm_axis(ev_val);
                                             }
                                             0x04 => {
-                                                axes[3] =
-                                                    (ev_val as f32 / 32767.0).clamp(-1.0, 1.0);
+                                                axes[3] = norm_axis(ev_val);
                                             }
-                                            0x02 | 0x0a => {
-                                                buttons[6] = ev_val > 64;
+                                            0x0a | 0x14 => {
+                                                buttons[6] = ev_val > 200;
                                             }
-                                            0x05 | 0x09 => {
-                                                buttons[7] = ev_val > 64;
+                                            0x09 | 0x15 => {
+                                                buttons[7] = ev_val > 200;
                                             }
                                             0x10 => {
                                                 // ABS_HAT0X
@@ -1106,9 +1167,12 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                         }
                     }
                     for idx in dead_indices.into_iter().rev() {
-                        ev_handles.remove(idx);
+                        let removed = ev_handles.remove(idx);
+                        opened_paths.remove(&removed.path);
                     }
-                } else if !js_handles.is_empty() {
+                }
+
+                if !js_handles.is_empty() {
                     if active_name.is_empty() {
                         active_name = js_handles[0].name.clone();
                     }
@@ -1120,8 +1184,12 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                             match handle.file.read_exact(&mut buf) {
                                 Ok(()) => {
                                     active_name = handle.name.clone();
+                                    let is_init = (buf[6] & 0x80) != 0;
+                                    if is_init {
+                                        continue;
+                                    }
                                     let val = i16::from_ne_bytes([buf[4], buf[5]]);
-                                    let ev_type = buf[6] & !0x80; // strip JS_EVENT_INIT
+                                    let ev_type = buf[6] & !0x80;
                                     let num = buf[7];
                                     if ev_type == 0x01 {
                                         // JS_EVENT_BUTTON
@@ -1150,12 +1218,12 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                     } else if ev_type == 0x02 {
                                         // JS_EVENT_AXIS
                                         match num {
-                                            0 => axes[0] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
-                                            1 => axes[1] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
-                                            2 => buttons[6] = val > 4000, // LT
-                                            3 => axes[2] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
-                                            4 => axes[3] = (val as f32 / 32767.0).clamp(-1.0, 1.0),
-                                            5 => buttons[7] = val > 4000, // RT
+                                            0 => axes[0] = norm_axis(val as i32),
+                                            1 => axes[1] = norm_axis(val as i32),
+                                            2 => buttons[6] = val > 16000, // LT (-32767 resting -> +32767 pressed)
+                                            3 => axes[2] = norm_axis(val as i32),
+                                            4 => axes[3] = norm_axis(val as i32),
+                                            5 => buttons[7] = val > 16000, // RT (-32767 resting -> +32767 pressed)
                                             6 => {
                                                 handle.hat_x = val;
                                                 buttons[14] = handle.hat_x < -12000;
@@ -1179,9 +1247,12 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                         }
                     }
                     for idx in dead_indices.into_iter().rev() {
-                        js_handles.remove(idx);
+                        let removed = js_handles.remove(idx);
+                        opened_paths.remove(&removed.path);
                     }
-                } else {
+                }
+
+                if ev_handles.is_empty() && js_handles.is_empty() {
                     active_name.clear();
                     buttons.fill(false);
                     axes.fill(0.0);

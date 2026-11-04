@@ -41,7 +41,9 @@
       color-scheme: dark;
     }
     @media (max-width: 767px) {
-      html, body, #root {
+      html:not([data-sa-platform="linux"]),
+      html:not([data-sa-platform="linux"]) body,
+      html:not([data-sa-platform="linux"]) #root {
         height: auto !important;
         min-height: 100dvh !important;
         min-height: 100lvh !important;

@@ -1,6 +1,6 @@
 import { useLexicon, normalizeAllCapsForThemeCase } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
-import { isLinuxDesktop } from '../utils/envUtils';
+import { isDesktop, isLinuxDesktop } from '../utils/envUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelHeaderButton } from "./buttons";
@@ -515,13 +515,18 @@ export function SidePanel({
   const parentPanelZ = React.useContext(PanelParentZContext);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
-  const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
+  const resolvedDefaultWidth = isLinuxDesktop()
+    ? Math.min(defaultWidth || 800, 560)
+    : defaultWidth || 800;
+  const [panelWidth, setPanelWidth] = useState<number>(resolvedDefaultWidth);
   useEffect(() => {
-    if (defaultWidth) setPanelWidth(defaultWidth);
+    if (defaultWidth) {
+      setPanelWidth(isLinuxDesktop() ? Math.min(defaultWidth, 560) : defaultWidth);
+    }
   }, [defaultWidth]);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const dragWidthRef = useRef<number>(defaultWidth || 800);
+  const dragWidthRef = useRef<number>(resolvedDefaultWidth);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -628,7 +633,7 @@ export function SidePanel({
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l-0 md:rounded-r-3xl !rounded-l-none" : "right-0 border-t border-b border-l border-r-0 md:rounded-l-3xl !rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none max-md:!border-x-0 flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l-0 rounded-r-3xl !rounded-l-none" : "right-0 border-t border-b border-l border-r-0 rounded-l-3xl !rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} ${isDesktop() ? "" : "max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none max-md:!border-x-0"} flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
               pointerEvents: isPanelClosed || isResizing ? "none" : "auto",

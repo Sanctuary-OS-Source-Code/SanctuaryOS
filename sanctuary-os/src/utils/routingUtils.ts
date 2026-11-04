@@ -98,7 +98,11 @@ export function scrollToLandingSection(sectionId: string): void {
 
   setTimeout(() => {
     const scrollContainer = document.getElementById('sanctuary-main-scroll');
-    const isWindowScroll = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isNativeDesk =
+      typeof window !== 'undefined' &&
+      Boolean((window as any).__TAURI_INTERNALS__ || (window as any).__TAURI__);
+    const isWindowScroll =
+      typeof window !== 'undefined' && !isNativeDesk && window.innerWidth < 768;
     if (subSectionTargets.includes(cleanId)) {
       const target = document.getElementById(cleanId);
       if (target) {

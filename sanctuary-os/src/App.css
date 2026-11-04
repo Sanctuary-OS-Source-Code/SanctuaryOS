@@ -793,8 +793,8 @@ nav.firefox-safe-glass {
 }
 
 @media (max-width: 767px) {
-  .sa-side-panel-window.sa-panel-right,
-  .sa-side-panel-window.sa-panel-left {
+  html:not([data-sa-platform="linux"]) .sa-side-panel-window.sa-panel-right,
+  html:not([data-sa-platform="linux"]) .sa-side-panel-window.sa-panel-left {
     border-radius: 0px !important;
     border-top-left-radius: 0px !important;
     border-bottom-left-radius: 0px !important;
@@ -1454,7 +1454,7 @@ body {
 }
 
 /* Compact Linux handheld viewports ONLY (e.g. SteamOS / Steam Deck 1280x800) — never affects Windows or macOS */
-@media (min-width: 768px) and (max-width: 1366px) and (max-height: 840px) {
+@media (max-width: 1366px) and (max-height: 900px) {
   html[data-sa-platform="linux"] {
     font-size: calc(var(--fontSizeBase, 16px) * 0.8125) !important;
   }
@@ -1477,10 +1477,6 @@ body {
     padding-bottom: 0.42rem !important;
   }
 
-  html[data-sa-platform="linux"] .sa-side-panel-window {
-    max-width: calc(100vw - 244px) !important;
-  }
-
   html[data-sa-platform="linux"] .lg\:grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
@@ -1492,9 +1488,9 @@ body {
 }
 
 @media (max-width: 767px) {
-  html,
-  body,
-  #root {
+  html:not([data-sa-platform="linux"]),
+  html:not([data-sa-platform="linux"]) body,
+  html:not([data-sa-platform="linux"]) #root {
     height: auto !important;
     min-height: 100dvh !important;
     min-height: 100lvh !important;
@@ -2332,6 +2328,47 @@ html[data-sa-platform="linux"] .theme-panel-danger,
 html[data-sa-platform="linux"] [class*="backdrop-blur"] {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+}
+
+html[data-sa-platform="linux"] nav.firefox-safe-glass {
+  background-color: var(--glass-sidebar-bg, rgba(8, 16, 34, 0.84)) !important;
+  background-image: var(--glass-meniscus-top), var(--glass-sheen) !important;
+}
+
+html[data-sa-platform="linux"] .sa-side-panel-window {
+  background-color: var(--glass-drawer-bg, rgba(8, 16, 34, 0.92)) !important;
+  background-image: var(--glass-meniscus-top), var(--glass-sheen) !important;
+  max-width: min(560px, calc(100vw - 116px)) !important;
+}
+
+html[data-sa-platform="linux"] .sa-floating-glass-pill {
+  background-color: var(--glass-portal-bg, rgba(8, 16, 34, 0.88)) !important;
+  background-image: var(--glass-meniscus-top), var(--glass-sheen) !important;
+}
+
+html[data-sa-platform="linux"] .glass-panel:not(.sa-glass-active):not(.sa-glass-pill-active):not(.sa-cmd-card-selected) {
+  background-color: var(--glass-linux-panel-bg, rgba(10, 21, 44, 0.76)) !important;
+  background-image: var(--glass-meniscus-top), var(--glass-sheen) !important;
+}
+
+html[data-sa-platform="linux"] .glass-surface:not(.sa-glass-active):not(.sa-glass-pill-active):not(.sa-glass-pill-success):not(.sa-glass-pill-warning):not(.sa-glass-pill-danger) {
+  background-color: var(--glass-linux-surface-bg, rgba(10, 21, 44, 0.58)) !important;
+  background-image: var(--glass-surface-sheen) !important;
+}
+
+html[data-sa-platform="linux"] :is(nav.firefox-safe-glass, .sa-side-panel-window, .sa-mobile-glass-overlay, .sanctuary-modal-glass, .glass-panel, .glass-surface) .glass-panel:not(.portal-glass-fix):not(.sa-glass-active):not(.sa-glass-pill-active):not(.sa-cmd-card-selected) {
+  background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.055)) !important;
+  background-image: var(--glass-sheen) !important;
+}
+
+html[data-sa-platform="linux"] :is(nav.firefox-safe-glass, .sa-side-panel-window, .sa-mobile-glass-overlay, .sanctuary-modal-glass, .glass-panel, .glass-surface) .glass-surface:not(.portal-glass-fix):not(.sa-glass-active):not(.sa-glass-pill-active):not(.sa-glass-pill-success):not(.sa-glass-pill-warning):not(.sa-glass-pill-danger) {
+  background-color: var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.042)) !important;
+  background-image: var(--glass-surface-sheen) !important;
+}
+
+html[data-sa-platform="linux"] :is(button.glass-surface, a.glass-surface, .sa-glass-pill-hover):hover:not(:disabled):not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.sa-glass-pill-danger):not(.sa-glass-pill-warning):not(.sa-glass-pill-success) {
+  background-color: var(--glass-nav-active-bg, color-mix(in srgb, var(--accent) 16%, rgba(255, 255, 255, 0.07))) !important;
+  background-image: var(--glass-surface-sheen) !important;
 }
 
 html[data-sa-platform="linux"] .sa-tooltip-glass,

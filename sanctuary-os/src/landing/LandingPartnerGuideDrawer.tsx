@@ -361,15 +361,15 @@ export function LandingPartnerGuideDrawer({
                       setActiveStage(null);
                     }
                   }}
-                  className={`flex flex-col gap-2.5 w-full ${
+                  className={`flex flex-col gap-2 w-full ${
                     isExpanded ? 'cursor-pointer group/hdr' : ''
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3 w-full">
+                    <div className="flex items-center sm:items-start gap-3 min-w-0">
                       <div
                         className={`${
-                          isExpanded ? 'w-11 h-11' : 'w-10 h-10'
+                          isExpanded ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-10 h-10'
                         } rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center shrink-0 transition-transform ${
                           !isExpanded ? 'group-hover:scale-105' : ''
                         }`}
@@ -377,7 +377,7 @@ export function LandingPartnerGuideDrawer({
                         <span
                           className={`material-symbols-outlined ${
                             isExpanded
-                              ? '!text-[22px] text-[var(--accent)]'
+                              ? '!text-[20px] sm:!text-[22px] text-[var(--accent)]'
                               : '!text-[19px] text-[var(--text)] opacity-80'
                           }`}
                         >
@@ -385,9 +385,9 @@ export function LandingPartnerGuideDrawer({
                         </span>
                       </div>
 
-                      <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col gap-0.5 min-w-0">
                         <span
-                          className={`text-[10px] font-black uppercase tracking-[0.2em] truncate ${
+                          className={`text-[10px] font-black uppercase tracking-[0.2em] leading-snug ${
                             isExpanded
                               ? 'text-[var(--accent)]'
                               : 'text-[var(--subtext)]'
@@ -396,14 +396,14 @@ export function LandingPartnerGuideDrawer({
                           {stage.overline}
                         </span>
                         <h3
-                          className={`${
-                            isExpanded ? 'text-base sm:text-lg' : 'text-sm'
-                          } font-black text-[var(--text)] tracking-tight leading-snug truncate`}
+                          className={`hidden sm:block ${
+                            isExpanded ? 'text-lg' : 'text-base truncate'
+                          } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
                         >
                           {stage.title}
                         </h3>
                         {!isExpanded && (
-                          <span className="text-[11px] text-[var(--subtext)] opacity-75 truncate">
+                          <span className="hidden sm:block text-[11px] text-[var(--subtext)] opacity-75 truncate">
                             {stage.subtitle}
                           </span>
                         )}
@@ -411,8 +411,8 @@ export function LandingPartnerGuideDrawer({
                     </div>
 
                     {/* Right Status Badge + Expand/Collapse Chevron */}
-                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
                         <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                           {stage.badgeIcon}
                         </span>
@@ -433,6 +433,21 @@ export function LandingPartnerGuideDrawer({
                         </span>
                       </span>
                     </div>
+                  </div>
+
+                  <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
+                    <h3
+                      className={`${
+                        isExpanded ? 'text-base' : 'text-sm'
+                      } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
+                    >
+                      {stage.title}
+                    </h3>
+                    {!isExpanded && (
+                      <span className="text-[11px] text-[var(--subtext)] opacity-75 truncate">
+                        {stage.subtitle}
+                      </span>
+                    )}
                   </div>
                 </div>
 

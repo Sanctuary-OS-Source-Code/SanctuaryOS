@@ -117,6 +117,9 @@ const GAMEPAD_BUTTON_NAMES: Record<number, string> = {
 
 export function formatGamepadCombo(combo: string): string {
   if (!combo) return "—";
+  if (combo.startsWith("KEY:")) {
+    return combo.slice(4) || "—";
+  }
   const parts = combo
     .split("+")
     .map((p) => Number(p.trim()))
@@ -125,7 +128,28 @@ export function formatGamepadCombo(combo: string): string {
   return parts.map((idx) => GAMEPAD_BUTTON_NAMES[idx] || `#${idx}`).join(" + ");
 }
 
-function formatKeyboardEventCombo(e: KeyboardEvent): string | null {
+const SINGLE_KEY_BINDABLE = new Set([
+  "Enter",
+  "Escape",
+  "Backspace",
+  "Tab",
+  "Space",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  "Insert",
+  "Delete",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+]);
+
+function formatKeyboardEventCombo(
+  e: KeyboardEvent,
+  allowAnyNonModifierKey = false
+): string | null {
   const key = e.key;
   if (["Control", "Shift", "Alt", "Meta"].includes(key)) return null;
   const parts: string[] = [];
@@ -137,18 +161,64 @@ function formatKeyboardEventCombo(e: KeyboardEvent): string | null {
   if (normalizedKey === " ") normalizedKey = "Space";
 
   const isFunctionKey = /^F([1-9]|1[0-2])$/i.test(normalizedKey);
-  if (parts.length === 0 && !isFunctionKey) {
+  const isBindableActionKey = SINGLE_KEY_BINDABLE.has(normalizedKey);
+  if (
+    parts.length === 0 &&
+    !isFunctionKey &&
+    !isBindableActionKey &&
+    !allowAnyNonModifierKey
+  ) {
     return null;
   }
   parts.push(normalizedKey);
   return parts.join("+");
 }
 
-function matchesKeyboardCombo(e: KeyboardEvent, targetCombo: string): boolean {
+function matchesKeyboardCombo(
+  e: KeyboardEvent,
+  targetCombo: string,
+  allowAnyNonModifierKey = false
+): boolean {
   if (!targetCombo) return false;
-  const pressed = formatKeyboardEventCombo(e);
+  const cleanTarget = targetCombo.startsWith("KEY:")
+    ? targetCombo.slice(4)
+    : targetCombo;
+  if (!cleanTarget) return false;
+  const pressed = formatKeyboardEventCombo(e, allowAnyNonModifierKey);
   if (!pressed) return false;
-  return pressed.toLowerCase() === targetCombo.toLowerCase();
+  return pressed.toLowerCase() === cleanTarget.toLowerCase();
+}
+
+export function isEditableElementFocused(): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  return Boolean(el.isContentEditable);
+}
+
+export function scrollActiveViewport(deltaY: number): boolean {
+  if (typeof document === "undefined" || deltaY === 0) return false;
+  const panels = Array.from(
+    document.querySelectorAll<HTMLElement>(".sa-side-panel-window")
+  );
+  for (let i = panels.length - 1; i >= 0; i--) {
+    const panel = panels[i];
+    if (panel.offsetParent !== null || panel.getClientRects().length > 0) {
+      const scroller = panel.querySelector<HTMLElement>(".overflow-y-auto");
+      if (scroller && scroller.scrollHeight > scroller.clientHeight) {
+        scroller.scrollTop += deltaY;
+        return true;
+      }
+    }
+  }
+  const mainScroll = document.getElementById("sanctuary-main-scroll");
+  if (mainScroll && mainScroll.scrollHeight > mainScroll.clientHeight) {
+    mainScroll.scrollTop += deltaY;
+    return true;
+  }
+  return false;
 }
 
 interface CommandItem {
@@ -398,9 +468,24 @@ export function GlobalCommandPalette({
     }
   }, [isOpen, vaultPath]);
 
-  // Keyboard listener for recording or executing global hotkeys
+  // Keyboard listener for recording or executing global hotkeys & Steam Deck Desktop Mode bindings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (recordingPadField) {
+        e.preventDefault();
+        e.stopPropagation();
+        const combo = formatKeyboardEventCombo(e, true);
+        if (combo) {
+          updateControllerBindings({
+            ...controllerBindings,
+            [recordingPadField]: `KEY:${combo}`,
+          });
+          setConnectedGamepadName((prev) => prev || "Steam Deck Controller");
+          setRecordingPadField(null);
+        }
+        return;
+      }
+
       if (recordingHotkeyField) {
         e.preventDefault();
         e.stopPropagation();
@@ -416,7 +501,12 @@ export function GlobalCommandPalette({
         return;
       }
 
-      if (matchesKeyboardCombo(e, hotkeys.togglePalette)) {
+      const matchesToggleKey =
+        matchesKeyboardCombo(e, hotkeys.togglePalette) ||
+        (controllerBindings.togglePalette.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, controllerBindings.togglePalette, true));
+
+      if (matchesToggleKey) {
         e.preventDefault();
         e.stopPropagation();
         setIsOpen((prev) => {
@@ -433,6 +523,84 @@ export function GlobalCommandPalette({
           return next;
         });
         return;
+      }
+
+      const st = padStateRef.current;
+      if (st.isOpen && !isEditableElementFocused()) {
+        if (
+          st.controllerBindings.closePalette.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.closePalette, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (st.isControlsOpen) {
+            setIsControlsOpen(false);
+          } else {
+            st.closePalette();
+          }
+          return;
+        }
+        if (
+          st.controllerBindings.nextTab.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.nextTab, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          const order: CommandCategory[] = ["all", "views", "vault", "actions"];
+          setActiveTab((prev) => order[(order.indexOf(prev) + 1) % order.length]);
+          return;
+        }
+        if (
+          st.controllerBindings.prevTab.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.prevTab, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          const order: CommandCategory[] = ["all", "views", "vault", "actions"];
+          setActiveTab((prev) => order[(order.indexOf(prev) - 1 + order.length) % order.length]);
+          return;
+        }
+        if (
+          !st.isControlsOpen &&
+          st.controllerBindings.executeItem.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.executeItem, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          const target = st.filteredItems[st.selectedIndex];
+          if (target) target.onSelect();
+          return;
+        }
+        if (
+          !st.isControlsOpen &&
+          st.controllerBindings.secondaryAction.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.secondaryAction, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          const target = st.filteredItems[st.selectedIndex];
+          if (target?.secondaryAction) {
+            target.secondaryAction.onClick({ stopPropagation: () => {} } as React.MouseEvent);
+          }
+          return;
+        }
+      }
+
+      if (!st.isOpen && !isEditableElementFocused()) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "PageDown" || e.key === "PageUp") {
+          const delta =
+            e.key === "ArrowDown"
+              ? 110
+              : e.key === "ArrowUp"
+              ? -110
+              : e.key === "PageDown"
+              ? 420
+              : -420;
+          if (scrollActiveViewport(delta)) {
+            e.preventDefault();
+            return;
+          }
+        }
       }
 
       if (isDesktop()) {
@@ -478,8 +646,11 @@ export function GlobalCommandPalette({
     };
   }, [
     hotkeys,
+    controllerBindings,
     recordingHotkeyField,
+    recordingPadField,
     updateHotkeys,
+    updateControllerBindings,
     openPalette,
     closePalette,
     onQuickLaunch,
@@ -2280,13 +2451,12 @@ export function GlobalCommandPalette({
 
   useEffect(() => {
     const checkGamepadCombo = (pressedIndices: number[], targetCombo: string): boolean => {
-      if (!targetCombo) return false;
+      if (!targetCombo || targetCombo.startsWith("KEY:")) return false;
       const required = targetCombo
         .split("+")
         .map((s) => Number(s.trim()))
         .filter((n) => !Number.isNaN(n));
       if (required.length === 0) return false;
-      if (required.length === 1 && pressedIndices.length > 1) return false;
       return required.every((idx) => pressedIndices.includes(idx));
     };
 
@@ -2361,7 +2531,19 @@ export function GlobalCommandPalette({
         return;
       }
 
-      if (!st.isOpen) return;
+      if (!st.isOpen) {
+        const rightY = axes?.[3] ?? 0;
+        const leftY = axes?.[1] ?? 0;
+        const scrollAxis = Math.abs(rightY) > Math.abs(leftY) ? rightY : leftY;
+        if (Math.abs(scrollAxis) > 0.35) {
+          scrollActiveViewport(scrollAxis * 34);
+        } else if (pressedIndices.includes(13)) {
+          scrollActiveViewport(28);
+        } else if (pressedIndices.includes(12)) {
+          scrollActiveViewport(-28);
+        }
+        return;
+      }
 
       // Inside open Command Matrix: D-Pad & Left Stick 2D grid navigation
       const now = Date.now();
@@ -2447,6 +2629,8 @@ export function GlobalCommandPalette({
     };
 
     let unlistenNative: (() => void) | null = null;
+    let pollTick = 0;
+
     if (isDesktop()) {
       invoke<{
         connected: boolean;
@@ -2459,9 +2643,15 @@ export function GlobalCommandPalette({
           if (snap && snap.connected) {
             nativePadRef.current = snap;
             setConnectedGamepadName(snap.id || "Steam Deck Controller");
+          } else if (isLinuxDesktop()) {
+            setConnectedGamepadName("Steam Deck Controller");
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (isLinuxDesktop()) {
+            setConnectedGamepadName("Steam Deck Controller");
+          }
+        });
 
       listen<{
         connected: boolean;
@@ -2478,7 +2668,7 @@ export function GlobalCommandPalette({
             snap.buttons || [],
             snap.axes || [0, 0, 0, 0]
           );
-        } else if (padStateRef.current.connectedGamepadName !== null) {
+        } else if (!isLinuxDesktop() && padStateRef.current.connectedGamepadName !== null) {
           setConnectedGamepadName(null);
           prevPadButtonsRef.current = [];
         }
@@ -2490,6 +2680,7 @@ export function GlobalCommandPalette({
     }
 
     const interval = window.setInterval(() => {
+      pollTick++;
       let webPad: Gamepad | null = null;
       if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
         try {
@@ -2509,6 +2700,22 @@ export function GlobalCommandPalette({
         return;
       }
 
+      if (isLinuxDesktop() && pollTick % 3 === 0) {
+        invoke<{
+          connected: boolean;
+          id: string;
+          buttons: boolean[];
+          axes: number[];
+          seq: number;
+        }>("get_native_gamepad_state")
+          .then((snap) => {
+            if (snap && snap.connected) {
+              nativePadRef.current = snap;
+            }
+          })
+          .catch(() => {});
+      }
+
       const nativePad = nativePadRef.current;
       if (nativePad && nativePad.connected) {
         processGamepadFrame(
@@ -2519,7 +2726,7 @@ export function GlobalCommandPalette({
         return;
       }
 
-      if (padStateRef.current.connectedGamepadName !== null) {
+      if (!isLinuxDesktop() && padStateRef.current.connectedGamepadName !== null) {
         setConnectedGamepadName(null);
       }
       prevPadButtonsRef.current = [];
@@ -2574,10 +2781,11 @@ export function GlobalCommandPalette({
       if (target) target.onSelect();
       return true;
     }
-    if (key === "Tab") {
+    if (key === "Tab" || key === "PageDown" || key === "PageUp") {
       const order: CommandCategory[] = ["all", "views", "vault", "actions"];
       const idx = order.indexOf(st.activeTab);
-      const nextIdx = shiftKey
+      const goPrev = key === "PageUp" || (key === "Tab" && shiftKey);
+      const nextIdx = goPrev
         ? (idx - 1 + order.length) % order.length
         : (idx + 1) % order.length;
       setActiveTab(order[nextIdx]);
@@ -2616,6 +2824,8 @@ export function GlobalCommandPalette({
         e.key === "ArrowLeft" ||
         e.key === "Enter" ||
         e.key === "Tab" ||
+        e.key === "PageDown" ||
+        e.key === "PageUp" ||
         e.key === "Escape"
       ) {
         if (navigateGridByKey(e.key, e.shiftKey)) {
@@ -2642,6 +2852,8 @@ export function GlobalCommandPalette({
       e.key === "ArrowLeft" ||
       e.key === "Enter" ||
       e.key === "Tab" ||
+      e.key === "PageDown" ||
+      e.key === "PageUp" ||
       e.key === "Escape"
     ) {
       if (navigateGridByKey(e.key, e.shiftKey)) {
