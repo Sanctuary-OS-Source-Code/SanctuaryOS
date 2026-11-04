@@ -4,6 +4,11 @@ version = "0.6.0"
 description = "Sanctuary OS"
 authors = ["Sanctuary OS"]
 edition = "2021"
+default-run = "SanctuaryOS"
+
+[[bin]]
+name = "SanctuaryOS"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
