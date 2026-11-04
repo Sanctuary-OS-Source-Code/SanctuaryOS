@@ -636,11 +636,49 @@ export function GlobalCommandPalette({
       closePalette();
     };
 
+    const handleGlobalWheel = (e: WheelEvent) => {
+      if (e.defaultPrevented) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // Let horizontally scrollable carousels handle their own wheel events
+      const horizEl = target.closest<HTMLElement>(".sa-stat-tile-carousel, .overflow-x-auto");
+      if (horizEl && horizEl.scrollWidth > horizEl.clientWidth + 2) {
+        return;
+      }
+
+      // Check if target is already inside a vertically scrollable element that can scroll in this direction
+      let curr: HTMLElement | null = target;
+      while (curr && curr !== document.body && curr !== document.documentElement) {
+        if (curr.scrollHeight > curr.clientHeight + 2) {
+          const style = window.getComputedStyle(curr);
+          if (style.overflowY === "auto" || style.overflowY === "scroll") {
+            // SteamOS Desktop Mode Left Trackpad often emits horizontal wheel events (deltaX != 0, deltaY == 0)
+            // for vertical trackpad swipes. Convert horizontal-only wheel events into vertical scroll!
+            if (e.deltaY === 0 && e.deltaX !== 0) {
+              curr.scrollTop += e.deltaX;
+              e.preventDefault();
+            }
+            return;
+          }
+        }
+        curr = curr.parentElement;
+      }
+
+      // If cursor is over a non-scrolling region (Sidebar, TitleBar, margins) or deltaX-only trackpad scroll:
+      const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+      if (delta !== 0 && scrollActiveViewport(delta)) {
+        e.preventDefault();
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("wheel", handleGlobalWheel, { passive: false });
     window.addEventListener("sanctuary-open-command-palette", handleCustomOpen);
     window.addEventListener("sanctuary-close-command-palette", handleCustomClose);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("wheel", handleGlobalWheel);
       window.removeEventListener("sanctuary-open-command-palette", handleCustomOpen);
       window.removeEventListener("sanctuary-close-command-palette", handleCustomClose);
     };
@@ -2629,7 +2667,6 @@ export function GlobalCommandPalette({
     };
 
     let unlistenNative: (() => void) | null = null;
-    let pollTick = 0;
 
     if (isDesktop()) {
       invoke<{
@@ -2680,7 +2717,6 @@ export function GlobalCommandPalette({
     }
 
     const interval = window.setInterval(() => {
-      pollTick++;
       let webPad: Gamepad | null = null;
       if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
         try {
@@ -2700,29 +2736,18 @@ export function GlobalCommandPalette({
         return;
       }
 
-      if (isLinuxDesktop() && pollTick % 3 === 0) {
-        invoke<{
-          connected: boolean;
-          id: string;
-          buttons: boolean[];
-          axes: number[];
-          seq: number;
-        }>("get_native_gamepad_state")
-          .then((snap) => {
-            if (snap && snap.connected) {
-              nativePadRef.current = snap;
-            }
-          })
-          .catch(() => {});
-      }
-
       const nativePad = nativePadRef.current;
       if (nativePad && nativePad.connected) {
-        processGamepadFrame(
-          nativePad.id || "Steam Deck Controller",
-          nativePad.buttons || [],
-          nativePad.axes || [0, 0, 0, 0]
-        );
+        const hasHeldInput =
+          (nativePad.buttons && nativePad.buttons.some(Boolean)) ||
+          (nativePad.axes && nativePad.axes.some((a) => Math.abs(a) > 0.25));
+        if (hasHeldInput) {
+          processGamepadFrame(
+            nativePad.id || "Steam Deck Controller",
+            nativePad.buttons || [],
+            nativePad.axes || [0, 0, 0, 0]
+          );
+        }
         return;
       }
 

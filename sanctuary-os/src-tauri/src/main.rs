@@ -51,39 +51,156 @@ fn reveal_main_window(app: tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn ensure_linux_desktop_integration() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = match std::env::var("HOME") {
+        Ok(h) if !h.trim().is_empty() => h,
+        _ => return,
+    };
+
+    let exec_path = std::env::var("APPIMAGE")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .map(|p| p.to_string_lossy().to_string())
+        });
+    let exec_path = match exec_path {
+        Some(p) if !p.is_empty() => p,
+        _ => return,
+    };
+
+    let icon_bytes = include_bytes!("../icons/128x128@2x.png");
+    let icon_dirs = [
+        format!("{}/.local/share/icons/hicolor/256x256/apps", home),
+        format!("{}/.local/share/icons/hicolor/128x128/apps", home),
+        format!("{}/.local/share/pixmaps", home),
+    ];
+    let primary_icon_path = format!(
+        "{}/.local/share/icons/hicolor/256x256/apps/sanctuary-os.png",
+        home
+    );
+
+    for dir in &icon_dirs {
+        let _ = std::fs::create_dir_all(dir);
+        let target = format!("{}/sanctuary-os.png", dir);
+        let _ = std::fs::write(&target, icon_bytes);
+    }
+
+    if let Ok(meta) = std::fs::metadata(&exec_path) {
+        let mut perms = meta.permissions();
+        perms.set_mode(0o755);
+        let _ = std::fs::set_permissions(&exec_path, perms);
+    }
+
+    let desktop_entry = format!(
+        "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Sanctuary OS\nComment=Sovereign Mod & Blueprint Operating System\nExec=\"{}\" %U\nTryExec={}\nIcon={}\nTerminal=false\nCategories=Game;Utility;\nStartupWMClass=SanctuaryOS\nStartupNotify=true\nX-KDE-SubstituteUID=false\n",
+        exec_path, exec_path, primary_icon_path
+    );
+
+    let apps_dir = format!("{}/.local/share/applications", home);
+    let _ = std::fs::create_dir_all(&apps_dir);
+    let app_desktop_path = format!("{}/sanctuary-os.desktop", apps_dir);
+    if std::fs::write(&app_desktop_path, &desktop_entry).is_ok() {
+        if let Ok(meta) = std::fs::metadata(&app_desktop_path) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = std::fs::set_permissions(&app_desktop_path, perms);
+        }
+    }
+
+    let user_desktop_dir = format!("{}/Desktop", home);
+    if std::path::Path::new(&user_desktop_dir).is_dir() {
+        let desktop_shortcut = format!("{}/Sanctuary OS.desktop", user_desktop_dir);
+        if std::fs::write(&desktop_shortcut, &desktop_entry).is_ok() {
+            if let Ok(meta) = std::fs::metadata(&desktop_shortcut) {
+                let mut perms = meta.permissions();
+                perms.set_mode(0o755);
+                let _ = std::fs::set_permissions(&desktop_shortcut, perms);
+            }
+            let _ = std::process::Command::new("gio")
+                .args(["set", &desktop_shortcut, "metadata::trusted", "true"])
+                .output();
+        }
+    }
+
+    // Configure KDE Plasma / Dolphin (SteamOS Desktop Mode) to execute .AppImage and .desktop
+    // launchers directly without the "Are you sure you want to execute this file?" prompt.
+    let kiorc_path = format!("{}/.config/kiorc", home);
+    let existing_kiorc = std::fs::read_to_string(&kiorc_path).unwrap_or_default();
+    if !existing_kiorc.contains("behaviourOnLaunch=execute") {
+        let updated_kiorc = if existing_kiorc.contains("[Executable scripts]") {
+            existing_kiorc.replace(
+                "[Executable scripts]",
+                "[Executable scripts]\nbehaviourOnLaunch=execute",
+            )
+        } else if existing_kiorc.is_empty() {
+            "[Executable scripts]\nbehaviourOnLaunch=execute\n".to_string()
+        } else {
+            format!(
+                "{}\n[Executable scripts]\nbehaviourOnLaunch=execute\n",
+                existing_kiorc.trim_end()
+            )
+        };
+        let _ = std::fs::create_dir_all(format!("{}/.config", home));
+        let _ = std::fs::write(&kiorc_path, updated_kiorc);
+    }
+
+    let _ = std::process::Command::new("update-desktop-database")
+        .arg(&apps_dir)
+        .output();
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        // Prevent WebKitGTK 4.1 DMABUF / GBM EGL initialization crashes on SteamOS (AMD RDNA2 APU),
-        // Wayland compositors, NVIDIA drivers, and cross-distro AppImage containers.
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
-
         // Silence atk-bridge DBus signature warnings on SteamOS / KDE Plasma
         if std::env::var_os("NO_AT_BRIDGE").is_none() {
             std::env::set_var("NO_AT_BRIDGE", "1");
         }
 
-        // When running inside an Ubuntu-built AppImage on Wayland (such as SteamOS 3.6+ KDE Plasma 6),
-        // the AppImage's bundled libwayland-client.so.0 has a different wl_display_interface symbol
-        // address than the host's /usr/lib/libEGL_mesa.so.0, causing Mesa eglGetDisplay() to abort
-        // with "Could not create default EGL Display: EGL_BAD_PARAMETER. Aborting...".
-        // Routing GTK/WebKitGTK through XWayland (GDK_BACKEND=x11) and preloading host libstdc++ /
-        // libwayland-client prevents the symbol mismatch completely.
-        let is_appimage =
-            std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some();
-        if is_appimage && std::env::var_os("GDK_BACKEND").is_none() {
-            std::env::set_var("GDK_BACKEND", "x11");
+        // Only disable WebKitGTK's DMA-BUF hardware renderer on proprietary NVIDIA drivers
+        // where explicit sync may fail. On Steam Deck (AMD RDNA2 APU) and Intel GPUs, keep
+        // DMA-BUF hardware acceleration enabled so WebKitGTK renders on the GPU at 60 FPS!
+        let has_nvidia = std::path::Path::new("/proc/driver/nvidia").exists();
+        if has_nvidia && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
 
-        if is_appimage {
-            let candidate_libs = [
-                "/usr/lib/libstdc++.so.6",
-                "/usr/lib64/libstdc++.so.6",
-                "/usr/lib/libwayland-client.so.0",
-                "/usr/lib64/libwayland-client.so.0",
+        let is_appimage =
+            std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some();
+
+        // When running inside an Ubuntu-built AppImage on SteamOS / Arch / Fedora, AppRun puts
+        // $APPDIR/usr/lib first in LD_LIBRARY_PATH, causing Ubuntu's older libwayland / libgbm /
+        // libdrm / libEGL / libstdc++ to clash with the host's /usr/lib/dri/radeonsi_dri.so GPU
+        // driver (falling back to slow CPU software rendering or failing with EGL_BAD_PARAMETER).
+        // By preloading the host's native graphics/Wayland/C++ libraries and re-execing before
+        // GTK/WebKit initializes, ld.so binds directly to the Steam Deck's native RDNA2 GPU stack.
+        if is_appimage && std::env::var_os("SANCTUARY_APPIMAGE_REEXEC").is_none() {
+            std::env::set_var("SANCTUARY_APPIMAGE_REEXEC", "1");
+            if std::env::var_os("GDK_BACKEND").is_none() {
+                std::env::set_var("GDK_BACKEND", "x11");
+            }
+
+            let host_lib_dirs = ["/usr/lib", "/usr/lib64", "/usr/lib/x86_64-linux-gnu"];
+            let host_lib_names = [
+                "libstdc++.so.6",
+                "libgcc_s.so.1",
+                "libwayland-client.so.0",
+                "libwayland-server.so.0",
+                "libwayland-egl.so.1",
+                "libwayland-cursor.so.0",
+                "libEGL.so.1",
+                "libGLX.so.0",
+                "libOpenGL.so.0",
+                "libGLdispatch.so.0",
+                "libgbm.so.1",
+                "libdrm.so.2",
             ];
+
             let mut preload_parts: Vec<String> = std::env::var("LD_PRELOAD")
                 .unwrap_or_default()
                 .split(':')
@@ -91,11 +208,14 @@ fn main() {
                 .map(|s| s.to_string())
                 .collect();
 
-            for candidate in candidate_libs {
-                if std::path::Path::new(candidate).exists() {
-                    let file_name = candidate.rsplit('/').next().unwrap_or(candidate);
-                    if !preload_parts.iter().any(|p| p.contains(file_name)) {
-                        preload_parts.push(candidate.to_string());
+            for lib_name in host_lib_names {
+                for dir in host_lib_dirs {
+                    let candidate = format!("{}/{}", dir, lib_name);
+                    if std::path::Path::new(&candidate).exists() {
+                        if !preload_parts.iter().any(|p| p.ends_with(lib_name)) {
+                            preload_parts.push(candidate);
+                        }
+                        break;
                     }
                 }
             }
@@ -103,16 +223,41 @@ fn main() {
             if !preload_parts.is_empty() {
                 std::env::set_var("LD_PRELOAD", preload_parts.join(":"));
             }
+
+            let current_ld = std::env::var("LD_LIBRARY_PATH").unwrap_or_default();
+            let mut ld_parts: Vec<String> = Vec::new();
+            for dir in host_lib_dirs {
+                if std::path::Path::new(dir).is_dir() {
+                    ld_parts.push(dir.to_string());
+                }
+            }
+            for part in current_ld.split(':').filter(|s| !s.trim().is_empty()) {
+                if !ld_parts.iter().any(|p| p == part) {
+                    ld_parts.push(part.to_string());
+                }
+            }
+            std::env::set_var("LD_LIBRARY_PATH", ld_parts.join(":"));
+
+            if let Ok(exe) = std::env::current_exe() {
+                use std::os::unix::process::CommandExt;
+                let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+                let _ = std::process::Command::new(exe).args(args).exec();
+            }
         }
     }
 
     std::thread::spawn(|| {
         ensure_windows_aumid_registered();
+        #[cfg(target_os = "linux")]
+        ensure_linux_desktop_integration();
     });
 
     tauri::Builder::default()
         .setup(|app| {
             if let Some(win) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon().cloned() {
+                    let _ = win.set_icon(icon);
+                }
                 if let Ok(Some(monitor)) = win.current_monitor() {
                     let scale = monitor.scale_factor();
                     let phys = monitor.size();

@@ -962,7 +962,7 @@ export default function CommandCenter({
           </div>
         ];
 
-        if (isDesktop() && systemTiles.length > 1) {
+        if (systemTiles.length > 1) {
           return (
             <>
               <div className="mb-4">
