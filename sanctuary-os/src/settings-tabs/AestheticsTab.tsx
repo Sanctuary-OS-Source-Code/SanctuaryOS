@@ -107,7 +107,7 @@ export default function AestheticsTab({ config }: any) {
                     <span className="truncate max-w-[160px]">{currentTheme?.name || activeThemeId}</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -193,7 +193,7 @@ export default function AestheticsTab({ config }: any) {
                     <span className="truncate max-w-[160px]">{activeLexiconMeta.name}</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={(e) => {

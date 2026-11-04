@@ -1151,7 +1151,11 @@ export const LexiconProvider = ({ children }: any) => {
     })();
   };
 
-  const osLogoUrl = titleAreaConfig.logoUrl || '/icon.png';
+  const rawLogoUrl = titleAreaConfig.logoUrl || '/icon.png';
+  const osLogoUrl =
+    rawLogoUrl === '/icon.png' || rawLogoUrl.startsWith('/icon.png?')
+      ? '/icon.png?v=sovereign_v7'
+      : rawLogoUrl;
   const [autoTranslateDynamic, setAutoTranslateDynamicState] = useState<boolean>(() =>
     getAutoTranslateDynamicPref()
   );

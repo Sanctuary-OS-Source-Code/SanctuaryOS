@@ -1241,7 +1241,7 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
             onClick: () => toggleFavoriteTheme(id, e),
           });
         }
-        if ((!CORE_THEMES || !CORE_THEMES[id]) && setNewThemeName && setEditingThemeId) {
+        if (setNewThemeName && setEditingThemeId) {
           items.push({
             id: 'rename',
             label: t('edit', 'Edit'),
@@ -1339,7 +1339,7 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
                 )}
               </div>
 
-              <div className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity pointer-events-auto" onClick={e => e.stopPropagation()}>
                 {!isDev && toggleFavoriteTheme && (
                   <button
                     type="button"
@@ -1374,30 +1374,26 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
                     <HoverTooltip title={t("btn_open_theme_forge", "Open Theme Forge")} variant="accent" vAlign="bottom" />
                   </button>
                 )}
-                {(!CORE_THEMES || !CORE_THEMES[id]) && (
-                  <>
-                    {setNewThemeName && setEditingThemeId && (
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); setNewThemeName(resolvedData.name); setEditingThemeId(id); }}
-                        className="relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] hover:text-[var(--text)] text-[var(--subtext)] cursor-pointer shadow-sm"
-                      >
-                        <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit", "edit")}</span>
-                        <HoverTooltip title={t("edit", "Edit")} variant="accent" vAlign="bottom" />
-                      </button>
-                    )}
-                    {!isCloud && resolvedDelete && setConfirmDelete && (
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); if (confirmDelete === id) { resolvedDelete(id); setConfirmDelete(false); } else setConfirmDelete(id); }}
-                        onMouseLeave={() => setConfirmDelete(false)}
-                        className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] cursor-pointer shadow-sm ${confirmDelete === id ? 'border-[var(--danger)] text-[var(--danger)] scale-105' : 'hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
-                      >
-                        <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning", "warning") : t("icon_delete", "delete")}</span>
-                        <HoverTooltip title={t("delete", "Delete")} variant="danger" vAlign="bottom" />
-                      </button>
-                    )}
-                  </>
+                {setNewThemeName && setEditingThemeId && (
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setNewThemeName(resolvedData.name); setEditingThemeId(id); }}
+                    className="relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] hover:text-[var(--text)] text-[var(--subtext)] cursor-pointer shadow-sm"
+                  >
+                    <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{t("icon_edit", "edit")}</span>
+                    <HoverTooltip title={t("edit", "Edit")} variant="accent" vAlign="bottom" />
+                  </button>
+                )}
+                {(!CORE_THEMES || !CORE_THEMES[id]) && !isCloud && resolvedDelete && setConfirmDelete && (
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); if (confirmDelete === id) { resolvedDelete(id); setConfirmDelete(false); } else setConfirmDelete(id); }}
+                    onMouseLeave={() => setConfirmDelete(false)}
+                    className={`relative w-7 h-7 rounded-lg transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_15%,transparent)] cursor-pointer shadow-sm ${confirmDelete === id ? 'border-[var(--danger)] text-[var(--danger)] scale-105' : 'hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] theme-text-danger'}`}
+                  >
+                    <span className="material-symbols-outlined !text-[14px] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{confirmDelete === id ? t("icon_warning", "warning") : t("icon_delete", "delete")}</span>
+                    <HoverTooltip title={t("delete", "Delete")} variant="danger" vAlign="bottom" />
+                  </button>
                 )}
               </div>
             </div>

@@ -411,7 +411,7 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const GLASS_OPTICS_REV = "rev_72";
+const GLASS_OPTICS_REV = "rev_74";
 
 const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex: string }> = {
   '/themes/architect.png': { topHex: '#1d2737', bottomHex: '#0e2244' },
@@ -686,7 +686,7 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   const rawBgImage = typeof themeObj.bgImage === 'string' ? themeObj.bgImage.trim() : '';
   const resolvedBgImage =
     rawBgImage.startsWith('/themes/') && !rawBgImage.includes('?')
-      ? `${rawBgImage}?v=liquid_v20`
+      ? `${rawBgImage}?v=liquid_v22`
       : rawBgImage;
   const bootBgImg = resolvedBgImage ? `url("${resolvedBgImage}")` : 'none';
   root.style.setProperty('--boot-bg-image', bootBgImg);
@@ -970,21 +970,13 @@ export const ThemeProvider = ({ children }: any) => {
     [currentThemeRaw]
   );
 
-  // Migrate stale auto-forked custom themes that were created from older default tints
+  // Sanitize semantic status channels and legacy true_glass custom themes
   useEffect(() => {
-    const legacyTints = new Set([
-      '#091326', '#081121', '#1a0628', '#151126', '#0e1116', '#211d1a', '#061524', '#081020',
-      '#050914', '#05160e', '#060e1e', '#050d08', '#120622', '#161224', '#040812',
-      '#ffffff', '#05140d', '#061224', '#06120b', '#09061c', '#0b0818',
-      '#f5fcf8', '#05130c', '#061122', '#05110a', '#080618', '#090716',
-      '#f8fefa', '#06261a', '#081f38', '#072014', '#1e0938', '#200c32',
-    ]);
     let hasChanges = false;
     const nextCustoms: Record<string, any> = { ...customThemes };
 
     Object.entries(nextCustoms).forEach(([id, th]: [string, any]) => {
       if (!th || typeof th !== 'object') return;
-      const tint = String(th.panelTint || '').toLowerCase();
       const cleanSuccess = sanitizeSemanticChannel('success', th.success);
       const cleanWarning = sanitizeSemanticChannel('warning', th.warning);
       const cleanDanger = sanitizeSemanticChannel('danger', th.danger);
@@ -1002,30 +994,6 @@ export const ThemeProvider = ({ children }: any) => {
           bgImage: '',
           bgGradient: 'transparent',
           transparentWindow: true,
-          success: cleanSuccess,
-          warning: cleanWarning,
-          danger: cleanDanger,
-        };
-        hasChanges = true;
-      } else if (id.startsWith('custom_') && (legacyTints.has(tint) || th.glassBorderOpacity === '0.48' || th.glassSpecular === '0.54' || th.glassBorderOpacity === '0.16' || th.glassBorderOpacity === '0.18')) {
-        const baseMatch = id.match(/^custom_([a-z0-9_]+)_(\d+)$/i);
-        const baseId = baseMatch ? baseMatch[1] : 'architect';
-        const baseCore = DEFAULT_CORE_THEMES[baseId] || DEFAULT_CORE_THEMES.architect;
-        nextCustoms[id] = {
-          ...th,
-          bg: baseCore.bg,
-          sidebar: baseCore.sidebar,
-          panelTint: baseCore.panelTint,
-          accent: baseCore.accent,
-          text: baseCore.text,
-          subtext: baseCore.subtext,
-          glassOpacity: baseCore.glassOpacity,
-          glassBlur: baseCore.glassBlur,
-          glassSaturation: baseCore.glassSaturation,
-          glassBorderOpacity: baseCore.glassBorderOpacity,
-          glassSpecular: baseCore.glassSpecular,
-          glassShadow: baseCore.glassShadow,
-          radius: baseCore.radius,
           success: cleanSuccess,
           warning: cleanWarning,
           danger: cleanDanger,

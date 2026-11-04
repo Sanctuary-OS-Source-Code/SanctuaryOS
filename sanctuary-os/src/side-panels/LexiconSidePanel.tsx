@@ -239,7 +239,7 @@ export default function LexiconSidePanel({
               )}
             </div>
             <div
-              className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity"
+              className="flex items-center gap-1 opacity-90 group-hover/card:opacity-100 transition-opacity pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <button

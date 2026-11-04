@@ -10,8 +10,8 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Sanctuary OS" />
-  <link rel="icon" type="image/png" href="/pwa-192x192.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="/pwa-192x192.png?v=sovereign_v7" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=sovereign_v7" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <title>Sanctuary OS</title>
   <style>
@@ -139,7 +139,7 @@
         }
         if (resolved.bgImage) {
           var bgUrl = resolved.bgImage.indexOf("/themes/") === 0 && resolved.bgImage.indexOf("?") === -1
-            ? resolved.bgImage + "?v=liquid_v20"
+            ? resolved.bgImage + "?v=liquid_v22"
             : resolved.bgImage;
           var cssUrl = 'url("' + bgUrl + '")';
           root.style.setProperty("--boot-bg-image", cssUrl);

@@ -207,7 +207,7 @@ export function PwaInstallPrompt() {
             <div className="relative z-10 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
-                  <img src="/pwa-192x192.png" alt="" className="w-7 h-7 object-contain drop-shadow-md" />
+                  <img src="/icon.png?v=sovereign_v7" alt="" className="w-[34px] h-[34px] object-contain drop-shadow-md" />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">

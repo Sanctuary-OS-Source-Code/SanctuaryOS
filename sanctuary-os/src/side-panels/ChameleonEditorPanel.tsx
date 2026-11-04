@@ -20,12 +20,12 @@ export function ChameleonEditorPanel({
   const { t } = useLexicon();
   const { currentTheme, activeThemeId, updateActiveTheme, renameTheme } = useTheme();
   const pushStatus = useStore((state) => state.pushStatus);
-  const [livePreview, setLivePreview] = useState(false);
+  const [livePreview, setLivePreview] = useState(true);
   const initialSnapshotRef = useRef<any>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setLivePreview(false);
+      setLivePreview(true);
       initialSnapshotRef.current = currentTheme
         ? JSON.parse(JSON.stringify(currentTheme))
         : null;
@@ -40,7 +40,6 @@ export function ChameleonEditorPanel({
     <SidePanel
       isOpen={isOpen}
       onClose={() => {
-        setLivePreview(false);
         onClose();
       }}
       title={t("ui_theme_editor", "Chameleon Editor")}

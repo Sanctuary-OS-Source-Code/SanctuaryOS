@@ -214,13 +214,13 @@ export function TitleBar({
             <img
               src={osLogoUrl || "/icon.png"}
               alt={appTitleStr}
-              className="w-4.5 h-4.5 object-contain"
+              className="w-6 h-6 object-contain"
             />
           ) : activeGameIcon ? (
             <img
               src={activeGameIcon}
               alt=""
-              className="w-4.5 h-4.5 object-contain opacity-95 group-hover/launcher:opacity-100 transition-opacity"
+              className="w-5 h-5 object-contain opacity-95 group-hover/launcher:opacity-100 transition-opacity"
             />
           ) : (
             <span className="material-symbols-outlined !text-[17px] text-[var(--accent)] opacity-95 group-hover/launcher:opacity-100 transition-opacity">

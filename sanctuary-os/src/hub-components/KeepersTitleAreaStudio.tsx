@@ -585,9 +585,9 @@ export function KeepersLogoSidePanel({
                 <div className="flex items-center w-full relative z-10 justify-between gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center shrink-0">
                     <img
-                      src={logoUrl || "/icon.png"}
+                      src={logoUrl === "/icon.png" ? "/icon.png?v=sovereign_v7" : (logoUrl || "/icon.png?v=sovereign_v7")}
                       alt={primaryWord}
-                      className="w-5 h-5 object-contain"
+                      className="w-[30px] h-[30px] object-contain"
                     />
                   </div>
                   <div className="flex flex-col justify-center min-w-0 flex-1">
@@ -621,9 +621,9 @@ export function KeepersLogoSidePanel({
               <div className="relative flex items-center justify-center cursor-pointer group/logo overflow-hidden rounded-2xl w-[62px] h-[56px] border border-[color-mix(in_srgb,var(--sidebartext)_14%,rgba(255,255,255,0.18))] glass-surface shrink-0">
                 <div className="w-9 h-9 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center shrink-0">
                   <img
-                    src={logoUrl || "/icon.png"}
+                    src={logoUrl === "/icon.png" ? "/icon.png?v=sovereign_v7" : (logoUrl || "/icon.png?v=sovereign_v7")}
                     alt={primaryWord}
-                    className="w-5 h-5 object-contain transition-transform duration-500 group-hover/logo:scale-110"
+                    className="w-[30px] h-[30px] object-contain transition-transform duration-500 group-hover/logo:scale-110"
                   />
                 </div>
               </div>

@@ -957,8 +957,8 @@ export async function notifyOS(
         if (reg && typeof reg.showNotification === 'function') {
           await reg.showNotification(cleanTitle, {
             body: cleanBody,
-            icon: '/pwa-192x192.png',
-            badge: '/pwa-192x192.png',
+            icon: '/pwa-192x192.png?v=sovereign_v7',
+            badge: '/pwa-192x192.png?v=sovereign_v7',
             tag: dedupeKey,
             data: { actionTypeId, ...(data || {}) },
           });
@@ -971,7 +971,7 @@ export async function notifyOS(
 
     const webNotif = new window.Notification(cleanTitle, {
       body: cleanBody,
-      icon: '/pwa-192x192.png',
+      icon: '/pwa-192x192.png?v=sovereign_v7',
       tag: dedupeKey,
       data: { actionTypeId, ...(data || {}) },
     });

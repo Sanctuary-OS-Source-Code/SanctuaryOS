@@ -24,20 +24,7 @@ in vec2 v_uv;
 uniform sampler2D u_sharpTex;
 out vec4 outColor;
 void main() {
-  // AMD FidelityFX Contrast-Adaptive Sharpening (CAS) for tack-sharp 1:1 wallpaper rendering
-  vec2 texSize = vec2(textureSize(u_sharpTex, 0));
-  vec2 off = 1.0 / max(texSize, vec2(1.0));
-  vec3 c = texture(u_sharpTex, v_uv).rgb;
-  vec3 n = texture(u_sharpTex, v_uv + vec2(0.0, -off.y)).rgb;
-  vec3 s = texture(u_sharpTex, v_uv + vec2(0.0,  off.y)).rgb;
-  vec3 w = texture(u_sharpTex, v_uv + vec2(-off.x, 0.0)).rgb;
-  vec3 e = texture(u_sharpTex, v_uv + vec2( off.x, 0.0)).rgb;
-  vec3 minRGB = min(min(min(n, s), min(w, e)), c);
-  vec3 maxRGB = max(max(max(n, s), max(w, e)), c);
-  vec3 amp = clamp(min(minRGB, 1.0 - maxRGB) / max(maxRGB, vec3(0.0001)), 0.0, 1.0);
-  vec3 weight = -sqrt(amp) * 0.175;
-  vec3 sharp = clamp((c + (n + s + w + e) * weight) / (1.0 + 4.0 * weight), 0.0, 1.0);
-  outColor = vec4(sharp, 1.0);
+  outColor = vec4(texture(u_sharpTex, v_uv).rgb, 1.0);
 }
 `;
 
@@ -79,7 +66,7 @@ void main() {
 }
 `;
 
-export const SHADER_REV = 'webgl_glass_v59';
+export const SHADER_REV = 'webgl_glass_v61';
 
 export const FRAGMENT_SHADER_GLASS = `#version 300 es
 precision highp float;
@@ -208,25 +195,23 @@ void main() {
     texture(u_sharpTex, uvB).b
   );
 
-  // Pure optical highlight/trough compression inside the glass medium:
-  // Leaves dark areas 100% untouched in dark mode (zero solid color fills!) while softly
-  // attenuating blinding background hotspots (or lifting dark troughs in light mode) so text stays effortless to read.
+  // Gentle hotspot taming that preserves luminous see-through glass (like v57 Aurora) without muddy darkening
   float blurLum = dot(blurCol, vec3(0.299, 0.587, 0.114));
   vec3 opticalBlurCol;
   if (u_isLight > 0.5) {
     float troughLift = (glassKind > 1.5)
-      ? smoothstep(0.76, 0.18, blurLum) * 0.24
-      : smoothstep(0.82, 0.16, blurLum) * 0.44;
-    opticalBlurCol = mix(blurCol, mix(blurCol, vec3(0.96, 0.97, 1.0), 0.78), troughLift);
+      ? smoothstep(0.70, 0.15, blurLum) * 0.12
+      : smoothstep(0.75, 0.15, blurLum) * 0.20;
+    opticalBlurCol = mix(blurCol, mix(blurCol, vec3(0.96, 0.97, 1.0), 0.72), troughLift);
   } else {
     float highlightAtten = (glassKind > 1.5)
-      ? mix(1.0, 0.72, smoothstep(0.18, 0.85, blurLum))
-      : mix(1.0, 0.48, smoothstep(0.14, 0.85, blurLum));
+      ? mix(1.0, 0.86, smoothstep(0.32, 0.92, blurLum))
+      : mix(1.0, 0.76, smoothstep(0.28, 0.92, blurLum));
     opticalBlurCol = blurCol * highlightAtten;
   }
 
   // Smooth transition into crystal-clear edge refraction along the outer lip without creating an inner ring
-  float rimClarity = smoothstep(0.55, 0.98, rimSlope) * 0.52 * (0.45 + 0.55 * compactFactor);
+  float rimClarity = smoothstep(0.55, 0.98, rimSlope) * 0.48 * (0.45 + 0.55 * compactFactor);
   vec3 refractedCol = mix(opticalBlurCol, sharpCol, rimClarity);
 
   // 5. Crystal-Clear See-Through Optical Glass (92-96% transparent backdrop + glossy surface sheen)
@@ -1090,7 +1075,7 @@ export function SystemBackground() {
       const orbsKey = Array.isArray(t.volumetricOrbs)
         ? t.volumetricOrbs.map((o: any) => `${o.color}:${o.left}:${o.top}:${o.opacity}`).join(',')
         : '';
-      const buildKey = `v20|${t.bgImage || ''}|${t.bg || ''}|${Boolean(t.transparentWindow)}|${rawBlur}|${satPct}|${isLightTheme ? 1 : 0}|${physW}x${physH}|${orbsKey}`;
+      const buildKey = `v21|${t.bgImage || ''}|${t.bg || ''}|${Boolean(t.transparentWindow)}|${rawBlur}|${satPct}|${isLightTheme ? 1 : 0}|${physW}x${physH}|${orbsKey}`;
       if (texturesReady && buildKey === lastWallpaperBuildKey) {
         scheduleRender();
         return;
@@ -1102,15 +1087,14 @@ export function SystemBackground() {
         gl.bindTexture(gl.TEXTURE_2D, sharpTex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, srcCanvas);
 
-        // Generate balanced see-through optical glass texture (8-11px diffusion):
-        // Smooths tiny stars & high-frequency pixel edges behind small text while keeping background structures clearly visible through the glass
+        // Generate crisp, see-through optical glass texture (4-6px diffusion, matching v57)
         const bw = Math.min(1280, Math.max(640, Math.round(vw * 0.90)));
         const bh = Math.max(360, Math.round(bw / targetAspect));
         const blurPx = rawBlur <= 0
           ? 0
           : isLightTheme
-            ? Math.max(7, Math.min(10, Math.round(rawBlur * 0.22)))
-            : Math.max(8, Math.min(11, Math.round(rawBlur * 0.24)));
+            ? Math.max(4, Math.min(6, Math.round(rawBlur * 0.13)))
+            : Math.max(4, Math.min(7, Math.round(rawBlur * 0.14)));
         const pad = Math.max(24, blurPx * 3);
 
         const padCanvas = document.createElement('canvas');
@@ -1250,7 +1234,7 @@ export function SystemBackground() {
         const rawImgSrc = String(t.bgImage || '').trim();
         const resolvedImgSrc =
           rawImgSrc.startsWith('/themes/') && !rawImgSrc.includes('?')
-            ? `${rawImgSrc}?v=liquid_v20`
+            ? `${rawImgSrc}?v=liquid_v22`
             : rawImgSrc;
         const preloaded = (window as any).__sanctuaryPreloadedWallpaper as HTMLImageElement | undefined;
         if (
@@ -1558,7 +1542,7 @@ export function SystemBackground() {
   const rawThemeBgImage = String(currentTheme.bgImage || '').trim();
   const resolvedThemeBgImage =
     rawThemeBgImage.startsWith('/themes/') && !rawThemeBgImage.includes('?')
-      ? `${rawThemeBgImage}?v=liquid_v19`
+      ? `${rawThemeBgImage}?v=liquid_v22`
       : rawThemeBgImage;
 
   return (

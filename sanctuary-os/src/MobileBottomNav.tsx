@@ -420,7 +420,7 @@ export function MobileBottomNav({
                   <img
                     src={osLogoUrl || "/icon.png"}
                     alt={t("sidebar_app_title", "Sanctuary OS") as string}
-                    className="w-5 h-5 object-contain"
+                    className="w-[30px] h-[30px] object-contain"
                   />
                 </div>
                 <div className="flex flex-col justify-center min-w-0">

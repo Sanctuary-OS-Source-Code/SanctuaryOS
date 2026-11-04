@@ -64,10 +64,10 @@ export function ChameleonControlDashboard({
     initialOsThemeRef.current = JSON.parse(JSON.stringify(osActiveTheme));
   }
   useEffect(() => {
-    if (!livePreview && editingThemeId !== activeThemeId && osActiveTheme) {
+    if ((isActiveOnOs || (!livePreview && editingThemeId !== activeThemeId)) && osActiveTheme) {
       initialOsThemeRef.current = JSON.parse(JSON.stringify(osActiveTheme));
     }
-  }, [osActiveTheme, livePreview, editingThemeId, activeThemeId]);
+  }, [osActiveTheme, livePreview, editingThemeId, activeThemeId, isActiveOnOs]);
   const pushStatus = useStore((state) => state.pushStatus);
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
   const [pickerCoords, setPickerCoords] = useState<{ top?: number; left?: number; right?: number } | null>(null);
@@ -102,8 +102,11 @@ export function ChameleonControlDashboard({
   useEffect(() => {
     if (!livePreview) {
       (window as any).__sanctuaryPreviewTheme = null;
-      if (initialOsThemeRef.current) {
-        applyThemeCssVarsToRoot(initialOsThemeRef.current);
+      const restoreTarget = isActiveOnOs
+        ? (osActiveThemeRef.current || initialOsThemeRef.current)
+        : (initialOsThemeRef.current || osActiveThemeRef.current);
+      if (restoreTarget) {
+        applyThemeCssVarsToRoot(restoreTarget);
       }
       if (wasLiveRef.current) {
         wasLiveRef.current = false;
@@ -124,19 +127,21 @@ export function ChameleonControlDashboard({
       (window as any).__sanctuaryRenderWebGLGlass?.(true);
     }
     prevTexKeyRef.current = texKey;
-  }, [currentTheme, livePreview]);
+  }, [currentTheme, livePreview, isActiveOnOs]);
 
   useEffect(() => {
     return () => {
       (window as any).__sanctuaryPreviewTheme = null;
-      const restoreTarget = initialOsThemeRef.current || osActiveThemeRef.current;
+      const restoreTarget = isActiveOnOs
+        ? (osActiveThemeRef.current || initialOsThemeRef.current)
+        : (initialOsThemeRef.current || osActiveThemeRef.current);
       if (restoreTarget) {
         applyThemeCssVarsToRoot(restoreTarget);
       }
       (window as any).__sanctuaryRebuildWebGLGlass?.();
       (window as any).__sanctuaryRenderWebGLGlass?.(true);
     };
-  }, []);
+  }, [isActiveOnOs]);
 
   const applyBgBuilder = (type: 'solid' | 'linear' | 'radial', angle: number, c1: string, c2: string) => {
     let css = 'none';

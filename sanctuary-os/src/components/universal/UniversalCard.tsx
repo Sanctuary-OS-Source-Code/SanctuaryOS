@@ -420,7 +420,7 @@ export function UniversalCard({
           )}
         </div>
         {imageOverlay && (
-          <div className={`absolute inset-0 pointer-events-none z-30 ${innerGhostClasses}`}>
+          <div className={`absolute inset-0 pointer-events-none [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_a]:pointer-events-auto [&_select]:pointer-events-auto z-30 ${innerGhostClasses}`}>
             {imageOverlay}
           </div>
         )}
