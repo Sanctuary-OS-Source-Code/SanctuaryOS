@@ -1,29 +1,30 @@
 # Sanctuary OS — End-User License Agreement (EULA)
 
-**Document Version:** V5.8 (v0.5.8-Dev.5)  
-**Effective Date:** October 28, 2026  
+**Document Version:** V6.0 (v0.6.0-Dev.2)  
+**Effective Date:** November 4, 2026  
 
 ---
 
 ## 1. Grant of License & Scope
-This End-User License Agreement ("EULA") is a legal agreement between you ("Citizen", "Mason", "Wayfinder", or "User") and **Sanctuary Foundry** governing your installation and use of the **Sanctuary OS** desktop software (Windows `.exe`/NSIS & macOS `.dmg`/`.app` Universal Binary) and web application.
+This End-User License Agreement ("EULA") is a legal agreement between you ("Citizen", "Mason", "Wayfinder", or "User") and **Sanctuary Foundry** governing your installation and use of the **Sanctuary OS** desktop software (Windows `.exe`/NSIS, macOS `.dmg`/`.app` Universal Binary, and Linux `.AppImage`/`.deb` including SteamOS / Steam Deck) and web application.
 
-1. **Personal & Community License:** Sanctuary Foundry grants you a revocable, non-exclusive, worldwide license to install and run Sanctuary OS on your personal Windows and macOS devices to manage local game mod archives, configure settings, and connect to Sanctuary OS Hub and Community Spoke databases.
+1. **Personal & Community License:** Sanctuary Foundry grants you a revocable, non-exclusive, worldwide license to install and run Sanctuary OS on your personal Windows, macOS, Linux, and SteamOS devices to manage local game mod archives, configure settings, and connect to Sanctuary OS Hub and Community Spoke databases.
 2. **Standalone Codebase Forking Rights:** Subject to the repository's open-source/source-available terms and the [Sanctuary OS Forking & Architecture Guide](./Sanctuary%20OS%20Forking%20%26%20Architecture%20Guide.md), independent game communities may deploy standalone forks configured against their own `schema.sql` Supabase instance via `src/supabase.ts`.
 
 ---
 
 ## 2. Local-First Middleware, Symlink Airgap & No Asset Hosting
 Sanctuary OS operates strictly as a **local-first, metadata-only middleware layer**:
-1. **No Proprietary Game or Mod Hosting:** Sanctuary OS does **not** host, redistribute, or bundle proprietary game binaries or third-party `.package`, `.ts4script`, `.pak`, `.rpf`, `.dll`, or `.asi` mod files. All mod archives are acquired by the Citizen directly from the creator's own distribution channels or Static Edge endpoints (`manifest.json` / `override.json`).
-2. **Symlink Airgap 2.5 & File System Operations:** Sanctuary OS organizes your local files inside an isolated Vault directory and projects active mods into your game's live directory using operating-system symbolic links (`symlink_file` / `symlink_dir`), secondary `install_routes`, and automatic root config deduplication (`deduplicate_vault_root_configs`).
-3. **Time Capsule Backups:** While Sanctuary OS provides incremental hardlink snapshots (`World State` & `Engine Core`) and differential rollback utilities, you remain solely responsible for maintaining independent backups of your save files and system data.
+1. **No Proprietary Game or Mod Hosting:** Sanctuary OS does **not** host, redistribute, or bundle proprietary game binaries or third-party `.package`, `.ts4script`, `.pak`, `.rpf`, `.dll`, or `.asi` mod files. All mod archives are acquired by the Citizen directly from the creator's own distribution channels or Static Edge endpoints (`manifest.json` / `catalog.json` / `override.json`).
+2. **Symlink Airgap 2.5 & File System Operations:** Sanctuary OS organizes your local files inside an isolated Vault directory and projects active mods into your game's live directory using operating-system symbolic links (`symlink_file` / `symlink_dir`), secondary `install_routes`, single-active binary deduplication, and automatic root config deduplication (`deduplicate_vault_root_configs`).
+3. **Time Capsule & Mod Version History Backups:** While Sanctuary OS provides incremental hardlink snapshots (`World State`, `Engine Core`, and `Backups/Mods/` Version History archives) and differential rollback utilities, you remain solely responsible for maintaining independent backups of your save files and system data.
 
 ---
 
-## 3. Cross-Platform Permissions (Windows & macOS)
+## 3. Cross-Platform Permissions (Windows, macOS & Linux / SteamOS)
 1. **Windows Operations:** On Windows, creating symbolic links and inspecting PE headers (`pelite`) may require standard user Developer Mode or elevated filesystem permissions.
 2. **macOS Operations (Full Disk Access & Gatekeeper):** On macOS, accessing `~/Documents` and `~/Library/Application Support` requires macOS Transparency, Consent, and Control (TCC) authorization. When enabled by you, Sanctuary OS may clear `com.apple.quarantine` extended attributes (`xattr`) on verified Vault symlinks and game binaries so your game engine can load authorized local scripts.
+3. **Linux & SteamOS / Steam Deck Operations:** On Linux distributions and SteamOS (Steam Deck handheld and desktop modes), Sanctuary OS runs natively via `.AppImage` or `.deb` packages with automatic XWayland/EGL compositing adjustments and `1280×800` handheld viewport scaling. When managing Windows game binaries running under Valve Proton or Wine (`compatdata/<AppID>/pfx/drive_c/users/steamuser/` across native Steam, Flatpak, Snap, Heroic, Bottles, Lutris, or external SD card mounts under `/run/media/`), Sanctuary OS maps symlink projection and config watching directly into the corresponding Proton prefix.
 
 ---
 
@@ -32,7 +33,7 @@ Sanctuary OS operates strictly as a **local-first, metadata-only middleware laye
 2. **Citizen-Signed Secure Shred:** Executing the **Secure Shred** action permanently overwrites and deletes the quarantined file from your storage drive. This action is irreversible.
 3. **The Nuclear Override & Hardware Ban Consequence:** Advanced users who intentionally unlock and trigger the **Nuclear Override** in System Preferences to bypass Tier 5 Malware security lockouts acknowledge and agree that:
    - You assume 100% of the risk of executing unverified or potentially malicious code on your machine; and
-   - Triggering the Nuclear Override immediately records a one-way cryptographic hardware hash in the Core OS `hardware_bans` ledger, permanently revoking cloud network access across the Sanctuary Hub and connected Spokes while leaving your offline local software functional.
+   - Triggering the Nuclear Override immediately records a domain-salted one-way SHA-256 cryptographic hardware hash in the Core OS `hardware_bans` ledger, permanently revoking cloud network access across the Sanctuary Hub and connected Spokes while leaving your offline local software functional.
 
 ---
 

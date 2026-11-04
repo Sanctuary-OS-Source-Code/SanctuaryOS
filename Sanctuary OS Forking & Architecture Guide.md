@@ -1,9 +1,9 @@
 # Sanctuary OS: Forking & Spoke Architecture Guide
 
-**Document Version:** v0.5.8-Dev.5  
-**Last Updated:** October 28, 2026  
+**Document Version:** v0.6.0-Dev.2  
+**Last Updated:** November 4, 2026  
 
-Sanctuary OS is architected to support three seamless deployment and forking models across Windows and macOS:
+Sanctuary OS is architected to support three seamless deployment and forking models across **Windows**, **macOS**, and **Linux / SteamOS (Steam Deck)**:
 1. **Official Hub-and-Spoke Partner Network (Zero Code Edits):** Connect your community's Supabase Spoke database ([`schema.sql`](./schema.sql)) to the official Sanctuary OS Hub ([`schema_os.sql`](./schema_os.sql)) using a `SANCTUARY-UPLINK://` bundle.
 2. **True Standalone Codebase Fork (1 Database — Edit ONLY `src/supabase.ts`):** Run your own completely independent desktop/web build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql))**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and **editing only `SANCTUARY_CONFIG` at the top of [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts)**.
 3. **Full Hub-and-Spoke Multi-Game Federation Fork (Hub DB + Multiple Spoke DBs):** Fork the entire multi-game Hub-and-Spoke ecosystem—running your own Central Core OS Hub ([`schema_os.sql`](./schema_os.sql) + `supabase/functions/game-gateway` Edge Function) connected to multiple independent community Spoke databases ([`schema.sql`](./schema.sql)).
@@ -18,7 +18,7 @@ If your community wants to fork Sanctuary OS into a standalone desktop/web appli
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase Dashboard.
 3. Copy and paste the entire contents of [`schema.sql`](./schema.sql) (available via the **Copy `schema.sql`** button inside **Wayfinder Operations -> Spoke Control -> Forking Help & Walkthrough**, on the Landing Page Forking Matrix, or in the repository root) and click **Run**.
-   - This single script provisions all 36 tables, indexes, triggers, helper RPCs, Row-Level Security (RLS) policies, and the `on_auth_user_created_spoke` trigger (which automatically promotes the **very first user who signs up** in your forked app to `role = 'wayfinder'`).
+   - This single script provisions all 38 tables, indexes, triggers, helper RPCs, Row-Level Security (RLS) policies, and the `on_auth_user_created_spoke` trigger (which automatically promotes the **very first user who signs up** in your forked app to `role = 'wayfinder'`).
 
 ### Step 2: Edit `SANCTUARY_CONFIG` at the Top of `sanctuary-os/src/supabase.ts`
 Open [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts) (lines 7–35) and choose **Option A** or **Option B**:
@@ -193,11 +193,14 @@ Instead of hardcoding file extensions, folder paths, or crash log names in Rust,
 
 ---
 
-## 5. Cross-Platform Desktop Builds (Windows & macOS)
+## 5. Cross-Platform Desktop Builds (Windows, macOS & Linux / SteamOS)
 
-Sanctuary OS compiles natively for both Windows and macOS via Tauri v2 (`sanctuary-os/src-tauri/tauri.conf.json`):
+Sanctuary OS compiles natively for Windows, macOS, and Linux / SteamOS via Tauri v2 (`sanctuary-os/src-tauri/tauri.conf.json`):
 - **Windows Build (`.exe` / NSIS & `.msi`):**
   - Run `npm run tauri build` on Windows (or via GitHub Actions `windows-latest` runner).
 - **macOS Universal Build (`.dmg` & `.app` for Apple Silicon `aarch64` + Intel `x86_64`):**
-  - Configured with `sanctuary-os/src-tauri/Entitlements.plist` and `Info.plist` for macOS TCC Documents/Application Support access and custom `sanctuary://` deep-link URL schemes.
+  - Configured with `sanctuary-os/src-tauri/Entitlements.plist`, `Info.plist`, and `macos-private-api` transparent window glass for macOS TCC Documents/Application Support access and custom `sanctuary://` deep-link URL schemes.
   - Run `npm run tauri build -- --target universal-apple-darwin` on macOS (or via GitHub Actions `macos-latest` runner — no physical Mac required for CI/CD release builds).
+- **Linux & SteamOS / Steam Deck Build (`.AppImage` & `.deb`):**
+  - Configured with automatic XWayland/EGL compositing flags, `1280×800` Steam Deck handheld viewport scaling, `libraryfolders.vdf` / `appmanifest_*.acf` discovery, SD card mount scanning (`/run/media/mmcblk0p1`), and automatic Valve Proton prefix translation (`compatdata/<AppID>/pfx/drive_c/users/steamuser/`).
+  - Run `npm run tauri build` on Ubuntu/Linux (or via GitHub Actions `ubuntu-22.04` runner).

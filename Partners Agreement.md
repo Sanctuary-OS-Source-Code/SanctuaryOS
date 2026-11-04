@@ -1,11 +1,11 @@
 # Sanctuary OS: Community Partners Agreement & Sovereignty Covenant
 
-> **Document Version:** V0.5.8 (v0.5.8-Dev.5)  
-> **Last Updated:** October 28, 2026  
+> **Document Version:** V0.6.0 (v0.6.0-Dev.2)  
+> **Last Updated:** November 4, 2026  
 > **Classification:** Legal & Operational Governance Covenant  
 > **Scope:** Keepers Core (Sanctuary OS Hub) & Sovereign Community Spokes (Wayfinders)
 
-This **Partners Agreement** establishes the operational, technical, and legal relationship between the **Sanctuary OS Core Team ("Keepers Core" / "Sanctuary Foundry")** and independent **Game Community Operators ("Wayfinders")** who connect a Spoke database to the Sanctuary OS ecosystem.
+This **Partners Agreement** establishes the operational, technical, and legal relationship between the **Sanctuary OS Core Team ("Keepers Core" / "Sanctuary Foundry")** and independent **Game Community Operators ("Wayfinders")** who connect a Spoke database to the Sanctuary OS ecosystem across Windows, macOS, Linux, SteamOS, and Web/Mobile PWA.
 
 ---
 
@@ -13,7 +13,7 @@ This **Partners Agreement** establishes the operational, technical, and legal re
 
 Sanctuary OS is architected on a strict **Hub-and-Spoke Sovereignty Model**:
 
-1. **Community Ownership:** The Community (represented by its Founding Wayfinder) provisions, owns, and controls its own Supabase PostgreSQL instance ("The Spoke") initialized via [`schema.sql`](./schema.sql) (36 tables).
+1. **Community Ownership:** The Community (represented by its Founding Wayfinder) provisions, owns, and controls its own Supabase PostgreSQL instance ("The Spoke") initialized via [`schema.sql`](./schema.sql) (38 tables, including `citizen_staging_queue` for Zero-PII AES-256-GCM Multi-Rig Blueprint Queueing & Mobile Companion Radar).
 2. **Zero Hostage Data:** All community mod registries (`mods`, `mod_versions`), dependency matrices, creator profiles (`masons`), blueprints, collections, Spoke Master Schemas (`sanctuary_schemas`), Spoke Lexicons (`sanctuary_lexicons`), Chameleon themes (`sanctuary_themes`), support tickets, and dispatches reside physically inside the Community's Spoke database—never locked inside a proprietary central silo.
 3. **Decoupled Governance & Branding:** Roles granted within a Spoke (`wayfinder`, `oversight`, `architect`, `mason`, `citizen`) are stored locally in the Spoke's `profiles` table and apply strictly to that game workspace. Spoke Master Schemas and Lexicons carry the Community Spoke's own identity and attribution inside **Wayfinder Operations -> Spoke Control** and **Spoke Aesthetics**.
 

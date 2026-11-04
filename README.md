@@ -6,48 +6,60 @@ New to Sanctuary OS? This 10-stage interactive walkthrough, 12-module operationa
 
 # Part 1: Step-by-Step OS Walkthrough (10 Stages — What Everything Does)
 
-## Stage 1: Global Shell Anatomy (Sidebar, Top Workspace Pill & Morphing Dock)
+## Stage 1: Global Shell Anatomy (Sidebar, Top Control Capsule, Context Menus & Morphing Dock)
 
-Sanctuary OS is framed by three persistent glassmorphic regions that adapt dynamically to whether you are on the **Foundry Landing Page** or inside an active **Game Workspace**:
+Sanctuary OS is framed by persistent WebGL2 3D Liquid Glass regions that adapt dynamically to whether you are on the **Foundry Landing Page** or inside an active **Game Workspace**:
 
 - **Left Navigation Sidebar (`Sidebar.tsx`):**
-  - **On the Landing Page:** Displays Web/Foundry scrolling Quick Links (**Active Workspaces**, **Sanctuary Foundry News**, **System Directives**, **System EULA**, **Preferences**) and—exclusively for Keepers—the **Sanctuary Foundry -> Keepers Core** hub. Game workspace links and the **Quick Launch** button are cleanly hidden here.
+  - **On the Landing Page:** Displays Web/Foundry scrolling Quick Links (**Active Workspaces**, **Sanctuary Foundry News**, **System Directives**, **Partner Spokes**, **Legal**, **Donations**, **Preferences**) and—exclusively for Keepers—the **Sanctuary Foundry -> Keepers Core** hub. Game workspace links and the **Quick Launch** button are cleanly hidden here.
   - **Inside a Mounted Game Workspace:** Displays the 9 Citizen Operational Sectors (**Command Center**, **Your Vault**, **The Nexus**, **Blueprints**, **Comm-Link Feed**, **Conflict Radar**, **Homestead Lab**, **Workbench**, **Time Capsule**), your unlocked Command Hubs (**Mason Workshop**, **Architect Console**, **Oversight Command**, **Wayfinder Operations**, **Keepers Core**), and the bottom **Quick Launch** ignition button.
-- **Top Center Workspace Pill (`TitleBar.tsx`):**
-  - Click the centered game pill (e.g., `The Sims 4 ▾`) at the top of the window to switch between mounted game workspaces, return to the **Sanctuary Foundry Landing Page**, or mount a new game instance.
+- **Top-Right Control Capsule & `Ctrl+K` Command Matrix (`TitleBar.tsx` & `GlobalCommandPalette.tsx`):**
+  - Houses the **Active Workspace Selector**, **System Queues & Utilities** (`Blueprint Signature Queue`, `Duplicate & Update Resolver`, `Mobile Companion Radar`, `Side Browser`), **Notification Center**, **Command Matrix (`Ctrl+K` / `Cmd+K`)**, and **System Preferences** inside a single unified glass capsule.
+  - Press `Ctrl+K` / `Cmd+K` (or bind custom keyboard shortcuts and Steam Deck / Gamepad controller buttons inside the Command Matrix) to fuzzy-search across all 18 OS views, installed Vault mods, Blueprints, Mason profiles, Workbench configs, Chameleon themes, and Lexicon packs.
+- **OS-Wide Right-Click Context Menus (`ContextMenu.tsx`):**
+  - Right-click any card or row across **Your Vault**, **Blueprints**, **The Nexus**, **Chameleon Themes**, **Comm-Link**, **Citizen's Workbench**, **Time Capsule**, **Conflict Radar**, **Homestead Lab**, or any **Elevated Hub** for instant glassmorphic quick actions without opening a full SidePanel.
 - **Bottom Morphing Status Pill (`SystemStatusBar.tsx`):**
-  - A single centered, auto-tucking Liquid Glass dock at the bottom of the screen.
-  - Houses **1-Click Radar Sweep**, **Vault Lockdown** (strip all active symlinks immediately), **Blueprint Quick-Swap**, **Side Browser Toggle**, **Notification Center**, and live inline telemetry badges for **Incompatible Mods**, **Available Updates**, and **Active Conflicts**. Automatically tucks out of the way when a `SidePanel` opens or when you scroll to the bottom of a view.
+  - A centered, auto-tucking Liquid Glass dock at the bottom of the screen.
+  - Houses **1-Click Radar Sweep**, **Vault Lockdown** (strip all active symlinks immediately), **Blueprint Quick-Swap**, **Side Browser Toggle**, and live inline telemetry badges for **Incompatible Mods**, **Available Updates**, and **Active Conflicts**. Automatically tucks out of the way when a `SidePanel` opens or when you scroll to the bottom of a view.
 
-## Stage 2: Mounting a Game Workspace & The Cartographer (Windows & macOS)
+## Stage 2: Mounting a Game Workspace & The Cartographer (Windows, macOS & Linux / SteamOS)
 
-When you select a game workspace from the Landing Page or the Top Workspace Pill for the first time, **The Cartographer** opens to map your local coordinates across Windows and macOS:
+When you select a game workspace from the Landing Page or the Top Control Capsule for the first time, **The Cartographer** opens to map your local coordinates across **Windows**, **macOS**, and **Linux / SteamOS (Steam Deck)**:
 
-- **Bin Folder (Executable Path):** Point this to the folder containing your game executable (`TS4_x64.exe` on Windows or `The Sims 4.app` on macOS). Sanctuary's in-process Rust PE parser (`pelite`) and macOS `Info.plist` reader extract the genuine engine version directly from binary headers without spawning background processes.
-- **Mods Folder (Live Game Directory):** Point this to the folder where the game loads mods. Sanctuary keeps this folder 100% clean—never drop files directly here; Sanctuary projects your active mods here via high-speed symlinks and custom `install_routes`.
-- **Vault Folder (Deep-Storage Archive):** Choose a dedicated storage folder on your drive. Sanctuary automatically builds `Mods/`, `Blueprints/`, `Backups/World/`, `Backups/Engine/`, `Quarantine/`, and `Data/Cache/`.
-- **Lexicon & Chameleon Selection:** Pick your terminology layer (**Standard English**, **Sanctuary Cyberpunk**, **Sims Friendly**, or **Simlish**) and your **Liquid Glass Chameleon Theme**.
+- **Bin Folder (Executable Path):** Point this to the folder containing your game executable (`TS4_x64.exe` on Windows/Proton or `The Sims 4.app` on macOS). Sanctuary's in-process Rust PE parser (`pelite`), macOS `Info.plist` reader, and Steam/Proton `libraryfolders.vdf` + `appmanifest_*.acf` scanner extract the genuine engine version directly from binary headers without spawning background processes.
+- **Mods Folder (Live Game Directory):** Point this to the folder where the game loads mods (automatically resolving `compatdata/<AppID>/pfx/drive_c/users/steamuser/` Proton prefixes and `/run/media/mmcblk0p1` SD card libraries on Linux & Steam Deck). Sanctuary keeps this folder 100% clean—never drop files directly here; Sanctuary projects your active mods here via high-speed symlinks and custom `install_routes`.
+- **Vault Folder (Deep-Storage Archive):** Choose a dedicated storage folder on your drive. Sanctuary automatically builds `Mods/`, `Blueprints/`, `Backups/Mods/` (Mod Version History), `Backups/World/`, `Backups/Engine/`, `Quarantine/`, and `Data/Cache/`.
+- **Lexicon & Chameleon Selection:** Pick your terminology layer (**Standard English**, **Sanctuary Cyberpunk**, **Sims Friendly**, or **Simlish**) and your **WebGL2 Liquid Glass Chameleon Theme** (featuring 8 `2560×1440` lossless atmospheric wallpapers).
 
-## Stage 3: Your Vault, Mod Cards & ActionPill Toolbar
+## Stage 3: Your Vault, Mod Cards, Mod Version History & ActionPill Toolbar
 
 Inside **Your Vault**, every mod lives safely inside your isolated Vault archive:
 
-- **Global Drag-and-Drop Ingest:** Drag `.package`, `.ts4script`, `.zip`, `.rar`, `.7z`, `.tar.zst`, `.asi`, `.dll`, or `override.json` files anywhere onto the Sanctuary OS window. Sanctuary hashes every file with SHA-256 (`DNA`), runs the **Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke rules)**, and checks the Spoke Registry.
+- **Global Drag-and-Drop Ingest & Non-Destructive Duplicate Resolver:** Drag `.package`, `.ts4script`, `.zip`, `.rar`, `.7z`, `.tar.zst`, `.asi`, `.dll`, or `override.json` files anywhere onto the Sanctuary OS window. Sanctuary hashes every file with SHA-256 (`DNA`), runs the **Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke rules)**, enforces single-active binary deduplication across subfolders, and lets you choose **Skip** or **Update & Archive** when dropping a newer or duplicate file.
 - **Top `StatTileCarousel` & `ActionPill`:**
-  - The top row of `DashboardStatTile` cards switches primary sub-views and shows live counts.
+  - The top row of `DashboardStatTile` cards switches primary sub-views (`All`, `Enabled`, `Disabled`, `Version History`, `Unregistered`) and shows live counts.
   - Below it sits the unified `ActionPill` containing the instant Search Bar, the `Filters` **(`tune`)** popover, sort controls, and context actions.
+- **Mod Version History & Mod Family Rollbacks (`Backups/Mods/`):**
+  - Every installed mod is automatically archived from **Version #1** into `<Vault>/Backups/Mods/<rel_dir>/<hash12>/<original_filename>` using zero-extra-byte OS hardlinks while active and retaining standalone rollbacks when updated.
+  - Switch to the **Version History** tab in **Your Vault** (or click **Versions** in any **Mod Dossier** header) to inspect every historical revision, roll back an entire multi-module suite together via the **Suite Revision Matrix (`Family Rollback`)**, or enable **Auto-Swap Versions** in **System Preferences -> Engine** so Sanctuary OS automatically swaps in the matching mod version whenever your game version rolls back or updates.
 - **Mod Card Anatomy & Suite Grouping:**
   - **Equip Toggle Switch:** Projects or unlinks the mod's symlink in your live game folder in milliseconds.
   - **Parent Suite Grouping:** Multi-part mod suites (like *MC Command Center* and its 13 `.package`/`.ts4script` modules) automatically coalesce into a single clean Parent Card with an expandable `{N} Linked Modules ▾` drawer.
   - **Status Badges & Ghosted Cards:** Transparent outlined badges show `Verified`, `Update Available`, `Missing DLC`, `Version Mismatch`, or `Conflict`. Hovering a Ghosted card reveals an instant diagnostic tooltip explaining why the mod is blocked.
-  - **Clicking a Card (`ModDossier` SidePanel):** Opens the right-hand Dossier drawer where you can customize local names/tags/URLs, link a decentralized `manifest.json` / `catalog.json` URL, inspect included files, or view version history.
+  - **Clicking a Card (`ModDossier` SidePanel):** Opens the right-hand Dossier drawer where you can customize local names/tags/URLs, link a decentralized `manifest.json` / `catalog.json` URL, inspect included files, or switch between archived versions.
 
-## Stage 4: Blueprints & 1-Click Loadout Hot-Swapping
+## Stage 4: Blueprints, Multi-Rig Signature Queue & Mobile Companion Radar
 
-**Blueprints** replace manual folder dragging with instant, saved mod loadouts:
+**Blueprints** replace manual folder dragging with instant, saved mod loadouts that synchronize across all of your gaming rigs and mobile devices:
 
-- **Drafting & Hot-Swapping:** Create separate Blueprints for different saves or playstyles (e.g., *Realism Save*, *Occult Challenge*, *Vanilla Patch Test*) and hot-swap between them from the Vault header or the bottom Morphing Dock.
-- **Offline JSON Export & Cloud Uplink Codes (`SNCXXX`):** Export any Blueprint to a portable `.json` file (which carries your custom local `modMeta` URLs and workspace identity offline) or generate a 6-character Cloud Uplink code (`SNCXXX`) to share with friends or publish to The Nexus.
+- **Drafting & 1-Click Hot-Swapping:** Create separate Blueprints for different saves or playstyles (e.g., *Realism Save*, *Occult Challenge*, *Vanilla Patch Test*) and hot-swap between them from the Vault header, right-click context menu, or the bottom Morphing Dock.
+- **Multi-Rig Blueprint Signature Queue & Guided Batch Updater (`1 of N`):**
+  - Edit any Blueprint in-place from your phone, web browser, or secondary PC (`+Added` / `-Removing`) or queue multiple Blueprints (`+1` badge) to your home rigs.
+  - Choose **Leave in Cloud** (with per-machine `Complete on This Rig` tracking so you can deploy the same Blueprint on both your Windows Desktop and your Steam Deck) or **Shred After Deploy** (immediately deleting the AES-256-GCM encrypted cloud payload after deployment).
+  - Any missing or outdated mods in a queued Blueprint route directly into the **Side Browser Guided Batch Updater (`1 of N`)**, which steps through each Mason's official download page and auto-advances the moment the Rust download interceptor verifies the file.
+- **Zero-PII Mobile/Web Vault Companion Radar (`VaultCompanionRadarSidePanel`):**
+  - Open **My Vault Patch Radar** on Mobile PWA or Web to inspect your encrypted Desktop Vault health (`Your Vault`, `Critical Failures`, `System Alerts`, `Updates Available`, and `Blueprints`—including decentralized Static Edge `manifest_url` updates for Compliance Tier 1–4 mods) and queue updates remotely with zero plaintext mod names stored on the server.
+- **Offline JSON Export & Cloud Uplink Codes (`SNCXXX`):** Export any Blueprint to a portable `.json` file (packing your Priority Tiers, custom load order, Load Order Rules, and local `modMeta` URLs) or generate a 6-character Cloud Uplink code (`SNCXXX`) to share with friends or publish to The Nexus.
 
 ## Stage 5: Conflict Radar 2.0, Game-Agnostic Load Order Engine & Homestead Lab
 
@@ -76,8 +88,8 @@ Configure mod settings visually, sync live in-game config changes, and protect y
 
 Every Citizen inherits local creator tooling, backed by hardware-grade security and multi-format bytecode inspection:
 
-- **Open Mason Workshop (Inherited by All Citizens):** Every authenticated Citizen has access to the **Mason Workshop** in the sidebar—including the **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, `Rules & Upload`), **Chameleon Theme Forge** (with 6 Liquid Glass Optics sliders), **Notepad**, and **Static Edge Release Packaging** (`manifest.json` + `catalog.json` + `override.json`).
-- **FIDO2 Passkey & TOTP Vault (`SecurityVaultSidePanel`):** Elevated clearances (`Verified Mason`, `Architect`, `Oversight`, `Wayfinder`, `Keeper`) bind hardware keys, Windows Hello / Touch ID biometrics, or TOTP authenticators via a dedicated right-hand SidePanel lock that gates Elevated Hubs while keeping Citizen sectors accessible.
+- **Open Mason Workshop (Inherited by All Citizens):** Every authenticated Citizen has access to the **Mason Workshop** in the sidebar—including the **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio** (`Details & Versions`, `Files & Folders`, `Rules & Upload`), **Chameleon Theme Forge** (with 6 WebGL2 Liquid Glass Optics sliders, True Glass mode, and 8 `2560×1440` lossless atmospheric wallpapers), **Notepad**, and **Static Edge Release Packaging** (`manifest.json` + `catalog.json` + `override.json`).
+- **FIDO2 Passkey Vault & 12-Hour Cryptographic Device Seal (`SecurityVaultSidePanel`):** Elevated clearances (`Verified Mason`, `Architect`, `Oversight`, `Wayfinder`, `Keeper`) bind hardware keys, Windows Hello / Touch ID biometrics, or TOTP authenticators via a dedicated right-hand SidePanel lock that gates Elevated Hubs and credential updates with a **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)** while keeping Citizen sectors accessible.
 - **Universal Multi-Format Heuristic Scanner & Quarantine Lockdown (`MalwareAlertModal`):** Inspects `.zip`, `.package` (with in-memory Zlib/Zstd DBPF stream decompression), `.ts4script`, `.pyc` bytecode, `.asi`, `.dll`, and `.exe` files against **21 Core Heuristics + 17 Spoke Heuristics** (including Base64/Hex deobfuscation). Confirmed Tier 5 Malware locks the entire OS shell, tracks Move-mode source disposition, offers optional **Zero-PII Threat Manifest** reporting, and enforces a Citizen-signed **Secure Shred**.
 
 ## Stage 8: Decentralized Static Edge Polling (`manifest.json` & `catalog.json`) & 1-Click Auto-Push
@@ -99,22 +111,22 @@ Configure any game engine and customize every word and icon in the operating sys
 Connect directly with Sanctuary Foundry or launch your own Sovereign Community Spoke:
 
 - **Official Core Feedback, Bug Reports & Direct Human Contact:** Submit Core OS bug reports, feature requests, or direct human inquiries straight from the Landing Page (`app_feedback` pipeline).
-- **Global Supporter Pipeline (`$5 = +30 Days` Dev Builds):** Every `$5` contribution adds `+30 days` of automated Dev Build access (Windows `.msi`/`.exe` & macOS `.dmg`/`.app.tar.gz`), verified via Stripe Receipt / Order ID.
+- **Global Supporter Pipeline (`$5 = +30 Days` Dev Builds):** Every `$5` contribution adds `+30 days` of automated Dev Build access (Windows `.msi`/`.exe`, macOS `.dmg`/`.app.tar.gz`, and Linux / SteamOS `.AppImage`/`.deb`), verified via Stripe Receipt / Order ID and unlocking the **Dev Build Clearance Gate**.
 - **Readiness-Gated Partner Spoke Application & Covenants:** Review and accept the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer, verify your `schema.sql` Spoke database readiness, retain **100% of community donations (`0%` Sanctuary cut)**, and exercise unilateral **Cut the Cord** severance at any time.
 
 ---
 
 # Part 2: 12 Citizen & Creator Operational Modules
 
-1. **The Cartographer:** Automated cross-platform drive reconnaissance (Windows `.exe` & macOS `.app`), in-process Rust `pelite` / `Info.plist` version extraction, and symlink privilege verification.
-2. **The Command Center:** Dynamic operational readiness tile, 2-column Incompatible & Update drawers, and the Global Comm-Link feed with interactive community polls.
-3. **Your Vault:** Airgapped symlink projection, multi-file Parent Suite grouping, `Deep Yeet 2.0` cascade protection, and SHA-256 duplicate / Static Edge intercept.
-4. **Blueprints:** Zero-copy loadout hot-swapping, portable offline `.json` exports, and 6-character `SNCXXX` cloud share codes.
-5. **The Nexus & Integrated Side Browser:** Version-filtered discovery for Mods, Blueprints, Lexicons, Chameleons, and Workbench Templates, paired with a built-in download-intercepting Side Browser.
+1. **The Cartographer:** Automated cross-platform drive reconnaissance (Windows `.exe`, macOS `.app`, and Linux / SteamOS Proton `compatdata` + SD card mounts), in-process Rust `pelite` / `Info.plist` / `.acf` version extraction, and symlink privilege verification.
+2. **The Command Center:** Dynamic operational readiness tiles, 2-column Incompatible & Update drawers, OS-wide `Ctrl+K` Command Matrix, and the Global Comm-Link feed with interactive community polls.
+3. **Your Vault & Mod Version History:** Airgapped symlink projection, multi-file Parent Suite grouping, zero-byte hardlink **Mod Version History (`Backups/Mods/`)**, **Suite Revision Matrix (`Family Rollback`)**, game-version **Auto-Swap**, single-active binary deduplication, `Deep Yeet 2.0` cascade protection, and SHA-256 duplicate / Static Edge intercept.
+4. **Blueprints, Multi-Rig Signature Queue & Mobile Companion Radar:** Zero-copy loadout hot-swapping, portable offline `.json` exports, 6-character `SNCXXX` cloud share codes, Multi-Rig Blueprint Queueing (`Leave in Cloud` vs. `Shred After Deploy` with per-rig `Complete on This Rig`), and the Zero-PII AES-256-GCM **Mobile/Web Vault Companion Radar**.
+5. **The Nexus & Guided Side Browser (`1 of N`):** Version-filtered discovery for Mods, Blueprints, Lexicons, Chameleons, and Workbench Templates, paired with a download-intercepting Side Browser featuring the **Guided Batch Updater (`1 of N`)**.
 6. **Conflict Radar 2.0 & Game-Agnostic Load Order Engine:** 5-Tier Severity Matrix (`S1 Visual` to `S5 Loop`), decompressed DBPF/XML Side-by-Side Resource Diff Inspector (Zlib / EA RefPack / Zstd), 1-click `"Set Winner"` resolution, 4-tier Priority Override folders (`Standard Load` to `Final Override`), directional `Must Load After/Before` rules, and searchable Blueprint Scan Scope switching (`folder_priority`, `manifest_list`, `numeric_prefix`, `timestamp`).
-7. **Homestead Lab:** 100% Nuke sandbox isolation and 1v1 conflict arena with `save_airgap_targets` backup/restore and real-time exception log capture.
+7. **Homestead Lab:** 100% Nuke sandbox isolation and 1v1 conflict arena with `save_airgap_targets` backup/restore, real-time exception log capture, and proactive Zero-PII log scrubbing across Windows, macOS, Linux, and Proton.
 8. **Time Capsule & Citizen's Workbench:** Incremental OS hardlink snapshots (`World State` & `Engine Core`), differential rollback, 60 FPS 2-column visual config editing, Dynamic Config Watcher, and Timeline Diff.
-9. **Chameleons, Lexicons & Universal Malware Defense:** 6-slider Liquid Glass V3 Theme Forge, 4-dictionary Lexicon hot-swapping, Universal 21+17 Heuristic Scanner, FIDO2 Passkey Vault, and Full-OS Quarantine Lockdown.
+9. **WebGL2 Liquid Glass Chameleons, Lexicons & Universal Malware Defense:** 1:1 physical-pixel WebGL2 3D Liquid Glass Optical Engine (`webgl_glass_v61` / `rev_74`), 8 `2560×1440` lossless atmospheric wallpapers, 4-dictionary Lexicon hot-swapping, Universal 21+17 Heuristic Scanner, FIDO2 Passkey Vault (`12-hour Device Seal`), and Full-OS Quarantine Lockdown.
 10. **Decentralized Static Edge Release & Catalog Engine:** Zero-server `manifest.json` and `catalog.json` packaging, 6-provider 1-click Auto-Push, and automatic `previous_hashes` lineage rollover.
 11. **Master Schema Studio & Lexicon Terminology Studio:** 7 multi-game architecture presets, secondary `install_routes`, `mod_categories`, 21 `{Glossary}` tokens, Guided Icon Override Builder, and interactive Codex Guides.
 12. **Wayfinder Spoke Control, Covenants & Supporter Bridge:** Spoke Setup & Maintenance, Partners Agreement & Compliance Protocol inspection, Unilateral `Cut the Cord` severance, 0%-cut non-custodial community donations, and `$5 = +30 Days` Dev Builds.
@@ -136,15 +148,15 @@ Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`
 - **Scope:** Active Game Spoke (`userRole = 'mason'` / `isVerifiedMason = true`). Requires FIDO2 Passkey + TOTP Vault binding.
 - **Capabilities:** Inherits all Tier 1 Citizen & Open Workshop tools, and unlocks **Direct Nexus Artifact Publishing**, the **Verified Mason Queue Fast-Lane** (bypassing the `min_scout_submissions` crowd threshold), **Public Mason Profile & Featured Showcase Management**, **Supporter Bridge (`0% Platform Cut` Patreon/Ko-fi auto-stacking)**, **Creator Comm-Link Broadcasts**, and **Direct Bug Report Dossiers**.
 
-## Tier 3: Architect (Registry & Conflict Moderator)
+## Tier 3: Architect (Registry & Conflict Moderator — Strict Tier 0 Isolation)
 
 - **Scope:** Active Game Spoke (`userRole = 'architect'`). Requires FIDO2 Passkey + TOTP Vault binding.
-- **Capabilities:** Unlocks the **Architect Console**—including the **Unified 3-Tile Artifact Studio** for global registry curation, **Verified Mason Queue & Scout Queue Triage**, the global **Conflict Matrix** (authoring Severity 1–4 directives), **Check Hash & Deep Heuristic File Verification (`FileVerificationSidePanel`)**, **Template Oversight**, **Nexus Reports Triage**, and the **Citizen Support Desk** (with ticket claiming and log inspection).
+- **Capabilities:** Unlocks the **Architect Console** (strictly isolated to **Compliance Tier 0** public records)—including the **Unified 3-Tile Artifact Studio** for Tier 0 registry curation, **Verified Mason Queue & Scout Queue Triage**, the global **Conflict Matrix** (authoring Severity 1–4 directives), **Check Hash & Deep Heuristic File Verification (`FileVerificationSidePanel`)**, **Template Oversight**, **Nexus Reports Triage**, and the **Citizen Support Desk** (with ticket claiming and Zero-PII log inspection).
 
 ## Tier 4: Oversight (Spoke Security & System Administrator)
 
 - **Scope:** Active Game Spoke (`userRole = 'oversight'`). Requires FIDO2 Passkey + TOTP Vault binding.
-- **Capabilities:** Unlocks **Oversight Command**—including **Spoke Heuristic Signatures Management** (authoring game-specific antivirus bytecode/binary rules alongside Core Heuristics), **Tier 5 Malware Flagging**, **Emergency DEFCON 1 Lockdown Triggers**, **Spoke Identity Matrix Governance** (up to `architect`), **Game Version & DLC Patch Registration**, **Mass Registry Batch Updates**, and **Mason Profile Linking**.
+- **Capabilities:** Unlocks **Oversight Command**—including **Spoke Heuristic Signatures Management** (authoring game-specific antivirus bytecode/binary rules alongside Core Heuristics), **Compliance Tiers 1–5 Escalation & Malware Flagging**, **Emergency DEFCON 1 Lockdown Triggers**, **Spoke Identity Matrix Governance** (up to `architect`), **Game Version & DLC Patch Registration**, **Mass Registry Batch Updates**, and **Mason Profile Linking**.
 
 ## Tier 5: Wayfinder (Community Manager & Spoke Sovereign)
 
@@ -221,13 +233,13 @@ When you build a new version (`v1.1.0`):
 
 ## 5.1 Master Schema Studio (`sims4.json` & Multi-Game Engine Blueprints)
 
-A **Master Schema JSON** is the engine blueprint that makes Sanctuary OS 100% game-agnostic across Windows and macOS:
+A **Master Schema JSON** is the engine blueprint that makes Sanctuary OS 100% game-agnostic across Windows, macOS, and Linux / SteamOS:
 
 1. **7 Built-In Game Architecture Presets & Safe Defaults:**
    - Choose from **The Sims 4 (`DBPF + Python`)**, **Cyberpunk 2077 (`REDengine 4`)**, **Skyrim SE / Fallout 4 (`Creation Engine`)**, **Grand Theft Auto V (`RAGE / OpenIV`)**, **Baldur's Gate 3 (`Larian .pak`)**, **Stardew Valley (`SMAPI`)**, or **Universal**, or click **Populate Safe Defaults** to fill any missing keys without overwriting your customized fields.
 2. **Cross-Platform Executables, Paths & Vanilla Isolation (`Tab 1 — Identity & Paths`):**
    - **Game Binaries & Binary Subfolder:** List Windows `.exe` and macOS `.app` bundles (e.g., `TS4_x64.exe`, `The Sims 4.app`) and optional `executable_subdir` (`Game/Bin`, `bin/x64`).
-   - **Environment Variables:** Supports `%USERPROFILE%`, `%LOCALAPPDATA%`, `%APPDATA%` on Windows and `~/Documents`, `~/Library/Application Support`, `/Applications/*.app` on macOS.
+   - **Environment Variables:** Supports `%USERPROFILE%`, `%LOCALAPPDATA%`, `%APPDATA%` on Windows, `~/Documents`, `~/Library/Application Support`, `/Applications/*.app` on macOS, and automatic Proton `compatdata/<AppID>/pfx/drive_c/users/steamuser/` + SD card (`/run/media/mmcblk0p1`) mapping on Linux & SteamOS.
    - **Engine Safeguards:**
      - `shared_vanilla_dir`: Tracks deployed links in `.sanctuary_deployed_links.json` when deploying directly into a directory that also contains vanilla game files, guaranteeing vanilla files are never deleted on un-deploy.
      - `preserve_archive_structure`: Preserves internal subfolder hierarchies when unpacking archives (required for Cyberpunk 2077, Skyrim `Data/`, and SMAPI).
@@ -267,9 +279,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through the **Lex
    - Bundled `.md` Directives, Legal Covenants, Master Schemas (`sims4.json`), and Lexicons (`en-default.json`, `en-sanctuary.json`, `en-sims.json`, `Simlish.json`) serve as the zero-latency first-launch and 100% offline backup.
    - When connected to the network, Sanctuary OS automatically pulls live updates from the Hub database (`public.system_directives`, `public.keeper_system_broadcasts`, `public.sanctuary_schemas`) without requiring a desktop app reinstall.
 2. **Global Supporter Pipeline (`$5 = +30 Days` Dev Builds):**
-   - Every `$5` contribution adds `+30 days` of automated Dev Build access (`Windows .msi/.exe` and `macOS .dmg/.app.tar.gz`), redeemable via Stripe Receipt / Order ID on both the Web OS and Desktop OS.
+   - Every `$5` contribution adds `+30 days` of automated Dev Build access (`Windows .msi/.exe`, `macOS .dmg/.app.tar.gz`, and `Linux / SteamOS .AppImage/.deb`), redeemable via Stripe Receipt / Order ID on both the Web OS and Desktop OS.
 3. **Readiness-Gated Partner Spoke Onboarding & Sovereign Covenants:**
    - Community leaders applying via **Apply to be a Partner** on the Landing Page can inspect both the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer before testing their `schema.sql` Spoke handshake.
    - Once active, Wayfinders can review both covenants at any time inside **Wayfinder Operations → Spoke Control → Spoke Setup & Maintenance**, configure **0%-cut non-custodial community donations**, or execute unilateral **Cut the Cord** severance.
-
-

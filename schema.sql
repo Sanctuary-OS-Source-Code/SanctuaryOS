@@ -1,5 +1,5 @@
 -- ============================================================================
--- SANCTUARY OS: TURNKEY SPOKE DATABASE SCHEMA (V0.5.7)
+-- SANCTUARY OS: TURNKEY SPOKE DATABASE SCHEMA (V0.6.0)
 -- ============================================================================
 -- HOW TO USE:
 -- 1. Create a new Supabase project for your game community (Spoke).
@@ -1078,7 +1078,7 @@ BEGIN
     END LOOP;
 END $$;
 
-SELECT 'Sanctuary OS Spoke Schema V0.5.7 Initialized Successfully' AS status;
+SELECT 'Sanctuary OS Spoke Schema V0.6.0 Initialized Successfully' AS status;
 
 
 

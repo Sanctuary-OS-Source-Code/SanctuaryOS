@@ -1,5 +1,5 @@
 -- ============================================================================
--- SANCTUARY OS: CORE HUB DATABASE SCHEMA (V0.5.7)
+-- SANCTUARY OS: CORE HUB DATABASE SCHEMA (V0.6.0)
 -- ============================================================================
 -- This schema defines the central Sanctuary OS Hub database ("Keepers Core").
 -- It governs global Citizen authentication, Master Game Schemas, Chameleon
@@ -532,7 +532,7 @@ CREATE POLICY "Keepers can manage system broadcasts" ON system_broadcasts FOR AL
 CREATE POLICY "Authenticated users can vote on dispatch polls" ON dispatch_poll_votes FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 CREATE POLICY "Authenticated users can remove own dispatch poll votes" ON dispatch_poll_votes FOR DELETE USING (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
-SELECT 'Sanctuary OS Core Hub Schema V0.5.7 Initialized Successfully' AS status;
+SELECT 'Sanctuary OS Core Hub Schema V0.6.0 Initialized Successfully' AS status;
 
 -- ============================================================================
 -- 7. BILATERAL CODEBASE-TO-KEEPERS-CORE SYSTEM DIRECTIVES TABLE
@@ -545,7 +545,7 @@ CREATE TABLE IF NOT EXISTS public.system_directives (
     file_path text NOT NULL,
     content text NOT NULL DEFAULT '',
     structured_payload jsonb DEFAULT '{}'::jsonb,
-    version text DEFAULT 'v0.5.8-Dev.3',
+    version text DEFAULT 'v0.6.0-Dev.2',
     updated_at timestamptz DEFAULT now(),
     updated_by text DEFAULT 'Keepers Core'
 );

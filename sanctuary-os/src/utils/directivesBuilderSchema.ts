@@ -115,7 +115,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 81;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 82;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -1306,20 +1306,20 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_explore", "explore"),
               overline: "STAGE 2 OF 10",
               badge: t("dir_walk_s2_short", "2. Cartographer"),
-              title: t("dir_walk_s2_title", "Mounting a Workspace & Cartographer (Win & Mac)"),
-              footerMeta: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE/Plist Ripper"),
+              title: t("dir_walk_s2_title", "Mounting a Workspace & Cartographer (Win, Mac & Linux / SteamOS)"),
+              footerMeta: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE/Plist/Proton Ripper"),
               desc: t(
                 "dir_walk_s2_desc",
-                "Selecting a workspace on the Landing Page launches The Cartographer to link your Windows (.exe) or macOS (.app) game binary, live {Mods} directory, and airgapped {Vault} storage."
+                "Selecting a workspace on the Landing Page launches The Cartographer to link your Windows (.exe), macOS (.app), or Linux / SteamOS (Proton compatdata) game binary, live {Mods} directory, and airgapped {Vault} storage."
               ),
               subCards: [
                 {
                   id: "walk_2_c1",
                   icon: t("icon_terminal", "terminal"),
-                  title: t("dir_walk_s2_c1_name", "Bin Folder (Windows .exe & macOS .app)"),
+                  title: t("dir_walk_s2_c1_name", "Bin Folder (Windows .exe, macOS .app & Linux / Proton)"),
                   desc: t(
                     "dir_walk_s2_c1_desc",
-                    "Points to your game binary (e.g. TS4_x64.exe or The Sims 4.app). Sanctuary extracts the genuine patch version in-process via Rust pelite or macOS Info.plist."
+                    "Points to your game binary (e.g. TS4_x64.exe or The Sims 4.app). Sanctuary extracts the genuine patch version in-process via Rust pelite or macOS Info.plist across native and Proton prefixes."
                   ),
                 },
                 {
@@ -1337,7 +1337,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s2_c3_name", "{Vault} Folder (Deep Archive)"),
                   desc: t(
                     "dir_walk_s2_c3_desc",
-                    "Your isolated storage directory where Sanctuary builds {Mods}/, {Blueprints}/, Backups/World/, Backups/Engine/, Quarantine/, and Data/Cache/."
+                    "Your isolated storage directory where Sanctuary builds {Mods}/, {Blueprints}/, Backups/World/, Backups/Engine/, Backups/Mods/, Quarantine/, and Data/Cache/."
                   ),
                 },
               ],
@@ -1647,7 +1647,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s10_c1_name", "Supporter Pipeline ($5 = +30 Days Dev Builds)"),
                   desc: t(
                     "dir_walk_s10_c1_desc",
-                    "Every $5 contribution adds +30 days of automated Dev Build access (Windows .msi & macOS .dmg) verified via Stripe Receipt / Order ID."
+                    "Every $5 contribution adds +30 days of automated Dev Build access (Windows .msi, macOS .dmg & Linux / SteamOS .AppImage/.deb) verified via Stripe Receipt / Order ID."
                   ),
                 },
                 {
@@ -1713,15 +1713,15 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_inventory_2", "inventory_2"),
                   title: g("Isolated {Vault} Folder (Deep Storage)"),
                   desc: g(
-                    "Your airgapped archive containing {Mods}/, {Blueprints}/, Backups/World, Backups/Engine, Quarantine/, and Data/Cache (.sanctuary_cache.db)."
+                    "Your airgapped archive containing {Mods}/, {Blueprints}/, Backups/World, Backups/Engine, Backups/Mods, Quarantine/, and Data/Cache (.sanctuary_cache.db)."
                   ),
                 },
                 {
                   id: "mod_1_c4",
                   icon: t("icon_verified_user", "verified_user"),
-                  title: g("Windows & macOS Symlink Permissions"),
+                  title: g("Windows, macOS & Linux / SteamOS Symlink Permissions"),
                   desc: g(
-                    "Enable Windows Developer Mode (or macOS Full Disk Access) so the Airgap engine can project zero-byte symlinks and manage com.apple.quarantine attributes cleanly."
+                    "Enable Windows Developer Mode (or macOS Full Disk Access; native POSIX symlinks on Linux & SteamOS) so the Airgap engine can project zero-byte symlinks and manage com.apple.quarantine attributes cleanly."
                   ),
                 },
               ],
@@ -2166,7 +2166,7 @@ export function getDefaultDirectiveBuilderSchema(
               title: g("Master Schema Studio & Lexicon Terminology Studio"),
               footerMeta: g("7 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES"),
               desc: g(
-                "Visual IDEs for engineering cross-platform game schemas (Windows & macOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons."
+                "Visual IDEs for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons."
               ),
               tip: g(
                 "Click the book icon (Schema Codex / Lexicon Codex) in the studio header at any time for an interactive field-by-field reference."
@@ -2177,7 +2177,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_terminal", "terminal"),
                   title: g("Cross-Platform Binaries, Routes & Config Watcher"),
                   desc: g(
-                    "Map Windows (.exe) and macOS (.app) paths, custom secondary install_routes (.world, .asi, .dll), and config_extensions for live in-game config syncing."
+                    "Map Windows (.exe), macOS (.app), and Linux / SteamOS (Proton compatdata) paths, custom secondary install_routes (.world, .asi, .dll), and config_extensions for live in-game config syncing."
                   ),
                 },
                 {
@@ -2233,7 +2233,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_link_off", "link_off"),
                   title: g("Unilateral 'Cut the Cord' Severance"),
                   desc: g(
-                    "Double-click Cut the Cord in Wayfinder Hub to scrub your service key from the Hub while keeping 100% of your community's 36-table Supabase database."
+                    "Double-click Cut the Cord in Wayfinder Hub to scrub your service key from the Hub while keeping 100% of your community's 38-table Supabase database."
                   ),
                 },
                 {
@@ -2249,7 +2249,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_system_update_alt", "system_update_alt"),
                   title: g("Dev Builds & Cross-Platform Auto-Updater"),
                   desc: g(
-                    "Supporters ($5 = +30 Days) and Partner team members receive automated Windows (.msi/.exe) and macOS (.dmg/.app.tar.gz) Dev Build updates."
+                    "Supporters ($5 = +30 Days) and Partner team members receive automated Windows (.msi/.exe), macOS (.dmg/.app.tar.gz), and Linux / SteamOS (.AppImage/.deb) Dev Build updates."
                   ),
                 },
               ],
@@ -2360,23 +2360,23 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m9",
-            icon: t("icon_phonelink_ring", "phonelink_ring"),
+            icon: t("icon_science", "science"),
             title: g("Mobile PWA / Web 'My {Vault} Patch Radar' (Zero-PII Cloud Companion)"),
             desc: g(
               "Optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} on Mobile PWA or Web immediately see which of their installed {mods} broke in a game patch and can queue updates remotely."
             ),
-            pending: true,
-            roadmapStatus: "in_progress",
+            pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m10",
-            icon: t("icon_playlist_play", "playlist_play"),
+            icon: t("icon_science", "science"),
             title: g("Realtime Queue Handshake & Side Browser Guided Batch Updater"),
             desc: g(
               "Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each {Mason}'s download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
             ),
-            pending: true,
-            roadmapStatus: "in_progress",
+            pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m11",
@@ -3194,7 +3194,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_database", "database"),
                   title: g("Step 1: Initialize Your Supabase Spoke (schema.sql)"),
                   desc: g(
-                    "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 36 community tables, RLS policies, immutable audit triggers, and role functions."
+                    "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 38 community tables, RLS policies, immutable audit triggers, and role functions."
                   ),
                 },
                 {
@@ -3347,8 +3347,8 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_schema", "schema"),
               overline: g("MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM"),
               badge: g("7 Engine Presets"),
-              title: g("Master Schema Studio & Windows/macOS Build Pipeline"),
-              footerMeta: "sims4.json • Universal Darwin .dmg & Windows .msi",
+              title: g("Master Schema Studio & Windows/macOS/Linux Build Pipeline"),
+              footerMeta: "sims4.json • Windows .msi, Darwin .dmg & Linux / SteamOS .AppImage/.deb",
               desc: g(
                 "Adapt Sanctuary OS to any game engine without touching Rust or React code by configuring a declarative Master Schema JSON in Wayfinder or Keepers IDE."
               ),
@@ -3364,9 +3364,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "fork_m3_s2",
                   icon: t("icon_laptop_mac", "laptop_mac"),
-                  title: g("Windows (.exe) & macOS (.app) Native Parity"),
+                  title: g("Windows (.exe), macOS (.app) & Linux / SteamOS Parity"),
                   desc: g(
-                    "Supports Windows %USERPROFILE% and macOS ~/Documents & /Applications/*.app bundles, plus universal-apple-darwin .dmg builds."
+                    "Supports Windows %USERPROFILE%, macOS ~/Documents & /Applications/*.app bundles, and Linux / SteamOS Proton compatdata prefixes, plus Windows .msi, universal-apple-darwin .dmg, and Linux .AppImage/.deb builds."
                   ),
                 },
               ],
@@ -3382,12 +3382,12 @@ export function getDefaultDirectiveBuilderSchema(
             {
               id: "fork_sql_spoke",
               icon: t("icon_storage", "storage"),
-              overline: g("Spoke & Standalone DB • 36 Tables"),
+              overline: g("Spoke & Standalone DB • 38 Tables"),
               badge: "schema.sql",
-              title: g("schema.sql (36 Tables)"),
+              title: g("schema.sql (38 Tables)"),
               footerMeta: "Community Spoke & Standalone Fork SQL",
               desc: g(
-                "Complete community registry schema (mods, blueprints, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
+                "Complete community registry schema (mods, blueprints, citizen_staging_queue, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
               ),
               subCards: [],
             },
@@ -3432,9 +3432,9 @@ export function getDefaultDirectiveBuilderSchema(
               title: g(
                 "Tauri v2 Rust Kernel, Liquid Glass V3, Schema Studio & Lexicon Engine"
               ),
-              footerMeta: "Tauri v2 • React 18 • Liquid Glass V3 • Win & Mac",
+              footerMeta: "Tauri v2 • React 18 • Liquid Glass V3 • Win, Mac & Linux / SteamOS",
               desc: g(
-                "Sanctuary OS combines a zero-overhead native Rust backend across Windows and macOS with a GPU-pinned 3D refractive Liquid Glass interface, a 4-Tab Master Schema Studio, and a 21-token Lexicon Engine."
+                "Sanctuary OS combines a zero-overhead native Rust backend across Windows, macOS, and Linux / SteamOS with a GPU-pinned 3D refractive Liquid Glass interface, a 4-Tab Master Schema Studio, and a 21-token Lexicon Engine."
               ),
               subCards: [
                 {
@@ -3448,9 +3448,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "arch_p1_c2",
                   icon: t("icon_memory", "memory"),
-                  title: g("Tauri v2 Native Rust Core (Win & Mac)"),
+                  title: g("Tauri v2 Native Rust Core (Win, Mac & Linux / SteamOS)"),
                   desc: g(
-                    "Native Tauri v2 Rust core: pelite PE & macOS Info.plist version ripper, SQLite .sanctuary_cache.db mtime delta scanner, WebAuthn FIDO2 bridge, and .msi/.dmg auto-updater."
+                    "Native Tauri v2 Rust core: pelite PE & macOS Info.plist version ripper, Linux / SteamOS Proton compatdata prefix resolver, SQLite .sanctuary_cache.db mtime delta scanner, WebAuthn FIDO2 bridge, and .msi/.dmg/.AppImage/.deb auto-updater."
                   ),
                 },
                 {
@@ -3497,7 +3497,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_hub", "hub"),
                   title: g("Core OS Hub vs. Sovereign Community Spoke DBs"),
                   desc: g(
-                    "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 36 community tables."
+                    "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 38 community tables."
                   ),
                 },
                 {
@@ -3760,11 +3760,11 @@ export function getDefaultDirectiveBuilderSchema(
             overline: g("DOMAIN 1 • 10 PROTOCOLS"),
             badge: "DOMAIN 1",
             title: g(
-              "System Foundation, Cross-Platform (Windows + macOS) & Bilateral Sync Protocols"
+              "System Foundation, Cross-Platform (Windows + macOS + Linux / SteamOS) & Bilateral Sync Protocols"
             ),
             footerMeta: g("DOMAIN 1 • 10 PROTOCOLS"),
             desc: g(
-              "Cross-platform binary reconnaissance, macOS TCC/Gatekeeper handling, Master Schema & Lexicon Studios, Turnkey Spoke Uplinks, Bilateral Severance, and Codebase-to-Hub Sync."
+              "Cross-platform binary reconnaissance, macOS TCC/Gatekeeper & Linux/SteamOS Proton handling, Master Schema & Lexicon Studios, Turnkey Spoke Uplinks, Bilateral Severance, and Codebase-to-Hub Sync."
             ),
             subCards: [
               {
@@ -3772,15 +3772,15 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_explore", "explore"),
                 title: g("The Cartographer"),
                 desc: g(
-                  "Automated first-boot reconnaissance system that locates the Game Bin (executable_subdir), live {Mods} directory, and external {Vault} archive path across Windows and macOS."
+                  "Automated first-boot reconnaissance system that locates the Game Bin (executable_subdir), live {Mods} directory, and external {Vault} archive path across Windows, macOS, and Linux / SteamOS."
                 ),
               },
               {
                 id: "proto_d1_r2",
                 icon: t("icon_memory", "memory"),
-                title: g("Cross-Platform Version Ripper (pelite + macOS Info.plist)"),
+                title: g("Cross-Platform Version Ripper (pelite + macOS Info.plist + Proton)"),
                 desc: g(
-                  "In-process Rust binary inspector that extracts genuine patch versions directly from Windows .exe PE headers and macOS .app/Contents/Info.plist without spawning external processes."
+                  "In-process Rust binary inspector that extracts genuine patch versions directly from Windows .exe PE headers, macOS .app/Contents/Info.plist, and Linux/SteamOS Proton prefixes without spawning external processes."
                 ),
               },
               {
@@ -3820,7 +3820,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_key", "key"),
                 title: g("Turnkey Spoke Uplink Handshake (SANCTUARY-UPLINK://)"),
                 desc: g(
-                  "1-click onboarding protocol (verify_and_bootstrap_spoke) that validates all 36 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
+                  "1-click onboarding protocol (verify_and_bootstrap_spoke) that validates all 38 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
                 ),
               },
               {

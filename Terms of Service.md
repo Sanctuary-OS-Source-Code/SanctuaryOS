@@ -1,12 +1,12 @@
 # Sanctuary OS — Terms of Service (TOS)
 
-**Document Version:** V5.8 (v0.5.8-Dev.5)  
-**Effective Date:** October 28, 2026  
+**Document Version:** V6.0 (v0.6.0-Dev.2)  
+**Effective Date:** November 4, 2026  
 
 ---
 
 ## 1. Acceptance of Terms & Hub-and-Spoke Ecosystem
-By creating an account or connecting to the **Sanctuary OS** network, you agree to these Terms of Service ("Terms"), the [End-User License Agreement (EULA)](./EULA.md), the [Privacy Policy](./Privacy%20Policy.md), and the [Global Compliance Protocol](./Compliance%20Protocol.md).
+By creating an account or connecting to the **Sanctuary OS** network across Windows, macOS, Linux, SteamOS, or Web/Mobile PWA, you agree to these Terms of Service ("Terms"), the [End-User License Agreement (EULA)](./EULA.md), the [Privacy Policy](./Privacy%20Policy.md), and the [Global Compliance Protocol](./Compliance%20Protocol.md).
 
 Sanctuary OS operates as a **Federated Hub-and-Spoke Network**:
 * **The Sanctuary OS Hub (`Keepers Core`):** Provides global Single Sign-On (SSO) identity, WebAuthn/FIDO2 Passkey verification, baseline malware heuristics (`keeper_heuristic_signatures`), and the Keepers Core Default Schema.
@@ -16,27 +16,27 @@ Sanctuary OS operates as a **Federated Hub-and-Spoke Network**:
 
 ## 2. The 6-Tier Clearance Hierarchy & FIDO2 Security Vault
 Access to network features is governed by the 6-Tier Clearance Matrix:
-1. **Tier 1 — Citizen (`citizen`):** Access to all 9 Citizen modules, the local **Open Mason Workshop** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, `Static Edge Export`), Cloud Blueprints, and Scout Queue submissions.
+1. **Tier 1 — Citizen (`citizen`):** Access to all 9 Citizen modules, the local **Open Mason Workshop** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, `Static Edge Export`), Multi-Rig Cloud Blueprints, and Scout Queue submissions.
 2. **Tier 2 — Verified Mason (`mason`):** Verified creator clearance unlocking direct Nexus metadata publishing, the Verified Mason Queue fast-lane, Public Mason Profiles, and the 0%-cut Supporter Bridge.
-3. **Tier 3 — Architect (`architect`):** Spoke registry and conflict matrix moderator, Scout Queue reviewer, and Citizen Support Desk responder.
-4. **Tier 4 — Oversight (`oversight`):** Spoke security administrator managing Spoke Heuristics, Tier 5 Malware flags, DEFCON 1 patch shields, and role assignments up to Architect.
+3. **Tier 3 — Architect (`architect`):** Spoke Tier-0 registry and conflict matrix moderator, Scout Queue reviewer, and Citizen Support Desk responder.
+4. **Tier 4 — Oversight (`oversight`):** Spoke security administrator managing Spoke Heuristics, Compliance Tiers 1–5 moderation, DEFCON 1 patch shields, and role assignments up to Architect.
 5. **Tier 5 — Wayfinder (`wayfinder`):** Sovereign Spoke owner managing `Spoke Control`, `Spoke Aesthetics`, Master Schemas, Lexicons, Non-Custodial Community Donations, and unilateral **"Cut the Cord"** severance.
 6. **Tier 6 — Keeper (`keeper`):** Sanctuary Foundry Core OS administrator.
 
-**Mandatory FIDO2 / TOTP Verification:** Users holding Elevated Clearances (`Tier 2 Verified Mason` through `Tier 6 Keeper`) must bind a hardware/biometric **FIDO2 Passkey** or **TOTP Authenticator** via the **Security Vault SidePanel** to access administrative hubs.
+**Mandatory FIDO2 Passkey Step-Up & 12-Hour Device Seal:** Users holding Elevated Clearances (`Tier 2 Verified Mason` through `Tier 6 Keeper`) must bind a hardware/biometric **FIDO2 Passkey** or **TOTP Authenticator** via the **Security Vault SidePanel**. Accessing Elevated Hubs or modifying account credentials requires an active per-session FIDO2 Passkey verification or a valid **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)**. Pre-release Development Builds (`-Dev`) additionally enforce the **Dev Build Clearance Gate** requiring an active Supporter subscription (`dev_build_until`), Partner Spoke staff clearance, or Verified Mason clearance.
 
 ---
 
 ## 3. Metadata-Only Registry & Creator Intellectual Property
 1. **No Unauthorized Redistribution:** The Nexus indexes cryptographic SHA-256 / Blake3 DNA hashes, dependency rules, compatibility telemetry, Workbench config templates, Chameleon themes, and Lexicon dictionaries. Uploading or linking pirated, paywall-circumvented, or stolen creator assets is strictly prohibited.
-2. **Creator Sovereignty:** Masons retain 100% ownership of their intellectual property, external download links, and Static Edge manifests (`manifest.json` / `override.json`).
+2. **Creator Sovereignty:** Masons retain 100% ownership of their intellectual property, external download links, and Static Edge manifests (`manifest.json` / `catalog.json` / `override.json`).
 
 ---
 
-## 4. The Florida Compliance Layer (Tiers 0–5) & Prohibited Conduct
+## 4. The Florida Compliance Layer (Tiers 0–5), Strict Tier 0 Isolation & Prohibited Conduct
 All network submissions must adhere to the [Global Compliance Protocol](./Compliance%20Protocol.md):
-* **Public Feeds Are Strictly Tier 0:** Public Nexus discovery feeds and shared Cloud Blueprints (`SNCXXX`) are restricted to **Compliance Tier 0 (Public Safe)** artifacts. Any hash flagged as **Tier 1–2 (Explicit / Illicit)** or **Tier 3–4 (Severe / Taboo)** is automatically scrubbed from public feeds and purged from Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`), though it remains usable in your private local Vault.
-* **Zero Tolerance for Tier 5 Malware:** Intentionally submitting, disguising, or distributing **Compliance Tier 5 (Malware)**—including credential stealers, webhook exfiltrators, or unauthorized remote execution payloads—results in immediate permanent account termination and hardware-hash blacklisting (`hardware_bans`) across the entire Sanctuary network.
+* **Public Feeds & Architect Console Are Strictly Tier 0:** Public Nexus discovery feeds, the Tier 3 **Architect Console**, and shared Cloud Blueprints (`SNCXXX`) are restricted exclusively to **Compliance Tier 0 (Public Safe)** artifacts. Any hash flagged as **Tier 1–2 (Explicit / Illicit)** or **Tier 3–4 (Severe / Taboo)** is automatically scrubbed from public feeds, isolated from Tier 3 Architects (escalating strictly to **Oversight Command -> Compliance**), and purged from Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`), though it remains usable in your private local Vault and via decentralized Static Edge Manifests (`manifest_url`).
+* **Zero Tolerance for Tier 5 Malware:** Intentionally submitting, disguising, or distributing **Compliance Tier 5 (Malware)**—including credential stealers, webhook exfiltrators, or unauthorized remote execution payloads—results in immediate permanent account termination and domain-salted SHA-256 hardware-hash blacklisting (`hardware_bans`) across the entire Sanctuary network.
 
 ---
 

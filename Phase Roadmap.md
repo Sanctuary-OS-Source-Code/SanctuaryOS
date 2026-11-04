@@ -166,7 +166,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
 <!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:
 {
   "slug": "phase_roadmap",
-  "_schemaVersion": 81,
+  "_schemaVersion": 82,
   "title": "Master Phase Roadmap",
   "summary": "Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Multi-Engine Live Adapters, Save-Airgapped External Creator Tool Bridge, Guided Package & Crash Diagnostics, Cross-Platform Vault Companion & Protocol Regression Suite) and Phase 13 (V5.8) down to Phase 1 (Genesis & Cartographer).",
   "tabs": [
@@ -252,19 +252,19 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
             },
             {
               "id": "phase_14_m9",
-              "icon": "phonelink_ring",
+              "icon": "science",
               "title": "Mobile PWA / Web 'My Vault Patch Radar' (Zero-PII Cloud Companion)",
               "desc": "Optional encrypted sync of active Blueprint DNA hashes so Citizens on Mobile PWA or Web immediately see which of their installed artifacts broke in a game patch and can queue updates remotely.",
-              "pending": true,
-              "roadmapStatus": "in_progress"
+              "pending": false,
+              "roadmapStatus": "in_testing"
             },
             {
               "id": "phase_14_m10",
-              "icon": "playlist_play",
+              "icon": "science",
               "title": "Realtime Queue Handshake & Side Browser Guided Batch Updater",
               "desc": "Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each Mason's download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive.",
-              "pending": true,
-              "roadmapStatus": "in_progress"
+              "pending": false,
+              "roadmapStatus": "in_testing"
             },
             {
               "id": "phase_14_m11",
